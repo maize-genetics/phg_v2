@@ -1,4 +1,3 @@
-import org.gradle.api.JavaVersion.VERSION_11
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -59,12 +58,6 @@ dependencies {
     listOf("runner-junit5", "assertions-core", "property", "framework-datatest").forEach {
         testImplementation("io.kotest:kotest-$it-jvm:$kotestVersion")
     }
-}
-
-java {
-    sourceCompatibility = VERSION_11
-    targetCompatibility = VERSION_11
-    withSourcesJar()
 }
 
 tasks.test {
