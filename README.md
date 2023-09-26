@@ -1,5 +1,5 @@
 # PHG version 2
-The Practical Haplotype Graph (PHG) is a powerful tool for representing pangenomes.  The PHG is optimized for the plant breeding and genetics, where genomic diversity can be high and imputation with low density markers is essential for breeding efficiency.
+The Practical Haplotype Graph (PHG) is a powerful tool for representing pangenomes.  The PHG is optimized for the plant breeding and genetics, where genomic diversity can be high, phased haplotypes are common (e.g. inbred lines), and imputation with low density markers is essential for breeding efficiency. This is powerful complement to the excellent tools such as [BEAGLE](https://faculty.washington.edu/browning/beagle/beagle.html) that is used extensively in low diversity, unphased species with high density genotyping.
 
 The PHG is a trellis graph based representation of genic and intergenic regions (called reference ranges) which represent diversity across and between samples. It can be used to: create custom genomes for alignment, call rare alleles, impute genotypes, and efficiently store genomic data from many samples (i.e. reference, assemblies, and other lines). The PHG also works well with community standards including the Breeding API [BrAPI](https://brapi.org) and powerful tools for R such as [rPHG](https://github.com/maize-genetics/rPHG) for pangenome extraction and [rTASSEL](https://github.com/maize-genetics/rTASSEL) for connecting genotype to phenotype.
 
@@ -16,10 +16,12 @@ The redesign leverages the powerful TileDB-VCF database, which is widely used in
 * Rare allele discovery with short reads is based on the above path, involving short read alignment to the inferred haplotype path genome and the GATK haplotype caller.
 
 # PHG terminology
-    Reference genome - the genome assembly used for initial alignment and base coordinates
-    Reference range - a genomic interval used to divide a reference genome, generally either a gene or intergenic region. Generally, we choose the boundaries to be conserved so they produce comparable haplotypes.
-    Ancestral Gamete - a fully phased chromsome (generally from an assembly) used to identify haplotype
-    Haplotype - the unique sequence from an ancestral gamete that is orthologous (allelic) a reference range.
+    Reference genome - the genome used for initial alignment and base coordinates
+    Reference range - a segment of the reference genome
+    Haplotype - the sequence of part of an individual chromosome.
+    Founder Paths - 
+    Path - the phased set of haplotypes that represent a chromosome (phased haplotype scaffold in BEAGLE)
+    Composite Reference Haplotypes 
 
 # Example usage
 To populate that database
