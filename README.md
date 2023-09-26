@@ -6,14 +6,14 @@ The PHG is a trellis graph based representation of genic and intergenic regions 
 [PHGv1](https://bitbucket.org/bucklerlab/practicalhaplotypegraph/wiki/Home) was [published in 2022](https://doi.org/10.1093/bioinformatics/btac410) and solved many of the issues in aligning diverse genomes, efficient storage, and imputing across a pangenome.  However, it relied on a custom relational database that required custom formats and it did not scale well with large numbers of taxa and rare alleles. Additionally, after developing PHGs for six species, we realized there were substantial opportunities to streamline the platform for curation.
 
 # PHGv2 design
-The redesign is leveraging the powerful TileDB-VCF database is being widely used human genetics for very large medical applications and highly performant for rapid querying and rare variant storage. The PHG is now back by two TileDB-VCF databases, one for tracking haplotypes across all samples (h.vcf), and one for tracking variants relative to either the reference genomes or the closest haplotype (g.vcf). Our implementation of the haplotype encoding in VCF relies heavily on VCF ALT haplotype specification [v4.3](http://samtools.github.io/hts-specs/VCFv4.3.pdf).
+The redesign leverages the powerful TileDB-VCF database, which is widely used in human genetics for extensive medical applications and is highly performant for rapid querying and storage of rare variants. The PHG is now backed by two TileDB-VCF databases: one for tracking haplotypes across all samples (h.vcf), and another for tracking variants relative to either the reference genomes or the closest haplotype (g.vcf). Our implementation of haplotype encoding in VCF heavily relies on the VCF ALT haplotype specification [v4.3](http://samtools.github.io/hts-specs/VCFv4.3.pdf).
 
-* High quality phased genome assemblies (or similar) are available initialize the PHG
-* Ancestral haplotype are aligned to the reference genome for identification of haplotypes.
-* All tools PHG tools rely on public file standards - fasta, vcf, bcf, bed, and maf.
-* Rely on public tools like TileDB, Minimap2, GATK, AnchorWave, BioKotlin, and HTSJDK
-* Genotyping with low density markers is now down with an memory and speed efficient kmer approach followed by path finding (imputation) with HMM, BWT, or our ML model .
-* Rare allele discovery with short reads based on the above path with short alignment to a pseudoreference genome and GATK haplotype caller.
+* High-quality phased genome assemblies (or similar) are available to initialize the PHG.
+* Ancestral haplotypes are aligned to the reference genome for the identification of haplotypes.
+* All PHG tools rely on public file standards - fasta, vcf, bcf, bed, and maf.
+* We rely on public tools like TileDB, Minimap2, GATK, AnchorWave, BioKotlin, and HTSJDK.
+* Genotyping with low-density markers is now done using a memory- and speed-efficient kmer approach, followed by pathfinding (imputation) with HMM, BWT, or our ML model.
+* Rare allele discovery with short reads is based on the above path, involving short read alignment to the inferred haplotype path genome and the GATK haplotype caller.
 
 # PHG terminoloy
 
