@@ -48,7 +48,6 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-script-runtime:${kotlinVersion}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.2")
-    implementation("org.jetbrains.kotlinx:dataframe:0.8.0-rc-7")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
 
