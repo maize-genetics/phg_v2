@@ -1,7 +1,7 @@
 package net.maizegenetics.phgv2.main
 
 import biokotlin.featureTree.Genome
-import kotlin.test.Test
+import org.junit.jupiter.api.Test
 import kotlin.test.assertFails
 import kotlin.test.assertEquals
 
