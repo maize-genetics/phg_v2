@@ -49,6 +49,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.2")
 
+    implementation("org.apache.logging.log4j:log4j-core:2.20.0")
+    implementation("org.apache.logging.log4j:log4j-api:2.20.0")
+
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
 
     val kotestVersion = "5.6.2"
@@ -69,7 +72,7 @@ tasks.withType<KotlinCompile> {
 }
 
 application {
-    mainClass.set("main.PhgKt")
+    mainClass.set("net.maizegenetics.phgv2.main.PhgKt")
 
     // Set name of generated scripts in bin/
     applicationName = "phg"
