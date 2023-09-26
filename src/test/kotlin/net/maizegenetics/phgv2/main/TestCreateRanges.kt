@@ -1,9 +1,9 @@
 package net.maizegenetics.phgv2.main
 
 import biokotlin.featureTree.Genome
-import org.junit.jupiter.api.Assertions.assertEquals
 import kotlin.test.Test
 import kotlin.test.assertFails
+import kotlin.test.assertEquals
 
 class TestCreateRanges {
     @Test
