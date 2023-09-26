@@ -1,13 +1,13 @@
 package net.maizegenetics.phgv2.main
 
 import biokotlin.featureTree.Genome
-import org.junit.jupiter.api.Test
 import kotlin.test.assertFails
 import kotlin.test.assertEquals
+import kotlin.test.Test
 
-class TestCreateRanges {
+class CreateRangesTest {
     @Test
-    fun testIdMinMaxBounds() {
+    fun evaluateMethods() {
         val testGffPath = "data/testing/zm_b73v5_test.gff3.gz"
         val genes = Genome.fromGFF(testGffPath).genes()
 
