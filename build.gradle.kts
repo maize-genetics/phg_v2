@@ -60,6 +60,12 @@ dependencies {
     }
 }
 
+java {
+    sourceCompatibility = VERSION_11
+    targetCompatibility = VERSION_11
+    withSourcesJar()
+}
+
 tasks.test {
     useJUnitPlatform()
     testLogging {
