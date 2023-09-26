@@ -20,7 +20,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 1.8
       - name: Build with Gradle
         run: ./gradlew build -x koverVerify
       - name: Run Kover XML report
