@@ -1,4 +1,6 @@
 # PHG version 2
+[![Run PHGv2 Tests](https://github.com/maize-genetics/phg_v2/actions/workflows/run-tests.yml/badge.svg)](https://github.com/maize-genetics/phg_v2/actions/workflows/run-tests.yml)[![codecov](https://codecov.io/gh/maize-genetics/phg_v2/ci-codecov/graph/badge.svg?token=4BVD2QXQ1A)](https://app.codecov.io/gh/maize-genetics/phg_v2/ci-codecov)
+
 The Practical Haplotype Graph (PHG) is a powerful for representing pangenomes.  The PHG is optimized for the plant breeding and genetics context, where genomic diversity can be high and where imputation with low density markers is essential for breeding.
 
 The PHG is a trellis graph based representation of genic and intergenic regions (called reference ranges) which represent diversity across and between samples. It can be used to: create custom genomes for alignment, call rare alleles, impute genotypes, and efficiently store genomic data from many lines (i.e. reference, assemblies, and other lines). The PHG also works well with community standards including the Breeding API [BrAPI](https://brapi.org) and powerful tools for R such as [rPHG](https://github.com/maize-genetics/rPHG) for pangenome extraction and [rTASSEL](https://github.com/maize-genetics/rTASSEL) for connecting genotype to phenotype.
