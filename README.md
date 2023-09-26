@@ -1,2 +1,2 @@
-# phg_v2
-PHG version 2
+# PHG version 2
+A reimagining of the Practical Haplotype Graph
