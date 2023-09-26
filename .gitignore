@@ -2,6 +2,7 @@ data/*
 !data/sources.txt
 notebooks/.ipynb_checkpoints
 .DS_Store
+.idea*
 /.idea
 .idea/shelf
 /confluence/target
@@ -96,6 +97,4 @@ uiDesigner.xml
 /.idea
 lets-plot-images
 documentation_resources/raw_tutorials/.ipynb_checkpoints
-src/test/kotlin/biokotlin/kmer/KmerDemo.kt
 b73.gff
-src/test/resources/biokotlin/featureTree/dotOutput
