@@ -16,12 +16,15 @@ The redesign leverages the powerful TileDB-VCF database, which is widely used in
 * Rare allele discovery with short reads is based on the above path, involving short read alignment to the inferred haplotype path genome and the GATK haplotype caller.
 
 # PHG terminology
+
     Reference genome - the genome used for initial alignment and base coordinates
     Reference range - a segment of the reference genome
     Haplotype - the sequence of part of an individual chromosome.
     Founder Paths - 
     Path - the phased set of haplotypes that represent a chromosome (phased haplotype scaffold in BEAGLE)
     Composite Reference Haplotypes 
+
+More information on terminology can be found [here](docs/terminology.md).
 
 # Example usage
 To populate that database
