@@ -16,9 +16,6 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
-        with:
-          token: ${{secrets.CODECOV_TOKEN}}
-          fetch-depth: 0
 
       - name: Check if app directory changed
         id: check_app_changes
