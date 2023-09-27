@@ -17,7 +17,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
         with:
-          token: ${{secrets.ACTIONS_PAT}}
+          token: ${{secrets.CODECOV_TOKEN}}
           fetch-depth: 0
 
       - name: Check if app directory changed
@@ -48,7 +48,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
         with:
-          token: ${{secrets.ACTIONS_PAT}}
+          token: ${{secrets.CODECOV_TOKEN}}
 
       # Uses semantic commits to automate version bumping.
       # No scope or "fix:" = PATCH, "feat:" or "minor:" = MINOR, "BREAKING CHANGE:", "major:", or fix/feat with appended "!" = MAJOR
