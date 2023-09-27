@@ -1,6 +1,7 @@
 package net.maizegenetics.phgv2.main
 
 import biokotlin.featureTree.Genome
+import com.github.ajalt.clikt.testing.test
 import kotlin.test.assertEquals
 import kotlin.test.Test
 import kotlin.test.assertFails
@@ -42,5 +43,17 @@ class CreateRangesTest {
         assertFails {
             cr.idMinMaxBounds(genes, "geeeene", 0)
         }
+    }
+
+    @Test
+    fun testCreateRangesCli() {
+        val testGffPath = "src/test/resources/net/maizegenetics/phgv2/main/zm_b73v5_test.gff3.gz"
+        val command = CreateRanges()
+
+        val result = command.test("--gff $testGffPath")
+        assertEquals(result.statusCode, 0)
+        assertEquals(command.gff, testGffPath)
+        assertEquals(command.boundary, "gene")
+        assertEquals(command.pad, 0)
     }
 }
