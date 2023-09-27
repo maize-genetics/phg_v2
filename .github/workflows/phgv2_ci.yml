@@ -1,4 +1,4 @@
-name: Run PHGv2 Tests
+name: PHGv2 CI
 
 on:
   workflow_dispatch:
