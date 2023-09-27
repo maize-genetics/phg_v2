@@ -8,7 +8,7 @@ on:
 
 jobs:  
   test:
-    name: PHGv2 Gradle Build
+    name: PHGv2 CI
     runs-on: ubuntu-latest
     permissions:
       contents: read
