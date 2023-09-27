@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.8.21"
+    kotlin("jvm") version "1.9.10"
     application
     id("org.jetbrains.kotlinx.kover") version "0.7.3"
 }
@@ -13,7 +13,7 @@ version = "2.0.0"
 This build script is need to use the early access
  */
 buildscript {
-    val kotlinVersion by extra("1.8.21")
+    val kotlinVersion by extra("1.9.10")
 
     repositories {
         mavenCentral()
