@@ -1,9 +1,9 @@
 # PHG version 2
-The Practical Haplotype Graph (PHG) is a powerful for representing pangenomes.  The PHG is optimized for the plant breeding and genetics context, where genomic diversity can be high and where imputation with low density markers is essential for breeding.
+The Practical Haplotype Graph (PHG) is a powerful tool for representing pangenomes.  The PHG is optimized for the plant breeding and genetics, where genomic diversity can be high, phased haplotypes are common (e.g. inbred lines), and imputation with low density markers is essential for breeding efficiency. This is powerful complement to the excellent tools such as [BEAGLE](https://faculty.washington.edu/browning/beagle/beagle.html) that is used extensively in low diversity, unphased species with high density genotyping.
 
-The PHG is a trellis graph based representation of genic and intergenic regions (called reference ranges) which represent diversity across and between samples. It can be used to: create custom genomes for alignment, call rare alleles, impute genotypes, and efficiently store genomic data from many lines (i.e. reference, assemblies, and other lines). The PHG also works well with community standards including the Breeding API [BrAPI](https://brapi.org) and powerful tools for R such as [rPHG](https://github.com/maize-genetics/rPHG) for pangenome extraction and [rTASSEL](https://github.com/maize-genetics/rTASSEL) for connecting genotype to phenotype.
+The PHG is a trellis graph based representation of genic and intergenic regions (called reference ranges) which represent diversity across and between samples. It can be used to: create custom genomes for alignment, call rare alleles, impute genotypes, and efficiently store genomic data from many samples (i.e. reference, assemblies, and other lines). The PHG also works well with community standards including the Breeding API [BrAPI](https://brapi.org) and powerful tools for R such as [rPHG](https://github.com/maize-genetics/rPHG) for pangenome extraction and [rTASSEL](https://github.com/maize-genetics/rTASSEL) for connecting genotype to phenotype.
 
-[PHGv1](https://bitbucket.org/bucklerlab/practicalhaplotypegraph/wiki/Home) was [published in 2022](https://doi.org/10.1093/bioinformatics/btac410) and solved many of the issues in aligning diverse genomes, efficient storage, and imputing across a pangenome.  However, it relied on a custom relational database that required custom formats and it did not scale well with large numbers of taxa and rare alleles. Additionally, after developing PHGs for six species, we realized there were substantial opportunities to streamline the platform for curation.
+[PHGv1](https://bitbucket.org/bucklerlab/practicalhaplotypegraph/wiki/Home) was [published in 2022](https://doi.org/10.1093/bioinformatics/btac410). It addressed many challenges related to aligning diverse genomes, efficient storage, and imputation across a pangenome. However, it depended on a custom relational database that necessitated unique formats, and database queries did not scale effectively with a large number of taxa and rare alleles. Moreover, after developing PHGs for six species, we identified significant opportunities to refine and streamline the platform for curation.
 
 # PHGv2 design
 The redesign leverages the powerful TileDB-VCF database, which is widely used in human genetics for extensive medical applications and is highly performant for rapid querying and storage of rare variants. The PHG is now backed by two TileDB-VCF databases: one for tracking haplotypes across all samples (h.vcf), and another for tracking variants relative to either the reference genomes or the closest haplotype (g.vcf). Our implementation of haplotype encoding in VCF heavily relies on the VCF ALT haplotype specification [v4.3](http://samtools.github.io/hts-specs/VCFv4.3.pdf).
@@ -15,8 +15,16 @@ The redesign leverages the powerful TileDB-VCF database, which is widely used in
 * Genotyping with low-density markers is now done using a memory- and speed-efficient kmer approach, followed by pathfinding (imputation) with HMM, BWT, or our ML model.
 * Rare allele discovery with short reads is based on the above path, involving short read alignment to the inferred haplotype path genome and the GATK haplotype caller.
 
-# PHG terminoloy
+# PHG terminology
 
+    Reference genome - the genome used for initial alignment and base coordinates
+    Reference range - a segment of the reference genome
+    Haplotype - the sequence of part of an individual chromosome.
+    Founder Paths - 
+    Path - the phased set of haplotypes that represent a chromosome (phased haplotype scaffold in BEAGLE)
+    Composite Reference Haplotypes 
+
+More information on terminology can be found [here](docs/terminology.md).
 
 # Example usage
 To populate that database
