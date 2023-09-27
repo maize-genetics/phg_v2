@@ -3,7 +3,7 @@ name: Run Deployment When Pushing to Master
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   deploy:
