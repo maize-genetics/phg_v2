@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - ci-deployment
 
 jobs:
 
@@ -133,7 +132,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           release_name: v${{ env.RELEASE }}
           tag: ${{ env.VERSION }}
-          file: build/distributions/phg-2.0.0.tar
+          file: build/distributions/phg.tar
           asset_name: PHGv2-v${{ env.RELEASE }}.tar
           overwrite: ${{ env.BUMP_TYPE == 'patchVersion' }}
           prerelease: ${{ env.BUMP_TYPE != 'patchVersion' }}
