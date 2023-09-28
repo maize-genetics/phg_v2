@@ -7,7 +7,6 @@ plugins {
 }
 
 group = "net.maizegenetics"
-version = "2.0.0"
 
 /*
 This build script is need to use the early access
