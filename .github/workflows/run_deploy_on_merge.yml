@@ -86,19 +86,19 @@ jobs:
           echo "RELEASE=$RELEASE" >> $GITHUB_ENV
           echo "BUMP_TYPE=$BUMP_TYPE" >> $GITHUB_ENV
 
-      - name: Commit version changes
-        uses: EndBug/add-and-commit@v7
-        with:
-          add: 'version.properties'
-          message: Bump ${{ env.BUMP_TYPE }}
-          author_email: git-action-bot@example.com
-          author_name: Git Action Bot
-
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref }}
+#      - name: Commit version changes
+#        uses: EndBug/add-and-commit@v7
+#        with:
+#          add: 'version.properties'
+#          message: Bump ${{ env.BUMP_TYPE }}
+#          author_email: git-action-bot@example.com
+#          author_name: Git Action Bot
+#
+#      - name: Push changes
+#        uses: ad-m/github-push-action@master
+#        with:
+#          github_token: ${{ secrets.GITHUB_TOKEN }}
+#          branch: ${{ github.ref }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v3
