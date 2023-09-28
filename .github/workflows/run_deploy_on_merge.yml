@@ -28,7 +28,7 @@ jobs:
           LAST_RELEASE_COMMIT=$(git rev-list -n 1 $LAST_RELEASE_TAG)
           echo "LAST_RELEASE_COMMIT was $LAST_RELEASE_COMMIT"
           
-          changed_files=$(git diff-tree --no-commit-id --name-only $LAST_RELEASE_COMMIT $GITHUB_SHA | grep '^app' || echo "none")
+          changed_files=$(git diff-tree --no-commit-id --name-only $LAST_RELEASE_COMMIT $GITHUB_SHA | grep '^src' || echo "none")
           echo "Changed app files: $changed_files"
           
           if [ "$changed_files" != "none" ]; then
