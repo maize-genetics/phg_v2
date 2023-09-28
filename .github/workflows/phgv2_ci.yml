@@ -2,9 +2,11 @@ name: PHGv2 CI
 
 on:
   workflow_dispatch:
-  push:
+  pull_request:
+    types:
+      - opened
     branches:
-      - 'ci-codecov'
+      - main
 
 jobs:  
   test:
