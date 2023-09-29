@@ -59,6 +59,18 @@ dependencies {
     }
 }
 
+koverReport {
+    verify {
+        rule {
+            "Minimal line coverage rate as a percentage"
+            bound {
+                minValue = 70
+            }
+        }
+    }
+}
+
+
 tasks.test {
     useJUnitPlatform()
     testLogging {
@@ -67,7 +79,7 @@ tasks.test {
 }
 
 tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "1.8"
+    kotlinOptions.jvmTarget = "17"
 }
 
 application {

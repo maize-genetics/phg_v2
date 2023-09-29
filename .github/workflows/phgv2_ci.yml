@@ -1,0 +1,37 @@
+name: PHGv2 CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types:
+      - opened
+    branches:
+      - main
+    paths:
+      - 'src/**'
+
+jobs:  
+  test:
+    name: PHGv2 CI
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write # See: https://github.com/mikepenz/action-junit-report/issues/23#issuecomment-1412597753
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Build with Gradle
+        run: ./gradlew clean build -x koverVerify
+      - name: Run Kover XML report
+        run: ./gradlew koverXMLReport
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: build/reports/kover/report.xml
