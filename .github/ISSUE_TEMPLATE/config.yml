@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 Start a discussion
+    url: https://github.com/maize-genetics/phg_v2/discussions
+    about: I need help, I have a question, or other discussion.
