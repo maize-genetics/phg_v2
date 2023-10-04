@@ -20,7 +20,7 @@ import java.security.NoSuchAlgorithmException
 import java.util.*
 import java.util.logging.Logger
 
-private val myLogger = Logger.getLogger("net.maizegenetics.pangenome.db_loading.VariantLoadingUtils")
+private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.utils.VariantLoadingUtils")
 
 // We could use the BioKotlin SeqPosition, but it is heavier than we need
 // as it contains a NucSeqRecord to get the chromosome name, and that includes sequence
@@ -150,7 +150,7 @@ fun verifyIntervalRanges(intervalFile: String): Set<String> {
     val intervalRanges: RangeSet<Position> = TreeRangeSet.create()
     // Read the anchor file, store to RangeSet, check for overlaps as you add
     // Store overlapping anchors to a Set to be returned to calling method
-    println("verifyIntervalRanges: checking file ${intervalFile} for overlaps")
+    myLogger.info("verifyIntervalRanges: checking file ${intervalFile} for overlaps")
     try {
         bufferedReader(intervalFile).use { br ->
             var curLine = br.readLine()
@@ -274,7 +274,7 @@ fun getChecksumForString(seq: String, protocol: String="Md5"): String {
         }
         return sb.toString()
     } catch (exc: NoSuchAlgorithmException) {
-        println("getChecksumForString: problem getting checksum: " + exc.message)
+        myLogger.warning("getChecksumForString: problem getting checksum: " + exc.message)
         throw IllegalStateException("CheckSum: getChecksumForString: error: " + exc.message)
     }
 }
