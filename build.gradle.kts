@@ -85,7 +85,7 @@ tasks.withType<KotlinCompile> {
 }
 
 application {
-    mainClass.set("net.maizegenetics.phgv2.main.PhgKt")
+    mainClass.set("net.maizegenetics.phgv2.cli.PhgKt")
 
     // Set name of generated scripts in bin/
     applicationName = "phg"
