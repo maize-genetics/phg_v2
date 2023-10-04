@@ -21,28 +21,42 @@ class SetupEnvironment : CliktCommand() {
     val outputDir by option("-o", "--outputDir", help = "Directory where ProcessBuilder, conda create env command log files will be written")
         .required()
 
+    // This function uses ProcssBuilder to setup the phgv2 conda environment
+    fun createEnvironment( envFile: String, outputDir:String) {
+        // call ProcessBuilder to execute the conda create env command
+        val builder = ProcessBuilder("conda", "env", "create", "--file", envFile)
+        var redirectOutput = outputDir + "/condaCreate_output.log"
+        var redirectError = outputDir + "/condaCreate_error.log"
+        builder.redirectOutput( File(redirectOutput))
+        builder.redirectError( File(redirectError))
+        println(" begin conda create Command:" + builder.command().stream().collect(Collectors.joining(" ")));
+        var process = builder.start()
+        var error = process.waitFor()
+
+        if (error != 0) {
+            val errorLines = File(redirectError).readLines()
+            var success = errorLines
+                .filter { it.contains("prefix already exists") }
+                .toList()
+            if (success == null || success.size == 0) {
+                println("conda env create command for file ${envFile} run via ProcessBuilder returned error code $error")
+                println("Verify you have conda installed and the environment phgv2-conda does not already exist")
+                throw IllegalStateException("SetupEnvironment: create conda envirionment failed: $error")
+            } else {
+                println("\nThe phgv2-conda conda environment already exists.  You can activate it with the command: conda activate phgv2-conda\n")
+            }
+        } else {
+            println("Successfully created your environment.  You can activate it with the command: conda activate phgv2-conda")
+        }
+    }
 
         override fun run() {
             // initial test
             println("This is the SetupEnvironment script, which does nothing yet!")
-            val envFile = "src/main/resources/environment.yaml"
-            // call ProcessBuilder to execute the conda create env command
-            val builder = ProcessBuilder("conda", "env", "create", "--file", envFile)
-            var redirectOutput = outputDir + "/condaCreate_output.log"
-            var redirectError = outputDir + "/condaCreate_error.log"
-            builder.redirectOutput( File(redirectOutput))
-            builder.redirectError( File(redirectError))
-            println(" begin conda create Command:" + builder.command().stream().collect(Collectors.joining(" ")));
-            var process = builder.start()
-            var error = process.waitFor()
-
-            if (error != 0) {
-                println("conda env create command for file ${envFile} run via ProcessBuilder returned error code $error")
-                println("Verify you have conda installed and the environment phgv2-conda does not already exist")
-                println("If the environment already exists, you can activate it with the command: conda activate phgv2-conda")
-                throw IllegalStateException("SetupEnvironment: create conda envirionment failed: $error")
-            }
-            println("Successfully created your environment.  You can activate it with the command: conda activate phgv2-conda")
+            //val envFile = "src/main/resources/environment.yml"  // LCJ _ RETURN THIS !!!!
+            val envFile = "src/main/resources/test.yml"
+            // call method to create the environment
+            createEnvironment(envFile,outputDir)
 
         }
 }
