@@ -27,7 +27,7 @@ jobs:
           distribution: temurin
           java-version: 17
       - name: Build with Gradle
-        run: ./gradlew clean build -x koverVerify
+        run: ./gradlew clean build
       - name: Run Kover XML report
         run: ./gradlew koverXMLReport
       - name: Upload coverage reports to Codecov
