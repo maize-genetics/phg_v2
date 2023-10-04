@@ -27,7 +27,6 @@ class VariantLoadingUtilsTest {
         // Get checksums for each string
         val chrom = "1"
         val position = 1
-        val posClass = Position(chrom,position)
         val testString1Checksum = getChecksumForString(testString1 )
         val testString2Checksum = getChecksumForString(testString2)
         // Verify that the checksums are different
@@ -47,7 +46,7 @@ class VariantLoadingUtilsTest {
     @Test
     fun testVerifyIntervalRanges( ) {
         // NOTE: Ensure multiline strings are separated with an actual tab character!
-        val testDataDir = "${System.getProperty("user.home")}/temp"
+        val testDataDir = "${System.getProperty("user.home")}/"
         val anchorFile = "${testDataDir}/testAnchorFile.txt"
         File(anchorFile).bufferedWriter().use {
             // Lines 4 and 5 overlap line 3
