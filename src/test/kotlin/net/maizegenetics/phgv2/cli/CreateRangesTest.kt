@@ -10,7 +10,7 @@ class CreateRangesTest {
     @Test
     fun evaluateMethods() {
         assertEquals(2, 2)
-        val testGffPath = "src/test/resources/net/maizegenetics/phgv2/main/zm_b73v5_test.gff3.gz"
+        val testGffPath = "src/test/resources/net/maizegenetics/phgv2/cli/zm_b73v5_test.gff3.gz"
         val genes = Genome.fromGFF(testGffPath).genes()
 
         val cr = CreateRanges()
@@ -47,7 +47,7 @@ class CreateRangesTest {
 
     @Test
     fun testCreateRangesCli() {
-        val testGffPath = "src/test/resources/net/maizegenetics/phgv2/main/zm_b73v5_test.gff3.gz"
+        val testGffPath = "src/test/resources/net/maizegenetics/phgv2/cli/zm_b73v5_test.gff3.gz"
         val command = CreateRanges()
 
         val result = command.test("--gff $testGffPath")
@@ -55,5 +55,17 @@ class CreateRangesTest {
         assertEquals(command.gff, testGffPath)
         assertEquals(command.boundary, "gene")
         assertEquals(command.pad, 0)
+    }
+
+    @Test
+    fun testMissingGFFCLI() {
+        val command = CreateRanges()
+
+        val result = command.test("")
+        assertEquals(result.statusCode, 1)
+        assertEquals("Usage: create-ranges [<options>]\n" +
+                "\n" +
+                "Error: invalid value for --gff: --gff must not be blank\n",result.output)
+
     }
 }
