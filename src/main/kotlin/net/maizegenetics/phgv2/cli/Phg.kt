@@ -21,7 +21,7 @@ class Phg : CliktCommand() {
 }
 
 fun main(args: Array<String>) = Phg()
-    .subcommands(Initdb(), CreateRanges(), BuildRefVcf(), BuildMafVcf(), LoadVcf())
+    .subcommands(Initdb(), CreateRanges(), AlignAssemblies(), BuildRefVcf(), BuildMafVcf(), LoadVcf())
     .context {
         terminal = Terminal(ansiLevel = AnsiLevel.TRUECOLOR, interactive = true)
     }.main(args)
