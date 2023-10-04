@@ -175,7 +175,7 @@ fun verifyIntervalRanges(intervalFile: String): Set<String> {
             }
         }
     } catch (exc: Exception) {
-        throw IllegalArgumentException("verifyIntervalRanges : LCJ error reading intervals file: " + exc.message)
+        throw IllegalArgumentException("verifyIntervalRanges :  error reading intervals file: " + exc.message)
     }
     return overlappingPositions
 }
