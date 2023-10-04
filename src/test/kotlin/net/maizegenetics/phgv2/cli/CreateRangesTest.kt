@@ -2,11 +2,31 @@ package net.maizegenetics.phgv2.cli
 
 import biokotlin.featureTree.Genome
 import com.github.ajalt.clikt.testing.test
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
+import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.Test
 import kotlin.test.assertFails
 
 class CreateRangesTest {
+
+
+    companion object {
+        val tempDir = "${System.getProperty("user.home")}/temp/phgv2Tests/tempDir/"
+
+        @JvmStatic
+        @BeforeAll
+        fun setup() {
+            File(tempDir).mkdirs()
+        }
+
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+            File(tempDir).deleteRecursively()
+        }
+    }
     @Test
     fun evaluateMethods() {
         assertEquals(2, 2)
@@ -66,6 +86,27 @@ class CreateRangesTest {
         assertEquals("Usage: create-ranges [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --gff: --gff must not be blank\n",result.output)
+
+    }
+
+    @Test
+    fun testFileOutput() {
+
+        val testGffPath = "src/test/resources/net/maizegenetics/phgv2/cli/zm_b73v5_test.gff3.gz"
+        val command = CreateRanges()
+
+        val outputFileName = "${tempDir}test.bed"
+
+        val result = command.test("--gff $testGffPath --output $outputFileName")
+        assertEquals(result.statusCode, 0)
+        assertEquals(command.gff, testGffPath)
+        assertEquals(command.boundary, "gene")
+        assertEquals(command.pad, 0)
+        assertEquals(command.output, outputFileName)
+
+        val lines = File(outputFileName).bufferedReader().readLines()
+        assertEquals("chr1\t34616\t40203\tZm00001eb000010\t0\t+", lines[0])
+        assertEquals("chr1\t41213\t46761\tZm00001eb000020\t0\t-", lines[1])
 
     }
 }

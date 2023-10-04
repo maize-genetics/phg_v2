@@ -106,10 +106,12 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
 
         val bedLinesToPrint = generateBedRows(boundMinMax, genes)
 
-        val bw = output?.let { File(it).bufferedWriter() }
-        bedLinesToPrint.forEach {
-            bw?.write("$it\n")
+        if(output!= null) {
+            File(output).bufferedWriter().use { output ->
+                bedLinesToPrint.forEach {
+                    output.write("$it\n")
+                }
+            }
         }
-        bw?.close()
     }
 }
