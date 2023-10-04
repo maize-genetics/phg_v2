@@ -1,4 +1,4 @@
-package net.maizegenetics.phgv2.main
+package net.maizegenetics.phgv2.cli
 
 import biokotlin.featureTree.Gene
 import biokotlin.featureTree.Genome

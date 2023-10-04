@@ -1,4 +1,4 @@
-package net.maizegenetics.phgv2.main
+package net.maizegenetics.phgv2.cli
 
 import biokotlin.featureTree.Genome
 import com.github.ajalt.clikt.testing.test
