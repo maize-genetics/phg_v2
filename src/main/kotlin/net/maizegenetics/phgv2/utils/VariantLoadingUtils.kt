@@ -1,4 +1,4 @@
-package utils
+package net.maizegenetics.phgv2.utils
 
 import biokotlin.seq.NucSeq
 import biokotlin.util.bufferedReader
@@ -261,7 +261,7 @@ fun createSNPVC(assemblyTaxon: String, startPosition: Position, endPosition: Pos
 
 // Create an Md5 checksum.  While this method will create a check sum from
 // any number of methods, for PHG we expect it to always be Md5
-fun getChecksumForString(seq: String, protocol: String): String {
+fun getChecksumForString(seq: String, protocol: String="Md5"): String {
     // from https://www.mkyong.com/java/java-md5-hashing-example/
     try {
         val md = MessageDigest.getInstance(protocol)
