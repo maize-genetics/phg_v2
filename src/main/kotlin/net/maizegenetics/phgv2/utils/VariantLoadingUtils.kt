@@ -157,7 +157,8 @@ fun verifyIntervalRanges(intervalFile: String): Set<String> {
             while (curLine != null) {
                 if (curLine.uppercase(Locale.getDefault()).contains("CHROMSTART")) continue
                 val tokens =
-                    curLine.split("\\t".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+                    //curLine.split("\\t".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+                    curLine.split("\t").dropLastWhile{ it.isEmpty() }.toTypedArray()
                 val chrom = tokens[0]
                 val interval =
                     Range.closedOpen(
