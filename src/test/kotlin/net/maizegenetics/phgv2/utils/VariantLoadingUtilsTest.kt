@@ -48,6 +48,7 @@ class VariantLoadingUtilsTest {
         // NOTE: Ensure multiline strings are separated with an actual tab character!
         val testDataDir = "src/test/kotlin/net/maizegenetics/phgv2/testData/"
         val anchorFile = "${testDataDir}/testAnchorFile.txt"
+
         File(anchorFile).bufferedWriter().use {
             // Lines 4 and 5 overlap line 3
             // Line 8 overlaps line 7 (First chr2 anchor)
