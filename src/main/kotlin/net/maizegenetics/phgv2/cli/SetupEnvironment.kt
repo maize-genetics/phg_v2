@@ -29,7 +29,7 @@ class SetupEnvironment : CliktCommand() {
         var redirectError = outputDir + "/condaCreate_error.log"
         builder.redirectOutput( File(redirectOutput))
         builder.redirectError( File(redirectError))
-        println(" begin conda create Command:" + builder.command().stream().collect(Collectors.joining(" ")));
+        println(" begin conda create Command:" + builder.command().joinToString(" "));
         var process = builder.start()
         var error = process.waitFor()
 

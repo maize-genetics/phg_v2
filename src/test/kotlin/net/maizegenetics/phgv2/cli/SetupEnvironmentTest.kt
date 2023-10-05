@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test
 import java.io.File
 
 class SetupEnvironmentTest {
-    val tempDir = "${System.getProperty("user.home")}/temp/phgv2Tests/tempDir/"
 
     companion object {
         val tempDir = "${System.getProperty("user.home")}/temp/phgv2Tests/tempDir/"
