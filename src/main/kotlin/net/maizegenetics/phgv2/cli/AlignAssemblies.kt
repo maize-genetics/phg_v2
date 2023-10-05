@@ -10,6 +10,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.util.stream.Collectors
 
@@ -17,6 +18,8 @@ import java.util.stream.Collectors
  * This will align assemblies to a reference genome.
  */
 class AlignAssemblies : CliktCommand() {
+
+    private val myLogger = LogManager.getLogger(AlignAssemblies::class.java)
 
     val gff by option(help = "Full path to the reference gff file")
         .required()
@@ -140,12 +143,11 @@ class AlignAssemblies : CliktCommand() {
 
                     // Column names were checked for validity above
 
-                    println("Adding: ${asmFile} for processing")
-                    //InputChannelData( val refFasta: String, val asmFasta: String, val asmDir: String, val asmDBName: String, val outputDir: String)
+                    println("Adding: $asmFile for processing")
                     inputChannel.send(InputChannelData(refFasta, asmFile, outputDir, gffFile, refSamOutFile))
                 }
                 println("Done Adding data to the inputChannel:")
-                inputChannel.close() //Need to close this here to show the workers that it is done adding more data
+                inputChannel.close() // Need to close this here to show the workers that it is done adding more data
             }
 
             // This calls mummer4 scripts to process the alignments
@@ -168,8 +170,8 @@ class AlignAssemblies : CliktCommand() {
                 val samShort = "${justName}.sam"
                 val asmSamFile = "${assemblyEntry.outputDir}/${samShort}"
 
-                println("alignAssembly: asmFileFull: ${assemblyEntry.asmFasta}, outputFile: ${asmSamFile}")
-                //val threadnum = Integer.toString(Math.max(TasselPrefs.getMaxThreads() - 1, 1))
+                println("alignAssembly: asmFileFull: ${assemblyEntry.asmFasta}, outputFile: $asmSamFile")
+
                 val builder = ProcessBuilder(
                     "conda",
                     "run",
@@ -191,7 +193,7 @@ class AlignAssemblies : CliktCommand() {
                 )
 
                 var redirectError = "${assemblyEntry.outputDir}/minimap2_${justName}_error.log"
-                println("redirectError: ${redirectError}")
+                println("redirectError: $redirectError")
                 builder.redirectOutput(File(asmSamFile))
                 builder.redirectError(File(redirectError))
                 println(
@@ -228,7 +230,6 @@ class AlignAssemblies : CliktCommand() {
         val justNameRef = File(refFasta).nameWithoutExtension
 
         val anchorsproFile = "${outputDir}/${justNameAsm}_${justNameRef}.anchorspro"
-        //val outputFile ="${outputDir()}/${justNameAsm}_${justNameRef}.maf"
         // Using just the assembly name.  This facilitates programmatically creating
         // a GVCF keyfile from the maf keyfiles.  It will be understood that the maf
         // file name is <assemblyFastaNoExtension>.maf
@@ -265,7 +266,8 @@ class AlignAssemblies : CliktCommand() {
         )
 
         var redirectError = "${outputDir}/proali_${justNameAsm}_outputAndError.log"
-        println("redirectError: ${redirectError}")
+        println("redirectError: $redirectError")
+
         // NOTE: anchowave proali has an output file parameter, unlike minimap2, which uses
         // command line redirection (ie >) to write the .SAM file
         //
@@ -276,17 +278,18 @@ class AlignAssemblies : CliktCommand() {
         // to the error file.
         // Here, we  write all program message output (ie non MAF file output) to a single file
         // named as above.
+
         builder.redirectOutput(File(redirectError))
         builder.redirectError(File(redirectError))
         println(
             "begin proali Command for ${justNameAsm}:" + builder.command().stream().collect(Collectors.joining(" "))
-        );
+        )
         try {
             var process = builder.start()
             var error = process.waitFor()
             if (error != 0) {
-                println("proali for assembly ${asmFasta} run via ProcessBuilder returned error code $error")
-                throw IllegalStateException("runAnchorwaveProali: error running proali for ${justNameAsm}")
+                println("proali for assembly $asmFasta run via ProcessBuilder returned error code $error")
+                throw IllegalStateException("runAnchorwaveProali: error running proali for $justNameAsm")
             }
         } catch (e: Exception) {
             println("Error: could not execute anchorwave command. Run anchorwave manually and retry.")
