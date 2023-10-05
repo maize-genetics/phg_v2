@@ -93,7 +93,7 @@ class AlignAssemblies : CliktCommand() {
             "conda",
             "run",
             "-n",
-            "tiledb_anchorwave",
+            "phgv2-conda",
             "anchorwave",
             "gff2seq",
             "-r",
@@ -176,7 +176,7 @@ class AlignAssemblies : CliktCommand() {
                     "conda",
                     "run",
                     "-n",
-                    "tiledb_anchorwave",
+                    "phgv2-conda",
                     "minimap2",
                     "-x",
                     "splice",
@@ -197,7 +197,7 @@ class AlignAssemblies : CliktCommand() {
                 builder.redirectOutput(File(asmSamFile))
                 builder.redirectError(File(redirectError))
                 println(
-                    " begin minimap assembly Command:" + builder.command().stream().collect(Collectors.joining(" "))
+                    " begin minimap assembly Command: " + builder.command().stream().collect(Collectors.joining(" "))
                 );
                 var process = builder.start()
                 var error = process.waitFor()
@@ -238,7 +238,7 @@ class AlignAssemblies : CliktCommand() {
             "conda",
             "run",
             "-n",
-            "tiledb_anchorwave",
+            "phgv2-conda",
             "anchorwave",
             "proali",
             "-i",
@@ -282,7 +282,7 @@ class AlignAssemblies : CliktCommand() {
         builder.redirectOutput(File(redirectError))
         builder.redirectError(File(redirectError))
         println(
-            "begin proali Command for ${justNameAsm}:" + builder.command().stream().collect(Collectors.joining(" "))
+            "begin proali Command for ${justNameAsm}: " + builder.command().stream().collect(Collectors.joining(" "))
         )
         try {
             var process = builder.start()
