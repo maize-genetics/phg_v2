@@ -51,12 +51,10 @@ class SetupEnvironment : CliktCommand() {
     }
 
         override fun run() {
-            // initial test
-            println("This is the SetupEnvironment script, which does nothing yet!")
-            //val envFile = "src/main/resources/environment.yml"  // LCJ _ RETURN THIS !!!!
-            val envFile = "src/main/resources/test.yml"
+            // This is the official phgv2 conda environment file
+            val envFile = "src/main/resources/environment.yml"
+
             // call method to create the environment
             createEnvironment(envFile,outputDir)
-
         }
 }
