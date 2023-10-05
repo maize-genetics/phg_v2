@@ -194,8 +194,8 @@ fun verifyIntervalRanges(intervalFile: String): Set<String> {
  * @return
  */
 fun createRefRangeVC(refSequence: Map<String,NucSeq>, assemblyTaxon: String, refRangeStart: Position, refRangeEnd: Position,
-    asmStart: Position, asmEnd: Position): VariantContext {
-    val firstRefAllele = Allele.create(refSequence[refRangeStart.contig]!!.get(0).toString())
+    asmStart: Position?, asmEnd: Position?): VariantContext {
+    val firstRefAllele = Allele.create(refSequence[refRangeStart.contig]!!.get(0).toString(),true)
     val gt = GenotypeBuilder().name(assemblyTaxon).alleles(Arrays.asList(firstRefAllele)).DP(2).AD(intArrayOf(2, 0)).make()
     check(refRangeStart.position <= refRangeEnd.position) { "createRefRangeVC - start position greater than end: start=" +
                 refRangeStart.position + " end=" + refRangeEnd.position
@@ -211,8 +211,12 @@ fun createRefRangeVC(refSequence: Map<String,NucSeq>, assemblyTaxon: String, ref
     // Add assembly coordinates as attributes
     if (asmStart != null && asmEnd != null) {
         // Set the asm coordinates as VC record attributes
-        vcb = vcb.attribute("ASM_Start", asmStart.position)
-        vcb = vcb.attribute("ASM_End", asmEnd.position)
+        check(asmStart.contig == asmEnd.contig) { "createRefRangeVC - assembly start and end contigs do not match: start=" +
+                    asmStart.contig + " end=" + asmEnd.contig
+        }
+        vcb = vcb.attribute("ASM_Chr", asmStart.contig)
+                .attribute("ASM_Start", asmStart.position)
+                .attribute("ASM_End", asmEnd.position)
     }
     return vcb.make()
 }
