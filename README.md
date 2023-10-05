@@ -32,7 +32,7 @@ More information on terminology can be found [here](docs/terminology.md).
 To populate that database
 ```
 ## Initialize DBs
-./phg initdb /path/to/dbs
+./phg initdb --dbpath /path/to/dbs
 
 ## Build VCF data
 ./phg create-ranges --gff my.gff --boundary gene --pad 500 -o /path/to/bed/file.bed
@@ -41,7 +41,7 @@ To populate that database
 ./phg build-maf-vcf --maf /my/maf/files -o /path/to/vcfs
 
 ## Load data into DBs
-./phg load-vcf --vcf /my/vcf/dir --dbpath /my/db/uri
+./phg load-vcf --vcf /my/vcf/dir --dbpath /path/to/dbs
 ```
 
 ```
