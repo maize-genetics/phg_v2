@@ -5,38 +5,41 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 
+class FastaGenerator : CliktCommand() {
 
-class BuildRefVcf : CliktCommand() {
-
-    //--bed /my/bed/file.bed --reference /my/ref.fasta -o /path/to/vcfs
-
-    val bed by option(help = "BED file")
+    val dbPath by option(help = "Tile DB URI")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--bed must not be blank"
+                "--db-path must not be blank"
             }
         }
 
-    val reference by option(help = "Reference FASTA file")
+    val agcFile by option(help = "AGC index file")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--reference must not be blank"
+                "--agc-file must not be blank"
             }
         }
 
-    val outputDir by option("-o", "--output-dir", help = "Name for output VCF file Directory")
+    val sampleName by option(help = "Sample name")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--output-dir/-o must not be blank"
+                "--sample-name must not be blank"
             }
         }
 
+    val output by option("-o", "--output", help = "Name for output Fasta file")
+        .default("")
+        .validate {
+            require(it.isNotBlank()) {
+                "--output/-o must not be blank"
+            }
+        }
 
     override fun run() {
         TODO("Not yet implemented")
     }
-
 }
