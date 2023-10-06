@@ -8,3 +8,5 @@ dependencies:
   - tiledb-py=0.22
   - tiledbvcf-py=0.25
   - anchorwave
+  - bcftools
+  - samtools
