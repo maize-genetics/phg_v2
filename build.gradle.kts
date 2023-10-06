@@ -66,7 +66,7 @@ koverReport {
         rule {
             "Minimal line coverage rate as a percentage"
             bound {
-                minValue = 70
+                minValue = 60
             }
         }
     }

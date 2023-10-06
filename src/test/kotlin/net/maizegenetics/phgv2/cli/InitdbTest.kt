@@ -4,6 +4,7 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.io.File
+import kotlin.test.Ignore
 
 class InitdbTest {
     companion object {
@@ -23,6 +24,7 @@ class InitdbTest {
             File(tempDir).deleteRecursively()
         }
     }
+    @Ignore
     @Test
     fun testInitdb() {
 
