@@ -81,6 +81,22 @@ class AlignAssemblies : CliktCommand() {
         val samOutFile = "${justNameRef}.sam"
         val refSamOutFile = "${outputDir}/${samOutFile}"
 
+        val builder = ProcessBuilder(
+            "conda", "run", "-n", "phgv2-conda", "minimap2", "-x", "splice", "-t", threads.toString(), "-k", "12",
+            "-a", "-p", "0.4", "-N20", ref, cdsFasta
+        )
+        val redirectError = "$outputDir/minimap2Ref_error.log"
+        builder.redirectOutput(File(refSamOutFile))
+        builder.redirectError(File(redirectError))
+
+        println("Ref minimap Command: " + builder.command().stream().collect(Collectors.joining(" ")));
+        val process = builder.start()
+        val error = process.waitFor()
+        if (error != 0) {
+            println("minimap2 for $ref run via ProcessBuilder returned error code $error")
+            throw IllegalStateException("Error running minimap2 for reference: $error")
+        }
+
         runAnchorWaveMultiThread(ref, assembliesList, cdsFasta, gff, refSamOutFile)
 
     }
@@ -104,15 +120,15 @@ class AlignAssemblies : CliktCommand() {
             cdsFasta
         )
 
-        var redirectOutput = "$outputDir/anchorwave_gff2seq_output.log"
-        var redirectError = "$outputDir/anchorwave_gff2seq_error.log"
+        val redirectOutput = "$outputDir/anchorwave_gff2seq_output.log"
+        val redirectError = "$outputDir/anchorwave_gff2seq_error.log"
         builder.redirectOutput(File(redirectOutput))
         builder.redirectError(File(redirectError))
 
-        println("begin Command:" + builder.command().stream().collect(Collectors.joining(" ")))
+        println("createCDSfromRefData command:" + builder.command().stream().collect(Collectors.joining(" ")))
         try {
-            var process = builder.start()
-            var error = process.waitFor()
+            val process = builder.start()
+            val error = process.waitFor()
             if (error != 0) {
                 println("createCDSfromRefData run via ProcessBuilder returned error code $error")
                 return false
@@ -192,15 +208,15 @@ class AlignAssemblies : CliktCommand() {
                     cdsFasta
                 )
 
-                var redirectError = "${assemblyEntry.outputDir}/minimap2_${justName}_error.log"
+                val redirectError = "${assemblyEntry.outputDir}/minimap2_${justName}_error.log"
                 println("redirectError: $redirectError")
                 builder.redirectOutput(File(asmSamFile))
                 builder.redirectError(File(redirectError))
                 println(
                     " begin minimap assembly Command: " + builder.command().stream().collect(Collectors.joining(" "))
                 );
-                var process = builder.start()
-                var error = process.waitFor()
+                val process = builder.start()
+                val error = process.waitFor()
                 if (error != 0) {
                     println("minimap2 for assembly ${assemblyEntry.asmFasta} run via ProcessBuilder returned error code $error")
                     throw IllegalStateException("alignAssembly: error running minimap2 for ${justName}: $error")
@@ -265,7 +281,7 @@ class AlignAssemblies : CliktCommand() {
             outputFile
         )
 
-        var redirectError = "${outputDir}/proali_${justNameAsm}_outputAndError.log"
+        val redirectError = "${outputDir}/proali_${justNameAsm}_outputAndError.log"
         println("redirectError: $redirectError")
 
         // NOTE: anchowave proali has an output file parameter, unlike minimap2, which uses
@@ -285,8 +301,8 @@ class AlignAssemblies : CliktCommand() {
             "begin proali Command for ${justNameAsm}: " + builder.command().stream().collect(Collectors.joining(" "))
         )
         try {
-            var process = builder.start()
-            var error = process.waitFor()
+            val process = builder.start()
+            val error = process.waitFor()
             if (error != 0) {
                 println("proali for assembly $asmFasta run via ProcessBuilder returned error code $error")
                 throw IllegalStateException("runAnchorwaveProali: error running proali for $justNameAsm")
