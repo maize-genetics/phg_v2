@@ -36,7 +36,7 @@ class BuildRefVcf : CliktCommand() {
 
 
     override fun run() {
-        TODO("Not yet implemented")
+//        TODO("Not yet implemented")
     }
 
 }

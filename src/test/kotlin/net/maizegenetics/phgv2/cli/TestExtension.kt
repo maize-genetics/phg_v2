@@ -4,7 +4,7 @@ import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import java.io.File
 
-class IntegrationTestExtension : BeforeAllCallback {
+class TestExtension : BeforeAllCallback {
 
     companion object {
         val tempDir = "${System.getProperty("user.home")}/temp/phgv2Tests/tempDir/"

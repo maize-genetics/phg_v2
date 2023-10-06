@@ -4,12 +4,12 @@ import biokotlin.seqIO.NucSeqIO
 import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.test.Test
 import com.github.ajalt.clikt.testing.test
-import net.maizegenetics.phgv2.cli.IntegrationTestExtension.Companion.asmList
+import net.maizegenetics.phgv2.cli.TestExtension.Companion.asmList
 import kotlin.test.Ignore
 import kotlin.test.assertTrue
 
 
-@ExtendWith(IntegrationTestExtension::class)
+@ExtendWith(TestExtension::class)
 class FullPipelineIT {
 
     companion object {
@@ -28,23 +28,23 @@ class FullPipelineIT {
 
         //Run InitDB
         val initdb = Initdb()
-        initdb.test("--db-path ${IntegrationTestExtension.testTileDBURI}")
+        initdb.test("--db-path ${TestExtension.testTileDBURI}")
         //Run CreateRanges
         val createRanges = CreateRanges()
-        createRanges.test("--gff ${IntegrationTestExtension.testGFFFile} --output ${IntegrationTestExtension.testBEDFile}")
+        createRanges.test("--gff ${TestExtension.testGFFFile} --output ${TestExtension.testBEDFile}")
         //Run BuildRefVCF
         val buildRefVCF = BuildRefVcf()
-        buildRefVCF.test("--bed ${IntegrationTestExtension.testBEDFile} --reference ${IntegrationTestExtension.testRefFasta} -o ${IntegrationTestExtension.testVCFDir}")
+        buildRefVCF.test("--bed ${TestExtension.testBEDFile} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
 
         //Run Anchorwave
         TODO("Run Anchorwave")
 
         //Run BuildMafVCF
         val buildMafVCF = BuildMafVcf()
-        buildMafVCF.test("--maf-dir ${IntegrationTestExtension.testMafDir} -o ${IntegrationTestExtension.testVCFDir}")
+        buildMafVCF.test("--maf-dir ${TestExtension.testMafDir} -o ${TestExtension.testVCFDir}")
         //Load All HVCFs into Tile DB
         val loadVCF = LoadVcf()
-        loadVCF.test("--vcf-dir ${IntegrationTestExtension.testVCFDir} --db-path ${IntegrationTestExtension.testTileDBURI}")
+        loadVCF.test("--vcf-dir ${TestExtension.testVCFDir} --db-path ${TestExtension.testTileDBURI}")
 
 
         //Pull out the HVCF from TileDB
@@ -52,16 +52,16 @@ class FullPipelineIT {
 
         //Run Fasta Generator for REF
         val fastaGenerator = FastaGenerator()
-        fastaGenerator.test("--db-path ${IntegrationTestExtension.testTileDBURI} --agc-file ${IntegrationTestExtension.testAGCFile} --sample-name Ref -o ${IntegrationTestExtension.testOutputRefFasta}")
+        fastaGenerator.test("--db-path ${TestExtension.testTileDBURI} --agc-file ${TestExtension.testAGCFile} --sample-name Ref -o ${TestExtension.testOutputRefFasta}")
         //Compare ref to input
-        val refDiff =  compareFastaSeqs(IntegrationTestExtension.testRefFasta, IntegrationTestExtension.testOutputRefFasta)
+        val refDiff =  compareFastaSeqs(TestExtension.testRefFasta, TestExtension.testOutputRefFasta)
         assertTrue(refDiff < 0.0001, "Ref Fasta is not the same as input")
         //For each asm
         for(asmName in asmList) {
             //Run Fasta Generator for ASM
-            fastaGenerator.test("--db-path ${IntegrationTestExtension.testTileDBURI} --agc-file ${IntegrationTestExtension.testAGCFile} --sample-name ${asmName} -o ${IntegrationTestExtension.testOutputFastaDir}${asmName}")
+            fastaGenerator.test("--db-path ${TestExtension.testTileDBURI} --agc-file ${TestExtension.testAGCFile} --sample-name ${asmName} -o ${TestExtension.testOutputFastaDir}${asmName}")
             //Compare asm to input
-            val asmDiff =  compareFastaSeqs("${IntegrationTestExtension.asmDir}${asmName}", "${IntegrationTestExtension.testOutputFastaDir}${asmName}")
+            val asmDiff =  compareFastaSeqs("${TestExtension.asmDir}${asmName}", "${TestExtension.testOutputFastaDir}${asmName}")
             assertTrue(asmDiff < 0.0001, "${asmName} Fasta is not the same as input")
         }
 

@@ -9,6 +9,22 @@ class BuildMafVcf : CliktCommand() {
 
     //--maf-dir /my/maf/files -o /path/to/vcfs
 
+    val bed by option(help = "BED file")
+        .default("")
+        .validate {
+            require(it.isNotBlank()) {
+                "--bed must not be blank"
+            }
+        }
+
+    val reference by option(help = "Reference FASTA file")
+        .default("")
+        .validate {
+            require(it.isNotBlank()) {
+                "--reference must not be blank"
+            }
+        }
+
     val mafDir by option(help = "MAF file directory")
         .default("")
         .validate {
@@ -26,7 +42,7 @@ class BuildMafVcf : CliktCommand() {
         }
 
     override fun run() {
-        TODO("Not yet implemented")
+//        TODO("Not yet implemented")
     }
 
 }
