@@ -8,8 +8,6 @@ import com.github.ajalt.clikt.parameters.options.validate
 
 class BuildRefVcf : CliktCommand() {
 
-    //--bed /my/bed/file.bed --reference /my/ref.fasta -o /path/to/vcfs
-
     val bed by option(help = "BED file")
         .default("")
         .validate {

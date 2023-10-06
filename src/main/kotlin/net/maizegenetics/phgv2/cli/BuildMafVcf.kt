@@ -7,8 +7,6 @@ import com.github.ajalt.clikt.parameters.options.validate
 
 class BuildMafVcf : CliktCommand() {
 
-    //--maf-dir /my/maf/files -o /path/to/vcfs
-
     val bed by option(help = "BED file")
         .default("")
         .validate {
