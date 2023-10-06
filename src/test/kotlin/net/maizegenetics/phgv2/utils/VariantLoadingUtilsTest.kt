@@ -1,7 +1,9 @@
 package net.maizegenetics.phgv2.utils
 
 import biokotlin.seq.NucSeq
+import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFAltHeaderLine
+import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeaderVersion
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -10,15 +12,48 @@ import org.junit.jupiter.api.assertThrows
 import java.io.File
 import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
-import java.security.NoSuchAlgorithmException
 import kotlin.test.assertEquals
 //import net.maizegenetics.phgv2.utils.VariantLoadingUtils
 
 class VariantLoadingUtilsTest {
     @Test
     fun testExportVariantContext() {
-        // THis calls addSequenceDictionary, so that is tested as part of this
-        // TBD
+        //Create some simple VariantContext records into a list
+        val refMap = mapOf("1" to NucSeq("AAAAAAAAAAA"), "2" to NucSeq("TTTTTTTTTT"))
+        val variants = listOf(
+            createRefRangeVC(refMap, "Line1", Position("1",1), Position("1",1), Position("1",1), Position("1",1)),
+            createSNPVC("Line1", Position("1",2), Position("1",2), Pair("A","T"), Position("1",2), Position("1",2)),
+            createRefRangeVC(refMap,"Line1", Position("1",3), Position("1",6), Position("1",3), Position("1",6)),
+            createSNPVC("Line1", Position("1",7), Position("1",7), Pair("A","G"), Position("1",2), Position("1",2)),
+            createRefRangeVC(refMap,"Line1", Position("1",8), Position("1",10), Position("1",8), Position("1",10))
+        )
+
+        //Export the variants to a file
+        val testFile = "src/test/kotlin/net/maizegenetics/phgv2/testData/testExportVariantContext.vcf"
+        exportVariantContext("Line1", variants, testFile, refMap, setOf())
+
+        //Load the file back in and check that the variants are as expected
+        val loadedVariants = VCFFileReader(File(testFile), false).iterator().asSequence().toList()
+
+        assertEquals(5, loadedVariants.size, "Unexpected number of variants")
+        for(i in 0 until variants.size) {
+            compareVariants(variants[i], loadedVariants[i])
+        }
+
+    }
+
+    fun compareVariants(expectedVariant: VariantContext, loadedVariant: VariantContext) {
+        //compare the two variant contexts
+        assertEquals(expectedVariant.contig, loadedVariant.contig, "Contig not as expected")
+        assertEquals(expectedVariant.start, loadedVariant.start, "Start position not as expected")
+        assertEquals(expectedVariant.end, loadedVariant.end, "End position not as expected")
+        assertEquals(expectedVariant.genotypes[0].sampleName, loadedVariant.genotypes[0].sampleName, "Sample name not as expected")
+        assertEquals(expectedVariant.alleles[0].baseString, loadedVariant.alleles[0].baseString, "Reference allele not as expected")
+        assertEquals(expectedVariant.alternateAlleles[0].baseString, loadedVariant.alternateAlleles[0].baseString, "Alternate allele not as expected")
+        assertEquals(expectedVariant.getAttributeAsString("ASM_Chr",""), loadedVariant.getAttributeAsString("ASM_Chr",""), "ASM_Chr not as expected")
+        assertEquals(expectedVariant.getAttributeAsInt("ASM_Start",0), loadedVariant.getAttributeAsInt("ASM_Start",0), "ASM_Start not as expected")
+        assertEquals(expectedVariant.getAttributeAsInt("ASM_End",0), loadedVariant.getAttributeAsInt("ASM_End",0), "ASM_End not as expected")
+
     }
 
     @Test
@@ -76,6 +111,22 @@ class VariantLoadingUtilsTest {
     }
 
     @Test
+    fun testAddSequenceDictionary() {
+        //fun addSequenceDictionary(vcfheader : VCFHeader, refGenomeSequence: Map<String,NucSeq>) {
+        //Create a generic vcfHeader
+        val testHeader = createGenericHeader(listOf("LineA", "LineB", "LineC"), setOf())
+        //create a dummy refGenomeSequence
+        val refGenomeSequence = mapOf("1" to NucSeq("AAAAAAAAAAA"), "2" to NucSeq("TTTTTTTTTT"))
+        addSequenceDictionary(testHeader, refGenomeSequence)
+
+        //Compare TestHeader's seqDict to expected
+        testHeader.sequenceDictionary.sequences.forEach { seq ->
+            assertEquals(true, refGenomeSequence.containsKey(seq.sequenceName), "Sequence name not found in refGenomeSequence")
+            assertEquals(refGenomeSequence[seq.sequenceName]!!.size(), seq.sequenceLength, "Sequence length not as expected")
+        }
+    }
+
+    @Test
     fun testGetChecksumForString() {
         // this mostly verifies that different values are returned for different strings
         val testString1 = "AGCGGTTAAGGGGTTACACACACACATGTGTGTTTTTGGGGGGGGGGGGGGAAAAAAAAACACACACAC"
@@ -93,13 +144,34 @@ class VariantLoadingUtilsTest {
 
     @Test
     fun testCreateSNPVC() {
+        //createSNPVC(assemblyTaxon: String, startPosition: Position, endPosition: Position, calls: Pair<String, String>,
+        //                asmStart: Position, asmEnd: Position)
+        val vc1 = createSNPVC("Line1", Position("1",2), Position("1",2), Pair("A","T"), Position("1",2), Position("1",2))
+
+        assertEquals("1", vc1.contig)
+        assertEquals(2, vc1.start)
+        assertEquals(2, vc1.end)
+        assertEquals("Line1", vc1.genotypes[0].sampleName)
+        assertEquals("A", vc1.alleles[0].baseString)
+        assertEquals("T", vc1.alternateAlleles[0].baseString)
+        assertEquals("1", vc1.getAttributeAsString("ASM_Chr",""))
+        assertEquals(2, vc1.getAttributeAsInt("ASM_Start",0))
+        assertEquals(2, vc1.getAttributeAsInt("ASM_End",0))
+
+
+        assertThrows<IllegalStateException> {
+            //Check to make sure the reference Coords are not backwards
+            createSNPVC("Line1", Position("1",4), Position("1",2), Pair("A","T"), Position("1",3), Position("1",2))
+        }
+        assertThrows<IllegalStateException> {
+            //Check to make sure the assembly coords exist on same ASM chrom
+            createSNPVC("Line1", Position("1",2), Position("1",2), Pair("A","T"), Position("1",2), Position("2",3))
+        }
 
     }
 
     @Test
     fun testCreateRefRangeVC() {
-//        createRefRangeVC(refSequence: Map<String,NucSeq>, assemblyTaxon: String, refRangeStart: Position, refRangeEnd: Position,
-//        asmStart: Position, asmEnd: Position)
         val refSeq = mapOf("1" to NucSeq("AAAAAAAAAAA"), "2" to NucSeq("TTTTTTTTTTT"))
         val vc1 = createRefRangeVC(refSeq, "Line1", Position("1",2), Position("1",5), Position("1",3), Position("1",6))
 
@@ -112,9 +184,11 @@ class VariantLoadingUtilsTest {
         assertEquals(6, vc1.getAttributeAsInt("ASM_End",0))
 
         assertThrows<IllegalStateException> {
+            //Check that it throws an error when the refCoordinates are backwards
             createRefRangeVC(refSeq, "Line1", Position("1",10), Position("1",5), Position("1",10), Position("1",5))
         }
         assertThrows<IllegalStateException> {
+            //Check that it throws an error when the assembly coords span 2 chroms
             createRefRangeVC(refSeq, "Line1", Position("1",2), Position("1",5), Position("1",10), Position("2",5))
         }
 

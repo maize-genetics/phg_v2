@@ -200,7 +200,7 @@ fun createRefRangeVC(refSequence: Map<String,NucSeq>, assemblyTaxon: String, ref
     check(refRangeStart.position <= refRangeEnd.position) { "createRefRangeVC - start position greater than end: start=" +
                 refRangeStart.position + " end=" + refRangeEnd.position
     }
-    var vcb = VariantContextBuilder()
+    val vcb = VariantContextBuilder()
         .chr(refRangeStart.contig)
         .start(refRangeStart.position.toLong())
         .stop(refRangeEnd.position.toLong())
@@ -209,16 +209,8 @@ fun createRefRangeVC(refSequence: Map<String,NucSeq>, assemblyTaxon: String, ref
         .genotypes(gt)
 
     // Add assembly coordinates as attributes
-    if (asmStart != null && asmEnd != null) {
-        // Set the asm coordinates as VC record attributes
-        check(asmStart.contig == asmEnd.contig) { "createRefRangeVC - assembly start and end contigs do not match: start=" +
-                    asmStart.contig + " end=" + asmEnd.contig
-        }
-        vcb = vcb.attribute("ASM_Chr", asmStart.contig)
-                .attribute("ASM_Start", asmStart.position)
-                .attribute("ASM_End", asmEnd.position)
-    }
-    return vcb.make()
+    val vcbWithASMAnnos = addASMCoordsToVariantContextBuilder(vcb, asmStart, asmEnd)
+    return vcbWithASMAnnos.make()
 }
 
 /**
@@ -235,7 +227,7 @@ fun createRefRangeVC(refSequence: Map<String,NucSeq>, assemblyTaxon: String, ref
  * @return
  */
 fun createSNPVC(assemblyTaxon: String, startPosition: Position, endPosition: Position, calls: Pair<String, String>,
-                asmStart: Position, asmEnd: Position): VariantContext {
+                asmStart: Position?, asmEnd: Position?): VariantContext {
     val refCall = Allele.create(calls.first, true)
     val altCall = Allele.create(calls.second, false)
     check(startPosition.position <= endPosition.position) {
@@ -246,21 +238,31 @@ fun createSNPVC(assemblyTaxon: String, startPosition: Position, endPosition: Pos
     //Need to add AD for Alt >0 here so that the API will work correctly.  Otherwise it is treated as missing as it thinks AD = 0,0.
     // When coming from an assembly it should always use the ALT in a SNP pos
     val gt = GenotypeBuilder().name(assemblyTaxon).alleles(Arrays.asList(altCall)).DP(2).AD(intArrayOf(0, 2, 0)).make()
-    var vcb = VariantContextBuilder()
+    val vcb = VariantContextBuilder()
         .chr(startPosition.contig)
         .start(startPosition.position.toLong())
         .stop(endPosition.position.toLong())
         .alleles(Arrays.asList(refCall, altCall, Allele.NON_REF_ALLELE))
         .genotypes(gt)
 
+    // Add assembly coordinates as attributes
+    val vcbWithASMAnnos = addASMCoordsToVariantContextBuilder(vcb, asmStart, asmEnd)
+    return vcbWithASMAnnos.make()
+}
 
+fun addASMCoordsToVariantContextBuilder(vcb: VariantContextBuilder, asmStart: Position?, asmEnd: Position?) :VariantContextBuilder {
+    var newVCB = vcb
     //Only add in the Assembly start and end if they exist
     if (asmStart != null && asmEnd != null) {
         // Set the asm coordinates as VC record attributes
-        vcb = vcb.attribute("ASM_Start", asmStart.position)
-        vcb = vcb.attribute("ASM_End", asmEnd.position)
+        check(asmStart.contig == asmEnd.contig) { "createRefRangeVC - assembly start and end contigs do not match: start=" +
+                asmStart.contig + " end=" + asmEnd.contig
+        }
+        newVCB = vcb.attribute("ASM_Chr", asmStart.contig)
+            .attribute("ASM_Start", asmStart.position)
+            .attribute("ASM_End", asmEnd.position)
     }
-    return vcb.make()
+    return newVCB
 }
 
 // Create an Md5 checksum.  While this method will create a check sum from
