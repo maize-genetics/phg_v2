@@ -49,7 +49,7 @@ class Initdb : CliktCommand() {
         val hvcf_dataset = dbpath + "/hvcf_dataset"
 
         if (File(gvcf_dataset).exists() || File(hvcf_dataset).exists()) {
-            myLogger.error("TileDB datasets already exist in folder $dbpath.  \nIf $gvcf_dataset or $hvcf_dataset are not tiledb datasets, then delete and run again or chose a different base folder to house your tiledb data.")
+            myLogger.warn("TileDB datasets already exist in folder $dbpath.  \nIf $gvcf_dataset or $hvcf_dataset are not tiledb datasets, then delete and run again or chose a different base folder to house your tiledb data.")
             return
         }
 
