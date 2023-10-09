@@ -14,11 +14,9 @@ import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeaderLine
 import htsjdk.variant.vcf.VCFHeaderVersion
-import net.maizegenetics.phgv2.utils.Position
-import net.maizegenetics.phgv2.utils.createRefRangeVC
-import net.maizegenetics.phgv2.utils.getChecksumForString
-import net.maizegenetics.phgv2.utils.verifyIntervalRanges
+import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
+import java.io.File
 import java.util.*
 
 
@@ -44,7 +42,7 @@ class BuildRefVcf : CliktCommand() {
             }
         }
 
-    val refName by option(help = "Line name for reference to be used in vcf header")
+    val refName by option(help = "Line name for reference to be used in hvcf header")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -62,6 +60,14 @@ class BuildRefVcf : CliktCommand() {
 
 
     override fun run() {
+
+        createRefRanges(bed,refFasta,outputDir)
+
+    }
+
+    fun createRefRanges(ranges:String,refGenome:String,outputDir:String) {
+
+        myLogger.info("begin createRefRanges,  refGenome=${refGenome}")
         val overlaps = verifyIntervalRanges(bed)
 
         // Verify the bed file is good.
@@ -73,14 +79,6 @@ class BuildRefVcf : CliktCommand() {
             throw IllegalArgumentException("BuildRefVcf: intervals bed file has overlapping positions. Overlapping reference ranges are not supported.  Please consolidate/remove overlaps.")
         }
 
-        // no overlaps, create the RefRanges HVCF file
-        createRefRanges(bed,refFasta,outputDir)
-
-    }
-
-    fun createRefRanges(ranges:String,refGenome:String,outputDir:String) {
-
-        myLogger.info("begin createRefRanges,  refGenome=${refGenome}")
         var groupAndPositionsMap: Multimap<String, Range<Position>> = HashMultimap.create()
 
         // read the ref fasta into the myRefSequence map
@@ -164,10 +162,24 @@ class BuildRefVcf : CliktCommand() {
                 myLogger.info("Total intervals for chrom ${prevChrom} : ${chromAnchors}")
             } // end buffered reader
 
+            // Load to an hvcf file, write files to user specified outputDir
+
+            val hvcfFileName = "${refName}.hvcf"
+            var localRefHVCFFile = outputDir + "/" + hvcfFileName
+
+            //  This is in VariantUtils - it exports the gvcf file.
+            // Need to include the VCF ALT Header lines created in the loop above
+            exportVariantContext(refName, fullRefVCList, localRefHVCFFile, myRefSequence!!,altHeaderLines)
+            //bgzip and csi index the file
+            val bgzippedGVCFFileName = bgzipAndIndexGVCFfile(localRefHVCFFile)
+            myLogger.info("${bgzippedGVCFFileName} created and stored to ${outputDir}")
+
+
         } catch (exc: Exception) {
             myLogger.error("Error processing intervals file: ${exc.message}")
             throw IllegalStateException("")
         }
+
     } // end createRefRanges()
 
 }
