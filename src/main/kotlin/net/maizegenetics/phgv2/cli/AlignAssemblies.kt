@@ -83,10 +83,11 @@ class AlignAssemblies : CliktCommand() {
 
         val builder = ProcessBuilder(
             "conda", "run", "-n", "phgv2-conda", "minimap2", "-x", "splice", "-t", threads.toString(), "-k", "12",
-            "-a", "-p", "0.4", "-N20", ref, cdsFasta
+            "-a", "-p", "0.4", "-N20", ref, cdsFasta, "-o", refSamOutFile
         )
         val redirectError = "$outputDir/minimap2Ref_error.log"
-        builder.redirectOutput(File(refSamOutFile))
+        val redirectOutput = "$outputDir/minimap2Ref_output.log"
+        builder.redirectOutput(File(redirectOutput))
         builder.redirectError(File(redirectError))
 
         println("Ref minimap Command: " + builder.command().stream().collect(Collectors.joining(" ")));
@@ -205,12 +206,15 @@ class AlignAssemblies : CliktCommand() {
                     "0.4",
                     "-N20",
                     assemblyEntry.asmFasta,
-                    cdsFasta
+                    cdsFasta,
+                    "-o",
+                    asmSamFile
                 )
 
                 val redirectError = "${assemblyEntry.outputDir}/minimap2_${justName}_error.log"
+                val redirectOutput = "${assemblyEntry.outputDir}/minimap2_${justName}_output.log"
                 println("redirectError: $redirectError")
-                builder.redirectOutput(File(asmSamFile))
+                builder.redirectOutput(File(redirectOutput))
                 builder.redirectError(File(redirectError))
                 println(
                     " begin minimap assembly Command: " + builder.command().stream().collect(Collectors.joining(" "))
