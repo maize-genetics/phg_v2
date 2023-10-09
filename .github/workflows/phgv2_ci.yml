@@ -26,8 +26,9 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+          cache: 'gradle'
       - name: Build with Gradle
-        run: ./gradlew clean build
+        run: ./gradlew clean build --no-daemon
       - name: Run Kover XML report
         run: ./gradlew koverXMLReport
       - name: Upload coverage reports to Codecov
