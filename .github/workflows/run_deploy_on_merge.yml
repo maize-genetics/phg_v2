@@ -106,12 +106,13 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: 'gradle'
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
       - name: Build PHGv2
-        run: ./gradlew clean build
+        run: ./gradlew clean build --no-daemon
 
       - name: Get matching release
         uses: cardinalby/git-get-release-action@1.2.4
