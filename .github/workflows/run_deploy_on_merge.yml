@@ -107,6 +107,9 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Setup Gradle  # This sets up caching to make builds faster
+        uses: gradle/gradle-build-action@v2
+
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
