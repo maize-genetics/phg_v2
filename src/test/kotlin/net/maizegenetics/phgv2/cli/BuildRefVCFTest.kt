@@ -38,4 +38,10 @@ class BuildRefVCFTest {
                 "\n" +
                 "Error: invalid value for --output-dir: --output-dir/-o must not be blank\n",resultMissingOutput.output)
     }
+
+    @Test
+    fun testBuildRefVCF() {
+        val vcfDir = "${TestExtension.testVCFDir}"
+        val buildRefVCF = BuildRefVcf()
+    }
 }
