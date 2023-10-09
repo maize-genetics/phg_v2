@@ -13,6 +13,7 @@ class TestExtension : BeforeAllCallback {
         val testOutputFastaDir = "${tempDir}outputFastaDir/"
 
 
+        val refLineName = "Ref"
         val refFastaName = "Ref.fa"
         val asmList = listOf("LineA.fa", "LineB.fa")
 

@@ -40,7 +40,7 @@ class BuildRefVcf : CliktCommand() {
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--reference fasta must not be blank"
+                "--refFasta fasta must not be blank"
             }
         }
 

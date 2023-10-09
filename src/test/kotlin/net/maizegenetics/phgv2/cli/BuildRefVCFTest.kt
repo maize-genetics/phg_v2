@@ -14,21 +14,25 @@ class BuildRefVCFTest {
     @Test
     fun testCliktParams() {
         val buildRefVCF = BuildRefVcf()
-        val resultGood = buildRefVCF.test("--bed ${TestExtension.testBEDFile} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
+        val resultGood = buildRefVCF.test("--bed ${TestExtension.testBEDFile} --refFasta ${TestExtension.testRefFasta} --refName ${TestExtension.refLineName} -o ${TestExtension.testVCFDir}")
 
-        val resultMissingBed = buildRefVCF.test("--reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
+        // Send request without bed file parameter
+        val resultMissingBed = buildRefVCF.test("--reference ${TestExtension.testRefFasta} --refFasta ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingBed.statusCode, 1)
         assertEquals("Usage: build-ref-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --bed: --bed must not be blank\n",resultMissingBed.output)
-        val resultMissingRef = buildRefVCF.test("--bed ${TestExtension.testBEDFile} -o ${TestExtension.testVCFDir}")
+
+        // Send request without reference file parameter
+        val resultMissingRef = buildRefVCF.test("--refFasta ${TestExtension.testRefFasta} --bed ${TestExtension.testBEDFile} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingRef.statusCode, 1)
         assertEquals("Usage: build-ref-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --reference: --reference must not be blank\n",resultMissingRef.output)
 
 
-        val resultMissingOutput = buildRefVCF.test("--bed ${TestExtension.testBEDFile} --reference ${TestExtension.testRefFasta}")
+        // Send request without output directory parameter
+        val resultMissingOutput = buildRefVCF.test("--bed ${TestExtension.testBEDFile} --refFasta ${TestExtension.testRefFasta} --refFasta ${TestExtension.testRefFasta}")
         assertEquals(resultMissingOutput.statusCode, 1)
         assertEquals("Usage: build-ref-vcf [<options>]\n" +
                 "\n" +
