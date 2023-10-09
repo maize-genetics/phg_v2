@@ -26,10 +26,9 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - name: Setup Gradle  # This sets up caching to make builds faster
-        uses: gradle/gradle-build-action@v2
+          cache: 'gradle'
       - name: Build with Gradle
-        run: ./gradlew clean build
+        run: ./gradlew clean build --no-daemon
       - name: Run Kover XML report
         run: ./gradlew koverXMLReport
       - name: Upload coverage reports to Codecov
