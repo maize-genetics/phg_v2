@@ -106,15 +106,13 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-
-      - name: Setup Gradle  # This sets up caching to make builds faster
-        uses: gradle/gradle-build-action@v2
+          cache: 'gradle'
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
       - name: Build PHGv2
-        run: ./gradlew clean build
+        run: ./gradlew clean build --no-daemon
 
       - name: Get matching release
         uses: cardinalby/git-get-release-action@1.2.4
