@@ -24,7 +24,7 @@ class SetupEnvironment : CliktCommand() {
     // This function uses ProcssBuilder to setup the phgv2 conda environment
     fun createEnvironment( envFile: String, outputDir:String) {
         // call ProcessBuilder to execute the conda create env command
-        val builder = ProcessBuilder("conda", "env", "create", "--file", envFile)
+        val builder = ProcessBuilder("conda", "env", "create","--solver=libmamba", "--file", envFile)
         var redirectOutput = outputDir + "/condaCreate_output.log"
         var redirectError = outputDir + "/condaCreate_error.log"
         builder.redirectOutput( File(redirectOutput))
