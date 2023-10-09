@@ -17,14 +17,14 @@ class InitdbTest {
         }
 
         // Comment these out if you need to look at the logs files created by ProcessBuilder
-        // comda commands.
+        // commands.
         @JvmStatic
         @AfterAll
         fun teardown() {
             File(tempDir).deleteRecursively()
         }
     }
-    @Ignore
+   // @Ignore
     @Test
     fun testInitdb() {
 
@@ -38,19 +38,27 @@ class InitdbTest {
         val result = initdb.createDataSets( dbPath)
         println("result = $result")
         // To verify, we  check that the outputDir contains the expected files
-        val expectedFiles = listOf("gvcf_dataset", "hvcf_dataset")
-        expectedFiles.forEach { assert(File(dbPath + it).exists()) }
+        val expectedFiles = listOf("${dbPath}gvcf_dataset", "${dbPath}hvcf_dataset", "${dbPath}temp/tiledb_gvcf_createURI_error.log", "${dbPath}temp/tiledb_gvcf_createURI_output.log", "${dbPath}temp/tiledb_hvcf_createURI_error.log", "${dbPath}temp/tiledb_hvcf_createURI_output.log")
+        expectedFiles.forEach { assert(File( it).exists()) }
+
+        // Delete the log files created by the ProcessBuilder commands.
+        // Rerun the command .  The log files should NOT be created as
+        // the code will realize the dataset already exists and does not try to recreate it.
+        val expectedLogFiles = listOf("$dbPath}temp/tiledb_gvcf_createURI_output.log", "$dbPath}temp/tiledb_hvcf_createURI_error.log")
+        expectedLogFiles.forEach { File(it).delete() }
 
         // Run this again to verify that the datasets are not overwritten.
         val result2 = initdb.createDataSets( dbPath)
         println("result2 = $result2")
-        // To verify, we check the output log for a message that the files
-        // already existed.  HHH ... this goes to the myLogger file, not
-        // a process builder output file.  Can I delete any existing output
-        // files before call initDB?  Then if the are not recreated,  but
-        // the datasets exist, it means they were there previously and were not
-        // overwritten.
-        val gvcfOutput = dbPath + "/tiledb_gvcf_createURI_output.log"
 
+        // The output and error log files are not recreated because the
+        //  datasets exist,
+
+        // verify the expectedLogFiles (ie the ProcessBuilder log files) do NOT exist
+        expectedLogFiles.forEach { assert(!(File( it).exists())) }
+
+        // verify the datasets still exist
+        val expectedDatasetFiles = listOf("${dbPath}gvcf_dataset", "${dbPath}hvcf_dataset")
+        expectedDatasetFiles.forEach { assert(File(it).exists()) }
     }
 }
