@@ -44,7 +44,7 @@ class InitdbTest {
         // Delete the log files created by the ProcessBuilder commands.
         // Rerun the command .  The log files should NOT be created as
         // the code will realize the dataset already exists and does not try to recreate it.
-        val expectedLogFiles = listOf("$dbPath}temp/tiledb_gvcf_createURI_output.log", "$dbPath}temp/tiledb_hvcf_createURI_error.log")
+        val expectedLogFiles = listOf("${dbPath}temp/tiledb_gvcf_createURI_output.log", "${dbPath}temp/tiledb_hvcf_createURI_error.log")
         expectedLogFiles.forEach { File(it).delete() }
 
         // Run this again to verify that the datasets are not overwritten.
