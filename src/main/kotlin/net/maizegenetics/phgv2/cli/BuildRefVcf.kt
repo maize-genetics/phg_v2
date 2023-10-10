@@ -27,7 +27,39 @@ class BuildRefVcf : CliktCommand() {
 
     var myRefSequence: Map<String, NucSeq>? = null
 
-    val bed by option(help = "BED formatted file of regions denoting reference haplotypes")
+//    val bed by option(help = "BED formatted file of regions denoting reference haplotypes")
+//        .default("")
+//        .validate {
+//            require(it.isNotBlank()) {
+//                "--bed must not be blank"
+//            }
+//        }
+//
+//    val refFasta by option(help = "Reference FASTA file")
+//        .default("")
+//        .validate {
+//            require(it.isNotBlank()) {
+//                "--refFasta fasta must not be blank"
+//            }
+//        }
+//
+//    val refName by option(help = "Line name for reference to be used in hvcf header")
+//        .default("")
+//        .validate {
+//            require(it.isNotBlank()) {
+//                "--reference line name must not be blank"
+//            }
+//        }
+//
+//    val outputDir by option("-o", "--output-dir", help = "Name for output VCF file Directory")
+//        .default("")
+//        .validate {
+//            require(it.isNotBlank()) {
+//                "--output-dir/-o must not be blank"
+//            }
+//        }
+
+    val bed by option(help = "BED file")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -35,19 +67,19 @@ class BuildRefVcf : CliktCommand() {
             }
         }
 
-    val refFasta by option(help = "Reference FASTA file")
+    val referencefile by option(help = "Reference FASTA file")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--refFasta fasta must not be blank"
+                "--referencefile must not be blank"
             }
         }
 
-    val refName by option(help = "Line name for reference to be used in hvcf header")
+    val refname by option(help = "Line name for reference to be used in hvcf ")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--reference line name must not be blank"
+                "--refname must not be blank"
             }
         }
 
@@ -59,10 +91,10 @@ class BuildRefVcf : CliktCommand() {
             }
         }
 
-
     override fun run() {
 
-        createRefHvcf(bed,refFasta,refName,outputDir)
+        //createRefHvcf(bed,refFasta,refName,outputDir)
+        createRefHvcf(bed,referencefile,refname,outputDir)
 
     }
 
