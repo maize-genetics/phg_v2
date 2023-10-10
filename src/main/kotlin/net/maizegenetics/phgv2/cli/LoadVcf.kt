@@ -16,13 +16,22 @@ class LoadVcf : CliktCommand() {
             }
         }
 
-    val dbPath by option(help = "Tile DB URI")
+    val dbPath by option(help = "Folder holding TileDB datasets")
         .default("")
         .validate {
             require(it.isNotBlank()) {
                 "--db-path must not be blank"
             }
         }
+
+    val tempDir by option(help = "Folder where temporary files will be written")
+        .default("")
+        .validate {
+            require(it.isNotBlank()) {
+                "--temp-dir must not be blank"
+            }
+        }
+
     override fun run() {
 //        TODO("Not yet implemented")
     }
