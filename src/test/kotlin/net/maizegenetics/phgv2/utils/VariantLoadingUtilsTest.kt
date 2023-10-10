@@ -1,14 +1,14 @@
 package net.maizegenetics.phgv2.utils
 
 import biokotlin.seq.NucSeq
+import com.google.common.io.Files
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeaderVersion
-import org.junit.jupiter.api.Assertions
+import org.apache.logging.log4j.core.util.FileUtils
+import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertNotEquals
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import java.io.File
 import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
@@ -16,6 +16,42 @@ import kotlin.test.assertEquals
 //import net.maizegenetics.phgv2.utils.VariantLoadingUtils
 
 class VariantLoadingUtilsTest {
+    companion object {
+        val tempDir = "${System.getProperty("user.home")}/temp/phgv2Tests/tempDir/"
+
+        @JvmStatic
+        @BeforeAll
+        fun setup() {
+            File(tempDir).mkdirs()
+        }
+
+        // Comment out the tearDown() you need to look at the logs files or other files
+        // created by the junit tests
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+            File(tempDir).deleteRecursively()
+        }
+    }
+    @Test
+    fun testBgzipAndIndex() {
+        // Copy the sample gvcf file to the test directory
+        val origGvcfFile = "data/test/smallseq/sample.gvcf"
+        val testGvcfFile = tempDir + "sample.gvcf"
+        Files.copy(File(origGvcfFile), File(testGvcfFile))
+
+        // call bgzipAndIndexGVCFfile to zip and index the file
+        bgzipAndIndexGVCFfile(testGvcfFile.toString())
+
+        // check that the compressed file exists
+        val gvcfFileZipped = File(testGvcfFile + ".gz")
+        assertEquals(true, gvcfFileZipped.exists())
+
+        // check that the index file exists
+        val gvcfFileZippedIndex = File(testGvcfFile + ".gz.csi")
+        assertEquals(true, gvcfFileZippedIndex.exists())
+    }
+
     @Test
     fun testExportVariantContext() {
         //Create some simple VariantContext records into a list
