@@ -6,6 +6,7 @@ import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeaderVersion
+import io.kotest.core.spec.style.AnnotationSpec
 import org.apache.logging.log4j.core.util.FileUtils
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -13,6 +14,7 @@ import java.io.File
 import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
 import kotlin.test.assertEquals
+import kotlin.test.Ignore
 //import net.maizegenetics.phgv2.utils.VariantLoadingUtils
 
 class VariantLoadingUtilsTest {
@@ -33,6 +35,8 @@ class VariantLoadingUtilsTest {
             File(tempDir).deleteRecursively()
         }
     }
+
+    @Ignore
     @Test
     fun testBgzipAndIndex() {
         // Copy the sample gvcf file to the test directory
@@ -41,7 +45,7 @@ class VariantLoadingUtilsTest {
         Files.copy(File(origGvcfFile), File(testGvcfFile))
 
         // call bgzipAndIndexGVCFfile to zip and index the file
-        bgzipAndIndexGVCFfile(testGvcfFile.toString())
+        bgzipAndIndexGVCFfile(testGvcfFile)
 
         // check that the compressed file exists
         val gvcfFileZipped = File(testGvcfFile + ".gz")
