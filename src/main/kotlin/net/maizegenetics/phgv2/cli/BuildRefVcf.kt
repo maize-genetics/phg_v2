@@ -143,13 +143,15 @@ class BuildRefVcf : CliktCommand() {
                     val type = tokens[3]
                     groupAndPositionsMap.put(type, intervalRange)
 
+                    // SEnding null for asm_start and asm_end.
+                    // this prevents them from being written to the hvcf file
                     val vc = createRefRangeVC(
                         myRefSequence!!,
                         refName,
                         intervalStart,
                         intervalEnd,
-                        intervalStart,
-                        intervalEnd
+                        null,
+                        null
                     )
                     fullRefVCList.add(vc) // this is a list of ALL the VC records for all ranges - will become the hvcf file.
 
