@@ -18,11 +18,12 @@ import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.util.*
+import java.util.logging.Logger
 
 
 class BuildRefVcf : CliktCommand() {
 
-    private val myLogger = LogManager.getLogger(BuildRefVcf::class.java)
+    private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.cli.BuildRefVcf")
 
     var myRefSequence: Map<String, NucSeq>? = null
 
@@ -61,21 +62,22 @@ class BuildRefVcf : CliktCommand() {
 
     override fun run() {
 
-        createRefRanges(bed,refFasta,outputDir)
+        createRefHvcf(bed,refFasta,refName,outputDir)
 
     }
 
-    fun createRefRanges(ranges:String,refGenome:String,outputDir:String) {
+    fun createRefHvcf(ranges:String,refGenome:String,refName:String,outputDir:String) {
 
-        myLogger.info("begin createRefRanges,  refGenome=${refGenome}")
-        val overlaps = verifyIntervalRanges(bed)
+        myLogger.info("begin createRefHvcf,  refGenome=${refGenome}")
+
 
         // Verify the bed file is good.
         // If there are overlaps, throw an error and exit.
         // Overlaps are printed to stdout.
+        val overlaps = verifyIntervalRanges(ranges)
         if (overlaps.isNotEmpty()) {
             // Overlaps not permitted.  User can fix via manually or via CreateValidIntervalsFilePlugin.  Throw error
-            overlaps.stream().forEach { entry: String -> myLogger.error("BuildRefVcf:  range Overlap entry: $entry") }
+            overlaps.stream().forEach { entry: String -> myLogger.severe("BuildRefVcf:  range Overlap entry: $entry") }
             throw IllegalArgumentException("BuildRefVcf: intervals bed file has overlapping positions. Overlapping reference ranges are not supported.  Please consolidate/remove overlaps.")
         }
 
@@ -112,7 +114,9 @@ class BuildRefVcf : CliktCommand() {
                         continue // skip header line
                     }
                     val tokens = line.split("\t")
-                    if (tokens.size < 4) {
+                    // Line must contain at least 3 columns: chrom, chromStart, chromEnd
+                    // Additional columns are ignored
+                    if (tokens.size < 3) {
                         throw IllegalArgumentException("Error processing intervals file on line : ${line} . Must have values for columns chrom, chromStart, chromEnd and name")
                     }
                     chrom = tokens[0]
@@ -147,7 +151,7 @@ class BuildRefVcf : CliktCommand() {
                         intervalStart,
                         intervalEnd
                     )
-                    fullRefVCList.add(vc) // this is a list of ALL the VC records for all ranges - will become the gvcf file.
+                    fullRefVCList.add(vc) // this is a list of ALL the VC records for all ranges - will become the hvcf file.
 
                     // Add vcf header lines here, doing somthing like this:
                     // headerLines.add(VCFAltHeaderLine("<ID=${intervalHash}, Description=\"${nodeDescription(node)}\">", VCFHeaderVersion.VCF4_2))
@@ -168,7 +172,7 @@ class BuildRefVcf : CliktCommand() {
             var localRefHVCFFile = outputDir + "/" + hvcfFileName
 
             //  This is in VariantUtils - it exports the gvcf file.
-            // Need to include the VCF ALT Header lines created in the loop above
+            // Include the VCF ALT Header lines created in the loop above
             exportVariantContext(refName, fullRefVCList, localRefHVCFFile, myRefSequence!!,altHeaderLines)
             //bgzip and csi index the file
             val bgzippedGVCFFileName = bgzipAndIndexGVCFfile(localRefHVCFFile)
@@ -176,8 +180,8 @@ class BuildRefVcf : CliktCommand() {
 
 
         } catch (exc: Exception) {
-            myLogger.error("Error processing intervals file: ${exc.message}")
-            throw IllegalStateException("")
+            myLogger.severe("Error creating Ref HVCF file: ${exc.message}")
+            throw IllegalStateException("Error creating Ref HVCF file: ${exc.message}")
         }
 
     } // end createRefRanges()
