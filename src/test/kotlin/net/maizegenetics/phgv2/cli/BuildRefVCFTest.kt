@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
+import kotlin.test.Ignore
 import kotlin.test.assertEquals
 
 @ExtendWith(TestExtension::class)
@@ -20,7 +21,7 @@ class BuildRefVCFTest {
             File(tempDir).mkdirs()
         }
 
-        // Comment these out if you need to look at the logs files created by ProcessBuilder
+        // Comment out the tearDown()if you need to look at the logs files created by ProcessBuilder
         // commands.
         @JvmStatic
         @AfterAll
@@ -67,6 +68,9 @@ class BuildRefVCFTest {
 
     }
 
+    // Test is ignored until we can figure out how to get the test to run on the github actions server.
+    // ie - conda setup is working correctly.
+    @Ignore
     @Test
     fun testBuildRefVCF() {
         val vcfDir = tempDir
