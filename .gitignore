@@ -1,5 +1,3 @@
-data/*
-!data/sources.txt
 notebooks/.ipynb_checkpoints
 .DS_Store
 .idea*

@@ -102,7 +102,7 @@ fun bgzipAndIndexGVCFfile(gvcfFileName: String): String {
         // use the -f option to overwrite any existing file
         myLogger.info("bgzipping  file ${gvcfFileName}")
         val gvcfGzippedFile = gvcfFileName + ".gz"
-        var builder = ProcessBuilder(
+        var builder = ProcessBuilder("conda","run","-n","phgv2-conda",
             "bgzip", "-f", gvcfFileName)
 
         var process = builder.start()
@@ -118,7 +118,7 @@ fun bgzipAndIndexGVCFfile(gvcfFileName: String): String {
         // ORiginal PHG used tabix, we wnat csi indexes to allow for large genomes e.g wheat.
         // TileDB supports .csi indexed files.
         val tabixFile = gvcfGzippedFile + ".csi"
-        builder = ProcessBuilder("bcftools", "index", "-c",gvcfGzippedFile)
+        builder = ProcessBuilder("conda","run","-n","phgv2-conda","bcftools", "index", "-c",gvcfGzippedFile)
         process = builder.start()
         error = process.waitFor()
         if (error != 0) {
