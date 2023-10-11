@@ -21,6 +21,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-activate-base: true
+          activate-environment: ""
+          miniconda-version: "latest"
+      - name: Run Conda
+        run: conda env create --solver=libmamba --file src/main/resources/environment.yml
       - name: Set up Java
         uses: actions/setup-java@v3
         with:

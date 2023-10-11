@@ -51,6 +51,15 @@ jobs:
         with:
           token: ${{secrets.PHGV2CD}}
 
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-activate-base: true
+          activate-environment: ""
+          miniconda-version: "latest"
+      - name: Run Conda
+        run: conda env create --solver=libmamba --file src/main/resources/environment.yml
+
       # Uses semantic commits to automate version bumping.
       # No scope or "fix:" = PATCH, "feat:" or "minor:" = MINOR, "BREAKING CHANGE:", "major:", or fix/feat with appended "!" = MAJOR
       # Additional details: https://www.conventionalcommits.org/en/v1.0.0/
