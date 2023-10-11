@@ -13,7 +13,9 @@ class TestExtension : BeforeAllCallback {
         val testOutputFastaDir = "${tempDir}outputFastaDir/"
 
 
+        val refLineName = "Ref"
         val refFastaName = "Ref.fa"
+        val refURL = "https://s3.amazonaws.com/maizegenetics/phg/phgV2Test/Ref.fa" // this is a dummy URL
         val asmList = listOf("LineA.fa", "LineB.fa")
 
 
