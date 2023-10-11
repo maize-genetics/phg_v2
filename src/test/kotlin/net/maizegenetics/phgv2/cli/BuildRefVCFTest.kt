@@ -71,7 +71,7 @@ class BuildRefVCFTest {
 
     // Test is ignored until we can figure out how to get the test to run on the github actions server.
     // ie - conda setup is working correctly.
-    @Ignore
+    //@Ignore
     @Test
     fun testBuildRefVCF() {
         val vcfDir = tempDir
