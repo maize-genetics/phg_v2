@@ -65,8 +65,7 @@ class BuildRefVcf : CliktCommand() {
         }
 
     override fun run() {
-
-        //createRefHvcf(bed,refFasta,refName,outputDir)
+        myLogger.info("begin run")
         createRefHvcf(bed,referencefile,refname,refurl,outputDir)
 
     }
@@ -82,7 +81,7 @@ class BuildRefVcf : CliktCommand() {
         val overlaps = verifyIntervalRanges(ranges)
         if (overlaps.isNotEmpty()) {
             // Overlaps not permitted.  User can fix via manually or via CreateValidIntervalsFilePlugin.  Throw error
-            overlaps.stream().forEach { entry: String -> myLogger.severe("BuildRefVcf:  range Overlap entry: $entry") }
+            overlaps.forEach { entry: String -> myLogger.severe("BuildRefVcf:  range Overlap entry: $entry") }
             throw IllegalArgumentException("BuildRefVcf: intervals bed file has overlapping positions. Overlapping reference ranges are not supported.  Please consolidate/remove overlaps.")
         }
 

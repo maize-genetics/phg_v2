@@ -2,11 +2,15 @@ package net.maizegenetics.phgv2.cli
 
 import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.createRefRangeVC
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
+import java.lang.IllegalStateException
 import kotlin.test.Ignore
 import kotlin.test.assertEquals
 
@@ -66,6 +70,45 @@ class BuildRefVCFTest {
         assertEquals("Usage: build-ref-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --refname: --refname must not be blank\n",resultMissingRefName.output)
+
+    }
+
+    @Test
+    fun testBuildRefVCF_badIntervals() {
+
+        val anchorFile = "${tempDir}/testAnchorFile.txt"
+        File(anchorFile).bufferedWriter().use {
+            // Lines 4 and 5 overlap line 3
+            // Line 8 overlaps line 7 (First chr2 anchor)
+            // Line 13 overlaps line 12 (but different chrom, so should not count)
+            val anchorContents = """
+                chr1	10575	13198
+                chr1	20460	29234
+                chr1	141765	145627
+                chr1	143661	146302
+                chr1	144363	148863
+                chr1	175219	177603
+                chr2	81176	84375
+                chr2	82776	87024
+                chr2	108577	113286
+                chr3	116671	122941
+                chr3	140393	145805
+                chr3	159053	164568
+                chr5	158053	164568
+            """.trimIndent()
+            it.write(anchorContents)
+        }
+
+        val vcfDir = tempDir
+        val refName = "Ref"
+        val refUrl = TestExtension.refURL
+
+        val genome = "data/test/smallseq/Ref.fa"
+
+        assertThrows<IllegalArgumentException> {
+            //Check that an error is thrown when the bed file has overlapping intervals
+            BuildRefVcf().createRefHvcf(anchorFile,genome,refName,refUrl,vcfDir)
+        }
 
     }
 
