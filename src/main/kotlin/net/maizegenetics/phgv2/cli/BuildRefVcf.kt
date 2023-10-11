@@ -27,6 +27,11 @@ class BuildRefVcf : CliktCommand() {
 
     var myRefSequence: Map<String, NucSeq>? = null
 
+    // refurl is not required.  If present, it will result in a ##reference header
+    // in the hvcf file.
+    val refurl by option(help = "URL where the reference FASTA file can be downloaded")
+        .default("")
+
     val bed by option(help = "BED file")
         .default("")
         .validate {
@@ -62,11 +67,11 @@ class BuildRefVcf : CliktCommand() {
     override fun run() {
 
         //createRefHvcf(bed,refFasta,refName,outputDir)
-        createRefHvcf(bed,referencefile,refname,outputDir)
+        createRefHvcf(bed,referencefile,refname,refurl,outputDir)
 
     }
 
-    fun createRefHvcf(ranges:String,refGenome:String,refName:String,outputDir:String) {
+    fun createRefHvcf(ranges:String,refGenome:String,refName:String,refUrl:String,outputDir:String) {
 
         myLogger.info("begin createRefHvcf,  refGenome=${refGenome}")
 
@@ -93,6 +98,12 @@ class BuildRefVcf : CliktCommand() {
         // There will be 1 ALT header line created for every reference range in
         // this file
         val altHeaderLines: MutableSet<VCFHeaderLine> = HashSet()
+
+        // add ##reference line if a refURL was provided
+        if (refUrl.isNotBlank()) {
+            altHeaderLines.add(
+                VCFHeaderLine("reference","${refUrl}")) // add the ##reference line
+        }
 
         // Process the user interval ranges file
         try {

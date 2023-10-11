@@ -36,15 +36,16 @@ class BuildRefVCFTest {
 
         // Testing the "good" case happens in the actual test case below
 
-        // Test missing bed file parameter
-        val resultMissingBed = buildRefVCF.test("--refname ${TestExtension.refLineName} --referencefile ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
+        // Test missing bed file parameter, also missing refurl
+        // it is the missing bed file parameter that will be flagged
+        val resultMissingBed = buildRefVCF.test("--refname ${TestExtension.refLineName} --referencefile ${TestExtension.testRefFasta}  -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingBed.statusCode, 1)
         assertEquals("Usage: build-ref-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --bed: --bed must not be blank\n",resultMissingBed.output)
 
-        // TEst missing reference file
-        val resultMissingRef = buildRefVCF.test("--bed ${TestExtension.testBEDFile} --refname ${TestExtension.refLineName} -o ${TestExtension.testVCFDir}")
+        // Test missing reference file
+        val resultMissingRef = buildRefVCF.test("--bed ${TestExtension.testBEDFile} --refurl ${TestExtension.refURL} --refname ${TestExtension.refLineName} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingRef.statusCode, 1)
         assertEquals("Usage: build-ref-vcf [<options>]\n" +
                 "\n" +
@@ -52,14 +53,14 @@ class BuildRefVCFTest {
 
 
         // Test missing output directory
-        val resultMissingOutput = buildRefVCF.test("--bed ${TestExtension.testBEDFile} --refname ${TestExtension.refLineName} --referencefile ${TestExtension.testRefFasta}")
+        val resultMissingOutput = buildRefVCF.test("--bed ${TestExtension.testBEDFile} --refurl ${TestExtension.refURL} --refname ${TestExtension.refLineName} --referencefile ${TestExtension.testRefFasta}")
         assertEquals(resultMissingOutput.statusCode, 1)
         assertEquals("Usage: build-ref-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --output-dir: --output-dir/-o must not be blank\n",resultMissingOutput.output)
 
         // Test missing ref name parameter
-        val resultMissingRefName = buildRefVCF.test("--referencefile ${TestExtension.testRefFasta} --bed ${TestExtension.testBEDFile} -o ${TestExtension.testVCFDir}")
+        val resultMissingRefName = buildRefVCF.test("--referencefile ${TestExtension.testRefFasta} --refurl ${TestExtension.refURL} --bed ${TestExtension.testBEDFile} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingRefName.statusCode, 1)
         println("resultMissingRefName.output = \n${resultMissingRefName.output}")
         assertEquals("Usage: build-ref-vcf [<options>]\n" +
@@ -75,12 +76,13 @@ class BuildRefVCFTest {
     fun testBuildRefVCF() {
         val vcfDir = tempDir
         val refName = "Ref"
+        val refUrl = TestExtension.refURL
 
         val ranges = "data/test/smallseq/anchors.bed"
         val genome = "data/test/smallseq/Ref.fa"
 
-        // This could also be called via: BuildRefVcf().createRefHvcf(ranges,genome,refName,vcfDir)
-        val result = BuildRefVcf().test("--bed $ranges --refname $refName --referencefile $genome -o $vcfDir")
+        // This could also be called via: BuildRefVcf().createRefHvcf(ranges,genome,refName,refUrl,vcfDir)
+        val result = BuildRefVcf().test("--bed $ranges --refname $refName --referencefile $genome --refurl ${refUrl} -o $vcfDir")
 
         val outFileCompressed = "${tempDir}Ref.hvcf.gz"
         val outFileIndexed = "${tempDir}Ref.hvcf.gz.csi"
@@ -101,6 +103,10 @@ class BuildRefVCFTest {
         // Verify the number of hvcf "##ALT" lines match the number of bed file lines
         val numberOfAltLinesInHvcf = bufferedReader(outFileCompressed).readLines().filter { it.startsWith("##ALT") }.size
         assertEquals(numberOfLinesInBed, numberOfAltLinesInHvcf)
+
+        // Verify the reference header was added
+        val numberOfReferenceLines = bufferedReader(outFileCompressed).readLines().filter { it.startsWith("##reference") }.size
+        assertEquals(1, numberOfReferenceLines)
 
     }
 }
