@@ -6,8 +6,6 @@ import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeaderVersion
-import io.kotest.core.spec.style.AnnotationSpec
-import org.apache.logging.log4j.core.util.FileUtils
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import java.io.File
@@ -15,7 +13,6 @@ import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
 import kotlin.test.assertEquals
 import kotlin.test.Ignore
-//import net.maizegenetics.phgv2.utils.VariantLoadingUtils
 
 class VariantLoadingUtilsTest {
     companion object {
@@ -36,7 +33,7 @@ class VariantLoadingUtilsTest {
         }
     }
 
-    @Ignore
+    //@Ignore
     @Test
     fun testBgzipAndIndex() {
         // Copy the sample gvcf file to the test directory
