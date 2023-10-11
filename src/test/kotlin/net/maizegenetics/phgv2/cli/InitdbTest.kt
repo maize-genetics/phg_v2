@@ -24,7 +24,7 @@ class InitdbTest {
             File(tempDir).deleteRecursively()
         }
     }
-    @Ignore
+    //@Ignore
     @Test
     fun testInitdb() {
 
