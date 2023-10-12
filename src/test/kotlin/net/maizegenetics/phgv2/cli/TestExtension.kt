@@ -7,11 +7,21 @@ import java.io.File
 class TestExtension : BeforeAllCallback {
 
     companion object {
+
         val tempDir = "${System.getProperty("user.home")}/temp/phgv2Tests/tempDir/"
         val testVCFDir = "${tempDir}vcfDir/"
         val testMafDir = "${tempDir}mafDir/"
         val testOutputFastaDir = "${tempDir}outputFastaDir/"
 
+        const val smallseqLineAFile = "data/test/smallseq/LineA.fa"
+        const val smallseqLineaMafFile = "data/test/smallseq/LineA.maf"
+        const val smallseqLineBFile = "data/test/smallseq/LineB.fa"
+        const val smallseqLineBMafFile = "data/test/smallseq/LineB.maf"
+        const val smallseqRefFile = "data/test/smallseq/Ref.fa"
+        const val smallseqAnchorsBedFile = "data/test/smallseq/anchors.bed"
+        const val smallseqAnchorsGffFile = "data/test/smallseq/anchors.gff"
+        const val smallseqGvcfFile = "data/test/smallseq/sample.gvcf"
+        const val smallseqAssembliesListFile = "data/test/smallseq/assembliesList.txt"
 
         val refLineName = "Ref"
         val refFastaName = "Ref.fa"
@@ -41,8 +51,6 @@ class TestExtension : BeforeAllCallback {
         File(testMafDir).mkdirs()
         File(testOutputFastaDir).mkdirs()
     }
-
-
 
 
 }
