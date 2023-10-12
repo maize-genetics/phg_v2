@@ -11,7 +11,15 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.stream.Collectors
 
-
+/**
+ * This class will load gvcf and hvcf files into TileDB datasets.
+ * It has these steps:
+ *  1. create list of gvcf vs hvcf files for loading
+ *      a. if no hvcf.gz, h.vcf.gz, gvcf.gz, g.vcf.gz files are found, return error
+ *  2. verify the dbpath exists and TileDB datasets exists in that folder
+ *      a. if no datasets exist, create them
+ *  3. load the gvcf and hvcf files
+ */
 class LoadVcf : CliktCommand() {
 
     private val myLogger = LogManager.getLogger(LoadVcf::class.java)
@@ -41,13 +49,24 @@ class LoadVcf : CliktCommand() {
         }
 
     override fun run() {
-//        TODO("Not yet implemented")
-        // First check the type of files in the vcfDir
+
+        // Check the type of files in the vcfDir
         // antying with h.vcf.gz or hvcf.gz is a hvcf file
         // anything with g.vcf.gz or gvcf.gz is a gvcf file
-        // create/check datasets only for the files that are present
         val fileLists = getFileLists(vcfDir)
 
+        if (fileLists.first.isEmpty() && fileLists.second.isEmpty()) {
+            // no gvcf or hvcf files found in the user supplied vcfDir
+            myLogger.warn("No gvcf or hvcf files found in $vcfDir.  Please check the folder and try again.")
+            return
+        }
+
+        // verify the URI is correct, create the datasets if they don't exist
+        // verifyURI() will create both datasets if they don't exist
+        if (fileLists.first.isNotEmpty()) {
+
+        }
+       // val goodDbPath = verifyURI(dbPath) - add uri, determined by the list you have
     }
 
     // This function walks the files in the vcf folder and returns a pair of lists,
@@ -70,19 +89,17 @@ class LoadVcf : CliktCommand() {
 
     // The uri should either be gvcf_dataset or hvcf_dataset
     // The user determines the parent folder name where these datasets live
-    // But the actual tiledb dataset names are constant and are either gvcf_dataset or hvcf_dataset
+    // The actual tiledb dataset names are constant and are either gvcf_dataset or hvcf_dataset
 
-    // Are we just veifying the uri here, or creating it as well?  I think it would be ok to
+    // Are we just verifying the uri here, or creating it as well?  I think it would be ok to
     // create them here.
-    fun verifyURI(dbPath:String,uri:String) {
+    fun verifyURI(dbPath:String,uri:String): Boolean {
         // Check that the user supplied db folder exists
-        check(File(dbPath).exists()) { "Folder $dbPath does not exist - please send a valid path for your tiledb folders." }
+        check(File(dbPath).exists()) { "Folder $dbPath does not exist - please send a valid path that indicates the parent folder for your tiledb datasets." }
 
         // Check if the dataset exists
         val dbfolder = File(dbPath)
         val dataset = "${dbfolder.name}/${uri}"
-//        val gvcf_dataset = dbPath + "/gvcf_dataset"
-//        val hvcf_dataset = dbPath + "/hvcf_dataset"
 
         val datasetPath = Paths.get(dataset)
         if (Files.isRegularFile(datasetPath)) {
@@ -115,16 +132,11 @@ class LoadVcf : CliktCommand() {
             // check if is a tiledb dataset
 
             myLogger.info("Using existing TileDB datasets previously created in folder $dbPath.")
-            return
+            return true
         } else {
-            // create the datasets
-            val initDB = Initdb()
-            initDB.createDataSets(dbPath)
+            myLogger.info("TileDB datasets not found in folder $dbPath. Please run InitDB to create the datasets.")
+            return false
         }
-
-        // do we want to create the folders if they don't exist?  Or should we throw an error?
-        val initDB = Initdb()
-        initDB.createDataSets(dbPath)
 
     }
 
