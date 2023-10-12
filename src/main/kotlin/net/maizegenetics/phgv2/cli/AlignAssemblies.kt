@@ -74,7 +74,7 @@ class AlignAssemblies : CliktCommand() {
         createCDSfromRefData(ref, gff, cdsFasta, outputDir)
 
         // create list of assemblies to align from the assemblies file
-        val assembliesList = File(assemblies).readLines()
+        val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
 
         // run minimap2 for ref to refcds
         val justNameRef = File(ref).nameWithoutExtension
@@ -302,7 +302,8 @@ class AlignAssemblies : CliktCommand() {
         builder.redirectOutput(File(redirectError))
         builder.redirectError(File(redirectError))
         println(
-            "runAnchorwaveProali proali Command for ${justNameAsm}: " + builder.command().stream().collect(Collectors.joining(" "))
+            "runAnchorwaveProali proali Command for ${justNameAsm}: " + builder.command().stream()
+                .collect(Collectors.joining(" "))
         )
         try {
             val process = builder.start()
