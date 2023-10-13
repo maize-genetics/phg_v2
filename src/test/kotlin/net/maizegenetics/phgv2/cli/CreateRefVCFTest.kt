@@ -123,8 +123,8 @@ class CreateRefVCFTest {
         // This could also be called via: BuildRefVcf().createRefHvcf(ranges,genome,refName,refUrl,vcfDir)
         val result = CreateRefVCF().test("--bed $ranges --refname $refName --referencefile $genome --refurl ${refUrl} -o $vcfDir")
 
-        val outFileCompressed = "${tempDir}Ref.hvcf.gz"
-        val outFileIndexed = "${tempDir}Ref.hvcf.gz.csi"
+        val outFileCompressed = "${tempDir}Ref.h.vcf.gz"
+        val outFileIndexed = "${tempDir}Ref.h.vcf.gz.csi"
         // Verify the outputFiles exist
         assertEquals(true, File(outFileCompressed).exists())
         assertEquals(true, File(outFileIndexed).exists())

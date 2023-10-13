@@ -178,7 +178,7 @@ class CreateRefVCF : CliktCommand() {
 
             // Load to an hvcf file, write files to user specified outputDir
 
-            val hvcfFileName = "${refName}.hvcf"
+            val hvcfFileName = "${refName}.h.vcf"
             var localRefHVCFFile = outputDir + "/" + hvcfFileName
 
             //  This is in VariantUtils - it exports the gvcf file.
