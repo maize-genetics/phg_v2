@@ -15,15 +15,13 @@ import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeaderLine
 import htsjdk.variant.vcf.VCFHeaderVersion
 import net.maizegenetics.phgv2.utils.*
-import org.apache.logging.log4j.LogManager
-import java.io.File
 import java.util.*
 import java.util.logging.Logger
 
 
-class BuildRefVcf : CliktCommand() {
+class CreateRefVCF : CliktCommand() {
 
-    private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.cli.BuildRefVcf")
+    private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.cli.CreateRefVcf")
 
     var myRefSequence: Map<String, NucSeq>? = null
 

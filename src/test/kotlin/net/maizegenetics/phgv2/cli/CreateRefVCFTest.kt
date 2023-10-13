@@ -2,20 +2,16 @@ package net.maizegenetics.phgv2.cli
 
 import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.testing.test
-import net.maizegenetics.phgv2.utils.Position
-import net.maizegenetics.phgv2.utils.createRefRangeVC
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
-import java.lang.IllegalStateException
-import kotlin.test.Ignore
 import kotlin.test.assertEquals
 
 @ExtendWith(TestExtension::class)
-class BuildRefVCFTest {
+class CreateRefVCFTest {
     companion object {
         val tempDir = "${System.getProperty("user.home")}/temp/phgv2Tests/tempDir/"
 
@@ -36,38 +32,38 @@ class BuildRefVCFTest {
 
     @Test
     fun testCliktParams() {
-        val buildRefVCF = BuildRefVcf()
+        val createRefVCF = CreateRefVCF()
 
         // Testing the "good" case happens in the actual test case below
 
         // Test missing bed file parameter, also missing refurl
         // it is the missing bed file parameter that will be flagged
-        val resultMissingBed = buildRefVCF.test("--refname ${TestExtension.refLineName} --referencefile ${TestExtension.testRefFasta}  -o ${TestExtension.testVCFDir}")
+        val resultMissingBed = createRefVCF.test("--refname ${TestExtension.refLineName} --referencefile ${TestExtension.testRefFasta}  -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingBed.statusCode, 1)
-        assertEquals("Usage: build-ref-vcf [<options>]\n" +
+        assertEquals("Usage: create-ref-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --bed: --bed must not be blank\n",resultMissingBed.output)
 
         // Test missing reference file
-        val resultMissingRef = buildRefVCF.test("--bed ${TestExtension.testBEDFile} --refurl ${TestExtension.refURL} --refname ${TestExtension.refLineName} -o ${TestExtension.testVCFDir}")
+        val resultMissingRef = createRefVCF.test("--bed ${TestExtension.testBEDFile} --refurl ${TestExtension.refURL} --refname ${TestExtension.refLineName} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingRef.statusCode, 1)
-        assertEquals("Usage: build-ref-vcf [<options>]\n" +
+        assertEquals("Usage: create-ref-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --referencefile: --referencefile must not be blank\n",resultMissingRef.output)
 
 
         // Test missing output directory
-        val resultMissingOutput = buildRefVCF.test("--bed ${TestExtension.testBEDFile} --refurl ${TestExtension.refURL} --refname ${TestExtension.refLineName} --referencefile ${TestExtension.testRefFasta}")
+        val resultMissingOutput = createRefVCF.test("--bed ${TestExtension.testBEDFile} --refurl ${TestExtension.refURL} --refname ${TestExtension.refLineName} --referencefile ${TestExtension.testRefFasta}")
         assertEquals(resultMissingOutput.statusCode, 1)
-        assertEquals("Usage: build-ref-vcf [<options>]\n" +
+        assertEquals("Usage: create-ref-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --output-dir: --output-dir/-o must not be blank\n",resultMissingOutput.output)
 
         // Test missing ref name parameter
-        val resultMissingRefName = buildRefVCF.test("--referencefile ${TestExtension.testRefFasta} --refurl ${TestExtension.refURL} --bed ${TestExtension.testBEDFile} -o ${TestExtension.testVCFDir}")
+        val resultMissingRefName = createRefVCF.test("--referencefile ${TestExtension.testRefFasta} --refurl ${TestExtension.refURL} --bed ${TestExtension.testBEDFile} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingRefName.statusCode, 1)
         println("resultMissingRefName.output = \n${resultMissingRefName.output}")
-        assertEquals("Usage: build-ref-vcf [<options>]\n" +
+        assertEquals("Usage: create-ref-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --refname: --refname must not be blank\n",resultMissingRefName.output)
 
@@ -107,7 +103,7 @@ class BuildRefVCFTest {
 
         assertThrows<IllegalArgumentException> {
             //Check that an error is thrown when the bed file has overlapping intervals
-            BuildRefVcf().createRefHvcf(anchorFile,genome,refName,refUrl,vcfDir)
+            CreateRefVCF().createRefHvcf(anchorFile,genome,refName,refUrl,vcfDir)
         }
 
     }
@@ -125,7 +121,7 @@ class BuildRefVCFTest {
         val genome = "data/test/smallseq/Ref.fa"
 
         // This could also be called via: BuildRefVcf().createRefHvcf(ranges,genome,refName,refUrl,vcfDir)
-        val result = BuildRefVcf().test("--bed $ranges --refname $refName --referencefile $genome --refurl ${refUrl} -o $vcfDir")
+        val result = CreateRefVCF().test("--bed $ranges --refname $refName --referencefile $genome --refurl ${refUrl} -o $vcfDir")
 
         val outFileCompressed = "${tempDir}Ref.hvcf.gz"
         val outFileIndexed = "${tempDir}Ref.hvcf.gz.csi"
