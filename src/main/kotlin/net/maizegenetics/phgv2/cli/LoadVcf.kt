@@ -64,7 +64,7 @@ class LoadVcf : CliktCommand() {
         if (fileLists.first.isEmpty() && fileLists.second.isEmpty()) {
             // no gvcf or hvcf files found in the user supplied vcfDir
             myLogger.warn("No files ending in g.vcf.gz or h.vcf.gz found in $vcfDir.  Note that both the bgzipped and indexed files must exist in the specified folder. \nPlease check the folder and try again.")
-            return
+            throw IllegalArgumentException("LoadVCF: No files ending in g.vcf.gz or h.vcf.gz found in $vcfDir.  Note that both the bgzipped and indexed files must exist in the specified folder. \nPlease check the folder and try again.")
         }
 
 

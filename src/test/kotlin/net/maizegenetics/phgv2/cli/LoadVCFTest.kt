@@ -130,6 +130,8 @@ class LoadVCFTest {
         assertEquals(emptyLists.first.size, 0)
         assertEquals(emptyLists.second.size, 0)
 
+
+
     }
 
     @Test
@@ -148,8 +150,15 @@ class LoadVCFTest {
         assertTrue(dbDir.listFiles().map { it.name }.contains("hvcf_dataset"))
         assertTrue(dbDir.listFiles().map { it.name }.contains("gvcf_dataset"))
 
-        //assertEquals(dbDir.listFiles()[0].name, "hvcf_dataset")
-        //assertEquals(dbDir.listFiles()[1].name, "gvcf_dataset")
+        // Test the code in LoadVCF.run() that exits when there are no files to load
+        val loadVCF = LoadVcf()
+        var vcfDir = "docs" // this folder has no vcf files
+
+        // This call hits code that returns with an error message there are no vcf files to load
+        assertThrows<IllegalArgumentException> {
+            //Check that an error is thrown when the dbPath is good, but the URI is a regular directory file, not a tiledb array
+            loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} --temp-dir ${TestExtension.tempDir}")
+        }
 
         // copy the files from data/test/smallseq to the tempDir
         // call bgzip to get the files we need for the test
@@ -167,8 +176,7 @@ class LoadVCFTest {
 
 
         // now load the vcf files stored in the data/test/smallseq folder
-        val loadVCF = LoadVcf()
-        val vcfDir = TestExtension.testVCFDir
+        vcfDir = TestExtension.testVCFDir
         val result = loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} --temp-dir ${TestExtension.tempDir}")
 
         // to verify the load worked, need to query tiledb for sample names
