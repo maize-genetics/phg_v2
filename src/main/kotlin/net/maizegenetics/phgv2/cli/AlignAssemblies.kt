@@ -177,7 +177,7 @@ class AlignAssemblies : CliktCommand() {
             // Do not need a coroutine that "joins" the threads as they will all
             // terminate above when there is no more data on the input channel
 
-            // This calls mummer4 scripts to process the alignments
+            // This calls anchorwave's proali, and minimap2 scripts to process the alignments
             val workerThreads = (1..runs).map { run ->
                 launch { alignAssembly(inputChannel, cdsFasta, gffFile) }
             }
