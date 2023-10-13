@@ -171,13 +171,14 @@ class AlignAssemblies : CliktCommand() {
                 inputChannel.close() // Need to close this here to show the workers that it is done adding more data
             }
 
+            // Do not need a coroutine that "joins" the threads as they will all
+            // terminate above when there is no more data on the input channel
+
             // This calls mummer4 scripts to process the alignments
             val workerThreads = (1..runs).map { run ->
                 launch { alignAssembly(inputChannel, cdsFasta, gffFile) }
             }
 
-            // Do not need a coroutine that "joins" the threads as they will all
-            // terminate above when there is no more data on the input channel
         }
     }
 
