@@ -90,11 +90,11 @@ class AlignAssemblies : CliktCommand() {
         builder.redirectOutput(File(redirectOutput))
         builder.redirectError(File(redirectError))
 
-        println("Ref minimap Command: " + builder.command().stream().collect(Collectors.joining(" ")));
+        myLogger.info("Ref minimap Command: " + builder.command().stream().collect(Collectors.joining(" ")));
         val process = builder.start()
         val error = process.waitFor()
         if (error != 0) {
-            println("minimap2 for $ref run via ProcessBuilder returned error code $error")
+            myLogger.error("minimap2 for $ref run via ProcessBuilder returned error code $error")
             throw IllegalStateException("Error running minimap2 for reference: $error")
         }
 
@@ -126,17 +126,17 @@ class AlignAssemblies : CliktCommand() {
         builder.redirectOutput(File(redirectOutput))
         builder.redirectError(File(redirectError))
 
-        println("createCDSfromRefData command:" + builder.command().stream().collect(Collectors.joining(" ")))
+        myLogger.info("createCDSfromRefData command:" + builder.command().stream().collect(Collectors.joining(" ")))
         try {
             val process = builder.start()
             val error = process.waitFor()
             if (error != 0) {
-                println("createCDSfromRefData run via ProcessBuilder returned error code $error")
+                myLogger.error("createCDSfromRefData run via ProcessBuilder returned error code $error")
                 return false
             }
             return true
         } catch (e: Exception) {
-            println("Error: could not execute anchorwave command. Run anchorwave manually and retry.")
+            myLogger.error("Error: could not execute anchorwave command. Run anchorwave manually and retry.")
             return false
         }
 
@@ -159,15 +159,15 @@ class AlignAssemblies : CliktCommand() {
 
             // The input channel gets data needed to run minimap2 and align with anchorwave
             launch {
-                println("Adding entries to the inputChannel:")
+                myLogger.info("Adding entries to the inputChannel:")
                 assemblies.forEach { asmFile ->
 
                     // Column names were checked for validity above
 
-                    println("Adding: $asmFile for processing")
+                    myLogger.info("Adding: $asmFile for processing")
                     inputChannel.send(InputChannelData(refFasta, asmFile, outputDir, gffFile, refSamOutFile))
                 }
-                println("Done Adding data to the inputChannel:")
+                myLogger.info("Done Adding data to the inputChannel:")
                 inputChannel.close() // Need to close this here to show the workers that it is done adding more data
             }
 
@@ -191,7 +191,7 @@ class AlignAssemblies : CliktCommand() {
                 val samShort = "${justName}.sam"
                 val asmSamFile = "${assemblyEntry.outputDir}/${samShort}"
 
-                println("alignAssembly: asmFileFull: ${assemblyEntry.asmFasta}, outputFile: $asmSamFile")
+                myLogger.info("alignAssembly: asmFileFull: ${assemblyEntry.asmFasta}, outputFile: $asmSamFile")
 
                 val builder = ProcessBuilder(
                     "conda",
@@ -217,16 +217,16 @@ class AlignAssemblies : CliktCommand() {
 
                 val redirectError = "${assemblyEntry.outputDir}/minimap2_${justName}_error.log"
                 val redirectOutput = "${assemblyEntry.outputDir}/minimap2_${justName}_output.log"
-                println("redirectError: $redirectError")
+                myLogger.info("redirectError: $redirectError")
                 builder.redirectOutput(File(redirectOutput))
                 builder.redirectError(File(redirectError))
-                println(
+                myLogger.info(
                     " begin minimap assembly Command: " + builder.command().stream().collect(Collectors.joining(" "))
                 );
                 val process = builder.start()
                 val error = process.waitFor()
                 if (error != 0) {
-                    println("minimap2 for assembly ${assemblyEntry.asmFasta} run via ProcessBuilder returned error code $error")
+                    myLogger.error("minimap2 for assembly ${assemblyEntry.asmFasta} run via ProcessBuilder returned error code $error")
                     throw IllegalStateException("alignAssembly: error running minimap2 for ${justName}: $error")
                 }
                 // We have the SAM File, call proali to align with anchorwave
@@ -290,7 +290,7 @@ class AlignAssemblies : CliktCommand() {
         )
 
         val redirectError = "${outputDir}/proali_${justNameAsm}_outputAndError.log"
-        println("redirectError: $redirectError")
+        myLogger.info("redirectError: $redirectError")
 
         // NOTE: anchowave proali has an output file parameter, unlike minimap2, which uses
         // command line redirection (ie >) to write the .SAM file
@@ -305,7 +305,7 @@ class AlignAssemblies : CliktCommand() {
 
         builder.redirectOutput(File(redirectError))
         builder.redirectError(File(redirectError))
-        println(
+        myLogger.info(
             "runAnchorwaveProali proali Command for ${justNameAsm}: " + builder.command().stream()
                 .collect(Collectors.joining(" "))
         )
@@ -313,11 +313,11 @@ class AlignAssemblies : CliktCommand() {
             val process = builder.start()
             val error = process.waitFor()
             if (error != 0) {
-                println("proali for assembly $asmFasta run via ProcessBuilder returned error code $error")
+                myLogger.error("proali for assembly $asmFasta run via ProcessBuilder returned error code $error")
                 throw IllegalStateException("runAnchorwaveProali: error running proali for $justNameAsm")
             }
         } catch (e: Exception) {
-            println("Error: could not execute anchorwave command. Run anchorwave manually and retry.")
+            myLogger.error("Error: could not execute anchorwave command. Run anchorwave manually and retry.")
         }
     }
 
