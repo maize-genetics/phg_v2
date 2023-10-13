@@ -48,6 +48,12 @@ class LoadVcf : CliktCommand() {
             }
         }
 
+    // threads is not required.  Defaults to 1
+    // While technically, this should be an "int", it is passed to ProcessBuilder as a string
+    // so we're leaving it defined as a string here.
+    val threads by option(help = "Number of threads for use by tiledb")
+        .default("1")
+
     override fun run() {
 
         // Check the type of files in the vcfDir
@@ -57,16 +63,29 @@ class LoadVcf : CliktCommand() {
 
         if (fileLists.first.isEmpty() && fileLists.second.isEmpty()) {
             // no gvcf or hvcf files found in the user supplied vcfDir
-            myLogger.warn("No gvcf or hvcf files found in $vcfDir.  Please check the folder and try again.")
+            myLogger.warn("No files ending in g.vcf.gz or h.vcf.gz found in $vcfDir.  Note that both the bgzipped and indexed files must exist in the specified folder. \nPlease check the folder and try again.")
             return
         }
 
-        // verify the URI is correct, create the datasets if they don't exist
-        // verifyURI() will create both datasets if they don't exist
-        if (fileLists.first.isNotEmpty()) {
 
+        // verify the URI is correct,
+        if (fileLists.first.isNotEmpty()) {
+            val gvcfExists = verifyURI(dbPath,"gvcf_dataset")
+            if (gvcfExists){
+                // Load the gvcf files!
+                val datasetURI = "${dbPath}/gvcf_dataset"
+                loadVCFToTiledb(fileLists.first, datasetURI, threads, tempDir)
+            }
         }
-       // val goodDbPath = verifyURI(dbPath) - add uri, determined by the list you have
+        if (fileLists.second.isNotEmpty()) {
+            val hvcfExists = verifyURI(dbPath,"hvcf_dataset")
+            if (hvcfExists){
+                // Load the hvcf files!
+                val datasetURI = "${dbPath}/hvcf_dataset"
+                loadVCFToTiledb(fileLists.first, datasetURI, threads, tempDir)
+            }
+        }
+
     }
 
     // This function walks the files in the vcf folder and returns a pair of lists,
@@ -79,9 +98,9 @@ class LoadVcf : CliktCommand() {
         val hvcfFiles = mutableListOf<String>()
         for (file in vcfFiles) {
             if (file.name.endsWith("g.vcf.gz") || file.name.endsWith("gvcf.gz")) {
-                gvcfFiles.add(file.name)
+                gvcfFiles.add(file.toString())
             } else if (file.name.endsWith("h.vcf.gz") || file.name.endsWith("hvcf.gz")) {
-                hvcfFiles.add(file.name)
+                hvcfFiles.add(file.toString())
             }
         }
         return Pair(gvcfFiles,hvcfFiles)
@@ -91,23 +110,22 @@ class LoadVcf : CliktCommand() {
     // The user determines the parent folder name where these datasets live
     // The actual tiledb dataset names are constant and are either gvcf_dataset or hvcf_dataset
 
-    // Are we just verifying the uri here, or creating it as well?  I think it would be ok to
-    // create them here.
+    // We are only verifying, not creating the datasets
     fun verifyURI(dbPath:String,uri:String): Boolean {
         // Check that the user supplied db folder exists
         check(File(dbPath).exists()) { "Folder $dbPath does not exist - please send a valid path that indicates the parent folder for your tiledb datasets." }
 
         // Check if the dataset exists
-        val dbfolder = File(dbPath)
-        val dataset = "${dbfolder.name}/${uri}"
-
+        val dataset = "${dbPath}/${uri}"
         val datasetPath = Paths.get(dataset)
-        if (Files.isRegularFile(datasetPath)) {
-            throw Exception("URI ${dataset}is a file, not a tiledb dataset folder.  The parent folder must not contain any files/folders named gvcf_dataset or hvcf_dataset that is not a tiledb created URI")
+
+        if (File(dataset).exists() && Files.isRegularFile(datasetPath)) {
+            throw IllegalArgumentException("URI ${dataset}is a file, not a tiledb dataset folder.  The parent folder must not contain any files/folders named gvcf_dataset or hvcf_dataset that is not a tiledb created URI")
         }
 
         if (File(dataset).exists()  && Files.isDirectory(Paths.get(dataset))){
-            var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri",uri)
+            // check if is a tiledb dataset
+            var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri",dataset)
             var redirectOutput = tempDir + "/tiledb_statURI_output.log"
             var redirectError = tempDir + "/tiledb_statURI_error.log"
             builder.redirectOutput( File(redirectOutput))
@@ -129,7 +147,6 @@ class LoadVcf : CliktCommand() {
                 println("Error: could not run tiledb stat on ${uri}.")
                 throw IllegalArgumentException("Error running ProcessBuilder to stat tiledb URI: ${exc.message}")
             }
-            // check if is a tiledb dataset
 
             myLogger.info("Using existing TileDB datasets previously created in folder $dbPath.")
             return true
@@ -137,7 +154,36 @@ class LoadVcf : CliktCommand() {
             myLogger.info("TileDB datasets not found in folder $dbPath. Please run InitDB to create the datasets.")
             return false
         }
+    }
 
+    fun loadVCFToTiledb(vcfList:List<String>, uri:String, threads:String, tempDir:String) {
+        // get just last part of uri string, ie just the last name in this folder
+        val uriName = uri.split("/").last()
+        val vcfListFile = "${tempDir}/${uriName}_vcfList.txt"
+        println("LoadTiledbH: gvcfList: ${vcfList}")
+        File(vcfListFile).writeText(vcfList.joinToString("\n"))
+
+        // Store the files to tiledb
+        var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","store","--uri",uri,"-t",threads,"-f",vcfListFile,"--remove-sample-file")
+        var redirectOutput = tempDir + "/tiledb_store_output.log"
+        var redirectError = tempDir + "/tiledb_store_error.log"
+        builder.redirectOutput( File(redirectOutput))
+        builder.redirectError( File(redirectError))
+
+        println("begin Command:" + builder.command().stream().collect(Collectors.joining(" ")))
+        try {
+            var process = builder.start()
+            var error = process.waitFor()
+            if (error != 0) {
+                println("loadVCFToTiledb run via ProcessBuilder returned error code ${error}. See ${redirectError} and ${redirectOutput} for more details.")
+                throw IllegalArgumentException("Error running ProcessBuilder to store vcfs to tiledb ${uri} array: ${error}")
+            }
+
+        } catch (exc: Exception) {
+            println("Error: loadVCFToTiledb: could not load tiledb array ${uri}.  See ${redirectError} and ${redirectOutput} for more details.")
+            throw IllegalArgumentException("Error running ProcessBuilder to store vcfs to tiledb array: ${exc.message}")
+        }
+        println("Finished! vcfs stored to tiledb dataset ${uri}")
     }
 
 }
