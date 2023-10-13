@@ -16,6 +16,9 @@ import java.util.stream.Collectors
 
 /**
  * This will align assemblies to a reference genome.
+ * Uses anchorwave's proali to align, which handles
+ * genome alignment with relocation variation,
+ * chromosome fusion or whole genome duplication.
  */
 class AlignAssemblies : CliktCommand() {
 
