@@ -11,7 +11,7 @@ class TestExtension : BeforeAllCallback {
         val testVCFDir = "${tempDir}vcfDir/"
         val testMafDir = "${tempDir}mafDir/"
         val testOutputFastaDir = "${tempDir}outputFastaDir/"
-
+        val testOutputGVCFDIr = "${tempDir}outputGVCFDir/"
 
         val refLineName = "Ref"
         val refFastaName = "Ref.fa"
@@ -40,7 +40,11 @@ class TestExtension : BeforeAllCallback {
         File(testVCFDir).mkdirs()
         File(testMafDir).mkdirs()
         File(testOutputFastaDir).mkdirs()
+        File(testOutputGVCFDIr).mkdirs()
+
     }
+
+
 
 
 

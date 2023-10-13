@@ -1,0 +1,69 @@
+##fileformat=VCFv4.2
+##FORMAT=<ID=AD,Number=3,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth (only filtered reads used for calling)">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PL,Number=3,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##INFO=<ID=AF,Number=3,Type=Integer,Description="Allele Frequency">
+##INFO=<ID=ASM_Chr,Number=1,Type=String,Description="Assembly chromosome">
+##INFO=<ID=ASM_End,Number=1,Type=Integer,Description="Assembly end position">
+##INFO=<ID=ASM_Start,Number=1,Type=Integer,Description="Assembly start position">
+##INFO=<ID=ASM_Strand,Number=1,Type=String,Description="Assembly strand">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
+##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
+##contig=<ID=7,length=461>
+##contig=<ID=1,length=100>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	B97
+chr1	1	.	G	AAAAAG,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310103;ASM_Start=53310098;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr1	2	.	C	A,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310104;ASM_Start=53310104;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr1	3	.	A	C,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310105;ASM_Start=53310105;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr1	4	.	G	A,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310106;ASM_Start=53310106;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr1	5	.	C	G,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310107;ASM_Start=53310107;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr1	6	.	T	C,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310108;ASM_Start=53310108;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr1	7	.	G	T,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310109;ASM_Start=53310109;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr1	8	.	A	G,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310110;ASM_Start=53310110;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr1	9	.	A	<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310113;ASM_Start=53310111;ASM_Strand=+;END=11	GT:AD:DP:PL	0:30,0:30:0,90,90
+chr1	12	.	C	A,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310114;ASM_Start=53310114;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr1	13	.	A	T,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310115;ASM_Start=53310115;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr1	14	.	G	A,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310116;ASM_Start=53310116;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr1	15	.	T	<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310142;ASM_Start=53310117;ASM_Strand=+;END=40	GT:AD:DP:PL	0:30,0:30:0,90,90
+chr7	12	.	AA	A,<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344243;ASM_Start=81344243;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr7	14	.	A	<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344248;ASM_Start=81344244;ASM_Strand=+;END=18	GT:AD:DP:PL	0:30,0:30:0,90,90
+chr7	19	.	A	G,<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344249;ASM_Start=81344249;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr7	20	.	A	<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344252;ASM_Start=81344250;ASM_Strand=+;END=22	GT:AD:DP:PL	0:30,0:30:0,90,90
+chr7	23	.	T	C,<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344253;ASM_Start=81344253;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr7	24	.	T	<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344256;ASM_Start=81344254;ASM_Strand=+;END=26	GT:AD:DP:PL	0:30,0:30:0,90,90
+chr7	27	.	C	G,<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344257;ASM_Start=81344257;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr7	28	.	C	<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344258;ASM_Start=81344258;ASM_Strand=+;END=28	GT:AD:DP:PL	0:30,0:30:0,90,90
+chr7	29	.	A	C,<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344259;ASM_Start=81344259;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr7	30	.	A	<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344263;ASM_Start=81344260;ASM_Strand=+;END=33	GT:AD:DP:PL	0:30,0:30:0,90,90
+chr7	34	.	A	AGTT,<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344267;ASM_Start=81344264;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr7	35	.	A	G,<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344268;ASM_Start=81344268;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr7	36	.	T	<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344276;ASM_Start=81344269;ASM_Strand=+;END=43	GT:AD:DP:PL	0:30,0:30:0,90,90
+chr7	44	.	T	C,<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344277;ASM_Start=81344277;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr7	45	.	A	<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344278;ASM_Start=81344278;ASM_Strand=+;END=45	GT:AD:DP:PL	0:30,0:30:0,90,90
+chr7	46	.	C	A,<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344279;ASM_Start=81344279;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr7	47	.	G	T,<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344280;ASM_Start=81344280;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr7	48	.	G	<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81344283;ASM_Start=81344281;ASM_Strand=+;END=50	GT:AD:DP:PL	0:30,0:30:0,90,90
+chr7	451	.	T	<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81444249;ASM_Start=81444247;ASM_Strand=+;END=453	GT:AD:DP:PL	0:30,0:30:0,90,90
+chr7	454	.	A	G,<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81444250;ASM_Start=81444250;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr7	455	.	G	<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81444252;ASM_Start=81444251;ASM_Strand=+;END=456	GT:AD:DP:PL	0:30,0:30:0,90,90
+chr7	457	.	T	<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81444253;ASM_Start=81444253;ASM_Strand=+;END=457	GT:AD:DP:PL	0:30,0:30:0,90,90
+chr7	458	.	G	C,<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81444254;ASM_Start=81444254;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr7	459	.	G	C,<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81444255;ASM_Start=81444255;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr7	460	.	G	C,<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81444256;ASM_Start=81444256;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr7	461	.	T	<NON_REF>	.	.	ASM_Chr=chr4;ASM_End=81444257;ASM_Start=81444257;ASM_Strand=+;END=461	GT:AD:DP:PL	0:30,0:30:0,90,90
+chr10	1	.	G	AAAAAG,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310103;ASM_Start=53310098;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr10	2	.	C	A,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310104;ASM_Start=53310104;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr10	3	.	A	C,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310105;ASM_Start=53310105;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr10	4	.	G	A,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310106;ASM_Start=53310106;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr10	5	.	C	G,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310107;ASM_Start=53310107;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr10	6	.	T	C,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310108;ASM_Start=53310108;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr10	7	.	G	T,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310109;ASM_Start=53310109;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr10	8	.	A	G,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310110;ASM_Start=53310110;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr10	9	.	A	<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310113;ASM_Start=53310111;ASM_Strand=+;END=11	GT:AD:DP:PL	0:30,0:30:0,90,90
+chr10	12	.	C	A,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310114;ASM_Start=53310114;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr10	13	.	A	T,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310115;ASM_Start=53310115;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr10	14	.	G	A,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310116;ASM_Start=53310116;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
+chr10	15	.	T	<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=53310142;ASM_Start=53310117;ASM_Strand=+;END=40	GT:AD:DP:PL	0:30,0:30:0,90,90
