@@ -310,8 +310,7 @@ class AlignAssemblies : CliktCommand() {
         builder.redirectOutput(File(redirectError))
         builder.redirectError(File(redirectError))
         myLogger.info(
-            "runAnchorwaveProali proali Command for ${justNameAsm}: " + builder.command().stream()
-                .collect(Collectors.joining(" "))
+            "runAnchorwaveProali proali Command for ${justNameAsm}: " + builder.command().joinToString { " " }
         )
         try {
             val process = builder.start()
