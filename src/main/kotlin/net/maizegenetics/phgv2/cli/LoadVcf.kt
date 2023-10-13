@@ -82,7 +82,7 @@ class LoadVcf : CliktCommand() {
             if (hvcfExists){
                 // Load the hvcf files!
                 val datasetURI = "${dbPath}/hvcf_dataset"
-                loadVCFToTiledb(fileLists.first, datasetURI, threads, tempDir)
+                loadVCFToTiledb(fileLists.second, datasetURI, threads, tempDir)
             }
         }
 
@@ -133,19 +133,19 @@ class LoadVcf : CliktCommand() {
 
             // verify if the output.log contains "Version"
             // if not, then the URI is not a tiledbvcf URI
-            println("begin Command:" + builder.command().stream().collect(Collectors.joining(" ")))
+            myLogger.info("begin Command:" + builder.command().stream().collect(Collectors.joining(" ")))
 
             try {
                 var process = builder.start()
                 var error = process.waitFor()
                 if (error != 0) {
-                    println("LoadTiledbH tiledb stat returned error code $error")
+                    myLogger.error("LoadTiledbH tiledb stat returned error code $error")
                     throw IllegalArgumentException("Error: URI is not a tiledb URI folder created via the tiledb create command: ${error}")
                 }
 
             } catch (exc: Exception) {
-                println("Error: could not run tiledb stat on ${uri}.")
-                throw IllegalArgumentException("Error running ProcessBuilder to stat tiledb URI: ${exc.message}")
+                myLogger.error("Error: could not run tiledb stat on ${uri}.")
+                throw IllegalArgumentException("Error running ProcessBuilder to stat tiledb URI: ${exc}")
             }
 
             myLogger.info("Using existing TileDB datasets previously created in folder $dbPath.")
@@ -160,8 +160,9 @@ class LoadVcf : CliktCommand() {
         // get just last part of uri string, ie just the last name in this folder
         val uriName = uri.split("/").last()
         val vcfListFile = "${tempDir}/${uriName}_vcfList.txt"
-        println("LoadTiledbH: gvcfList: ${vcfList}")
         File(vcfListFile).writeText(vcfList.joinToString("\n"))
+        // print the vcfListFile contents
+        myLogger.info("vcfListFile contents: ${File(vcfListFile).readText()}")
 
         // Store the files to tiledb
         var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","store","--uri",uri,"-t",threads,"-f",vcfListFile,"--remove-sample-file")
@@ -170,20 +171,21 @@ class LoadVcf : CliktCommand() {
         builder.redirectOutput( File(redirectOutput))
         builder.redirectError( File(redirectError))
 
+        myLogger.info("begin Command:" + builder.command().stream().collect(Collectors.joining(" ")))
         println("begin Command:" + builder.command().stream().collect(Collectors.joining(" ")))
         try {
             var process = builder.start()
             var error = process.waitFor()
             if (error != 0) {
-                println("loadVCFToTiledb run via ProcessBuilder returned error code ${error}. See ${redirectError} and ${redirectOutput} for more details.")
+                myLogger.error("loadVCFToTiledb run via ProcessBuilder returned error code ${error}. See ${redirectError} and ${redirectOutput} for more details.")
                 throw IllegalArgumentException("Error running ProcessBuilder to store vcfs to tiledb ${uri} array: ${error}")
             }
 
         } catch (exc: Exception) {
-            println("Error: loadVCFToTiledb: could not load tiledb array ${uri}.  See ${redirectError} and ${redirectOutput} for more details.")
+            myLogger.error("Error: loadVCFToTiledb: could not load tiledb array ${uri}.  See ${redirectError} and ${redirectOutput} for more details.")
             throw IllegalArgumentException("Error running ProcessBuilder to store vcfs to tiledb array: ${exc.message}")
         }
-        println("Finished! vcfs stored to tiledb dataset ${uri}")
+        myLogger.info("Finished! vcfs stored to tiledb dataset ${uri}")
     }
 
 }

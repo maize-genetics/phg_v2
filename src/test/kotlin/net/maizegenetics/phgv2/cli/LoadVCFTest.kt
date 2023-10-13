@@ -130,8 +130,6 @@ class LoadVCFTest {
         assertEquals(emptyLists.first.size, 0)
         assertEquals(emptyLists.second.size, 0)
 
-
-
     }
 
     @Test
@@ -174,17 +172,14 @@ class LoadVCFTest {
         bgzipAndIndexGVCFfile(testGvcfFile)
         bgzipAndIndexGVCFfile(testHvcfFile)
 
-
         // now load the vcf files stored in the data/test/smallseq folder
         vcfDir = TestExtension.testVCFDir
         val result = loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} --temp-dir ${TestExtension.tempDir}")
 
-        // to verify the load worked, need to query tiledb for sample names
-        // first get the sample names from the vcf files
-        // THis isn't going to work until we have means to query tiledb arrays.
-
+        // to verify the load worked, need to query tiledb for sample names and other data
+        // This isn't going to work until we have means to query tiledb arrays.
+        // This will be added in the next Pull Request
 
     }
-
 
 }
