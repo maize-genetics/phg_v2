@@ -138,12 +138,12 @@ class CreateRefVCF : CliktCommand() {
                         chrSeq = myRefSequence!![chr]
                     }
 
-                    val anchorStart = tokens[1].toInt()  // NucSeq is 0 based, bed file is 0 based, no need to change
-                    val anchorEnd = tokens[2].toInt()-1 // bed file is exclusive, decrement by 1 to make inclusive
+                    val anchorStart = tokens[1].toInt() + 1  // NucSeq is 0 based, bed file is 0 based, no need to change
+                    val anchorEnd = tokens[2].toInt() // bed file is exclusive, but 0-based, so no need to change
 
                     chromAnchors++
                     // get bytes from reference, convert to string, add data to list
-                    val intervalSeq = chrSeq!![anchorStart, anchorEnd].toString()
+                    val intervalSeq = chrSeq!![anchorStart, anchorEnd-1].toString()
                     val intervalHash = getChecksumForString(intervalSeq, "Md5")
                     val intervalStart = Position(chrom, anchorStart)
                     val intervalEnd = Position(chrom, anchorEnd)
