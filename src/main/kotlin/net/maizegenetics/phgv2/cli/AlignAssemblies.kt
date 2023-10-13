@@ -142,6 +142,10 @@ class AlignAssemblies : CliktCommand() {
 
     }
 
+    /**
+     * This will run anchorwave for each assembly in the assemblies list.
+     * Each anchorwave process will be run in a separate thread.
+     */
     private fun runAnchorWaveMultiThread(
         refFasta: String,
         assemblies: List<String>,
