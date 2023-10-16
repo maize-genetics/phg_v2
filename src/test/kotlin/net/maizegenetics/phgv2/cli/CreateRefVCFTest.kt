@@ -120,7 +120,10 @@ class CreateRefVCFTest {
         val ranges = "data/test/smallseq/anchors.bed"
         val genome = "data/test/smallseq/Ref.fa"
 
-        // This could also be called via: BuildRefVcf().createRefHvcf(ranges,genome,refName,refUrl,vcfDir)
+        val createRefVcf = CreateRefVCF()
+
+        // This could also be called via:
+        //createRefVcf.createRefHvcf(ranges,genome,refName,refUrl,vcfDir)
         val result = CreateRefVCF().test("--bed $ranges --refname $refName --referencefile $genome --refurl ${refUrl} -o $vcfDir")
 
         val outFileCompressed = "${tempDir}Ref.h.vcf.gz"
@@ -147,5 +150,27 @@ class CreateRefVCFTest {
         val numberOfReferenceLines = bufferedReader(outFileCompressed).readLines().filter { it.startsWith("##reference") }.size
         assertEquals(1, numberOfReferenceLines)
 
+        // Verify the RefAllele for the first haplotype for each chromosome is correct
+        val genomeLines = bufferedReader(genome).readLines()
+        val firstChrom = genomeLines.filter { it.startsWith(">") }[0].removePrefix(">")
+        val secondChrom = genomeLines.filter { it.startsWith(">") }[1].removePrefix(">")
+
+        // get the vcf data lines
+        val vcfDataLines = bufferedReader(outFileCompressed).readLines().filter { !it.startsWith("#") }
+
+        // verify the first dataline is the first chrom
+        assertEquals(firstChrom,vcfDataLines[0].split("\t")[0])
+
+        // verify the 21th dataline is the second chrom
+        assertEquals(secondChrom,vcfDataLines[20].split("\t")[0])
+
+        // verify there are 20 data lines for the first chrom (10 genes, 10 intergenic regions)
+        assertEquals(20,vcfDataLines.filter { it.split("\t")[0] == firstChrom }.size)
+
+        //verify there are 20 data lines for the second chrom(10 genes, 10 intergenic regions)
+        assertEquals(20,vcfDataLines.filter { it.split("\t")[0] == secondChrom }.size)
+
+        // verify the ref allele for the first data line matches the first allele in the reference fasta, e.g. the genomeLines files
+        assertEquals(genomeLines[1].get(0).toString(),vcfDataLines[0].split("\t")[3])
     }
 }
