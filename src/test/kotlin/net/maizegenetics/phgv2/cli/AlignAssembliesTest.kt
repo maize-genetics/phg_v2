@@ -1,7 +1,7 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
-import net.maizegenetics.phgv2.utils.testMergingMAF
+// import net.maizegenetics.phgv2.utils.testMergingMAF
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
