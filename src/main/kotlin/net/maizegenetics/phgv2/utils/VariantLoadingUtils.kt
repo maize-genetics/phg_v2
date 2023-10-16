@@ -119,7 +119,6 @@ fun bgzipAndIndexGVCFfile(gvcfFileName: String): String {
         // We will use bcftools to create the csi index
         // ORiginal PHG used tabix, we wnat csi indexes to allow for large genomes e.g wheat.
         // TileDB supports .csi indexed files.
-        val tabixFile = gvcfGzippedFile + ".csi"
         builder = ProcessBuilder("conda","run","-n","phgv2-conda","bcftools", "index", "-c",gvcfGzippedFile)
         process = builder.start()
         error = process.waitFor()
@@ -197,7 +196,7 @@ fun verifyIntervalRanges(intervalFile: String): Set<String> {
  */
 fun createRefRangeVC(refSequence: Map<String,NucSeq>, assemblyTaxon: String, refRangeStart: Position, refRangeEnd: Position,
     asmStart: Position?, asmEnd: Position?): VariantContext {
-    val firstRefAllele = Allele.create(refSequence[refRangeStart.contig]!!.get(0).toString(),true)
+    val firstRefAllele = Allele.create(refSequence[refRangeStart.contig]!!.get(refRangeStart.position).toString(),true)
     val gt = GenotypeBuilder().name(assemblyTaxon).alleles(Arrays.asList(firstRefAllele)).DP(2).AD(intArrayOf(2, 0)).make()
     check(refRangeStart.position <= refRangeEnd.position) { "createRefRangeVC - start position greater than end: start=" +
                 refRangeStart.position + " end=" + refRangeEnd.position
@@ -253,6 +252,34 @@ fun createSNPVC(assemblyTaxon: String, startPosition: Position, endPosition: Pos
     return vcbWithASMAnnos.make()
 }
 
+// Creates a VariantContext record for a Haplotype vcf file
+fun createHVCFRecord(assemblyTaxon: String, startPosition: Position, endPosition: Position, calls: Pair<String, String>): VariantContext {
+    val refCall = Allele.create(calls.first, true)
+    val altCall = Allele.create(symbolicAllele(calls.second), false)
+    check(startPosition.position <= endPosition.position) {
+        "createHVCFRecord - start position greater than end: start=" +
+                startPosition.position + " end=" + endPosition.position
+    }
+
+    //Need to add AD for Alt >0 here so that the API will work correctly.  Otherwise it is treated as missing as it thinks AD = 0,0.
+    // When coming from an assembly it should always use the ALT in a SNP pos
+    val gt = GenotypeBuilder().name(assemblyTaxon).alleles(Arrays.asList(altCall)).DP(2).AD(intArrayOf(0, 2, 0)).make()
+    val vcb = VariantContextBuilder()
+        .chr(startPosition.contig)
+        .start(startPosition.position.toLong())
+        .stop(endPosition.position.toLong())
+        .alleles(Arrays.asList(refCall, altCall)) // no NON_REF allele for h.vcf files
+        .genotypes(gt)
+
+
+    return vcb.make()
+}
+
+// Symbolic alleles for VariantContext records must be surrounded
+// by <> characters.  This method adds them.
+fun symbolicAllele(allele: String): String {
+    return "<${allele}>"
+}
 fun addASMCoordsToVariantContextBuilder(vcb: VariantContextBuilder, asmStart: Position?, asmEnd: Position?) :VariantContextBuilder {
     var newVCB = vcb
     //Only add in the Assembly start and end if they exist
