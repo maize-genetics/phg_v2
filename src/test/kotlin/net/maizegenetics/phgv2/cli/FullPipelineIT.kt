@@ -33,8 +33,8 @@ class FullPipelineIT {
         val createRanges = CreateRanges()
         createRanges.test("--gff ${TestExtension.testGFFFile} --output ${TestExtension.testBEDFile}")
         //Run BuildRefVCF
-        val createRefVCF = CreateRefVCF()
-        createRefVCF.test("--bed ${TestExtension.testBEDFile} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
+        val createRefVcf = CreateRefVcf()
+        createRefVcf.test("--bed ${TestExtension.testBEDFile} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
 
         //Run Anchorwave
         TODO("Run Anchorwave")

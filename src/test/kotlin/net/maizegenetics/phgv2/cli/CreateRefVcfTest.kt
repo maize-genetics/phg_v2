@@ -11,7 +11,7 @@ import java.io.File
 import kotlin.test.assertEquals
 
 @ExtendWith(TestExtension::class)
-class CreateRefVCFTest {
+class CreateRefVcfTest {
     companion object {
         val tempDir = "${System.getProperty("user.home")}/temp/phgv2Tests/tempDir/"
 
@@ -32,7 +32,7 @@ class CreateRefVCFTest {
 
     @Test
     fun testCliktParams() {
-        val createRefVCF = CreateRefVCF()
+        val createRefVCF = CreateRefVcf()
 
         // Testing the "good" case happens in the actual test case below
 
@@ -103,7 +103,7 @@ class CreateRefVCFTest {
 
         assertThrows<IllegalArgumentException> {
             //Check that an error is thrown when the bed file has overlapping intervals
-            CreateRefVCF().createRefHvcf(anchorFile,genome,refName,refUrl,vcfDir)
+            CreateRefVcf().createRefHvcf(anchorFile,genome,refName,refUrl,vcfDir)
         }
 
     }
@@ -120,11 +120,11 @@ class CreateRefVCFTest {
         val ranges = "data/test/smallseq/anchors.bed"
         val genome = "data/test/smallseq/Ref.fa"
 
-        val createRefVcf = CreateRefVCF()
+        val createRefVcf = CreateRefVcf()
 
         // This could also be called via:
         //createRefVcf.createRefHvcf(ranges,genome,refName,refUrl,vcfDir)
-        val result = CreateRefVCF().test("--bed $ranges --refname $refName --referencefile $genome --refurl ${refUrl} -o $vcfDir")
+        val result = CreateRefVcf().test("--bed $ranges --refname $refName --referencefile $genome --refurl ${refUrl} -o $vcfDir")
 
         val outFileCompressed = "${tempDir}Ref.h.vcf.gz"
         val outFileIndexed = "${tempDir}Ref.h.vcf.gz.csi"

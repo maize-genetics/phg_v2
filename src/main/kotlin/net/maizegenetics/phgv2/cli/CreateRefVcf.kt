@@ -16,7 +16,7 @@ import java.util.*
 import java.util.logging.Logger
 
 
-class CreateRefVCF : CliktCommand() {
+class CreateRefVcf : CliktCommand() {
 
     private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.cli.CreateRefVcf")
 
