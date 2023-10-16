@@ -7,23 +7,18 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
-import com.google.common.collect.HashMultimap
-import com.google.common.collect.Multimap
-import com.google.common.collect.Range
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeaderLine
 import htsjdk.variant.vcf.VCFHeaderVersion
 import net.maizegenetics.phgv2.utils.*
-import org.apache.logging.log4j.LogManager
-import java.io.File
 import java.util.*
 import java.util.logging.Logger
 
 
-class BuildRefVcf : CliktCommand() {
+class CreateRefVcf : CliktCommand() {
 
-    private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.cli.BuildRefVcf")
+    private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.cli.CreateRefVcf")
 
     var myRefSequence: Map<String, NucSeq>? = null
 
@@ -85,8 +80,6 @@ class BuildRefVcf : CliktCommand() {
             throw IllegalArgumentException("BuildRefVcf: intervals bed file has overlapping positions. Overlapping reference ranges are not supported.  Please consolidate/remove overlaps.")
         }
 
-        var groupAndPositionsMap: Multimap<String, Range<Position>> = HashMultimap.create()
-
         // read the ref fasta into the myRefSequence map
         myRefSequence = fastaToNucSeq(refGenome)
 
@@ -99,9 +92,14 @@ class BuildRefVcf : CliktCommand() {
         val altHeaderLines: MutableSet<VCFHeaderLine> = HashSet()
 
         // add ##reference line if a refURL was provided
+        // The same is added for the assembly. When creating the reference hcvf,
+        // we treat it like any other assembly vcf.  In this case, the reference and
+        // assembly are the same.
         if (refUrl.isNotBlank()) {
             altHeaderLines.add(
                 VCFHeaderLine("reference","${refUrl}")) // add the ##reference line
+            altHeaderLines.add(
+                VCFHeaderLine("assembly","${refUrl}")) // add the ##assembly line
         }
 
         // Process the user interval ranges file
@@ -140,29 +138,33 @@ class BuildRefVcf : CliktCommand() {
                         chrSeq = myRefSequence!![chr]
                     }
 
-                    val anchorStart = tokens[1].toInt()  // NucSeq is 0 based, bed file is 0 based, no need to change
-                    val anchorEnd = tokens[2].toInt()-1 // bed file is exclusive, decrement by 1 to make inclusive
+                    val anchorStart = tokens[1].toInt() + 1  // NucSeq is 0 based, bed file is 0 based, but VCF is 1 based
+                    val anchorEnd = tokens[2].toInt() // bed file is exclusive, but 0-based, so no need to change
 
                     chromAnchors++
                     // get bytes from reference, convert to string, add data to list
-                    val intervalSeq = chrSeq!![anchorStart, anchorEnd].toString()
+                    // And here it is tricky.  Bed file is 0-based, but we turned the start and end into 1-based
+                    // to accommodate the VCF for later calls.  here we need to turn back to 0-based for NucSeq,
+                    // which is inclusive/inclusive 0-based.  So the start is decremented but the end is not.
+                    val intervalSeq = chrSeq!![anchorStart-1, anchorEnd-1].toString()
                     val intervalHash = getChecksumForString(intervalSeq, "Md5")
                     val intervalStart = Position(chrom, anchorStart)
                     val intervalEnd = Position(chrom, anchorEnd)
-                    val intervalRange = Range.closed(intervalStart, intervalEnd)
-                    val type = tokens[3]
-                    groupAndPositionsMap.put(type, intervalRange)
 
-                    // SEnding null for asm_start and asm_end.
+                    // create the calls Pair.  This is a Pair of the reference allele and the interval hash
+                    // The interval hash becomes the alt allele in the hvcf file
+                    val refAllele = chrSeq!![anchorStart-1].toString() // subtract 1 to convert to 0-based
+
+                    val calls = Pair(refAllele,intervalHash)
                     // this prevents them from being written to the hvcf file
-                    val vc = createRefRangeVC(
-                        myRefSequence!!,
+                    // THe intervalStart/intervalEnd values passed here are 1-based
+                    val vc = createHVCFRecord(
                         refName,
                         intervalStart,
                         intervalEnd,
-                        null,
-                        null
+                        calls
                     )
+
                     fullRefVCList.add(vc) // this is a list of ALL the VC records for all ranges - will become the hvcf file.
 
                     // Add vcf header lines here, doing somthing like this:
@@ -180,7 +182,7 @@ class BuildRefVcf : CliktCommand() {
 
             // Load to an hvcf file, write files to user specified outputDir
 
-            val hvcfFileName = "${refName}.hvcf"
+            val hvcfFileName = "${refName}.h.vcf"
             var localRefHVCFFile = outputDir + "/" + hvcfFileName
 
             //  This is in VariantUtils - it exports the gvcf file.
