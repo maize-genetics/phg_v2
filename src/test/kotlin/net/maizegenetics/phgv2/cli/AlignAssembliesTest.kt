@@ -1,7 +1,7 @@
 package net.maizegenetics.phgv2.cli
 
-import biokotlin.genome.getMAFblocks
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.utils.testMergingMAF
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
@@ -26,17 +26,20 @@ class AlignAssembliesTest {
                     "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}"
         )
 
+        println("testRunningAlignAssemblies: result output: ${result.output}")
+
         assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
 
-        assertTrue(
-            File(TestExtension.smallseqLineAMafFile).exists(),
-            "File ${TestExtension.smallseqLineAMafFile} does not exist"
-        )
+        val lineAMAF = TestExtension.tempDir + "LineA.maf"
+        assertTrue(File(lineAMAF).exists(), "File $lineAMAF does not exist")
 
-        assertTrue(
-            File(TestExtension.smallseqLineBMafFile).exists(),
-            "File ${TestExtension.smallseqLineBMafFile} does not exist"
-        )
+        val lineBMAF = TestExtension.tempDir + "LineB.maf"
+        assertTrue(File(lineBMAF).exists(), "File $lineBMAF does not exist")
+
+        // val mafOutput = TestExtension.tempDir + "LineA_unsplit.maf"
+        // println("mafOutput: $mafOutput")
+        // testMergingMAF(TestExtension.smallseqLineAMafFile, mafOutput)
+        // testMergingMAF(lineAMAF, TestExtension.tempDir + "LineA_unsplit2.maf")
 
         // val mafBlocks = getMAFblocks("${TestExtension.tempDir}/LineA.maf")
 
