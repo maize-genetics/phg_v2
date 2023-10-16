@@ -46,21 +46,21 @@ class CreateRangesTest {
         val obsBedList03 = cr.generateBedRows(obsIdList02, genes, featureId = "biotype")
 
         assertEquals(2, obsIdList01.size)
-        assertEquals(Pair(34616, 40203), obsIdList01[0]) // should be 34616
-        assertEquals(Pair(41213, 46761), obsIdList01[1])
+        assertEquals(Pair(34616, 40204), obsIdList01[0]) // should be 34616
+        assertEquals(Pair(41213, 46762), obsIdList01[1])
 
         assertEquals(2, obsIdList02.size)
-        assertEquals(Pair(34721, 38365), obsIdList02[0])
-        assertEquals(Pair(41526, 45912), obsIdList02[1])
+        assertEquals(Pair(34721, 38366), obsIdList02[0])
+        assertEquals(Pair(41526, 45913), obsIdList02[1])
 
         assertEquals(2, obsIdList03.size)
-        assertEquals(Pair(34516, 40303), obsIdList03[0])
-        assertEquals(Pair(41113, 46861), obsIdList03[1])
+        assertEquals(Pair(34516, 40304), obsIdList03[0])
+        assertEquals(Pair(41113, 46862), obsIdList03[1])
 
         assertEquals(2, obsBedList01.size)
-        assertEquals("chr1\t34616\t40203\tZm00001eb000010\t0\t+", obsBedList01[0] )
-        assertEquals("chr1,34616,40203,Zm00001eb000010,0,+", obsBedList02[0] )
-        assertEquals("chr1\t34721\t38365\tprotein_coding\t0\t+", obsBedList03[0])
+        assertEquals("chr1\t34616\t40204\tZm00001eb000010\t0\t+", obsBedList01[0] )
+        assertEquals("chr1,34616,40204,Zm00001eb000010,0,+", obsBedList02[0] )
+        assertEquals("chr1\t34721\t38366\tprotein_coding\t0\t+", obsBedList03[0])
 
         assertFails {
             cr.idMinMaxBounds(genes, "geeeene", 0)
@@ -107,10 +107,7 @@ class CreateRangesTest {
         assertEquals(command.output, outputFileName)
 
         val lines = File(outputFileName).bufferedReader().readLines()
-        assertEquals("chr1\t34616\t40203\tZm00001eb000010\t0\t+", lines[0])
-        assertEquals("chr1\t41213\t46761\tZm00001eb000020\t0\t-", lines[1])
-
-        //chr1	34616	40203	[Zm00001eb000010]	0	PLUS
-        //chr1	41213	46761	[Zm00001eb000020]	0	MINUS
+        assertEquals("chr1\t34616\t40204\tZm00001eb000010\t0\t+", lines[0])
+        assertEquals("chr1\t41213\t46762\tZm00001eb000020\t0\t-", lines[1])
     }
 }

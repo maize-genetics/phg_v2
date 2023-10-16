@@ -66,7 +66,7 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
             else -> throw Exception("Undefined boundary")
         }.map { (first, second) ->
             val modifiedFirst = if (first - pad < 0) 1 else first - pad
-            Pair((modifiedFirst - 1), (second + pad) - 1)
+            Pair((modifiedFirst - 1), (second + pad) )
         }
 
         return(boundMinMax)
