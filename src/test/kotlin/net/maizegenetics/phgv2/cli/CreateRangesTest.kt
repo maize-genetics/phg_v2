@@ -31,7 +31,9 @@ class CreateRangesTest {
     fun evaluateMethods() {
         assertEquals(2, 2)
         val testGffPath = "src/test/resources/net/maizegenetics/phgv2/cli/zm_b73v5_test.gff3.gz"
-        val genes = Genome.fromGFF(testGffPath).genes()
+        val genome = Genome.fromFile(testGffPath)
+        val genes = genome.iterator().asSequence().filter { it.type == "gene" }.toList()
+
 
         val cr = CreateRanges()
 
@@ -44,21 +46,21 @@ class CreateRangesTest {
         val obsBedList03 = cr.generateBedRows(obsIdList02, genes, featureId = "biotype")
 
         assertEquals(2, obsIdList01.size)
-        assertEquals(obsIdList01[0], Pair(34616, 40203)) // should be 34616
-        assertEquals(obsIdList01[1], Pair(41213, 46761))
+        assertEquals(Pair(34616, 40203), obsIdList01[0]) // should be 34616
+        assertEquals(Pair(41213, 46761), obsIdList01[1])
 
         assertEquals(2, obsIdList02.size)
-        assertEquals(obsIdList02[0], Pair(34721, 38365))
-        assertEquals(obsIdList02[1], Pair(41526, 45912))
+        assertEquals(Pair(34721, 38365), obsIdList02[0])
+        assertEquals(Pair(41526, 45912), obsIdList02[1])
 
         assertEquals(2, obsIdList03.size)
-        assertEquals(obsIdList03[0], Pair(34516, 40303))
-        assertEquals(obsIdList03[1], Pair(41113, 46861))
+        assertEquals(Pair(34516, 40303), obsIdList03[0])
+        assertEquals(Pair(41113, 46861), obsIdList03[1])
 
         assertEquals(2, obsBedList01.size)
-        assertEquals(obsBedList01[0], "chr1\t34616\t40203\tZm00001eb000010\t0\t+")
-        assertEquals(obsBedList02[0], "chr1,34616,40203,Zm00001eb000010,0,+")
-        assertEquals(obsBedList03[0], "chr1\t34721\t38365\tprotein_coding\t0\t+")
+        assertEquals("chr1\t34616\t40203\tZm00001eb000010\t0\t+", obsBedList01[0] )
+        assertEquals("chr1,34616,40203,Zm00001eb000010,0,+", obsBedList02[0] )
+        assertEquals("chr1\t34721\t38365\tprotein_coding\t0\t+", obsBedList03[0])
 
         assertFails {
             cr.idMinMaxBounds(genes, "geeeene", 0)
@@ -108,5 +110,7 @@ class CreateRangesTest {
         assertEquals("chr1\t34616\t40203\tZm00001eb000010\t0\t+", lines[0])
         assertEquals("chr1\t41213\t46761\tZm00001eb000020\t0\t-", lines[1])
 
+        //chr1	34616	40203	[Zm00001eb000010]	0	PLUS
+        //chr1	41213	46761	[Zm00001eb000020]	0	MINUS
     }
 }
