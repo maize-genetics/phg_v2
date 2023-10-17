@@ -2,7 +2,7 @@ import java.io.File
 
 /**
  * This script splits the sequences in a MAF file into smaller blocks.
- * The input argument in the original MAF file. The output file will
+ * The input argument is the original MAF file. The output file will
  * be named <input filename>.split
  */
 
