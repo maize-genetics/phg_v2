@@ -6,7 +6,9 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.lang.Exception
 import java.nio.file.Files
+import java.util.stream.Collectors
 
 /**
  * This class uses the Assembled Genome Compressor (AGC) program to create
@@ -17,36 +19,50 @@ import java.nio.file.Files
  * This program will create a single compressed file from the input fasta files.
  * It is expected to live in the same parent folder as the TileDB datasets.
  *
- * If a compressed file named "assemblies.agc" already exists, the fastas in the
- * folder will be added to the existing file.
+ * The sample name for each fasta is determined by the file name, minus extension.  Users
+ * should consider this when naming their fasta files.
  *
- * What checks should this contain to verify the list of fastas don't contain duplicates
- * to what already exists in the folder?
+ * If a compressed file named "assemblies.agc" already exists in the parent folder,
+ * any fasta in the fasta folder not currently in the agc compressed file will be added.
+ * A list of duplicate fasta files, those not added, will be printed to the log.
+ * Duplicates are determined based on the fastas name
+ *
+ * When appending to an agc file:  the append command takes both an input and an output agc file.
+ * It does not actually append, it makes a copy of the old file and adds everything to it.
  */
 class AgcCompress : CliktCommand(){
 
     private val myLogger = LogManager.getLogger(AgcCompress::class.java)
 
-    val dbPath by option(help = "Folder name where AGC compressed files and tiledb datasets will be created")
+    val dbPath by option(help = "Folder name where AGC compressed files will be created.  Should be the same parent folder where tiledb datasets are stored.")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--dbpath must not be blank"
+                "--db-path must not be blank"
             }
         }
 
-    val fastaDir by option(help = "Folder containg fasta file to compress into a single file. Reference fasta should be uncompressed, other genome fastas may be compressed or uncompressed files.")
+    val fastaList by option(help = "File containing full path name fasta files, one per line, to compress into a single agc file.  Fastas may be compressed or uncompressed files. Reference fasta should NOT be included.")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--fasta-dir must not be blank"
+                "--fasta-list must not be blank"
             }
         }
+
+    val refFasta by option(help = "Full path to the reference fasta file to be added with other fastas to the agc compressed file. Reference fasta should NOT be compressed.")
+        .default("")
+        .validate {
+            require(it.isNotBlank()) {
+                "--ref-fasta must not be blank"
+            }
+        }
+
 
     override fun run() {
-
+        myLogger.info("Starting AGC compression")
         // process the input
-        createAppendToAGC(dbPath,fastaDir)
+        processAGCFiles(dbPath,fastaList,refFasta)
 
     }
 
@@ -60,62 +76,135 @@ class AgcCompress : CliktCommand(){
         return sampleNames
     }
 
-    fun createAppendToAGC(dbPath:String,fastaDir:String) {
-        // create a list of fasta files in the fastDir.  The list should be of only regular files
-        // that end with .fa or .fasta, and the list should be the full path to the file, but each as a String
-        val fastaFiles = File(fastaDir).walk().filter { it.isFile }.filter{it.name.endsWith(".fa") || it.name.endsWith(".fasta")}.map({it.toString()}).toList()
 
-        //TODO: below is created by co-pilot - fix it up to make the agc process Builder calls!
+
+    fun processAGCFiles(dbPath:String, fastaList:String, refFasta:String) {
+
+        val tempDir = "${dbPath}/temp"
+        File(tempDir).mkdirs()
+
+        // read the fastaList file into a list of strings
+        val fastaFiles = File(fastaList).readLines()
+
         // check if ${dbPath}/assemblies.agc file exist
         if (Files.exists(File("${dbPath}/assemblies.agc").toPath())) {
-            // if it exists, check if the fasta files in the fastaDir are already in the agc file
-            // if they are, throw an error
-            // if they are not, append the fasta files to the agc file
+            // if it exists, check if the fasta files in the fastaList/fastaFiles are already in the agc file
+            // Print a list of the duplicates, add the non-duplicates to the compressed file.
             val duplicateList =
-                compareNewExistingSampleNames("${dbPath}/assemblies.agc", getCurrentSampleNames(fastaFiles))
+                compareNewExistingSampleNames("${dbPath}/assemblies.agc", getCurrentSampleNames(fastaFiles),tempDir)
             if (duplicateList.isNotEmpty()) {
-                println("The following fasta files are already in the AGC compressed file: ${duplicateList}")
-                println("Please remove these fasta files from the input fasta directory and try again.")
-                System.exit(1)
+                println("The following fasta files are already represented in the AGC compressed file and will not be loaded: ${duplicateList}")
+            }
+            val listToLoad = fastaFiles.filter { !duplicateList.contains(it) }
+            // Write the listToLoad to a file named tempDir/nonDuplicateFastaFiles.txt
+            val fileToLoad = File("${tempDir}/nonDuplicateFastaFiles.txt")
+            fileToLoad.writeText(listToLoad.joinToString("\n"))
+
+            if (listToLoad.isNotEmpty()) {
+                // Call method to load AGC files with the list of fasta files and load option
+                val success = loadAGCFiles(fileToLoad.toString(), "append", dbPath, refFasta,tempDir)
             } else {
-                // append the fasta files to the agc file
-                // this is done by running the agc program with the -a option
-                // the -a option is used to append to an existing agc file
-                // the -o option is used to specify the output file name
-                // the -i option is used to specify the input fasta files
-                // the -t option is used to specify the number of threads to use
-                // the -v option is used to specify the verbosity
+                myLogger.info("No new fasta files to load -returning")
             }
         } else {
-            // if it does not exist, create the agc file
-            // this is done by running the agc program with the -c option
-            // the -c option is used to create a new agc file
-            // the -o option is used to specify the output file name
-            // the -i option is used to specify the input fasta files
-            // the -t option is used to specify the number of threads to use
-            // the -v option is used to specify the verbosity
+            // call method to load AGC files with the list of fasta files and load option
+            val success = loadAGCFiles(fastaList, "create",dbPath,refFasta, tempDir)
         }
 
     }
 
-    fun getSampleListFromAGC(agcFile:String): List<String> {
+    fun loadAGCFiles(fastaFiles: String, loadOption: String, dbPath:String, refFasta:String, tempDir:String): Boolean {
+
+        val agcFile = "${dbPath}/assemblies.agc"
+        val agcFileOut = "${dbPath}/assemblies_tmp.agc"
+        val builder = ProcessBuilder()
+        var redirectOutput = tempDir + "/agc_create_output.log"
+        var redirectError = tempDir + "/agc_create_error.log"
+        when (loadOption) {
+            "create" -> {
+                builder.command("conda","run","-n","phgv2-conda","agc","create","-i",fastaFiles,"-o",agcFile,refFasta)
+            }
+            "append" -> {
+                builder.command("conda","run","-n","phgv2-conda","agc","append","-i",fastaFiles,agcFile,"-o",agcFileOut)
+                redirectOutput = tempDir + "/agc_append_output.log"
+                redirectError = tempDir + "/agc_append_error.log"
+            }
+            else -> {
+                println("Invalid load option: ${loadOption}")
+                return false
+            }
+        }
+
+        builder.redirectOutput( File(redirectOutput))
+        builder.redirectError( File(redirectError))
+
+        println("begin Command to create/append:" + builder.command().stream().collect(Collectors.joining(" ")))
+        try {
+            var process = builder.start()
+            var error = process.waitFor()
+            if (error != 0) {
+                println("agc create run via ProcessBuilder returned error code $error")
+                throw IllegalArgumentException("Error running ProcessBuilder to compress agc files: ${error}")
+            }
+
+        } catch (exc: Exception) {
+            println("Error: could not create agc compressed file.")
+            throw IllegalArgumentException("Error running ProcessBuilder for agc create or append: ${exc.message}")
+        }
+
+        // TODO: if command was append, copy the agcFile to agcFile_backup_<date>.agc and then copy agcFileOut to agcFile
+
+
+        return true
+    }
+    fun getSampleListFromAGC(agcFile:String,tempDir:String): List<String> {
         // This function will return a list of samples from the AGC compressed file.
         // This will be used to verify that the new list of fastas has nothing overlapping
         // the exsiting fastas in the AGC compressed file.
 
-        val sampleList = mutableListOf<String>()
+        var sampleList = listOf<String>()
         // Query the agc compressed file to get list of sample names
+        var builder = ProcessBuilder("conda","run","-n","phgv2-conda","agc","listset",agcFile)
+        var redirectOutput = tempDir + "/agc_create_output.log"
+        var redirectError = tempDir + "/agc_create_error.log"
+        builder.redirectOutput( File(redirectOutput))
+        builder.redirectError( File(redirectError))
 
-        // TODO:  query agc file to get list of sample names
+        myLogger.info("begin Command to list agc sample names:" + builder.command().stream().collect(Collectors.joining(" ")))
+        try {
+            var process = builder.start()
+            var error = process.waitFor()
+            if (error != 0) {
+                println("agc listset run via ProcessBuilder returned error code $error")
+                throw IllegalArgumentException("Error running ProcessBuilder to list agc samples: ${error}")
+            }
+            // read the output file to get the list of samples
+            sampleList = File(redirectOutput).readLines()
+
+        } catch (exc: Exception) {
+            println("Error: could not list agc samples.")
+            throw IllegalArgumentException("Error running ProcessBuilder for agc listset: ${exc.message}")
+        }
+
         return sampleList
     }
 
-    // THis function will take a list of fasta names compiled from the input fasta
+    // This function will take a list of fasta names compiled from the input fasta
     // files and compare them to those name already in the agc compressed file.
     // It returns a list of any duplicates
-    fun compareNewExistingSampleNames(agcFile:String, newFastas:List<String>): List<String> {
-        val duplicateList = getSampleListFromAGC(agcFile).intersect(newFastas).toList()
+    fun compareNewExistingSampleNames(agcFile:String, newFastas:List<String>, tempDir:String): List<String> {
+        // Need to process the newFastas list to just the name without extension or path
+        // that is what is stored as the sample name in the AGC compressed file.
+        val newSampleNames = mutableListOf<String>()
+        newFastas.forEach { newSampleNames.add(it.split("/").last().split(".").first()) }
 
-        return duplicateList
+        // Query the agc compressed file to get list of sample names
+        val duplicateList = getSampleListFromAGC(agcFile,tempDir).intersect(newSampleNames).toList()
+
+        // Match the duplicateList to the newFastas list to get the full path and extension
+        // of the fasta files that are duplicates
+        val duplicateFastas = newFastas.filter { duplicateList.contains(it.split("/").last().split(".").first()) }
+
+        return duplicateFastas
     }
 }

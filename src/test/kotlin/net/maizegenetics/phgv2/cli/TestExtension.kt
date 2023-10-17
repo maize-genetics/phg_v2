@@ -8,9 +8,11 @@ class TestExtension : BeforeAllCallback {
 
     companion object {
         val tempDir = "${System.getProperty("user.home")}/temp/phgv2Tests/tempDir/"
+
         val testVCFDir = "${tempDir}vcfDir/"
         val testMafDir = "${tempDir}mafDir/"
         val testOutputFastaDir = "${tempDir}outputFastaDir/"
+        val testInputFastaDir = "${tempDir}inputFastaDir/"
 
 
         val refLineName = "Ref"
@@ -19,7 +21,7 @@ class TestExtension : BeforeAllCallback {
         val asmList = listOf("LineA.fa", "LineB.fa")
 
 
-        val testTileDBURI = "${tempDir}testTileDBURI"
+        val testTileDBURI = "${tempDir}testTileDBURI/"
         val testGFFFile = ""
         val testBEDFile = "${tempDir}testBEDFile.bed"
         val asmDir = "${tempDir}asmDir/"
@@ -40,6 +42,7 @@ class TestExtension : BeforeAllCallback {
         File(testVCFDir).mkdirs()
         File(testMafDir).mkdirs()
         File(testOutputFastaDir).mkdirs()
+        File(testTileDBURI).mkdirs()
     }
 
 
