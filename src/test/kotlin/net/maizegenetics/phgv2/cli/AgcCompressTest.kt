@@ -22,11 +22,11 @@ class AgcCompressTest {
             File(TestExtension.tempDir).mkdirs()
         }
 
-//        @JvmStatic
-//        @AfterAll
-//        fun teardown() {
-//            File(TestExtension.tempDir).deleteRecursively()
-//        }
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+            File(TestExtension.tempDir).deleteRecursively()
+        }
     }
 
     @Test
@@ -154,5 +154,18 @@ class AgcCompressTest {
         result = agcCompress.test("--fasta-list ${fastaAppendFileNamesFile.toString()} --db-path ${dbPath} --ref-fasta ${refFasta}")
         assertEquals(result.statusCode, 0)
 
+    }
+
+    @Test
+    fun testBadAGCOption() {
+        // agc load will only accept "create" or "append" as options
+        val fastaList = "FastaListFile.txt"
+        val refFasta = "Ref.fa"
+        val dbPath = TestExtension.testTileDBURI
+
+        val agcCompress = AgcCompress()
+         // "badOption" is not valid option, should return false
+        val success = agcCompress.loadAGCFiles(fastaList, "badOption",dbPath,refFasta, tempDir)
+        assertEquals(false, success)
     }
 }
