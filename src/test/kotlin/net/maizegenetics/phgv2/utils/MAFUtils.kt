@@ -9,8 +9,6 @@ data class MAFRecord(val chr: String, val start: Int, val length: Int, val stran
 fun testMergingMAF(inputFile: String, outputFile: String) {
 
     val reader = bufferedReader(inputFile)
-    // val reader = bufferedReader("/Users/zrm22/Downloads/LineB.maf.orig")
-    // val reader = bufferedReader("/Users/zrm22/Downloads/LineB.maf.orig.split")
 
     var currentLine = reader.readLine()
     val mafRecordList = mutableListOf<Pair<MAFRecord, MAFRecord>>()
