@@ -1,11 +1,8 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.versionOption
-import com.github.ajalt.mordant.rendering.AnsiLevel
-import com.github.ajalt.mordant.terminal.Terminal
 
 class Phg : CliktCommand() {
 
@@ -21,7 +18,5 @@ class Phg : CliktCommand() {
 }
 
 fun main(args: Array<String>) = Phg()
-    .subcommands(Initdb(), CreateRanges(), BuildRefVcf(), BuildMafVcf(), LoadVcf())
-    .context {
-        terminal = Terminal(ansiLevel = AnsiLevel.TRUECOLOR, interactive = true)
-    }.main(args)
+    .subcommands(Initdb(), CreateRanges(), AlignAssemblies(), CreateRefVcf(), BuildMafVcf(), LoadVcf())
+    .main(args)
