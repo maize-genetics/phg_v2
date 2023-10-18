@@ -47,6 +47,10 @@ class BuildMafVcf : CliktCommand() {
         }
 
 
+    /**
+     * Function to create the ASM hVCF and gVCF.
+     * It will first use Biokotlin to build the gVCF and then will use the BED file to extract out the hVCF information.
+     */
     fun createASMHvcfs(bedFileName: String, referenceFileName: String, mafDirName: String, outputDirName: String) {
         //load the bed file into some data structure
         val sRanges = bedfileToSRangeSet(bedFileName,referenceFileName)

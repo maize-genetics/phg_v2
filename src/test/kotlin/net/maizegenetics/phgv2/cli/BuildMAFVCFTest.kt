@@ -70,6 +70,10 @@ class BuildMAFVCFTest {
         compareTwoGVCFFiles("data/test/buildMAFVCF/truthGVCFs/B97_truth.g.vcf", "${TestExtension.testVCFDir}/B97.g.vcf")
     }
 
+    /**
+     * Function to compare the output gVCF file with the expected gVCF
+     * It compares the alleles, depths, genotypes and the ASM metadata.
+     */
     fun compareTwoGVCFFiles(truthGVCFFile : String, generatedFile: String) {
         //Load in the output GVCF  and the truth GVCF and verify that the output is correct
         val truthVariantIterator = VCFFileReader(File(truthGVCFFile),false).iterator()
