@@ -10,7 +10,6 @@ import java.lang.Exception
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.LocalDate
-import java.util.stream.Collectors
 
 /**
  * This class uses the Assembled Genome Compressor (AGC) program to create
@@ -90,8 +89,8 @@ class AgcCompress : CliktCommand(){
             if (duplicateList.isNotEmpty()) {
                 myLogger.info("The following fasta files are already represented in the AGC compressed file and will not be loaded: ${duplicateList}")
             }
-            //fastaFiles.forEach { sampleNames.add(it.split("/").last().split(".").first())
-            val listToLoad = fastaFiles.filter { !duplicateList.contains(it.split("/").last().split(".").first()) }
+
+            val listToLoad = fastaFiles.filter { !duplicateList.contains(it.substringAfterLast("/").substringBefore(".")) }
             // Write the listToLoad to a file named tempDir/nonDuplicateFastaFiles.txt
             val fileToLoad = File("${tempDir}/nonDuplicateFastaFiles.txt")
             fileToLoad.writeText(listToLoad.joinToString("\n"))
@@ -126,7 +125,7 @@ class AgcCompress : CliktCommand(){
                 redirectError = tempDir + "/agc_append_error.log"
             }
             else -> {
-                println("Invalid load option: ${loadOption}")
+                myLogger.error("Invalid load option: ${loadOption}")
                 return false
             }
         }
@@ -171,7 +170,8 @@ class AgcCompress : CliktCommand(){
         //create a list of names from the fasta files, where the name is
         // just the file name, no path, and without the extension
         val sampleNames = mutableListOf<String>()
-        fastaFiles.forEach { sampleNames.add(it.split("/").last().split(".").first()) }
+        fastaFiles.forEach{ sampleNames.add(it.substringAfterLast("/").substringBefore(".")) }
+
         return sampleNames
     }
 
@@ -213,15 +213,14 @@ class AgcCompress : CliktCommand(){
     fun compareNewExistingSampleNames(agcFile:String, newFastas:List<String>, tempDir:String): List<String> {
         // Need to process the newFastas list to just the name without extension or path
         // that is what is stored as the sample name in the AGC compressed file.
-        val newSampleNames = mutableListOf<String>()
-        newFastas.forEach { newSampleNames.add(it.split("/").last().split(".").first()) }
+        val newSampleNames = getCurrentSampleNames(newFastas)
 
         // Query the agc compressed file to get list of sample names
         val duplicateList = getSampleListFromAGC(agcFile,tempDir).intersect(newSampleNames).toList()
 
         // Match the duplicateList to the newFastas list to get the full path and extension
         // of the fasta files that are duplicates
-        val duplicateFastas = newFastas.filter { duplicateList.contains(it.split("/").last().split(".").first()) }
+        val duplicateFastas = newFastas.filter { duplicateList.contains(it.substringAfterLast("/").substringBefore(".")) }
 
         return duplicateFastas
     }
