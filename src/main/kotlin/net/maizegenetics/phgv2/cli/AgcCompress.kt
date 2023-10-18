@@ -134,12 +134,12 @@ class AgcCompress : CliktCommand(){
         builder.redirectOutput( File(redirectOutput))
         builder.redirectError( File(redirectError))
 
-        println("begin Command to create/append:" + builder.command().stream().collect(Collectors.joining(" ")))
+        myLogger.info("begin Command to create/append:" + builder.command().joinToString(" "))
         try {
             var process = builder.start()
             var error = process.waitFor()
             if (error != 0) {
-                println("agc create run via ProcessBuilder returned error code $error")
+                myLogger.error("agc create run via ProcessBuilder returned error code $error")
                 throw IllegalArgumentException("Error running ProcessBuilder to compress agc files: ${error}")
             }
             // If this was an "append" command, the file was written to assemblies_tmp.agc
@@ -188,12 +188,12 @@ class AgcCompress : CliktCommand(){
         builder.redirectOutput( File(redirectOutput))
         builder.redirectError( File(redirectError))
 
-        myLogger.info("begin Command to list agc sample names:" + builder.command().stream().collect(Collectors.joining(" ")))
+        myLogger.info("begin Command to list agc sample names:" + builder.command().joinToString(" "))
         try {
             var process = builder.start()
             var error = process.waitFor()
             if (error != 0) {
-                println("agc listset run via ProcessBuilder returned error code $error")
+                myLogger.error("agc listset run via ProcessBuilder returned error code $error")
                 throw IllegalArgumentException("Error running ProcessBuilder to list agc samples: ${error}")
             }
             // read the output file to get the list of samples
