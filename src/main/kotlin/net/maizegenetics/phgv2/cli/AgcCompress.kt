@@ -73,10 +73,6 @@ class AgcCompress : CliktCommand(){
 
     }
 
-
-
-
-
     fun processAGCFiles(dbPath:String, fastaList:String, refFasta:String) {
 
         val tempDir = "${dbPath}/temp"
@@ -92,9 +88,10 @@ class AgcCompress : CliktCommand(){
             val duplicateList =
                 compareNewExistingSampleNames("${dbPath}/assemblies.agc", getCurrentSampleNames(fastaFiles),tempDir)
             if (duplicateList.isNotEmpty()) {
-                println("The following fasta files are already represented in the AGC compressed file and will not be loaded: ${duplicateList}")
+                myLogger.info("The following fasta files are already represented in the AGC compressed file and will not be loaded: ${duplicateList}")
             }
-            val listToLoad = fastaFiles.filter { !duplicateList.contains(it) }
+            //fastaFiles.forEach { sampleNames.add(it.split("/").last().split(".").first())
+            val listToLoad = fastaFiles.filter { !duplicateList.contains(it.split("/").last().split(".").first()) }
             // Write the listToLoad to a file named tempDir/nonDuplicateFastaFiles.txt
             val fileToLoad = File("${tempDir}/nonDuplicateFastaFiles.txt")
             fileToLoad.writeText(listToLoad.joinToString("\n"))

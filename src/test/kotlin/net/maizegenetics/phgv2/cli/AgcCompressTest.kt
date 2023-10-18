@@ -83,9 +83,15 @@ class AgcCompressTest {
             if (it.contains("LineC.fa")) appendFileList.add(it)
         }
 
+        // print the fileList and appendFileList contents
+        println("fileList contents: \n${fileList.joinToString("\n")}")
+        println("appendFileList contents: \n${appendFileList.joinToString("\n")}")
+
         // The list of fasta files to load should not contain the reference.  The reference is listed separately.
         // LineC is also excluded as we will use that in the append command.
         fileList.removeIf { it.contains("Ref") || it.contains("LineC") }
+
+        println("\nfileList contents after removing Ref and LineC: \n${fileList.joinToString("\n")}")
 
         // write the full path fasta file names  from the fastaOutputDir to a single file, one per line, in tempDir
         // This file will be used as input to the agc-compress command
@@ -141,9 +147,10 @@ class AgcCompressTest {
         assertEquals(true, agcBackupSampleList.containsAll(sampleSetForBackup))
 
         // Call agcCompress once more with LineC.fa in the fastaAppendFileNamesFile
-        // This should return without loading anything.  An message to that effect will be printed
+        // This should return without loading anything.  A message to that effect will be printed
         // to the console.
 
+        println("Calling second agcCompress for APPEND")
         result = agcCompress.test("--fasta-list ${fastaAppendFileNamesFile.toString()} --db-path ${dbPath} --ref-fasta ${refFasta}")
         assertEquals(result.statusCode, 0)
 
