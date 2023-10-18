@@ -1,7 +1,8 @@
 package net.maizegenetics.phgv2.cli
 
-import biokotlin.featureTree.Gene
+import biokotlin.featureTree.Feature
 import biokotlin.featureTree.Genome
+import biokotlin.featureTree.Strand
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
@@ -40,7 +41,7 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
      *
      * @return A list of type `Pair<Int, Int>`
      */
-    fun idMinMaxBounds(genes: List<Gene>, boundary: String, pad: Int): List<Pair<Int, Int>> {
+    fun idMinMaxBounds(genes: List<Feature>, boundary: String, pad: Int): List<Pair<Int, Int>> {
         val boundMinMax = when (boundary) {
             "gene" -> genes.map {gene ->
                 Pair(gene.start, gene.end)
@@ -49,20 +50,23 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
                 genes.map { gene ->
                     gene.children
                         .filter { transcript ->
-                            transcript.attributes.containsKey("canonical_transcript")
+                            transcript.allAttributes().containsKey("canonical_transcript")
                         }
                         .flatMap { it.children }
-                        .filter { it.type().name == "CODING_SEQUENCE" }
+                        .filter { it.type == "CDS" }
                         .map { Pair(it.start, it.end) }
                         .let { ranges ->
-                            Pair(ranges.minOf { it.first }, ranges.maxOf { it.second })
+                            if(ranges.isNotEmpty())
+                                Pair(ranges.minOf { it.first }, ranges.maxOf { it.second })
+                            else
+                                Pair(0,0)
                         }
-                }
+                }.filter { it.first != 0 && it.second != 0 }
             }
             else -> throw Exception("Undefined boundary")
         }.map { (first, second) ->
             val modifiedFirst = if (first - pad < 0) 1 else first - pad
-            Pair((modifiedFirst - 1), (second + pad) - 1)
+            Pair((modifiedFirst - 1), (second + pad) )//Subtracting one from the start to do the conversion from GFF 1-based inclusive inclusive to BED's 0-based inclusive exclusive
         }
 
         return(boundMinMax)
@@ -80,7 +84,7 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
      */
     fun generateBedRows(
         bounds: List<Pair<Int, Int>>,
-        genes: List<Gene>,
+        genes: List<Feature>,
         delimiter: String = "\t",
         featureId: String = "ID"
     ): List<String> {
@@ -89,9 +93,13 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
                 gene.seqid,
                 bounds[index].first,
                 bounds[index].second,
-                gene.attributes[featureId],
-                if (gene.score.isNaN()) 0 else gene.score,
-                gene.strand
+                gene.attribute(featureId).first(),
+                if (gene.score?.isNaN() != false) 0 else gene.score,
+                when(gene.strand) {
+                    Strand.PLUS -> "+"
+                    Strand.MINUS -> "-"
+                    else -> "."
+                }
             ).joinToString(delimiter)
         }
 
@@ -99,8 +107,9 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
     }
 
     override fun run() {
-        val genome = Genome.fromGFF(gff)
-        val genes = genome.genes()
+        val genome = Genome.fromFile(gff)
+
+        val genes = genome.iterator().asSequence().filter { it.type == "gene" }.toList()
 
         val boundMinMax = idMinMaxBounds(genes, boundary, pad)
 
