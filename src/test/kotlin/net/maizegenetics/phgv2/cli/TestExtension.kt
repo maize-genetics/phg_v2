@@ -12,6 +12,7 @@ class TestExtension : BeforeAllCallback {
         val testVCFDir = "${tempDir}vcfDir/"
         val testMafDir = "${tempDir}mafDir/"
         val testOutputFastaDir = "${tempDir}outputFastaDir/"
+        val testOutputGVCFDIr = "${tempDir}outputGVCFDir/"
 
         const val smallseqLineAFile = "data/test/smallseq/LineA.fa"
         const val smallseqLineAMafFile = "data/test/smallseq/LineA.maf"
@@ -50,7 +51,7 @@ class TestExtension : BeforeAllCallback {
         File(testVCFDir).mkdirs()
         File(testMafDir).mkdirs()
         File(testOutputFastaDir).mkdirs()
+        File(testOutputGVCFDIr).mkdirs()
+
     }
-
-
 }
