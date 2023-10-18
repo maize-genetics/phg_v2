@@ -1,7 +1,8 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
-// import net.maizegenetics.phgv2.utils.testMergingMAF
+import net.maizegenetics.phgv2.utils.getChecksum
+import net.maizegenetics.phgv2.utils.testMergingMAF
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
@@ -36,14 +37,31 @@ class AlignAssembliesTest {
         val lineBMAF = TestExtension.tempDir + "LineB.maf"
         assertTrue(File(lineBMAF).exists(), "File $lineBMAF does not exist")
 
-        // val mafOutput = TestExtension.tempDir + "LineA_unsplit.maf"
-        // println("mafOutput: $mafOutput")
-        // testMergingMAF(TestExtension.smallseqLineAMafFile, mafOutput)
-        // testMergingMAF(lineAMAF, TestExtension.tempDir + "LineA_unsplit2.maf")
+        val mafOutputA1 = TestExtension.tempDir + "LineA_unsplitA1.maf"
+        val mafOutputA2 = TestExtension.tempDir + "LineA_unsplitA2.maf"
+        testMergingMAF(TestExtension.smallseqLineAMafFile, mafOutputA1)
+        testMergingMAF(lineAMAF, mafOutputA2)
 
-        // val mafBlocks = getMAFblocks("${TestExtension.tempDir}/LineA.maf")
+        var checksum1 = getChecksum(mafOutputA1)
+        var checksum2 = getChecksum(mafOutputA2)
 
-        // mafBlocks[0].forEach { println(it) }
+        println("LineA expected checksum1: $checksum1")
+        println("LineA actual checksum2: $checksum2")
+
+        assertEquals(checksum1, checksum2, "LineA.maf checksums do not match")
+
+        val mafOutputB1 = TestExtension.tempDir + "LineA_unsplitB1.maf"
+        val mafOutputB2 = TestExtension.tempDir + "LineA_unsplitB2.maf"
+        testMergingMAF(TestExtension.smallseqLineBMafFile, mafOutputB1)
+        testMergingMAF(lineBMAF, mafOutputB2)
+
+        checksum1 = getChecksum(mafOutputB1)
+        checksum2 = getChecksum(mafOutputB2)
+
+        println("LineB expected checksum1: $checksum1")
+        println("LineB actual checksum2: $checksum2")
+
+        assertEquals(checksum1, checksum2, "LineB.maf checksums do not match")
 
     }
 
