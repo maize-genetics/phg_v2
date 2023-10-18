@@ -64,7 +64,6 @@ class BuildMafVcf : CliktCommand() {
         File(mafDirName).walk().filter { !it.isHidden && !it.isDirectory }
             .filter { it.extension == "maf" }
             .forEach {
-                println("File${it.name}")
                 val sampleName = it.nameWithoutExtension //This will likely need to change in the future
                 val gvcfVariants = getGVCFVariantsFromMafFile(referenceFileName, it.absolutePath, it.nameWithoutExtension)
 
