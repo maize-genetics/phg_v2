@@ -58,7 +58,6 @@ fun testMergingMAF(inputFile: String, outputFile: String) {
     // sort each group by start position
     val sortedByStart = groupedByChromosome.mapValues { (_, value) -> value.sortedBy { it.first.start } }
 
-    // BufferedWriter(FileWriter("/Users/zrm22/Desktop/debug_mafToGVCF/testoutput_nonSplit.txt")).use { output ->
     BufferedWriter(FileWriter(outputFile)).use { output ->
         // for each group build the sequence
         for (chr in sortedByStart.keys) {
