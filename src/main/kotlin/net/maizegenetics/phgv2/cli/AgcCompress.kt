@@ -8,6 +8,8 @@ import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.lang.Exception
 import java.nio.file.Files
+import java.nio.file.Paths
+import java.time.LocalDate
 import java.util.stream.Collectors
 
 /**
@@ -23,12 +25,17 @@ import java.util.stream.Collectors
  * should consider this when naming their fasta files.
  *
  * If a compressed file named "assemblies.agc" already exists in the parent folder,
- * any fasta in the fasta folder not currently in the agc compressed file will be added.
- * A list of duplicate fasta files, those not added, will be printed to the log.
- * Duplicates are determined based on the fastas name
+ * any fasta in the fasta list not currently in the agc compressed file will be added.
+ * This is verified based on the fasta name (minus extension), not the contents of the fasta.
+ * A list of duplicate sample names (fasta names) will be printed to the log.  These
+ * duplicates will not be added to the compressed file.
  *
  * When appending to an agc file:  the append command takes both an input and an output agc file.
  * It does not actually append, it makes a copy of the old file and adds everything to it.
+ * This code will copy the old file to a backup file, then create a new file with the name
+ * assemblies.agc.  The backup file will be named assemblies_backup_YYYY-MM-DD.agc, where
+ * YYYY-MM-DD is the date the backup was created.
+ *
  */
 class AgcCompress : CliktCommand(){
 
@@ -42,7 +49,7 @@ class AgcCompress : CliktCommand(){
             }
         }
 
-    val fastaList by option(help = "File containing full path name fasta files, one per line, to compress into a single agc file.  Fastas may be compressed or uncompressed files. Reference fasta should NOT be included.")
+    val fastaList by option(help = "File containing full path name for the fasta files, one per line, to compress into a single agc file.  Fastas may be compressed or uncompressed files. Reference fasta should NOT be included.")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -66,15 +73,7 @@ class AgcCompress : CliktCommand(){
 
     }
 
-    // This function takes a list of fasta file names and returns a list of sample names
-    // Sample names are the file names without extension
-    fun getCurrentSampleNames(fastaFiles:List<String>):List<String> {
-        //create a list of names from the fasta files, where the name is
-        // just the file name, no path, and without the extension
-        val sampleNames = mutableListOf<String>()
-        fastaFiles.forEach { sampleNames.add(it.split("/").last().split(".").first()) }
-        return sampleNames
-    }
+
 
 
 
@@ -146,17 +145,39 @@ class AgcCompress : CliktCommand(){
                 println("agc create run via ProcessBuilder returned error code $error")
                 throw IllegalArgumentException("Error running ProcessBuilder to compress agc files: ${error}")
             }
+            // If this was an "append" command, the file was written to assemblies_tmp.agc
+            // In this case, we need to move the original assemblies.agc file to assemblies_backup_<date>.agc
+            // can then move the assemblies_tmp.agc to assemblies.agc
+
+            if (loadOption == "append") {
+                // Use Files.move instead of File.renameTo because File.renameTo does not work across file systems
+                // and Files.move is platform independent
+                val agcFileBackupFile = Paths.get("${dbPath}/assemblies_backup_${LocalDate.now()}.agc")
+                val agcFileOutFile = Paths.get(agcFileOut)
+
+                val agcFileOrig = Paths.get(agcFile)
+                Files.move(agcFileOrig,agcFileBackupFile)
+                Files.move(agcFileOutFile,agcFileOrig)
+            }
 
         } catch (exc: Exception) {
-            println("Error: could not create agc compressed file.")
+            myLogger.error("Error: could not create agc compressed file.")
             throw IllegalArgumentException("Error running ProcessBuilder for agc create or append: ${exc.message}")
         }
 
-        // TODO: if command was append, copy the agcFile to agcFile_backup_<date>.agc and then copy agcFileOut to agcFile
-
-
         return true
     }
+
+    // This function takes a list of fasta file names and returns a list of sample names
+    // Sample names are the file names without extension
+    fun getCurrentSampleNames(fastaFiles:List<String>):List<String> {
+        //create a list of names from the fasta files, where the name is
+        // just the file name, no path, and without the extension
+        val sampleNames = mutableListOf<String>()
+        fastaFiles.forEach { sampleNames.add(it.split("/").last().split(".").first()) }
+        return sampleNames
+    }
+
     fun getSampleListFromAGC(agcFile:String,tempDir:String): List<String> {
         // This function will return a list of samples from the AGC compressed file.
         // This will be used to verify that the new list of fastas has nothing overlapping
@@ -182,7 +203,7 @@ class AgcCompress : CliktCommand(){
             sampleList = File(redirectOutput).readLines()
 
         } catch (exc: Exception) {
-            println("Error: could not list agc samples.")
+            myLogger.error("Error: could not list agc samples.")
             throw IllegalArgumentException("Error running ProcessBuilder for agc listset: ${exc.message}")
         }
 
