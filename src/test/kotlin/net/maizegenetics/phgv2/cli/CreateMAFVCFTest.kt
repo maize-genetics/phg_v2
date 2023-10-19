@@ -6,6 +6,7 @@ import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.createRefRangeVC
+import net.maizegenetics.phgv2.utils.createSNPVC
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
@@ -156,6 +157,31 @@ class CreateMAFVCFTest {
         assertTrue(createMafVCF.variantPartiallyContainedEnd(partiallyContainedEnd, variant))
         assertFalse(createMafVCF.variantPartiallyContainedEnd(notContained, variant))
         assertFalse(createMafVCF.variantPartiallyContainedEnd(notContained2, variant))
+    }
+
+    @Test
+    fun testIsVariantResizable() {
+        val createMafVCF = CreateMafVcf()
+        val refBlockVariant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
+            Position("chr1",5), Position("chr1",10),
+            Position("chr1",5), Position("chr1",10))
+        
+        val multiAllelicSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",7), Pair("AAA", "TTT"), Position("chr1",10), Position("chr1",12))
+
+        val standardSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "T"), Position("chr1",10), Position("chr1",10))
+
+        val insertionVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "TTT"), Position("chr1",10), Position("chr1",12))
+        val deletionVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",7), Pair("AAA", "T"), Position("chr1",10), Position("chr1",10))
+
+        assertTrue(createMafVCF.isVariantResizable(refBlockVariant))
+        assertTrue(createMafVCF.isVariantResizable(multiAllelicSNPVariant))
+        assertTrue(createMafVCF.isVariantResizable(standardSNPVariant)) //This is techincally true as single bp variants just return the bp when resized
+        assertFalse(createMafVCF.isVariantResizable(insertionVariant))
+        assertFalse(createMafVCF.isVariantResizable(deletionVariant))
+    }
+
+    fun testResizeVariantContext() {
+
     }
 
     @Test

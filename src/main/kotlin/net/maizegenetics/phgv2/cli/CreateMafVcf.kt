@@ -13,7 +13,7 @@ import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.exportVariantContext
 import java.io.File
 
-class CreateMafVcf : CliktCommand() {
+class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave MAF files") {
 
     val bed by option(help = "BED file")
         .default("")
@@ -113,10 +113,7 @@ class CreateMafVcf : CliktCommand() {
 
         val bedRegionsByContig = bedRanges.groupBy { it.first.contig }
 
-        gvcfVariantsByContig.keys.filter { bedRegionsByContig.containsKey(it) }.flatMap { convertGVCFToHVCFForChrom(bedRegionsByContig[it]!!,gvcfVariantsByContig[it]!!) }
-
-//        return gvcfVariants.filter { bedRanges.overlaps(it.contig,it.start,it.end) }
-        return listOf()
+        return gvcfVariantsByContig.keys.filter { bedRegionsByContig.containsKey(it) }.flatMap { convertGVCFToHVCFForChrom(bedRegionsByContig[it]!!,gvcfVariantsByContig[it]!!) }
     }
 
     fun convertGVCFToHVCFForChrom(bedRanges: List<Pair<Position,Position>>, variantContexts: List<VariantContext>) : List<VariantContext> {
@@ -188,9 +185,40 @@ class CreateMafVcf : CliktCommand() {
     }
 
     fun convertGVCFRecordsToHVCF(region: Pair<Position,Position>,variants: List<VariantContext>) : VariantContext {
+        //Take the first and the last variantContext
+        val firstVariant = variants.first()
+        val lastVariant = variants.last()
+
+        //val check strandedness of the variants
+        val strand = firstVariant.getAttributeAsString("ASM_Strand","+")
+        check(strand == lastVariant.getAttributeAsString("ASM_Strand","+")) { "Strand of first and last variantContexts do not match" }
+        //Resize the first and last variantContext ASM start and end based on the regions
+        val newASMStart = resizeVariantContext(firstVariant, region.first.position, strand)
+        val newASMEnd = resizeVariantContext(lastVariant, region.second.position, strand)
+
         TODO("Implement")
     }
 
+
+    fun resizeVariantContext(variant: VariantContext, position: Int, strand : String) : Int? {
+        //check to see if the variant is either a RefBlock or is a SNP with equal lengths
+        if(isVariantResizable(variant)) {
+
+        }
+        else {
+
+        }
+
+        return null
+    }
+
+    fun isVariantResizable(variant: VariantContext) : Boolean {
+        return when {
+            variant.getReference().baseString.length == 1 && variant.end - variant.start > 0 -> true //refBlock
+            variant.reference.baseString.length == variant.getAlternateAllele(0).baseString.length -> true //This covers both SNPs and multiallelic polymorphisms
+            else -> false
+        }
+    }
 
     override fun run() {
         createASMHvcfs(bed, reference, mafDir, outputDir)
