@@ -145,7 +145,8 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
 
             check(regionChrom in refGenomeSequence.keys) { "Chromosome $regionChrom not found in reference" }
 
-            val refRangeSeq = refGenomeSequence[regionChrom]!![regionStart..regionEnd]
+            //Need to subtract here as the Biokotlin NucSeq is 0 based
+            val refRangeSeq = refGenomeSequence[regionChrom]!![regionStart-1..regionEnd-1]
 
             while (currentVariantIdx < variantContexts.size && variantContexts[currentVariantIdx].start < regionEnd) {
                 val currentVariant = variantContexts[currentVariantIdx]

@@ -76,14 +76,17 @@ class CreateMafVCFTest {
         val createMAFVCF = CreateMafVcf()
         val ranges = createMAFVCF.loadRanges(bedFile)
 
-        assertEquals(3, ranges.size)
+        assertEquals(4, ranges.size)
 
         assertEquals(Position("chr1", 1), ranges[0].first)
         assertEquals(Position("chr1", 40), ranges[0].second)
-        assertEquals(Position("chr7", 1), ranges[1].first)
-        assertEquals(Position("chr7", 12), ranges[1].second)
-        assertEquals(Position("chr7", 451), ranges[2].first)
-        assertEquals(Position("chr7", 456), ranges[2].second)
+        assertEquals(Position("chr10", 1), ranges[1].first)
+        assertEquals(Position("chr10", 40), ranges[1].second)
+        assertEquals(Position("chr7", 15), ranges[2].first)
+        assertEquals(Position("chr7", 48), ranges[2].second)
+        assertEquals(Position("chr7", 451), ranges[3].first)
+        assertEquals(Position("chr7", 456), ranges[3].second)
+
     }
 
     @Test
