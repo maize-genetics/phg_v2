@@ -59,11 +59,11 @@ class AgcGetTest {
 
         }
 
-//        @JvmStatic
-//        @AfterAll
-//        fun teardown() {
-//            File(TestExtension.tempDir).deleteRecursively()
-//        }
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+            File(TestExtension.tempDir).deleteRecursively()
+        }
     }
 
     @Test
