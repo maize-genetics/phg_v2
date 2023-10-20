@@ -29,7 +29,7 @@ class CreateMafVCFTest {
             createMAFVCF.test("--maf-dir ${TestExtension.testMafDir} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingBed.statusCode, 1)
         assertEquals(
-            "Usage: build-maf-vcf [<options>]\n" +
+            "Usage: create-maf-vcf [<options>]\n" +
                     "\n" +
                     "Error: invalid value for --bed: --bed must not be blank\n", resultMissingBed.output
         )
@@ -37,7 +37,7 @@ class CreateMafVCFTest {
             createMAFVCF.test("--bed ${TestExtension.testBEDFile} --maf-dir ${TestExtension.testMafDir} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingRef.statusCode, 1)
         assertEquals(
-            "Usage: build-maf-vcf [<options>]\n" +
+            "Usage: create-maf-vcf [<options>]\n" +
                     "\n" +
                     "Error: invalid value for --reference: --reference must not be blank\n", resultMissingRef.output
         )
@@ -46,7 +46,7 @@ class CreateMafVCFTest {
             createMAFVCF.test("--bed ${TestExtension.testBEDFile} --maf-dir ${TestExtension.testMafDir} --reference ${TestExtension.testRefFasta}")
         assertEquals(resultMissingOutput.statusCode, 1)
         assertEquals(
-            "Usage: build-maf-vcf [<options>]\n" +
+            "Usage: create-maf-vcf [<options>]\n" +
                     "\n" +
                     "Error: invalid value for --output-dir: --output-dir/-o must not be blank\n", resultMissingOutput.output
         )
@@ -55,10 +55,53 @@ class CreateMafVCFTest {
             createMAFVCF.test("--bed ${TestExtension.testBEDFile} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingMafDir.statusCode, 1)
         assertEquals(
-            "Usage: build-maf-vcf [<options>]\n" +
+            "Usage: create-maf-vcf [<options>]\n" +
                     "\n" +
                     "Error: invalid value for --maf-dir: --maf-dir must not be blank\n", resultMissingMafDir.output
         )
+    }
+
+
+    @Test
+    fun testLoadingBEDFile() {
+        val bedFile = "data/test/buildMAFVCF/B73_Test.bed"
+
+        val createMAFVCF = CreateMafVcf()
+        val ranges = createMAFVCF.loadRanges(bedFile)
+
+        assertEquals(3, ranges.size)
+
+        assertEquals(Position("chr1", 1), ranges[0].first)
+        assertEquals(Position("chr1", 40), ranges[0].second)
+        assertEquals(Position("chr7", 1), ranges[1].first)
+        assertEquals(Position("chr7", 12), ranges[1].second)
+        assertEquals(Position("chr7", 451), ranges[2].first)
+        assertEquals(Position("chr7", 456), ranges[2].second)
+    }
+
+    @Test
+    fun testBuildRefSeq() {
+        val testRef = "data/test/buildMAFVCF/B73_Test.fa"
+
+        val createMafVcf = CreateMafVcf()
+        val refSeq = createMafVcf.buildRefGenomeSeq(testRef)
+
+        assertEquals(3, refSeq.size)
+        //check seqSizes
+        assertEquals(461, refSeq["chr7"]!!.size())
+        assertEquals(40, refSeq["chr1"]!!.size())
+        assertEquals(40, refSeq["chr10"]!!.size())
+
+        //check seqs
+        val truthChr7Seq = "AAAAAAAAAAAAAAAGGGAATGTTAACCAAATGAATTGTCTCTTACGGTGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATAAAGATGGGT"
+
+        assertEquals(truthChr7Seq, refSeq["chr7"]!!.seq())
+        assertEquals("GCAGCTGAAAACAGTCAATCTTACACACTTGGGGCCTACT", refSeq["chr1"]!!.seq())
+        assertEquals("GCAGCTGAAAACAGTCAATCTTACACACTTGGGGCCTACT", refSeq["chr10"]!!.seq())
     }
 
     @Test

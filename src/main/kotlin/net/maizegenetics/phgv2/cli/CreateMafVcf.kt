@@ -48,7 +48,13 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 "--output-dir/-o must not be blank"
             }
         }
-
+    val dbPath by option(help = "Folder name where TileDB datasets will be created")
+        .default("")
+        .validate {
+            require(it.isNotBlank()) {
+                "--db-path must not be blank"
+            }
+        }
 
     /**
      * Function to create the ASM hVCF and gVCF.
@@ -80,9 +86,9 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
     fun loadRanges(bedFileName: String) : List<Pair<Position, Position>> {
         return bufferedReader(bedFileName).readLines().map { line ->
             val lineSplit = line.split("\t")
+            val chrom = lineSplit[0]
             val start = lineSplit[1].toInt()+1
             val end = lineSplit[2].toInt()
-            val chrom = lineSplit[0]
             Pair(Position(chrom,start),Position(chrom,end))
         }.sortedBy { it.first }
     }
