@@ -10,3 +10,4 @@ dependencies:
   - anchorwave
   - bcftools
   - samtools
+  - agc
