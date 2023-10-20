@@ -1,10 +1,13 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.cli.TestExtension.Companion.testTileDBURI
 import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.io.BufferedReader
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -117,12 +120,23 @@ class AgcGetTest {
     fun testGoodCall() {
         val agcGet = AgcGet()
 
-        val sampleNames = "B73,KY27"
+        val dbPath = "${testTileDBURI}/assemblies.agc"
+        val sampleNames = "LineA,LineB"
         val contig = "1"
         val start = 20
         val end = 40
         // The assemblies agc file was created in the setup() above
 
-        agcGet.test("--db-path ${TestExtension.testTileDBURI}  --sample-names ${sampleNames} --contig ${contig}--start 2 --end 20")
+        println("testGOodCall - calling agcGet.test")
+        val command = agcGet.buildAgcCommandFromParams(dbPath,sampleNames, contig, start, end)
+        assertEquals(command.size,9)
+
+        val agcResult = agcGet.retrieveAgcData(command)
+        val content = agcResult.bufferedReader().use(BufferedReader::readText)
+
+        assertTrue(content.contains(">1:20-40"))
+
+        //val content = agcGet.test("--db-path ${dbPath}  --sample-names ${sampleNames} --contig ${contig}--start 2 --end 20")
+        println("testGoodCall - agcResult = \n${content}")
     }
 }

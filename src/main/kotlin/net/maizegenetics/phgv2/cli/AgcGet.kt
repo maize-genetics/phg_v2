@@ -70,7 +70,8 @@ class AgcGet : CliktCommand(help="Pull data from an AGC compressed file") {
     override fun run() {
         println("AgcGet - in run !!")
         validateParameters()
-        val command = buildAgcCommandFromParms(dbPath, sampleNames, contigs, start, end)
+        val command = buildAgcCommandFromParams(dbPath, sampleNames, contigs, start, end)
+        println("command = ${command}")
     }
 
     private fun validateParameters() {
@@ -92,7 +93,7 @@ class AgcGet : CliktCommand(help="Pull data from an AGC compressed file") {
 
     // This function builds the agc command from the user supplied
     // parameters.  It is meant to be called from this class's run() program
-    fun buildAgcCommandFromParms(dbPath:String, sampleNames:String, contigs:String, start:Int, end:Int ):Array<String> {
+    fun buildAgcCommandFromParams(dbPath:String, sampleNames:String, contigs:String, start:Int, end:Int ):Array<String> {
 
         // Set the beginning data for the ProcessBuilder command
         val command = mutableListOf<String>()
