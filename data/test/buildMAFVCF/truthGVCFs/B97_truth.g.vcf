@@ -12,8 +12,9 @@
 ##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
 ##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
 ##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
-##contig=<ID=7,length=461>
-##contig=<ID=1,length=100>
+##contig=<ID=chr7,length=461>
+##contig=<ID=chr1,length=100>
+##contig=<ID=chr10,length=100>
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	B97
 chr1	1	.	G	AAAAAG,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=103;ASM_Start=98;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
 chr1	2	.	C	A,<NON_REF>	.	.	ASM_Chr=chr6;ASM_End=104;ASM_Start=104;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,0,90
