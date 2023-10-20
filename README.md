@@ -38,7 +38,7 @@ To populate that database
 ./phg create-ranges --gff my.gff --boundary gene --pad 500 -o /path/to/bed/file.bed
 ./anchorwave (ref.fasta, asm.fasta) -o /path/to/maf/files/
 ./phg create-ref-vcf --bed /my/bed/file.bed --referencefile /my/ref.fasta --refurl https://url-for-ref --refname B73 --output-dir /path/to/vcfs
-./phg build-maf-vcf --maf /my/maf/files -o /path/to/vcfs
+./phg create-maf-vcf --bed /my/bed/file.bed --reference /my/ref.fasta --maf-dir /my/maf/files -o /path/to/vcfs
 
 ## Load data into DBs
 ./phg load-vcf --vcf /my/vcf/dir --dbpath /path/to/dbs

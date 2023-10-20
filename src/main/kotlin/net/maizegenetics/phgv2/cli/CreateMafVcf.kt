@@ -60,9 +60,6 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         val ranges = loadRanges(bedFileName)
         val refGenomeSequence = buildRefGenomeSeq(referenceFileName)
 
-        File(mafDirName).walk().filter { !it.isHidden && !it.isDirectory }
-            .forEach { println("FileA: ${it.name}") }
-
         //loop through the maf files in mafDirName and getGVCFVariantsFromMafFile
         File(mafDirName).walk().filter { !it.isHidden && !it.isDirectory }
             .filter { it.extension == "maf" }

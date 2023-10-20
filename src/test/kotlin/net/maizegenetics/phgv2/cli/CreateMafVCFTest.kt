@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 @ExtendWith(TestExtension::class)
-class CreateMAFVCFTest {
+class CreateMafVCFTest {
     companion object {
 
     }
@@ -175,11 +175,15 @@ class CreateMAFVCFTest {
 
         assertTrue(createMafVCF.isVariantResizable(refBlockVariant))
         assertTrue(createMafVCF.isVariantResizable(multiAllelicSNPVariant))
-        assertTrue(createMafVCF.isVariantResizable(standardSNPVariant)) //This is techincally true as single bp variants just return the bp when resized
+        assertTrue(createMafVCF.isVariantResizable(standardSNPVariant)) //This is technically true as single bp variants just return the bp when resized
         assertFalse(createMafVCF.isVariantResizable(insertionVariant))
         assertFalse(createMafVCF.isVariantResizable(deletionVariant))
     }
 
+    /**
+     * This unit test checks different cases of VariantContexts and the returned values depending on the requested ref
+     * position to resize to.
+     */
     @Test
     fun testResizeVariantContext() {
         val createMafVCF = CreateMafVcf()
@@ -210,7 +214,6 @@ class CreateMAFVCFTest {
         //Check that we can resize the variant to the correct start/end on the ASM
         assertEquals(10, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 5, "+"))
         assertEquals(15, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 5, "-"))
-
         assertEquals(12, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 7, "+"))
         assertEquals(13, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 7, "-"))
 
@@ -221,7 +224,7 @@ class CreateMAFVCFTest {
         assertEquals(15, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 2, "-"))
 
         val standardSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "T"), Position("chr1",10), Position("chr1",10))
-        //no matter what we request it should return 10
+        //no matter what we request it should return 10 as it is only one bp of size
         assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 5, "+"))
         assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 5, "-"))
         assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 7, "+"))
@@ -231,10 +234,8 @@ class CreateMAFVCFTest {
         assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 2, "+"))
         assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 2, "-"))
 
-
-
         val insertionVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "TTT"), Position("chr1",10), Position("chr1",12))
-        //Everything should return -1
+        //Everything should return -1 as its not resizable
         assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 5, "+"))
         assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 5, "-"))
         assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 7, "+"))
@@ -244,9 +245,8 @@ class CreateMAFVCFTest {
         assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 2, "+"))
         assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 2, "-"))
 
-
         val deletionVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",7), Pair("AAA", "T"), Position("chr1",10), Position("chr1",10))
-        //Everything should return -1
+        //Everything should return -1 as its not resizeable
         assertEquals(-1, createMafVCF.resizeVariantContext(deletionVariant, 5, "+"))
         assertEquals(-1, createMafVCF.resizeVariantContext(deletionVariant, 5, "-"))
         assertEquals(-1, createMafVCF.resizeVariantContext(deletionVariant, 7, "+"))
