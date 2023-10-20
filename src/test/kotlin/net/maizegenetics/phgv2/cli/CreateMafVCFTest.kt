@@ -10,10 +10,7 @@ import net.maizegenetics.phgv2.utils.createSNPVC
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
-import kotlin.test.fail
+import kotlin.test.*
 
 @ExtendWith(TestExtension::class)
 class CreateMafVCFTest {
@@ -26,7 +23,7 @@ class CreateMafVCFTest {
         val createMAFVCF = CreateMafVcf()
 
         val resultMissingBed =
-            createMAFVCF.test("--maf-dir ${TestExtension.testMafDir} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
+            createMAFVCF.test("--db-path ${TestExtension.testTileDBURI} --maf-dir ${TestExtension.testMafDir} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingBed.statusCode, 1)
         assertEquals(
             "Usage: create-maf-vcf [<options>]\n" +
@@ -34,7 +31,7 @@ class CreateMafVCFTest {
                     "Error: invalid value for --bed: --bed must not be blank\n", resultMissingBed.output
         )
         val resultMissingRef =
-            createMAFVCF.test("--bed ${TestExtension.testBEDFile} --maf-dir ${TestExtension.testMafDir} -o ${TestExtension.testVCFDir}")
+            createMAFVCF.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} --maf-dir ${TestExtension.testMafDir} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingRef.statusCode, 1)
         assertEquals(
             "Usage: create-maf-vcf [<options>]\n" +
@@ -43,7 +40,7 @@ class CreateMafVCFTest {
         )
 
         val resultMissingOutput =
-            createMAFVCF.test("--bed ${TestExtension.testBEDFile} --maf-dir ${TestExtension.testMafDir} --reference ${TestExtension.testRefFasta}")
+            createMAFVCF.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} --maf-dir ${TestExtension.testMafDir} --reference ${TestExtension.testRefFasta}")
         assertEquals(resultMissingOutput.statusCode, 1)
         assertEquals(
             "Usage: create-maf-vcf [<options>]\n" +
@@ -52,13 +49,23 @@ class CreateMafVCFTest {
         )
 
         val resultMissingMafDir =
-            createMAFVCF.test("--bed ${TestExtension.testBEDFile} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
+            createMAFVCF.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingMafDir.statusCode, 1)
         assertEquals(
             "Usage: create-maf-vcf [<options>]\n" +
                     "\n" +
                     "Error: invalid value for --maf-dir: --maf-dir must not be blank\n", resultMissingMafDir.output
         )
+
+        val resultMissingDbPath =
+            createMAFVCF.test("--bed ${TestExtension.testBEDFile} --maf-dir ${TestExtension.testMafDir} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
+        assertEquals(resultMissingDbPath.statusCode, 1)
+        assertEquals(
+            "Usage: create-maf-vcf [<options>]\n" +
+                    "\n" +
+                    "Error: invalid value for --db-path: --db-path must not be blank\n", resultMissingDbPath.output
+        )
+
     }
 
 
@@ -107,10 +114,36 @@ class CreateMafVCFTest {
     @Test
     fun testSimpleBuildMAFVCF() {
         val createMAFVCF = CreateMafVcf()
-        createMAFVCF.test("--bed data/test/buildMAFVCF/B73_Test.bed --reference data/test/buildMAFVCF/B73_Test.fa --maf-dir data/test/buildMAFVCF/mafs/ -o ${TestExtension.testVCFDir}")
+        val testFasta = "data/test/buildMAFVCF/B73_Test.fa"
+        createMAFVCF.test("--db-path ${testFasta} --bed data/test/buildMAFVCF/B73_Test.bed --reference data/test/buildMAFVCF/B73_Test.fa --maf-dir data/test/buildMAFVCF/mafs/ -o ${TestExtension.testVCFDir}")
 
         //compare the contents of the output gVCF files to the expected output
         compareTwoGVCFFiles("data/test/buildMAFVCF/truthGVCFs/B97_truth.g.vcf", "${TestExtension.testVCFDir}/B97.g.vcf")
+    }
+
+    @Test
+    fun verifyRefMatchesASM() {
+        val createMAFVCF = CreateMafVcf()
+        val testFasta = "data/test/buildMAFVCF/B97_ASM_Test.fa"
+        val testSeqs = createMAFVCF.buildRefGenomeSeq(testFasta)
+        //check first record
+        //NucSeq is zerobased inclusive inclusive, VCF is 1-based inclusive inclusive.
+        val firstSeq = testSeqs["chr6"]!![97..141].seq()
+        assertEquals("AAAAAGACAGCTGAAAATATCAATCTTACACACTTGGGGCCTACT",firstSeq)
+
+
+        //Looking for gvcfCoords [1098,1142] which should be [1097,1141] in the NucSeq
+        val secondSeq = testSeqs["chr6"]!![1097..1141].seq()
+        assertEquals("AAAAAGACAGCTGAAAATATCAATCTTACACACTTGGGGCCTACT",secondSeq)
+
+        //Looking for gvcfCoords [4243,4283]
+        val firstPartOfChr7_asm4 = testSeqs["chr4"]!![4242 .. 4282].seq()
+        assertEquals("AAAGGGGATGCTAAGCCAATGAGTTGTTGTCTCTCAATGTG", firstPartOfChr7_asm4) //Need to add an A at start here because MAF block begins with deletion so we need to start at position 12
+
+        //Looking for gvcfCoords[5247,5257]
+        val secondPartOfChr7_asm4 = testSeqs["chr4"]!![5246 .. 5256].seq()
+        assertEquals("TAAGGATCCCT",secondPartOfChr7_asm4)
+
     }
 
     @Test
@@ -300,6 +333,7 @@ class CreateMafVCFTest {
         assertEquals(-1, createMafVCF.resizeVariantContext(deletionVariant, 2, "-"))
     }
 
+    @Ignore
     @Test
     fun testConvertGVCFRecordsToHVCF() {
         fail("Not yet implemented")

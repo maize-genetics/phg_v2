@@ -48,7 +48,8 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 "--output-dir/-o must not be blank"
             }
         }
-    val dbPath by option(help = "Folder name where TileDB datasets will be created")
+
+    val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -60,7 +61,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
      * Function to create the ASM hVCF and gVCF.
      * It will first use Biokotlin to build the gVCF and then will use the BED file to extract out the hVCF information.
      */
-    fun createASMHvcfs(bedFileName: String, referenceFileName: String, mafDirName: String, outputDirName: String) {
+    fun createASMHvcfs(dbPath: String, bedFileName: String, referenceFileName: String, mafDirName: String, outputDirName: String) {
         //load the bed file into some data structure
 //        val ranges = bedfileToSRangeSet(bedFileName,referenceFileName)
         val ranges = loadRanges(bedFileName)
@@ -76,7 +77,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 exportVariantContext(sampleName, gvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.g.vcf",refGenomeSequence, setOf())
 
                 //convert the GVCF records into hvcf records
-                val hvcfVariants = convertGVCFToHVCF(sampleName, ranges, gvcfVariants, refGenomeSequence)
+                val hvcfVariants = convertGVCFToHVCF(sampleName, ranges, gvcfVariants, refGenomeSequence, dbPath)
                 //export the hvcfRecords
                 exportVariantContext(sampleName, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, setOf())
             }
@@ -112,16 +113,17 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
     }
 
 //    fun convertGVCFToHVCF(bedRanges : SRangeSet, gvcfVariants: List<VariantContext>) : List<VariantContext> {
-    fun convertGVCFToHVCF(sampleName: String, bedRanges : List<Pair<Position,Position>>, gvcfVariants: List<VariantContext>, refGenomeSequence : Map<String, NucSeq>) : List<VariantContext> {
+    fun convertGVCFToHVCF(sampleName: String, bedRanges : List<Pair<Position,Position>>, gvcfVariants: List<VariantContext>,
+                          refGenomeSequence : Map<String, NucSeq>, agcArchiveName: String) : List<VariantContext> {
         // group the gvcfVariants by contig
         val gvcfVariantsByContig = gvcfVariants.groupBy { it.contig }
 
         val bedRegionsByContig = bedRanges.groupBy { it.first.contig }
 
-        return gvcfVariantsByContig.keys.filter { bedRegionsByContig.containsKey(it) }.flatMap { convertGVCFToHVCFForChrom(sampleName, bedRegionsByContig[it]!!, refGenomeSequence, gvcfVariantsByContig[it]!!) }
+        return gvcfVariantsByContig.keys.filter { bedRegionsByContig.containsKey(it) }.flatMap { convertGVCFToHVCFForChrom(sampleName, bedRegionsByContig[it]!!, refGenomeSequence, agcArchiveName, gvcfVariantsByContig[it]!!) }
     }
 
-    fun convertGVCFToHVCFForChrom(sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, variantContexts: List<VariantContext> ) : List<VariantContext> {
+    fun convertGVCFToHVCFForChrom(sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, agcArchiveName: String, variantContexts: List<VariantContext> ) : List<VariantContext> {
 
         /**
          * Loop through the bed file
@@ -153,7 +155,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 //If variant is partially contained in Bed region add to temp list do not increment as we need to see if the next bed also overlaps
                 //If variant is not contained in Bed region, skip and do not increment as we need to see if the next bed overlaps
                 if(bedRegionContainedInVariant(region, currentVariant)) {
-                    outputVariants.add(convertGVCFRecordsToHVCF(sampleName, region, refRangeSeq, listOf(currentVariant)))
+                    outputVariants.add(convertGVCFRecordsToHVCF(sampleName, region, refRangeSeq, agcArchiveName, listOf(currentVariant)))
                     break
                 }
                 if(variantFullyContained(region, currentVariant)) {
@@ -167,11 +169,11 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 }
                 else if(variantPartiallyContainedEnd(region, currentVariant)) {
                     tempVariants.add(currentVariant)
-                    outputVariants.add(convertGVCFRecordsToHVCF(sampleName, region, refRangeSeq, tempVariants))
+                    outputVariants.add(convertGVCFRecordsToHVCF(sampleName, region, refRangeSeq, agcArchiveName, tempVariants))
                     break
                 }
                 else {
-                    outputVariants.add( convertGVCFRecordsToHVCF(sampleName, region, refRangeSeq, tempVariants))
+                    outputVariants.add( convertGVCFRecordsToHVCF(sampleName, region, refRangeSeq, agcArchiveName, tempVariants))
                     break
                 }
             }
@@ -194,7 +196,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         return variant.contig == region.first.contig && variant.end <= region.second.position && variant.end >= region.first.position && variant.start < region.first.position
     }
 
-    fun convertGVCFRecordsToHVCF(sampleName: String, region: Pair<Position,Position>, refRangeSeq: NucSeq, variants: List<VariantContext> ) : VariantContext {
+    fun convertGVCFRecordsToHVCF(sampleName: String, region: Pair<Position,Position>, refRangeSeq: NucSeq, agcArchiveName: String ,variants: List<VariantContext> ) : VariantContext {
         //Take the first and the last variantContext
         val firstVariant = variants.first()
         val lastVariant = variants.last()
@@ -216,16 +218,23 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         }
 
         //Extract out the sequence for the assembly haplotype
-        TODO("extractSequenceFromHaplotypes")
-//        val assemblyHaplotypeSeq:String = extractSequenceFromHaplotypes(firstVariant.sampleNames.first(), firstVariant.getAttributeAsString("ASM_Chr",""), newASMStart, newASMEnd)
-//        //md5 hash the assembly sequence
-//        val assemblyHaplotypeHash = getChecksumForString(assemblyHaplotypeSeq)
-//        //md5 has the refSequence
-//        val refSeqHash = getChecksumForString(refRangeSeq.toString())
-//
-//        //build a variant context of the HVCF with the hashes
-//        return createHVCFRecord(sampleName, region.first, region.second, Pair(refSeqHash, assemblyHaplotypeHash))
+        val assemblyHaplotypeSeq:String = extractSequenceFromHaplotypes(firstVariant.sampleNames.first(), firstVariant.getAttributeAsString("ASM_Chr",""), newASMStart, newASMEnd, agcArchiveName)
+        //md5 hash the assembly sequence
+        val assemblyHaplotypeHash = getChecksumForString(assemblyHaplotypeSeq)
+        //md5 has the refSequence
+        val refSeqHash = getChecksumForString(refRangeSeq.toString())
+
+        //build a variant context of the HVCF with the hashes
+        return createHVCFRecord(sampleName, region.first, region.second, Pair(refSeqHash, assemblyHaplotypeHash))
     }
+
+    fun extractSequenceFromHaplotypes(sampleName:String, chrom: String, start: Int, end: Int, agcArchiveName: String) : String {
+        //will be replaced by Lynn's call using sampleName, chrom, start, end
+        val assemblySeqs = buildRefGenomeSeq(agcArchiveName)
+        val assemblySeq = assemblySeqs[chrom]!!
+        return assemblySeq[start..end].seq()
+    }
+
 
 
     /**
@@ -264,7 +273,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
     }
 
     override fun run() {
-        createASMHvcfs(bed, reference, mafDir, outputDir)
+        createASMHvcfs(dbPath, bed, reference, mafDir, outputDir)
     }
 
 }
