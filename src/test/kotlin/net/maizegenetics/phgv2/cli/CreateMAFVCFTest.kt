@@ -165,7 +165,7 @@ class CreateMAFVCFTest {
         val refBlockVariant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
             Position("chr1",5), Position("chr1",10),
             Position("chr1",5), Position("chr1",10))
-        
+
         val multiAllelicSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",7), Pair("AAA", "TTT"), Position("chr1",10), Position("chr1",12))
 
         val standardSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "T"), Position("chr1",10), Position("chr1",10))
@@ -180,8 +180,81 @@ class CreateMAFVCFTest {
         assertFalse(createMafVCF.isVariantResizable(deletionVariant))
     }
 
+    @Test
     fun testResizeVariantContext() {
+        val createMafVCF = CreateMafVcf()
+        //Testing refBlocks
+        val refBlockVariant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
+            Position("chr1",5), Position("chr1",10),
+            Position("chr1",15), Position("chr1",20))
 
+        assertEquals(15, createMafVCF.resizeVariantContext(refBlockVariant, 5, "+"))
+        assertEquals(20, createMafVCF.resizeVariantContext(refBlockVariant, 5, "-"))
+
+
+        assertEquals(17, createMafVCF.resizeVariantContext(refBlockVariant, 7, "+"))
+        assertEquals(18, createMafVCF.resizeVariantContext(refBlockVariant, 7, "-"))
+
+        assertEquals(15, createMafVCF.resizeVariantContext(refBlockVariant, 2, "+"))
+        assertEquals(20, createMafVCF.resizeVariantContext(refBlockVariant, 100, "+"))
+
+        //Negative strand flips so we resize to the correct start/end on ASM
+        assertEquals(15, createMafVCF.resizeVariantContext(refBlockVariant, 100, "-"))
+        assertEquals(20, createMafVCF.resizeVariantContext(refBlockVariant, 2, "-"))
+
+        assertEquals(-1, createMafVCF.resizeVariantContext(refBlockVariant, 7, "NOT_A_STRAND"))
+
+        //Testing MultiAllelicPolymorphisms
+        val multiAllelicSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",10),
+                                                Pair("AAAAA", "TTTTT"), Position("chr1",10), Position("chr1",15))
+        //Check that we can resize the variant to the correct start/end on the ASM
+        assertEquals(10, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 5, "+"))
+        assertEquals(15, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 5, "-"))
+
+        assertEquals(12, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 7, "+"))
+        assertEquals(13, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 7, "-"))
+
+        //Check for positions out of the record
+        assertEquals(15, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 100, "+"))
+        assertEquals(10, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 100, "-"))
+        assertEquals(10, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 2, "+"))
+        assertEquals(15, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 2, "-"))
+
+        val standardSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "T"), Position("chr1",10), Position("chr1",10))
+        //no matter what we request it should return 10
+        assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 5, "+"))
+        assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 5, "-"))
+        assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 7, "+"))
+        assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 7, "-"))
+        assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 100, "+"))
+        assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 100, "-"))
+        assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 2, "+"))
+        assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 2, "-"))
+
+
+
+        val insertionVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "TTT"), Position("chr1",10), Position("chr1",12))
+        //Everything should return -1
+        assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 5, "+"))
+        assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 5, "-"))
+        assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 7, "+"))
+        assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 7, "-"))
+        assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 100, "+"))
+        assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 100, "-"))
+        assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 2, "+"))
+        assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 2, "-"))
+
+
+        val deletionVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",7), Pair("AAA", "T"), Position("chr1",10), Position("chr1",10))
+        //Everything should return -1
+        assertEquals(-1, createMafVCF.resizeVariantContext(deletionVariant, 5, "+"))
+        assertEquals(-1, createMafVCF.resizeVariantContext(deletionVariant, 5, "-"))
+        assertEquals(-1, createMafVCF.resizeVariantContext(deletionVariant, 7, "+"))
+        assertEquals(-1, createMafVCF.resizeVariantContext(deletionVariant, 7, "-"))
+        assertEquals(-1, createMafVCF.resizeVariantContext(deletionVariant, 100, "+"))
+        assertEquals(-1, createMafVCF.resizeVariantContext(deletionVariant, 100, "-"))
+        assertEquals(-1, createMafVCF.resizeVariantContext(deletionVariant, 2, "+"))
+        assertEquals(-1, createMafVCF.resizeVariantContext(deletionVariant, 2, "-"))
     }
 
     @Test

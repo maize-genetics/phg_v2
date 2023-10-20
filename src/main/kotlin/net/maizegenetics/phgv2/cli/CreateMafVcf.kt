@@ -10,7 +10,9 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import htsjdk.variant.variantcontext.VariantContext
 import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.createHVCFRecord
 import net.maizegenetics.phgv2.utils.exportVariantContext
+import net.maizegenetics.phgv2.utils.getChecksumForString
 import java.io.File
 
 class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave MAF files") {
@@ -71,7 +73,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 exportVariantContext(sampleName, gvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.g.vcf",refGenomeSequence, setOf())
 
                 //convert the GVCF records into hvcf records
-                val hvcfVariants = convertGVCFToHVCF(ranges, gvcfVariants)
+                val hvcfVariants = convertGVCFToHVCF(sampleName, ranges, gvcfVariants, refGenomeSequence)
                 //export the hvcfRecords
                 exportVariantContext(sampleName, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, setOf())
             }
@@ -107,16 +109,16 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
     }
 
 //    fun convertGVCFToHVCF(bedRanges : SRangeSet, gvcfVariants: List<VariantContext>) : List<VariantContext> {
-    fun convertGVCFToHVCF(bedRanges : List<Pair<Position,Position>>, gvcfVariants: List<VariantContext>) : List<VariantContext> {
+    fun convertGVCFToHVCF(sampleName: String, bedRanges : List<Pair<Position,Position>>, gvcfVariants: List<VariantContext>, refGenomeSequence : Map<String, NucSeq>) : List<VariantContext> {
         // group the gvcfVariants by contig
         val gvcfVariantsByContig = gvcfVariants.groupBy { it.contig }
 
         val bedRegionsByContig = bedRanges.groupBy { it.first.contig }
 
-        return gvcfVariantsByContig.keys.filter { bedRegionsByContig.containsKey(it) }.flatMap { convertGVCFToHVCFForChrom(bedRegionsByContig[it]!!,gvcfVariantsByContig[it]!!) }
+        return gvcfVariantsByContig.keys.filter { bedRegionsByContig.containsKey(it) }.flatMap { convertGVCFToHVCFForChrom(sampleName, bedRegionsByContig[it]!!, refGenomeSequence, gvcfVariantsByContig[it]!!) }
     }
 
-    fun convertGVCFToHVCFForChrom(bedRanges: List<Pair<Position,Position>>, variantContexts: List<VariantContext>) : List<VariantContext> {
+    fun convertGVCFToHVCFForChrom(sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, variantContexts: List<VariantContext> ) : List<VariantContext> {
 
         /**
          * Loop through the bed file
@@ -135,6 +137,11 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
             val regionEnd = region.second.position
             val regionChrom = region.first.contig
             val tempVariants = mutableListOf<VariantContext>()
+
+            check(regionChrom in refGenomeSequence.keys) { "Chromosome $regionChrom not found in reference" }
+
+            val refRangeSeq = refGenomeSequence[regionChrom]!![regionStart..regionEnd]
+
             while (currentVariantIdx < variantContexts.size && variantContexts[currentVariantIdx].start < regionEnd) {
                 val currentVariant = variantContexts[currentVariantIdx]
 
@@ -143,7 +150,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 //If variant is partially contained in Bed region add to temp list do not increment as we need to see if the next bed also overlaps
                 //If variant is not contained in Bed region, skip and do not increment as we need to see if the next bed overlaps
                 if(bedRegionContainedInVariant(region, currentVariant)) {
-                    outputVariants.add(convertGVCFRecordsToHVCF(region, listOf(currentVariant)))
+                    outputVariants.add(convertGVCFRecordsToHVCF(sampleName, region, refRangeSeq, listOf(currentVariant)))
                     break
                 }
                 if(variantFullyContained(region, currentVariant)) {
@@ -157,11 +164,11 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 }
                 else if(variantPartiallyContainedEnd(region, currentVariant)) {
                     tempVariants.add(currentVariant)
-                    outputVariants.add(convertGVCFRecordsToHVCF(region, tempVariants))
+                    outputVariants.add(convertGVCFRecordsToHVCF(sampleName, region, refRangeSeq, tempVariants))
                     break
                 }
                 else {
-                    outputVariants.add( convertGVCFRecordsToHVCF(region, tempVariants))
+                    outputVariants.add( convertGVCFRecordsToHVCF(sampleName, region, refRangeSeq, tempVariants))
                     break
                 }
             }
@@ -184,7 +191,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         return variant.contig == region.first.contig && variant.end <= region.second.position && variant.end >= region.first.position && variant.start < region.first.position
     }
 
-    fun convertGVCFRecordsToHVCF(region: Pair<Position,Position>,variants: List<VariantContext>) : VariantContext {
+    fun convertGVCFRecordsToHVCF(sampleName: String, region: Pair<Position,Position>, refRangeSeq: NucSeq, variants: List<VariantContext> ) : VariantContext {
         //Take the first and the last variantContext
         val firstVariant = variants.first()
         val lastVariant = variants.last()
@@ -193,23 +200,56 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         val strand = firstVariant.getAttributeAsString("ASM_Strand","+")
         check(strand == lastVariant.getAttributeAsString("ASM_Strand","+")) { "Strand of first and last variantContexts do not match" }
         //Resize the first and last variantContext ASM start and end based on the regions
-        val newASMStart = resizeVariantContext(firstVariant, region.first.position, strand)
-        val newASMEnd = resizeVariantContext(lastVariant, region.second.position, strand)
+        var newASMStart = resizeVariantContext(firstVariant, region.first.position, strand)
+        if(newASMStart == -1) {
+            newASMStart = if(strand == "+") firstVariant.getAttributeAsInt("ASM_Start",region.first.position)
+                            else firstVariant.getAttributeAsInt("ASM_End",region.first.position)
+        }
 
-        TODO("Implement")
+        var newASMEnd = resizeVariantContext(lastVariant, region.second.position, strand)
+        if(newASMEnd == -1) {
+            newASMEnd = if(strand == "+") lastVariant.getAttributeAsInt("ASM_End",region.second.position)
+                            else lastVariant.getAttributeAsInt("ASM_Start",region.second.position)
+        }
+
+        //Extract out the sequence for the assembly haplotype
+        TODO("extractSequenceFromHaplotypes")
+//        val assemblyHaplotypeSeq:String = extractSequenceFromHaplotypes(firstVariant.sampleNames.first(), firstVariant.getAttributeAsString("ASM_Chr",""), newASMStart, newASMEnd)
+//        //md5 hash the assembly sequence
+//        val assemblyHaplotypeHash = getChecksumForString(assemblyHaplotypeSeq)
+//        //md5 has the refSequence
+//        val refSeqHash = getChecksumForString(refRangeSeq.toString())
+//
+//        //build a variant context of the HVCF with the hashes
+//        return createHVCFRecord(sampleName, region.first, region.second, Pair(refSeqHash, assemblyHaplotypeHash))
     }
 
 
-    fun resizeVariantContext(variant: VariantContext, position: Int, strand : String) : Int? {
+    /**
+     * Function will return -1 if unable to resize the variantcontext due to its type(mostly an INDEL)
+     * If the requested position is outside of the current variants coordinates it will return the ASM_Start for + strand and ASM_End for - strand
+     */
+    fun resizeVariantContext(variant: VariantContext, position: Int, strand : String) : Int {
         //check to see if the variant is either a RefBlock or is a SNP with equal lengths
-        if(isVariantResizable(variant)) {
-
+        return if(isVariantResizable(variant)) {
+            when {
+                position < variant.start && strand == "+" -> variant.getAttributeAsInt("ASM_Start",variant.start)
+                position < variant.start && strand == "-" -> variant.getAttributeAsInt("ASM_End",variant.end)
+                position > variant.end && strand == "+" -> variant.getAttributeAsInt("ASM_End",variant.end)
+                position > variant.end && strand == "-" -> variant.getAttributeAsInt("ASM_Start",variant.start)
+                strand == "+" -> {
+                    val offset = position - variant.start
+                    variant.getAttributeAsInt("ASM_Start",variant.start) + offset
+                }
+                strand == "-" -> {
+                    val offset = position - variant.start
+                    variant.getAttributeAsInt("ASM_End",variant.end) - offset
+                }
+                else -> -1
+            }
+        } else {
+            -1
         }
-        else {
-
-        }
-
-        return null
     }
 
     fun isVariantResizable(variant: VariantContext) : Boolean {
