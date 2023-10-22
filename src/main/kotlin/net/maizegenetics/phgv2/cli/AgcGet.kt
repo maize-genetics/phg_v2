@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.cli
 
+import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.groups.cooccurring
@@ -11,6 +12,8 @@ import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedInputStream
+import java.io.BufferedReader
+import java.io.ByteArrayOutputStream
 
 /**
  * generic command that pulls data from an AGC compressed file
@@ -157,15 +160,59 @@ class AgcGet : CliktCommand(help="Pull data from an AGC compressed file") {
     }
 
     // function to retrieve the data from agc
-    fun retrieveAgcData(commands:Array<String>):BufferedInputStream {
-        check (commands.size > 0) {"Error:  No commands sent to retrieveAgcData!"}
+    //fun retrieveAgcData(commands:Array<String>):BufferedInputStream {
+    fun retrieveAgcData(commands:Array<String>):Map<String, NucSeq> {
+        check(commands.size > 0) { "Error:  No commands sent to retrieveAgcData!" }
         myLogger.info("Running Agc Command:\n${commands.joinToString(" ")}")
         val agcProcess = ProcessBuilder(*commands)
             .redirectError(ProcessBuilder.Redirect.INHERIT)
             .start()
-        // Is this better to process large output  if it is buffered?
+        // Do we return the bufferedInputStream below, or process into a map of chrom to NucSeq?
         val agcOut = BufferedInputStream(agcProcess.inputStream, 5000000)
-        return agcOut
+
+        // Or ... do we want to process the results into a Map<Idline, NucSeq>
+        // THe problem is, AGC does not include the genome in the idline, so we
+        // can end up with the same idline multiple times, e.g. if we want chrom 1 from
+        // multiple genomes, all the idlines will be ">1" and we will only get the last one
+        // when processing into a map.
+        // It is the same if we give a region for the chrom, e.g. 1:1-1000, we will get
+        // the same idline multiple times.
+        val chromNucSeqMap = HashMap<String, NucSeq>()
+        try {
+            agcOut.bufferedReader().use { br ->
+                var currChrom: String = "-1"
+                var currSeq = ByteArrayOutputStream()
+                var line = br.readLine()
+                while (line != null) {
+
+                    line = line.trim()
+                    if (line.startsWith(">")) {
+                        if (currChrom != "-1") {
+                            // finished with this chromosome's sequence
+                            println("fastaToNucSeq: finished chrom $currChrom")
+                            chromNucSeqMap.put(currChrom, NucSeq(currSeq.toString()))
+                        }
+                        // reset chromosome name and sequence, begin processing next chrom
+                        currChrom = line.substring(1).split(" ")[0]
+                        currSeq = ByteArrayOutputStream()
+                    } else {
+                        currSeq.write(line.toByteArray())
+                    }
+                    line = br.readLine()
+                }
+                if (currSeq.size() > 0) {
+                    println("fastaToNucSeq: finished chrom $currChrom")
+                    chromNucSeqMap.put(currChrom, NucSeq(currSeq.toString()))
+                }
+            }
+        } catch (exc:Exception) {
+            myLogger.error("Error:  Exception in retrieveAgcData: ${exc.message}")
+            throw IllegalStateException("Error:  Exception in retrieveAgcData: ${exc.message}")
+        }
+
+       // return agcOut
+        return chromNucSeqMap
     }
+
 }
 
