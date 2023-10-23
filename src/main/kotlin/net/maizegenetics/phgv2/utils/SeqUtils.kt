@@ -8,30 +8,32 @@ import java.util.logging.Logger
 
 private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.utils.SeqUtils")
 
-// Retrieve AGC data from user command list.  The command list should
+// Retrieve AGC contigs from user command list.  The user command list should
 // have components that look like one of the following:
 //  contig@genome:start-end
 //  contig@genome
 //  contig@genome:start-end
 //
-fun retrieveAgcData(dbPath:String,ranges:List<String>):Map<String, NucSeq> {
+
+// This  method is called retrieveAgcContigs() as all the commands are to pull
+// data using the "agc getctg" command.
+// There are other AGC data retrieval commands, e.g. gtcol to get all genomes,
+// and "getset" to get a set of genomes from the comparessed fasta.
+// Those commands will be implemented via a different function.
+fun retrieveAgcContigs(dbPath:String,ranges:List<String>):Map<String, NucSeq> {
 
     val commands = buildAgcCommandFromList(dbPath, ranges)
     val chromNucSeqMap = queryAgc(commands)
     return chromNucSeqMap
 }
 
-// THis builds the command that is sent to AGC.  It creates the initial
+// This builds the command that is sent to AGC.  It creates the initial
 // command, which sets the conda environment, then adds the AGC file
 // path, then follows with the commands the user has put together in a list
 fun buildAgcCommandFromList(dbPath:String, ranges:List<String>): Array<String> {
-    // this is meant to be called from other programs.  it will return an array
-    // of commands that can be sent to agc
 
     // Validate the dbPath. We check if the folder exists, and if it contains the file assemblies.agc
     val agcFile = "${dbPath}/assemblies.agc"
-    if (File(agcFile).exists()) println("Found AGC file: ${agcFile}")
-    else println("Did not find AGC file: ${agcFile}")
 
     check(File(agcFile).exists()) { "File assemblies.agc does not exist in folder $dbPath- please send a valid path that indicates the parent folder for your assemblies.agc compressed file." }
 
@@ -47,11 +49,10 @@ fun buildAgcCommandFromList(dbPath:String, ranges:List<String>): Array<String> {
 fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
     check(commands.size > 0) { "Error:  No commands sent to retrieveAgcData!" }
     myLogger.info("Running Agc Command:\n${commands.joinToString(" ")}")
-    println("Running Agc Command:\n${commands.joinToString(" ")}")
+    //println("Running Agc Command:\n${commands.joinToString(" ")}")
     val agcProcess = ProcessBuilder(*commands)
         .redirectError(ProcessBuilder.Redirect.INHERIT)
         .start()
-
 
     val agcOut = BufferedInputStream(agcProcess.inputStream, 5000000)
 
@@ -73,7 +74,7 @@ fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
                 if (line.startsWith(">")) {
                     if (currChrom != "-1") {
                         // finished with this chromosome's sequence
-                        println("fastaToNucSeq: finished chrom $currChrom")
+                        myLogger.info("fastaToNucSeq: finished chrom $currChrom")
                         chromNucSeqMap.put(currChrom, NucSeq(currSeq.toString()))
                     }
                     // reset chromosome name and sequence, begin processing next chrom
@@ -94,6 +95,5 @@ fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
         throw IllegalStateException("Error:  Exception in retrieveAgcData: ${exc.message}")
     }
 
-    // return agcOut
     return chromNucSeqMap
 }

@@ -61,11 +61,11 @@ class SeqUtilsTest {
 
         }
 
-//        @JvmStatic
-//        @AfterAll
-//        fun teardown() {
-//            File(TestExtension.tempDir).deleteRecursively()
-//        }
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+            File(TestExtension.tempDir).deleteRecursively()
+        }
     }
 
     @Test
@@ -79,7 +79,7 @@ class SeqUtilsTest {
         var command = buildAgcCommandFromList(dbPath,rangeList)
 
         //The command should look like:
-        val expectedCommand = arrayOf("conda","run","-n","phgv2-conda","agc","getctg",dbPath,range1)
+        val expectedCommand = arrayOf("conda","run","-n","phgv2-conda","agc","getctg","${dbPath}/assemblies.agc",range1)
 
         // Verify that command contains all elements from expected command and that the order is the same
         kotlin.test.assertEquals(expectedCommand.size, command.size)
@@ -94,7 +94,7 @@ class SeqUtilsTest {
         rangeList.add(range2)
         rangeList.add(range3)
         command = buildAgcCommandFromList(dbPath,rangeList)
-        val expectedCommand2 = arrayOf("conda","run","-n","phgv2-conda","agc","getctg",dbPath,range1,range2,range3)
+        val expectedCommand2 = arrayOf("conda","run","-n","phgv2-conda","agc","getctg","${dbPath}/assemblies.agc",range1,range2,range3)
         kotlin.test.assertEquals(expectedCommand2.size, command.size)
         for (i in 0..expectedCommand2.size-1) {
             kotlin.test.assertEquals(expectedCommand2[i], command[i])
@@ -112,7 +112,7 @@ class SeqUtilsTest {
         var rangeList = mutableListOf<String>()
         val range1 = "1@LineA:0-19" // AGC queries are 0-based !!
         rangeList.add(range1)
-        var agcResult = retrieveAgcData(dbPath,rangeList)
+        var agcResult = retrieveAgcContigs(dbPath,rangeList)
 
         // this has only a single query, so the result should have 1 entry: 1 key and 1 sequence
         assertEquals(1, agcResult.size)
@@ -128,7 +128,7 @@ class SeqUtilsTest {
 
         rangeList.add(range2)
         rangeList.add(range3)
-        agcResult = retrieveAgcData(dbPath,rangeList)
+        agcResult = retrieveAgcContigs(dbPath,rangeList)
         // this has 3 queries, so the result should have 3 entries: 3 keys and 3 sequences
         assertEquals(3, agcResult.size)
         assertEquals(3, agcResult.keys.size)
@@ -159,7 +159,7 @@ class SeqUtilsTest {
         rangeList.add(range1)
         assertThrows<IllegalStateException> {
             //Check that an error is thrown when the dbPath is not a directory that contains the assemblies.agc file
-            retrieveAgcData(dbPath,rangeList)
+            retrieveAgcContigs(dbPath,rangeList)
         }
 
         // Test with a valid directory name, but the assemblies.agc file does not exist
@@ -167,7 +167,7 @@ class SeqUtilsTest {
         dbPath = testOutputFastaDir
         assertThrows<IllegalStateException> {
             //Check that an error is thrown when the dbPath is not a directory that contains the assemblies.agc file
-            retrieveAgcData(dbPath,rangeList)
+            retrieveAgcContigs(dbPath,rangeList)
         }
 
     }
