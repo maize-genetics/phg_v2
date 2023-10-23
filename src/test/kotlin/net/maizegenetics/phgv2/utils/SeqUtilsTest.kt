@@ -6,14 +6,14 @@ import net.maizegenetics.phgv2.cli.CreateRefVcf
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.cli.TestExtension.Companion.testOutputFastaDir
 import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import org.junit.jupiter.api.assertThrows
 
 class SeqUtilsTest {
     companion object {
@@ -40,7 +40,7 @@ class SeqUtilsTest {
 
             // get the full path fasta file names  from the fastaInput, write to fileList
             val fileList = mutableListOf<String>()
-            File(fastaOutputDir).walk(FileWalkDirection.TOP_DOWN).filter{it.name.endsWith(".fa")}.forEach {
+            File(fastaOutputDir).walkTopDown().filter{it.name.endsWith(".fa")}.forEach {
                 fileList.add(it.toString())
             }
 
