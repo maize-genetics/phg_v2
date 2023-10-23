@@ -148,7 +148,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
             //Need to subtract here as the Biokotlin NucSeq is 0 based
             val refRangeSeq = refGenomeSequence[regionChrom]!![regionStart-1..regionEnd-1]
 
-            while (currentVariantIdx < variantContexts.size && variantContexts[currentVariantIdx].start < regionEnd) {
+            while (currentVariantIdx < variantContexts.size) {
                 val currentVariant = variantContexts[currentVariantIdx]
 
                 //check different cases for the variant
@@ -157,6 +157,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 //If variant is not contained in Bed region, skip and do not increment as we need to see if the next bed overlaps
                 if(bedRegionContainedInVariant(region, currentVariant)) {
                     outputVariants.add(convertGVCFRecordsToHVCF(sampleName, region, refRangeSeq, agcArchiveName, listOf(currentVariant)))
+                    tempVariants.clear()
                     break
                 }
                 if(variantFullyContained(region, currentVariant)) {
@@ -166,20 +167,51 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 }
                 else if(variantPartiallyContainedStart(region,currentVariant)) {
                     tempVariants.add(currentVariant)
-                    currentVariantIdx++
+                    break
                 }
                 else if(variantPartiallyContainedEnd(region, currentVariant)) {
                     tempVariants.add(currentVariant)
-                    outputVariants.add(convertGVCFRecordsToHVCF(sampleName, region, refRangeSeq, agcArchiveName, tempVariants))
+                    currentVariantIdx++
+                }
+                else if(variantAfterRegion(region, currentVariant)) {
+                    //write out what is in tempVariants
+                    if(tempVariants.isNotEmpty()) {
+                        outputVariants.add(
+                            convertGVCFRecordsToHVCF(
+                                sampleName,
+                                region,
+                                refRangeSeq,
+                                agcArchiveName,
+                                tempVariants
+                            )
+                        )
+                        tempVariants.clear()
+
+                    }
+                    //move up Bed region
                     break
                 }
-                else {
-                    outputVariants.add( convertGVCFRecordsToHVCF(sampleName, region, refRangeSeq, agcArchiveName, tempVariants))
-                    break
+                else { //this is the case if the Variant is behind the BED region
+                    //move up Variant
+                    currentVariantIdx++
                 }
             }
+            if(tempVariants.isNotEmpty()) {
+                outputVariants.add(
+                    convertGVCFRecordsToHVCF(
+                        sampleName,
+                        region,
+                        refRangeSeq,
+                        agcArchiveName,
+                        tempVariants
+                    )
+                )
+                tempVariants.clear()
+
+            }
         }
-        return listOf()
+
+        return outputVariants
     }
 
     fun bedRegionContainedInVariant(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
@@ -190,17 +222,27 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
     }
 
     fun variantPartiallyContainedStart(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
-        return variant.contig == region.first.contig && variant.start >= region.first.position && variant.start <= region.second.position && variant.end > region.second.position
+        return variant.contig == region.first.contig &&
+                variant.start >= region.first.position &&
+                variant.start <= region.second.position &&
+                variant.end > region.second.position
     }
 
     fun variantPartiallyContainedEnd(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
-        return variant.contig == region.first.contig && variant.end <= region.second.position && variant.end >= region.first.position && variant.start < region.first.position
+        return variant.contig == region.first.contig &&
+                variant.end <= region.second.position &&
+                variant.end >= region.first.position &&
+                variant.start < region.first.position
+    }
+    fun variantAfterRegion(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
+        return variant.contig == region.first.contig && variant.start > region.second.position
     }
 
     fun convertGVCFRecordsToHVCF(sampleName: String, region: Pair<Position,Position>, refRangeSeq: NucSeq, agcArchiveName: String ,variants: List<VariantContext> ) : VariantContext {
         //Take the first and the last variantContext
         val firstVariant = variants.first()
         val lastVariant = variants.last()
+        println(refRangeSeq.seq())
 
         //val check strandedness of the variants
         val strand = firstVariant.getAttributeAsString("ASM_Strand","+")
@@ -226,14 +268,16 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         val refSeqHash = getChecksumForString(refRangeSeq.toString())
 
         //build a variant context of the HVCF with the hashes
-        return createHVCFRecord(sampleName, region.first, region.second, Pair(refSeqHash, assemblyHaplotypeHash))
+        return createHVCFRecord(sampleName, region.first, region.second, Pair(refRangeSeq[0].toString(), assemblyHaplotypeHash))
     }
 
     fun extractSequenceFromHaplotypes(sampleName:String, chrom: String, start: Int, end: Int, agcArchiveName: String) : String {
         //will be replaced by Lynn's call using sampleName, chrom, start, end
+        println("Extracting sequence for $sampleName, $chrom, $start, $end")
         val assemblySeqs = buildRefGenomeSeq(agcArchiveName)
+        assemblySeqs.keys.forEach{println(it)}
         val assemblySeq = assemblySeqs[chrom]!!
-        return assemblySeq[start..end].seq()
+        return assemblySeq[start-1..end-1].seq() //Need to subtract 1 from both boundaries as NucSeq is 0 based
     }
 
 
