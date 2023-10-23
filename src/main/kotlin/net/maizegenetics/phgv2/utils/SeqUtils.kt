@@ -10,10 +10,11 @@ private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.utils.SeqUtils"
 
 // Retrieve AGC contigs from user command list.  The user command list should
 // have components that look like one of the following:
-//  contig@genome:start-end
-//  contig@genome
-//  contig@genome:start-end
-//
+//    contig@genome:start-end
+//    contig@genome
+//    contig:start-end (this will error if there are more than 1 genome with "contig")
+//    contig1 (this will error if there are more than 2 genome with "contig1" )
+
 
 // This  method is called retrieveAgcContigs() as all the commands are to pull
 // data using the "agc getctg" command.
