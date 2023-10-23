@@ -88,7 +88,7 @@ fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
             }
             if (currSeq.size() > 0) {
                 myLogger.info("queryAgc: finished chrom $currChrom")
-                chromNucSeqMap.put(currChrom, NucSeq(currSeq.toString()))
+                chromNucSeqMap[currChrom] = NucSeq(currSeq.toString())
             }
         }
     } catch (exc:Exception) {
