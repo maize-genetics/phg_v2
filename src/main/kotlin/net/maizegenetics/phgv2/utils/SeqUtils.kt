@@ -49,8 +49,8 @@ fun buildAgcCommandFromList(dbPath:String, ranges:List<String>): Array<String> {
  * Retrieve AGC data from a list of commands sent via ProcessBuilder
  */
 fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
-    check(commands.size > 0) { "Error:  No commands sent to retrieveAgcData!" }
-    myLogger.info("Running Agc Command:\n${commands.joinToString(" ")}")
+    check(commands.size > 0) { "Error:  No commands sent to queryAgc!" }
+    myLogger.info("queryAgc: Running Agc Command:\n${commands.joinToString(" ")}")
 
     // .redirectError(ProcessBuilder.Redirect.INHERIT) redirects to stdout
     // For now, running without redirecting output or error.  The errorStream will be
