@@ -7,7 +7,6 @@ import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.cli.TestExtension.Companion.testOutputFastaDir
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.TestInstance
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -16,55 +15,59 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.assertThrows
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SeqUtilsTest {
 
-    @BeforeAll
-    fun setup() {
-        File(TestExtension.tempDir).mkdirs()
+    companion object {
+        @JvmStatic
+        @BeforeAll
+        fun setup() {
+            File(TestExtension.tempDir).mkdirs()
 
-        // create the agc compressed file from which we'll pull data
-        val fastaInputDir = "data/test/smallseq"
-        val fastaOutputDir = TestExtension.testOutputFastaDir
-        val dbPath = TestExtension.testTileDBURI
+            // create the agc compressed file from which we'll pull data
+            val fastaInputDir = "data/test/smallseq"
+            val fastaOutputDir = TestExtension.testOutputFastaDir
+            val dbPath = TestExtension.testTileDBURI
 
-        // Why isn't this handled in TestExtension - I have added the command "File(testTileDBURI).mkdirs()"
-        // to TestExtension
-        Files.createDirectories(Paths.get(dbPath))
+            // Why isn't this handled in TestExtension - I have added the command "File(testTileDBURI).mkdirs()"
+            // to TestExtension
+            Files.createDirectories(Paths.get(dbPath))
 
-        // copy files with extension .fa from data/test/smallseq to fastaOutputDir
-        val fastaFiles = File(fastaInputDir).listFiles { file -> file.extension == "fa" }
-        fastaFiles.forEach { file -> file.copyTo(File(fastaOutputDir, file.name)) }
+            // copy files with extension .fa from data/test/smallseq to fastaOutputDir
+            val fastaFiles = File(fastaInputDir).listFiles { file -> file.extension == "fa" }
+            fastaFiles.forEach { file -> file.copyTo(File(fastaOutputDir, file.name)) }
 
 
-        // get the full path fasta file names  from the fastaInput, write to fileList
-        val fileList = mutableListOf<String>()
-        File(fastaOutputDir).walkTopDown().filter { it.name.endsWith(".fa") }.forEach {
-            fileList.add(it.toString())
+            // get the full path fasta file names  from the fastaInput, write to fileList
+            val fileList = mutableListOf<String>()
+            File(fastaOutputDir).walkTopDown().filter { it.name.endsWith(".fa") }.forEach {
+                fileList.add(it.toString())
+            }
+
+            // The list of fasta files to load should not contain the reference.  The reference is listed separately.
+            fileList.removeIf { it.contains("Ref") }
+
+            // write the full path fasta file names  from the fastaOutputDir to a single file, one per line, in tempDir
+            // This file will be used as input to the agc-compress command
+            val fastaCreateFileNamesFile = File(dbPath, "fastaCreateFileNames.txt")
+            fastaCreateFileNamesFile.writeText(fileList.joinToString("\n"))
+
+            val refFasta = File(fastaOutputDir, "Ref.fa").toString()
+
+            val agcCompress = AgcCompress()
+            // Create the initial compressed file
+            println("Calling agcCompress for CREATE")
+            var result =
+                agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --ref-fasta ${refFasta}")
+
         }
 
-        // The list of fasta files to load should not contain the reference.  The reference is listed separately.
-        fileList.removeIf { it.contains("Ref") }
-
-        // write the full path fasta file names  from the fastaOutputDir to a single file, one per line, in tempDir
-        // This file will be used as input to the agc-compress command
-        val fastaCreateFileNamesFile = File(dbPath, "fastaCreateFileNames.txt")
-        fastaCreateFileNamesFile.writeText(fileList.joinToString("\n"))
-
-        val refFasta = File(fastaOutputDir, "Ref.fa").toString()
-
-        val agcCompress = AgcCompress()
-        // Create the initial compressed file
-        println("Calling agcCompress for CREATE")
-        var result =
-            agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --ref-fasta ${refFasta}")
-
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+            File(TestExtension.tempDir).deleteRecursively()
+        }
     }
 
-    @AfterAll
-    fun teardown() {
-        File(TestExtension.tempDir).deleteRecursively()
-    }
 
     @Test
     fun testBuildAgcCommandFromList() {
