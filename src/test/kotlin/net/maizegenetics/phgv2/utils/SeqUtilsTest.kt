@@ -220,6 +220,15 @@ class SeqUtilsTest {
             //Check that an error is thrown when the dbPath is not a directory that contains the assemblies.agc file
             retrieveAgcContigs(dbPath, rangeList)
         }
+    }
 
+    @Test
+    fun testNoCommandsToQueryAgc() {
+        // this tests verifies an exception is thrown when no commands are passed to queryAgc()
+        val command = mutableListOf<String>()
+        assertThrows<IllegalStateException> {
+            //Check that an error is thrown when the commands list is empty
+            queryAgc(command.toTypedArray())
+        }
     }
 }
