@@ -8,19 +8,16 @@ import java.util.logging.Logger
 
 private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.utils.SeqUtils")
 
-// Retrieve AGC contigs from user command list.  The user command list should
-// have components that look like one of the following:
-//    contig@genome:start-end
-//    contig@genome
-//    contig:start-end (this will error if there are more than 1 genome with "contig")
-//    contig1 (this will error if there are more than 2 genome with "contig1" )
-
-
-// This  method is called retrieveAgcContigs() as all the commands are to pull
-// data using the "agc getctg" command.
-// There are other AGC data retrieval commands, e.g. gtcol to get all genomes,
-// and "getset" to get a set of genomes from the comparessed fasta.
-// Those commands will be implemented via a different function.
+/**
+ * The retrieveAgcContigs function is called to pull data using the "agc getctg" command.
+ *  The user command list should have components that look like one of the following:
+ *     contig@genome:start-end
+ *     contig@genome
+ *     contig:start-end (this will error if there are more than 1 genome with "contig")
+ *     contig1 (this will error if there are more than 2 genome with "contig1" )
+ *  The dbPath is the path to the folder that contains the assemblies.agc file.  It is
+ *  expected this will be the same folder that contains the tiledb datasets.
+ */
 fun retrieveAgcContigs(dbPath:String,ranges:List<String>):Map<String, NucSeq> {
 
     val commands = buildAgcCommandFromList(dbPath, ranges)
@@ -28,9 +25,11 @@ fun retrieveAgcContigs(dbPath:String,ranges:List<String>):Map<String, NucSeq> {
     return chromNucSeqMap
 }
 
-// This builds the command that is sent to AGC.  It creates the initial
-// command, which sets the conda environment, then adds the AGC file
-// path, then follows with the commands the user has put together in a list
+/**
+ * This builds the command that is sent to AGC.  It creates the initial
+ *  command, which sets the conda environment, then adds the AGC file
+ *  path, then follows with the commands the user has put together in a list
+ */
 fun buildAgcCommandFromList(dbPath:String, ranges:List<String>): Array<String> {
 
     // Validate the dbPath. We check if the folder exists, and if it contains the file assemblies.agc
@@ -46,11 +45,12 @@ fun buildAgcCommandFromList(dbPath:String, ranges:List<String>): Array<String> {
     return command.toTypedArray()
 }
 
-// Retrieve AGC data from a list of commands
+/**
+ * Retrieve AGC data from a list of commands sent via ProcessBuilder
+ */
 fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
     check(commands.size > 0) { "Error:  No commands sent to retrieveAgcData!" }
     myLogger.info("Running Agc Command:\n${commands.joinToString(" ")}")
-    //println("Running Agc Command:\n${commands.joinToString(" ")}")
     val agcProcess = ProcessBuilder(*commands)
         .redirectError(ProcessBuilder.Redirect.INHERIT)
         .start()
