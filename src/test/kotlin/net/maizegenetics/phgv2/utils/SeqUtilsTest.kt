@@ -1,12 +1,13 @@
 package net.maizegenetics.phgv2.utils
 
+import biokotlin.genome.fastaToNucSeq
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.cli.AgcCompress
-import net.maizegenetics.phgv2.cli.CreateRefVcf
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.cli.TestExtension.Companion.testOutputFastaDir
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.TestInstance
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -15,57 +16,54 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.assertThrows
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SeqUtilsTest {
-    companion object {
 
-        val tempDir = "${System.getProperty("user.home")}/temp/phgv2Tests/tempDir/"
-        @JvmStatic
-        @BeforeAll
-        fun setup() {
-            File(TestExtension.tempDir).mkdirs()
+    @BeforeAll
+    fun setup() {
+        File(TestExtension.tempDir).mkdirs()
 
-            // create the agc compressed file from which we'll pull data
-            val fastaInputDir = "data/test/smallseq"
-            val fastaOutputDir = TestExtension.testOutputFastaDir
-            val dbPath = TestExtension.testTileDBURI
+        // create the agc compressed file from which we'll pull data
+        val fastaInputDir = "data/test/smallseq"
+        val fastaOutputDir = TestExtension.testOutputFastaDir
+        val dbPath = TestExtension.testTileDBURI
 
-            // Why isn't this handled in TestExtension - I have added the command "File(testTileDBURI).mkdirs()"
-            // to TestExtension
-            Files.createDirectories(Paths.get(dbPath))
+        // Why isn't this handled in TestExtension - I have added the command "File(testTileDBURI).mkdirs()"
+        // to TestExtension
+        Files.createDirectories(Paths.get(dbPath))
 
-            // copy files with extension .fa from data/test/smallseq to fastaOutputDir
-            val fastaFiles = File(fastaInputDir).listFiles { file -> file.extension == "fa" }
-            fastaFiles.forEach { file -> file.copyTo(File(fastaOutputDir, file.name)) }
+        // copy files with extension .fa from data/test/smallseq to fastaOutputDir
+        val fastaFiles = File(fastaInputDir).listFiles { file -> file.extension == "fa" }
+        fastaFiles.forEach { file -> file.copyTo(File(fastaOutputDir, file.name)) }
 
 
-            // get the full path fasta file names  from the fastaInput, write to fileList
-            val fileList = mutableListOf<String>()
-            File(fastaOutputDir).walkTopDown().filter{it.name.endsWith(".fa")}.forEach {
-                fileList.add(it.toString())
-            }
-
-            // The list of fasta files to load should not contain the reference.  The reference is listed separately.
-            fileList.removeIf { it.contains("Ref") }
-
-            // write the full path fasta file names  from the fastaOutputDir to a single file, one per line, in tempDir
-            // This file will be used as input to the agc-compress command
-            val fastaCreateFileNamesFile = File(dbPath, "fastaCreateFileNames.txt")
-            fastaCreateFileNamesFile.writeText(fileList.joinToString("\n"))
-
-            val refFasta = File(fastaOutputDir, "Ref.fa").toString()
-
-            val agcCompress = AgcCompress()
-            // Create the initial compressed file
-            println("Calling agcCompress for CREATE")
-            var result = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --ref-fasta ${refFasta}")
-
+        // get the full path fasta file names  from the fastaInput, write to fileList
+        val fileList = mutableListOf<String>()
+        File(fastaOutputDir).walkTopDown().filter { it.name.endsWith(".fa") }.forEach {
+            fileList.add(it.toString())
         }
 
-        @JvmStatic
-        @AfterAll
-        fun teardown() {
-            File(TestExtension.tempDir).deleteRecursively()
-        }
+        // The list of fasta files to load should not contain the reference.  The reference is listed separately.
+        fileList.removeIf { it.contains("Ref") }
+
+        // write the full path fasta file names  from the fastaOutputDir to a single file, one per line, in tempDir
+        // This file will be used as input to the agc-compress command
+        val fastaCreateFileNamesFile = File(dbPath, "fastaCreateFileNames.txt")
+        fastaCreateFileNamesFile.writeText(fileList.joinToString("\n"))
+
+        val refFasta = File(fastaOutputDir, "Ref.fa").toString()
+
+        val agcCompress = AgcCompress()
+        // Create the initial compressed file
+        println("Calling agcCompress for CREATE")
+        var result =
+            agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --ref-fasta ${refFasta}")
+
+    }
+
+    @AfterAll
+    fun teardown() {
+        File(TestExtension.tempDir).deleteRecursively()
     }
 
     @Test
@@ -76,14 +74,15 @@ class SeqUtilsTest {
         var rangeList = mutableListOf<String>()
         val range1 = "1@LineA:20-40"
         rangeList.add(range1)
-        var command = buildAgcCommandFromList(dbPath,rangeList)
+        var command = buildAgcCommandFromList(dbPath, rangeList)
 
         //The command should look like:
-        val expectedCommand = arrayOf("conda","run","-n","phgv2-conda","agc","getctg","${dbPath}/assemblies.agc",range1)
+        val expectedCommand =
+            arrayOf("conda", "run", "-n", "phgv2-conda", "agc", "getctg", "${dbPath}/assemblies.agc", range1)
 
         // Verify that command contains all elements from expected command and that the order is the same
         kotlin.test.assertEquals(expectedCommand.size, command.size)
-        for (i in 0..expectedCommand.size-1) {
+        for (i in 0..expectedCommand.size - 1) {
             kotlin.test.assertEquals(expectedCommand[i], command[i])
         }
 
@@ -93,10 +92,21 @@ class SeqUtilsTest {
 
         rangeList.add(range2)
         rangeList.add(range3)
-        command = buildAgcCommandFromList(dbPath,rangeList)
-        val expectedCommand2 = arrayOf("conda","run","-n","phgv2-conda","agc","getctg","${dbPath}/assemblies.agc",range1,range2,range3)
+        command = buildAgcCommandFromList(dbPath, rangeList)
+        val expectedCommand2 = arrayOf(
+            "conda",
+            "run",
+            "-n",
+            "phgv2-conda",
+            "agc",
+            "getctg",
+            "${dbPath}/assemblies.agc",
+            range1,
+            range2,
+            range3
+        )
         kotlin.test.assertEquals(expectedCommand2.size, command.size)
-        for (i in 0..expectedCommand2.size-1) {
+        for (i in 0..expectedCommand2.size - 1) {
             kotlin.test.assertEquals(expectedCommand2[i], command[i])
         }
 
@@ -104,7 +114,7 @@ class SeqUtilsTest {
 
     @Test
     fun testRetrieveAgcData() {
-        // This tests the function retrieveAgcData.  retrieveAgcData() calls buildAgcCommandFromList() and
+        // This tests the function retrieveAgcContigs.  retrieveAgcContigs() calls buildAgcCommandFromList() and
         // and then queryAgc() to get the data from the agc compressed file.  The data is returned as a
         // Map<String,NucSeq> where "String" is idline from the AGC created fasta, and NucSeq is the sequence.
 
@@ -112,7 +122,7 @@ class SeqUtilsTest {
         var rangeList = mutableListOf<String>()
         val range1 = "1@LineA:0-19" // AGC queries are 0-based !!
         rangeList.add(range1)
-        var agcResult = retrieveAgcContigs(dbPath,rangeList)
+        var agcResult = retrieveAgcContigs(dbPath, rangeList)
 
         // this has only a single query, so the result should have 1 entry: 1 key and 1 sequence
         assertEquals(1, agcResult.size)
@@ -128,14 +138,14 @@ class SeqUtilsTest {
 
         rangeList.add(range2)
         rangeList.add(range3)
-        agcResult = retrieveAgcContigs(dbPath,rangeList)
+        agcResult = retrieveAgcContigs(dbPath, rangeList)
         // this has 3 queries, so the result should have 3 entries: 3 keys and 3 sequences
         assertEquals(3, agcResult.size)
         assertEquals(3, agcResult.keys.size)
 
         // This is a map, the keys will not be in any specific order, so verify
         // that each key exists in the list of expected keys
-        val keyList = mutableListOf<String>("1:0-19","1:20-39","1:40-59")
+        val keyList = mutableListOf<String>("1:0-19", "1:20-39", "1:40-59")
         // verify the map returned contains all keys from the keyList
         assertTrue(agcResult.keys.containsAll(keyList))
 
@@ -145,6 +155,44 @@ class SeqUtilsTest {
         assertEquals("GGCGGGGCAGGACGAACCGG", agcResult["1:20-39"].toString())
         assertEquals("GCGAGAACGGACAACCCCCC", agcResult["1:40-59"].toString())
 
+    }
+
+    @Test
+    fun testPullFullContigs() {
+        val dbPath = "${TestExtension.testTileDBURI}" // just the path, code appends "assemblies.agc"
+        var rangeList = mutableListOf<String>()
+        val chr1 = "1@LineA" // AGC queries are 0-based !!
+        val chr2 = "2@LineA"
+        rangeList.add(chr1)
+        rangeList.add(chr2)
+        var agcResult = retrieveAgcContigs(dbPath, rangeList)
+
+        assertEquals(2, agcResult.size)
+        assertEquals(2, agcResult.keys.size)
+
+        // Need to read the sequences from the fasta file to compare to the agcResult
+        // The sequence lives in fasta file in the testOutputFastaDir directory in LineA.fa
+        // The fasta file is copied from the testInputFastaDir directory in the setup() function
+        val fastaFile = File("${testOutputFastaDir}/LineA.fa").toString()
+        val lineA = fastaToNucSeq(fastaFile)
+
+        // Verify that agcResult contains the same sequences as the fasta file for the 2 chromosomes
+        // Might have to deal with newlines in the sequences stored in LineA.fa
+        assertEquals(lineA["1"]!!.toString(), agcResult["1"]!!.toString())
+        assertEquals(lineA["2"]!!.toString(), agcResult["2"]!!.toString())
+    }
+
+    @Test
+    fun testBadContigName() {
+        val dbPath = "${TestExtension.testTileDBURI}" // just the path, code appends "assemblies.agc"
+        var rangeList = mutableListOf<String>()
+        val chr1 = "1@LineZ" // LineZ does not exist in the AGC compressed fasta
+        rangeList.add(chr1)
+
+        assertThrows<IllegalArgumentException> {
+            //Check that an error is thrown when a bad genome is passed.
+            retrieveAgcContigs(dbPath, rangeList)
+        }
     }
 
     @Test
@@ -159,7 +207,7 @@ class SeqUtilsTest {
         rangeList.add(range1)
         assertThrows<IllegalStateException> {
             //Check that an error is thrown when the dbPath is not a directory that contains the assemblies.agc file
-            retrieveAgcContigs(dbPath,rangeList)
+            retrieveAgcContigs(dbPath, rangeList)
         }
 
         // Test with a valid directory name, but the assemblies.agc file does not exist
@@ -167,7 +215,7 @@ class SeqUtilsTest {
         dbPath = testOutputFastaDir
         assertThrows<IllegalStateException> {
             //Check that an error is thrown when the dbPath is not a directory that contains the assemblies.agc file
-            retrieveAgcContigs(dbPath,rangeList)
+            retrieveAgcContigs(dbPath, rangeList)
         }
 
     }

@@ -51,8 +51,11 @@ fun buildAgcCommandFromList(dbPath:String, ranges:List<String>): Array<String> {
 fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
     check(commands.size > 0) { "Error:  No commands sent to retrieveAgcData!" }
     myLogger.info("Running Agc Command:\n${commands.joinToString(" ")}")
+
+    // .redirectError(ProcessBuilder.Redirect.INHERIT) redirects to stdout
+    // For now, running without redirecting output or error.  The errorStream will be
+    // checked and handled at the end.
     val agcProcess = ProcessBuilder(*commands)
-        .redirectError(ProcessBuilder.Redirect.INHERIT)
         .start()
 
     val agcOut = BufferedInputStream(agcProcess.inputStream, 5000000)
@@ -66,7 +69,7 @@ fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
     val chromNucSeqMap = HashMap<String, NucSeq>()
     try {
         agcOut.bufferedReader().use { br ->
-            var currChrom: String = "-1"
+            var currChrom = "-1"
             var currSeq = ByteArrayOutputStream()
             var line = br.readLine()
             while (line != null) {
@@ -92,8 +95,16 @@ fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
             }
         }
     } catch (exc:Exception) {
-        myLogger.severe("Error:  Exception in retrieveAgcData: ${exc.message}")
-        throw IllegalStateException("Error:  Exception in retrieveAgcData: ${exc.message}")
+        myLogger.severe("Error:  Exception in queryAgc: ${exc.message}")
+        throw IllegalStateException("Error:  Exception in queryAgc: ${exc.message}")
+    }
+
+    // Check for any errors
+    val agcError = BufferedInputStream(agcProcess.errorStream, 5000000)
+    val errors = agcError.bufferedReader().readLines()
+    myLogger.severe("queryAgc: errors found in errorStream: ${errors.size}")
+    if (errors != null && errors.size > 0) {
+        throw IllegalArgumentException("Error running AGC command: ${commands.joinToString(" ")}\nError: $errors")
     }
 
     return chromNucSeqMap
