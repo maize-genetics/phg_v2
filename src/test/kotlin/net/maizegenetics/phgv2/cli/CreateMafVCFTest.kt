@@ -1,12 +1,14 @@
 package net.maizegenetics.phgv2.cli
 
 import biokotlin.seq.NucSeq
+import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.createRefRangeVC
 import net.maizegenetics.phgv2.utils.createSNPVC
+import net.maizegenetics.phgv2.utils.getChecksumForString
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
@@ -121,6 +123,60 @@ class CreateMafVCFTest {
 
         //compare the contents of the output gVCF files to the expected output
         compareTwoGVCFFiles("data/test/buildMAFVCF/truthGVCFs/B97_truth.g.vcf", "${TestExtension.testVCFDir}/B97.g.vcf")
+
+        //Now we need to compare the hVCF's sequence with the sequence coming from the MAF files to make sure things match correctly as well as the boundaries
+        val outputHVCF = "${TestExtension.testVCFDir}/B97.h.vcf"
+        val outputHVCFReader = VCFFileReader(File(outputHVCF),false)
+
+        val outputHeader = outputHVCFReader.header.metaDataInInputOrder.filter { it.key == "ALT" }
+
+        //pull out the hashes from the output header.
+        val outputHashes = outputHeader.map { it.toString().split("<")[1].split(",").first().split("=").last() }.toSet()
+
+        //Manually get the sequences out of the reference file
+        val seqsManuallyExtractedFromMAF = setOf("AAAAAGACAGCTGAAAATATCAATCTTACACACTTGGGGCCTACT",
+            "AGGGGATGCTAAGCCAATGAGTTGTTGTCTCTCAATG",
+            "TAAGGA"
+            )
+
+        val mafHashes = seqsManuallyExtractedFromMAF.map { getChecksumForString(it, "Md5") }.toSet()
+        //compare the hashsets
+        assertEquals(mafHashes,outputHashes)
+
+        //Check the coordinates of the GVCF and make sure these match the hvcfs.
+        //These were manually found by comparing BED and GVCF so they are right
+        //Ref coord chr1	0	40 cooresponds to chr6 98 .. 142
+        //chr7	14	48 cooresponds to chr4 4245 .. 4281
+        //chr7	450	456 cooresponds to chr4 5247 .. 5252
+        //chr10	0	40 cooresponds to chr6 1098 .. 1142
+        val truthCoords = setOf(Pair(Position("chr6", 98), Position("chr6", 142)),
+            Pair(Position("chr4", 4245), Position("chr4", 4281)),
+            Pair(Position("chr4", 5247), Position("chr4", 5252)),
+            Pair(Position("chr6", 1098), Position("chr6", 1142)))
+
+        val seqCoords = outputHeader.map {
+            val tokens = it.toString().split("<")[1]
+                .split(",")
+                .filter { token -> token.startsWith("Asm") }
+                .map { token -> token.split("=") }.associate { token -> Pair(token[0], token[1]) }
+
+            val chr = tokens["Asm_Contig"]!!
+            val start = tokens["Asm_Start"]!!.toInt()
+            val end = tokens["Asm_End"]!!.toInt()
+            Pair(Position(chr, start), Position(chr, end))
+        }.toSet()
+
+        assertEquals(truthCoords, seqCoords)
+
+        //Check the refCoords of the variants
+        val bedCoords = setOf(Pair(Position("chr1", 1), Position("chr1", 40)),
+            Pair(Position("chr7", 15), Position("chr7", 48)),
+            Pair(Position("chr7", 451), Position("chr7", 456)),
+            Pair(Position("chr10", 1), Position("chr10", 40)))
+        val variants = outputHVCFReader.iterator().toList()
+        val refCoords = variants.map { Pair(Position(it.contig,it.start),Position(it.contig, it.getAttributeAsInt("END",0))) }.toSet()
+
+        assertEquals(bedCoords, refCoords)
     }
 
     @Test
@@ -358,11 +414,6 @@ class CreateMafVCFTest {
         assertEquals(-1, createMafVCF.resizeVariantContext(deletionVariant, 2, "-"))
     }
 
-    @Ignore
-    @Test
-    fun testConvertGVCFRecordsToHVCF() {
-        fail("Not yet implemented")
-    }
 
     /**
      * Function to compare the output gVCF file with the expected gVCF
