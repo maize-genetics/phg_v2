@@ -79,7 +79,6 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
 
                 exportVariantContext(sampleName, gvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.g.vcf",refGenomeSequence, setOf())
 
-
                 val asmHeaderLines = mutableSetOf<VCFHeaderLine>()
                 //convert the GVCF records into hvcf records
                 val hvcfVariants = convertGVCFToHVCF(sampleName, ranges, gvcfVariants, refGenomeSequence, dbPath, asmHeaderLines)
@@ -89,6 +88,9 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
 
     }
 
+    /**
+     * Simple function to load a BED file in.  This will be replaced by a lightweight Biokotlin ranges class eventually.
+     */
     fun loadRanges(bedFileName: String) : List<Pair<Position, Position>> {
         return bufferedReader(bedFileName).readLines().map { line ->
             val lineSplit = line.split("\t")
@@ -117,7 +119,9 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         )
     }
 
-//    fun convertGVCFToHVCF(bedRanges : SRangeSet, gvcfVariants: List<VariantContext>) : List<VariantContext> {
+    /**
+     * Function to convert a GVCF file into an HCVF file
+     */
     fun convertGVCFToHVCF(sampleName: String, bedRanges : List<Pair<Position,Position>>, gvcfVariants: List<VariantContext>,
                           refGenomeSequence : Map<String, NucSeq>, agcArchiveName: String, asmHeaders: MutableSet<VCFHeaderLine>) : List<VariantContext> {
         // group the gvcfVariants by contig
@@ -221,13 +225,29 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         return outputVariants
     }
 
+    /**
+     * Function to see if the BED region is fully contained within a VariantContext
+     * Bed:       |---|
+     * Var: |--------------|
+     */
     fun bedRegionContainedInVariant(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
         return variant.contig == region.first.contig && variant.start <= region.first.position && variant.end >= region.second.position
     }
+
+    /**
+     * Function to see if the VariantContext is fully contained within a BED region
+     * Bed: |--------------|
+     * Var:       |---|
+     */
     fun variantFullyContained(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
         return variant.contig == region.first.contig && variant.start >= region.first.position && variant.end <= region.second.position
     }
 
+    /**
+     * Function to see if the variant is partially contained at the start of the BED region
+     * Bed:      |--------------|
+     * Var:    |---|
+     */
     fun variantPartiallyContainedStart(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
         return variant.contig == region.first.contig &&
                 variant.start >= region.first.position &&
@@ -235,16 +255,30 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 variant.end > region.second.position
     }
 
+    /**
+     * Function to see if the variant is partially contained at the end of the BED region
+     * Bed: |--------------|
+     * Var:              |---|
+     */
     fun variantPartiallyContainedEnd(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
         return variant.contig == region.first.contig &&
                 variant.end <= region.second.position &&
                 variant.end >= region.first.position &&
                 variant.start < region.first.position
     }
+
+    /**
+     * Function to see if the variant is after the bed region
+     * Bed: |--------------|
+     * Var:                   |---|
+     */
     fun variantAfterRegion(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
         return variant.contig == region.first.contig && variant.start > region.second.position
     }
 
+    /**
+     * Function to convert a list of GVCF records into a single HVCF record
+     */
     fun convertGVCFRecordsToHVCF(sampleName: String, region: Pair<Position,Position>, refRangeSeq: NucSeq, agcArchiveName: String ,variants: List<VariantContext>, asmHeaders: MutableSet<VCFHeaderLine> ) : VariantContext {
         //Take the first and the last variantContext
         val firstVariant = variants.first()
@@ -285,6 +319,9 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         return createHVCFRecord(sampleName, region.first, region.second, Pair(refRangeSeq[0].toString(), assemblyHaplotypeHash))
     }
 
+    /**
+     * Function to extract the sequence from the AGC archive
+     */
     fun extractSequenceFromHaplotypes(sampleName:String, chrom: String, start: Int, end: Int, agcArchiveName: String) : String {
         //will be replaced by Lynn's call using sampleName, chrom, start, end
         val assemblySeqs = buildRefGenomeSeq(agcArchiveName)
@@ -321,6 +358,9 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         }
     }
 
+    /**
+     * Function to check if a variant is resizable.  Only RefBlocks and SNPs are resizable
+     */
     fun isVariantResizable(variant: VariantContext) : Boolean {
         return when {
             variant.getReference().baseString.length == 1 && variant.end - variant.start > 0 -> true //refBlock
