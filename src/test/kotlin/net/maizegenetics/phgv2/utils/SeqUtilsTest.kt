@@ -71,13 +71,13 @@ class SeqUtilsTest {
 
     @Test
     fun testBuildAgcCommandFromList() {
-        // test command with single range on the list
+        // test getctg command with single range on the list
 
         val dbPath = TestExtension.testTileDBURI
         var rangeList = mutableListOf<String>()
         val range1 = "1@LineA:20-40"
         rangeList.add(range1)
-        var command = buildAgcCommandFromList(dbPath, rangeList)
+        var command = buildAgcCommandFromList(dbPath, "getctg",rangeList)
 
         //The command should look like:
         val expectedCommand =
@@ -89,13 +89,13 @@ class SeqUtilsTest {
             kotlin.test.assertEquals(expectedCommand[i], command[i])
         }
 
-        // Add multiple ranges to the list.  Verify the command contains all range requests
+        // Add multiple ranges to the list.  Verify the getctg command contains all range requests
         val range2 = "1@LineA:60-80"
         val range3 = "1@LineA:100-120"
 
         rangeList.add(range2)
         rangeList.add(range3)
-        command = buildAgcCommandFromList(dbPath, rangeList)
+        command = buildAgcCommandFromList(dbPath, "getctg",rangeList)
         val expectedCommand2 = arrayOf(
             "conda",
             "run",
@@ -116,7 +116,7 @@ class SeqUtilsTest {
     }
 
     @Test
-    fun testRetrieveAgcData() {
+    fun testRetrieveAgcContigs() {
         // This tests the function retrieveAgcContigs.  retrieveAgcContigs() calls buildAgcCommandFromList() and
         // and then queryAgc() to get the data from the agc compressed file.  The data is returned as a
         // Map<String,NucSeq> where "String" is idline from the AGC created fasta, and NucSeq is the sequence.
@@ -230,5 +230,98 @@ class SeqUtilsTest {
             //Check that an error is thrown when the commands list is empty
             queryAgc(command.toTypedArray())
         }
+    }
+
+    @Test
+    fun testRetrieveAgcGenomes() {
+        val dbPath = "${TestExtension.testTileDBURI}" // just the path, code appends "assemblies.agc"
+        var genomeList = mutableListOf<String>()
+        val gn1 = "LineA"
+
+        genomeList.add(gn1)
+        var agcResult = retrieveAgcGenomes(dbPath, genomeList)
+
+        assertEquals(2, agcResult.size)
+        assertEquals(2, agcResult.keys.size)
+        val fastaFile = File("${testOutputFastaDir}/LineA.fa").toString()
+        val lineA = fastaToNucSeq(fastaFile)
+
+        // Check the sequences match
+        assertEquals(lineA["1"]!!.toString(), agcResult["1"]!!.toString())
+        assertEquals(lineA["2"]!!.toString(), agcResult["2"]!!.toString())
+
+        // try again with 2 genomes on the list.  This is probablematic
+        // because AGC does not incldue genome names in the idlines, and
+        // because LineA and LineC have the same chromosome names, the
+        // Map<String,NucSeq> values are overwritten for each chromosome.
+        // This test is here to remind us of this issue.
+        val gn2 ="LineC"
+        genomeList.add(gn2)
+        agcResult = retrieveAgcGenomes(dbPath, genomeList)
+        assertEquals(2, agcResult.size)
+        assertEquals(2, agcResult.keys.size)
+    }
+
+    @Test
+    fun testRetrieveAgcData_listset() {
+        // This command tests the retrieveAgcData() function with a listset
+        // the list is valid, and the listset is valid
+        val dbPath = "${TestExtension.testTileDBURI}" // just the path, code appends "assemblies.agc"
+        val commands = mutableListOf<String>("listset")
+
+        var agcResult = retrieveAgcData(dbPath, commands)
+        val expectedResult = listOf("LineA", "LineB","LineC","Ref")
+        assertEquals(expectedResult, agcResult)
+
+        // Verify an exception is thrown is an invalid command is sent to retrieveAgcData()
+        assertThrows<IllegalStateException> {
+            //Check that an error is thrown if the command is invalid
+            retrieveAgcData(dbPath, listOf("happy"))
+        }
+    }
+
+    @Test
+    fun testRetrieveAgcData_listctg() {
+        // This command tests the retrieveAgcData() function with a listctg command
+
+        // Test with bad dbPath
+        val badDbPath = "/my/bad/dbPath"
+        assertThrows<IllegalStateException> {
+            //Check that an error is thrown if the dbPath is invalid
+            retrieveAgcData(badDbPath, listOf("listctg"))
+        }
+
+        // First, test without a geomome list
+        val dbPath = "${TestExtension.testTileDBURI}" // just the path, code appends "assemblies.agc"
+        val commands = mutableListOf<String>()
+
+        // Verify an exception is thrown if no commands are on the list
+        assertThrows<IllegalStateException> {
+            //Check that an error is thrown if no cammand  is given
+            retrieveAgcData(dbPath, commands)
+        }
+
+        commands.add("listctg")
+        assertThrows<IllegalStateException> {
+            //Check that an error is thrown if no genomes are included in the query.
+            retrieveAgcData(dbPath, commands)
+        }
+
+        // Now test with a genome list
+        commands.add("LineA")
+        commands.add("LineB")
+        val agcResult = retrieveAgcData(dbPath, commands)
+        println(" agcResult = $agcResult")
+        assertEquals(2, agcResult!!.size)
+
+        println("Results from agcResult")
+        for (entry in agcResult) {
+            println("entry =${entry}LCJ")
+        }
+        // Verify agcResult contains the entry"LineA:1,2"
+        assertTrue(agcResult.contains("LineA:1,2"))
+        // Verify agcResult contains the entry"LineB:1,2"
+        assertTrue(agcResult.contains("LineB:1,2"))
+
     }
 }
