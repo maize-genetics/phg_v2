@@ -4,9 +4,9 @@ import biokotlin.seq.NucSeq
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.util.logging.Logger
+import org.apache.logging.log4j.LogManager
 
-private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.utils.SeqUtils")
+private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.SeqUtils")
 
 /**
  * The file contains functions to pull data from an AGC compressed file.
@@ -96,13 +96,13 @@ fun retrieveAgcData(dbPath:String,agcCmdList:List<String>):List<String>? {
                 dataFromListSet(agcOut)
             }
             else -> {
-                myLogger.severe("Invalid AGC command sent to retrieveAgcData: $agcCmd")
+                myLogger.error("Invalid AGC command sent to retrieveAgcData: $agcCmd")
                 throw IllegalStateException("Invalid AGC command sent to retrieveAgcData: $agcCmd")
             }
         }
         return queryData
     } catch (exc: Exception) {
-        myLogger.severe("Error reading AGC output: ${exc.message}")
+        myLogger.error("Error reading AGC output: ${exc.message}")
         throw IllegalStateException("Error reading AGC output: ${exc.message}")
     } finally {
         agcOut.close()
@@ -125,7 +125,7 @@ fun dataFromListSet(agcOut:BufferedInputStream):List<String>{
             }
         }
     } catch (exc: Exception) {
-        myLogger.severe("Error reading AGC output: ${exc.message}")
+        myLogger.error("Error reading AGC output: ${exc.message}")
     } finally {
         agcOut.close()
     }
@@ -165,7 +165,7 @@ fun dataFromListSet(agcOut:BufferedInputStream):List<String>{
              }
          }
      } catch (exc: Exception) {
-         myLogger.severe("Error reading AGC output: ${exc.message}")
+         myLogger.error("Error reading AGC output: ${exc.message}")
      } finally {
          agcOut.close()
      }
@@ -257,14 +257,14 @@ fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
             }
         }
     } catch (exc:Exception) {
-        myLogger.severe("Error:  Exception in queryAgc: ${exc.message}")
+        myLogger.error("Error:  Exception in queryAgc: ${exc.message}")
         throw IllegalStateException("Error:  Exception in queryAgc: ${exc.message}")
     }
 
     // Check for any errors
     val agcError = BufferedInputStream(agcProcess.errorStream, 5000000)
     val errors = agcError.bufferedReader().readLines()
-    myLogger.severe("queryAgc: errors found in errorStream: ${errors.size}")
+    myLogger.error("queryAgc: errors found in errorStream: ${errors.size}")
     if (errors != null && errors.size > 0) {
         throw IllegalArgumentException("Error running AGC command: ${commands.joinToString(" ")}\nError: $errors")
     }
