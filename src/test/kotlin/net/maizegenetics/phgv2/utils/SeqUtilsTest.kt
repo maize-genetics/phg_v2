@@ -113,7 +113,6 @@ class SeqUtilsTest {
             kotlin.test.assertEquals(expectedCommand2[i], command[i])
         }
 
-        // test getcol command.  This command requests
     }
 
     @Test
@@ -276,7 +275,7 @@ class SeqUtilsTest {
 
         // Verify an exception is thrown is an invalid command is sent to retrieveAgcData()
         assertThrows<IllegalStateException> {
-            //Check that an error is thrown if no genomes are included in the query.
+            //Check that an error is thrown if the command is invalid
             retrieveAgcData(dbPath, listOf("happy"))
         }
     }
@@ -288,7 +287,7 @@ class SeqUtilsTest {
         // Test with bad dbPath
         val badDbPath = "/my/bad/dbPath"
         assertThrows<IllegalStateException> {
-            //Check that an error is thrown if no genomes are included in the query.
+            //Check that an error is thrown if the dbPath is invalid
             retrieveAgcData(badDbPath, listOf("listctg"))
         }
 

@@ -206,7 +206,7 @@ fun buildAgcCommandFromList(dbPath:String, agcCmd:String, ranges:List<String>): 
 
 /**
  * Retrieve AGC data from a list of commands sent via ProcessBuilder
- * This function should only be called when the AGC command is "getctg" or "get"
+ * This function should only be called when the AGC command is "getctg" or "getset"
  * as it specifically returns a Map<String, NucSeq>.  Other AGC commands processed
  * in this repository will return a List<String> and are processed in retrieveAgcData
  */
