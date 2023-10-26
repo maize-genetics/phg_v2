@@ -51,7 +51,7 @@ class FullPipelineIT {
         TODO("Pull out the HVCF from TileDB")
 
         //Run Fasta Generator for REF
-        val fastaGenerator = FastaGenerator()
+        val fastaGenerator = CreateFastaFromHvcf()
         fastaGenerator.test("--db-path ${TestExtension.testTileDBURI} --agc-file ${TestExtension.testAGCFile} --sample-name Ref -o ${TestExtension.testOutputRefFasta}")
         //Compare ref to input
         val refDiff =  compareFastaSeqs(TestExtension.testRefFasta, TestExtension.testOutputRefFasta)
