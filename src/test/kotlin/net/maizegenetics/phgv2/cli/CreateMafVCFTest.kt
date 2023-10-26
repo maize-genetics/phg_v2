@@ -152,7 +152,7 @@ class CreateMafVCFTest {
         val truthCoords = setOf(Pair(Position("chr6", 98), Position("chr6", 142)),
             Pair(Position("chr4", 4245), Position("chr4", 4281)),
             Pair(Position("chr4", 5247), Position("chr4", 5252)),
-            Pair(Position("chr6", 1098), Position("chr6", 1142)))
+            )
 
         val seqCoords = outputHeader.map {
             val tokens = it.toString().split("<")[1]
