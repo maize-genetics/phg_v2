@@ -12,10 +12,7 @@ import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeaderLine
 import htsjdk.variant.vcf.VCFHeaderVersion
-import net.maizegenetics.phgv2.utils.Position
-import net.maizegenetics.phgv2.utils.createHVCFRecord
-import net.maizegenetics.phgv2.utils.exportVariantContext
-import net.maizegenetics.phgv2.utils.getChecksumForString
+import net.maizegenetics.phgv2.utils.*
 import java.io.File
 
 class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave MAF files") {
@@ -305,7 +302,12 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                             else lastVariant.getAttributeAsInt("ASM_Start",region.second.position)
         }
 
-        //Extract out the sequence for the assembly haplotype
+        //Extract out the sequence for the assembly haplotype TODO add this in after testing.
+//        val seqs = retrieveAgcContigs(agcArchiveName,firstVariant.sampleNames.first(),
+//            listOf(Pair(Position(firstVariant.getAttributeAsString("ASM_Chr",""), newASMStart),
+//                                Position(firstVariant.getAttributeAsString("ASM_Chr",""),newASMEnd) )))
+//
+//        val assemblyHaplotypeSeq = seqs[seqs.keys.first()]?.seq()?:""
         val assemblyHaplotypeSeq:String = extractSequenceFromHaplotypes(firstVariant.sampleNames.first(), firstVariant.getAttributeAsString("ASM_Chr",""), newASMStart, newASMEnd, agcArchiveName)
         //md5 hash the assembly sequence
         val assemblyHaplotypeHash = getChecksumForString(assemblyHaplotypeSeq)
