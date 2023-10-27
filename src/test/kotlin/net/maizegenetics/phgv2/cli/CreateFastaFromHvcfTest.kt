@@ -20,8 +20,20 @@ class CreateFastaFromHvcfTest {
         @JvmStatic
         @BeforeAll
         fun setup() {
-            //create an agc record from the smallSeqData
+            //create an AGC record with the Ref in it
+            val altFileListFile = TestExtension.testOutputFastaDir+"/agc_altList.txt"
+            BufferedWriter(FileWriter(altFileListFile)).use { writer ->
+                writer.write("data/test/smallseq/LineA.fa\n")
+                writer.write("data/test/smallseq/LineB.fa\n")
+                writer.write("data/test/smallseq/LineC.fa\n")
+            }
 
+            val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
+            File(dbPath).mkdirs()
+
+            //Call AGCCompress to create the AGC file
+            val agcCompress = AgcCompress()
+            agcCompress.processAGCFiles(dbPath,altFileListFile,"data/test/smallseq/Ref.fa")
         }
     }
 
@@ -218,21 +230,8 @@ class CreateFastaFromHvcfTest {
         val vcfReader = VCFFileReader(refHVCFFile, false)
         val createFastaFromHvcf = CreateFastaFromHvcf()
         val altHeaders= createFastaFromHvcf.parseALTHeader(vcfReader.header)
-
-        //create an AGC record with the Ref in it
-        val altFileListFile = TestExtension.testOutputFastaDir+"/agc_altList.txt"
-        BufferedWriter(FileWriter(altFileListFile)).use { writer ->
-            writer.write("data/test/smallseq/LineA.fa\n")
-            writer.write("data/test/smallseq/LineB.fa\n")
-            writer.write("data/test/smallseq/LineC.fa\n")
-        }
-
+        
         val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
-        File(dbPath).mkdirs()
-
-        //Call AGCCompress to create the AGC file
-        val agcCompress = AgcCompress()
-        agcCompress.processAGCFiles(dbPath,altFileListFile,"data/test/smallseq/Ref.fa")
 
         val hapSequence = createFastaFromHvcf.createHaplotypeSequences(dbPath, "Ref", vcfReader.iterator().asSequence().toList(), altHeaders)
 
@@ -253,20 +252,7 @@ class CreateFastaFromHvcfTest {
         val createFastaFromHvcf = CreateFastaFromHvcf()
         val altHeaders= createFastaFromHvcf.parseALTHeader(vcfReader.header)
 
-        //create an AGC record with the Ref in it
-        val altFileListFile = TestExtension.testOutputFastaDir+"/agc_altList.txt"
-        BufferedWriter(FileWriter(altFileListFile)).use { writer ->
-            writer.write("data/test/smallseq/LineA.fa\n")
-            writer.write("data/test/smallseq/LineB.fa\n")
-            writer.write("data/test/smallseq/LineC.fa\n")
-        }
-
         val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
-        File(dbPath).mkdirs()
-
-        //Call AGCCompress to create the AGC file
-        val agcCompress = AgcCompress()
-        agcCompress.processAGCFiles(dbPath,altFileListFile,"data/test/smallseq/Ref.fa")
 
         createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}/Ref_Test_output.fa", "composite",refHVCFFileName)
 
