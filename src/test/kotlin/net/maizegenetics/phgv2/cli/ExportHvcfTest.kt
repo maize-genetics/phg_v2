@@ -38,6 +38,9 @@ class ExportHvcfTest {
 
             bgzipAndIndexGVCFfile(testHvcfFile)
 
+            // Load the vcf file into the tiledb database, so that the export has
+            // something to export. This is the cli version, but using
+            // programmatic way here.
             // phg load-vcf --vcf-dir /Users/tmc46/phg_v2/ --db-path tiledb/ --temp-dir tiledb/temp/
 
             val result = LoadVcf().test(
