@@ -28,8 +28,20 @@ class ExportHvcf : CliktCommand() {
         // tiledbvcf export --uri tiledb/hvcf_dataset -O z --sample-names Ref --output-dir exported-vcfs
 
         val builder = ProcessBuilder(
-            "conda", "run", "-n", "phgv2-conda", "tiledbvcf", "export", "--uri", "$dbpath/hvcf_dataset", "-O", "z", "--sample-names",
-            sampleNames, "--output-dir", outputDir
+            "conda",
+            "run",
+            "-n",
+            "phgv2-conda",
+            "tiledbvcf",
+            "export",
+            "--uri",
+            "$dbpath/hvcf_dataset",
+            "-O",
+            "v",
+            "--sample-names",
+            sampleNames,
+            "--output-dir",
+            outputDir
         )
         val redirectError = "$outputDir/export_hvcf_error.log"
         val redirectOutput = "$outputDir/export_hvcf_output.log"
