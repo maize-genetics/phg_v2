@@ -110,16 +110,20 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
      * Function to create haplotype Sequences for each of the haplotype variants in the hvcf
      */
     fun createHaplotypeSequences(dbPath:String, sampleName: String, haplotypeVariants: List<VariantContext>, altHeaders: Map<String, AltHeaderMetaData>): List<HaplotypeSequence> {
-        return haplotypeVariants.filter { it.hasGenotype(sampleName) }.map {
+        val rangesAndOtherInfo = haplotypeVariants.filter { it.hasGenotype(sampleName) }.map {
             val hapId = it.getGenotype(sampleName).getAllele(0).displayString.replace("<","").replace(">","")
             check(altHeaders.containsKey(hapId)) { "Haplotype ID $hapId not found in ALT Header" }
             val altMetaData = altHeaders[hapId]
             //Need to subtract 1 from start as it uses 0 based format
             val ranges = listOf("${altMetaData!!.contig}@${sampleName}:${altMetaData!!.start-1}-${altMetaData!!.end-1}")
             val outputDisplayName = "${altMetaData!!.contig}:${altMetaData!!.start-1}-${altMetaData!!.end-1}"
-            val seqs = retrieveAgcContigs(dbPath,ranges)
-            HaplotypeSequence(hapId, seqs[outputDisplayName]!!.seq(), altMetaData.refRange, it.contig, it.start, it.end, altMetaData!!.contig, altMetaData!!.start, altMetaData!!.end)
+            Triple(ranges, outputDisplayName, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, altMetaData!!.contig, altMetaData!!.start, altMetaData!!.end))
         }
+
+        val ranges = rangesAndOtherInfo.map { it.first }.flatten()
+        val seqs = retrieveAgcContigs(dbPath,ranges)
+
+        return rangesAndOtherInfo.map { it.third.copy(sequence = seqs[it.second]!!.seq()) }
     }
 
     /**
