@@ -29,3 +29,13 @@ These curation tasks are executed using the PHG command line tool.
 
 The haplotype graph can then be accessed either through a server implementing the BrAPI or directly via R accessing the TileDBs.
 
+## API Endpoints
+BrAPI
+
+## Deployment
+Containers.
+
+## Technology Stack
+Mostly in JVM languages (Java and Kotlin) calling BioKotlin, HTSJDK, GATK, 
+
+## Known Limitations
