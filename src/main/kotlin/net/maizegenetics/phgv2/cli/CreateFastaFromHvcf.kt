@@ -7,13 +7,18 @@ import com.github.ajalt.clikt.parameters.options.validate
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeader
-import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
 
-class CreateFastaFromHvcf : CliktCommand() {
+
+//Making Number a string as VCF allows for '.'
+data class AltHeaderMetaData(val id: String, val description:String, val number: String, val source:String,
+                             val contig:String, val start:Int, val end:Int, val checksum:String, val refRange:String)
+data class HaplotypeSequence(val id: String, val sequence: String, val refRangeId: String, val refContig: String, val refStart: Int, val refEnd: Int,
+                             val asmContig : String, val asmStart: Int, val asmEnd: Int)
+class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvcf file/TileDB") {
 
     val dbPath by option(help = "Tile DB URI")
         .default("")
@@ -45,7 +50,7 @@ class CreateFastaFromHvcf : CliktCommand() {
     fun buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfFile : String) {
         val vcfFileReader = if(hvcfFile == "") {
             //Load in the TileDB
-            TODO("TileDB VCF Reader Not implemented yet")
+            TODO("TileDB VCF Reader Not implemented yet.  Please run with --hvcf-file")
         } else {
             //Load in the HVCF
             VCFFileReader(File(hvcfFile),false)
@@ -68,11 +73,7 @@ class CreateFastaFromHvcf : CliktCommand() {
         }
 
     }
-    //Making Number a string as VCF allows for '.'
-    data class AltHeaderMetaData(val id: String, val description:String, val number: String, val source:String,
-                                 val contig:String, val start:Int, val end:Int, val checksum:String, val refRange:String)
-    data class HaplotypeSequence(val id: String, val sequence: String, val refChr: String, val refStart: Int, val refEnd: Int,
-                         val asmChr : String, val asmStart: Int, val asmEnd: Int)
+
     fun parseALTHeader(header: VCFHeader) : Map<String, AltHeaderMetaData> {
         //Need to turn the ALT File header into a Map<ID,AltHeaderMetaData>
         return header.metaDataInInputOrder
@@ -101,35 +102,47 @@ class CreateFastaFromHvcf : CliktCommand() {
 
     fun createHaplotypeSequences(dbPath:String, sampleName: String, haplotypeVariants: List<VariantContext>, altHeaders: Map<String, AltHeaderMetaData>): List<HaplotypeSequence> {
         return haplotypeVariants.filter { it.hasGenotype(sampleName) }.map {
-            val hapId = it.getGenotype(sampleName).getAllele(0).baseString
+            val hapId = it.getGenotype(sampleName).getAllele(0).displayString.replace("<","").replace(">","")
             check(altHeaders.containsKey(hapId)) { "Haplotype ID $hapId not found in ALT Header" }
             val altMetaData = altHeaders[hapId]
-            val ranges = listOf("${altMetaData!!.contig}@${sampleName}:${altMetaData!!.start}-${altMetaData!!.end}")
+            //Need to subtract 1 from start as it uses 0 based format
+            val ranges = listOf("${altMetaData!!.contig}@${sampleName}:${altMetaData!!.start-1}-${altMetaData!!.end-1}")
+            val outputDisplayName = "${altMetaData!!.contig}:${altMetaData!!.start-1}-${altMetaData!!.end-1}"
             val seqs = retrieveAgcContigs(dbPath,ranges)
-
-            HaplotypeSequence(hapId, seqs[altMetaData!!.contig]!!.seq(), it.contig, it.start, it.end, altMetaData!!.contig, altMetaData!!.start, altMetaData!!.end)
+            HaplotypeSequence(hapId, seqs[outputDisplayName]!!.seq(), altMetaData.refRange, it.contig, it.start, it.end, altMetaData!!.contig, altMetaData!!.start, altMetaData!!.end)
         }
     }
 
     fun writeCompositeSequence(outputFile: String, haplotypeSequences: List<HaplotypeSequence>) {
         BufferedWriter(FileWriter(outputFile)).use { output ->
             //group the sequences by chromosome
-            val sequencesByChr = haplotypeSequences.groupBy { it.refChr }
+            val sequencesByChr = haplotypeSequences.groupBy { it.refContig }
             for(chr in sequencesByChr.keys.sorted()) {
                 output.write(">$chr\n")
                 //sort the sequences by startPos
                 val sequencesByStartPos = sequencesByChr[chr]!!.sortedBy { it.refStart }
-                TODO("ADD in the logic to merge the sequences")
+                //merge and output the sequences
+                sequencesByStartPos.map { it.sequence }
+                    .joinToString("")
+                    .chunked(80)//Chunking into 80 character lines
+                    .forEach { output.write(it + "\n") }
             }
         }
     }
 
-    fun writeHaplotypeSequence(outputFile: String, haplotypeSequences: List<HaplotypeSequence>) {
+    fun writeHaplotypeSequence(outputFile: String, haplotypeSequences: List<HaplotypeSequence>, exportFullIdLine : Boolean = true) {
         BufferedWriter(FileWriter(outputFile)).use { output ->
             for(hapSeq in haplotypeSequences) {
-                output.write(">${hapSeq.id}\n")
-                output.write(hapSeq.sequence)
+                output.write(">${hapSeq.id}")
+                if(exportFullIdLine) {
+                    output.write(" Ref_Range_Id=${hapSeq.refRangeId} " +
+                    "Ref_Contig=${hapSeq.refContig} Ref_Start=${hapSeq.refStart} Ref_End=${hapSeq.refEnd} " +
+                            "Asm_Contig=${hapSeq.asmContig} Asm_Start=${hapSeq.asmStart} Asm_End=${hapSeq.asmEnd}")
+                }
                 output.write("\n")
+                hapSeq.sequence
+                    .chunked(80)//Chunking into 80 character lines
+                    .forEach { output.write(it + "\n") }
             }
 
         }

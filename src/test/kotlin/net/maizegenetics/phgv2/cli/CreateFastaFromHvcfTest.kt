@@ -1,37 +1,47 @@
 package net.maizegenetics.phgv2.cli
 
+import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.vcf.VCFFileReader
+import net.maizegenetics.phgv2.utils.getChecksumForString
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import java.io.BufferedWriter
 import java.io.File
+import java.io.FileWriter
+import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @ExtendWith(TestExtension::class)
 class CreateFastaFromHvcfTest {
     companion object {
+        @JvmStatic
+        @BeforeAll
+        fun setup() {
+            //create an agc record from the smallSeqData
 
+        }
     }
 
     @Test
     fun testCliktParams() {
         val createFastaFromHvcf = CreateFastaFromHvcf()
-        val resultGood = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} -o ${TestExtension.testOutputRefFasta} --fasta-type composite")
 
-        val resultMissingDB = createFastaFromHvcf.test("-o ${TestExtension.testOutputRefFasta} --fasta-type composite")
+        val resultMissingDB = createFastaFromHvcf.test("-o ${TestExtension.testOutputRefFasta} --fasta-type composite --hvcf-file /test_file.h.vcf")
         assertEquals(resultMissingDB.statusCode, 1)
         assertEquals("Usage: create-fasta-from-hvcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --db-path: --db-path must not be blank\n",resultMissingDB.output)
 
-        val resultMissingOutput = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type haplotype")
+        val resultMissingOutput = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type haplotype --hvcf-file /test_file.h.vcf")
         assertEquals(resultMissingOutput.statusCode, 1)
         assertEquals("Usage: create-fasta-from-hvcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --output: --output/-o must not be blank\n",resultMissingOutput.output)
 
-        val resultMissingFastaType = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} -o ${TestExtension.testOutputRefFasta}")
+        val resultMissingFastaType = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} -o ${TestExtension.testOutputRefFasta} --hvcf-file /test_file.h.vcf")
         assertEquals(resultMissingFastaType.statusCode, 1)
         assertEquals("Usage: create-fasta-from-hvcf [<options>]\n" +
                 "\n" +
@@ -95,4 +105,191 @@ class CreateFastaFromHvcfTest {
     }
 
 
+    @Test
+    fun testWriteCompositeSequence() {
+        val createFastaFromHvcf = CreateFastaFromHvcf()
+        val outputFile = "${TestExtension.testOutputFastaDir}/testWriteCompositeSequence.fa"
+
+        //Build 5 random sequences of 300bps each
+        val rand = Random(12345)
+        val alleles = listOf("A","C","G","T")
+
+        val seqs = listOf(
+            (1..300).map { alleles[rand.nextInt(4)] }.joinToString(""),
+            (1..300).map { alleles[rand.nextInt(4)] }.joinToString(""),
+            (1..300).map { alleles[rand.nextInt(4)] }.joinToString(""),
+            (1..300).map { alleles[rand.nextInt(4)] }.joinToString(""),
+            (1..300).map { alleles[rand.nextInt(4)] }.joinToString("")
+        )
+
+        //Build some simple Haplotype Sequences
+        val haplotypeSequences =  listOf(
+            HaplotypeSequence(getChecksumForString(seqs[0]), seqs[0], getChecksumForString(seqs[0]), "1", 1, 300, "1", 1, 300),
+            HaplotypeSequence(getChecksumForString(seqs[1]), seqs[1], getChecksumForString(seqs[1]), "1", 301, 600, "1", 301, 600),
+            HaplotypeSequence(getChecksumForString(seqs[2]), seqs[2], getChecksumForString(seqs[2]), "1", 601, 900, "1", 601, 900),
+            HaplotypeSequence(getChecksumForString(seqs[3]), seqs[3], getChecksumForString(seqs[3]), "2", 1, 300, "2", 1, 300),
+            HaplotypeSequence(getChecksumForString(seqs[4]), seqs[4], getChecksumForString(seqs[4]), "2", 301, 600, "2", 301, 600)
+        )
+
+        createFastaFromHvcf.writeCompositeSequence(outputFile, haplotypeSequences)
+
+        //Check that the file was created
+        val file = File(outputFile)
+        assertTrue(file.exists())
+
+        //load in the file and check that the sequences are correct
+        val importedSeqs = NucSeqIO(outputFile).readAll()
+
+        assertEquals("${seqs[0]}${seqs[1]}${seqs[2]}", importedSeqs["1"]!!.seq())
+        assertEquals("${seqs[3]}${seqs[4]}", importedSeqs["2"]!!.seq())
+    }
+
+    @Test
+    fun testWriteHaplotypeSequence() {
+        val createFastaFromHvcf = CreateFastaFromHvcf()
+        val outputFile = "${TestExtension.testOutputFastaDir}/testWriteHaplotypeSequence.fa"
+
+        //Build 5 random sequences of 300bps each
+        val rand = Random(12345)
+        val alleles = listOf("A","C","G","T")
+
+        val seqs = listOf(
+            (1..300).map { alleles[rand.nextInt(4)] }.joinToString(""),
+            (1..300).map { alleles[rand.nextInt(4)] }.joinToString(""),
+            (1..300).map { alleles[rand.nextInt(4)] }.joinToString(""),
+            (1..300).map { alleles[rand.nextInt(4)] }.joinToString(""),
+            (1..300).map { alleles[rand.nextInt(4)] }.joinToString("")
+        )
+
+        //Build some simple Haplotype Sequences
+        val haplotypeSequences =  listOf(
+            HaplotypeSequence(getChecksumForString(seqs[0]), seqs[0], getChecksumForString(seqs[0]), "1", 1, 300, "1", 1, 300),
+            HaplotypeSequence(getChecksumForString(seqs[1]), seqs[1], getChecksumForString(seqs[1]), "1", 301, 600, "1", 301, 600),
+            HaplotypeSequence(getChecksumForString(seqs[2]), seqs[2], getChecksumForString(seqs[2]), "1", 601, 900, "1", 601, 900),
+            HaplotypeSequence(getChecksumForString(seqs[3]), seqs[3], getChecksumForString(seqs[3]), "2", 1, 300, "2", 1, 300),
+            HaplotypeSequence(getChecksumForString(seqs[4]), seqs[4], getChecksumForString(seqs[4]), "2", 301, 600, "2", 301, 600)
+        )
+
+        createFastaFromHvcf.writeHaplotypeSequence(outputFile, haplotypeSequences)
+
+        //Check that the file was created
+        val file = File(outputFile)
+        assertTrue(file.exists())
+
+        //load in the file and check that the sequences are correct
+        val importedSeqs = NucSeqIO(outputFile).readAll()
+
+        assertEquals(seqs[0], importedSeqs[getChecksumForString(seqs[0])]!!.seq())
+        assertEquals(seqs[1], importedSeqs[getChecksumForString(seqs[1])]!!.seq())
+        assertEquals(seqs[2], importedSeqs[getChecksumForString(seqs[2])]!!.seq())
+        assertEquals(seqs[3], importedSeqs[getChecksumForString(seqs[3])]!!.seq())
+        assertEquals(seqs[4], importedSeqs[getChecksumForString(seqs[4])]!!.seq())
+
+        //Check to make sure the metadata is correct
+        compareFastaDescriptions(importedSeqs[getChecksumForString(seqs[0])]!!.description?:"", haplotypeSequences[0])
+        compareFastaDescriptions(importedSeqs[getChecksumForString(seqs[1])]!!.description?:"", haplotypeSequences[1])
+        compareFastaDescriptions(importedSeqs[getChecksumForString(seqs[2])]!!.description?:"", haplotypeSequences[2])
+        compareFastaDescriptions(importedSeqs[getChecksumForString(seqs[3])]!!.description?:"", haplotypeSequences[3])
+        compareFastaDescriptions(importedSeqs[getChecksumForString(seqs[4])]!!.description?:"", haplotypeSequences[4])
+
+
+    }
+    fun compareFastaDescriptions(description : String, hapSequence: HaplotypeSequence) {
+        val descriptionParsed = description.replace(">","ID=")
+            .split(" ")
+            .map{ it.split("=") }
+            .associate{ it[0] to it[1] }
+
+        assertEquals(hapSequence.id, descriptionParsed["ID"])
+        assertEquals(hapSequence.refRangeId, descriptionParsed["Ref_Range_Id"])
+        assertEquals(hapSequence.refContig, descriptionParsed["Ref_Contig"])
+        assertEquals(hapSequence.refStart, descriptionParsed["Ref_Start"]?.toInt()?:-1)
+        assertEquals(hapSequence.refEnd, descriptionParsed["Ref_End"]?.toInt()?:-1)
+        assertEquals(hapSequence.asmContig, descriptionParsed["Asm_Contig"])
+        assertEquals(hapSequence.asmStart, descriptionParsed["Asm_Start"]?.toInt()?:-1)
+        assertEquals(hapSequence.asmEnd, descriptionParsed["Asm_End"]?.toInt()?:-1)
+
+
+    }
+
+    @Test
+    fun testCreateHaplotypeSequences() {
+        val refHVCFFile = File("data/test/smallseq/Ref.h.vcf")
+        val vcfReader = VCFFileReader(refHVCFFile, false)
+        val createFastaFromHvcf = CreateFastaFromHvcf()
+        val altHeaders= createFastaFromHvcf.parseALTHeader(vcfReader.header)
+
+        //create an AGC record with the Ref in it
+        val altFileListFile = TestExtension.testOutputFastaDir+"/agc_altList.txt"
+        BufferedWriter(FileWriter(altFileListFile)).use { writer ->
+            writer.write("data/test/smallseq/LineA.fa\n")
+            writer.write("data/test/smallseq/LineB.fa\n")
+            writer.write("data/test/smallseq/LineC.fa\n")
+        }
+
+        val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
+        File(dbPath).mkdirs()
+
+        //Call AGCCompress to create the AGC file
+        val agcCompress = AgcCompress()
+        agcCompress.processAGCFiles(dbPath,altFileListFile,"data/test/smallseq/Ref.fa")
+
+        val hapSequence = createFastaFromHvcf.createHaplotypeSequences(dbPath, "Ref", vcfReader.iterator().asSequence().toList(), altHeaders)
+
+        assertEquals(40, hapSequence.size)
+        val truthHashes = altHeaders.values.map { it.id }.toSet()
+
+        //This verifies that we do indeed extract out the correct sequences
+        hapSequence.forEach{
+            assertTrue(truthHashes.contains(it.id))
+        }
+    }
+
+    @Test
+    fun testBuildFastaFromHVCF() {
+        //buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfFile : String)
+        val refHVCFFileName = "data/test/smallseq/Ref.h.vcf"
+        val vcfReader = VCFFileReader(File(refHVCFFileName), false)
+        val createFastaFromHvcf = CreateFastaFromHvcf()
+        val altHeaders= createFastaFromHvcf.parseALTHeader(vcfReader.header)
+
+        //create an AGC record with the Ref in it
+        val altFileListFile = TestExtension.testOutputFastaDir+"/agc_altList.txt"
+        BufferedWriter(FileWriter(altFileListFile)).use { writer ->
+            writer.write("data/test/smallseq/LineA.fa\n")
+            writer.write("data/test/smallseq/LineB.fa\n")
+            writer.write("data/test/smallseq/LineC.fa\n")
+        }
+
+        val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
+        File(dbPath).mkdirs()
+
+        //Call AGCCompress to create the AGC file
+        val agcCompress = AgcCompress()
+        agcCompress.processAGCFiles(dbPath,altFileListFile,"data/test/smallseq/Ref.fa")
+
+        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}/Ref_Test_output.fa", "composite",refHVCFFileName)
+
+        //Compare the composite against the truth input
+        val truthFasta = NucSeqIO("data/test/smallseq/Ref.fa").readAll()
+        val outputFastaComposite = NucSeqIO("${TestExtension.testOutputFastaDir}/Ref_Test_output.fa").readAll()
+        for(chr in truthFasta.keys) {
+            assertEquals(getChecksumForString(truthFasta[chr]!!.seq()), getChecksumForString(outputFastaComposite[chr]!!.seq()))
+        }
+
+        //build a haplotype fasta as well
+        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}/Ref_Test_output_hap.fa", "haplotype",refHVCFFileName)
+
+        //get truth hashes:
+        val truthHashes = altHeaders.values.map { it.id }.toSet()
+        //load in the haplotypes and build hashes
+        val outputFastaHaplotypes = NucSeqIO("${TestExtension.testOutputFastaDir}/Ref_Test_output_hap.fa").readAll()
+        outputFastaHaplotypes.values.map { getChecksumForString(it.seq()) }.toSet().forEach{
+            assertTrue(truthHashes.contains(it))
+        }
+
+
+
+
+    }
 }
