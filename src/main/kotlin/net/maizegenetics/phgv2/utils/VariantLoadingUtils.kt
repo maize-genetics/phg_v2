@@ -268,6 +268,7 @@ fun createHVCFRecord(assemblyTaxon: String, startPosition: Position, endPosition
         .chr(startPosition.contig)
         .start(startPosition.position.toLong())
         .stop(endPosition.position.toLong())
+        .attribute("END", endPosition.position)
         .alleles(Arrays.asList(refCall, altCall)) // no NON_REF allele for h.vcf files
         .genotypes(gt)
 
