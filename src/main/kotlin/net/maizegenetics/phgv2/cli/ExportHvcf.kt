@@ -24,6 +24,8 @@ class ExportHvcf : CliktCommand() {
 
     override fun run() {
 
+        // This is the tiledbvcf command we want to run:
+        // Doing this with a ProcessBuilder and using the phg_v2 conda environment
         // tiledbvcf export --uri tiledb/hvcf_dataset -O z --sample-names Ref --output-dir exported-vcfs
 
         val builder = ProcessBuilder(
