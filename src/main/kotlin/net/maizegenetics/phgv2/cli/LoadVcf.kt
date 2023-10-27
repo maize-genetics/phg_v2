@@ -20,7 +20,7 @@ import java.util.stream.Collectors
  *      a. if no datasets exist, create them
  *  3. load the gvcf and hvcf files
  */
-class LoadVcf : CliktCommand() {
+class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datasets") {
 
     private val myLogger = LogManager.getLogger(LoadVcf::class.java)
 

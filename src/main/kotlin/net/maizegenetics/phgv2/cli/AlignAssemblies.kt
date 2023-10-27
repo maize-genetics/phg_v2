@@ -20,7 +20,7 @@ import java.util.stream.Collectors
  * genome alignment with relocation variation,
  * chromosome fusion or whole genome duplication.
  */
-class AlignAssemblies : CliktCommand() {
+class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
 
     private val myLogger = LogManager.getLogger(AlignAssemblies::class.java)
 

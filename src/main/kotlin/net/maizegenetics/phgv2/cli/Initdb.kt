@@ -23,7 +23,7 @@ import java.util.stream.Collectors
  *
  * The code will check for the existence of the datasets and will not overwrite them.
  */
-class Initdb : CliktCommand() {
+class Initdb : CliktCommand(help="create tiledb datasets for g.vcf and h.vcf files") {
 
     private val myLogger = LogManager.getLogger(Initdb::class.java)
 
