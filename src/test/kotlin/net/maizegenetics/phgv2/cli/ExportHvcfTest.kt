@@ -2,6 +2,7 @@ package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
 import com.google.common.io.Files
+import net.maizegenetics.phgv2.utils.bgzipAndIndexGVCFfile
 import net.maizegenetics.phgv2.utils.getChecksum
 import org.apache.logging.log4j.LogManager
 import org.junit.jupiter.api.BeforeAll
@@ -35,33 +36,7 @@ class ExportHvcfTest {
 
             Files.copy(File(TestExtension.smallseqRefHvcfFile), File(testHvcfFile))
 
-            var builder = ProcessBuilder("conda", "run", "-n", "phgv2-conda", "bgzip", testHvcfFile)
-            var redirectError = "$exportHvcfDir/bgzip_error.log"
-            var redirectOutput = "$exportHvcfDir/bgzip_output.log"
-            builder.redirectOutput(File(redirectOutput))
-            builder.redirectError(File(redirectError))
-
-            println("bgzip Command: " + builder.command().joinToString(" "))
-            var process = builder.start()
-            var error = process.waitFor()
-            if (error != 0) {
-                myLogger.error("bgzip for $testHvcfFile run via ProcessBuilder returned error code $error")
-                throw IllegalStateException("Error running bgzip for reference: $error")
-            }
-
-            builder = ProcessBuilder("conda", "run", "-n", "phgv2-conda", "tabix", "-p", "vcf", "$testHvcfFile.gz")
-            redirectError = "$exportHvcfDir/tabix_error.log"
-            redirectOutput = "$exportHvcfDir/tabix_output.log"
-            builder.redirectOutput(File(redirectOutput))
-            builder.redirectError(File(redirectError))
-
-            println("tabix Command: " + builder.command().joinToString(" "))
-            process = builder.start()
-            error = process.waitFor()
-            if (error != 0) {
-                myLogger.error("tabix for $testHvcfFile run via ProcessBuilder returned error code $error")
-                throw IllegalStateException("Error running tabix for reference: $error")
-            }
+            bgzipAndIndexGVCFfile(testHvcfFile)
 
             // phg load-vcf --vcf-dir /Users/tmc46/phg_v2/ --db-path tiledb/ --temp-dir tiledb/temp/
 
