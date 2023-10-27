@@ -40,8 +40,8 @@ class FullPipelineIT {
         TODO("Run Anchorwave")
 
         //Run BuildMafVCF
-        val buildMafVCF = BuildMafVcf()
-        buildMafVCF.test("--maf-dir ${TestExtension.testMafDir} -o ${TestExtension.testVCFDir}")
+        val createMafVCF = CreateMafVcf()
+        createMafVCF.test("--maf-dir ${TestExtension.testMafDir} -o ${TestExtension.testVCFDir}")
         //Load All HVCFs into Tile DB
         val loadVCF = LoadVcf()
         loadVCF.test("--vcf-dir ${TestExtension.testVCFDir} --db-path ${TestExtension.testTileDBURI}")

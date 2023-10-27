@@ -44,6 +44,11 @@ private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.SeqUt
  * The rest of the functions in this file are used internally by the above functions.
  *
  */
+
+fun retrieveAgcContigs(dbPath: String, sampleName: String, ranges: List<Pair<Position,Position>>) : Map<String, NucSeq> {
+    val rangesString = buildRangesString(sampleName, ranges)
+    return retrieveAgcContigs(dbPath,rangesString)
+}
 fun retrieveAgcContigs(dbPath:String,ranges:List<String>):Map<String, NucSeq> {
 
     val commands = buildAgcCommandFromList(dbPath, "getctg",ranges)
@@ -56,6 +61,16 @@ fun retrieveAgcGenomes(dbPath:String,genomes:List<String>):Map<String, NucSeq> {
     val commands = buildAgcCommandFromList(dbPath, "getset",genomes)
     val chromNucSeqMap = queryAgc(commands)
     return chromNucSeqMap
+}
+
+fun buildRangesString(sampleName: String, ranges: List<Pair<Position,Position>>) : List<String> {
+    val rangeStrings = mutableListOf<String>()
+    for (range in ranges) {
+        //ctg1@gn1:from1-to1
+        val rangeString = "${range.first.contig}@${sampleName}:${range.first.position}-${range.second.position}"
+        rangeStrings.add(rangeString)
+    }
+    return rangeStrings
 }
 
 /**

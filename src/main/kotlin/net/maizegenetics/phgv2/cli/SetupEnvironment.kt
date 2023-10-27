@@ -16,7 +16,7 @@ import java.util.stream.Collectors
  * Check if this environment already exists.  If an error occurs when
  * creating it, do we assume it exists?
  */
-class SetupEnvironment : CliktCommand() {
+class SetupEnvironment : CliktCommand(help="create conda environment for PHG") {
     // The output directory will store the log and error files from the ProcessBUilder conda create command
     val outputDir by option("-o", "--outputDir", help = "Directory where ProcessBuilder, conda create env command log files will be written")
         .required()
