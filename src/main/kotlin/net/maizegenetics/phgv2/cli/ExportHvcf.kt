@@ -5,7 +5,6 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import org.apache.logging.log4j.LogManager
 import java.io.File
-import java.util.stream.Collectors
 
 /**
  * This will export the give samples dataset to a hvcf file.
@@ -48,7 +47,7 @@ class ExportHvcf : CliktCommand() {
         builder.redirectOutput(File(redirectOutput))
         builder.redirectError(File(redirectError))
 
-        myLogger.info("ExportHvcf Command: " + builder.command().stream().collect(Collectors.joining(" ")));
+        myLogger.info("ExportHvcf Command: " + builder.command().joinToString(" "))
         val process = builder.start()
         val error = process.waitFor()
         if (error != 0) {

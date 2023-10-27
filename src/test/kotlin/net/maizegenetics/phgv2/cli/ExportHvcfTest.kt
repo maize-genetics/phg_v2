@@ -8,7 +8,6 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
-import java.util.stream.Collectors
 import kotlin.test.assertEquals
 
 @ExtendWith(TestExtension::class)
@@ -42,7 +41,7 @@ class ExportHvcfTest {
             builder.redirectOutput(File(redirectOutput))
             builder.redirectError(File(redirectError))
 
-            println("bgzip Command: " + builder.command().stream().collect(Collectors.joining(" ")));
+            println("bgzip Command: " + builder.command().joinToString(" "))
             var process = builder.start()
             var error = process.waitFor()
             if (error != 0) {
@@ -56,7 +55,7 @@ class ExportHvcfTest {
             builder.redirectOutput(File(redirectOutput))
             builder.redirectError(File(redirectError))
 
-            println("tabix Command: " + builder.command().stream().collect(Collectors.joining(" ")));
+            println("tabix Command: " + builder.command().joinToString(" "))
             process = builder.start()
             error = process.waitFor()
             if (error != 0) {
