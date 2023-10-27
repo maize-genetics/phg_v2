@@ -47,6 +47,9 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
     val hvcfFile by option("--hvcf-file", help = "hVCF file to import instead of hitting TileDB")
         .default("")
 
+    /**
+     * Function to build the Fasta file from the HVCF and the agc record.  Right now it does not support pulling from TileDB, but will in the future.
+     */
     fun buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfFile : String) {
         val vcfFileReader = if(hvcfFile == "") {
             //Load in the TileDB
@@ -74,6 +77,9 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
 
     }
 
+    /**
+     * Helper function to parse out the ALT headers from the VCF file
+     */
     fun parseALTHeader(header: VCFHeader) : Map<String, AltHeaderMetaData> {
         //Need to turn the ALT File header into a Map<ID,AltHeaderMetaData>
         return header.metaDataInInputOrder
@@ -100,6 +106,9 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
             }
     }
 
+    /**
+     * Function to create haplotype Sequences for each of the haplotype variants in the hvcf
+     */
     fun createHaplotypeSequences(dbPath:String, sampleName: String, haplotypeVariants: List<VariantContext>, altHeaders: Map<String, AltHeaderMetaData>): List<HaplotypeSequence> {
         return haplotypeVariants.filter { it.hasGenotype(sampleName) }.map {
             val hapId = it.getGenotype(sampleName).getAllele(0).displayString.replace("<","").replace(">","")
@@ -113,6 +122,9 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
         }
     }
 
+    /**
+     * Function to output composite contig sequences to a fasta file
+     */
     fun writeCompositeSequence(outputFile: String, haplotypeSequences: List<HaplotypeSequence>) {
         BufferedWriter(FileWriter(outputFile)).use { output ->
             //group the sequences by chromosome
@@ -130,6 +142,9 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
         }
     }
 
+    /**
+     * Function to output haplotype sequences to a fasta file
+     */
     fun writeHaplotypeSequence(outputFile: String, haplotypeSequences: List<HaplotypeSequence>, exportFullIdLine : Boolean = true) {
         BufferedWriter(FileWriter(outputFile)).use { output ->
             for(hapSeq in haplotypeSequences) {
