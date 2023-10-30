@@ -67,7 +67,8 @@ fun buildRangesString(sampleName: String, ranges: List<Pair<Position,Position>>)
     val rangeStrings = mutableListOf<String>()
     for (range in ranges) {
         //ctg1@gn1:from1-to1
-        val rangeString = "${range.first.contig}@${sampleName}:${range.first.position}-${range.second.position}"
+        //Subtracting 1 from both positions because AGC uses 0-based positions
+        val rangeString = "${range.first.contig}@${sampleName}:${range.first.position-1}-${range.second.position-1}"
         rangeStrings.add(rangeString)
     }
     return rangeStrings
@@ -279,8 +280,8 @@ fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
     // Check for any errors
     val agcError = BufferedInputStream(agcProcess.errorStream, 5000000)
     val errors = agcError.bufferedReader().readLines()
-    myLogger.error("queryAgc: errors found in errorStream: ${errors.size}")
     if (errors != null && errors.size > 0) {
+        myLogger.error("queryAgc: errors found in errorStream: ${errors.size}")
         throw IllegalArgumentException("Error running AGC command: ${commands.joinToString(" ")}\nError: $errors")
     }
     return chromNucSeqMap

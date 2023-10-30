@@ -7,7 +7,7 @@ import com.github.ajalt.clikt.parameters.options.versionOption
 class Phg : CliktCommand() {
 
     // Need an automated way to get version from build.gradle.kts
-    private val version = "2.0.0"
+    private val version = "2.2.0"
 
     init {
         versionOption(version)
@@ -18,5 +18,5 @@ class Phg : CliktCommand() {
 }
 
 fun main(args: Array<String>) = Phg()
-    .subcommands(SetupEnvironment(), Initdb(),  CreateRanges(), AgcCompress(), AlignAssemblies(), CreateRefVcf(), CreateMafVcf(), LoadVcf(), ExportHvcf())
+    .subcommands(SetupEnvironment(), Initdb(),  CreateRanges(), AgcCompress(), AlignAssemblies(), CreateRefVcf(), CreateMafVcf(), LoadVcf(), ExportHvcf(), CreateFastaFromHvcf())
     .main(args)
