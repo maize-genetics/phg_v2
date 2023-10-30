@@ -134,7 +134,9 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
     }
 
     /**
-     * Function to output composite contig sequences to a fasta file
+     * Function to output composite contig sequences to a fasta file.
+     * Here a composite sequence is a pseudo genome where each haplotype sequence for a given chromosome is concatenated together.
+     * Note no Ns are added between the haplotype sequences.
      */
     fun writeCompositeSequence(outputFile: String, haplotypeSequences: List<HaplotypeSequence>) {
         BufferedWriter(FileWriter(outputFile)).use { output ->
@@ -154,7 +156,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
     }
 
     /**
-     * Function to output haplotype sequences to a fasta file
+     * Function to output haplotype sequences to a fasta file.  Here each haplotype is exported as its own fasta record without concatenating things together.
+     * This is almost identical to how fastas were exported in the original version of the pipeline.
      */
     fun writeHaplotypeSequence(outputFile: String, haplotypeSequences: List<HaplotypeSequence>, exportFullIdLine : Boolean = true) {
         BufferedWriter(FileWriter(outputFile)).use { output ->
