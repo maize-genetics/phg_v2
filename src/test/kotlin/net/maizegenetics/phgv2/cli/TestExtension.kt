@@ -24,6 +24,7 @@ class TestExtension : BeforeAllCallback {
         const val smallseqAnchorsGffFile = "data/test/smallseq/anchors.gff"
         const val smallseqGvcfFile = "data/test/smallseq/sample.gvcf"
         const val smallseqAssembliesListFile = "data/test/smallseq/assembliesList.txt"
+        const val smallseqRefHvcfFile = "data/test/smallseq/Ref.h.vcf"
 
         const val refLineName = "Ref"
         const val refFastaName = "Ref.fa"
