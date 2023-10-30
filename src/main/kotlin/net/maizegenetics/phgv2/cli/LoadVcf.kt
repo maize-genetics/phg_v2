@@ -40,14 +40,6 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
             }
         }
 
-    val tempDir by option(help = "Folder where temporary files will be written")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--temp-dir must not be blank"
-            }
-        }
-
     // threads is not required.  Defaults to 1
     // While technically, this should be an "int", it is passed to ProcessBuilder as a string
     // so we're leaving it defined as a string here.
@@ -67,14 +59,13 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
             throw IllegalArgumentException("LoadVCF: No files ending in g.vcf.gz or h.vcf.gz found in $vcfDir.  Note that both the bgzipped and indexed files must exist in the specified folder. \nPlease check the folder and try again.")
         }
 
-
         // verify the URI is correct,
         if (fileLists.first.isNotEmpty()) {
             val gvcfExists = verifyURI(dbPath,"gvcf_dataset")
             if (gvcfExists){
                 // Load the gvcf files!
                 val datasetURI = "${dbPath}/gvcf_dataset"
-                loadVCFToTiledb(fileLists.first, datasetURI, threads, tempDir)
+                loadVCFToTiledb(fileLists.first, datasetURI, threads)
             }
         }
         if (fileLists.second.isNotEmpty()) {
@@ -82,7 +73,7 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
             if (hvcfExists){
                 // Load the hvcf files!
                 val datasetURI = "${dbPath}/hvcf_dataset"
-                loadVCFToTiledb(fileLists.second, datasetURI, threads, tempDir)
+                loadVCFToTiledb(fileLists.second, datasetURI, threads)
             }
         }
 
@@ -123,6 +114,12 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
             throw IllegalArgumentException("URI ${dataset}is a file, not a tiledb dataset folder.  The parent folder must not contain any files/folders named gvcf_dataset or hvcf_dataset that is not a tiledb created URI")
         }
 
+        // Create tne temp folder if it doesn't exist
+        // This will be used to write output files from ProcessBuilder commands
+        // called elsewhere in this class
+        val tempDir = "${dbPath}/temp"
+        File(tempDir).mkdirs()
+
         if (File(dataset).exists()  && Files.isDirectory(Paths.get(dataset))){
             // check if is a tiledb dataset
             var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri",dataset)
@@ -156,7 +153,14 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
         }
     }
 
-    fun loadVCFToTiledb(vcfList:List<String>, uri:String, threads:String, tempDir:String) {
+    fun loadVCFToTiledb(vcfList:List<String>, uri:String, threads:String) {
+
+        // declare tne temp folder
+        // This will be used to write output files from ProcessBuilder commands
+        // called elsewhere in this class.  It should have been created in the
+        // verifyURI function,
+        val tempDir = "${dbPath}/temp"
+
         // get just last part of uri string, ie just the last name in this folder
         val uriName = uri.split("/").last()
         val vcfListFile = "${tempDir}/${uriName}_vcfList.txt"
