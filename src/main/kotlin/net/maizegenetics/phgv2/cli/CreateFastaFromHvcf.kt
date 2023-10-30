@@ -18,6 +18,26 @@ data class AltHeaderMetaData(val id: String, val description:String, val number:
                              val contig:String, val start:Int, val end:Int, val checksum:String, val refRange:String)
 data class HaplotypeSequence(val id: String, val sequence: String, val refRangeId: String, val refContig: String, val refStart: Int, val refEnd: Int,
                              val asmContig : String, val asmStart: Int, val asmEnd: Int)
+
+/**
+ * Class to create either a composite or a haplotype fasta file from an input hvcf file or from TileDB directly.
+ *
+ * As mentioned in the terminology section of the Documentation, a composite fasta file is a fasta file that contains
+ * all of the haplotypes for a given contig concatenated together by contig.  This pseudo genome can be used for rare
+ * allele finding.
+ *
+ * A Haplotype fasta file is where we output each haplotype as a separate fasta entry.  This can be used for read
+ * mapping purposes and imputation purposes or simple haplotype sequence retrieval.
+ *
+ * The class can be used in two ways.  The first is to create a fasta file from a hvcf file.  The second is to create a
+ * fasta file from TileDB directly.  The first method is useful for creating a fasta file from a hvcf file that is
+ * already created.  The second method is useful for creating a fasta file directly from a TileDB database to avoid
+ * having to create an intermediate hvcf file first.
+ *
+ *
+ * Note as of now, the class only supports creating a fasta file from a hvcf file.  The TileDB functionality will be
+ * added in the future.
+ */
 class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvcf file/TileDB") {
 
     val dbPath by option(help = "Tile DB URI")
@@ -48,7 +68,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
         .default("")
 
     /**
-     * Function to build the Fasta file from the HVCF and the agc record.  Right now it does not support pulling from TileDB, but will in the future.
+     * Function to build the Fasta file from the HVCF and the agc record.
+     * Right now it does not support pulling from TileDB, but will in the future.
      */
     fun buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfFile : String) {
         val vcfFileReader = if(hvcfFile == "") {
