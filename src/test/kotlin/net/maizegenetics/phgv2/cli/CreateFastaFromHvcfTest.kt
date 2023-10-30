@@ -2,7 +2,10 @@ package net.maizegenetics.phgv2.cli
 
 import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.testing.test
+import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFFileReader
+import htsjdk.variant.vcf.VCFHeader
+import htsjdk.variant.vcf.VCFHeaderVersion
 import net.maizegenetics.phgv2.utils.getChecksumForString
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -12,6 +15,7 @@ import java.io.File
 import java.io.FileWriter
 import java.util.*
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 @ExtendWith(TestExtension::class)
@@ -113,6 +117,138 @@ class CreateFastaFromHvcfTest {
         assertEquals(currentHeader581?.end, 1000)
         assertEquals(currentHeader581?.checksum, "Md5")
         assertEquals(currentHeader581?.refRange, "5812acb1aff74866003656316c4539a6")
+
+        //Note, ID and description are both required by VCFAltHeaderLine so we do not need to check them.
+        assertFailsWith<IllegalStateException>(
+            message = "No exception found when Testing Number",
+            block = {
+                createFastaFromHvcf.parseALTHeader(VCFHeader(setOf(VCFAltHeaderLine("<ID=id," +
+                        "Description=\"haplotype data for line: testSample\">," +
+                        "Number_bad=9," +
+                        "Source=\"archive.agc\"," +
+                        "Contig=\"1\"," +
+                        "Start=\"100\"," +
+                        "End=\"200\"," +
+                        "Asm_Contig=\"1\"," +
+                        "Asm_Start=\"200\"," +
+                        "Asm_End=\"300\"," +
+                        "Checksum=\"Md5\"," +
+                        "RefRange=\"id\">", VCFHeaderVersion.VCF4_2))))
+            }
+        )
+
+        assertFailsWith<IllegalStateException>(
+            message = "No exception found when Testing Source",
+            block = {
+                createFastaFromHvcf.parseALTHeader(VCFHeader(setOf(VCFAltHeaderLine("<ID=id," +
+                        "Description=\"haplotype data for line: testSample\">," +
+                        "Number=9," +
+                        "Source_bad=\"archive.agc\"," +
+                        "Contig=\"1\"," +
+                        "Start=\"100\"," +
+                        "End=\"200\"," +
+                        "Asm_Contig=\"1\"," +
+                        "Asm_Start=\"200\"," +
+                        "Asm_End=\"300\"," +
+                        "Checksum=\"Md5\"," +
+                        "RefRange=\"id\">", VCFHeaderVersion.VCF4_2))))
+            }
+        )
+
+        assertFailsWith<IllegalStateException>(
+            message = "No exception found when Testing Contig",
+            block = {
+                createFastaFromHvcf.parseALTHeader(VCFHeader(setOf(VCFAltHeaderLine("<ID=id," +
+                        "Description=\"haplotype data for line: testSample\">," +
+                        "Number=9," +
+                        "Source=\"archive.agc\"," +
+                        "Contig_bad=\"1\"," +
+                        "Start=\"100\"," +
+                        "End=\"200\"," +
+                        "Asm_Contig=\"1\"," +
+                        "Asm_Start=\"200\"," +
+                        "Asm_End=\"300\"," +
+                        "Checksum=\"Md5\"," +
+                        "RefRange=\"id\">", VCFHeaderVersion.VCF4_2))))
+            }
+        )
+
+        assertFailsWith<IllegalStateException>(
+            message = "No exception found when Testing Start",
+            block = {
+                createFastaFromHvcf.parseALTHeader(VCFHeader(setOf(VCFAltHeaderLine("<ID=id," +
+                        "Description=\"haplotype data for line: testSample\">," +
+                        "Number=9," +
+                        "Source=\"archive.agc\"," +
+                        "Contig=\"1\"," +
+                        "Start_bad=\"100\"," +
+                        "End=\"200\"," +
+                        "Asm_Contig=\"1\"," +
+                        "Asm_Start=\"200\"," +
+                        "Asm_End=\"300\"," +
+                        "Checksum=\"Md5\"," +
+                        "RefRange=\"id\">", VCFHeaderVersion.VCF4_2))))
+            }
+        )
+        assertFailsWith<IllegalStateException>(
+            message = "No exception found when Testing End",
+            block = {
+                createFastaFromHvcf.parseALTHeader(VCFHeader(setOf(VCFAltHeaderLine("<ID=id," +
+                        "Description=\"haplotype data for line: testSample\">," +
+                        "Number=9," +
+                        "Source=\"archive.agc\"," +
+                        "Contig=\"1\"," +
+                        "Start=\"100\"," +
+                        "End_bad=\"200\"," +
+                        "Asm_Contig=\"1\"," +
+                        "Asm_Start=\"200\"," +
+                        "Asm_End=\"300\"," +
+                        "Checksum=\"Md5\"," +
+                        "RefRange=\"id\">", VCFHeaderVersion.VCF4_2))))
+            }
+        )
+        assertFailsWith<IllegalStateException>(
+            message = "No exception found when Testing checksum",
+            block = {
+                createFastaFromHvcf.parseALTHeader(VCFHeader(setOf(VCFAltHeaderLine("<ID=id," +
+                        "Description=\"haplotype data for line: testSample\">," +
+                        "Number=9," +
+                        "Source=\"archive.agc\"," +
+                        "Contig=\"1\"," +
+                        "Start=\"100\"," +
+                        "End=\"200\"," +
+                        "Asm_Contig=\"1\"," +
+                        "Asm_Start=\"200\"," +
+                        "Asm_End=\"300\"," +
+                        "Checksum_bad=\"Md5\"," +
+                        "RefRange=\"id\">", VCFHeaderVersion.VCF4_2))))
+            }
+        )
+        assertFailsWith<IllegalStateException>(
+            message = "No exception found when Testing refRange",
+            block = {
+                createFastaFromHvcf.parseALTHeader(VCFHeader(setOf(VCFAltHeaderLine("<ID=id," +
+                        "Description=\"haplotype data for line: testSample\">," +
+                        "Number=9," +
+                        "Source=\"archive.agc\"," +
+                        "Contig=\"1\"," +
+                        "Start=\"100\"," +
+                        "End=\"200\"," +
+                        "Asm_Contig=\"1\"," +
+                        "Asm_Start=\"200\"," +
+                        "Asm_End=\"300\"," +
+                        "Checksum=\"Md5\"," +
+                        "RefRange_bad=\"id\">", VCFHeaderVersion.VCF4_2))))
+            }
+        )
+        //                check(idsToValueMap.containsKey("Description")) { "ALT Header does not contain Description" }
+        //                check(idsToValueMap.containsKey("Number")) { "ALT Header does not contain Number" }
+        //                check(idsToValueMap.containsKey("Source")) { "ALT Header does not contain Source" }
+        //                check(idsToValueMap.containsKey("Contig")) { "ALT Header does not contain Contig" }
+        //                check(idsToValueMap.containsKey("Start")) { "ALT Header does not contain Start" }
+        //                check(idsToValueMap.containsKey("End")) { "ALT Header does not contain End" }
+        //                check(idsToValueMap.containsKey("Checksum")) { "ALT Header does not contain Checksum" }
+        //                check(idsToValueMap.containsKey("RefRange")) { "ALT Header does not contain RefRange" }
 
     }
 
