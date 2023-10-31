@@ -44,7 +44,7 @@ class ExportHvcfTest {
             // phg load-vcf --vcf-dir /Users/tmc46/phg_v2/ --db-path tiledb/ --temp-dir tiledb/temp/
 
             val result = LoadVcf().test(
-                "--vcf-dir $inputHvcfDir --db-path $dbPath --temp-dir $exportHvcfDir"
+                "--vcf-dir $inputHvcfDir --db-path $dbPath "
             )
 
             println("setup: load vcf output: ${result.output}")
