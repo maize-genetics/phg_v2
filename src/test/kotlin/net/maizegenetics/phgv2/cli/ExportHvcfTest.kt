@@ -58,10 +58,10 @@ class ExportHvcfTest {
     @Test
     fun testRunningExportHvcf() {
 
-        // phg export-hvcf --dbpath tiledb --sample-names Ref -o exported-vcfs
+        // phg export-hvcf --db-path tiledb --sample-names Ref -o exported-vcfs
 
         val result = ExportHvcf().test(
-            "--dbpath $dbPath --sample-names Ref -o $outputHvcfDir"
+            "--db-path $dbPath --sample-names Ref -o $outputHvcfDir"
         )
 
         println("testRunningExportHvcf: result output: ${result.output}")
@@ -81,7 +81,7 @@ class ExportHvcfTest {
     @Test
     fun testCliktParams() {
 
-        // Test missing dbpath parameter
+        // Test missing db-path parameter
         val resultMissingDbpath = ExportHvcf().test(
             "--sample-names Ref -o $outputHvcfDir"
         )
@@ -89,16 +89,15 @@ class ExportHvcfTest {
         assertEquals(
             "Usage: export-hvcf [<options>]\n" +
                     "\n" +
-                    "Error: missing option --dbpath\n",
+                    "Error: missing option --db-path\n",
             resultMissingDbpath.output
         )
 
         // Test missing sample-names parameter
         val resultMissingSampleNames = ExportHvcf().test(
-            "--dbpath $dbPath -o $outputHvcfDir"
+            "--db-path $dbPath -o $outputHvcfDir"
         )
         assertEquals(resultMissingSampleNames.statusCode, 1)
-        println(resultMissingSampleNames.output)
         assertEquals(
             "Usage: export-hvcf [<options>]\n" +
                     "\n" +
@@ -108,10 +107,9 @@ class ExportHvcfTest {
 
         // Test missing output dir parameter
         val resultMissingOutputDir = ExportHvcf().test(
-            "--dbpath $dbPath --sample-names Ref"
+            "--db-path $dbPath --sample-names Ref"
         )
         assertEquals(resultMissingOutputDir.statusCode, 1)
-        println(resultMissingOutputDir.output)
         assertEquals(
             "Usage: export-hvcf [<options>]\n" +
                     "\n" +

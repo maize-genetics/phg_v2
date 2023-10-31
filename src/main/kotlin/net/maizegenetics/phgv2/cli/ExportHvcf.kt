@@ -13,7 +13,7 @@ class ExportHvcf : CliktCommand() {
 
     private val myLogger = LogManager.getLogger(ExportHvcf::class.java)
 
-    val dbpath by option(help = "Folder name where TileDB datasets are stored")
+    val dbPath by option(help = "Folder name where TileDB datasets are stored")
         .required()
 
     val sampleNames by option(help = "Sample names to export")
@@ -36,7 +36,7 @@ class ExportHvcf : CliktCommand() {
             "tiledbvcf",
             "export",
             "--uri",
-            "$dbpath/hvcf_dataset",
+            "$dbPath/hvcf_dataset",
             "-O",
             "v",
             "--sample-names",
