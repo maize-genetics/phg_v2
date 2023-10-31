@@ -82,10 +82,10 @@ specification (`VCFv4.4`).
 
 #### Alternative allele (`##ALT`) field
 The primary driver of the hVCF specification is information stored
-within the alternative allele field. At its core, the alternative 
-allele field contains two primary key-values pairs, the `ID` and 
-`Description` which describe symbolic alternate alleles in the `ALT` 
-column of VCF records. While this field is usually used 
+within the structured alternative allele field. At its core, the 
+alternative allele field contains two primary key-values pairs, the 
+`ID` and `Description` which describe symbolic alternate alleles in 
+the `ALT` column of VCF records. While this field is usually used 
 to describe possible structural variants and 
 [IUPAC ambiguity codes](https://www.bioinformatics.org/sms/iupac.html),
 here it is used to represent a haplotype sequence and ID for a 
@@ -104,33 +104,98 @@ Take the following example:
 ##ALT=<ID=4c81af3c2f102652b58a3af21355bc25,Description="haplotype data for line: B97",Number=9,Source="data/test/buildMAFVCF/B97_ASM_Test.fa",Contig=chr7,Start=451,End=456,Asm_Contig=chr4,Asm_Start=5247,Asm_End=5252,Checksum=Md5,RefRange=20b13a1d5b466ff438174aa897c985f7>
 ```
 
-Here, we have the following keys:
+Here, we have the following information:
 
-| Key           | Description                                                         |
-|---------------|---------------------------------------------------------------------|
-| `ID`          | MD5 checksum for haplotype sequence                                 |
-| `Description` | Information about the origin of the haplotype sequence              |
-| `Number`      | Number of fields following the `Description` key                    |
-| `Source`      | Fasta file ID and path containing haplotype sequence                |
-| `Contig`      | Sequence identifier for reference range                             |
-| `Start`       | Start position (bp) for reference range                             |
-| `End`         | End position (bp) of reference range                                |
-| `ASM_Contig`  | Sequence identifier for assembly data containing haplotype sequence |
-| `ASM_Start`   | Start position (bp) for assembly data containing haplotype sequence |
-| `ASM_End`     | End position (bp) for assembly data containing haplotype sequence   |
-| `Checksum`    | Identifier describing the digest hashing algorithm for the `ID` key |
-| `RefRange`    | MD5 checksum identifier for reference sequence                      |
+| Key           | Value                                     | Description                                                         |
+|---------------|-------------------------------------------|---------------------------------------------------------------------|
+| `ID`          | `4c81af3c2f102652b58a3af21355bc25`        | MD5 checksum identifier for haplotype sequence                      |
+| `Description` | `"haplotype data for line: B97"`          | Information about the origin of the haplotype sequence              |
+| `Number`      | `9`                                       | Number of fields following the `Description` key                    |
+| `Source`      | `"data/test/buildMAFVCF/B97_ASM_Test.fa"` | Fasta file ID and path containing haplotype sequence                |
+| `Contig`      | `chr7`                                    | Sequence identifier for reference range                             |
+| `Start`       | `451`                                     | Start position (bp) for reference range                             |
+| `End`         | `456`                                     | End position (bp) of reference range                                |
+| `ASM_Contig`  | `chr4`                                    | Sequence identifier for assembly data containing haplotype sequence |
+| `ASM_Start`   | `5247`                                    | Start position (bp) for assembly data containing haplotype sequence |
+| `ASM_End`     | `5252`                                    | End position (bp) for assembly data containing haplotype sequence   |
+| `Checksum`    | `Md5`                                     | Identifier describing the digest hashing algorithm for the `ID` key |
+| `RefRange`    | `20b13a1d5b466ff438174aa897c985f7`        | MD5 checksum identifier for reference sequence                      |
 
 #### Individual format (`##FORMAT`) field
+The meta-information contained in the individual format field closely 
+adheres to the VCF specification. This structured field provides a 
+description of the IDs found within the `FORMAT` column of the data 
+rows. The necessary keys are as follows:
 
+| Key           | Description                                                                          |
+|---------------|--------------------------------------------------------------------------------------|
+| `ID`          | Identifier for `FORMAT` entry                                                        |
+| `Number`      | Number (integer) of values representing `ID`                                         |
+| `Type`        | [Data type](http://samtools.github.io/hts-specs/VCFv4.4.pdf#subsection.1.3) for `ID` |
+| `Description` | Descriptive information about `ID`                                                   |
+
+
+#### Information (`##INFO`) field 
+Much like the `##FORMAT` field, the `##INFO` field is a structured 
+meta-information field that provides details pertaining to each 
+reference range and the corresponding haplotype data contained within 
+those reference ranges. The necessary keys are as follows:
+
+| Key           | Description                                                                          |
+|---------------|--------------------------------------------------------------------------------------|
+| `ID`          | Identifier for `FORMAT` entry                                                        |
+| `Number`      | Number (integer) of values representing `ID`                                         |
+| `Type`        | [Data type](http://samtools.github.io/hts-specs/VCFv4.4.pdf#subsection.1.3) for `ID` |
+| `Description` | Descriptive information about `ID`                                                   |
+
+In order to properly represent the information regarding reference
+ranges, the following values are required:
+
+| Value        | Description                          |
+|--------------|--------------------------------------|
+| `AF`         | Allele frequency                     |
+| `ASM_Chr`    | Assembly chromosome                  |
+| `ASM_Start`  | Assembly start position (bp)         |
+| `ASM_End`    | Assembly end position (bp)           |
+| `ASM_Strand` | Assembly strand                      |
+| `DP`         | Total depth                          |
+| `End`        | End position of reference range (bp) |
+| `NS`         | Number of samples with data          |
+
+By combining the values identified within the `POS` column and the
+`End` value, we can specify the total length of the reference range
+along with assembly information.
 
 
 #### Sequence information (`##contig`) field
+The contig field is used to detail additional attributes for
+each sequence represented within the haplotype data. For now,
+this is a structured field requiring the identifier (`ID`) for the 
+sequence and the length of the mentioned sequence (`length`)
+
 
 ### Header
+Like the VCF specifications, the 8 mandatory tab-delimited column 
+headers are required:
+
+* `#CHROM`
+* `POS`
+* `ID`
+* `REF`
+* `ALT`
+* `QUAL`
+* `FILTER`
+
+Since genotype (i.e. haplotype information) data is also required,
+the `FORMAT` column is also required.
+
+> [!NOTE]
+> The end of the line must have no tab characters (`\t`).
+
 
 ### Data rows
+_WIP_
 
 ### Haplotype information
-
+_WIP_
 
