@@ -89,12 +89,14 @@ class CreateMafVCFTest {
 
         assertEquals(Position("chr1", 1), ranges[0].first)
         assertEquals(Position("chr1", 40), ranges[0].second)
-        assertEquals(Position("chr10", 1), ranges[1].first)
-        assertEquals(Position("chr10", 40), ranges[1].second)
-        assertEquals(Position("chr7", 15), ranges[2].first)
-        assertEquals(Position("chr7", 48), ranges[2].second)
-        assertEquals(Position("chr7", 451), ranges[3].first)
-        assertEquals(Position("chr7", 456), ranges[3].second)
+
+        assertEquals(Position("chr7", 15), ranges[1].first)
+        assertEquals(Position("chr7", 48), ranges[1].second)
+        assertEquals(Position("chr7", 451), ranges[2].first)
+        assertEquals(Position("chr7", 456), ranges[2].second)
+
+        assertEquals(Position("chr10", 1), ranges[3].first)
+        assertEquals(Position("chr10", 40), ranges[3].second)
 
     }
 
@@ -137,7 +139,6 @@ class CreateMafVCFTest {
 
 
         val createMAFVCF = CreateMafVcf()
-//        createMAFVCF.test("--db-path data/test/buildMAFVCF/B97_ASM_Test.fa --bed data/test/buildMAFVCF/B73_Test.bed --reference data/test/buildMAFVCF/B73_Test.fa --maf-dir data/test/buildMAFVCF/mafs/ -o ${TestExtension.testVCFDir}")
         createMAFVCF.test("--db-path ${dbPath} --bed data/test/buildMAFVCF/B73_Test.bed --reference ${refFasta} --maf-dir data/test/buildMAFVCF/mafs/ -o ${TestExtension.testVCFDir}")
 
         //compare the contents of the output gVCF files to the expected output
