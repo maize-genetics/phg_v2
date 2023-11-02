@@ -107,12 +107,12 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
             check(altHeaders.containsKey(hapId)) { "Haplotype ID $hapId not found in ALT Header" }
             val altMetaData = altHeaders[hapId]
             //Need to subtract 1 from start as it uses 0 based format
-            val ranges = listOf("${altMetaData!!.contig}@${sampleName}:${altMetaData!!.start-1}-${altMetaData!!.end-1}")
+            val range = "${altMetaData!!.contig}@${sampleName}:${altMetaData!!.start-1}-${altMetaData!!.end-1}"
             val outputDisplayName = "${altMetaData!!.contig}:${altMetaData!!.start-1}-${altMetaData!!.end-1}"
-            Triple(ranges, outputDisplayName, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, altMetaData!!.contig, altMetaData!!.start, altMetaData!!.end))
+            Triple(range, outputDisplayName, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, altMetaData!!.contig, altMetaData!!.start, altMetaData!!.end))
         }
 
-        val ranges = rangesAndOtherInfo.map { it.first }.flatten()
+        val ranges = rangesAndOtherInfo.map { it.first }
         val seqs = retrieveAgcContigs(dbPath,ranges)
 
         return rangesAndOtherInfo.map { it.third.copy(sequence = seqs[it.second]!!.seq()) }
