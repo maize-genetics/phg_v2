@@ -38,25 +38,19 @@ class LoadVCFTest {
         val loadVCF = LoadVcf()
 
         // Test missing vcf-dir parameter
-        val resultMissingVCFDir = loadVCF.test("--db-path ${TestExtension.testTileDBURI} --temp-dir ${TestExtension.tempDir}")
+        val resultMissingVCFDir = loadVCF.test("--db-path ${TestExtension.testTileDBURI} ")
         assertEquals(resultMissingVCFDir.statusCode, 1)
         assertEquals("Usage: load-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --vcf-dir: --vcf-dir must not be blank\n",resultMissingVCFDir.output)
 
         // Test missing db-path parameter
-        val resultMissingDB = loadVCF.test("--vcf-dir ${TestExtension.testVCFDir} --temp-dir ${TestExtension.tempDir}")
+        val resultMissingDB = loadVCF.test("--vcf-dir ${TestExtension.testVCFDir} ")
         assertEquals(resultMissingDB.statusCode, 1)
         assertEquals("Usage: load-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --db-path: --db-path must not be blank\n",resultMissingDB.output)
 
-        // Test missing temp-dir parameter
-        val resultMissingTempDir = loadVCF.test("--vcf-dir ${TestExtension.testVCFDir} --db-path ${TestExtension.testTileDBURI}")
-        assertEquals(resultMissingTempDir.statusCode, 1)
-        assertEquals("Usage: load-vcf [<options>]\n" +
-                "\n" +
-                "Error: invalid value for --temp-dir: --temp-dir must not be blank\n",resultMissingTempDir.output)
     }
 
     @Test
@@ -90,7 +84,7 @@ class LoadVCFTest {
         // Recreate it as a directory
         val dirURI = "${TestExtension.tempDir}hvcf_dataset"
         File(dirURI).mkdirs()
-        assertThrows<IllegalStateException> {
+        assertThrows<IllegalArgumentException> {
             //Check that an error is thrown when the dbPath is good, but the URI is a regular directory file, not a tiledb array
             LoadVcf().verifyURI(goodPath, fileURI)
         }
@@ -155,7 +149,7 @@ class LoadVCFTest {
         // This call hits code that returns with an error message there are no vcf files to load
         assertThrows<IllegalArgumentException> {
             //Check that an error is thrown when the dbPath is good, but the URI is a regular directory file, not a tiledb array
-            loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} --temp-dir ${TestExtension.tempDir}")
+            loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
         }
 
         // copy the files from data/test/smallseq to the tempDir
@@ -174,7 +168,7 @@ class LoadVCFTest {
 
         // now load the vcf files stored in the data/test/smallseq folder
         vcfDir = TestExtension.testVCFDir
-        val result = loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} --temp-dir ${TestExtension.tempDir}")
+        val result = loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
 
         // to verify the load worked, need to query tiledb for sample names and other data
         // This isn't going to work until we have means to query tiledb arrays.

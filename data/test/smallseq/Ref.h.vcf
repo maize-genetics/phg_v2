@@ -1,4 +1,4 @@
-##fileformat=VCFv4.3
+##fileformat=VCFv4.2
 ##FILTER=<ID=PASS,Description="All filters passed">
 ##ALT=<ID=06ae4e937668d301e325d43725a38c3f,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=45001,End=49500,Checksum=Md5,RefRange=06ae4e937668d301e325d43725a38c3f>
 ##ALT=<ID=073286a82fe47d6a370e8a7a3803f1d3,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=39501,End=44000,Checksum=Md5,RefRange=073286a82fe47d6a370e8a7a3803f1d3>

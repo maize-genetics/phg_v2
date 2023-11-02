@@ -171,7 +171,7 @@ class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference g
                     // headerLines.add(VCFAltHeaderLine("<ID=${intervalHash}, Description=\"${nodeDescription(node)}\">", VCFHeaderVersion.VCF4_2))
                     altHeaderLines.add(
                         VCFAltHeaderLine(
-                            "<ID=${intervalHash}, Description=\"haplotype data for line: ${refName}\">,Number=9,Source=\"${refGenome}\",Contig=\"${chr}\",Start=\"${anchorStart}\",End=\"${anchorEnd}\",Asm_Contig=\"${chr}\",Asm_Start=\"${anchorStart}\",Asm_End=\"${anchorEnd}\",Checksum=\"Md5\",RefRange=\"${intervalHash}\">",
+                            "<ID=${intervalHash}, Description=\"haplotype data for line: ${refName}\">,Number=6,Source=\"${refGenome}\",Contig=\"${chr}\",Start=\"${anchorStart}\",End=\"${anchorEnd}\",Checksum=\"Md5\",RefRange=\"${intervalHash}\">",
                             VCFHeaderVersion.VCF4_2
                         )
                     )
