@@ -18,13 +18,13 @@ class FullPipelineIT {
 
     }
 
-    @Ignore
     @Test
     fun testFullPipeline() {
         //Run the full pipeline
         //Create environment
 
-        TODO("Call CreateEnvironment command")
+        val setupEnv = SetupEnvironment()
+        setupEnv.test("--output-dir ${TestExtension.tempDir}")
 
         //Run InitDB
         val initdb = Initdb()
@@ -37,11 +37,17 @@ class FullPipelineIT {
         createRefVcf.test("--bed ${TestExtension.testBEDFile} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
 
         //Run Anchorwave
-        TODO("Run Anchorwave")
+        val alignAssemblies = AlignAssemblies()
+        alignAssemblies.test(
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --ref ${TestExtension.smallseqRefFile} " +
+                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.testMafDir}"
+        )
 
+        TODO("Fix CreateMafToVCF")
         //Run BuildMafVCF
         val createMafVCF = CreateMafVcf()
-        createMafVCF.test("--maf-dir ${TestExtension.testMafDir} -o ${TestExtension.testVCFDir}")
+        createMafVCF.test("--db-path ${TestExtension.testTileDBURI} ${TestExtension.testBEDFile} " +
+                "--reference ${TestExtension.testRefFasta} --maf-dir ${TestExtension.testMafDir} -o ${TestExtension.testVCFDir}")
         //Load All HVCFs into Tile DB
         val loadVCF = LoadVcf()
         loadVCF.test("--vcf-dir ${TestExtension.testVCFDir} --db-path ${TestExtension.testTileDBURI}")
