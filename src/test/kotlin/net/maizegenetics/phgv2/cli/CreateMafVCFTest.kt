@@ -176,12 +176,11 @@ class CreateMafVCFTest {
         val seqCoords = outputHeader.map {
             val tokens = it.toString().split("<")[1]
                 .split(",")
-                .filter { token -> token.startsWith("Asm") }
                 .map { token -> token.split("=") }.associate { token -> Pair(token[0], token[1]) }
 
-            val chr = tokens["Asm_Contig"]!!
-            val start = tokens["Asm_Start"]!!.toInt()
-            val end = tokens["Asm_End"]!!.toInt()
+            val chr = tokens["Contig"]!!
+            val start = tokens["Start"]!!.toInt()
+            val end = tokens["End"]!!.toInt()
             Pair(Position(chr, start), Position(chr, end))
         }.toSet()
 

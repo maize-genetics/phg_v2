@@ -150,7 +150,6 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
          * Then extract the sequence out of the AGC archive and md5 hash it
          * Then call the createHVCFRecord with this information
          */
-//        val outputVariants = mutableListOf<VariantContext>()
         val outputVariantMetadata = mutableListOf<HVCFRecordMetadata>()
         var currentVariantIdx = 0
         for(region in bedRanges) {
@@ -172,15 +171,12 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 //If variant is partially contained in Bed region add to temp list do not increment as we need to see if the next bed also overlaps
                 //If variant is not contained in Bed region, skip and do not increment as we need to see if the next bed overlaps
                 if(bedRegionContainedInVariant(region, currentVariant)) {
-//                    outputVariants.add(convertGVCFRecordsToHVCF(sampleName, region, refRangeSeq, agcArchiveName, listOf(currentVariant), asmHeaders))
                     outputVariantMetadata.add(
                         convertGVCFRecordsToHVCFMetaData(
                             sampleName,
                             region,
                             refRangeSeq,
-                            agcArchiveName,
-                            listOf(currentVariant),
-                            asmHeaders
+                            listOf(currentVariant)
                         )
                     )
 
@@ -203,28 +199,15 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 else if(variantAfterRegion(region, currentVariant)) {
                     //write out what is in tempVariants
                     if(tempVariants.isNotEmpty()) {
-//                        outputVariants.add(
-//                            convertGVCFRecordsToHVCF(
-//                                sampleName,
-//                                region,
-//                                refRangeSeq,
-//                                agcArchiveName,
-//                                tempVariants,
-//                                asmHeaders
-//                            )
-//                        )
                         outputVariantMetadata.add(
                             convertGVCFRecordsToHVCFMetaData(sampleName,
                                 region,
                                 refRangeSeq,
-                                agcArchiveName,
-                                tempVariants,
-                                asmHeaders
+                                tempVariants
                             )
                         )
 
                         tempVariants.clear()
-
                     }
                     //move up Bed region
                     break
@@ -235,28 +218,15 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 }
             }
             if(tempVariants.isNotEmpty()) {
-//                outputVariants.add(
-//                    convertGVCFRecordsToHVCF(
-//                        sampleName,
-//                        region,
-//                        refRangeSeq,
-//                        agcArchiveName,
-//                        tempVariants,
-//                        asmHeaders
-//                    )
-//                )
                 outputVariantMetadata.add(
                     convertGVCFRecordsToHVCFMetaData(
                         sampleName,
                         region,
                         refRangeSeq,
-                        agcArchiveName,
-                        tempVariants,
-                        asmHeaders
+                        tempVariants
                     )
                 )
                 tempVariants.clear()
-
             }
         }
 
@@ -317,62 +287,12 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         return variant.contig == region.first.contig && variant.start > region.second.position
     }
 
+
     /**
-     * Function to convert a list of GVCF records into a single HVCF record
+     * Function to extract all the needed information out of the ASM gVCF record and put them into HVCFRecordMetadata objects
+     * This will first try to resize the positions based on the ref start position and then will extract out all the other information.
      */
-    fun convertGVCFRecordsToHVCF(sampleName: String, region: Pair<Position,Position>, refRangeSeq: NucSeq, agcArchiveName: String ,variants: List<VariantContext>, asmHeaders: MutableMap<String,VCFHeaderLine> ) : VariantContext {
-        //Take the first and the last variantContext
-        val firstVariant = variants.first()
-        val lastVariant = variants.last()
-
-        //val check strandedness of the variants
-        val strand = firstVariant.getAttributeAsString("ASM_Strand","+")
-        check(strand == lastVariant.getAttributeAsString("ASM_Strand","+")) { "Strand of first and last variantContexts do not match" }
-        //Resize the first and last variantContext ASM start and end based on the regions
-        var newASMStart = resizeVariantContext(firstVariant, region.first.position, strand)
-        if(newASMStart == -1) {
-            newASMStart = if(strand == "+") firstVariant.getAttributeAsInt("ASM_Start",region.first.position)
-                            else firstVariant.getAttributeAsInt("ASM_End",region.first.position)
-        }
-
-        var newASMEnd = resizeVariantContext(lastVariant, region.second.position, strand)
-        if(newASMEnd == -1) {
-            newASMEnd = if(strand == "+") lastVariant.getAttributeAsInt("ASM_End",region.second.position)
-                            else lastVariant.getAttributeAsInt("ASM_Start",region.second.position)
-        }
-
-        //Extract out the sequence for the assembly haplotype TODO add this in after testing.
-//        val seqs = retrieveAgcContigs(agcArchiveName,firstVariant.sampleNames.first(),
-//            listOf(Pair(Position(firstVariant.getAttributeAsString("ASM_Chr",""), newASMStart),
-//                                Position(firstVariant.getAttributeAsString("ASM_Chr",""),newASMEnd) )))
-//
-//        val assemblyHaplotypeSeq = seqs[seqs.keys.first()]?.seq()?:""
-        val assemblyHaplotypeSeq:String = extractSequenceFromHaplotypes(firstVariant.sampleNames.first(), firstVariant.getAttributeAsString("ASM_Chr",""), newASMStart, newASMEnd, agcArchiveName)
-        //md5 hash the assembly sequence
-        val assemblyHaplotypeHash = getChecksumForString(assemblyHaplotypeSeq)
-        //md5 has the refSequence
-        val refSeqHash = getChecksumForString(refRangeSeq.toString())
-
-        //create the asmHeader lines
-        if(!asmHeaders.containsKey(assemblyHaplotypeHash)) {
-            asmHeaders[assemblyHaplotypeHash] =
-                VCFAltHeaderLine(
-                    "<ID=${assemblyHaplotypeHash}, Description=\"haplotype data for line: ${sampleName}\">,Number=9,Source=\"${agcArchiveName}\",Contig=\"${region.first.contig}\",Start=\"${region.first.position}\",End=\"${region.second.position}\",Asm_Contig=\"${
-                        firstVariant.getAttributeAsString(
-                            "ASM_Chr",
-                            ""
-                        )
-                    }\",Asm_Start=\"${newASMStart}\",Asm_End=\"${newASMEnd}\",Checksum=\"Md5\",RefRange=\"${refSeqHash}\">",
-                    VCFHeaderVersion.VCF4_2
-                )
-        }
-
-
-        //build a variant context of the HVCF with the hashes
-        return createHVCFRecord(sampleName, region.first, region.second, Pair(refRangeSeq[0].toString(), assemblyHaplotypeHash))
-    }
-
-    fun convertGVCFRecordsToHVCFMetaData(sampleName: String, region: Pair<Position,Position>, refRangeSeq: NucSeq, agcArchiveName: String ,variants: List<VariantContext>, asmHeaders: MutableMap<String,VCFHeaderLine> ) : HVCFRecordMetadata {
+    fun convertGVCFRecordsToHVCFMetaData(sampleName: String, region: Pair<Position,Position>, refRangeSeq: NucSeq, variants: List<VariantContext> ) : HVCFRecordMetadata {
         //Take the first and the last variantContext
         val firstVariant = variants.first()
         val lastVariant = variants.last()
@@ -401,6 +321,10 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         )
     }
 
+    /**
+     * This function will bulk load sequences in from the AGC record and then will associate the returned sequences
+     * with the metadata record which contains the coordiantes for the query and will add in the asmSeq.
+     */
     fun addSequencesToMetaData(dbPath: String, metadata: List<HVCFRecordMetadata>) : List<HVCFRecordMetadata> {
         //get out the assembly coordinates and build them into the regions
         val metaDataToRangeLookup = metadata.map {
@@ -412,13 +336,20 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         val ranges = metaDataToRangeLookup.map { it.second }
         val seqs = retrieveAgcContigs(dbPath,ranges)
 
-        return metaDataToRangeLookup.map { it.first.copy(asmSeq = seqs[it.third]!!.seq()) }
+        return metaDataToRangeLookup.map { it.first.copy(asmSeq = seqs[it.third]!!.seq()) } //This is a useful way to keep things immutable
     }
 
+    /**
+     * Simple function to convert the all the HVCFRecordMetadata records into VariantContext records
+     */
     fun convertMetaDataToHVCFContexts(metaData: List<HVCFRecordMetadata>, asmHeaders: MutableMap<String,VCFHeaderLine>, dbPath:String): List<VariantContext> {
         return metaData.map { convertMetaDataRecordToHVCF(it, asmHeaders, dbPath) }
     }
 
+    /**
+     * Simple function to convert a single metadata record into a VariantContext.
+     * This will also create the ALT tag and add it to the asmHeaders object for use during export.
+     */
     fun convertMetaDataRecordToHVCF(metaDataRecord: HVCFRecordMetadata, asmHeaders: MutableMap<String, VCFHeaderLine>, dbPath: String): VariantContext {
         val assemblyHaplotypeSeq:String = metaDataRecord.asmSeq
         //md5 hash the assembly sequence
@@ -431,11 +362,10 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
             asmHeaders[assemblyHaplotypeHash] =
                 VCFAltHeaderLine(
                     "<ID=${assemblyHaplotypeHash}, Description=\"haplotype data for line: ${metaDataRecord.sampleName}\">," +
-                            "Number=9,Source=\"${dbPath}/assemblies.agc\",Contig=\"${metaDataRecord.refContig}\"," +
-                            "Start=\"${metaDataRecord.refStart}\",End=\"${metaDataRecord.refEnd}\"," +
-                            "Asm_Contig=\"${metaDataRecord.asmContig}\",Asm_Start=\"${metaDataRecord.asmStart}\"," +
-                            "Asm_End=\"${metaDataRecord.asmEnd}\",Checksum=\"Md5\",RefRange=\"${refSeqHash}\">",
-                    VCFHeaderVersion.VCF4_3
+                            "Number=6,Source=\"${dbPath}/assemblies.agc\"," +
+                            "Contig=\"${metaDataRecord.asmContig}\",Start=\"${metaDataRecord.asmStart}\"," +
+                            "End=\"${metaDataRecord.asmEnd}\",Checksum=\"Md5\",RefRange=\"${refSeqHash}\">",
+                    VCFHeaderVersion.VCF4_2
                 )
         }
 
@@ -445,17 +375,6 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
             Position(metaDataRecord.refContig, metaDataRecord.refEnd ),
             Pair(metaDataRecord.refSeq, assemblyHaplotypeHash))
     }
-
-    /**
-     * Function to extract the sequence from the AGC archive
-     */
-    fun extractSequenceFromHaplotypes(sampleName:String, chrom: String, start: Int, end: Int, agcArchiveName: String) : String {
-        //will be replaced by Lynn's call using sampleName, chrom, start, end
-        val assemblySeqs = buildRefGenomeSeq(agcArchiveName)
-        val assemblySeq = assemblySeqs[chrom]!!
-        return assemblySeq[start-1..end-1].seq() //Need to subtract 1 from both boundaries as NucSeq is 0 based
-    }
-
 
 
     /**
