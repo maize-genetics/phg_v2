@@ -9,6 +9,7 @@ import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.createRefRangeVC
 import net.maizegenetics.phgv2.utils.createSNPVC
 import net.maizegenetics.phgv2.utils.getChecksumForString
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
@@ -18,6 +19,12 @@ import kotlin.test.*
 class CreateMafVCFTest {
     companion object {
 
+        @JvmStatic
+        @AfterAll
+        fun tearDown() {
+            File(TestExtension.testVCFDir).deleteRecursively()
+            File(TestExtension.testTileDBURI).deleteRecursively()
+        }
     }
 
     @Test
@@ -118,14 +125,26 @@ class CreateMafVCFTest {
 
     @Test
     fun testSimpleBuildMAFVCF() {
+        //Need to create the agc record before we run this:
+        val fastaCreateFileNamesFile = "data/test/buildMAFVCF/fastaCreateFileNames.txt"
+        val dbPath = TestExtension.testTileDBURI
+        val refFasta = "data/test/buildMAFVCF/B73_Test.fa"
+
+
+        val agcCompress = AgcCompress()
+        // Create the initial compressed file
+        agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --ref-fasta ${refFasta}")
+
+
         val createMAFVCF = CreateMafVcf()
-        createMAFVCF.test("--db-path data/test/buildMAFVCF/B97_ASM_Test.fa --bed data/test/buildMAFVCF/B73_Test.bed --reference data/test/buildMAFVCF/B73_Test.fa --maf-dir data/test/buildMAFVCF/mafs/ -o ${TestExtension.testVCFDir}")
+//        createMAFVCF.test("--db-path data/test/buildMAFVCF/B97_ASM_Test.fa --bed data/test/buildMAFVCF/B73_Test.bed --reference data/test/buildMAFVCF/B73_Test.fa --maf-dir data/test/buildMAFVCF/mafs/ -o ${TestExtension.testVCFDir}")
+        createMAFVCF.test("--db-path ${dbPath} --bed data/test/buildMAFVCF/B73_Test.bed --reference ${refFasta} --maf-dir data/test/buildMAFVCF/mafs/ -o ${TestExtension.testVCFDir}")
 
         //compare the contents of the output gVCF files to the expected output
-        compareTwoGVCFFiles("data/test/buildMAFVCF/truthGVCFs/B97_truth.g.vcf", "${TestExtension.testVCFDir}/B97.g.vcf")
+        compareTwoGVCFFiles("data/test/buildMAFVCF/truthGVCFs/B97_truth.g.vcf", "${TestExtension.testVCFDir}/B97_ASM_Test.g.vcf")
 
         //Now we need to compare the hVCF's sequence with the sequence coming from the MAF files to make sure things match correctly as well as the boundaries
-        val outputHVCF = "${TestExtension.testVCFDir}/B97.h.vcf"
+        val outputHVCF = "${TestExtension.testVCFDir}/B97_ASM_Test.h.vcf"
         val outputHVCFReader = VCFFileReader(File(outputHVCF),false)
 
         val outputHeader = outputHVCFReader.header.metaDataInInputOrder.filter { it.key == "ALT" }
