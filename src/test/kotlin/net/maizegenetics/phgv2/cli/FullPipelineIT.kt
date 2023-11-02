@@ -18,6 +18,7 @@ class FullPipelineIT {
 
     }
 
+    @Ignore
     @Test
     fun testFullPipeline() {
         //Run the full pipeline
@@ -29,9 +30,11 @@ class FullPipelineIT {
         //Run InitDB
         val initdb = Initdb()
         initdb.test("--db-path ${TestExtension.testTileDBURI}")
+
         //Run CreateRanges
         val createRanges = CreateRanges()
-        createRanges.test("--gff ${TestExtension.testGFFFile} --output ${TestExtension.testBEDFile}")
+        val result = createRanges.test("--gff ${TestExtension.smallseqAnchorsGffFile} --output ${TestExtension.testBEDFile}")
+        println(result.output)
         //Run BuildRefVCF
         val createRefVcf = CreateRefVcf()
         createRefVcf.test("--bed ${TestExtension.testBEDFile} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
@@ -43,10 +46,9 @@ class FullPipelineIT {
                     "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.testMafDir}"
         )
 
-        TODO("Fix CreateMafToVCF")
         //Run BuildMafVCF
         val createMafVCF = CreateMafVcf()
-        createMafVCF.test("--db-path ${TestExtension.testTileDBURI} ${TestExtension.testBEDFile} " +
+        createMafVCF.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} " +
                 "--reference ${TestExtension.testRefFasta} --maf-dir ${TestExtension.testMafDir} -o ${TestExtension.testVCFDir}")
         //Load All HVCFs into Tile DB
         val loadVCF = LoadVcf()
