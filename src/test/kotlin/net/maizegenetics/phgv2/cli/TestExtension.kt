@@ -42,6 +42,7 @@ class TestExtension : BeforeAllCallback {
 
 
         val testOutputRefFasta = "${testOutputFastaDir}${refFastaName}"
+        val testOutputHaplotypeFasta = "${testOutputFastaDir}haplotypes.fa"
 
     }
 

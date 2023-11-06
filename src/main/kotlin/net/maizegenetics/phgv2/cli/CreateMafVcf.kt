@@ -79,6 +79,8 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 val gvcfVariants = getGVCFVariantsFromMafFile(referenceFileName, it.absolutePath, it.nameWithoutExtension)
 
                 exportVariantContext(sampleName, gvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.g.vcf",refGenomeSequence, setOf())
+                //bgzip the files
+                bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.g.vcf")
 
                 val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
                 //convert the GVCF records into hvcf records
@@ -86,6 +88,9 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 val asmHeaderSet = asmHeaderLines.values.toSet()
                 //export the hvcfRecords
                 exportVariantContext(sampleName, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, asmHeaderSet)
+                //bgzip the files
+                bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.h.vcf")
+
             }
 
     }
@@ -376,7 +381,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         //build a variant context of the HVCF with the hashes
         return createHVCFRecord(metaDataRecord.sampleName, Position(metaDataRecord.refContig,metaDataRecord.refStart),
             Position(metaDataRecord.refContig, metaDataRecord.refEnd ),
-            Pair(metaDataRecord.refSeq, assemblyHaplotypeHash))
+            Pair(metaDataRecord.refSeq[0].toString(), assemblyHaplotypeHash))
     }
 
 

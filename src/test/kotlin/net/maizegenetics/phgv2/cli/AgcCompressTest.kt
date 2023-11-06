@@ -34,14 +34,14 @@ class AgcCompressTest {
         val agcCompress = AgcCompress()
         val refFasta = "data/test/smallseq/Ref.fa"
         // Test missing fasta-dir parameter
-        val resultMissingFastaList = agcCompress.test("--db-path ${TestExtension.testTileDBURI} --ref-fasta ${refFasta}")
+        val resultMissingFastaList = agcCompress.test("--db-path ${TestExtension.testTileDBURI} --reference-file ${refFasta}")
         assertEquals(resultMissingFastaList.statusCode, 1)
         assertEquals("Usage: agc-compress [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --fasta-list: --fasta-list must not be blank\n",resultMissingFastaList.output)
 
         // Test missing db-path parameter
-        val resultMissingDB = agcCompress.test("--fasta-list ${TestExtension.testInputFastaDir} --ref-fasta ${refFasta}")
+        val resultMissingDB = agcCompress.test("--fasta-list ${TestExtension.testInputFastaDir} --reference-file ${refFasta}")
         assertEquals(resultMissingDB.statusCode, 1)
         assertEquals("Usage: agc-compress [<options>]\n" +
                 "\n" +
@@ -52,7 +52,7 @@ class AgcCompressTest {
         assertEquals(resultRefFasta.statusCode, 1)
         assertEquals("Usage: agc-compress [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --ref-fasta: --ref-fasta must not be blank\n",resultRefFasta.output)
+                "Error: invalid value for --reference-file: --reference-file must not be blank\n",resultRefFasta.output)
     }
 
     @Test
@@ -110,7 +110,7 @@ class AgcCompressTest {
         val agcCompress = AgcCompress()
         // Create the initial compressed file
         println("Calling agcCompress for CREATE")
-        var result = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --ref-fasta ${refFasta}")
+        var result = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
         assertEquals(result.statusCode, 0)
 
         // Verify that file dbPath/assemblies.agc exists
@@ -124,7 +124,7 @@ class AgcCompressTest {
 
         // Append LineC to the compressed file
         println("Calling agcCompress for APPEND")
-        result = agcCompress.test("--fasta-list ${fastaAppendFileNamesFile.toString()} --db-path ${dbPath} --ref-fasta ${refFasta}")
+        result = agcCompress.test("--fasta-list ${fastaAppendFileNamesFile.toString()} --db-path ${dbPath} --reference-file ${refFasta}")
         assertEquals(result.statusCode, 0)
 
         // Verify that file dbPath/assemblies.agc exists
@@ -151,7 +151,7 @@ class AgcCompressTest {
         // to the console.
 
         println("Calling second agcCompress for APPEND")
-        result = agcCompress.test("--fasta-list ${fastaAppendFileNamesFile.toString()} --db-path ${dbPath} --ref-fasta ${refFasta}")
+        result = agcCompress.test("--fasta-list ${fastaAppendFileNamesFile.toString()} --db-path ${dbPath} --reference-file ${refFasta}")
         assertEquals(result.statusCode, 0)
 
     }

@@ -67,36 +67,55 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
     val hvcfFile by option("--hvcf-file", help = "hVCF file to import instead of hitting TileDB")
         .default("")
 
+    val hvcfDir by option("--hvcf-dir", help = "hVCF directory to import instead of hitting TileDB")
+        .default("")
+
     /**
      * Function to build the Fasta file from the HVCF and the agc record.
      * Right now it does not support pulling from TileDB, but will in the future.
      */
-    fun buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfFile : String) {
-        val vcfFileReader = if(hvcfFile == "") {
+    fun buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfDir: String ,hvcfFile : String) {
+        if(hvcfDir != "") {
+            //Loop through the directory and figure out which files are hvcf files
+            val hvcfFiles = File(hvcfDir).listFiles { file -> file.extension == "vcf" }
+            //Loop through each file and run the buildFastaFromHVCF function
+            BufferedWriter(FileWriter(outputFile)).use { output ->
+                writeSequences(output,hvcfFiles.flatMap { processSingleHVCF(VCFFileReader(it,false), dbPath) }
+                    .associate { it.id to it }
+                    .values.toList(), fastaType)
+            }
+        }
+        else  if(hvcfFile == "") {
             //Load in the TileDB
             TODO("TileDB VCF Reader Not implemented yet.  Please run with --hvcf-file")
         } else {
             //Load in the HVCF
-            VCFFileReader(File(hvcfFile),false)
+            val hvcfFile = VCFFileReader(File(hvcfFile),false)
+            BufferedWriter(FileWriter(outputFile)).use { output ->
+                val records = processSingleHVCF(hvcfFile, dbPath)
+                writeSequences(output,records, fastaType)
+            }
         }
+    }
 
+    fun processSingleHVCF(vcfFileReader: VCFFileReader, dbPath: String) : List<HaplotypeSequence> {
         //extract out the haplotype sequence boundaries for each haplotype from the hvcf
         val altHeaderMap = parseALTHeader(vcfFileReader.header)
 
         val samples = vcfFileReader.header.sampleNamesInOrder
         val hvcfRecords = vcfFileReader.iterator().asSequence().toList()
-        //loop through each sample and walk through the hvcf
-        for(sample in samples) {
-            val haplotypeSequences = createHaplotypeSequences(dbPath, sample,hvcfRecords,altHeaderMap)
-            //write out the haplotype sequence to a fasta file
-            if(fastaType == "composite")
-                writeCompositeSequence(outputFile, haplotypeSequences)
-            else if(fastaType == "haplotype") {
-                writeHaplotypeSequence(outputFile, haplotypeSequences)
-            }
-        }
 
+        return samples.flatMap { sample -> createHaplotypeSequences(dbPath, sample, hvcfRecords, altHeaderMap) }
     }
+
+    fun writeSequences(outputWriter: BufferedWriter, haplotypeSequences: List<HaplotypeSequence>, fastaType: String) {
+        if(fastaType == "composite")
+            writeCompositeSequence(outputWriter, haplotypeSequences)
+        else if(fastaType == "haplotype") {
+            writeHaplotypeSequence(outputWriter, haplotypeSequences)
+        }
+    }
+
 
     /**
      * Helper function to parse out the ALT headers from the VCF file.
@@ -159,20 +178,18 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
      * Here a composite sequence is a pseudo genome where each haplotype sequence for a given chromosome is concatenated together.
      * Note no Ns are added between the haplotype sequences.
      */
-    fun writeCompositeSequence(outputFile: String, haplotypeSequences: List<HaplotypeSequence>) {
-        BufferedWriter(FileWriter(outputFile)).use { output ->
-            //group the sequences by chromosome
-            val sequencesByChr = haplotypeSequences.groupBy { it.refContig }
-            for(chr in sequencesByChr.keys.sorted()) {
-                output.write(">$chr\n")
-                //sort the sequences by startPos
-                val sequencesByStartPos = sequencesByChr[chr]!!.sortedBy { it.refStart }
-                //merge and output the sequences
-                sequencesByStartPos.map { it.sequence }
-                    .joinToString("")
-                    .chunked(80)//Chunking into 80 character lines
-                    .forEach { output.write(it + "\n") }
-            }
+    fun writeCompositeSequence(outputFileWriter: BufferedWriter, haplotypeSequences: List<HaplotypeSequence>) {
+        //group the sequences by chromosome
+        val sequencesByChr = haplotypeSequences.groupBy { it.refContig }
+        for(chr in sequencesByChr.keys.sorted()) {
+            outputFileWriter.write(">$chr\n")
+            //sort the sequences by startPos
+            val sequencesByStartPos = sequencesByChr[chr]!!.sortedBy { it.refStart }
+            //merge and output the sequences
+            sequencesByStartPos.map { it.sequence }
+                .joinToString("")
+                .chunked(80)//Chunking into 80 character lines
+                .forEach { outputFileWriter.write(it + "\n") }
         }
     }
 
@@ -180,25 +197,22 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
      * Function to output haplotype sequences to a fasta file.  Here each haplotype is exported as its own fasta record without concatenating things together.
      * This is almost identical to how fastas were exported in the original version of the pipeline.
      */
-    fun writeHaplotypeSequence(outputFile: String, haplotypeSequences: List<HaplotypeSequence>, exportFullIdLine : Boolean = true) {
-        BufferedWriter(FileWriter(outputFile)).use { output ->
-            for(hapSeq in haplotypeSequences) {
-                output.write(">${hapSeq.id}")
-                if(exportFullIdLine) {
-                    output.write(" Ref_Range_Id=${hapSeq.refRangeId} " +
-                    "Ref_Contig=${hapSeq.refContig} Ref_Start=${hapSeq.refStart} Ref_End=${hapSeq.refEnd} " +
-                            "Asm_Contig=${hapSeq.asmContig} Asm_Start=${hapSeq.asmStart} Asm_End=${hapSeq.asmEnd}")
-                }
-                output.write("\n")
-                hapSeq.sequence
-                    .chunked(80)//Chunking into 80 character lines
-                    .forEach { output.write(it + "\n") }
+    fun writeHaplotypeSequence(outputFileWriter: BufferedWriter, haplotypeSequences: List<HaplotypeSequence>, exportFullIdLine : Boolean = true) {
+        for(hapSeq in haplotypeSequences) {
+            outputFileWriter.write(">${hapSeq.id}")
+            if(exportFullIdLine) {
+                outputFileWriter.write(" Ref_Range_Id=${hapSeq.refRangeId} " +
+                "Ref_Contig=${hapSeq.refContig} Ref_Start=${hapSeq.refStart} Ref_End=${hapSeq.refEnd} " +
+                        "Asm_Contig=${hapSeq.asmContig} Asm_Start=${hapSeq.asmStart} Asm_End=${hapSeq.asmEnd}")
             }
-
+            outputFileWriter.write("\n")
+            hapSeq.sequence
+                .chunked(80)//Chunking into 80 character lines
+                .forEach { outputFileWriter.write(it + "\n") }
         }
     }
 
     override fun run() {
-        buildFastaFromHVCF(dbPath, output, fastaType,hvcfFile)
+        buildFastaFromHVCF(dbPath, output, fastaType, hvcfDir, hvcfFile)
     }
 }
