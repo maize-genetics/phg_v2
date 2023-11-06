@@ -104,6 +104,7 @@ class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference g
 
         // Process the user interval ranges file
         try {
+            println("Processing intervals file: $ranges")
             bufferedReader(ranges).use { br ->
                 var chrom = "-1"
                 var prevChrom = "-1"
@@ -115,8 +116,10 @@ class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference g
                 var chromAnchors = 0
 
                 line = br.readLine()
+                println("before while loop")
 
                 while (line != null) {
+                    println("in while loop, processing line: ${line}")
                     if (line.uppercase(Locale.getDefault()).contains("CHROMSTART")) {
                         line = br.readLine()
                         continue // skip header line
@@ -132,15 +135,24 @@ class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference g
                     if (chrom != prevChrom) {
                         myLogger.info("Total intervals for chrom ${prevChrom}: ${chromAnchors}")
                         myLogger.info("Starting chrom $chrom")
+                        println("Total intervals for chrom ${prevChrom}: ${chromAnchors}")
+                        println("Starting chrom $chrom")
                         chr = chrom
                         prevChrom = chrom
                         chromAnchors = 0
-                        chrSeq = myRefSequence!![chr]
+                        //chrSeq = myRefSequence!![chr]
+                        if (myRefSequence!!.containsKey(chr)) {
+                            chrSeq = myRefSequence!![chr]
+                        } else {
+                            throw IllegalStateException("Error processing intervals file on line : ${line} . Chromosome ${chr} not found in reference file")
+                        }
+                        println("Processing chrom: ${chr}, chrSeq length = ${chrSeq!!.size()}")
                     }
 
                     val anchorStart = tokens[1].toInt() + 1  // NucSeq is 0 based, bed file is 0 based, but VCF is 1 based
                     val anchorEnd = tokens[2].toInt() // bed file is exclusive, but 0-based, so no need to change
 
+                    println("Processing interval: ${chrom}:${anchorStart}-${anchorEnd}")
                     chromAnchors++
                     // get bytes from reference, convert to string, add data to list
                     // And here it is tricky.  Bed file is 0-based, but we turned the start and end into 1-based
@@ -155,6 +167,7 @@ class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference g
                     // The interval hash becomes the alt allele in the hvcf file
                     val refAllele = chrSeq!![anchorStart-1].toString() // subtract 1 to convert to 0-based
 
+                    println("refAllele: ${refAllele}")
                     val calls = Pair(refAllele,intervalHash)
                     // this prevents them from being written to the hvcf file
                     // THe intervalStart/intervalEnd values passed here are 1-based
@@ -169,6 +182,7 @@ class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference g
 
                     // Add vcf header lines here, doing somthing like this:
                     // headerLines.add(VCFAltHeaderLine("<ID=${intervalHash}, Description=\"${nodeDescription(node)}\">", VCFHeaderVersion.VCF4_2))
+                    println("Adding ALT header line for interval: ${intervalHash}")
                     altHeaderLines.add(
                         VCFAltHeaderLine(
                             "<ID=${intervalHash}, Description=\"haplotype data for line: ${refName}\">,Number=6,Source=\"${refGenome}\",Contig=\"${chr}\",Start=\"${anchorStart}\",End=\"${anchorEnd}\",Checksum=\"Md5\",RefRange=\"${intervalHash}\">",
