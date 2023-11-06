@@ -25,11 +25,11 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
             }
         }
 
-    val reference by option(help = "Reference FASTA file")
+    val referenceFile by option(help = "Reference FASTA file")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--reference must not be blank"
+                "--reference-file must not be blank"
             }
         }
 
@@ -384,7 +384,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
     }
 
     override fun run() {
-        createASMHvcfs(dbPath, bed, reference, mafDir, outputDir)
+        createASMHvcfs(dbPath, bed, referenceFile, mafDir, outputDir)
     }
 
 }

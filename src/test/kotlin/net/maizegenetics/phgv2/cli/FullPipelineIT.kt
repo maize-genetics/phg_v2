@@ -33,24 +33,32 @@ class FullPipelineIT {
 
         //Run CreateRanges
         val createRanges = CreateRanges()
-        val result = createRanges.test("--gff ${TestExtension.smallseqAnchorsGffFile} --output ${TestExtension.testBEDFile}")
-        println(result.output)
+        val createRangesResult = createRanges.test("--gff ${TestExtension.smallseqAnchorsGffFile} --output ${TestExtension.testBEDFile}")
+
+
+        println(createRangesResult.output)
         //Run BuildRefVCF
         val createRefVcf = CreateRefVcf()
-        createRefVcf.test("--bed ${TestExtension.testBEDFile} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
+        val createRefVcfResult = createRefVcf.test("--bed ${TestExtension.testBEDFile} --reference-file ${TestExtension.smallseqRefFile} --reference-name Ref -o ${TestExtension.testVCFDir}")
+        println(createRefVcfResult.output)
 
         //Run Anchorwave
         val alignAssemblies = AlignAssemblies()
-        alignAssemblies.test(
-            "--gff ${TestExtension.smallseqAnchorsGffFile} --ref ${TestExtension.smallseqRefFile} " +
+        val alignAssembliesResult = alignAssemblies.test(
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
                     "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.testMafDir}"
         )
+        println(alignAssembliesResult.output)
+
+
 
         //Run BuildMafVCF
         val createMafVCF = CreateMafVcf()
-        createMafVCF.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} " +
-                "--reference ${TestExtension.testRefFasta} --maf-dir ${TestExtension.testMafDir} -o ${TestExtension.testVCFDir}")
-        //Load All HVCFs into Tile DB
+        val createMAFVCFResult = createMafVCF.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} " +
+                "--reference-file ${TestExtension.smallseqRefFile} --maf-dir ${TestExtension.testMafDir} -o ${TestExtension.testVCFDir}")
+        println(createMAFVCFResult.output)
+    TODO()
+    //Load All HVCFs into Tile DB
         val loadVCF = LoadVcf()
         loadVCF.test("--vcf-dir ${TestExtension.testVCFDir} --db-path ${TestExtension.testTileDBURI}")
 

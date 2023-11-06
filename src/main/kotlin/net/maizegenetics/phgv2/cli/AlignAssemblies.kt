@@ -27,7 +27,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
     val gff by option(help = "Full path to the reference gff file")
         .required()
 
-    val ref by option(help = "Full path to reference fasta file")
+    val referenceFile by option(help = "Full path to reference fasta file")
         .required()
 
     val assemblies by option(
@@ -74,19 +74,19 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         // create CDS fasta from reference and gff3 file
         val cdsFasta = "$outputDir/ref.cds.fasta"
 
-        createCDSfromRefData(ref, gff, cdsFasta, outputDir)
+        createCDSfromRefData(referenceFile, gff, cdsFasta, outputDir)
 
         // create list of assemblies to align from the assemblies file
         val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
 
         // run minimap2 for ref to refcds
-        val justNameRef = File(ref).nameWithoutExtension
+        val justNameRef = File(referenceFile).nameWithoutExtension
         val samOutFile = "${justNameRef}.sam"
         val refSamOutFile = "${outputDir}/${samOutFile}"
 
         val builder = ProcessBuilder(
             "conda", "run", "-n", "phgv2-conda", "minimap2", "-x", "splice", "-t", threads.toString(), "-k", "12",
-            "-a", "-p", "0.4", "-N20", ref, cdsFasta, "-o", refSamOutFile
+            "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile
         )
         val redirectError = "$outputDir/minimap2Ref_error.log"
         val redirectOutput = "$outputDir/minimap2Ref_output.log"
@@ -97,11 +97,11 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         val process = builder.start()
         val error = process.waitFor()
         if (error != 0) {
-            myLogger.error("minimap2 for $ref run via ProcessBuilder returned error code $error")
+            myLogger.error("minimap2 for $referenceFile run via ProcessBuilder returned error code $error")
             throw IllegalStateException("Error running minimap2 for reference: $error")
         }
 
-        runAnchorWaveMultiThread(ref, assembliesList, cdsFasta, gff, refSamOutFile)
+        runAnchorWaveMultiThread(referenceFile, assembliesList, cdsFasta, gff, refSamOutFile)
 
     }
 
