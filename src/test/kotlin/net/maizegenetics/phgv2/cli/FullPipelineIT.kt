@@ -23,10 +23,25 @@ class FullPipelineIT {
         @AfterAll
         fun teardown() {
             //Delete the tempDir
-            //File(TestExtension.tempDir).deleteRecursively()
-
+            File(TestExtension.tempDir).deleteRecursively()
+            File(TestExtension.asmDir).deleteRecursively()
+            File(TestExtension.testVCFDir).deleteRecursively()
+            File(TestExtension.testMafDir).deleteRecursively()
+            File(TestExtension.testInputFastaDir).deleteRecursively()
+            File(TestExtension.testOutputFastaDir).deleteRecursively()
+            File(TestExtension.testOutputGVCFDIr).deleteRecursively()
             File(TestExtension.testTileDBURI).deleteRecursively()
 
+
+
+            File(TestExtension.tempDir).mkdirs()
+            File(TestExtension.asmDir).mkdirs()
+            File(TestExtension.testVCFDir).mkdirs()
+            File(TestExtension.testMafDir).mkdirs()
+            File(TestExtension.testInputFastaDir).mkdirs()
+            File(TestExtension.testOutputFastaDir).mkdirs()
+            File(TestExtension.testOutputGVCFDIr).mkdirs()
+            File(TestExtension.testTileDBURI).mkdirs()
         }
     }
     @Test
