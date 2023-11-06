@@ -108,9 +108,25 @@ class CreateRefVcfTest {
 
     }
 
-    // Test is ignored until we can figure out how to get the test to run on the github actions server.
-    // ie - conda setup is working correctly.
-    //@Ignore
+    @Test
+    fun testBuildRefVCFBadChrom() {
+        // This test verifies an exception is thrown when the bed file contains a chromosome not in the reference genome
+        // fasta file. This is testing chr1 vs 1 as a chromosome, womething we often see.
+        val vcfDir = tempDir
+        val refName = "Ref"
+        val refUrl = TestExtension.refURL
+
+        val ranges = "data/test/smallseq/anchors_badChrom.bed"
+        val genome = "data/test/smallseq/Ref.fa"
+
+        val createRefVcf = CreateRefVcf()
+
+        // This could also be called via:
+        assertThrows<IllegalStateException> {
+            CreateRefVcf().test("--bed $ranges --refname $refName --referencefile $genome --refurl ${refUrl} -o $vcfDir")
+        }
+    }
+
     @Test
     fun testBuildRefVCF() {
         val vcfDir = tempDir
