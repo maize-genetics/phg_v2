@@ -8,7 +8,7 @@ hVCF stands **h**aplotype **V**ariant **C**all **F**ormat. This
 format is used to store and encode haplotype information across 
 samples from the PHG ([Practical Haplotype Graph](https://github.com/maize-genetics/phg_v2)).
 An hVCF file is based on the standards of a VCF file, specifically, 
-[VCF v4.4](http://samtools.github.io/hts-specs/VCFv4.4.pdf). This 
+[VCF v4.2](http://samtools.github.io/hts-specs/VCFv4.2.pdf). This 
 format leverages VCF's symbolic allele information from the `ALT` 
 field.
 
@@ -23,31 +23,37 @@ hVCF files can be broken into 4 main components:
 The following code block illustrates an example hVCF file:
 
 ```
-##fileformat=VCFv4.4
-##ALT=<ID=4c81af3c2f102652b58a3af21355bc25,Description="haplotype data for line: B97",Number=9,Source="data/test/buildMAFVCF/B97_ASM_Test.fa",Contig=chr7,Start=451,End=456,Asm_Contig=chr4,Asm_Start=5247,Asm_End=5252,Checksum=Md5,RefRange=20b13a1d5b466ff438174aa897c985f7>
-##ALT=<ID=b935ff8898a7942d09bfc11e73e8a555,Description="haplotype data for line: B97",Number=9,Source="data/test/buildMAFVCF/B97_ASM_Test.fa",Contig=chr1,Start=1,End=40,Asm_Contig=chr6,Asm_Start=98,Asm_End=142,Checksum=Md5,RefRange=e2cb401a9bd8a1bcca158761b755a6a8>
-##ALT=<ID=c864de7dcaa52600fe611032f79d20e3,Description="haplotype data for line: B97",Number=9,Source="data/test/buildMAFVCF/B97_ASM_Test.fa",Contig=chr7,Start=15,End=48,Asm_Contig=chr4,Asm_Start=4245,Asm_End=4281,Checksum=Md5,RefRange=2af5a69357a7eb4a537fa3d08dea18de>
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##ALT=<ID=06ae4e937668d301e325d43725a38c3f,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=45001,End=49500,Checksum=Md5,RefRange=06ae4e937668d301e325d43725a38c3f>
+##ALT=<ID=073286a82fe47d6a370e8a7a3803f1d3,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=39501,End=44000,Checksum=Md5,RefRange=073286a82fe47d6a370e8a7a3803f1d3>
+##ALT=<ID=105c85412229b45439db1f03c3f064f4,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=27501,End=28500,Checksum=Md5,RefRange=105c85412229b45439db1f03c3f064f4>
+##ALT=<ID=105e63346a01d88e8339eddf9131c435,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=2,Start=50501,End=55000,Checksum=Md5,RefRange=105e63346a01d88e8339eddf9131c435>
+##ALT=<ID=2c4b8564bbbdf70c6560fdefdbe3ef6a,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=2,Start=34001,End=38500,Checksum=Md5,RefRange=2c4b8564bbbdf70c6560fdefdbe3ef6a>
+##ALT=<ID=347f0478b1a553ef107243cb60a9ba7d,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=2,Start=11001,End=12000,Checksum=Md5,RefRange=347f0478b1a553ef107243cb60a9ba7d>
+##ALT=<ID=39f96726321b329964435865b3694fd2,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=2,Start=49501,End=50500,Checksum=Md5,RefRange=39f96726321b329964435865b3694fd2>
+##ALT=<ID=43687e13112bbe841f811b0a9de82a94,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=2,Start=22001,End=23000,Checksum=Md5,RefRange=43687e13112bbe841f811b0a9de82a94>
+##ALT=<ID=546d1839623a5b0ea98bbff9a8a320e2,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=1,End=1000,Checksum=Md5,RefRange=546d1839623a5b0ea98bbff9a8a320e2>
+##ALT=<ID=57705b1e2541c7634ea59a48fc52026f,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=1001,End=5500,Checksum=Md5,RefRange=57705b1e2541c7634ea59a48fc52026f>
 ##FORMAT=<ID=AD,Number=3,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
 ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth (only filtered reads used for calling)">
-##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
-##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
-##INFO=<ID=AF,Number=3,Type=Integer,Description="Allele Frequency">
-##INFO=<ID=ASM_Chr,Number=1,Type=String,Description="Assembly chromosome">
-##INFO=<ID=ASM_End,Number=1,Type=Integer,Description="Assembly end position">
-##INFO=<ID=ASM_Start,Number=1,Type=Integer,Description="Assembly start position">
-##INFO=<ID=ASM_Strand,Number=1,Type=String,Description="Assembly strand">
-##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
 ##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
-##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
-##contig=<ID=chr7,length=461>
-##contig=<ID=chr1,length=40>
-##contig=<ID=chr10,length=40>
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	B97
-chr1	1	.	G	<b935ff8898a7942d09bfc11e73e8a555>	.	.	END=40	GT:AD:DP	1:0,2,0:2
-chr10	1	.	G	<b935ff8898a7942d09bfc11e73e8a555>	.	.	END=40	GT:AD:DP	1:0,2,0:2
-chr7	15	.	A	<c864de7dcaa52600fe611032f79d20e3>	.	.	END=48	GT:AD:DP	1:0,2,0:2
-chr7	451	.	T	<4c81af3c2f102652b58a3af21355bc25>	.	.	END=456	GT:AD:DP	1:0,2,0:2
+##assembly=https://s3.amazonaws.com/maizegenetics/phg/phgV2Test/Ref.fa
+##contig=<ID=1,length=55000>
+##contig=<ID=2,length=55000>
+##reference=https://s3.amazonaws.com/maizegenetics/phg/phgV2Test/Ref.fa
+#CHROM	POS	ID	REF	ALT	                                QUAL	FILTER	INFO	        FORMAT	        Ref
+1	1	.	G	<546d1839623a5b0ea98bbff9a8a320e2>	.	.	END=1000	GT:AD:DP	1:0,2,0:2
+1	1001	.	A	<57705b1e2541c7634ea59a48fc52026f>	.	.	END=5500	GT:AD:DP	1:0,2,0:2
+1	27501	.	G	<105c85412229b45439db1f03c3f064f4>	.	.	END=28500	GT:AD:DP	1:0,2,0:2
+1	39501	.	G	<073286a82fe47d6a370e8a7a3803f1d3>	.	.	END=44000	GT:AD:DP	1:0,2,0:2
+1	45001	.	G	<06ae4e937668d301e325d43725a38c3f>	.	.	END=49500	GT:AD:DP	1:0,2,0:2
+2	11001	.	A	<347f0478b1a553ef107243cb60a9ba7d>	.	.	END=12000	GT:AD:DP	1:0,2,0:2
+2	22001	.	A	<43687e13112bbe841f811b0a9de82a94>	.	.	END=23000	GT:AD:DP	1:0,2,0:2
+2	34001	.	A	<2c4b8564bbbdf70c6560fdefdbe3ef6a>	.	.	END=38500	GT:AD:DP	1:0,2,0:2
+2	49501	.	G	<39f96726321b329964435865b3694fd2>	.	.	END=50500	GT:AD:DP	1:0,2,0:2
+2	50501	.	G	<105e63346a01d88e8339eddf9131c435>	.	.	END=55000	GT:AD:DP	1:0,2,0:2
 ```
 
 ### Meta-information lines
@@ -101,25 +107,22 @@ the alternative allele field with additional key-value information.
 Take the following example:
 
 ```
-##ALT=<ID=4c81af3c2f102652b58a3af21355bc25,Description="haplotype data for line: B97",Number=9,Source="data/test/buildMAFVCF/B97_ASM_Test.fa",Contig=chr7,Start=451,End=456,Asm_Contig=chr4,Asm_Start=5247,Asm_End=5252,Checksum=Md5,RefRange=20b13a1d5b466ff438174aa897c985f7>
+##ALT=<ID=06ae4e937668d301e325d43725a38c3f,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=45001,End=49500,Checksum=Md5,RefRange=06ae4e937668d301e325d43725a38c3f>
 ```
 
 Here, we have the following information:
 
-| Key           | Value                                     | Description                                                         |
-|---------------|-------------------------------------------|---------------------------------------------------------------------|
-| `ID`          | `4c81af3c2f102652b58a3af21355bc25`        | MD5 checksum identifier for haplotype sequence                      |
-| `Description` | `"haplotype data for line: B97"`          | Information about the origin of the haplotype sequence              |
-| `Number`      | `9`                                       | Number of fields following the `Description` key                    |
-| `Source`      | `"data/test/buildMAFVCF/B97_ASM_Test.fa"` | Fasta file ID and path containing haplotype sequence                |
-| `Contig`      | `chr7`                                    | Sequence identifier for reference range                             |
-| `Start`       | `451`                                     | Start position (bp) for reference range                             |
-| `End`         | `456`                                     | End position (bp) of reference range                                |
-| `ASM_Contig`  | `chr4`                                    | Sequence identifier for assembly data containing haplotype sequence |
-| `ASM_Start`   | `5247`                                    | Start position (bp) for assembly data containing haplotype sequence |
-| `ASM_End`     | `5252`                                    | End position (bp) for assembly data containing haplotype sequence   |
-| `Checksum`    | `Md5`                                     | Identifier describing the digest hashing algorithm for the `ID` key |
-| `RefRange`    | `20b13a1d5b466ff438174aa897c985f7`        | MD5 checksum identifier for reference sequence                      |
+| Key           | Value                              | Description                                                         |
+|---------------|------------------------------------|---------------------------------------------------------------------|
+| `ID`          | `06ae4e937668d301e325d43725a38c3f` | MD5 checksum identifier for haplotype sequence                      |
+| `Description` | `"haplotype data for line: Ref"`   | Information about the origin of the haplotype sequence              |
+| `Number`      | `6`                                | Number of fields following the `Description` key                    |
+| `Source`      | `"data/test/smallseq/Ref.fa"`      | Fasta file ID and path containing haplotype sequence                |
+| `Contig`      | `1`                                | Sequence identifier for assembly containing haplotype sequence      |
+| `Start`       | `45001`                            | Start position (bp) for assembly containing haplotype sequence      |
+| `End`         | `49500`                            | End position (bp) of assembly containing haplotype sequence         |
+| `Checksum`    | `Md5`                              | Identifier describing the digest hashing algorithm for the `ID` key |
+| `RefRange`    | `20b13a1d5b466ff438174aa897c985f7` | MD5 checksum identifier for reference sequence                      |
 
 #### Individual format (`##FORMAT`) field
 The meta-information contained in the individual format field closely 
@@ -153,14 +156,7 @@ ranges, the following values are required:
 
 | Value        | Description                          |
 |--------------|--------------------------------------|
-| `AF`         | Allele frequency                     |
-| `ASM_Chr`    | Assembly chromosome                  |
-| `ASM_Start`  | Assembly start position (bp)         |
-| `ASM_End`    | Assembly end position (bp)           |
-| `ASM_Strand` | Assembly strand                      |
-| `DP`         | Total depth                          |
 | `End`        | End position of reference range (bp) |
-| `NS`         | Number of samples with data          |
 
 By combining the values identified within the `POS` column and the
 `End` value, we can specify the total length of the reference range
