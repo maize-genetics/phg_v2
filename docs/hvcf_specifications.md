@@ -20,7 +20,7 @@ hVCF files can be broken into 4 main components:
 * Haplotype information on samples for each reference range
 
 ### An example
-The following code block illustrates an example hVCF file:
+The following code block illustrates a formatted example hVCF file:
 
 ```
 ##fileformat=VCFv4.2
@@ -35,26 +35,31 @@ The following code block illustrates an example hVCF file:
 ##ALT=<ID=43687e13112bbe841f811b0a9de82a94,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=2,Start=22001,End=23000,Checksum=Md5,RefRange=43687e13112bbe841f811b0a9de82a94>
 ##ALT=<ID=546d1839623a5b0ea98bbff9a8a320e2,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=1,End=1000,Checksum=Md5,RefRange=546d1839623a5b0ea98bbff9a8a320e2>
 ##ALT=<ID=57705b1e2541c7634ea59a48fc52026f,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=1001,End=5500,Checksum=Md5,RefRange=57705b1e2541c7634ea59a48fc52026f>
+##ALT=<ID=1bda8c63ae8e2f3678b85bac0ee7b8b9,Description="haplotype data for line: B97",Number=6,Source="data/test/smallseq/B97.fa",Contig=1,Start=1250,End=6750,Checksum=Md5,RefRange=57705b1e2541c7634ea59a48fc52026f>
+##ALT=<ID=5fedf293a1a5443cc896d59f12d1b92f,Description="haplotype data for line: CML231",Number=6,Source="data/test/smallseq/CML231.fa",Contig=2,Start=22001,End=23000,Checksum=Md5,RefRange=43687e13112bbe841f811b0a9de82a94>
 ##FORMAT=<ID=AD,Number=3,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
 ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth (only filtered reads used for calling)">
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
 ##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
-##assembly=https://s3.amazonaws.com/maizegenetics/phg/phgV2Test/Ref.fa
 ##contig=<ID=1,length=55000>
 ##contig=<ID=2,length=55000>
 ##reference=https://s3.amazonaws.com/maizegenetics/phg/phgV2Test/Ref.fa
-#CHROM	POS	ID	REF	ALT	                                QUAL	FILTER	INFO	        FORMAT	        Ref
-1	1	.	G	<546d1839623a5b0ea98bbff9a8a320e2>	.	.	END=1000	GT:AD:DP	1:0,2,0:2
-1	1001	.	A	<57705b1e2541c7634ea59a48fc52026f>	.	.	END=5500	GT:AD:DP	1:0,2,0:2
-1	27501	.	G	<105c85412229b45439db1f03c3f064f4>	.	.	END=28500	GT:AD:DP	1:0,2,0:2
-1	39501	.	G	<073286a82fe47d6a370e8a7a3803f1d3>	.	.	END=44000	GT:AD:DP	1:0,2,0:2
-1	45001	.	G	<06ae4e937668d301e325d43725a38c3f>	.	.	END=49500	GT:AD:DP	1:0,2,0:2
-2	11001	.	A	<347f0478b1a553ef107243cb60a9ba7d>	.	.	END=12000	GT:AD:DP	1:0,2,0:2
-2	22001	.	A	<43687e13112bbe841f811b0a9de82a94>	.	.	END=23000	GT:AD:DP	1:0,2,0:2
-2	34001	.	A	<2c4b8564bbbdf70c6560fdefdbe3ef6a>	.	.	END=38500	GT:AD:DP	1:0,2,0:2
-2	49501	.	G	<39f96726321b329964435865b3694fd2>	.	.	END=50500	GT:AD:DP	1:0,2,0:2
-2	50501	.	G	<105e63346a01d88e8339eddf9131c435>	.	.	END=55000	GT:AD:DP	1:0,2,0:2
+#CHROM POS   ID REF ALT                                                                   QUAL FILTER INFO      FORMAT   Ref         B97         CML231
+1      1     .  G   <546d1839623a5b0ea98bbff9a8a320e2>                                    .    .      END=1000  GT:AD:DP 1|1:0,2,0:2 1|1:0,2,0:2 1|1:0,2,0:2
+1      1001  .  A   <57705b1e2541c7634ea59a48fc52026f>,<1bda8c63ae8e2f3678b85bac0ee7b8b9> .    .      END=5500  GT:AD:DP 1|1:0,2,0:2 2|2:0,2,0:2 1|1:0,2,0:2
+1      27501 .  G   <105c85412229b45439db1f03c3f064f4>                                    .    .      END=28500 GT:AD:DP 1|1:0,2,0:2 1|1:0,2,0:2 1|1:0,2,0:2
+1      39501 .  G   <073286a82fe47d6a370e8a7a3803f1d3>                                    .    .      END=44000 GT:AD:DP 1|1:0,2,0:2 1|1:0,2,0:2 1|1:0,2,0:2
+1      45001 .  G   <06ae4e937668d301e325d43725a38c3f>                                    .    .      END=49500 GT:AD:DP 1|1:0,2,0:2 1|1:0,2,0:2 1|1:0,2,0:2
+2      11001 .  A   <347f0478b1a553ef107243cb60a9ba7d>                                    .    .      END=12000 GT:AD:DP 1|1:0,2,0:2 1|1:0,2,0:2 1|1:0,2,0:2
+2      22001 .  A   <43687e13112bbe841f811b0a9de82a94>,<5fedf293a1a5443cc896d59f12d1b92f> .    .      END=23000 GT:AD:DP 1|1:0,2,0:2 1|1:0,2,0:2 2|2:0,2,0:2
+2      34001 .  A   <2c4b8564bbbdf70c6560fdefdbe3ef6a>                                    .    .      END=38500 GT:AD:DP 1|1:0,2,0:2 1|1:0,2,0:2 1|1:0,2,0:2
+2      49501 .  G   <39f96726321b329964435865b3694fd2>                                    .    .      END=50500 GT:AD:DP 1|1:0,2,0:2 1|1:0,2,0:2 1|1:0,2,0:2
+2      50501 .  G   <105e63346a01d88e8339eddf9131c435>                                    .    .      END=55000 GT:AD:DP 1|1:0,2,0:2 1|1:0,2,0:2 1|1:0,2,0:2
 ```
+> [!NOTE]
+> In the prior example, the hVCF output columns below the header line
+> (e.g. below the line starting with `#CHROM`) are formatted for 
+> visual clarity. In a real example, delimiters are tab (`\t`) based.
 
 ### Meta-information lines
 The header portion of an hVCF file contain rows of "meta-information"
