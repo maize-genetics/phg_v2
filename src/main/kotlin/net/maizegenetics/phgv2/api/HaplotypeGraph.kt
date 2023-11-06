@@ -16,8 +16,7 @@ class HaplotypeGraph(hvcfFile: String) {
 
     private val numOfSamples: Int
 
-    // lookup[ploidy][sampleId][refRangeId]
-    // NEW - lookup[refRangeId][ploidy][sampleId]
+    // lookup[refRangeId][ploidy][sampleId]
     private lateinit var lookup: Array<Array<Array<UByte>>>
 
     // seqHash[refRangeId][lookup: UByte]
@@ -26,7 +25,9 @@ class HaplotypeGraph(hvcfFile: String) {
 
     private lateinit var refRangeMap: SortedMap<Int, ReferenceRange>
 
-    private val processingChannel = Channel<Deferred<RangeInfo>>(5)
+    fun numOfRanges(): Int = refRangeMap.size
+
+    private val processingChannel = Channel<RangeInfo>(5)
 
     init {
 
@@ -56,7 +57,7 @@ class HaplotypeGraph(hvcfFile: String) {
         withContext(Dispatchers.IO) {
 
             reader.forEachIndexed { index, context ->
-                processingChannel.send(async { contextToRange(context, altHeaderMap, index) })
+                processingChannel.send(contextToRange(context, altHeaderMap, index))
             }
 
             processingChannel.close()
@@ -108,8 +109,7 @@ class HaplotypeGraph(hvcfFile: String) {
         val seqHashList = mutableListOf<Array<String>>()
         val rangeMap = mutableMapOf<Int, ReferenceRange>()
 
-        for (deferred in processingChannel) {
-            val rangeInfo = deferred.await()
+        for (rangeInfo in processingChannel) {
             lookupList.add(rangeInfo.rangeLookup)
             seqHashList.add(rangeInfo.rangeSeqHash)
             rangeMap[rangeInfo.rangeId] = rangeInfo.range
