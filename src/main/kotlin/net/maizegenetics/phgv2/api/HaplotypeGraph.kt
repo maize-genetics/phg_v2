@@ -4,7 +4,7 @@ import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import net.maizegenetics.phgv2.cli.AltHeaderMetaData
+import net.maizegenetics.phgv2.utils.AltHeaderMetaData
 import net.maizegenetics.phgv2.utils.parseALTHeader
 import java.io.File
 import java.util.*
@@ -25,6 +25,8 @@ class HaplotypeGraph(hvcfFile: String) {
 
     private lateinit var refRangeMap: SortedMap<Int, ReferenceRange>
 
+    private val altHeaderMap: Map<String, AltHeaderMetaData>
+
     fun numOfRanges(): Int = refRangeMap.size
 
     private val processingChannel = Channel<RangeInfo>(5)
@@ -41,10 +43,10 @@ class HaplotypeGraph(hvcfFile: String) {
             numOfSamples = sampleNameToIdMap.size
 
             // extract out the haplotype sequence boundaries for each haplotype from the hvcf
-            val altHeaderMap = parseALTHeader(reader.header)
+            altHeaderMap = parseALTHeader(reader.header)
 
             CoroutineScope(Dispatchers.IO).launch {
-                processRanges(reader, altHeaderMap)
+                processRanges(reader)
             }
 
             runBlocking { addSites() }
@@ -53,11 +55,11 @@ class HaplotypeGraph(hvcfFile: String) {
 
     }
 
-    private suspend fun processRanges(reader: VCFFileReader, altHeaderMap: Map<String, AltHeaderMetaData>) =
+    private suspend fun processRanges(reader: VCFFileReader) =
         withContext(Dispatchers.IO) {
 
             reader.forEachIndexed { index, context ->
-                processingChannel.send(contextToRange(context, altHeaderMap, index))
+                processingChannel.send(contextToRange(context, index))
             }
 
             processingChannel.close()
@@ -73,7 +75,6 @@ class HaplotypeGraph(hvcfFile: String) {
 
     private fun contextToRange(
         context: VariantContext,
-        altHeaderMap: Map<String, AltHeaderMetaData>,
         rangeId: Int
     ): RangeInfo {
 

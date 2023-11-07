@@ -3,10 +3,15 @@
 package net.maizegenetics.phgv2.utils
 
 import htsjdk.variant.vcf.VCFHeader
-import net.maizegenetics.phgv2.cli.AltHeaderMetaData
 import org.apache.logging.log4j.LogManager
 
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.VCFUtils")
+
+// Making Number a string as VCF allows for '.'
+data class AltHeaderMetaData(
+    val id: String, val description: String, val number: String, val source: String,
+    val contig: String, val start: Int, val end: Int, val checksum: String, val refRange: String
+)
 
 /**
  * Helper function to parse out the ALT headers from the VCF file.

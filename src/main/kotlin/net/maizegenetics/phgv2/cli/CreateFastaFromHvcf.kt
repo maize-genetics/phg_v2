@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
+import net.maizegenetics.phgv2.utils.AltHeaderMetaData
 import net.maizegenetics.phgv2.utils.parseALTHeader
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import java.io.BufferedWriter
@@ -13,9 +14,6 @@ import java.io.File
 import java.io.FileWriter
 
 
-//Making Number a string as VCF allows for '.'
-data class AltHeaderMetaData(val id: String, val description:String, val number: String, val source:String,
-                             val contig:String, val start:Int, val end:Int, val checksum:String, val refRange:String)
 data class HaplotypeSequence(val id: String, val sequence: String, val refRangeId: String, val refContig: String, val refStart: Int, val refEnd: Int,
                              val asmContig : String, val asmStart: Int, val asmEnd: Int)
 
@@ -23,7 +21,7 @@ data class HaplotypeSequence(val id: String, val sequence: String, val refRangeI
  * Class to create either a composite or a haplotype fasta file from an input hvcf file or from TileDB directly.
  *
  * As mentioned in the terminology section of the Documentation, a composite fasta file is a fasta file that contains
- * all of the haplotypes for a given contig concatenated together by contig.  This pseudo genome can be used for rare
+ * all the haplotypes for a given contig concatenated together by contig.  This pseudo genome can be used for rare
  * allele finding.
  *
  * A Haplotype fasta file is where we output each haplotype as a separate fasta entry.  This can be used for read
