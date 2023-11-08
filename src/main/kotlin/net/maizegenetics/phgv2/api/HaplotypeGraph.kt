@@ -29,7 +29,7 @@ class HaplotypeGraph(hvcfFile: String) {
 
     fun numOfRanges(): Int = refRangeMap.size
 
-    private val processingChannel = Channel<RangeInfo>(5)
+    private val processingChannel = Channel<RangeInfo>(10)
 
     init {
 
@@ -55,6 +55,8 @@ class HaplotypeGraph(hvcfFile: String) {
 
     }
 
+    fun ranges(): List<ReferenceRange> = refRangeMap.values.sorted()
+
     private suspend fun processRanges(reader: VCFFileReader) =
         withContext(Dispatchers.IO) {
 
@@ -66,6 +68,9 @@ class HaplotypeGraph(hvcfFile: String) {
 
         }
 
+    /**
+     * ReferenceRange Information
+     */
     data class RangeInfo(
         val rangeLookup: Array<Array<UByte>>,
         val rangeSeqHash: Array<String>,
@@ -73,6 +78,9 @@ class HaplotypeGraph(hvcfFile: String) {
         val range: ReferenceRange
     )
 
+    /**
+     * Convert a VariantContext to the ReferenceRange Information
+     */
     private fun contextToRange(
         context: VariantContext,
         rangeId: Int
@@ -104,6 +112,10 @@ class HaplotypeGraph(hvcfFile: String) {
 
     }
 
+    /**
+     * Add reference ranges to data structures, as
+     * made available on the processingChannel.
+     */
     private suspend fun addSites() {
 
         val lookupList = mutableListOf<Array<Array<UByte>>>()
