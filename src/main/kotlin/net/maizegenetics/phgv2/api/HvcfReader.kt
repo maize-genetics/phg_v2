@@ -17,13 +17,10 @@ package net.maizegenetics.phgv2.api
  * The interface could support tiledb-vcf, a single hvcf file or a set of hvcf files as data sources.
  *
  * Are there other attributes needed in addition to genotype?
+ *
+ * Note: there is no method in the interface for setting a datasource as that is left to the implementation to handle.
  */
 interface HvcfReader {
-
-    /**
-     * Sets the source to be used for data such as a database uri, a file name, or a directory name
-     */
-    fun dataSource(source: String): HvcfReader
 
     /**
      * Sets the range to be returned. Range is a list of PositionRanges
@@ -59,12 +56,12 @@ interface HvcfReader {
      * A position range and genotype. Genotype is the allele/haplotype id not the integer GT code.
      * genotype and AD are lists to accommodate different ploidy levels
      */
-    data class SampleData(val contig: String, val startPos: Int, val endPos: Int, val genotype: List<String>, val AD: List<Int>, val DP: Int )
+    data class SampleData(val contig: String, val startPos: Int, val endPos: Int, val genotype: List<String>, val AD: List<Int>? = null, val DP: Int? = null)
 
 
     /**
-     * A range of genomic positions. If start and end positions are null then it represents and entire chromosome.
+     * A range of genomic positions. If start and end positions are null then it represents an entire chromosome.
      */
-    data class PositionRange(val contig: String, val startPos: Int?, val endPos: Int?)
+    data class PositionRange(val contig: String, val startPos: Int? = null, val endPos: Int? = null)
 
 }
