@@ -57,8 +57,9 @@ interface HvcfReader {
 
     /**
      * A position range and genotype. Genotype is the allele/haplotype id not the integer GT code.
+     * genotype and AD are lists to accommodate different ploidy levels
      */
-    data class SampleData(val contig: String, val startPos: Int, val endPos: Int, val genotype:String)
+    data class SampleData(val contig: String, val startPos: Int, val endPos: Int, val genotype: List<String>, val AD: List<Int>, val DP: Int )
 
 
     /**
