@@ -28,11 +28,6 @@ interface HvcfReader {
     fun range(range: List<PositionRange>): HvcfReader
 
     /**
-     * Sets the samples to be returned. The input is a list of sample names.
-     */
-    fun samples(sampleNames: List<String>): HvcfReader
-
-    /**
      * Returns the header for a sample as a String
      */
     fun header(sampleName: String): String
@@ -62,6 +57,13 @@ interface HvcfReader {
     /**
      * A range of genomic positions. If start and end positions are null then it represents an entire chromosome.
      */
-    data class PositionRange(val contig: String, val startPos: Int? = null, val endPos: Int? = null)
+    data class PositionRange(val contig: String, val startPos: Int? = null, val endPos: Int? = null) {
+        override fun toString(): String {
+            return if (startPos == null && endPos == null) "$contig"
+            else if (endPos == null) "$contig:$startPos"
+            else if (startPos == null) throw IllegalArgumentException("startPos is null and endPos = $endPos")
+            else "$contig:$startPos-$endPos"
+        }
+    }
 
 }

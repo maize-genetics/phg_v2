@@ -1,18 +1,23 @@
 package net.maizegenetics.phgv2.api
 
-class TileDBHvcfReader(uri: String): HvcfReader {
+import io.tiledb.libvcfnative.VCFReader
+import java.util.*
 
+class TileDBHvcfReader(uri: String, samples: List<String>?, ranges: List<HvcfReader.PositionRange>?): HvcfReader {
+
+    val dbReader: VCFReader
 
     init {
-
+        if (samples == null) dbReader = VCFReader(uri, null, Optional.empty(), Optional.empty())
+        else {
+            dbReader = VCFReader(uri, samples.toTypedArray(), Optional.empty(), Optional.empty())
+        }
     }
 
     override fun range(range: List<HvcfReader.PositionRange>): HvcfReader {
-        TODO("Not yet implemented")
-    }
-
-    override fun samples(sampleNames: List<String>): HvcfReader {
-        TODO("Not yet implemented")
+        val rangeString = range.map { it.toString() }.toTypedArray()
+        dbReader.setRanges(rangeString)
+        return this
     }
 
     override fun header(sampleName: String): String {
