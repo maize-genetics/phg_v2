@@ -135,7 +135,12 @@ class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference g
                         chr = chrom
                         prevChrom = chrom
                         chromAnchors = 0
-                        chrSeq = myRefSequence!![chr]
+                        //chrSeq = myRefSequence!![chr]
+                        if (myRefSequence!!.containsKey(chr)) {
+                            chrSeq = myRefSequence!![chr]
+                        } else {
+                            throw IllegalStateException("Error processing intervals file on line : ${line} . Chromosome ${chr} not found in reference file")
+                        }
                     }
 
                     val anchorStart = tokens[1].toInt() + 1  // NucSeq is 0 based, bed file is 0 based, but VCF is 1 based
