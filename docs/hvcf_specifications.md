@@ -249,5 +249,5 @@ haplotype sequence information for the given reference range record
 > [!NOTE]
 > While the values shown here are homozygous, allele values are
 > represented as diploid to accomodate for possible heterozygous 
-> diploid path finding options within the imputation pipeline for the 
-> PHG.
+> diploid path (e.g. `1|2`) finding options within the imputation 
+> pipeline for the PHG.
