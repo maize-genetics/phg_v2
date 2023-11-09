@@ -13,13 +13,16 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 
+/**
+ * This test will do a full end to end Integration test of the pipeline using the command line parameter inputs.
+ * As of PHGv2.1 this will test the output sequences that they match the input assemblies(minus the parts which are not anchorwave aligned).
+ */
 @ExtendWith(TestExtension::class)
 class FullPipelineIT {
 
     companion object {
         //Setup/download  files
-        //The tempfileDir is already created by the IntegrationTestExtension
-
+        //Resetting on both setup and teardown just to be safe.
         @JvmStatic
         @BeforeAll
         fun setup() {
@@ -29,8 +32,7 @@ class FullPipelineIT {
         @JvmStatic
         @AfterAll
         fun teardown() {
-//            //Delete the tempDir
-//            resetDirs()
+            resetDirs()
         }
 
         fun resetDirs() {
@@ -90,8 +92,6 @@ class FullPipelineIT {
         )
         println(alignAssembliesResult.output)
 
-
-
         //Run BuildMafVCF
         val createMafVCF = CreateMafVcf()
         val createMAFVCFResult = createMafVCF.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} " +
@@ -108,12 +108,7 @@ class FullPipelineIT {
         val exportHVCFRefResult = exportHVCF.test("--db-path ${TestExtension.testTileDBURI} --sample-names Ref,LineA,LineB -o ${TestExtension.testOutputGVCFDIr}")
         println(exportHVCFRefResult.output)
 
-        //Run Fasta Generator for REF
-//        val createFastaFromHvcf = CreateFastaFromHvcf()
-//        val createFastaFromHvcfResult = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --agc-file ${TestExtension.testAGCFile} --sample-name Ref -o ${TestExtension.testOutputRefFasta}")
-//        println(createFastaFromHvcfResult.output)
-
-//        buildAllFastas()
+        //Create a fasta from the HVCF
         val createFastaFromHvcf = CreateFastaFromHvcf()
         val createFastaFromHvcfRefResult = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type haplotype --hvcf-dir ${TestExtension.testOutputGVCFDIr} -o ${TestExtension.testOutputHaplotypeFasta}")
         println(createFastaFromHvcfRefResult.output)
@@ -148,6 +143,13 @@ class FullPipelineIT {
 
     }
 
+    /**
+     * Function to compare between two fasta sequences.
+     * Because the alignment can lose information we cannot do a simple full identity check.
+     * This counts number of differences/total number of bps in the chromosomes.
+     *
+     * The denominator is limited by the generated chromosome length because we use proali and it will lose the ends of the chromosomes until it hits an anchor.
+     */
     fun compareFastaSeqs(inputFasta: String, outputFasta: String): Double {
         //Compare the input and output fasta files
         //Return the percent difference
