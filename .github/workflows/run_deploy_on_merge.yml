@@ -58,7 +58,7 @@ jobs:
           activate-environment: ""
           miniconda-version: "latest"
       - name: Run Conda
-        run: conda env create --solver=libmamba --file src/main/resources/environment.yml
+        run: conda env create --solver=libmamba --file src/main/resources/phg_environment.yml
 
       # Uses semantic commits to automate version bumping.
       # No scope or "fix:" = PATCH, "feat:" or "minor:" = MINOR, "BREAKING CHANGE:", "major:", or fix/feat with appended "!" = MAJOR
