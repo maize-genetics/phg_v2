@@ -27,7 +27,7 @@ class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference g
     val referenceUrl by option(help = "URL where the reference FASTA file can be downloaded")
         .default("")
 
-    val bed by option(help = "BED file")
+    val bed by option(help = "BED file with entries that define the haplotype boundaries")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -35,7 +35,7 @@ class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference g
             }
         }
 
-    val referenceFile by option(help = "Reference FASTA file")
+    val referenceFile by option(help = "Path to local Reference FASTA file.")
         .default("")
         .validate {
             require(it.isNotBlank()) {

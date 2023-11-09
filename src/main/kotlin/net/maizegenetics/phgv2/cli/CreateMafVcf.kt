@@ -21,7 +21,7 @@ data class HVCFRecordMetadata(val sampleName: String, val refSeq : String = "", 
 
 class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave MAF files") {
 
-    val bed by option(help = "BED file")
+    val bed by option(help = "BED file with entries that define the haplotype boundaries")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -29,7 +29,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
             }
         }
 
-    val referenceFile by option(help = "Reference FASTA file")
+    val referenceFile by option(help = "Path to local Reference FASTA file")
         .default("")
         .validate {
             require(it.isNotBlank()) {

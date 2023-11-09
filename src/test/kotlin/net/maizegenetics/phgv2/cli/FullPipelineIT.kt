@@ -5,6 +5,7 @@ import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.cli.TestExtension.Companion.asmList
 import net.maizegenetics.phgv2.utils.getChecksumForString
 import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import kotlin.test.Test
@@ -20,9 +21,19 @@ class FullPipelineIT {
         //The tempfileDir is already created by the IntegrationTestExtension
 
         @JvmStatic
+        @BeforeAll
+        fun setup() {
+            resetDirs()
+        }
+
+        @JvmStatic
         @AfterAll
         fun teardown() {
-            //Delete the tempDir
+//            //Delete the tempDir
+//            resetDirs()
+        }
+
+        fun resetDirs() {
             File(TestExtension.tempDir).deleteRecursively()
             File(TestExtension.asmDir).deleteRecursively()
             File(TestExtension.testVCFDir).deleteRecursively()
@@ -58,7 +69,7 @@ class FullPipelineIT {
 
         //Run CreateRanges
         val createRanges = CreateRanges()
-        val createRangesResult = createRanges.test("--gff ${TestExtension.smallseqAnchorsGffFile} --output ${TestExtension.testBEDFile}")
+        val createRangesResult = createRanges.test("--gff ${TestExtension.smallseqAnchorsGffFile} --output ${TestExtension.testBEDFile} --reference-file ${TestExtension.smallseqRefFile}")
 
         //Create the agc record:
         val agcCompress = AgcCompress()
@@ -118,42 +129,29 @@ class FullPipelineIT {
         }
 
 
+        //build a composite genome from the HVCFs
+
+        createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDIr}/Ref.vcf -o ${TestExtension.testOutputFastaDir}/Ref_composite.fa")
+        createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDIr}/LineA.vcf -o ${TestExtension.testOutputFastaDir}/LineA_composite.fa")
+        createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDIr}/LineB.vcf -o ${TestExtension.testOutputFastaDir}/LineB_composite.fa")
+
         //Load in the initial HVCFs and check that each of their ids are represented in the composite genome
 
 
 //        //Compare ref to input
-//        val refDiff =  compareFastaSeqs(TestExtension.testRefFasta, TestExtension.testOutputRefFasta)
-//        assertTrue(refDiff < 0.0001, "Ref Fasta is not the same as input")
+        val refDiff =  compareFastaSeqs(TestExtension.smallseqRefFile, "${TestExtension.testOutputFastaDir}/Ref_composite.fa")
+        assertTrue(refDiff < 0.0001, "Ref Fasta is not the same as input")
 //        //For each asm
-//        for(asmName in asmList) {
-//            //Run Fasta Generator for ASM
-////            createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --agc-file ${TestExtension.testAGCFile} --sample-name ${asmName} -o ${TestExtension.testOutputFastaDir}${asmName}")
-//            //Compare asm to input
-//            val asmDiff =  compareFastaSeqs("${TestExtension.asmDir}${asmName}", "${TestExtension.testOutputFastaDir}${asmName}")
-//            assertTrue(asmDiff < 0.0001, "${asmName} Fasta is not the same as input")
-//        }
+        for(asmName in asmList) {
+            //Run Fasta Generator for ASM
+//            createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --agc-file ${TestExtension.testAGCFile} --sample-name ${asmName} -o ${TestExtension.testOutputFastaDir}${asmName}")
+            //print the fastaNames
+            println("Comparing ${asmName} fasta")
+            //Compare asm to input
+            val asmDiff =  compareFastaSeqs("${TestExtension.smallSeqInputDir}${asmName}.fa", "${TestExtension.testOutputFastaDir}${asmName}_composite.fa")
+            assertTrue(asmDiff < 0.0001, "${asmName} Fasta is not the same as input")
+        }
 
-
-    }
-
-    fun exportAllHvcf() {
-        val exportHVCF = ExportHvcf()
-        val exportHVCFRefResult = exportHVCF.test("--db-path ${TestExtension.testTileDBURI} --sample-names Ref -o ${TestExtension.testOutputGVCFDIr}")
-        println(exportHVCFRefResult.output)
-        val exportHVCFLineAResult = exportHVCF.test("--db-path ${TestExtension.testTileDBURI} --sample-names LineA -o ${TestExtension.testOutputGVCFDIr}")
-        println(exportHVCFLineAResult.output)
-        val exportHVCFLineBResult = exportHVCF.test("--db-path ${TestExtension.testTileDBURI} --sample-names LineB -o ${TestExtension.testOutputGVCFDIr}")
-        println(exportHVCFLineBResult.output)
-    }
-
-    fun buildAllFastas() {
-        val createFastaFromHvcf = CreateFastaFromHvcf()
-        val createFastaFromHvcfRefResult = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type haplotype --hvcf-file ${TestExtension.testOutputGVCFDIr}/Ref.vcf -o ${TestExtension.testOutputRefFasta}")
-        println(createFastaFromHvcfRefResult.output)
-        val createFastaFromHvcfLineAResult = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type haplotype --hvcf-file ${TestExtension.testOutputGVCFDIr}/LineA.vcf -o ${TestExtension.testOutputFastaDir}LineA.fa")
-        println(createFastaFromHvcfLineAResult.output)
-        val createFastaFromHvcfLineBResult = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type haplotype --hvcf-file ${TestExtension.testOutputGVCFDIr}/LineB.vcf -o ${TestExtension.testOutputFastaDir}LineB.fa")
-        println(createFastaFromHvcfLineBResult.output)
 
     }
 
@@ -172,8 +170,9 @@ class FullPipelineIT {
             val truthSeq = truthSeqChrMap[chr]
             val generatedSeq = generatedSeqChrMap[chr]
             if(truthSeq != null && generatedSeq != null) {
-                //walk through each bp and compare
-                for(i in 0 until truthSeq.size()) {
+
+//                for(i in 0 until truthSeq.seq().length) {
+                for(i in 0 until generatedSeq.seq().length) { //Need to use the generatedSeq here as we lose some info coming from MAF
                     if(truthSeq[i] != generatedSeq[i]) {
                         diffCount++
                     }
