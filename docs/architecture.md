@@ -1,2 +1,0 @@
-## PHG Architecture
-
