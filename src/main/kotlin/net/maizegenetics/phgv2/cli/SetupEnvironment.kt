@@ -22,7 +22,7 @@ class SetupEnvironment : CliktCommand(help="create conda environment for PHG") {
 
     private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.cli.SetupEnvironment")
 
-    val envFile by option("-e", "--envFile", help = "File containing the conda environment definition")
+    val envFile by option("-e", "--env-file", help = "File containing the conda environment definition")
         .default("")
 
     // This function uses ProcssBuilder to setup the phgv2 conda environment
