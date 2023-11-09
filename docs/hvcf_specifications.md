@@ -146,13 +146,14 @@ rows. The necessary keys are as follows:
 Much like the `##FORMAT` field, the `##INFO` field is a structured 
 meta-information field that provides details pertaining to each 
 reference range and the corresponding haplotype data contained within 
-those reference ranges. The necessary keys are as follows:
+those reference ranges. Similar to the `##FORMAT` field, the 
+necessary keys are as follows:
 
 | Key           | Description                                                                          |
 |---------------|--------------------------------------------------------------------------------------|
-| `ID`          | Identifier for `FORMAT` entry                                                        |
+| `ID`          | Identifier for `FORMAT` entry. Defaults to `END`                                     |
 | `Number`      | Number (integer) of values representing `ID`                                         |
-| `Type`        | [Data type](http://samtools.github.io/hts-specs/VCFv4.4.pdf#subsection.1.3) for `ID` |
+| `Type`        | [Data type](http://samtools.github.io/hts-specs/VCFv4.2.pdf#subsection.1.3) for `ID` |
 | `Description` | Descriptive information about `ID`                                                   |
 
 In order to properly represent the information regarding reference
@@ -163,7 +164,7 @@ ranges, the following values are required:
 | `End`        | End position of reference range (bp) |
 
 By combining the values identified within the `POS` column and the
-`End` value, we can specify the total length of the reference range
+`END` value, we can specify the total length of the reference range
 along with assembly information.
 
 
@@ -231,4 +232,22 @@ since these allele values represent the haplotype sequence in
 MD5 hash form. Additionally, all allele values are separated with a
 "phased" indicator (`|`) and never with an unphased indicator (`/`).
 Allele values represent the indexed order of haplotype sequences in
-the `ALT` field.
+the `ALT` field. In other terms if a sample has an allele value of
+`1|1`, this would refer to the _first_ symbolic allele in the `ALT`
+field for both haploid values. 
+
+Using this information with prior example, we can infer the following
+haplotype sequence information for the given reference range record
+(`1:1001-5500`):
+
+| Sample ID | Allele values | MD5 symbolic allele                |
+|-----------|---------------|------------------------------------|
+| `Ref`     | `1\|1`        | `57705b1e2541c7634ea59a48fc52026f` |
+| `B97`     | `2\|2`        | `1bda8c63ae8e2f3678b85bac0ee7b8b9` |
+| `CML231`  | `1\|1`        | `57705b1e2541c7634ea59a48fc52026f` |
+
+> [!NOTE]
+> While the values shown here are homozygous, allele values are
+> represented as diploid to accomodate for possible heterozygous 
+> diploid path finding options within the imputation pipeline for the 
+> PHG.
