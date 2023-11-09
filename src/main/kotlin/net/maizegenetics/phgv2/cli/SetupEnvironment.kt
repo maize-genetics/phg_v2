@@ -5,7 +5,7 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import java.io.File
-import java.util.logging.Logger
+import org.apache.logging.log4j.LogManager
 
 
 /**
@@ -20,7 +20,7 @@ import java.util.logging.Logger
  */
 class SetupEnvironment : CliktCommand(help="create conda environment for PHG") {
 
-    private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.cli.SetupEnvironment")
+    private val myLogger = LogManager.getLogger(SetupEnvironment::class.java)
 
     val envFile by option("-e", "--env-file", help = "File containing the conda environment definition")
         .default("")
@@ -34,17 +34,16 @@ class SetupEnvironment : CliktCommand(help="create conda environment for PHG") {
         // if no user defined environment file, use the default
         if (selectedEnvFile == "") {
 
-            selectedEnvFile = "${outputDir}/environment.yml"
-            val inputUrl = SetupEnvironment::class.java.getResource("environment.yml")
-            println("inputUrl = ${inputUrl}, selectedEnvFile = $selectedEnvFile")
+            selectedEnvFile = "${outputDir}/phg_environment.yml"
 
-            val fileContent = this::class.java.classLoader.getResource("environment.yml").readText()
+            val fileContent = this::class.java.classLoader.getResource("phg_environment.yml").readText()
+            myLogger.info("writing default environment file to $selectedEnvFile")
             // This will overwrite an existing file
             File(selectedEnvFile).writeText(fileContent)
         }
 
         // call ProcessBuilder to execute the conda create env command
-        myLogger.info("Creating conda environment from file: $envFile")
+        myLogger.info("Creating conda environment from file: $selectedEnvFile")
         val builder = ProcessBuilder("conda", "env", "create","--solver=libmamba", "--file", selectedEnvFile)
         var redirectOutput = outputDir + "/condaCreate_output.log"
         var redirectError = outputDir + "/condaCreate_error.log"
@@ -60,7 +59,7 @@ class SetupEnvironment : CliktCommand(help="create conda environment for PHG") {
                 .filter { it.contains("prefix already exists") }
                 .toList()
             if (success == null || success.size == 0) {
-                myLogger.severe("conda env create command for file ${envFile} run via ProcessBuilder returned error code $error")
+                myLogger.error("conda env create command for file ${envFile} run via ProcessBuilder returned error code $error")
                 println("Verify you have conda installed and the environment phgv2-conda does not already exist")
                 throw IllegalStateException("SetupEnvironment: create conda envirionment failed: $error")
             } else {
