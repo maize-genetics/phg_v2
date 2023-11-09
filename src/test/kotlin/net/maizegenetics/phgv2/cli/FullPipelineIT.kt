@@ -134,22 +134,15 @@ class FullPipelineIT {
         createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDIr}/Ref.vcf -o ${TestExtension.testOutputFastaDir}/Ref_composite.fa")
         createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDIr}/LineA.vcf -o ${TestExtension.testOutputFastaDir}/LineA_composite.fa")
         createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDIr}/LineB.vcf -o ${TestExtension.testOutputFastaDir}/LineB_composite.fa")
-
-        //Load in the initial HVCFs and check that each of their ids are represented in the composite genome
-
-
-//        //Compare ref to input
+        
+        //Compare the outputs.
         val refDiff =  compareFastaSeqs(TestExtension.smallseqRefFile, "${TestExtension.testOutputFastaDir}/Ref_composite.fa")
-        assertTrue(refDiff < 0.0001, "Ref Fasta is not the same as input")
-//        //For each asm
+        assertTrue(refDiff < 0.00001, "Ref Fasta is not the same as input")
         for(asmName in asmList) {
-            //Run Fasta Generator for ASM
-//            createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --agc-file ${TestExtension.testAGCFile} --sample-name ${asmName} -o ${TestExtension.testOutputFastaDir}${asmName}")
-            //print the fastaNames
             println("Comparing ${asmName} fasta")
             //Compare asm to input
             val asmDiff =  compareFastaSeqs("${TestExtension.smallSeqInputDir}${asmName}.fa", "${TestExtension.testOutputFastaDir}${asmName}_composite.fa")
-            assertTrue(asmDiff < 0.0001, "${asmName} Fasta is not the same as input")
+            assertTrue(asmDiff < 0.00001, "${asmName} Fasta is not the same as input")
         }
 
 
@@ -170,8 +163,6 @@ class FullPipelineIT {
             val truthSeq = truthSeqChrMap[chr]
             val generatedSeq = generatedSeqChrMap[chr]
             if(truthSeq != null && generatedSeq != null) {
-
-//                for(i in 0 until truthSeq.seq().length) {
                 for(i in 0 until generatedSeq.seq().length) { //Need to use the generatedSeq here as we lose some info coming from MAF
                     if(truthSeq[i] != generatedSeq[i]) {
                         diffCount++
