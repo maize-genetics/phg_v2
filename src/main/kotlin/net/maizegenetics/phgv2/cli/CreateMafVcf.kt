@@ -362,6 +362,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         val assemblyHaplotypeSeq:String = metaDataRecord.asmSeq
         //md5 hash the assembly sequence
         val assemblyHaplotypeHash = getChecksumForString(assemblyHaplotypeSeq)
+        check(metaDataRecord.refSeq.isNotEmpty()) { "Reference sequence is empty" }
         //md5 has the refSequence
         val refSeqHash = getChecksumForString(metaDataRecord.refSeq)
 

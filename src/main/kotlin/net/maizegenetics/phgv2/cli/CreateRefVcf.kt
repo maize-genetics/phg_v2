@@ -43,7 +43,7 @@ class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference g
             }
         }
 
-    val referenceName by option(help = "Line name for reference to be used in hvcf ")
+    val referenceName by option(help = "Sample name for reference to be used in hvcf ")
         .default("")
         .validate {
             require(it.isNotBlank()) {

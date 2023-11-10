@@ -36,9 +36,8 @@ To populate that database
 
 ## Build VCF data
 ./phg create-ranges --gff my.gff --boundary gene --pad 500 -o /path/to/bed/file.bed
-./phg align-assemblies --gff anchors.gff --reference-file Ref.fa -a assembliesList.txt -o /path/to/temp
+./phg align-assemblies --gff anchors.gff --reference-file Ref.fa -a assembliesList.txt -o /path/for/generatedFiles
 ./phg agc-compress --db-path /path/to/dbs --reference-file /my/ref.fasta --fasta-list /my/assemblyFastaList.txt 
-./anchorwave (ref.fasta, asm.fasta) -o /path/to/maf/files/
 ./phg create-ref-vcf --bed /my/bed/file.bed --reference-file /my/ref.fasta --reference-url https://url-for-ref --reference-name B73 --output-dir /path/to/vcfs
 ./phg create-maf-vcf --db-path /path/to/dbs --bed /my/bed/file.bed --reference-file /my/ref.fasta --maf-dir /my/maf/files -o /path/to/vcfs
 

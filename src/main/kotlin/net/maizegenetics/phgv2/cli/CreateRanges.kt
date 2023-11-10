@@ -43,7 +43,7 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
     val makeOnlyGenic by option(help = "Set this option to have create-ranges only make genic/cds regions without the in-between regions")
         .flag()
 
-    val referenceFile by option(help = "Full path to the reference fasta file for filling int the intergenic/interCDS regions.  If supplied a Bed region will be created between the last GFF region and the end of the chromosome. If not, this region will be left off..")
+    val referenceFile by option(help = "Full path to the reference fasta file for filling in the intergenic/interCDS regions.  If supplied a Bed region will be created between the last GFF region and the end of the chromosome. If not, this region will be left off..")
         .default("")
 
     /**
