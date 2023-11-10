@@ -21,7 +21,7 @@ data class HVCFRecordMetadata(val sampleName: String, val refSeq : String = "", 
 
 class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave MAF files") {
 
-    val bed by option(help = "BED file")
+    val bed by option(help = "BED file with entries that define the haplotype boundaries")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -29,11 +29,11 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
             }
         }
 
-    val reference by option(help = "Reference FASTA file")
+    val referenceFile by option(help = "Path to local Reference FASTA file")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--reference must not be blank"
+                "--reference-file must not be blank"
             }
         }
 
@@ -79,6 +79,8 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 val gvcfVariants = getGVCFVariantsFromMafFile(referenceFileName, it.absolutePath, it.nameWithoutExtension)
 
                 exportVariantContext(sampleName, gvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.g.vcf",refGenomeSequence, setOf())
+                //bgzip the files
+                bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.g.vcf")
 
                 val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
                 //convert the GVCF records into hvcf records
@@ -86,6 +88,9 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
                 val asmHeaderSet = asmHeaderLines.values.toSet()
                 //export the hvcfRecords
                 exportVariantContext(sampleName, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, asmHeaderSet)
+                //bgzip the files
+                bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.h.vcf")
+
             }
 
     }
@@ -357,6 +362,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         val assemblyHaplotypeSeq:String = metaDataRecord.asmSeq
         //md5 hash the assembly sequence
         val assemblyHaplotypeHash = getChecksumForString(assemblyHaplotypeSeq)
+        check(metaDataRecord.refSeq.isNotEmpty()) { "Reference sequence is empty" }
         //md5 has the refSequence
         val refSeqHash = getChecksumForString(metaDataRecord.refSeq)
 
@@ -376,7 +382,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         //build a variant context of the HVCF with the hashes
         return createHVCFRecord(metaDataRecord.sampleName, Position(metaDataRecord.refContig,metaDataRecord.refStart),
             Position(metaDataRecord.refContig, metaDataRecord.refEnd ),
-            Pair(metaDataRecord.refSeq, assemblyHaplotypeHash))
+            Pair(metaDataRecord.refSeq[0].toString(), assemblyHaplotypeHash))
     }
 
 
@@ -419,7 +425,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
     }
 
     override fun run() {
-        createASMHvcfs(dbPath, bed, reference, mafDir, outputDir)
+        createASMHvcfs(dbPath, bed, referenceFile, mafDir, outputDir)
     }
 
 }

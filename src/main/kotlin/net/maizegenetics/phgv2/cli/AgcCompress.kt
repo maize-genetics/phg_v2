@@ -56,11 +56,11 @@ class AgcCompress : CliktCommand(){
             }
         }
 
-    val refFasta by option(help = "Full path to the reference fasta file to be added with other fastas to the agc compressed file. Reference fasta should NOT be compressed.")
+    val referenceFile by option(help = "Full path to the reference fasta file to be added with other fastas to the agc compressed file. Reference fasta should NOT be compressed.")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--ref-fasta must not be blank"
+                "--reference-file must not be blank"
             }
         }
 
@@ -68,7 +68,7 @@ class AgcCompress : CliktCommand(){
     override fun run() {
         myLogger.info("Starting AGC compression")
         // process the input
-        processAGCFiles(dbPath,fastaList,refFasta)
+        processAGCFiles(dbPath,fastaList,referenceFile)
 
     }
 

@@ -6,6 +6,8 @@ import java.io.File
 
 class TestExtension : BeforeAllCallback {
 
+
+
     companion object {
 
         val tempDir = "${System.getProperty("user.home")}/temp/phgv2Tests/tempDir/"
@@ -15,21 +17,22 @@ class TestExtension : BeforeAllCallback {
         val testOutputFastaDir = "${tempDir}outputFastaDir/"
         val testOutputGVCFDIr = "${tempDir}outputGVCFDir/"
 
-        const val smallseqLineAFile = "data/test/smallseq/LineA.fa"
-        const val smallseqLineAMafFile = "data/test/smallseq/LineA.maf"
-        const val smallseqLineBFile = "data/test/smallseq/LineB.fa"
-        const val smallseqLineBMafFile = "data/test/smallseq/LineB.maf"
-        const val smallseqRefFile = "data/test/smallseq/Ref.fa"
-        const val smallseqAnchorsBedFile = "data/test/smallseq/anchors.bed"
-        const val smallseqAnchorsGffFile = "data/test/smallseq/anchors.gff"
-        const val smallseqGvcfFile = "data/test/smallseq/sample.gvcf"
-        const val smallseqAssembliesListFile = "data/test/smallseq/assembliesList.txt"
-        const val smallseqRefHvcfFile = "data/test/smallseq/Ref.h.vcf"
+        const val smallSeqInputDir = "data/test/smallseq/"
+        const val smallseqLineAFile = "${smallSeqInputDir}LineA.fa"
+        const val smallseqLineAMafFile = "${smallSeqInputDir}LineA.maf"
+        const val smallseqLineBFile = "${smallSeqInputDir}LineB.fa"
+        const val smallseqLineBMafFile = "${smallSeqInputDir}LineB.maf"
+        const val smallseqRefFile = "${smallSeqInputDir}Ref.fa"
+        const val smallseqAnchorsBedFile = "${smallSeqInputDir}anchors.bed"
+        const val smallseqAnchorsGffFile = "${smallSeqInputDir}anchors.gff"
+        const val smallseqGvcfFile = "${smallSeqInputDir}sample.gvcf"
+        const val smallseqAssembliesListFile = "${smallSeqInputDir}assembliesList.txt"
+        const val smallseqRefHvcfFile = "${smallSeqInputDir}Ref.h.vcf"
 
         const val refLineName = "Ref"
         const val refFastaName = "Ref.fa"
         const val refURL = "https://s3.amazonaws.com/maizegenetics/phg/phgV2Test/Ref.fa" // this is a dummy URL
-        val asmList = listOf("LineA.fa", "LineB.fa")
+        val asmList = listOf("LineA", "LineB")
 
 
         val testTileDBURI = "${tempDir}testTileDBURI/"
@@ -42,6 +45,8 @@ class TestExtension : BeforeAllCallback {
 
 
         val testOutputRefFasta = "${testOutputFastaDir}${refFastaName}"
+        val testOutputHaplotypeFasta = "${testOutputFastaDir}haplotypes.fa"
+        val testOutputCompositeFasta = "${testOutputFastaDir}composite.fa"
 
     }
 

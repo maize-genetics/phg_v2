@@ -279,7 +279,9 @@ class CreateFastaFromHvcfTest {
             HaplotypeSequence(getChecksumForString(seqs[4]), seqs[4], getChecksumForString(seqs[4]), "2", 301, 600, "2", 301, 600)
         )
 
-        createFastaFromHvcf.writeCompositeSequence(outputFile, haplotypeSequences)
+        BufferedWriter(FileWriter(outputFile)).use { writer ->
+            createFastaFromHvcf.writeCompositeSequence(writer, haplotypeSequences)
+        }
 
         //Check that the file was created
         val file = File(outputFile)
@@ -318,7 +320,9 @@ class CreateFastaFromHvcfTest {
             HaplotypeSequence(getChecksumForString(seqs[4]), seqs[4], getChecksumForString(seqs[4]), "2", 301, 600, "2", 301, 600)
         )
 
-        createFastaFromHvcf.writeHaplotypeSequence(outputFile, haplotypeSequences)
+        BufferedWriter(FileWriter(outputFile)).use { writer ->
+            createFastaFromHvcf.writeHaplotypeSequence(writer, haplotypeSequences)
+        }
 
         //Check that the file was created
         val file = File(outputFile)
@@ -390,7 +394,7 @@ class CreateFastaFromHvcfTest {
 
         val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
 
-        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}/Ref_Test_output.fa", "composite",refHVCFFileName)
+        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}/Ref_Test_output.fa", "composite","",refHVCFFileName)
 
         //Compare the composite against the truth input
         val truthFasta = NucSeqIO("data/test/smallseq/Ref.fa").readAll()
@@ -400,7 +404,7 @@ class CreateFastaFromHvcfTest {
         }
 
         //build a haplotype fasta as well
-        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}/Ref_Test_output_hap.fa", "haplotype",refHVCFFileName)
+        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}/Ref_Test_output_hap.fa", "haplotype","",refHVCFFileName)
 
         //get truth hashes:
         val truthHashes = altHeaders.values.map { it.id }.toSet()

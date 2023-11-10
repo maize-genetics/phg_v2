@@ -24,10 +24,10 @@ class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference g
 
     // refurl is not required.  If present, it will result in a ##reference header
     // in the hvcf file.
-    val refurl by option(help = "URL where the reference FASTA file can be downloaded")
+    val referenceUrl by option(help = "URL where the reference FASTA file can be downloaded")
         .default("")
 
-    val bed by option(help = "BED file")
+    val bed by option(help = "BED file with entries that define the haplotype boundaries")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -35,19 +35,19 @@ class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference g
             }
         }
 
-    val referencefile by option(help = "Reference FASTA file")
+    val referenceFile by option(help = "Path to local Reference FASTA file.")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--referencefile must not be blank"
+                "--reference-file must not be blank"
             }
         }
 
-    val refname by option(help = "Line name for reference to be used in hvcf ")
+    val referenceName by option(help = "Sample name for reference to be used in hvcf ")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--refname must not be blank"
+                "--reference-name must not be blank"
             }
         }
 
@@ -61,7 +61,7 @@ class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference g
 
     override fun run() {
         myLogger.info("begin run")
-        createRefHvcf(bed,referencefile,refname,refurl,outputDir)
+        createRefHvcf(bed,referenceFile,referenceName,referenceUrl,outputDir)
 
     }
 

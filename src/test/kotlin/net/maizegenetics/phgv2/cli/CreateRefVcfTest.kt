@@ -38,34 +38,34 @@ class CreateRefVcfTest {
 
         // Test missing bed file parameter, also missing refurl
         // it is the missing bed file parameter that will be flagged
-        val resultMissingBed = createRefVCF.test("--refname ${TestExtension.refLineName} --referencefile ${TestExtension.testRefFasta}  -o ${TestExtension.testVCFDir}")
+        val resultMissingBed = createRefVCF.test("--reference-name ${TestExtension.refLineName} --reference-file ${TestExtension.testRefFasta}  -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingBed.statusCode, 1)
         assertEquals("Usage: create-ref-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --bed: --bed must not be blank\n",resultMissingBed.output)
 
         // Test missing reference file
-        val resultMissingRef = createRefVCF.test("--bed ${TestExtension.testBEDFile} --refurl ${TestExtension.refURL} --refname ${TestExtension.refLineName} -o ${TestExtension.testVCFDir}")
+        val resultMissingRef = createRefVCF.test("--bed ${TestExtension.testBEDFile} --reference-url ${TestExtension.refURL} --reference-name ${TestExtension.refLineName} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingRef.statusCode, 1)
         assertEquals("Usage: create-ref-vcf [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --referencefile: --referencefile must not be blank\n",resultMissingRef.output)
+                "Error: invalid value for --reference-file: --reference-file must not be blank\n",resultMissingRef.output)
 
 
         // Test missing output directory
-        val resultMissingOutput = createRefVCF.test("--bed ${TestExtension.testBEDFile} --refurl ${TestExtension.refURL} --refname ${TestExtension.refLineName} --referencefile ${TestExtension.testRefFasta}")
+        val resultMissingOutput = createRefVCF.test("--bed ${TestExtension.testBEDFile} --reference-url ${TestExtension.refURL} --reference-name ${TestExtension.refLineName} --reference-file ${TestExtension.testRefFasta}")
         assertEquals(resultMissingOutput.statusCode, 1)
         assertEquals("Usage: create-ref-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --output-dir: --output-dir/-o must not be blank\n",resultMissingOutput.output)
 
         // Test missing ref name parameter
-        val resultMissingRefName = createRefVCF.test("--referencefile ${TestExtension.testRefFasta} --refurl ${TestExtension.refURL} --bed ${TestExtension.testBEDFile} -o ${TestExtension.testVCFDir}")
+        val resultMissingRefName = createRefVCF.test("--reference-file ${TestExtension.testRefFasta} --reference-url ${TestExtension.refURL} --bed ${TestExtension.testBEDFile} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingRefName.statusCode, 1)
         println("resultMissingRefName.output = \n${resultMissingRefName.output}")
         assertEquals("Usage: create-ref-vcf [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --refname: --refname must not be blank\n",resultMissingRefName.output)
+                "Error: invalid value for --reference-name: --reference-name must not be blank\n",resultMissingRefName.output)
 
     }
 
@@ -123,7 +123,7 @@ class CreateRefVcfTest {
 
         // This could also be called via:
         assertThrows<IllegalStateException> {
-            CreateRefVcf().test("--bed $ranges --refname $refName --referencefile $genome --refurl ${refUrl} -o $vcfDir")
+            CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $genome --reference-url ${refUrl} -o $vcfDir")
         }
     }
 
@@ -140,7 +140,7 @@ class CreateRefVcfTest {
 
         // This could also be called via:
         //createRefVcf.createRefHvcf(ranges,genome,refName,refUrl,vcfDir)
-        val result = CreateRefVcf().test("--bed $ranges --refname $refName --referencefile $genome --refurl ${refUrl} -o $vcfDir")
+        val result = CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $genome --reference-url ${refUrl} -o $vcfDir")
 
         val outFileCompressed = "${tempDir}Ref.h.vcf.gz"
         val outFileIndexed = "${tempDir}Ref.h.vcf.gz.csi"
