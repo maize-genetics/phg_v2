@@ -15,6 +15,11 @@ import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
 
 /**
+ * Data class to hold the information needed to output a BedRecord.
+ */
+data class BedRecord(val contig: String, val start : Int, val end: Int, val name: String, val score : Int, val strand: String )
+
+/**
  * A [CliktCommand] class for generating reference ranges
  *
  * Reference ranges are parsed from an input GFF file and converted to a BED file
@@ -81,41 +86,17 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
         return(boundMinMax)
     }
 
-    data class BedRecord(val contig: String, val start : Int, val end: Int, val name: String, val score : Int, val strand: String )
+
     /**
-     * Generates a list of BED-formatted string rows
+     * Function to generate a list of BedRecord objects based on the input GFF file features.
      *
      * @param bounds A list of type `Pair<Int, Int>`. Generated from [idMinMaxBounds]`.
      * @param genes A list of type `Gene`
-     * @param delimiter A column delimiter for a BED file. Defaults to `\t`
      * @param featureId Identifier key for value to pull from ID field of GFF. Defaults to `"ID"`
      *
-     * @return A list of type `String`
+     * @return A list of type `BedRecord`
+     *
      */
-    fun generateBedRows(
-        bounds: List<Pair<Int, Int>>,
-        genes: List<Feature>,
-        delimiter: String = "\t",
-        featureId: String = "ID"
-    ): List<String> {
-        val bedLinesToPrint = genes.mapIndexed { index, gene ->
-            listOf(
-                gene.seqid,
-                bounds[index].first,
-                bounds[index].second,
-                gene.attribute(featureId).first(),
-                if (gene.score?.isNaN() != false) 0 else gene.score,
-                when(gene.strand) {
-                    Strand.PLUS -> "+"
-                    Strand.MINUS -> "-"
-                    else -> "."
-                }
-            ).joinToString(delimiter)
-        }
-
-        return(bedLinesToPrint)
-    }
-
     fun generateBedRecords(bounds: List<Pair<Int, Int>>,
                         genes: List<Feature>,
                         featureId: String = "ID"
@@ -136,19 +117,26 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
         }
     }
 
+    /**
+     * Convert the BedRecord objects into a list of strings for output in BED format
+     */
     fun convertBedRecordsIntoOutputStrings(records:List<BedRecord>) : List<String> {
         return records.map { record ->
             "${record.contig}\t${record.start}\t${record.end}\t${record.name}\t${record.score}\t${record.strand}"
         }
     }
 
+    /**
+     * Function to fill in regions between the genic bed records with intergenic regions.
+     * This will also make a region for the start and end of each chromosome.
+     */
     fun fillIntergenicRegions(bedRecords: List<BedRecord>, refSeq: Map<String, NucSeq>) : List<BedRecord> {
         val bedRecordsFilled = mutableListOf<BedRecord>()
 
         //make an initial BED record for the first region
         val firstRecord = bedRecords[0]
         if(firstRecord.start >= 1) {
-            val firstIntergenicRecord = BedRecord(firstRecord.contig, 0, firstRecord.start, "intergenic_chr${firstRecord.contig}:0-${firstRecord.start}", 0, "+")
+            val firstIntergenicRecord = BedRecord(firstRecord.contig, 0, firstRecord.start, "intergenic_${firstRecord.contig}:0-${firstRecord.start}", 0, "+")
             bedRecordsFilled.add(firstIntergenicRecord)
         }
         bedRecordsFilled.add(firstRecord)
@@ -161,13 +149,13 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
                 //fill in the end of chrom region, and make a new region for the beginning of the next chrom
                 val lengthOfLastChrom = refSeq[previousRecord.contig]?.seq()?.length?:0
                 if(previousRecord.end < lengthOfLastChrom) {
-                    val lastIntergenicRecord = BedRecord(previousRecord.contig, previousRecord.end, lengthOfLastChrom, "intergenic_chr${previousRecord.contig}:${previousRecord.end}-${lengthOfLastChrom}", 0, "+")
+                    val lastIntergenicRecord = BedRecord(previousRecord.contig, previousRecord.end, lengthOfLastChrom, "intergenic_${previousRecord.contig}:${previousRecord.end}-${lengthOfLastChrom}", 0, "+")
                     bedRecordsFilled.add(lastIntergenicRecord)
                 }
 
                 //add in new beginning of next chrom
                 if(currentRecord.start >= 1) {
-                    val firstIntergenicRecord = BedRecord(currentRecord.contig, 0, currentRecord.start, "intergenic_chr${currentRecord.contig}:0-${currentRecord.start}", 0, "+")
+                    val firstIntergenicRecord = BedRecord(currentRecord.contig, 0, currentRecord.start, "intergenic_${currentRecord.contig}:0-${currentRecord.start}", 0, "+")
                     bedRecordsFilled.add(firstIntergenicRecord)
                 }
             }
@@ -176,7 +164,7 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
                     currentRecord.contig,
                     previousRecord.end,
                     currentRecord.start,
-                    "intergenic_chr${currentRecord.contig}:${previousRecord.end}-${currentRecord.start}",
+                    "intergenic_${currentRecord.contig}:${previousRecord.end}-${currentRecord.start}",
                     0,
                     "+"
                 )
@@ -188,7 +176,7 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
         val lastRecord = bedRecords.last()
         val lengthOfLastChrom = refSeq[lastRecord.contig]?.seq()?.length?:0
         if(lastRecord.end < lengthOfLastChrom) {
-            val lastIntergenicRecord = BedRecord(lastRecord.contig, lastRecord.end, lengthOfLastChrom, "intergenic_chr${lastRecord.contig}:${lastRecord.end}-${lengthOfLastChrom}", 0, "+")
+            val lastIntergenicRecord = BedRecord(lastRecord.contig, lastRecord.end, lengthOfLastChrom, "intergenic_${lastRecord.contig}:${lastRecord.end}-${lengthOfLastChrom}", 0, "+")
             bedRecordsFilled.add(lastIntergenicRecord)
         }
 
@@ -207,8 +195,6 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
         val filledInBedRecords = if(makeOnlyGenic) bedRecords else fillIntergenicRegions(bedRecords, NucSeqIO(referenceFile).readAll())
 
         val bedLinesToPrint = convertBedRecordsIntoOutputStrings(filledInBedRecords)
-
-//        val bedLinesToPrint = generateBedRows(boundMinMax, genes)
 
         if(output!= null) {
             File(output).bufferedWriter().use { output ->

@@ -123,7 +123,7 @@ class CreateRefVcfTest {
 
         // This could also be called via:
         assertThrows<IllegalStateException> {
-            CreateRefVcf().test("--bed $ranges --refname $refName --referencefile $genome --refurl ${refUrl} -o $vcfDir")
+            CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $genome --reference-url ${refUrl} -o $vcfDir")
         }
     }
 
