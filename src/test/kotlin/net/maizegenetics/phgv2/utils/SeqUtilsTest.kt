@@ -14,7 +14,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.extension.ExtendWith
 
+@ExtendWith(TestExtension::class)
 class SeqUtilsTest {
 
     companion object {
@@ -57,8 +59,8 @@ class SeqUtilsTest {
             // Create the initial compressed file
             println("Calling agcCompress for CREATE")
             var result =
-                agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --ref-fasta ${refFasta}")
-
+                agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
+            println("result output: ${result.output}")
         }
 
         @JvmStatic

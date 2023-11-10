@@ -23,7 +23,7 @@ class AlignAssembliesTest {
         val alignAssemblies = AlignAssemblies()
 
         val result = alignAssemblies.test(
-            "--gff ${TestExtension.smallseqAnchorsGffFile} --ref ${TestExtension.smallseqRefFile} " +
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
                     "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}"
         )
 

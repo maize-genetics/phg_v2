@@ -10,6 +10,8 @@ import net.maizegenetics.phgv2.utils.createRefRangeVC
 import net.maizegenetics.phgv2.utils.createSNPVC
 import net.maizegenetics.phgv2.utils.getChecksumForString
 import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
@@ -18,7 +20,6 @@ import kotlin.test.*
 @ExtendWith(TestExtension::class)
 class CreateMafVCFTest {
     companion object {
-
         @JvmStatic
         @AfterAll
         fun tearDown() {
@@ -32,7 +33,7 @@ class CreateMafVCFTest {
         val createMAFVCF = CreateMafVcf()
 
         val resultMissingBed =
-            createMAFVCF.test("--db-path ${TestExtension.testTileDBURI} --maf-dir ${TestExtension.testMafDir} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
+            createMAFVCF.test("--db-path ${TestExtension.testTileDBURI} --maf-dir ${TestExtension.testMafDir} --reference-file ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingBed.statusCode, 1)
         assertEquals(
             "Usage: create-maf-vcf [<options>]\n" +
@@ -45,11 +46,11 @@ class CreateMafVCFTest {
         assertEquals(
             "Usage: create-maf-vcf [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --reference: --reference must not be blank\n", resultMissingRef.output
+                    "Error: invalid value for --reference-file: --reference-file must not be blank\n", resultMissingRef.output
         )
 
         val resultMissingOutput =
-            createMAFVCF.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} --maf-dir ${TestExtension.testMafDir} --reference ${TestExtension.testRefFasta}")
+            createMAFVCF.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} --maf-dir ${TestExtension.testMafDir} --reference-file ${TestExtension.testRefFasta}")
         assertEquals(resultMissingOutput.statusCode, 1)
         assertEquals(
             "Usage: create-maf-vcf [<options>]\n" +
@@ -58,7 +59,7 @@ class CreateMafVCFTest {
         )
 
         val resultMissingMafDir =
-            createMAFVCF.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
+            createMAFVCF.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} --reference-file ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingMafDir.statusCode, 1)
         assertEquals(
             "Usage: create-maf-vcf [<options>]\n" +
@@ -67,7 +68,7 @@ class CreateMafVCFTest {
         )
 
         val resultMissingDbPath =
-            createMAFVCF.test("--bed ${TestExtension.testBEDFile} --maf-dir ${TestExtension.testMafDir} --reference ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
+            createMAFVCF.test("--bed ${TestExtension.testBEDFile} --maf-dir ${TestExtension.testMafDir} --reference-file ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
         assertEquals(resultMissingDbPath.statusCode, 1)
         assertEquals(
             "Usage: create-maf-vcf [<options>]\n" +
@@ -135,17 +136,17 @@ class CreateMafVCFTest {
 
         val agcCompress = AgcCompress()
         // Create the initial compressed file
-        agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --ref-fasta ${refFasta}")
-
+        val agcResult = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
+        println(agcResult.output)
 
         val createMAFVCF = CreateMafVcf()
-        createMAFVCF.test("--db-path ${dbPath} --bed data/test/buildMAFVCF/B73_Test.bed --reference ${refFasta} --maf-dir data/test/buildMAFVCF/mafs/ -o ${TestExtension.testVCFDir}")
-
+        val result = createMAFVCF.test("--db-path ${dbPath} --bed data/test/buildMAFVCF/B73_Test.bed --reference-file ${refFasta} --maf-dir data/test/buildMAFVCF/mafs/ -o ${TestExtension.testVCFDir}")
+        println(result.output)
         //compare the contents of the output gVCF files to the expected output
-        compareTwoGVCFFiles("data/test/buildMAFVCF/truthGVCFs/B97_truth.g.vcf", "${TestExtension.testVCFDir}/B97_ASM_Test.g.vcf")
+        compareTwoGVCFFiles("data/test/buildMAFVCF/truthGVCFs/B97_truth.g.vcf", "${TestExtension.testVCFDir}/B97_ASM_Test.g.vcf.gz")
 
         //Now we need to compare the hVCF's sequence with the sequence coming from the MAF files to make sure things match correctly as well as the boundaries
-        val outputHVCF = "${TestExtension.testVCFDir}/B97_ASM_Test.h.vcf"
+        val outputHVCF = "${TestExtension.testVCFDir}/B97_ASM_Test.h.vcf.gz"
         val outputHVCFReader = VCFFileReader(File(outputHVCF),false)
 
         val outputHeader = outputHVCFReader.header.metaDataInInputOrder.filter { it.key == "ALT" }
@@ -166,9 +167,9 @@ class CreateMafVCFTest {
         //Check the coordinates of the GVCF and make sure these match the hvcfs.
         //These were manually found by comparing BED and GVCF so they are right
         //Ref coord chr1	0	40 cooresponds to chr6 98 .. 142
-        //chr7	14	48 cooresponds to chr4 4245 .. 4281
-        //chr7	450	456 cooresponds to chr4 5247 .. 5252
-        //chr10	0	40 cooresponds to chr6 1098 .. 1142
+        //chr7	14	48 corresponds to chr4 4245 .. 4281
+        //chr7	450	456 corresponds to chr4 5247 .. 5252
+        //chr10	0	40 corresponds to chr6 1098 .. 1142
         val truthCoords = setOf(Pair(Position("chr6", 98), Position("chr6", 142)),
             Pair(Position("chr4", 4245), Position("chr4", 4281)),
             Pair(Position("chr4", 5247), Position("chr4", 5252)),
