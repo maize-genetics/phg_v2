@@ -31,6 +31,9 @@ More information on terminology can be found [here](docs/terminology.md).
 # Example usage
 To populate that database
 ```
+## Setup conda environment
+./phg setup-environment
+
 ## Initialize DBs
 ./phg initdb --db-path /path/to/dbs
 
