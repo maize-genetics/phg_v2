@@ -46,4 +46,20 @@ class SetupEnvironmentTest {
         val expectedFiles = listOf("condaCreate_error.log", "condaCreate_output.log")
         expectedFiles.forEach { assert(File(tempDir + it).exists()) }
     }
+
+    @Test
+    fun testSetupEnvironmentNoEnvFile() {
+        // This test verifies the default environment file is used when no user defined
+        // environment file is provided.
+
+        val envFile = "" // no user defined file - should use the default file
+
+        val setupEnv = SetupEnvironment()
+
+        val result = setupEnv.createEnvironment(envFile, tempDir)
+        println("result = $result")
+        // To verify, we  check that the outputDir contains the expected files
+        val expectedFiles = listOf("condaCreate_error.log", "condaCreate_output.log")
+        expectedFiles.forEach { assert(File(tempDir + it).exists()) }
+    }
 }

@@ -72,7 +72,7 @@ class CreateRangesTest {
         val testGffPath = "src/test/resources/net/maizegenetics/phgv2/cli/zm_b73v5_test.gff3.gz"
         val command = CreateRanges()
 
-        val result = command.test("--gff $testGffPath")
+        val result = command.test("--gff $testGffPath --make-only-genic")
         assertEquals(result.statusCode, 0)
         assertEquals(command.gff, testGffPath)
         assertEquals(command.boundary, "gene")
@@ -99,7 +99,7 @@ class CreateRangesTest {
 
         val outputFileName = "${tempDir}test.bed"
 
-        val result = command.test("--gff $testGffPath --output $outputFileName")
+        val result = command.test("--gff $testGffPath --output $outputFileName --make-only-genic")
         assertEquals(result.statusCode, 0)
         assertEquals(command.gff, testGffPath)
         assertEquals(command.boundary, "gene")
