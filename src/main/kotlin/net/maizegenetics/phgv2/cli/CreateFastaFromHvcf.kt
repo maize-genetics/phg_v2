@@ -64,10 +64,10 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
             }
         }
 
-    val hvcfFile by option("--hvcf-file", help = "hVCF file to import instead of hitting TileDB")
+    val hvcfFile by option("--hvcf-file", help = "Path to hVCF file. Data will be pulled directly from this file instead of querying TileDB")
         .default("")
 
-    val hvcfDir by option("--hvcf-dir", help = "hVCF directory to import instead of hitting TileDB")
+    val hvcfDir by option("--hvcf-dir", help = "Path to directory holding hVCF files. Data will be pulled directly from these files instead of querying TileDB")
         .default("")
 
     /**
@@ -77,7 +77,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
     fun buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfDir: String ,hvcfFile : String) {
         if(hvcfDir != "") {
             //Loop through the directory and figure out which files are hvcf files
-            val hvcfFiles = File(hvcfDir).listFiles { file -> file.extension == "vcf" }
+            val hvcfFiles = File(hvcfDir).listFiles { file -> file.extension == "vcf" || file.name.endsWith("vcf.gz") }
             //Loop through each file and run the buildFastaFromHVCF function
             BufferedWriter(FileWriter(outputFile)).use { output ->
                 writeSequences(output,hvcfFiles.flatMap { processSingleHVCF(VCFFileReader(it,false), dbPath) }
