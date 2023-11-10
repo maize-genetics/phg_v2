@@ -1,11 +1,14 @@
 package net.maizegenetics.phgv2.api
 
 import io.tiledb.libvcfnative.VCFReader
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.*
 
 class TileDBHvcfReader(uri: String, samples: List<String>?, ranges: List<HvcfReader.PositionRange>?): HvcfReader {
 
     val dbReader: VCFReader
+    private val missingInt = -1
 
     init {
         if (samples == null) dbReader = VCFReader(uri, null, Optional.empty(), Optional.empty())
@@ -32,8 +35,145 @@ class TileDBHvcfReader(uri: String, samples: List<String>?, ranges: List<HvcfRea
         TODO("Not yet implemented")
     }
 
-    override fun data(): Map<String, List<HvcfReader.SampleData>> {
-        TODO("Not yet implemented")
+    override fun data(): List<HvcfReader.SampleData> {
+        val capacity = 1024
+        val attributeNames = arrayOf(
+            "sample_name",
+            "contig",
+            "pos_start",
+            "pos_end",
+            "alleles",
+            "fmt_GT",
+            "fmt_AD",
+            "fmt_DP"
+        )
+
+        //delete any attributes not in this tiledb
+        val attributeInfo = dbReader.attributes
+        val filteredAttributeNames = attributeNames.filter { attributeInfo.keys.contains(it) }
+
+        //set buffers
+        //run for all desired attributes
+        for (attribute in filteredAttributeNames) dbReader.setBuffer(attribute,
+            ByteBuffer.allocateDirect(capacity).order(ByteOrder.nativeOrder()))
+
+        //buffers for all candidate attributes that are in the database
+        attributeNames.filter { attributeInfo.keys.contains(it) }.forEach {
+            dbReader.setBufferOffsets(it,ByteBuffer.allocateDirect(capacity).order(ByteOrder.nativeOrder()))
+        }
+
+        //needed for variable length attributes
+        attributeNames.filter { attributeInfo[it]?.isVarLen ?: false }.forEach {
+            dbReader.setBufferOffsets(it, ByteBuffer.allocateDirect(capacity).order(ByteOrder.nativeOrder()))
+        }
+
+        //needed for nullable attributes
+        attributeNames.filter { attributeInfo[it]?.isNullable ?: false }.forEach {
+            dbReader.setBufferValidityBitmap(it, ByteBuffer.allocateDirect(capacity).order(ByteOrder.nativeOrder()))
+        }
+
+        //needed for list attributes
+        attributeNames.filter { attributeInfo[it]?.isList ?: false }.forEach {
+            dbReader.setBufferListOffsets(it, ByteBuffer.allocateDirect(capacity).order(ByteOrder.nativeOrder()))
+        }
+
+        //process data
+        val sampleNames = mutableListOf<String>()
+        while (!dbReader.status.equals(VCFReader.Status.COMPLETED)) {
+            dbReader.submit()
+            val numberOfRecords = dbReader.numRecords.toInt()
+
+            //get sample names
+            decodeVarlenChar(
+                dbReader.getBuffer("sample_name"),
+                dbReader.getOffsets("sample_name"),
+                numberOfRecords,
+                sampleNames
+            )
+
+            //get contig (contig, varlen, CHAR)
+            //get startPos (pos_start, INT32)
+            //get endPos (pos_end, INT32)
+            //get genotype (alleles, varlen list of CHAR; fmt_GT, varlen, nullable, INT32)
+            //get AD (fmt_AD, varlen, nullable, INT32)
+            //get DP (fmt_DP, nullable, INT32)
+        }
+
+
+        return listOf()
     }
 
+    fun decodeVarlenChar(dataBuffer: ByteBuffer,
+                         offsetBuffer: ByteBuffer,
+                         numberOfRecords: Int,
+                         outputList: MutableList<String>)  {
+        val offsets = IntArray(numberOfRecords + 1)
+        offsetBuffer.asIntBuffer().get(offsets)
+        for (ndx in 0..<numberOfRecords) {
+            val sizeOfName = offsets[ndx + 1] - offsets[ndx]
+            val nameByteArray = ByteArray(sizeOfName)
+            dataBuffer.get(nameByteArray)
+            outputList.add(nameByteArray.decodeToString())
+        }
+    }
+
+    fun decodeInt(dataBuffer: ByteBuffer,
+                  numberOfRecords: Int,
+                  outputList: MutableList<Int>) {
+        val data = IntArray(numberOfRecords)
+        dataBuffer.asIntBuffer().get(data)
+        outputList.addAll(data.toList())
+    }
+
+    fun decodeVarlenListChar(dataBuffer: ByteBuffer,
+                             offsetBuffer: ByteBuffer,
+                             listOffsetBuffer: ByteBuffer,
+                             numberOfRecords: Int,
+                             outputList: MutableList<List<String>>) {
+        val nameList = mutableListOf<String>()
+        decodeVarlenChar(dataBuffer, offsetBuffer, numberOfRecords, nameList)
+        val listOffsets = IntArray(numberOfRecords + 1)
+        listOffsetBuffer.asIntBuffer().get(listOffsets)
+        val numberOfValues = listOffsets[numberOfRecords]
+        decodeVarlenChar(dataBuffer, offsetBuffer, numberOfValues, nameList)
+        for (ndx in 0 until numberOfRecords) {
+            outputList.add(nameList.subList(listOffsets[ndx], listOffsets[ndx + 1]))
+        }
+    }
+
+    fun decodeVarlenNullableInt(dataBuffer: ByteBuffer,
+                                offsetBuffer: ByteBuffer,
+                                validityBitset: BitSet,
+                                numberOfRecords: Int,
+                                outputList: MutableList<List<Int>>) {
+        val offsets = IntArray(numberOfRecords + 1)
+        offsetBuffer.asIntBuffer().get(offsets)
+        val data = IntArray(offsets[numberOfRecords])
+        dataBuffer.asIntBuffer().get(data)
+        for (offsetIndex in 0..<numberOfRecords) {
+            val obsList = mutableListOf<Int>()
+            outputList.add(obsList)
+            for (ndx in offsets[offsetIndex] until offsets[offsetIndex + 1]) {
+                obsList.add(
+                    if (validityBitset.get(ndx)) data[ndx] else missingInt
+                )
+            }
+
+        }
+
+    }
+
+    fun decodeNullableInt(dataBuffer: ByteBuffer,
+                          validityBitset: BitSet,
+                          numberOfRecords: Int,
+                          outputList: MutableList<Int>) {
+        val data = IntArray(numberOfRecords)
+        dataBuffer.asIntBuffer().get(data)
+        for (ndx in 0 until numberOfRecords) {
+            outputList.add(
+                if ( validityBitset.get(ndx) ) data[ndx] else missingInt
+            )
+        }
+
+    }
 }

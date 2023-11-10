@@ -45,13 +45,13 @@ interface HvcfReader {
     /**
      * Returns data for the requested source, sample names, and ranges
      */
-    fun data(): Map<String, List<SampleData>>
+    fun data(): List<SampleData>
 
     /**
      * A position range and genotype. Genotype is the allele/haplotype id not the integer GT code.
      * genotype and AD are lists to accommodate different ploidy levels
      */
-    data class SampleData(val contig: String, val startPos: Int, val endPos: Int, val genotype: List<String>, val AD: List<Int>? = null, val DP: Int? = null)
+    data class SampleData(val sampleName: String, val contig: String, val startPos: Int, val endPos: Int, val genotype: List<String>, val AD: List<Int>? = null, val DP: Int? = null)
 
 
     /**
@@ -60,7 +60,7 @@ interface HvcfReader {
     data class PositionRange(val contig: String, val startPos: Int? = null, val endPos: Int? = null) {
         override fun toString(): String {
             return if (startPos == null && endPos == null) "$contig"
-            else if (endPos == null) "$contig:$startPos"
+            else if (endPos == null) "$contig:$startPos-$startPos"
             else if (startPos == null) throw IllegalArgumentException("startPos is null and endPos = $endPos")
             else "$contig:$startPos-$endPos"
         }
