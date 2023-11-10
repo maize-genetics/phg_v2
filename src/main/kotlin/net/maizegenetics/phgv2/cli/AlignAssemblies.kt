@@ -19,6 +19,35 @@ import java.util.stream.Collectors
  * Uses anchorwave's proali to align, which handles
  * genome alignment with relocation variation,
  * chromosome fusion or whole genome duplication.
+ *
+ * This function allows for multiple assembly alignments to be run
+ * in parallel.  Users may specify number of alignments to run in parallel
+ * and the number of threads to use per each alignment.  Anchorwave takes
+ * 10G of RAM for the dynamic program aspects, and then another 10G+ per thread,
+ * depending on the processor.
+ *
+ * The table below shows the memory usage for a single assembly alignment
+ * based on processor type: (From Baoxing Song, 2023-11-10)
+ *
+ *  ---------------------------------------------
+ *  | Processor | peak memory (Gb) | wall time  |
+ *  ---------------------------------------------
+ *  |  SSE2    |    20.1          | 26:47:17    |
+ *  ---------------------------------------------
+ *  |  SSE4.1  |    20.6          | 24:05:07    |
+ *  ---------------------------------------------
+ *  |  AVX2    |    20.1          | 21:40:00    |
+ *  ---------------------------------------------
+ *  |  AVX512  |    20.1          | 18:31:39    |
+ *  ---------------------------------------------
+ *  | ARM      |    34.2          | 18:08:57    |
+ *  ---------------------------------------------
+ *
+ *  For a machine with 128G RAM, you would use 10 threads
+ *  divided between your parallel runs.  For example, if you
+ *  have 10 assemblies to align, you could run 2 parallel
+ *  alignments, each using 5 threads.
+ *
  */
 class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
 
