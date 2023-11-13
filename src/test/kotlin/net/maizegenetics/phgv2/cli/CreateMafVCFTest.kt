@@ -180,9 +180,12 @@ class CreateMafVCFTest {
                 .split(",")
                 .map { token -> token.split("=") }.associate { token -> Pair(token[0], token[1]) }
 
-            val chr = tokens["Contig"]!!
-            val start = tokens["Start"]!!.toInt()
-            val end = tokens["End"]!!.toInt()
+            val region = tokens["Regions"]!!
+            val regionSplit = region.split(":")
+            val chr = regionSplit[0]
+            val bounds = regionSplit[1].split("-")
+            val start = bounds[0].toInt()
+            val end = bounds[1].toInt()
             Pair(Position(chr, start), Position(chr, end))
         }.toSet()
 

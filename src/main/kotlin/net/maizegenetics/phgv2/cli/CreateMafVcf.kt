@@ -369,13 +369,13 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         //create the asmHeader lines
         if(!asmHeaders.containsKey(assemblyHaplotypeHash)) {
             asmHeaders[assemblyHaplotypeHash] =
-                VCFAltHeaderLine(
-                    "<ID=${assemblyHaplotypeHash}, Description=\"haplotype data for line: ${metaDataRecord.sampleName}\">," +
-                            "Number=6,Source=\"${dbPath}/assemblies.agc\"," +
-                            "Contig=\"${metaDataRecord.asmContig}\",Start=\"${metaDataRecord.asmStart}\"," +
-                            "End=\"${metaDataRecord.asmEnd}\",Checksum=\"Md5\",RefRange=\"${refSeqHash}\">",
-                    VCFHeaderVersion.VCF4_2
-                )
+            VCFAltHeaderLine(
+                "<ID=${assemblyHaplotypeHash}, Description=\"haplotype data for line: ${metaDataRecord.sampleName}\">," +
+                        "Number=4,Source=\"${dbPath}/assemblies.agc\"," +
+                        "Regions=\"${metaDataRecord.asmContig}:${metaDataRecord.asmStart}-${metaDataRecord.asmEnd}\"," +
+                        "Checksum=\"Md5\",RefRange=\"${refSeqHash}\">",
+                VCFHeaderVersion.VCF4_2
+            )
         }
 
 
