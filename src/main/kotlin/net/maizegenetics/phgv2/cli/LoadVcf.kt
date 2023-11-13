@@ -194,7 +194,8 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
 
             // verify if the output.log contains "Version"
             // if not, then the URI is not a tiledbvcf URI
-            myLogger.info("begin Command:" + builder.command().stream().collect(Collectors.joining(" ")))
+            myLogger.info("begin Command:" + builder.command().joinToString(" "))
+            println("begin Command:" + builder.command().joinToString(" "))
 
             try {
                 var process = builder.start()
@@ -239,8 +240,9 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
         builder.redirectOutput( File(redirectOutput))
         builder.redirectError( File(redirectError))
 
-        myLogger.info("begin Command:" + builder.command().stream().collect(Collectors.joining(" ")))
-        println("begin Command:" + builder.command().stream().collect(Collectors.joining(" ")))
+        myLogger.info("begin Command:" + builder.command().joinToString(" "))
+        println("begin Command:" + builder.command().joinToString(" "))
+
         try {
             var process = builder.start()
             var error = process.waitFor()
