@@ -5,6 +5,7 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import htsjdk.variant.vcf.VCFFileReader
+import net.maizegenetics.phgv2.utils.inputStreamProcessing
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedInputStream
 import java.io.File
@@ -158,29 +159,6 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
             }
         }
         return vcfSampleList
-    }
-    // This function reads the output from a ProcessBuilder cammond.
-    // The input is a BufferedInputStream.  This is read one line at a time
-    // returning the results as a List<String>.   It is used to process output
-    // from tiledbvcf list --uri <uri> and potentially other commands.
-    fun inputStreamProcessing(tiledbList: BufferedInputStream): List<String> {
-        val samples = mutableListOf<String>()  // this is the list of samples to be returned
-
-        try {
-            tiledbList.bufferedReader().use { br ->
-                var line = br.readLine()
-                while (line != null) {
-                    // skip blank lines.
-                    if (line != "") samples.add(line)
-                    line = br.readLine()
-                }
-            }
-        } catch (exc: Exception) {
-            myLogger.error("Error reading tiledb list output: ${exc.message}")
-        } finally {
-            tiledbList.close()
-        }
-        return samples
     }
 
     // The uri should either be gvcf_dataset or hvcf_dataset
