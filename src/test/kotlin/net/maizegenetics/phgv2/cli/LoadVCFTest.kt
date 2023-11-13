@@ -191,6 +191,16 @@ class LoadVCFTest {
             loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
         }
 
+        // Above throws an exception based on the gvcf file already existing.
+        // Remove this file, try to load again.  Should get another exception,
+        // this time due to the hvcf file already existing.
+        File("${testGvcfFile}.gz").delete()
+        assertThrows<IllegalArgumentException> {
+            //Check that an error is thrown when we attempt to load the same files again
+            loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
+        }
+
+
     }
 
 }
