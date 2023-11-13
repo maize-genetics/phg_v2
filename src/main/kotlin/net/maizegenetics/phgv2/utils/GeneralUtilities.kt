@@ -1,10 +1,10 @@
 package net.maizegenetics.phgv2.utils
 
+import org.apache.logging.log4j.LogManager
 import java.io.BufferedInputStream
 import java.lang.Exception
-import java.util.logging.Logger
 
-private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.utils.GeneralUtilities")
+private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.GeneralUtilities")
 
 // This function reads the output from a ProcessBuilder cammond.
 // The input is a BufferedInputStream.  This is read one line at a time
@@ -23,7 +23,7 @@ fun inputStreamProcessing(tiledbList: BufferedInputStream): List<String> {
             }
         }
     } catch (exc: Exception) {
-        myLogger.severe("Error reading tiledb list output: ${exc.message}")
+        myLogger.error("Error reading tiledb list output: ${exc.message}")
     } finally {
         tiledbList.close()
     }
