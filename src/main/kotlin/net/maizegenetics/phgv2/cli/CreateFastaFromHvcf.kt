@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.cli
 
+import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
@@ -7,6 +8,7 @@ import com.github.ajalt.clikt.parameters.options.validate
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeader
+import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import java.io.BufferedWriter
 import java.io.File
@@ -15,9 +17,9 @@ import java.io.FileWriter
 
 //Making Number a string as VCF allows for '.'
 data class AltHeaderMetaData(val id: String, val description:String, val number: String, val source:String,
-                             val contig:String, val start:Int, val end:Int, val checksum:String, val refRange:String)
+                             val regions:List<Pair<Position, Position>>, val checksum:String, val refRange:String)
 data class HaplotypeSequence(val id: String, val sequence: String, val refRangeId: String, val refContig: String, val refStart: Int, val refEnd: Int,
-                             val asmContig : String, val asmStart: Int, val asmEnd: Int)
+                             val asmRegions:List<Pair<Position, Position>>)
 
 /**
  * Class to create either a composite or a haplotype fasta file from an input hvcf file or from TileDB directly.
@@ -142,15 +144,24 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
                 //These are optional header fields so we check these in the unit test.
                 check(idsToValueMap.containsKey("Number")) { "ALT Header does not contain Number" }
                 check(idsToValueMap.containsKey("Source")) { "ALT Header does not contain Source" }
-                check(idsToValueMap.containsKey("Contig")) { "ALT Header does not contain Contig" }
-                check(idsToValueMap.containsKey("Start")) { "ALT Header does not contain Start" }
-                check(idsToValueMap.containsKey("End")) { "ALT Header does not contain End" }
+                check(idsToValueMap.containsKey("Regions")) { "ALT Header does not contain Regions" }
                 check(idsToValueMap.containsKey("Checksum")) { "ALT Header does not contain Checksum" }
                 check(idsToValueMap.containsKey("RefRange")) { "ALT Header does not contain RefRange" }
 
                 idsToValueMap["ID"]!! to AltHeaderMetaData(idsToValueMap["ID"]!!,idsToValueMap["Description"]!!,idsToValueMap["Number"]!!,idsToValueMap["Source"]!!,
-                    idsToValueMap["Contig"]!!,idsToValueMap["Start"]!!.toInt(),idsToValueMap["End"]!!.toInt(),idsToValueMap["Checksum"]!!,idsToValueMap["RefRange"]!!)
+                    parseRegions(idsToValueMap["Regions"]!!),idsToValueMap["Checksum"]!!,idsToValueMap["RefRange"]!!)
             }
+    }
+
+    /**
+     * Function to parse the regions from the ALT header.
+     */
+    fun parseRegions(regions: String) : List<Pair<Position, Position>> {
+        return regions.split(",").map { it.split(":") }.map {
+            val positions = it[1].split("-").map { position -> position.toInt() }
+            check(positions.size == 2) { "Region ${it} is not in the correct format.  It needs to be in the form: chr:stPos-endPos." }
+            Pair(Position(it[0],positions[0]), Position(it[0],positions[1]))
+        }
     }
 
     /**
@@ -162,15 +173,54 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
             check(altHeaders.containsKey(hapId)) { "Haplotype ID $hapId not found in ALT Header" }
             val altMetaData = altHeaders[hapId]
             //Need to subtract 1 from start as it uses 0 based format
-            val range = "${altMetaData!!.contig}@${sampleName}:${altMetaData!!.start-1}-${altMetaData!!.end-1}"
-            val outputDisplayName = "${altMetaData!!.contig}:${altMetaData!!.start-1}-${altMetaData!!.end-1}"
-            Triple(range, outputDisplayName, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, altMetaData!!.contig, altMetaData!!.start, altMetaData!!.end))
+            val regions =  altMetaData!!.regions
+            val queryRanges = mutableListOf<String>()
+            val displayRanges = mutableListOf<String>()
+            for(region in regions) {
+                queryRanges.add("${region.first.contig}@${sampleName}:${region.first.position}-${region.second.position}")
+                displayRanges.add("${region.first.contig}:${region.first.position}-${region.second.position}")
+            }
+//            val range = "${altMetaData!!.contig}@${sampleName}:${altMetaData!!.start-1}-${altMetaData!!.end-1}"
+//            val outputDisplayName = "${altMetaData!!.contig}:${altMetaData!!.start-1}-${altMetaData!!.end-1}"
+//            Triple(range, outputDisplayName, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, altMetaData!!.contig, altMetaData!!.start, altMetaData!!.end))
+//            Triple(queryRanges, displayRanges, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, altMetaData!!.contig, altMetaData!!.start, altMetaData!!.end))
+            Triple(queryRanges, displayRanges, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, regions))
         }
 
-        val ranges = rangesAndOtherInfo.map { it.first }
+        //Create a list of ranges we need to extract.
+        //Go through and split them into sets of non-identical ranges
+        //Pull all the non-identical ranges in a multithreaded fashion
+        //Store in Map<Range,Sequence>
+
+
+        val ranges = rangesAndOtherInfo.flatMap { it.first }
         val seqs = retrieveAgcContigs(dbPath,ranges)
 
-        return rangesAndOtherInfo.map { it.third.copy(sequence = seqs[it.second]!!.seq()) }
+        return rangesAndOtherInfo.map { it.third.copy(sequence = buildHapSeq(seqs, it.second,it.third)) }
+
+//        val ranges = rangesAndOtherInfo.map { it.first }
+//        val seqs = retrieveAgcContigs(dbPath,ranges)
+//
+//        return rangesAndOtherInfo.map { it.third.copy(sequence = seqs[it.second]!!.seq()) }
+    }
+
+    fun buildHapSeq(seqs: Map<String,NucSeq> ,displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
+        val hapSeqRegions = hapSeqObjects.asmRegions
+
+        return displayRegions.mapIndexed{ idx, currentDisplayRegion ->
+            val currentHapSeqRegion = hapSeqRegions[idx]
+            val seq = seqs[currentDisplayRegion]!!
+
+            //Means it is the first region
+            if(currentHapSeqRegion.first.position > currentHapSeqRegion.second.position) {
+                //Means it needs to be reverse complemented
+                seq.reverse_complement().seq()
+            }
+            else {
+                seq.seq()
+            }
+        }.joinToString()
+
     }
 
     /**
@@ -203,7 +253,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
             if(exportFullIdLine) {
                 outputFileWriter.write(" Ref_Range_Id=${hapSeq.refRangeId} " +
                 "Ref_Contig=${hapSeq.refContig} Ref_Start=${hapSeq.refStart} Ref_End=${hapSeq.refEnd} " +
-                        "Asm_Contig=${hapSeq.asmContig} Asm_Start=${hapSeq.asmStart} Asm_End=${hapSeq.asmEnd}")
+                        "Asm_Regions=${hapSeq.asmRegions}")
             }
             outputFileWriter.write("\n")
             hapSeq.sequence

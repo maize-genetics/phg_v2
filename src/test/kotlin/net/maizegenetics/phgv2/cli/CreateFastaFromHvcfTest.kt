@@ -6,6 +6,7 @@ import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeader
 import htsjdk.variant.vcf.VCFHeaderVersion
+import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.getChecksumForString
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -87,9 +88,10 @@ class CreateFastaFromHvcfTest {
         assertEquals(currentHeader2b?.description, "\"haplotype data for line: Ref\"")
         assertEquals(currentHeader2b?.number, "6")
         assertEquals(currentHeader2b?.source, "\"data/test/smallseq/Ref.fa\"")
-        assertEquals(currentHeader2b?.contig, "1")
-        assertEquals(currentHeader2b?.start, 11001)
-        assertEquals(currentHeader2b?.end, 12000)
+        assertEquals(currentHeader2b?.regions?.get(0), Pair(Position("1",11001), Position("1",12000)))
+//        assertEquals(currentHeader2b?.contig, "1")
+//        assertEquals(currentHeader2b?.start, 11001)
+//        assertEquals(currentHeader2b?.end, 12000)
         assertEquals(currentHeader2b?.checksum, "Md5")
         assertEquals(currentHeader2b?.refRange, "2b4590f722ef9229c15d29e0b4e51a0e")
 //        ##ALT=<ID=db22dfc14799b1aa666eb7d571cf04ec,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=2,Start=16501,End=17500,Checksum=Md5,RefRange=db22dfc14799b1aa666eb7d571cf04ec>
@@ -99,9 +101,10 @@ class CreateFastaFromHvcfTest {
         assertEquals(currentHeaderdb?.description, "\"haplotype data for line: Ref\"")
         assertEquals(currentHeaderdb?.number, "6")
         assertEquals(currentHeaderdb?.source, "\"data/test/smallseq/Ref.fa\"")
-        assertEquals(currentHeaderdb?.contig, "2")
-        assertEquals(currentHeaderdb?.start, 16501)
-        assertEquals(currentHeaderdb?.end, 17500)
+//        assertEquals(currentHeaderdb?.contig, "2")
+//        assertEquals(currentHeaderdb?.start, 16501)
+//        assertEquals(currentHeaderdb?.end, 17500)
+        assertEquals(currentHeaderdb?.regions?.get(0), Pair(Position("2",16501), Position("2",17500)))
         assertEquals(currentHeaderdb?.checksum, "Md5")
         assertEquals(currentHeaderdb?.refRange, "db22dfc14799b1aa666eb7d571cf04ec")
 
@@ -112,9 +115,10 @@ class CreateFastaFromHvcfTest {
         assertEquals(currentHeader581?.description, "\"haplotype data for line: Ref\"")
         assertEquals(currentHeader581?.number, "6")
         assertEquals(currentHeader581?.source, "\"data/test/smallseq/Ref.fa\"")
-        assertEquals(currentHeader581?.contig, "2")
-        assertEquals(currentHeader581?.start, 1)
-        assertEquals(currentHeader581?.end, 1000)
+        assertEquals(currentHeader581?.regions?.get(0), Pair(Position("2",1), Position("2",1000)))
+//        assertEquals(currentHeader581?.contig, "2")
+//        assertEquals(currentHeader581?.start, 1)
+//        assertEquals(currentHeader581?.end, 1000)
         assertEquals(currentHeader581?.checksum, "Md5")
         assertEquals(currentHeader581?.refRange, "5812acb1aff74866003656316c4539a6")
 
@@ -272,11 +276,18 @@ class CreateFastaFromHvcfTest {
 
         //Build some simple Haplotype Sequences
         val haplotypeSequences =  listOf(
-            HaplotypeSequence(getChecksumForString(seqs[0]), seqs[0], getChecksumForString(seqs[0]), "1", 1, 300, "1", 1, 300),
-            HaplotypeSequence(getChecksumForString(seqs[1]), seqs[1], getChecksumForString(seqs[1]), "1", 301, 600, "1", 301, 600),
-            HaplotypeSequence(getChecksumForString(seqs[2]), seqs[2], getChecksumForString(seqs[2]), "1", 601, 900, "1", 601, 900),
-            HaplotypeSequence(getChecksumForString(seqs[3]), seqs[3], getChecksumForString(seqs[3]), "2", 1, 300, "2", 1, 300),
-            HaplotypeSequence(getChecksumForString(seqs[4]), seqs[4], getChecksumForString(seqs[4]), "2", 301, 600, "2", 301, 600)
+            HaplotypeSequence(getChecksumForString(seqs[0]), seqs[0], getChecksumForString(seqs[0]), "1", 1, 300, listOf(Pair(Position("1", 1), Position("1", 300)))),
+            HaplotypeSequence(getChecksumForString(seqs[1]), seqs[1], getChecksumForString(seqs[1]), "1", 301, 600, listOf(Pair(Position("1", 301), Position("1", 600)))),
+            HaplotypeSequence(getChecksumForString(seqs[2]), seqs[2], getChecksumForString(seqs[2]), "1", 601, 900, listOf(Pair(Position("1", 601), Position("1",900)))),
+            HaplotypeSequence(getChecksumForString(seqs[3]), seqs[3], getChecksumForString(seqs[3]), "2", 1, 300, listOf(Pair(Position("2", 1), Position("1",300)))),
+            HaplotypeSequence(getChecksumForString(seqs[4]), seqs[4], getChecksumForString(seqs[4]), "2", 301, 600, listOf(Pair(Position("2", 301), Position("1", 600))))
+
+
+
+//            HaplotypeSequence(getChecksumForString(seqs[1]), seqs[1], getChecksumForString(seqs[1]), "1", 301, 600, "1", 301, 600),
+//            HaplotypeSequence(getChecksumForString(seqs[2]), seqs[2], getChecksumForString(seqs[2]), "1", 601, 900, "1", 601, 900),
+//            HaplotypeSequence(getChecksumForString(seqs[3]), seqs[3], getChecksumForString(seqs[3]), "2", 1, 300, "2", 1, 300),
+//            HaplotypeSequence(getChecksumForString(seqs[4]), seqs[4], getChecksumForString(seqs[4]), "2", 301, 600, "2", 301, 600)
         )
 
         BufferedWriter(FileWriter(outputFile)).use { writer ->
@@ -313,11 +324,18 @@ class CreateFastaFromHvcfTest {
 
         //Build some simple Haplotype Sequences
         val haplotypeSequences =  listOf(
-            HaplotypeSequence(getChecksumForString(seqs[0]), seqs[0], getChecksumForString(seqs[0]), "1", 1, 300, "1", 1, 300),
-            HaplotypeSequence(getChecksumForString(seqs[1]), seqs[1], getChecksumForString(seqs[1]), "1", 301, 600, "1", 301, 600),
-            HaplotypeSequence(getChecksumForString(seqs[2]), seqs[2], getChecksumForString(seqs[2]), "1", 601, 900, "1", 601, 900),
-            HaplotypeSequence(getChecksumForString(seqs[3]), seqs[3], getChecksumForString(seqs[3]), "2", 1, 300, "2", 1, 300),
-            HaplotypeSequence(getChecksumForString(seqs[4]), seqs[4], getChecksumForString(seqs[4]), "2", 301, 600, "2", 301, 600)
+//            HaplotypeSequence(getChecksumForString(seqs[0]), seqs[0], getChecksumForString(seqs[0]), "1", 1, 300, "1", 1, 300),
+//            HaplotypeSequence(getChecksumForString(seqs[1]), seqs[1], getChecksumForString(seqs[1]), "1", 301, 600, "1", 301, 600),
+//            HaplotypeSequence(getChecksumForString(seqs[2]), seqs[2], getChecksumForString(seqs[2]), "1", 601, 900, "1", 601, 900),
+//            HaplotypeSequence(getChecksumForString(seqs[3]), seqs[3], getChecksumForString(seqs[3]), "2", 1, 300, "2", 1, 300),
+//            HaplotypeSequence(getChecksumForString(seqs[4]), seqs[4], getChecksumForString(seqs[4]), "2", 301, 600, "2", 301, 600)
+
+
+            HaplotypeSequence(getChecksumForString(seqs[0]), seqs[0], getChecksumForString(seqs[0]), "1", 1, 300, listOf(Pair(Position("1", 1), Position("1", 300)))),
+            HaplotypeSequence(getChecksumForString(seqs[1]), seqs[1], getChecksumForString(seqs[1]), "1", 301, 600, listOf(Pair(Position("1", 301), Position("1", 600)))),
+            HaplotypeSequence(getChecksumForString(seqs[2]), seqs[2], getChecksumForString(seqs[2]), "1", 601, 900, listOf(Pair(Position("1", 601), Position("1",900)))),
+            HaplotypeSequence(getChecksumForString(seqs[3]), seqs[3], getChecksumForString(seqs[3]), "2", 1, 300, listOf(Pair(Position("2", 1), Position("1",300)))),
+            HaplotypeSequence(getChecksumForString(seqs[4]), seqs[4], getChecksumForString(seqs[4]), "2", 301, 600, listOf(Pair(Position("2", 301), Position("1", 600))))
         )
 
         BufferedWriter(FileWriter(outputFile)).use { writer ->
@@ -357,9 +375,10 @@ class CreateFastaFromHvcfTest {
         assertEquals(hapSequence.refContig, descriptionParsed["Ref_Contig"])
         assertEquals(hapSequence.refStart, descriptionParsed["Ref_Start"]?.toInt()?:-1)
         assertEquals(hapSequence.refEnd, descriptionParsed["Ref_End"]?.toInt()?:-1)
-        assertEquals(hapSequence.asmContig, descriptionParsed["Asm_Contig"])
-        assertEquals(hapSequence.asmStart, descriptionParsed["Asm_Start"]?.toInt()?:-1)
-        assertEquals(hapSequence.asmEnd, descriptionParsed["Asm_End"]?.toInt()?:-1)
+        assertEquals("${hapSequence.asmRegions.first().first.contig}:${hapSequence.asmRegions.first().first.position}-${hapSequence.asmRegions.first().second.position}", descriptionParsed["Asm_Regions"])
+//        assertEquals(hapSequence.asmContig, descriptionParsed["Asm_Contig"])
+//        assertEquals(hapSequence.asmStart, descriptionParsed["Asm_Start"]?.toInt()?:-1)
+//        assertEquals(hapSequence.asmEnd, descriptionParsed["Asm_End"]?.toInt()?:-1)
 
 
     }
