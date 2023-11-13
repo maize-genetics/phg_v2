@@ -91,7 +91,7 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
             if (hvcfExists){
                 // look for duplicate sample names
                 // Get samples from tiledb
-                val uri = dbPath + "/gvcf_dataset"
+                val uri = dbPath + "/hvcf_dataset"
                 val tiledbSampleList = getTileDBSampleLists(uri)
                 // verify the samples in the vcf files are not already in the tiledb dataset
                 val vcfSampleList = getVcfSampleLists(fileLists.second)
