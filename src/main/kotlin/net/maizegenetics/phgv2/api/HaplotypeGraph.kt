@@ -6,10 +6,13 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import net.maizegenetics.phgv2.utils.AltHeaderMetaData
 import net.maizegenetics.phgv2.utils.parseALTHeader
+import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.util.*
 
 class HaplotypeGraph(hvcfFile: String) {
+
+    private val myLogger = LogManager.getLogger(HaplotypeGraph::class.java)
 
     // Map<sampleName, sampleId>
     private val sampleNameToIdMap: Map<String, Int>
