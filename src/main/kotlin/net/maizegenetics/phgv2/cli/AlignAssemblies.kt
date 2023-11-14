@@ -240,6 +240,8 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         withContext(
             Dispatchers.Default
         ) {
+            val threadsPerRun = totalThreads / inParallel
+            println("alignAssembly: totalThreads: $totalThreads, inParallel: $inParallel, threadsPerRun: $threadsPerRun")
             for (assemblyEntry in inputChannel) {
                 // Column names were checked for validity above
                 val justName = File(assemblyEntry.asmFasta).nameWithoutExtension
@@ -248,8 +250,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
 
                 myLogger.info("alignAssembly: asmFileFull: ${assemblyEntry.asmFasta}, outputFile: $asmSamFile")
 
-                val threadsPerRun = totalThreads / inParallel
-                println("alignAssembly: totalThreads: $totalThreads, inParallel: $inParallel, threadsPerRun: $threadsPerRun")
+
                 val builder = ProcessBuilder(
                     "conda",
                     "run",
@@ -277,9 +278,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
                 myLogger.info("redirectError: $redirectError")
                 builder.redirectOutput(File(redirectOutput))
                 builder.redirectError(File(redirectError))
-                //myLogger.info("begin Command to list agc sample names:" + builder.command().joinToString(" "))
                 myLogger.info(" begin minimap assembly Command: " + builder.command().joinToString(" "))
-
 
                 val process = builder.start()
                 val error = process.waitFor()
@@ -366,7 +365,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         builder.redirectOutput(File(redirectError))
         builder.redirectError(File(redirectError))
         myLogger.info(
-            "runAnchorwaveProali proali Command for ${justNameAsm}: " + builder.command().joinToString { " " }
+            "runAnchorwaveProali proali Command for ${justNameAsm}: " + builder.command().joinToString (" ")
         )
 
         try {
