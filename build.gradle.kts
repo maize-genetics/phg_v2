@@ -53,6 +53,7 @@ dependencies {
     implementation("com.google.guava:guava:30.1.1-jre")
 
     implementation(files("repo/tiledb-vcf-java-0.25.2.jar"))
+    implementation(files("repo/tiledb-java-0.19.6-SNAPSHOT.jar"))
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
 
