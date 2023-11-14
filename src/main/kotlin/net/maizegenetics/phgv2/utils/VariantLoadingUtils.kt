@@ -14,13 +14,14 @@ import htsjdk.variant.variantcontext.VariantContextBuilder
 import htsjdk.variant.variantcontext.writer.Options
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder
 import htsjdk.variant.vcf.*
+import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import java.util.*
-import java.util.logging.Logger
 
-private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.utils.VariantLoadingUtils")
+
+private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.VariantLoadingUtils")
 
 // We could use the BioKotlin SeqPosition, but it is heavier than we need
 // as it contains a NucSeqRecord to get the chromosome name, and that includes sequence
@@ -110,7 +111,7 @@ fun bgzipAndIndexGVCFfile(gvcfFileName: String): String {
         var process = builder.start()
         var error: Int = process.waitFor()
         if (error != 0) {
-            myLogger.warning("\nERROR $error creating bgzipped  version of file: $gvcfFileName")
+            myLogger.warn("\nERROR $error creating bgzipped  version of file: $gvcfFileName")
             throw IllegalStateException("bgzipAndIndexGVCFfile: error trying to bgzip file ${gvcfFileName}: ${error}")
         }
 
@@ -123,7 +124,7 @@ fun bgzipAndIndexGVCFfile(gvcfFileName: String): String {
         process = builder.start()
         error = process.waitFor()
         if (error != 0) {
-            myLogger.warning("\nERROR $error creating tabix indexed  version of file: $gvcfGzippedFile")
+            myLogger.warn("\nERROR $error creating tabix indexed  version of file: $gvcfGzippedFile")
             throw IllegalStateException("bgzipAndIndexGVCFfile: error trying to run bcftools index -c on file ${gvcfGzippedFile}: ${error}")
         }
         return gvcfGzippedFile
@@ -311,7 +312,7 @@ fun getChecksumForString(seq: String, protocol: String="Md5"): String {
         }
         return sb.toString()
     } catch (exc: NoSuchAlgorithmException) {
-        myLogger.warning("getChecksumForString: problem getting checksum: " + exc.message)
+        myLogger.warn("getChecksumForString: problem getting checksum: " + exc.message)
         throw IllegalStateException("CheckSum: getChecksumForString: error: " + exc.message)
     }
 }
