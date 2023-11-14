@@ -87,7 +87,7 @@ class FullPipelineIT {
         //Run Anchorwave
         val alignAssemblies = AlignAssemblies()
         val alignAssembliesResult = alignAssemblies.test(
-            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference ${TestExtension.smallseqRefFile} " +
                     "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.testMafDir}"
         )
         println(alignAssembliesResult.output)

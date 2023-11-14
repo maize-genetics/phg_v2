@@ -13,6 +13,55 @@ import kotlin.test.assertTrue
 class AlignAssembliesTest {
 
     @Test
+    fun testCliktParams() {
+        val alignAssemblies = AlignAssemblies()
+
+        // Testing the "good" case happens in the actual test case below
+        // A good test case contains a reference file, a gff file, an assemblies list file, and an output directory
+        // It may optionally contain values for the --total-threads and --in-parallel parameters.
+
+        // Test missing gff file parameter,
+        val resultMissingGff =
+            alignAssemblies.test(" --reference ${TestExtension.testRefFasta} -a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}")
+        assertEquals(resultMissingGff.statusCode, 1)
+        assertEquals(
+            "Usage: align-assemblies [<options>]\n" +
+                    "\n" +
+                    "Error: invalid value for --gff: --gff must not be blank\n", resultMissingGff.output
+        )
+
+        // Test missing reference file parameter,
+        val resultMissingRef =
+            alignAssemblies.test(" --gff ${TestExtension.smallseqAnchorsGffFile} -a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}")
+        assertEquals(resultMissingRef.statusCode, 1)
+        assertEquals(
+            "Usage: align-assemblies [<options>]\n" +
+                    "\n" +
+                    "Error: invalid value for --reference: --reference must not be blank\n", resultMissingRef.output
+        )
+
+        // Test missing assemblies list file parameter,
+        val resultMissingAssembliesList =
+            alignAssemblies.test(" --gff ${TestExtension.smallseqAnchorsGffFile} --reference ${TestExtension.smallseqRefFile} -o ${TestExtension.tempDir}")
+        assertEquals(resultMissingAssembliesList.statusCode, 1)
+        assertEquals(
+            "Usage: align-assemblies [<options>]\n" +
+                    "\n" +
+                    "Error: invalid value for --assemblies: --assemblies must not be blank\n", resultMissingAssembliesList.output
+        )
+
+        // Test missing output directory parameter
+        val resultMissingOutputDir =
+            alignAssemblies.test(" --gff ${TestExtension.smallseqAnchorsGffFile} --reference ${TestExtension.smallseqRefFile} -a ${TestExtension.smallseqAssembliesListFile}")
+        assertEquals(resultMissingOutputDir.statusCode, 1)
+        assertEquals(
+            "Usage: align-assemblies [<options>]\n" +
+                    "\n" +
+                    "Error: invalid value for --output-dir: --output-dir must not be blank\n", resultMissingOutputDir.output
+        )
+    }
+
+    @Test
     fun testRunningAlignAssemblies() {
 
         // phg align-assemblies --gff /workdir/tmc46/AlignAssemblies/smallSeq_data/anchors.gff
@@ -23,7 +72,7 @@ class AlignAssembliesTest {
         val alignAssemblies = AlignAssemblies()
 
         val result = alignAssemblies.test(
-            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference ${TestExtension.smallseqRefFile} " +
                     "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}"
         )
 
