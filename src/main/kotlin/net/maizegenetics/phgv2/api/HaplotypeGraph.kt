@@ -58,6 +58,26 @@ class HaplotypeGraph(hvcfFile: String) {
 
     }
 
+    /**
+     * Returns the number of taxa for this graph.
+     */
+    fun numberOfTaxa(): Int = numOfSamples
+
+    /**
+     * Returns the number of nodes for this graph.
+     */
+    fun numberOfNodes(): Int {
+        TODO()
+    }
+
+    /**
+     * Returns the number of ReferenceRanges for this graph.
+     */
+    fun numberOfRanges(): Int = refRangeMap.size
+
+    /**
+     * Returns a list of ReferenceRanges for this graph.
+     */
     fun ranges(): List<ReferenceRange> = refRangeMap.values.sorted()
 
     private suspend fun processRanges(reader: VCFFileReader) =
