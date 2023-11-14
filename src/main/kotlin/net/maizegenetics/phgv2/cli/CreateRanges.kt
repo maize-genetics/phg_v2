@@ -79,8 +79,13 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
             }
             else -> throw Exception("Undefined boundary")
         }.map { (first, second) ->
-            val modifiedFirst = if (first - pad < 0) 1 else first - pad
-            Pair((modifiedFirst - 1), (second + pad) )//Subtracting one from the start to do the conversion from GFF 1-based inclusive inclusive to BED's 0-based inclusive exclusive
+           // val modifiedFirst = if (first - pad < 0) 1 else first - pad
+           // Pair((modifiedFirst - 1), (second + pad) )//Subtracting one from the start to do the conversion from GFF 1-based inclusive inclusive to BED's 0-based inclusive exclusive
+
+            // LCJ - may not want to do it this way.  May want to fix the overlaps/embedded
+            // as we go, which means creating a RangeMap and calling addRange()
+            // return the original start and end positions without padding, but subtract 1 from the start position to convert from 1-based to 0-based
+            Pair((first - 1), (second) )//Subtracting one from the start to do the conversion from GFF 1-based inclusive inclusive to BED's 0-based inclusive exclusive
         }
 
         return(boundMinMax)
@@ -188,7 +193,16 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
 
         val genes = genome.iterator().asSequence().filter { it.type == "gene" }.toList()
 
+        // boundMinMax should now be bounds without the padding
         val boundMinMax = idMinMaxBounds(genes, boundary, pad)
+
+        // New method gets called that takes the padding and creates new bounds.
+        // It will :
+        //  a. toss embedded regions.
+        //  b. merge regions that overlap
+        //  c. add padding to remaining regions.
+        //    1.  if there are not enough bps between regions to allow for total padding,
+        //        the bps that do exist will be split between the 2 regions.
 
         val bedRecords = generateBedRecords(boundMinMax, genes)
 
