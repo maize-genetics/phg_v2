@@ -4,7 +4,10 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
+import htsjdk.variant.vcf.VCFFileReader
+import net.maizegenetics.phgv2.utils.inputStreamProcessing
 import org.apache.logging.log4j.LogManager
+import java.io.BufferedInputStream
 import java.io.File
 import java.lang.Exception
 import java.nio.file.Files
@@ -49,8 +52,9 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
     override fun run() {
 
         // Check the type of files in the vcfDir
-        // antying with h.vcf.gz or hvcf.gz is a hvcf file
+        // anything with h.vcf.gz or hvcf.gz is a hvcf file
         // anything with g.vcf.gz or gvcf.gz is a gvcf file
+        // These are compressed files as tiledb needs the bgzipped and indexed files
         val fileLists = getFileLists(vcfDir)
 
         if (fileLists.first.isEmpty() && fileLists.second.isEmpty()) {
@@ -63,7 +67,22 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
         if (fileLists.first.isNotEmpty()) {
             val gvcfExists = verifyURI(dbPath,"gvcf_dataset")
             if (gvcfExists){
+                // look for duplicate sample names
+                // Get samples from tiledb
+                val uri = dbPath + "/gvcf_dataset"
+                val tiledbSampleList = getTileDBSampleLists(uri)
+                // verify the samples in the vcf files are not already in the tiledb dataset
+                val vcfSampleList = getVcfSampleLists(fileLists.first)
+                // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
+                val overlap = tiledbSampleList.intersect(vcfSampleList)
+                // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
+                if (overlap.isNotEmpty()) {
+                    myLogger.warn("The following samples are already in the gvcf tiledb dataset: ${overlap.joinToString(",")}")
+                    myLogger.warn("Please remove the vcf files containing these samples and try again.")
+                    throw IllegalArgumentException("LoadVCF: The following samples are already in the tiledb gvcf dataset: ${overlap.joinToString(",")}")
+                }
                 // Load the gvcf files!
+                myLogger.info("No overlap between tiledb and vcf files.  Loading gvcf files.")
                 val datasetURI = "${dbPath}/gvcf_dataset"
                 loadVCFToTiledb(fileLists.first, datasetURI, threads)
             }
@@ -71,6 +90,20 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
         if (fileLists.second.isNotEmpty()) {
             val hvcfExists = verifyURI(dbPath,"hvcf_dataset")
             if (hvcfExists){
+                // look for duplicate sample names
+                // Get samples from tiledb
+                val uri = dbPath + "/hvcf_dataset"
+                val tiledbSampleList = getTileDBSampleLists(uri)
+                // verify the samples in the vcf files are not already in the tiledb dataset
+                val vcfSampleList = getVcfSampleLists(fileLists.second)
+                // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
+                val overlap = tiledbSampleList.intersect(vcfSampleList)
+                // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
+                if (overlap.isNotEmpty()) {
+                    myLogger.warn("The following samples are already in the tiledb hvcf dataset: ${overlap.joinToString(",")}")
+                    myLogger.warn("Please remove the vcf files containing these samples and try again.")
+                    throw IllegalArgumentException("LoadVCF: The following samples are already in the tiledb hvcf dataset: ${overlap.joinToString(",")}")
+                }
                 // Load the hvcf files!
                 val datasetURI = "${dbPath}/hvcf_dataset"
                 loadVCFToTiledb(fileLists.second, datasetURI, threads)
@@ -95,6 +128,37 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
             }
         }
         return Pair(gvcfFiles,hvcfFiles)
+    }
+
+
+    // This function runs tiledbvcf list --uri <uri> and returns a list of sample names
+    fun getTileDBSampleLists(uri:String ): List<String> {
+        try {
+            var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","list","--uri",uri)
+                .start()
+            val sampleListOut = BufferedInputStream(builder.inputStream, 5000000)
+            var samples = inputStreamProcessing(sampleListOut)
+            return samples
+
+        } catch (exc: Exception) {
+            myLogger.error("Error reading tiledb list output on ${uri}.")
+            throw IllegalArgumentException("Error running ProcessBuilder to list samples from ${uri}: ${exc}")
+        }
+    }
+
+    fun getVcfSampleLists(fileLists:List<String>):List<String> {
+        // get the sample names from the vcf files
+        val vcfSampleList = mutableListOf<String>()
+        for (file in fileLists) {
+            // use htsjdk to read the vcf file and parse the sample names
+            val vcfReader = VCFFileReader(File(file),false)
+            val vcfHeader = vcfReader.fileHeader
+            val samples = vcfHeader.sampleNamesInOrder
+            for (sample in samples) {
+                vcfSampleList.add(sample)
+            }
+        }
+        return vcfSampleList
     }
 
     // The uri should either be gvcf_dataset or hvcf_dataset
@@ -130,7 +194,8 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
 
             // verify if the output.log contains "Version"
             // if not, then the URI is not a tiledbvcf URI
-            myLogger.info("begin Command:" + builder.command().stream().collect(Collectors.joining(" ")))
+            myLogger.info("begin Command:" + builder.command().joinToString(" "))
+            println("begin Command:" + builder.command().joinToString(" "))
 
             try {
                 var process = builder.start()
@@ -175,8 +240,9 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
         builder.redirectOutput( File(redirectOutput))
         builder.redirectError( File(redirectError))
 
-        myLogger.info("begin Command:" + builder.command().stream().collect(Collectors.joining(" ")))
-        println("begin Command:" + builder.command().stream().collect(Collectors.joining(" ")))
+        myLogger.info("begin Command:" + builder.command().joinToString(" "))
+        println("begin Command:" + builder.command().joinToString(" "))
+
         try {
             var process = builder.start()
             var error = process.waitFor()

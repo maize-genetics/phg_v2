@@ -92,7 +92,6 @@ class LoadVCFTest {
 
     @Test
     fun testGetFileLists() {
-        // Change to TestExtension when that is updated to reference the files in data/test/smallseq
 
         // copy the files from data/test/smallseq to the tempDir
         // call bgzip to get the files we need for the test
@@ -166,13 +165,41 @@ class LoadVCFTest {
         bgzipAndIndexGVCFfile(testGvcfFile)
         bgzipAndIndexGVCFfile(testHvcfFile)
 
-        // now load the vcf files stored in the data/test/smallseq folder
+        // load the vcf files stored in the data/test/smallseq folder
         vcfDir = TestExtension.testVCFDir
         val result = loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
 
-        // to verify the load worked, need to query tiledb for sample names and other data
-        // This isn't going to work until we have means to query tiledb arrays.
-        // This will be added in the next Pull Request
+        // get the list of samples from tiledb gvcf_dataset
+        var uri = "${dbPath}/gvcf_dataset"
+        val sampleList = LoadVcf().getTileDBSampleLists(uri)
+
+        // verify the samples are in the tiledb array
+        assertEquals(sampleList.size, 1)
+        assertEquals(sampleList[0], "LineA")
+
+        // get the list of samples from the tiledb hvcf_dataset
+        uri = "${dbPath}/hvcf_dataset"
+        val sampleList2 = LoadVcf().getTileDBSampleLists(uri)
+
+        //verify the samples are in the tiledb array
+        assertEquals(sampleList2.size, 1)
+        assertEquals(sampleList2[0], "Ref")
+
+        // Try to load the same files again, and verify the code exits with an error message
+        assertThrows<IllegalArgumentException> {
+            //Check that an error is thrown when we attempt to load the same files again
+            loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
+        }
+
+        // Above throws an exception based on the gvcf file already existing.
+        // Remove this file, try to load again.  Should get another exception,
+        // this time due to the hvcf file already existing.
+        File("${testGvcfFile}.gz").delete()
+        assertThrows<IllegalArgumentException> {
+            //Check that an error is thrown when we attempt to load the same files again
+            loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
+        }
+
 
     }
 
