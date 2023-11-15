@@ -83,6 +83,9 @@ fun createFlankingList(geneRange:RangeMap<Position,String>, numFlanking:Int, ref
         geneRange.asMapOfRanges().entries.forEach { range ->
             val data:Range<Position> = range.key
             val chr = data.lowerEndpoint().contig
+            if (!(refSeq.keys.contains(chr))) {
+                throw IllegalArgumentException("createFlankingList: chrom $chr not found in reference fasta.")
+            }
             val chrLen = refSeq[chr]!!.size()
 
             // Find new start/end positions with specified number of flanking, add this position to the map

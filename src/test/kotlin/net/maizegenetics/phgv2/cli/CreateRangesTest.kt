@@ -5,9 +5,11 @@ import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.testing.test
 import com.google.common.collect.Range
 import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.createFlankingList
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.assertThrows
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.Test
@@ -36,6 +38,8 @@ class CreateRangesTest {
     fun evaluateMethods() {
         assertEquals(2, 2)
         val testGffPath = "src/test/resources/net/maizegenetics/phgv2/cli/zm_b73v5_test.gff3.gz"
+        val ref = "data/test/smallseq/Ref.fa" // will this work with Zack's gff3 above?  It works with the smallSeq anchors.gff
+        val refChr = "src/test/resources/net/maizegenetics/phgv2/cli/RefChr.fa"
         val genome = Genome.fromFile(testGffPath)
         val genes = genome.iterator().asSequence().filter { it.type == "gene" }.toList()
 
@@ -43,7 +47,6 @@ class CreateRangesTest {
 
         val obsIdList01 = cr.idMinMaxBounds(genes, "gene")
         val obsIdList02 = cr.idMinMaxBounds(genes, "cds")
-        val obsIdList03 = cr.idMinMaxBounds(genes, "gene")
 
         val obsIdList01Keys = obsIdList01.asMapOfRanges().keys
         var key1 = Range.closed(Position("chr1",34616),Position("chr1",40204))
@@ -60,32 +63,46 @@ class CreateRangesTest {
         assertTrue(obsIdList02Keys.contains(key1))
         assertTrue(obsIdList02Keys.contains(key2))
 
-        // This one fails the assertTrues below
+        // This one had flanking ... check before and after the flanking
+        val obsIdList03 = cr.idMinMaxBounds(genes, "gene")
         val obsIdList03Keys = obsIdList03.asMapOfRanges().keys
+        key1 = Range.closed(Position("chr1",34616),Position("chr1",40204))
+        key2 = Range.closed(Position("chr1",41213),Position("chr1",46762))
+        assertEquals(2, obsIdList03.asMapOfRanges().keys.size)
+        assertTrue(obsIdList03Keys.contains(key1))
+        assertTrue(obsIdList03Keys.contains(key2))
+
+        // now check the flanked regions, first with a bad ref
+        assertThrows<IllegalArgumentException> {
+            //Check that an error is thrown when the bed file has overlapping intervals
+            createFlankingList(obsIdList03, 100, NucSeqIO(ref).readAll())
+        }
+
+        // now with a valid reference fastas - where chrom names match those in gff (these have "chr1" vs "1"
+        val obsIdList03Flanked = createFlankingList(obsIdList03, 100, NucSeqIO(refChr).readAll())
+        val obsIdList03FlankingKeys = obsIdList03Flanked.asMapOfRanges().keys
         key1 = Range.closed(Position("chr1",34516),Position("chr1",40304))
         key2 = Range.closed(Position("chr1",41113),Position("chr1",46862))
-        assertEquals(2, obsIdList03.asMapOfRanges().keys.size)
-//        assertTrue(obsIdList03Keys.contains(key1))
-//        assertTrue(obsIdList03Keys.contains(key2))
+        assertEquals(2, obsIdList03Flanked.asMapOfRanges().keys.size)
+        assertTrue(obsIdList03FlankingKeys.contains(key1))
+        assertTrue(obsIdList03FlankingKeys.contains(key2))
+
 
         val obsBedList01 = cr.generateBedRecords(obsIdList01)
         val obsBedList02 = cr.generateBedRecords(obsIdList01)
         val obsBedList03 = cr.generateBedRecords(obsIdList02)
 
-//        assertEquals(2, obsIdList03.size)
-//        assertEquals(Pair(34516, 40304), obsIdList03[0])
-//        assertEquals(Pair(41113, 46862), obsIdList03[1])
-//
-//        assertEquals(2, obsBedList01.size)
-//
-//        assertEquals(BedRecord("chr1", 34616,40204,"Zm00001eb000010",0,"+"), obsBedList01[0] )
-//        assertEquals(BedRecord("chr1",34616,40204,"Zm00001eb000010",0,"+"), obsBedList02[0] )
-//        assertEquals(BedRecord("chr1",34721,38366,"protein_coding",0,"+"), obsBedList03[0])
-//
-//
-//        assertFails {
-//            cr.idMinMaxBounds(genes, "geeeene", 0)
-//        }
+        assertEquals(2, obsBedList01.size)
+
+        assertEquals(BedRecord("chr1", 34616,40204,"Zm00001eb000010",0,"."), obsBedList01[0] )
+        assertEquals(BedRecord("chr1",34616,40204,"Zm00001eb000010",0,"."), obsBedList02[0] )
+        // Need to figure out how to deal with the biotype for merged genes - pick it up from where?
+        // still do the biotype?  only do the value for the first gene?  Will miss the merged genes this way.
+        //assertEquals(BedRecord("chr1",34721,38366,"protein_coding",0,"."), obsBedList03[0])
+
+        assertFails {
+            cr.idMinMaxBounds(genes, "geeeene")
+        }
     }
 
     @Test
