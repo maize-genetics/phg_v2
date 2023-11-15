@@ -80,6 +80,21 @@ class HaplotypeGraph(hvcfFile: String) {
      */
     fun ranges(): List<ReferenceRange> = refRangeMap.values.sorted()
 
+    /**
+     * Returns a hapId -> sample list map for the given ReferenceRange.
+     * Returned Map<hapId, List<sampleName>>
+     */
+    fun hapIdToSamples(range: ReferenceRange): Map<String, List<String>> {
+        TODO()
+    }
+
+    /**
+     * Returns the hapId for the sample in the specified ReferenceRange.
+     */
+    fun sampleToHapId(range: ReferenceRange, sample: String): String {
+        TODO()
+    }
+
     private suspend fun processRanges(reader: VCFFileReader) =
         withContext(Dispatchers.IO) {
 
