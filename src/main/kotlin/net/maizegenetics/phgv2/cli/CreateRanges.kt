@@ -51,6 +51,11 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
 
     val referenceFile by option(help = "Full path to the reference fasta file for filling in the intergenic/interCDS regions.  If supplied a Bed region will be created between the last GFF region and the end of the chromosome. If not, this region will be left off..")
         .default("")
+        .validate {
+            require(it.isNotBlank()) {
+                "--reference-file must not be blank"
+            }
+        }
 
 
     /**
@@ -60,15 +65,16 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
      * @param boundary A type of boundary. Either `gene` or `cds`
      * @param pad Number of base-pairs to flank boundary regions
      *
-     * @return A list of type `Triple<Position, Position, String>`
-     *
+     * Initially creates a `Triple<Position, Position, String>`
      * The "String" in the Triple is a concatenated list of Gene ID.  Will be 1 or more,
      * based on whethere overlapping genes were merged.
+     *
+     * This Triple is further processed to create a RangeMap<Position, String>
+     * of merged genes:  embedded genes are tossed, overlapping genes are merged.
      */
-    fun idMinMaxBounds(genes: List<Feature>, boundary: String): List<Triple<Position, Position, String>> {
+    fun idMinMaxBounds(genes: List<Feature>, boundary: String): RangeMap<Position, String> {
         val boundMinMax = when (boundary) {
             "gene" -> genes.map {gene ->
-                val contig = gene.seqid
                 Triple(Position(gene.seqid,gene.start), Position(gene.seqid,gene.end), gene.attribute("ID").first())
             }
             "cds" -> {
@@ -96,12 +102,20 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
             }
             else -> throw Exception("Undefined boundary")
         }.map { (first, second,third) ->
-
-            // Do NOT subtract 1 yet to first.position.  This happens after padding is added.
-            Triple(Position(first.contig,first.position), Position(second.contig,second.position),third)
+            // GFF is 1-based.  The BED file is 0-based, so we need to subtract 1 from the start position
+            Triple(Position(first.contig,first.position-1), Position(second.contig,second.position),third)
         }
 
-        return(boundMinMax)
+        // Resolve overlaps/embedded regions
+        val geneRange: RangeMap<Position, String> = TreeRangeMap.create()
+        for (bound in boundMinMax) {
+            val boundRange = Range.closed(bound.first, bound.second)
+            // addRange will merge overlaps, toss embedded regions,
+            // and concat gene names when ranges are merged.
+            addRange(geneRange,boundRange,bound.third)
+        }
+        //return(boundMinMax)
+        return geneRange
     }
 
 
@@ -191,18 +205,15 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
         val genes = genome.iterator().asSequence().filter { it.type == "gene" }.toList()
 
         // Determine the boundaries with flanking for the gene or CDS regions
-        val bounds = idMinMaxBounds(genes, boundary)
+        val geneRange = idMinMaxBounds(genes, boundary)
 
-        // Position has both chrom and (initially) physical position from the GFF File
-        val geneRange: RangeMap<Position, String> = TreeRangeMap.create()
-        for (bound in bounds) {
-            val boundRange = Range.closed(bound.first, bound.second)
-            // addRange will merge overlaps, toss embedded regions
-            addRange(geneRange,boundRange,bound.third)
+        var flankingRange:RangeMap<Position,String> = TreeRangeMap.create()
+        if (pad > 0) {
+            flankingRange = createFlankingList(geneRange, pad, NucSeqIO(referenceFile).readAll())
         }
-
-        // The ranges are adjusted, add padding to create the flanking ranges
-        val flankingRange = createFlankingList(geneRange,pad,NucSeqIO(referenceFile).readAll())
+        else {
+            flankingRange = geneRange
+        }
 
         // Create bed records from the ranges
         val bedRecords = generateBedRecords(flankingRange)

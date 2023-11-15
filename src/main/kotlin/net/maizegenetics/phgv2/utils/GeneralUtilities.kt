@@ -9,10 +9,12 @@ import java.io.BufferedInputStream
 
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.GeneralUtilities")
 
-// This function reads the output from a ProcessBuilder cammond.
-// The input is a BufferedInputStream.  This is read one line at a time
-// returning the results as a List<String>.   It is used to process output
-// from tiledbvcf list --uri <uri> and potentially other commands.
+/**
+ * This function reads the output from a ProcessBuilder cammond.
+ * The input is a BufferedInputStream.  This is read one line at a time
+ * returning the results as a List<String>.   It is used to process output
+ * from tiledbvcf list --uri <uri> and potentially other commands.
+ */
 fun inputStreamProcessing(tiledbList: BufferedInputStream): List<String> {
     val samples = mutableListOf<String>()  // this is the list of samples to be returned
 
@@ -84,11 +86,11 @@ fun createFlankingList(geneRange:RangeMap<Position,String>, numFlanking:Int, ref
             val chrLen = refSeq[chr]!!.size()
 
             // Find new start/end positions with specified number of flanking, add this position to the map
-            var flankingStart = findFlankingStartPos(geneRange,data, numFlanking, chrLen)
-            // adjust end position to be 0-based
-            flankingStart = Position(flankingStart.contig,flankingStart.position-1)
-            val flankingEnd = findFlankingEndPos(geneRange,data, numFlanking, chrLen) // no adjustment needed for end position
-            flankingRange.put(Range.closed( flankingStart, flankingEnd), range.value) // adjusting start for 0-based bed file
+            var flankingStart = findFlankingStartPos(geneRange,data, numFlanking)
+            // adjustment for 0-based occurred when creating GeneRanges
+            flankingStart = Position(flankingStart.contig,flankingStart.position) // start was adjusted to be 0-based in geneRange
+            val flankingEnd = findFlankingEndPos(geneRange,data, numFlanking, chrLen)
+            flankingRange.put(Range.closed( flankingStart, flankingEnd), range.value)
 
         }
         if (geneRange.asMapOfRanges().size != flankingRange.asMapOfRanges().size) {
@@ -111,7 +113,7 @@ fun createFlankingList(geneRange:RangeMap<Position,String>, numFlanking:Int, ref
  * to split the difference between the two ranges.  If the start position is less than 0,
  * it is adjusted to 0.
  */
-fun findFlankingStartPos(geneRange:RangeMap<Position,String>, data:Range<Position>, numFlanking:Int, chromLen:Int):Position{
+fun findFlankingStartPos(geneRange:RangeMap<Position,String>, data:Range<Position>, numFlanking:Int):Position{
 
     val flankCheck = numFlanking*2
     val chrom = data.lowerEndpoint().contig
