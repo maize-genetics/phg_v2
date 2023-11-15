@@ -1,12 +1,11 @@
 package net.maizegenetics.phgv2.cli
 
+import net.maizegenetics.phgv2.utils.setupDebugLogging
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import java.io.File
 
 class TestExtension : BeforeAllCallback {
-
-
 
     companion object {
 
@@ -51,7 +50,10 @@ class TestExtension : BeforeAllCallback {
     }
 
     override fun beforeAll(context: ExtensionContext) {
-        //Setup the test document environments
+
+        // Setup the test document environments
+
+        setupDebugLogging()
 
         File(tempDir).mkdirs()
         File(asmDir).mkdirs()
