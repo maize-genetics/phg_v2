@@ -72,7 +72,7 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
      * This Triple is further processed to create a RangeMap<Position, String>
      * of merged genes:  embedded genes are tossed, overlapping genes are merged.
      */
-    fun idMinMaxBounds(refSeq: Map<String, NucSeq>, genes: List<Feature>, boundary: String, pad:Int): RangeMap<Position, String> {
+    fun idMinMaxBounds(refSeq: Map<String, NucSeq>, genes: List<Feature>, boundary: String): RangeMap<Position, String> {
         val boundMinMax = when (boundary) {
             "gene" -> genes.map {gene ->
                 Triple(Position(gene.seqid,gene.start), Position(gene.seqid,gene.end), gene.attribute("ID").first())
@@ -114,12 +114,7 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
             // and concat gene names when ranges are merged.
             addRange(geneRange,boundRange,bound.third)
         }
-
-        // Add flanking regions if specified by user
-       // var flankingRange:RangeMap<Position,String> = TreeRangeMap.create()
-        val flankingRange = if (pad > 0) createFlankingList(geneRange, pad, refSeq) else geneRange
-
-        return flankingRange
+        return geneRange
     }
 
 
@@ -212,10 +207,14 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
 
         val refSeq = NucSeqIO(referenceFile).readAll()
         // Determine the boundaries with flanking for the gene or CDS regions
-        val geneRange = idMinMaxBounds(refSeq, genes, boundary, pad)
+        val geneRange = idMinMaxBounds(refSeq, genes, boundary)
+
+        // Add flanking regions if specified by user
+        // var flankingRange:RangeMap<Position,String> = TreeRangeMap.create()
+        val flankingRange = if (pad > 0) createFlankingList(geneRange, pad, refSeq) else geneRange
 
         // Create bed records from the ranges
-        val bedRecords = generateBedRecords(geneRange)
+        val bedRecords = generateBedRecords(flankingRange)
 
         val filledInBedRecords = if(makeOnlyGenic) bedRecords else fillIntergenicRegions(bedRecords, refSeq)
 

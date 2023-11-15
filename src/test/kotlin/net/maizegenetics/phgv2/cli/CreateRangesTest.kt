@@ -44,8 +44,8 @@ class CreateRangesTest {
 
         val cr = CreateRanges()
 
-        val obsIdList01 = cr.idMinMaxBounds(NucSeqIO(refGood).readAll(),genes, "gene",0)
-        val obsIdList02 = cr.idMinMaxBounds(NucSeqIO(refGood).readAll(), genes, "cds",0)
+        val obsIdList01 = cr.idMinMaxBounds(NucSeqIO(refGood).readAll(),genes, "gene")
+        val obsIdList02 = cr.idMinMaxBounds(NucSeqIO(refGood).readAll(), genes, "cds")
 
         val obsIdList01Keys = obsIdList01.asMapOfRanges().keys
         var key1 = Range.closed(Position("chr1",34616),Position("chr1",40204))
@@ -62,21 +62,33 @@ class CreateRangesTest {
         assertTrue(obsIdList02Keys.contains(key1))
         assertTrue(obsIdList02Keys.contains(key2))
 
-        // This one had flanking
-        // First check with a bad reference fasta - here, the chrom names don't match those in gff
-        assertThrows<IllegalArgumentException> {
-            //Check that an error is thrown when the bed file has overlapping intervals
-            cr.idMinMaxBounds(NucSeqIO(refBad).readAll(),genes, "gene",100)
-        }
+
 
         // Run again with the good reference fasta - chrom names match those in gff
-        val obsIdList03 = cr.idMinMaxBounds(NucSeqIO(refGood).readAll(),genes, "gene",100)
+        val obsIdList03 = cr.idMinMaxBounds(NucSeqIO(refGood).readAll(),genes, "gene")
         val obsIdList03Keys = obsIdList03.asMapOfRanges().keys
-        key1 = Range.closed(Position("chr1",34516),Position("chr1",40304))
-        key2 = Range.closed(Position("chr1",41113),Position("chr1",46862))
+        key1 = Range.closed(Position("chr1",34616),Position("chr1",40204))
+        key2 = Range.closed(Position("chr1",41213),Position("chr1",46762))
         assertEquals(2, obsIdList03.asMapOfRanges().keys.size)
         assertTrue(obsIdList03Keys.contains(key1))
         assertTrue(obsIdList03Keys.contains(key2))
+
+        // Add flanking
+        // First test with a bad reference fasta - here, the chrom names don't match those in gff
+        assertThrows<IllegalArgumentException> {
+            //Check that an error is thrown when the bed file has overlapping intervals
+            createFlankingList(obsIdList03, 100,NucSeqIO(refBad).readAll())
+        }
+
+        // Run again with the good reference fasta - chrom names match those in gff
+        val obsIdList03Flanking = createFlankingList(obsIdList03, 100,NucSeqIO(refGood).readAll())
+        val obsIdList03FlankingKeys = obsIdList03Flanking.asMapOfRanges().keys
+        key1 = Range.closed(Position("chr1",34516),Position("chr1",40304))
+        key2 = Range.closed(Position("chr1",41113),Position("chr1",46862))
+        assertEquals(2, obsIdList03.asMapOfRanges().keys.size)
+        assertTrue(obsIdList03FlankingKeys.contains(key1))
+        assertTrue(obsIdList03FlankingKeys.contains(key2))
+
 
         val obsBedList01 = cr.generateBedRecords(obsIdList01)
         val obsBedList02 = cr.generateBedRecords(obsIdList01)
@@ -88,7 +100,7 @@ class CreateRangesTest {
 
         // Verify a bad boundary type throws an error
         assertFails {
-            cr.idMinMaxBounds(NucSeqIO(refGood).readAll(), genes, "geeeene",0)
+            cr.idMinMaxBounds(NucSeqIO(refGood).readAll(), genes, "geeeene")
         }
     }
 
