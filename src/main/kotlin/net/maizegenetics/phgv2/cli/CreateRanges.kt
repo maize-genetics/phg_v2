@@ -12,6 +12,12 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.int
+import com.google.common.collect.Range
+import com.google.common.collect.RangeMap
+import com.google.common.collect.TreeRangeMap
+import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.addRange
+import net.maizegenetics.phgv2.utils.createFlankingList
 import java.io.File
 
 /**
@@ -46,6 +52,7 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
     val referenceFile by option(help = "Full path to the reference fasta file for filling in the intergenic/interCDS regions.  If supplied a Bed region will be created between the last GFF region and the end of the chromosome. If not, this region will be left off..")
         .default("")
 
+
     /**
      * Identifies minimum and maximum positions for a list of genes
      *
@@ -53,39 +60,45 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
      * @param boundary A type of boundary. Either `gene` or `cds`
      * @param pad Number of base-pairs to flank boundary regions
      *
-     * @return A list of type `Pair<Int, Int>`
+     * @return A list of type `Triple<Position, Position, String>`
+     *
+     * The "String" in the Triple is a concatenated list of Gene ID.  Will be 1 or more,
+     * based on whethere overlapping genes were merged.
      */
-    fun idMinMaxBounds(genes: List<Feature>, boundary: String, pad: Int): List<Pair<Int, Int>> {
+    fun idMinMaxBounds(genes: List<Feature>, boundary: String): List<Triple<Position, Position, String>> {
         val boundMinMax = when (boundary) {
             "gene" -> genes.map {gene ->
-                Pair(gene.start, gene.end)
+                val contig = gene.seqid
+                Triple(Position(gene.seqid,gene.start), Position(gene.seqid,gene.end), gene.attribute("ID").first())
             }
             "cds" -> {
                 genes.map { gene ->
-                    gene.children
-                        .filter { transcript ->
-                            transcript.allAttributes().containsKey("canonical_transcript")
-                        }
+                    val canonical = gene.children.filter { transcript -> transcript.allAttributes().containsKey("canonical_transcript") }
+                    // if there is no canonical transcript, use the first transcript
+                    val transcripts = canonical.ifEmpty { listOf<Feature>(gene.children.first()) }
+                    transcripts
                         .flatMap { it.children }
                         .filter { it.type == "CDS" }
-                        .map { Pair(it.start, it.end) }
+                        .map {
+                            Triple(Position(gene.seqid,it.start), Position(gene.seqid,it.end), gene.attribute("ID").first()) }// ok to here on changes
                         .let { ranges ->
-                            if(ranges.isNotEmpty())
-                                Pair(ranges.minOf { it.first }, ranges.maxOf { it.second })
+                            // Ranges is List<Triple<Position, Position, String>>
+                            // We want the min and max from all the cds's that are marked canonical
+                            // for this gene.
+                            if(ranges.isNotEmpty()){
+                                val id = gene.attribute("ID").first()
+                                Triple(Position(gene.seqid,ranges.minOf { it.first.position }), Position(gene.seqid,ranges.maxOf { it.second.position }),id)
+                            }
                             else
-                                Pair(0,0)
+                                Triple(Position("0",0),Position("0",0),"")
                         }
-                }.filter { it.first != 0 && it.second != 0 }
+                }.filter { it.first.position != 0 && it.second.position != 0 }
             }
             else -> throw Exception("Undefined boundary")
-        }.map { (first, second) ->
-           // val modifiedFirst = if (first - pad < 0) 1 else first - pad
-           // Pair((modifiedFirst - 1), (second + pad) )//Subtracting one from the start to do the conversion from GFF 1-based inclusive inclusive to BED's 0-based inclusive exclusive
+        }.map { (first, second,third) ->
 
-            // LCJ - may not want to do it this way.  May want to fix the overlaps/embedded
-            // as we go, which means creating a RangeMap and calling addRange()
-            // return the original start and end positions without padding, but subtract 1 from the start position to convert from 1-based to 0-based
-            Pair((first - 1), (second) )//Subtracting one from the start to do the conversion from GFF 1-based inclusive inclusive to BED's 0-based inclusive exclusive
+            // Do NOT subtract 1 yet to first.position.  This happens after padding is added.
+            Triple(Position(first.contig,first.position), Position(second.contig,second.position),third)
         }
 
         return(boundMinMax)
@@ -93,33 +106,18 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
 
 
     /**
-     * Function to generate a list of BedRecord objects based on the input GFF file features.
-     *
-     * @param bounds A list of type `Pair<Int, Int>`. Generated from [idMinMaxBounds]`.
-     * @param genes A list of type `Gene`
-     * @param featureId Identifier key for value to pull from ID field of GFF. Defaults to `"ID"`
-     *
-     * @return A list of type `BedRecord`
-     *
+     * Function to generate a list of BedRecords based on a RangeMap of Position.
+     * Because overlapping genes were merged, the score and strand values of the
+     * BedRecord can not be determined and are set to 0 and "." respectively.
      */
-    fun generateBedRecords(bounds: List<Pair<Int, Int>>,
-                        genes: List<Feature>,
-                        featureId: String = "ID"
-    ) : List<BedRecord> {
-        return genes.mapIndexed { index, gene ->
-            BedRecord(
-                gene.seqid,
-                bounds[index].first,
-                bounds[index].second,
-                gene.attribute(featureId).first(),
-                if (gene.score?.isNaN() != false) 0 else gene?.score?.toInt()?:0,
-                when(gene.strand) {
-                    Strand.PLUS -> "+"
-                    Strand.MINUS -> "-"
-                    else -> "."
-                }
-            )
+    fun generateBedRecords(ranges: RangeMap< Position,String>): List<BedRecord> {
+
+        val bedRecordList = mutableListOf<BedRecord>()
+        // Are these sorted?
+        ranges.asMapOfRanges().forEach{ range ->
+            bedRecordList.add(BedRecord(range.key.lowerEndpoint().contig, range.key.lowerEndpoint().position, range.key.upperEndpoint().position, range.value, 0, "."))
         }
+        return bedRecordList
     }
 
     /**
@@ -190,21 +188,24 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
 
     override fun run() {
         val genome = Genome.fromFile(gff)
-
         val genes = genome.iterator().asSequence().filter { it.type == "gene" }.toList()
 
-        // boundMinMax should now be bounds without the padding
-        val boundMinMax = idMinMaxBounds(genes, boundary, pad)
+        // Determine the boundaries with flanking for the gene or CDS regions
+        val bounds = idMinMaxBounds(genes, boundary)
 
-        // New method gets called that takes the padding and creates new bounds.
-        // It will :
-        //  a. toss embedded regions.
-        //  b. merge regions that overlap
-        //  c. add padding to remaining regions.
-        //    1.  if there are not enough bps between regions to allow for total padding,
-        //        the bps that do exist will be split between the 2 regions.
+        // Position has both chrom and (initially) physical position from the GFF File
+        val geneRange: RangeMap<Position, String> = TreeRangeMap.create()
+        for (bound in bounds) {
+            val boundRange = Range.closed(bound.first, bound.second)
+            // addRange will merge overlaps, toss embedded regions
+            addRange(geneRange,boundRange,bound.third)
+        }
 
-        val bedRecords = generateBedRecords(boundMinMax, genes)
+        // The ranges are adjusted, add padding to create the flanking ranges
+        val flankingRange = createFlankingList(geneRange,pad,NucSeqIO(referenceFile).readAll())
+
+        // Create bed records from the ranges
+        val bedRecords = generateBedRecords(flankingRange)
 
         val filledInBedRecords = if(makeOnlyGenic) bedRecords else fillIntergenicRegions(bedRecords, NucSeqIO(referenceFile).readAll())
 
@@ -218,4 +219,5 @@ class CreateRanges: CliktCommand(help="Create BED file of reference ranges from 
             }
         }
     }
+
 }
