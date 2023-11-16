@@ -36,7 +36,7 @@ dependencies {
     //testImplementation(kotlin("test"))
     val kotlinVersion = rootProject.extra["kotlinVersion"]
 
-    implementation("org.biokotlin:biokotlin:0.10")
+    implementation("org.biokotlin:biokotlin:0.09")
     implementation("com.github.ajalt.clikt:clikt:4.2.0")
 
     implementation("com.github.samtools:htsjdk:4.0.1")
