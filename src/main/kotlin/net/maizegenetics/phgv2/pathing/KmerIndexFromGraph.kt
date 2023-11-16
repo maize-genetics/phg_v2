@@ -4,7 +4,6 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.double
-import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
@@ -174,7 +173,7 @@ class KmerIndexFromGraph: CliktCommand(help="Create a kmer index for a Haplotype
             }
         }
 
-//TODO replace this with something
+//TODO replace haplotypeListId with something that allows the graph to be stored
         val haplotypeListId = if(writeToDb) {
             PHGdbAccess(DBLoadingUtils.connection(false)).use { phgdb ->
                 getHaplotypeListIdForGraph(graph, phgdb)
