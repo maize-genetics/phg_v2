@@ -23,7 +23,7 @@ data class AltHeaderMetaData(
  */
 fun parseALTHeader(header: VCFHeader): Map<String, AltHeaderMetaData> {
 
-    // Need to turn the ALT File header into a Map<ID,AltHeaderMetaData>
+    // Need to turn the ALT File header into a Map<ID, AltHeaderMetaData>
     return header.metaDataInInputOrder
         .filter { it.key == "ALT" }
         .map {

@@ -10,14 +10,14 @@ import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.util.*
 
-class HaplotypeGraph(hvcfFile: String) {
+class HaplotypeGraph(hvcfFiles: List<String>) {
 
     private val myLogger = LogManager.getLogger(HaplotypeGraph::class.java)
 
     // Map<sampleName, sampleId>
-    private val sampleNameToIdMap: Map<String, Int>
+    private lateinit var sampleNameToIdMap: Map<String, Int>
 
-    private val numOfSamples: Int
+    fun numOfSamples() = sampleNameToIdMap.size
 
     // lookup[refRangeId][ploidy][sampleId]
     private lateinit var lookup: Array<Array<Array<UByte>>>
@@ -28,40 +28,33 @@ class HaplotypeGraph(hvcfFile: String) {
 
     private lateinit var refRangeMap: SortedMap<Int, ReferenceRange>
 
-    private val altHeaderMap: Map<String, AltHeaderMetaData>
+    // Map<ID (checksum), AltHeaderMetaData>
+    private val altHeaderMap: MutableMap<String, AltHeaderMetaData> = mutableMapOf()
 
     fun numOfRanges(): Int = refRangeMap.size
 
+    private val processingFiles = Channel<Deferred<Job>>(100)
     private val processingChannel = Channel<RangeInfo>(10)
 
     init {
 
-        VCFFileReader(File(hvcfFile), false).use { reader ->
-
-            // create a map of sampleName to sampleId
-            sampleNameToIdMap = reader.header.sampleNamesInOrder.mapIndexed { index, sampleName ->
-                Pair(sampleName, index)
-            }.toMap()
-
-            numOfSamples = sampleNameToIdMap.size
-
-            // extract out the haplotype sequence boundaries for each haplotype from the hvcf
-            altHeaderMap = parseALTHeader(reader.header)
+        hvcfFiles.forEach { hvcfFile ->
 
             CoroutineScope(Dispatchers.IO).launch {
-                processRanges(reader)
+                processFiles(hvcfFiles)
+                closeChannel()
             }
 
             runBlocking { addSites() }
 
+            myLogger.info("lookup: ${lookup.size} x ${lookup[0].size} x ${lookup[0][0].size}")
+            println("seqHash: ${seqHash.size} x ${seqHash[0].size}")
+            println("numOfSamples: ${numOfSamples()}")
+            println("numOfRanges: ${numOfRanges()}")
+
         }
 
     }
-
-    /**
-     * Returns the number of taxa for this graph.
-     */
-    fun numberOfTaxa(): Int = numOfSamples
 
     /**
      * Returns the number of nodes for this graph.
@@ -93,6 +86,54 @@ class HaplotypeGraph(hvcfFile: String) {
      */
     fun sampleToHapId(range: ReferenceRange, sample: String): String {
         TODO()
+    }
+
+    private suspend fun processFiles(hvcfFiles: List<String>) {
+
+        val readers = mutableListOf<VCFFileReader>()
+        val sampleNames = mutableSetOf<String>()
+
+        hvcfFiles.forEach { hvcfFile ->
+            val reader = VCFFileReader(File(hvcfFile), false)
+            readers.add(reader)
+            sampleNames.addAll(reader.header.sampleNamesInOrder)
+
+            // extract out the haplotype sequence boundaries for each haplotype from the hvcf
+            altHeaderMap.putAll(parseALTHeader(reader.header))
+        }
+
+        sampleNameToIdMap = sampleNames.sorted().mapIndexed { index, sampleName ->
+            Pair(sampleName, index)
+        }.toMap()
+
+        readers.forEach { reader ->
+
+            processingFiles.send(CoroutineScope(Dispatchers.IO).async {
+
+                reader.use { reader ->
+
+                    CoroutineScope(Dispatchers.IO).launch {
+                        processRanges(reader)
+                    }
+
+                }
+
+            })
+
+        }
+
+        processingFiles.close()
+
+    }
+
+    /**
+     * Wait for all file processing to complete.
+     */
+    private suspend fun closeChannel() {
+        for (deferred in processingFiles) {
+            deferred.await().join()
+        }
+        processingChannel.close()
     }
 
     private suspend fun processRanges(reader: VCFFileReader) =
@@ -137,7 +178,7 @@ class HaplotypeGraph(hvcfFile: String) {
             allele.displayString.substringAfter("<").substringBefore(">")
         }.toTypedArray()
 
-        val rangeLookup = Array(ploidy) { Array(numOfSamples) { UByte.MAX_VALUE } }
+        val rangeLookup = Array(ploidy) { Array(numOfSamples()) { UByte.MAX_VALUE } }
         context.genotypes.forEach { genotype ->
             val sampleId = sampleNameToIdMap[genotype.sampleName]!!
             genotype.alleles.forEachIndexed { index, allele ->
