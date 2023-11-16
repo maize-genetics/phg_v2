@@ -4,7 +4,10 @@ import biokotlin.featureTree.Genome
 import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.testing.test
 import com.google.common.collect.Range
+import com.google.common.collect.RangeMap
+import com.google.common.collect.TreeRangeMap
 import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.addRange
 import net.maizegenetics.phgv2.utils.createFlankingList
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -203,6 +206,153 @@ class CreateRangesTest {
         assertEquals("chr1\t300\t400\tZm00001eb000020\t0\t+", outputStrings[1])
         assertEquals("chr1\t500\t600\tZm00001eb000030\t0\t+", outputStrings[2])
         assertEquals("chr2\t200\t600\tZm00001eb000040\t0\t+", outputStrings[3])
+
+    }
+
+    @Test
+    fun testCreateFlankingList() {
+
+        // This test verifies the functionality of the addRange() and createFlankingList() functions
+        // For addRange, it verifies that the ranges are added correctly, embedded genes are tossed and that overlapping
+        // ranges are merged
+        // For flankingList it verifies flanking handles going past the end of the chromosome, and that when there
+        // are not enough bases to flank, the flanking is reduced to the available bases, split between 2 genes
+        val refFile = "src/test/resources/net/maizegenetics/phgv2/cli/testRefGenome.fa"
+        val geneRangeMap: RangeMap<Position, String> = TreeRangeMap.create()
+        addRange(geneRangeMap, Range.closed(Position("chr1",442),Position("chr1",498)),"gene1")
+        // These 2 genes overlap - they will be merged and the name will be gene2a-gene2b
+        addRange(geneRangeMap, Range.closed(Position("chr1",708), Position("chr1",740)),"gene2a");
+        addRange(geneRangeMap, Range.closed(Position("chr1",738), Position("chr1",757)),"gene2b");
+
+        addRange(geneRangeMap, Range.closed(Position("chr1",922), Position("chr1",951)),"gene3");
+        // This gene is embedded in the one gene above
+        addRange(geneRangeMap, Range.closed(Position("chr1",930), Position("chr1",950)),"geneEmbedded");
+
+        // ALlowing the next 2 to overlap when we flank with 100 bps
+        addRange(geneRangeMap, Range.closed(Position("chr1",1216),
+            Position("chr1",1283)),"gene4");
+        addRange(geneRangeMap, Range.closed(Position("chr1",1486),
+            Position("chr1",1497)),"gene5");
+        addRange(geneRangeMap, Range.closed(Position("chr1",2221),
+            Position("chr1",2226)),"gene6");
+        addRange(geneRangeMap, Range.closed(Position("chr1",2483),
+            Position("chr1",2490)),"gene7");
+        addRange(geneRangeMap, Range.closed(Position("chr1",2869),
+            Position("chr1",2891)),"gene8");
+        addRange(geneRangeMap, Range.closed(Position("chr1",3003),
+            Position("chr1",3057)),"gene9");
+
+        // This range cannot be flanked by 100 as it hits the end of the ref chrom - will
+        // verify the end is 4959 (the end of the chromosome) is 4959
+        addRange(geneRangeMap, Range.closed(Position("chr1",4904),
+            Position("chr1",4945)),"gene10");
+
+        println("Last gene added, size of range: " + geneRangeMap.asMapOfRanges().size);
+        // There were 12 genes added, but one was embedded, and 2 overlapped so we should only have 10
+        assertEquals(geneRangeMap.asMapOfRanges().size,10);
+
+
+        // verify map with lowerBound = 708 has value gene2a-gene2b
+        var gene2 = Position("chr1",708);
+        assertEquals(geneRangeMap.getEntry(gene2)!!.value,"gene2a-gene2b");
+
+        // verify map with lowerBound = 922 has value gene3-geneEmbedded
+        var gene3 = Position("chr1",922);
+        assertEquals(geneRangeMap.getEntry(gene3)!!.value,"gene3-geneEmbedded");
+
+        // Create ref sequence. Needed for createFlankingLIst to find the length of each chromosome
+        // when adding flanking to last gene.
+        println("Create genome sequence ...");
+        val refSeq = NucSeqIO(refFile).readAll();
+        val chromLen = refSeq["chr1"]!!.size()
+
+        println("Creating gene-with-flanking map");
+
+        val flankingGeneMap:RangeMap<Position,String> = createFlankingList( geneRangeMap,  100, refSeq);
+
+        assertEquals(flankingGeneMap.asMapOfRanges().size,10);
+
+        // gene1 - check range based on original lower bound
+        // The getEntry call returns the range containing this position
+        var  gene = Position("chr1",442);
+
+        var geneLowerFlank = flankingGeneMap.getEntry(gene)!!.key.lowerEndpoint().position;
+        var geneUpperFlank = flankingGeneMap.getEntry(gene)!!.key.upperEndpoint().position;
+        assertEquals(342, geneLowerFlank);
+        assertEquals(598, geneUpperFlank);
+
+        //gene2
+        // there is not 200 bps between the end of gene2 and start of gene3, so the code
+        // splits the difference when flanking, which gets the end here as 839 and the
+        // beginning of gene 3 (flanked) as 840)
+        gene = Position("chr1",708);
+        geneLowerFlank = flankingGeneMap.getEntry(gene)!!.key.lowerEndpoint().position;
+        geneUpperFlank = flankingGeneMap.getEntry(gene)!!.key.upperEndpoint().position;
+        assertEquals(608,geneLowerFlank);
+        assertEquals(839,geneUpperFlank);
+
+        //gene3
+        gene = Position("chr1",922);
+        geneLowerFlank = flankingGeneMap.getEntry(gene)!!.key.lowerEndpoint().position;
+        geneUpperFlank = flankingGeneMap.getEntry(gene)!!.key.upperEndpoint().position;
+        assertEquals(841,geneLowerFlank);
+        assertEquals(1051, geneUpperFlank);
+
+        // gene4
+        gene = Position("chr1",1216);
+        geneLowerFlank = flankingGeneMap.getEntry(gene)!!.key.lowerEndpoint().position;
+        geneUpperFlank = flankingGeneMap.getEntry(gene)!!.key.upperEndpoint().position;
+        assertEquals(1116,geneLowerFlank);
+        assertEquals(1383, geneUpperFlank);
+
+        // gene5
+        gene = Position("chr1",1486);
+        geneLowerFlank = flankingGeneMap.getEntry(gene)!!.key.lowerEndpoint().position;
+        geneUpperFlank = flankingGeneMap.getEntry(gene)!!.key.upperEndpoint().position;
+        assertEquals(1386,geneLowerFlank);
+        assertEquals(1597,geneUpperFlank);
+
+        // gene6 - checking with original upperbound now
+        gene = Position("chr1",2226);
+        geneLowerFlank = flankingGeneMap.getEntry(gene)!!.key.lowerEndpoint().position;
+        geneUpperFlank = flankingGeneMap.getEntry(gene)!!.key.upperEndpoint().position;
+        assertEquals(2121,geneLowerFlank);
+        assertEquals(2326,geneUpperFlank);
+
+        // gene7 - checking with original upperbound now
+        gene = Position("chr1",2490);
+        geneLowerFlank = flankingGeneMap.getEntry(gene)!!.key.lowerEndpoint().position;
+        geneUpperFlank = flankingGeneMap.getEntry(gene)!!.key.upperEndpoint().position;
+        assertEquals(2383,geneLowerFlank);
+        assertEquals(2590,geneUpperFlank);
+
+        // gene8 - checking with original upperbound now
+        gene = Position("chr1",2891);
+        geneLowerFlank = flankingGeneMap.getEntry(gene)!!.key.lowerEndpoint().position;
+        geneUpperFlank = flankingGeneMap.getEntry(gene)!!.key.upperEndpoint().position;
+        assertEquals(2769,geneLowerFlank);
+        assertEquals(2947,geneUpperFlank);
+
+        // gene9 - checking with original upperbound now
+        // another overlap.  splitting the difference between the previous gene and this one,
+        // there was only 112 bps between the two
+        gene = Position("chr1",3057);
+        geneLowerFlank = flankingGeneMap.getEntry(gene)!!.key.lowerEndpoint().position;
+        geneUpperFlank = flankingGeneMap.getEntry(gene)!!.key.upperEndpoint().position;
+        assertEquals(2948,geneLowerFlank);
+        assertEquals(3157,geneUpperFlank);
+
+        // gene10 - checking with a value from the middle of the original range
+        // This range cannot be flanked by 100 as it hits the end of the ref chrom - will
+        // verify the end is 4959 (the end of the chromosome) is 4959
+        gene = Position("chr1",4950);
+        geneLowerFlank = flankingGeneMap.getEntry(gene)!!.key.lowerEndpoint().position;
+        geneUpperFlank = flankingGeneMap.getEntry(gene)!!.key.upperEndpoint().position;
+        assertEquals(4804,geneLowerFlank);
+        assertEquals(4959,geneUpperFlank);
+
+        println("\nFinished testCreateFlankingList!\n");
+
 
     }
 
