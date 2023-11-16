@@ -90,14 +90,12 @@ fun createFlankingList(geneRange:RangeMap<Position,String>, numFlanking:Int, ref
 
             // Find new start/end positions with specified number of flanking, add this position to the map
             var flankingStart = findFlankingStartPos(geneRange,data, numFlanking)
-            // adjustment for 0-based occurred when creating GeneRanges
-            flankingStart = Position(flankingStart.contig,flankingStart.position) // start was adjusted to be 0-based in geneRange
             val flankingEnd = findFlankingEndPos(geneRange,data, numFlanking, chrLen)
             flankingRange.put(Range.closed( flankingStart, flankingEnd), range.value)
 
         }
         if (geneRange.asMapOfRanges().size != flankingRange.asMapOfRanges().size) {
-            println(
+            myLogger.error(
                 "ERROR - original gene list size ${geneRange.asMapOfRanges().size} does NOT equal created flanking gene list size ${flankingRange.asMapOfRanges().size}"
             )
             throw IllegalArgumentException("ERROR - original gene list size ${geneRange.asMapOfRanges().size} does NOT equal created flanking gene list size ${flankingRange.asMapOfRanges().size}")
