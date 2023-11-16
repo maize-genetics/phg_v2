@@ -177,8 +177,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
             val queryRanges = mutableListOf<String>()
             val displayRanges = mutableListOf<String>()
             for(region in regions) {
-                queryRanges.add("${region.first.contig}@${sampleName}:${region.first.position}-${region.second.position}")
-                displayRanges.add("${region.first.contig}:${region.first.position}-${region.second.position}")
+                queryRanges.add("${region.first.contig}@${sampleName}:${region.first.position-1}-${region.second.position-1}")
+                displayRanges.add("${region.first.contig}:${region.first.position-1}-${region.second.position-1}")
             }
 //            val range = "${altMetaData!!.contig}@${sampleName}:${altMetaData!!.start-1}-${altMetaData!!.end-1}"
 //            val outputDisplayName = "${altMetaData!!.contig}:${altMetaData!!.start-1}-${altMetaData!!.end-1}"
@@ -253,7 +253,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
             if(exportFullIdLine) {
                 outputFileWriter.write(" Ref_Range_Id=${hapSeq.refRangeId} " +
                 "Ref_Contig=${hapSeq.refContig} Ref_Start=${hapSeq.refStart} Ref_End=${hapSeq.refEnd} " +
-                        "Asm_Regions=${hapSeq.asmRegions}")
+                        "Asm_Regions=${hapSeq.asmRegions.joinToString(",") { "${it.first.contig}:${it.first.position}-${it.second.position}" }}")
             }
             outputFileWriter.write("\n")
             hapSeq.sequence
