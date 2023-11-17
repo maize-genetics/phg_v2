@@ -64,7 +64,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--reference must not be blank"
+                "--reference-file must not be blank"
             }
         }
 
