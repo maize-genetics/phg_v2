@@ -3,7 +3,6 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +12,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.apache.logging.log4j.LogManager
 import java.io.File
-import java.util.stream.Collectors
 
 /**
  * This will align assemblies to a reference genome.
@@ -62,7 +60,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
             }
         }
 
-    val reference by option(help = "Full path to reference fasta file")
+    val referenceFile by option(help = "Full path to reference fasta file")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -124,19 +122,19 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         // create CDS fasta from reference and gff3 file
         val cdsFasta = "$outputDir/ref.cds.fasta"
 
-        createCDSfromRefData(reference, gff, cdsFasta, outputDir)
+        createCDSfromRefData(referenceFile, gff, cdsFasta, outputDir)
 
         // create list of assemblies to align from the assemblies file
         val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
 
         // run minimap2 for ref to refcds
-        val justNameRef = File(reference).nameWithoutExtension
+        val justNameRef = File(referenceFile).nameWithoutExtension
         val samOutFile = "${justNameRef}.sam"
         val refSamOutFile = "${outputDir}/${samOutFile}"
 
         val builder = ProcessBuilder(
             "conda", "run", "-n", "phgv2-conda", "minimap2", "-x", "splice", "-t", totalThreads.toString(), "-k", "12",
-            "-a", "-p", "0.4", "-N20", reference, cdsFasta, "-o", refSamOutFile
+            "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile
         )
         val redirectError = "$outputDir/minimap2Ref_error.log"
         val redirectOutput = "$outputDir/minimap2Ref_output.log"
@@ -148,11 +146,11 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         val process = builder.start()
         val error = process.waitFor()
         if (error != 0) {
-            myLogger.error("minimap2 for $reference run via ProcessBuilder returned error code $error")
+            myLogger.error("minimap2 for $referenceFile run via ProcessBuilder returned error code $error")
             throw IllegalStateException("Error running minimap2 for reference: $error")
         }
 
-        runAnchorWaveMultiThread(reference, assembliesList, cdsFasta, gff, refSamOutFile)
+        runAnchorWaveMultiThread(referenceFile, assembliesList, cdsFasta, gff, refSamOutFile)
 
     }
 
