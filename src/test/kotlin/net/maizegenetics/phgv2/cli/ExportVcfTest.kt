@@ -87,7 +87,7 @@ class ExportVcfTest {
         )
         assertEquals(resultMissingDbpath.statusCode, 1)
         assertEquals(
-            "Usage: export-hvcf [<options>]\n" +
+            "Usage: export-vcf [<options>]\n" +
                     "\n" +
                     "Error: missing option --db-path\n",
             resultMissingDbpath.output
@@ -99,7 +99,7 @@ class ExportVcfTest {
         )
         assertEquals(resultMissingSampleNames.statusCode, 1)
         assertEquals(
-            "Usage: export-hvcf [<options>]\n" +
+            "Usage: export-vcf [<options>]\n" +
                     "\n" +
                     "Error: missing option --sample-names\n",
             resultMissingSampleNames.output
@@ -111,7 +111,7 @@ class ExportVcfTest {
         )
         assertEquals(resultMissingOutputDir.statusCode, 1)
         assertEquals(
-            "Usage: export-hvcf [<options>]\n" +
+            "Usage: export-vcf [<options>]\n" +
                     "\n" +
                     "Error: missing option --outputDir\n",
             resultMissingOutputDir.output
