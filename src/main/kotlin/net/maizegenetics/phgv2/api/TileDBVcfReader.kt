@@ -1,49 +1,132 @@
 package net.maizegenetics.phgv2.api
 
-import io.tiledb.java.api.Context
-import io.tiledb.java.api.QueryType
+import io.tiledb.java.api.*
+import io.tiledb.java.api.Array
 import io.tiledb.libvcfnative.VCFReader
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.charset.Charset
 import java.util.*
 
-class TileDBHvcfReader(val uri: String, samples: List<String>? = null, ranges: List<HvcfReader.PositionRange>? = null): HvcfReader {
+/**
+ * Gets data from a TileDB-VCF database. The constructor requires a uri (path) for the database and
+ * a list of samples to be returned. If the sample list is empty or null (the default),
+ * then all samples in the database will be returned. The positions to be returned can be specified using
+ * the [ranges] method. If the ranges to be returned is not set then all positions in the database will be returned.
+ *
+ * The method [data] returns a list of [SampleData] for the specified samples and positions.
+ * Each SampleData contains a variant for a single sample. The SampleData list returned is not sorted.
+ */
+class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
 
-    val dbReader: VCFReader
+    private val dbReader: VCFReader
     private val missingInt = -1
 
-    init {
-        if (samples == null) dbReader = VCFReader(uri, null, Optional.empty(), Optional.empty())
-        else {
-            dbReader = VCFReader(uri, samples.toTypedArray(), Optional.empty(), Optional.empty())
+    /**
+     * A position range (contig, start, and end) and genotype. Genotype is the allele/haplotype id, not the integer GT code.
+     * Genotype and AD are lists to accommodate different ploidy levels.
+     */
+    data class SampleData(val sampleName: String, val contig: String, val startPos: Int, val endPos: Int, val genotype: List<String>, val AD: List<Int>? = null, val DP: Int? = null)
+
+
+    /**
+     * A range of genomic positions. If start and end positions are null then it represents an entire chromosome.
+     */
+    data class PositionRange(val contig: String, val startPos: Int? = null, val endPos: Int? = null) {
+        override fun toString(): String {
+            return if (startPos == null && endPos == null) contig
+            else if (endPos == null) "$contig:$startPos-$startPos"
+            else if (startPos == null) throw IllegalArgumentException("startPos is null and endPos = $endPos")
+            else "$contig:$startPos-$endPos"
         }
     }
 
-    override fun range(range: List<HvcfReader.PositionRange>): HvcfReader {
+    init {
+        dbReader = if (samples == null) VCFReader(uri, null, Optional.empty(), Optional.empty())
+        else {
+            VCFReader(uri, samples.toTypedArray(), Optional.empty(), Optional.empty())
+        }
+    }
+
+    fun ranges(range: List<PositionRange>): TileDBVcfReader {
         val rangeString = range.map { it.toString() }.toTypedArray()
         dbReader.setRanges(rangeString)
         return this
     }
 
-    override fun header(sampleName: String): String {
-        TODO("Not yet implemented")
-    }
+    fun sampleNames(): List<String> {
+        //buffer size
+        //buffer size should be adequate as the query is called iteratively until all sample names have been read
+        val bufferSize = 10000
 
-    override fun headerMap(): Map<String, String> {
-        TODO("Not yet implemented")
-    }
+        // Open array and read samples
+        val tiledbUri = "uri/metadata/vcf_headers"
+        val context = Context()
+        val array = Array(context, tiledbUri, QueryType.TILEDB_READ)
+        val query = Query(array, QueryType.TILEDB_READ)
 
-    override fun sampleNames(): List<String> {
-        Context().use {context ->
-            io.tiledb.java.api.Array(context, uri, QueryType.TILEDB_READ).use {
+        // alloc buffers
+        query.setDataBuffer("sample", NativeArray(context, bufferSize, Datatype.TILEDB_STRING_ASCII))
+        query.setOffsetsBuffer("sample", NativeArray(context, bufferSize, Datatype.TILEDB_UINT64))
 
+        val samples = ArrayList<String>()
+
+        // submit query
+        do {
+            query.submit()
+            val data = query.getBuffer("sample") as ByteArray
+            val offsets = query.getOffsetsBuffer("sample")
+
+            for (ndx in 0 ..< offsets.size - 1) {
+                samples.add(data.sliceArray(offsets[ndx].toInt()..<offsets[ndx+1].toInt()).toString(Charset.forName("US-ASCII")))
             }
-        }
+            samples.add(data.sliceArray(offsets.last().toInt()..< data.size).toString(Charset.forName("US-ASCII")))
 
-        return listOf()
+        } while (query.queryStatus === QueryStatus.TILEDB_INCOMPLETE) // run until query complete
+
+        context.close()
+        array.close()
+        query.close()
+
+        return samples
     }
 
-    override fun data(): List<HvcfReader.SampleData> {
+    fun headerForSample(sampleName: String): String {
+        // open array
+        val context = Context()
+        val array = Array(context, uri, QueryType.TILEDB_READ)
+
+        // slice on a specific sample
+        val subArray = SubArray(context, array)
+        subArray.addRangeVar(0, sampleName, sampleName)
+        val query = Query(array, QueryType.TILEDB_READ)
+        query.setSubarray(subArray)
+
+        // alloc buffers
+        var bufferSize = 1000000
+        query.setDataBuffer("header", NativeArray(context, bufferSize, Datatype.TILEDB_STRING_ASCII))
+        query.setOffsetsBuffer("header", NativeArray(context, 1024, Datatype.TILEDB_UINT64))
+        var data: ByteArray
+
+        // submit query
+        do {
+            query.submit()
+            data = query.getBuffer("header") as ByteArray
+            if (data.isEmpty() && query.queryStatus === QueryStatus.TILEDB_INCOMPLETE) {
+                // if buffer size is small increase the size by a factor of 2
+                bufferSize *= 2
+                query.setDataBuffer("header", NativeArray(context, bufferSize, Datatype.TILEDB_CHAR))
+                query.setOffsetsBuffer("header", NativeArray(context, 1024, Datatype.TILEDB_UINT64))
+            }
+        } while (query.queryStatus === QueryStatus.TILEDB_INCOMPLETE) // run until query complete
+        context.close()
+        array.close()
+        query.close()
+
+        return data.toString(Charset.forName("US-ASCII"))
+    }
+
+    fun data(): List<SampleData> {
         val capacity = 1024
         val attributeNames = arrayOf(
             "sample_name",
@@ -108,7 +191,7 @@ class TileDBHvcfReader(val uri: String, samples: List<String>? = null, ranges: L
                 dbReader.getBuffer("contig"),
                 dbReader.getOffsets("contig"),
                 numberOfRecords,
-                contigs,
+                contigs
             )
 
             //get startPos (pos_start, INT32)
@@ -171,7 +254,7 @@ class TileDBHvcfReader(val uri: String, samples: List<String>? = null, ranges: L
         }
 
         //convert values to a list of sample data
-        return sampleNames.indices.map { HvcfReader.SampleData(sampleNames[it], contigs[it],
+        return sampleNames.indices.map { SampleData(sampleNames[it], contigs[it],
             startPositions[it], endPositions[it], genotypes[it],
             if (hasAD) ADs[it] else null, if (hasDP) DPs[it] else null) }
 
