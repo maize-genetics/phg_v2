@@ -330,6 +330,87 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
     }
 
     /**
+     * Function to build the new assembly region coordinates based on the new Start and end and the list of VariantContexts
+     * Any consecutive regions should be merged together so we do not make the eventual string too long
+     * The output will be a List<Pair<Position,Position>> which will be the new coordinates for the all the  assembly regions
+     */
+    fun buildNewAssemblyRegions(newStart: Int, newEnd: Int, variants: List<VariantContext>) : List<Pair<Position,Position>> {
+        val variantsConverted = variants.map { convertVariantContextToPositionRange(it) }
+
+        //resize the first and last position based on the strand
+        val resizedFirst = resizePositionRange(variantsConverted.first(),newStart,true)
+        val resizedLast = resizePositionRange(variantsConverted.last(),newEnd,false)
+
+        //merge the first and last with the rest of the variants
+        val mergedVariants = mutableListOf<Pair<Position,Position>>()
+        mergedVariants.add(resizedFirst)
+        mergedVariants.addAll(variantsConverted.subList(1,variantsConverted.size-1))
+        mergedVariants.add(resizedLast)
+
+        //merge the consecutive regions
+        val mergedConsecutiveVariants = mergeConsecutiveRegions(mergedVariants)
+
+        return mergedConsecutiveVariants
+    }
+
+    fun mergeConsecutiveRegions(variants: List<Pair<Position,Position>>) : List<Pair<Position,Position>> {
+        val mergedConsecutiveVariants = mutableListOf<Pair<Position,Position>>()
+        var currentStart = variants.first().first
+        var currentEnd = variants.first().second
+        for(i in 1 until variants.size) {
+            val nextStart = variants[i].first
+            val nextEnd = variants[i].second
+            if(currentEnd < currentStart && nextEnd < nextStart) {
+                //This is the case where we have a variant that is on the - strand
+                //We need to check if the next variant is consecutive
+                if(nextStart.position == (currentEnd.position - 1)) {
+                    currentEnd = nextEnd
+                }
+                else {
+                    mergedConsecutiveVariants.add(Pair(currentStart,currentEnd))
+                    currentStart = nextStart
+                    currentEnd = nextEnd
+                }
+            }
+            else if(nextStart.position == (currentEnd.position + 1)) {
+                currentEnd = nextEnd
+            }
+            else {
+                mergedConsecutiveVariants.add(Pair(currentStart,currentEnd))
+                currentStart = nextStart
+                currentEnd = nextEnd
+            }
+        }
+        mergedConsecutiveVariants.add(Pair(currentStart,currentEnd))
+        return mergedConsecutiveVariants
+    }
+
+    fun convertVariantContextToPositionRange(variant: VariantContext) : Pair<Position,Position> {
+        //get out the assembly coords
+        val contig = variant.getAttributeAsString("ASM_Contig","")
+        val start = variant.getAttributeAsInt("ASM_Start",variant.start)
+        val end = variant.getAttributeAsInt("ASM_End",variant.end)
+        val strand = variant.getAttributeAsString("ASM_Strand",".")
+        return if(strand == "-") {
+            Pair(Position(contig,end),Position(contig,start))
+        } else {
+            Pair(Position(variant.contig, variant.start), Position(variant.contig, variant.end))
+        }
+    }
+
+    fun resizePositionRange(positionRange: Pair<Position,Position>, newPosition : Int, isFirst: Boolean) : Pair<Position,Position> {
+        if(isFirst) {
+            //Slide the start position to the new position
+            return Pair(Position(positionRange.first.contig,newPosition),positionRange.second)
+        }
+        else {
+            //Slide the end position to the new position
+            return Pair(positionRange.first,Position(positionRange.second.contig,newPosition))
+        }
+    }
+
+
+    /**
      * This function will bulk load sequences in from the AGC record and then will associate the returned sequences
      * with the metadata record which contains the coordiantes for the query and will add in the asmSeq.
      */

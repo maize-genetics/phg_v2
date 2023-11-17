@@ -438,6 +438,121 @@ class CreateMafVCFTest {
     }
 
 
+    @Test
+    fun testBuildRegionStrings() {
+        val createMafVcf = CreateMafVcf()
+
+
+    }
+
+    @Test
+    fun testMergeConsecutiveRegions() {
+        val createMafVcf = CreateMafVcf()
+
+        val regions = mutableListOf(Pair(Position("chr1",1),Position("chr1",10)),
+            Pair(Position("chr1",11),Position("chr1",20)),
+            Pair(Position("chr1",21),Position("chr1",30)),
+            Pair(Position("chr1",31),Position("chr1",40)),
+            Pair(Position("chr1",41),Position("chr1",50)),
+            Pair(Position("chr1",51),Position("chr1",60)),
+            Pair(Position("chr1",61),Position("chr1",70)),
+            Pair(Position("chr1",71),Position("chr1",80)),
+            Pair(Position("chr1",81),Position("chr1",90)),
+            Pair(Position("chr1",91),Position("chr1",100)),
+            Pair(Position("chr1",201),Position("chr1",210)),
+            Pair(Position("chr1",211),Position("chr1",220)),
+            Pair(Position("chr1",221),Position("chr1",230)),
+            Pair(Position("chr1",231),Position("chr1",240)),
+            Pair(Position("chr1",241),Position("chr1",250)),
+            Pair(Position("chr1",251),Position("chr1",260)),
+            Pair(Position("chr1",261),Position("chr1",270)),
+            Pair(Position("chr1",271),Position("chr1",280)))
+
+        val mergedRegions = createMafVcf.mergeConsecutiveRegions(regions)
+
+        assertEquals(2, mergedRegions.size)
+        assertEquals(Pair(Position("chr1",1),Position("chr1",100)), mergedRegions[0])
+        assertEquals(Pair(Position("chr1",201),Position("chr1",280)), mergedRegions[1])
+
+
+        //make inverted regions
+        val invertedRegions = mutableListOf(Pair(Position("chr1",280),Position("chr1",271)),
+            Pair(Position("chr1",270),Position("chr1",261)),
+            Pair(Position("chr1",260),Position("chr1",251)),
+            Pair(Position("chr1",250),Position("chr1",241)),
+            Pair(Position("chr1",240),Position("chr1",231)),
+            Pair(Position("chr1",230),Position("chr1",221)),
+            Pair(Position("chr1",220),Position("chr1",211)),
+            Pair(Position("chr1",210),Position("chr1",201)),
+            Pair(Position("chr1",100),Position("chr1",91)),
+            Pair(Position("chr1",90),Position("chr1",81)),
+            Pair(Position("chr1",80),Position("chr1",71)),
+            Pair(Position("chr1",70),Position("chr1",61)),
+            Pair(Position("chr1",60),Position("chr1",51)),
+            Pair(Position("chr1",50),Position("chr1",41)),
+            Pair(Position("chr1",40),Position("chr1",31)),
+            Pair(Position("chr1",30),Position("chr1",21)),
+            Pair(Position("chr1",20),Position("chr1",11)),
+            Pair(Position("chr1",10),Position("chr1",1)))
+
+        val mergedInvertedRegions = createMafVcf.mergeConsecutiveRegions(invertedRegions)
+        assertEquals(2, mergedInvertedRegions.size)
+        assertEquals(Pair(Position("chr1",280),Position("chr1",201)), mergedInvertedRegions[0])
+        assertEquals(Pair(Position("chr1",100),Position("chr1",1)), mergedInvertedRegions[1])
+
+
+        //test mixed positive then inverted regions
+        val mixedRegions = mutableListOf(Pair(Position("chr1",1),Position("chr1",10)),
+            Pair(Position("chr1",11),Position("chr1",20)),
+            Pair(Position("chr1",21),Position("chr1",30)),
+            Pair(Position("chr1",31),Position("chr1",40)),
+            Pair(Position("chr1",41),Position("chr1",50)),
+            Pair(Position("chr1",51),Position("chr1",60)),
+            Pair(Position("chr1",61),Position("chr1",70)),
+            Pair(Position("chr1",71),Position("chr1",80)),
+            Pair(Position("chr1",81),Position("chr1",90)),
+            Pair(Position("chr1",91),Position("chr1",100)),
+            Pair(Position("chr1",280),Position("chr1",271)),
+            Pair(Position("chr1",270),Position("chr1",261)),
+            Pair(Position("chr1",260),Position("chr1",251)),
+            Pair(Position("chr1",250),Position("chr1",241)),
+            Pair(Position("chr1",240),Position("chr1",231)),
+            Pair(Position("chr1",230),Position("chr1",221)),
+            Pair(Position("chr1",220),Position("chr1",211)),
+            Pair(Position("chr1",210),Position("chr1",201)))
+
+        val mergedMixedRegions = createMafVcf.mergeConsecutiveRegions(mixedRegions)
+        assertEquals(2, mergedMixedRegions.size)
+        assertEquals(Pair(Position("chr1",1),Position("chr1",100)), mergedMixedRegions[0])
+        assertEquals(Pair(Position("chr1",280),Position("chr1",201)), mergedMixedRegions[1])
+
+
+        //test mixed inverted then positive regions
+        val mixedRegions2 = mutableListOf(Pair(Position("chr1",280),Position("chr1",271)),
+            Pair(Position("chr1",270),Position("chr1",261)),
+            Pair(Position("chr1",260),Position("chr1",251)),
+            Pair(Position("chr1",250),Position("chr1",241)),
+            Pair(Position("chr1",240),Position("chr1",231)),
+            Pair(Position("chr1",230),Position("chr1",221)),
+            Pair(Position("chr1",220),Position("chr1",211)),
+            Pair(Position("chr1",210),Position("chr1",201)),
+            Pair(Position("chr1",1),Position("chr1",10)),
+            Pair(Position("chr1",11),Position("chr1",20)),
+            Pair(Position("chr1",21),Position("chr1",30)),
+            Pair(Position("chr1",31),Position("chr1",40)),
+            Pair(Position("chr1",41),Position("chr1",50)),
+            Pair(Position("chr1",51),Position("chr1",60)),
+            Pair(Position("chr1",61),Position("chr1",70)),
+            Pair(Position("chr1",71),Position("chr1",80)),
+            Pair(Position("chr1",81),Position("chr1",90)),
+            Pair(Position("chr1",91),Position("chr1",100)))
+
+        val mergedMixedRegions2 = createMafVcf.mergeConsecutiveRegions(mixedRegions2)
+        assertEquals(2, mergedMixedRegions2.size)
+        assertEquals(Pair(Position("chr1",280),Position("chr1",201)), mergedMixedRegions2[0])
+        assertEquals(Pair(Position("chr1",1),Position("chr1",100)), mergedMixedRegions2[1])
+    }
+
     /**
      * Function to compare the output gVCF file with the expected gVCF
      * It compares the alleles, depths, genotypes and the ASM metadata.
