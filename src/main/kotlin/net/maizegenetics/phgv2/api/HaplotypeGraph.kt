@@ -17,6 +17,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     // Map<sampleName, sampleId>
     private lateinit var sampleNameToIdMap: Map<String, Int>
 
+    /**
+     * Returns the number of samples for this graph.
+     */
     fun numOfSamples() = sampleNameToIdMap.size
 
     // lookup[refRangeId][ploidy][sampleId]
@@ -31,28 +34,22 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     // Map<ID (checksum), AltHeaderMetaData>
     private val altHeaderMap: MutableMap<String, AltHeaderMetaData> = mutableMapOf()
 
-    fun numOfRanges(): Int = refRangeMap.size
-
     private val processingFiles = Channel<Deferred<Job>>(100)
     private val processingChannel = Channel<RangeInfo>(10)
 
     init {
 
-        hvcfFiles.forEach { hvcfFile ->
-
-            CoroutineScope(Dispatchers.IO).launch {
-                processFiles(hvcfFiles)
-                closeChannel()
-            }
-
-            runBlocking { addSites() }
-
-            myLogger.info("lookup: ${lookup.size} x ${lookup[0].size} x ${lookup[0][0].size}")
-            println("seqHash: ${seqHash.size} x ${seqHash[0].size}")
-            println("numOfSamples: ${numOfSamples()}")
-            println("numOfRanges: ${numOfRanges()}")
-
+        CoroutineScope(Dispatchers.IO).launch {
+            processFiles(hvcfFiles)
+            closeChannel()
         }
+
+        runBlocking { addSites() }
+
+        myLogger.info("lookup: ${lookup.size} x ${lookup[0].size} x ${lookup[0][0].size}")
+        myLogger.info("seqHash: ${seqHash.size} x ${seqHash[0].size}")
+        myLogger.info("numOfSamples: ${numOfSamples()}")
+        myLogger.info("numOfRanges: ${numberOfRanges()}")
 
     }
 
@@ -142,8 +139,6 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
             reader.forEachIndexed { index, context ->
                 processingChannel.send(contextToRange(context, index))
             }
-
-            processingChannel.close()
 
         }
 
