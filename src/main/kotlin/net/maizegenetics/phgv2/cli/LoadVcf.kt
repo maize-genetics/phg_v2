@@ -79,7 +79,6 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
                 if (overlap.isNotEmpty()) {
                     myLogger.warn("The following samples are already in the gvcf tiledb dataset: ${overlap.joinToString(",")}")
                     myLogger.warn("Please remove the vcf files containing these samples and try again.")
-                    throw IllegalArgumentException("LoadVCF: The following samples are already in the tiledb gvcf dataset: ${overlap.joinToString(",")}")
                 }
                 // Load the gvcf files!
                 myLogger.info("No overlap between tiledb and vcf files.  Loading gvcf files.")
@@ -100,9 +99,11 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
                 val overlap = tiledbSampleList.intersect(vcfSampleList)
                 // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
                 if (overlap.isNotEmpty()) {
+                    // tiledb dataset was created with the -n/--no-duplicates option.  It will not load
+                    // duplicate positions, but will quietly skip them.
+                    // Warning message is printed here to alert the user of the duplicate sample names.
                     myLogger.warn("The following samples are already in the tiledb hvcf dataset: ${overlap.joinToString(",")}")
-                    myLogger.warn("Please remove the vcf files containing these samples and try again.")
-                    throw IllegalArgumentException("LoadVCF: The following samples are already in the tiledb hvcf dataset: ${overlap.joinToString(",")}")
+                    myLogger.warn("Tiledb will not load duplicate positions for these samples.")
                 }
                 // Load the hvcf files!
                 val datasetURI = "${dbPath}/hvcf_dataset"
@@ -181,8 +182,8 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
         // Create tne temp folder if it doesn't exist
         // This will be used to write output files from ProcessBuilder commands
         // called elsewhere in this class
-        val tempDir = "${dbPath}/temp"
-        File(tempDir).mkdirs()
+        val tempDir = "${dbPath}/log"
+        Files.createDirectories(Paths.get(tempDir))
 
         if (File(dataset).exists()  && Files.isDirectory(Paths.get(dataset))){
             // check if is a tiledb dataset
@@ -195,7 +196,6 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
             // verify if the output.log contains "Version"
             // if not, then the URI is not a tiledbvcf URI
             myLogger.info("begin Command:" + builder.command().joinToString(" "))
-            println("begin Command:" + builder.command().joinToString(" "))
 
             try {
                 var process = builder.start()
