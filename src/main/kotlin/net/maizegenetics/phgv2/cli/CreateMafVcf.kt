@@ -17,7 +17,8 @@ import java.io.File
 
 data class HVCFRecordMetadata(val sampleName: String, val refSeq : String = "", val asmSeq : String = "",
                               val refContig : String, val refStart: Int, val refEnd: Int,
-                                val asmContig: String, val asmStart: Int, val asmEnd: Int, val asmStrand: String="+")
+                              val asmRegions: List<Pair<Position,Position>>)
+
 
 class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave MAF files") {
 
@@ -321,12 +322,13 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
             else lastVariant.getAttributeAsInt("ASM_Start",region.second.position)
         }
 
+        val regions = buildNewAssemblyRegions(newASMStart,newASMEnd,variants)
+
 
         return HVCFRecordMetadata(sampleName=sampleName, refSeq = refRangeSeq.toString(), asmSeq = "",
             refContig = region.first.contig, refStart = region.first.position, refEnd = region.second.position,
-            asmContig = firstVariant.getAttributeAsString("ASM_Chr",""),
-            asmStart = newASMStart, asmEnd = newASMEnd, asmStrand = strand
-        )
+            regions)
+
     }
 
     /**
@@ -353,6 +355,9 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         return mergedConsecutiveVariants
     }
 
+    /**
+     * Strand aware function to merge together consecutive assembly regions.  This is done to reduce the number of entries in the hvcf alt header.
+     */
     fun mergeConsecutiveRegions(variants: List<Pair<Position,Position>>) : List<Pair<Position,Position>> {
         val mergedConsecutiveVariants = mutableListOf<Pair<Position,Position>>()
         var currentStart = variants.first().first
@@ -385,6 +390,9 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         return mergedConsecutiveVariants
     }
 
+    /**
+     * Function to convert a VariantContext into a Pair<Position,Position> which will be the assembly starts and ends of the variantContext
+     */
     fun convertVariantContextToPositionRange(variant: VariantContext) : Pair<Position,Position> {
         //get out the assembly coords
         val contig = variant.getAttributeAsString("ASM_Chr","")
@@ -393,14 +401,16 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         return Pair(Position(contig, start), Position(contig, end))
     }
 
+    /**
+     * Function to resize the Position range based on the new position.  If isFirst is true then it will resize the start position, otherwise it will resize the end position
+     */
     fun resizePositionRange(positionRange: Pair<Position,Position>, newPosition : Int, isFirst: Boolean) : Pair<Position,Position> {
-        if(isFirst) {
+        return if(isFirst) {
             //Slide the start position to the new position
-            return Pair(Position(positionRange.first.contig,newPosition),positionRange.second)
-        }
-        else {
+            Pair(Position(positionRange.first.contig,newPosition),positionRange.second)
+        } else {
             //Slide the end position to the new position
-            return Pair(positionRange.first,Position(positionRange.second.contig,newPosition))
+            Pair(positionRange.first,Position(positionRange.second.contig,newPosition))
         }
     }
 
@@ -412,15 +422,42 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
     fun addSequencesToMetaData(dbPath: String, metadata: List<HVCFRecordMetadata>) : List<HVCFRecordMetadata> {
         //get out the assembly coordinates and build them into the regions
         val metaDataToRangeLookup = metadata.map {
-            val query = "${it.asmContig}@${it.sampleName}:${it.asmStart-1}-${it.asmEnd-1}"
-            val displayName = "${it.asmContig}:${it.asmStart-1}-${it.asmEnd-1}" //This matches what comes back from AGC
-            Triple(it,query,displayName)
+            val queries = mutableListOf<String>()
+            val displayNames = mutableListOf<String>()
+            it.asmRegions.map {range ->
+                queries.add("${range.first.contig}@${it.sampleName}:${range.first.position-1}-${range.second.position-1}")
+                displayNames.add("${range.first.contig}:${range.first.position-1}-${range.second.position-1}")
+            }
+
+            Triple(it,queries, displayNames)
         }
 
-        val ranges = metaDataToRangeLookup.map { it.second }
+        val ranges = metaDataToRangeLookup.flatMap { it.second }
         val seqs = retrieveAgcContigs(dbPath,ranges)
 
-        return metaDataToRangeLookup.map { it.first.copy(asmSeq = seqs[it.third]!!.seq()) } //This is a useful way to keep things immutable
+        return metaDataToRangeLookup.map { it.first.copy(asmSeq = buildSeq(seqs,it.third,it.first)) } //This is a useful way to keep things immutable
+    }
+
+    /**
+     * Function to build the haplotype sequence based on the list of display regions and the given haplotype sequence object.
+     * The sequence is already extracted out of AGC and stored in the seqs map.
+     */
+    fun buildSeq(seqs: Map<String,NucSeq> ,displayRegions : List<String>, hvcfRecordMetadata: HVCFRecordMetadata) : String {
+        val hapSeqRegions = hvcfRecordMetadata.asmRegions
+
+        return displayRegions.mapIndexed{ idx, currentDisplayRegion ->
+            val currentHapSeqRegion = hapSeqRegions[idx]
+            val seq = seqs[currentDisplayRegion]!!
+
+            //Means it is the first region
+            if(currentHapSeqRegion.first.position > currentHapSeqRegion.second.position) {
+                //Means it needs to be reverse complemented
+                seq.reverse_complement().seq()
+            }
+            else {
+                seq.seq()
+            }
+        }.joinToString()
     }
 
     /**
@@ -448,7 +485,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
             VCFAltHeaderLine(
                 "<ID=${assemblyHaplotypeHash}, Description=\"haplotype data for line: ${metaDataRecord.sampleName}\">," +
                         "Number=4,Source=\"${dbPath}/assemblies.agc\"," +
-                        "Regions=\"${metaDataRecord.asmContig}:${metaDataRecord.asmStart}-${metaDataRecord.asmEnd}\"," +
+                        "Regions=\"${metaDataRecord.asmRegions.map { "${it.first.contig}:${it.first.position}-${it.second.position}" }.joinToString(",")}\"," +
                         "Checksum=\"Md5\",RefRange=\"${refSeqHash}\">",
                 VCFHeaderVersion.VCF4_2
             )

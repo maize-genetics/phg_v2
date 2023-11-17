@@ -180,10 +180,6 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
                 queryRanges.add("${region.first.contig}@${sampleName}:${region.first.position-1}-${region.second.position-1}")
                 displayRanges.add("${region.first.contig}:${region.first.position-1}-${region.second.position-1}")
             }
-//            val range = "${altMetaData!!.contig}@${sampleName}:${altMetaData!!.start-1}-${altMetaData!!.end-1}"
-//            val outputDisplayName = "${altMetaData!!.contig}:${altMetaData!!.start-1}-${altMetaData!!.end-1}"
-//            Triple(range, outputDisplayName, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, altMetaData!!.contig, altMetaData!!.start, altMetaData!!.end))
-//            Triple(queryRanges, displayRanges, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, altMetaData!!.contig, altMetaData!!.start, altMetaData!!.end))
             Triple(queryRanges, displayRanges, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, regions))
         }
 
@@ -191,19 +187,16 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
         //Go through and split them into sets of non-identical ranges
         //Pull all the non-identical ranges in a multithreaded fashion
         //Store in Map<Range,Sequence>
-
-
         val ranges = rangesAndOtherInfo.flatMap { it.first }
         val seqs = retrieveAgcContigs(dbPath,ranges)
 
         return rangesAndOtherInfo.map { it.third.copy(sequence = buildHapSeq(seqs, it.second,it.third)) }
-
-//        val ranges = rangesAndOtherInfo.map { it.first }
-//        val seqs = retrieveAgcContigs(dbPath,ranges)
-//
-//        return rangesAndOtherInfo.map { it.third.copy(sequence = seqs[it.second]!!.seq()) }
     }
 
+    /**
+     * Function to build the haplotype sequence based on the list of display regions and the given haplotype sequence object.
+     * The sequence is already extracted out of AGC and stored in the seqs map.
+     */
     fun buildHapSeq(seqs: Map<String,NucSeq> ,displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
         val hapSeqRegions = hapSeqObjects.asmRegions
 
