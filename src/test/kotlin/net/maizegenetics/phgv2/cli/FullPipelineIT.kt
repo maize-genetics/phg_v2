@@ -104,7 +104,7 @@ class FullPipelineIT {
         println(loadVCFResult.output)
 
         //Pull out the HVCF from TileDB
-        val exportHVCF = ExportHvcf()
+        val exportHVCF = ExportVcf()
         val exportHVCFRefResult = exportHVCF.test("--db-path ${TestExtension.testTileDBURI} --sample-names Ref,LineA,LineB -o ${TestExtension.testOutputGVCFDIr}")
         println(exportHVCFRefResult.output)
 
