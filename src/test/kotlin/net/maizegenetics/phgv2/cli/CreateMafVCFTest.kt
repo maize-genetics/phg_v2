@@ -443,6 +443,34 @@ class CreateMafVCFTest {
         val createMafVcf = CreateMafVcf()
 
 
+        //Create a list of variantContext records with refBlocks and SNPs to resize and create boundaries
+        val variantContexts = listOf(
+            createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
+                    Position("chr1",5), Position("chr1",10),
+                    Position("chr1",5), Position("chr1",10)),
+            createSNPVC("B97", Position("chr1",11),Position("chr1",11), Pair("A", "T"),
+                Position("chr1",11), Position("chr1",11)),
+            createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
+                    Position("chr1",12), Position("chr1",15),
+                    Position("chr1",12), Position("chr1",15)),
+            createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
+                    Position("chr1",19), Position("chr1",20),
+                    Position("chr1",19), Position("chr1",20)),
+            createSNPVC("B97", Position("chr1",21),Position("chr1",21), Pair("A", "T"),
+                    Position("chr1",21), Position("chr1",21)),
+            createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
+                    Position("chr1",22), Position("chr1",25),
+                    Position("chr1",22), Position("chr1",25)),
+            )
+
+        val regionStrings = createMafVcf.buildNewAssemblyRegions(7,23,variantContexts)
+            .map { "${it.first.contig}:${it.first.position}-${it.second.position}" }
+
+        //List<Pair<Position,Position>>
+        assertEquals(2, regionStrings.size)
+        assertEquals("chr1:7-15", regionStrings[0])
+        assertEquals("chr1:19-23", regionStrings[1])
+
     }
 
     @Test
@@ -551,6 +579,49 @@ class CreateMafVCFTest {
         assertEquals(2, mergedMixedRegions2.size)
         assertEquals(Pair(Position("chr1",280),Position("chr1",201)), mergedMixedRegions2[0])
         assertEquals(Pair(Position("chr1",1),Position("chr1",100)), mergedMixedRegions2[1])
+    }
+
+    @Test
+    fun testConvertVariantContextToPositionRange() {
+        val createMafVcf = CreateMafVcf()
+
+        val refBlockVariant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
+            Position("chr1",5), Position("chr1",10),
+            Position("chr1",15), Position("chr1",20))
+
+        val range = createMafVcf.convertVariantContextToPositionRange(refBlockVariant)
+
+        assertEquals(Position("chr1",15), range.first)
+        assertEquals(Position("chr1",20), range.second)
+
+
+        //test a reverse complimented variant
+        val refBlockVariant2 = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
+            Position("chr1",5), Position("chr1",10),
+            Position("chr1",20), Position("chr1",15))
+
+        val range2 = createMafVcf.convertVariantContextToPositionRange(refBlockVariant2)
+
+        assertEquals(Position("chr1",20), range2.first)
+        assertEquals(Position("chr1",15), range2.second)
+
+    }
+
+    @Test
+    fun testResizePositionRange() {
+        val createMafVcf = CreateMafVcf()
+
+        val range = Pair(Position("chr1",5), Position("chr1",20))
+        val resizedRange = createMafVcf.resizePositionRange(range, 15, true)
+
+        assertEquals(Position("chr1",15), resizedRange.first)
+        assertEquals(Position("chr1",20), resizedRange.second)
+
+        val resizedRange2 = createMafVcf.resizePositionRange(range, 15, false)
+
+        assertEquals(Position("chr1",5), resizedRange2.first)
+        assertEquals(Position("chr1",15), resizedRange2.second)
+
     }
 
     /**

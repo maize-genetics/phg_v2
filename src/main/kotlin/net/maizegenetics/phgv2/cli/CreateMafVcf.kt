@@ -387,15 +387,10 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
 
     fun convertVariantContextToPositionRange(variant: VariantContext) : Pair<Position,Position> {
         //get out the assembly coords
-        val contig = variant.getAttributeAsString("ASM_Contig","")
+        val contig = variant.getAttributeAsString("ASM_Chr","")
         val start = variant.getAttributeAsInt("ASM_Start",variant.start)
         val end = variant.getAttributeAsInt("ASM_End",variant.end)
-        val strand = variant.getAttributeAsString("ASM_Strand",".")
-        return if(strand == "-") {
-            Pair(Position(contig,end),Position(contig,start))
-        } else {
-            Pair(Position(variant.contig, variant.start), Position(variant.contig, variant.end))
-        }
+        return Pair(Position(contig, start), Position(contig, end))
     }
 
     fun resizePositionRange(positionRange: Pair<Position,Position>, newPosition : Int, isFirst: Boolean) : Pair<Position,Position> {
