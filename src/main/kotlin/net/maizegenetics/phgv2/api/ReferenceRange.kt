@@ -1,6 +1,6 @@
 package net.maizegenetics.phgv2.api
 
-data class ReferenceRange(val rangeID: Int, val contig: String, val start: Int, val end: Int) :
+data class ReferenceRange(val contig: String, val start: Int, val end: Int) :
     Comparable<ReferenceRange> {
     override fun compareTo(other: ReferenceRange): Int {
         return when {

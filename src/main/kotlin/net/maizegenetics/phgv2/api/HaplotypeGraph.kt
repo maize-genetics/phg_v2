@@ -17,11 +17,6 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     // Map<sampleName, sampleId>
     private lateinit var sampleNameToIdMap: Map<String, Int>
 
-    /**
-     * Returns the number of samples for this graph.
-     */
-    fun numOfSamples() = sampleNameToIdMap.size
-
     // lookup[refRangeId][ploidy][sampleId]
     private lateinit var lookup: Array<Array<Array<UByte>>>
 
@@ -29,7 +24,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     // jagged array because different number of haplotypes for each refRange
     private lateinit var seqHash: Array<Array<String>>
 
-    private lateinit var refRangeMap: SortedMap<Int, ReferenceRange>
+    // Map<ReferenceRange, refRangeId>
+    private lateinit var refRangeMap: SortedMap<ReferenceRange, Int>
 
     // Map<ID (checksum), AltHeaderMetaData>
     private val altHeaderMap: MutableMap<String, AltHeaderMetaData> = mutableMapOf()
@@ -48,7 +44,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         myLogger.info("lookup: ${lookup.size} x ${lookup[0].size} x ${lookup[0][0].size}")
         myLogger.info("seqHash: ${seqHash.size} x ${seqHash[0].size}")
-        myLogger.info("numOfSamples: ${numOfSamples()}")
+        myLogger.info("numOfSamples: ${numberOfSamples()}")
         myLogger.info("numOfRanges: ${numberOfRanges()}")
 
     }
@@ -61,6 +57,11 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     }
 
     /**
+     * Returns the number of samples for this graph.
+     */
+    fun numberOfSamples() = sampleNameToIdMap.size
+
+    /**
      * Returns the number of ReferenceRanges for this graph.
      */
     fun numberOfRanges(): Int = refRangeMap.size
@@ -68,7 +69,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     /**
      * Returns a list of ReferenceRanges for this graph.
      */
-    fun ranges(): List<ReferenceRange> = refRangeMap.values.sorted()
+    fun ranges(): List<ReferenceRange> = refRangeMap.keys.sorted()
 
     /**
      * Returns a hapId -> sample list map for the given ReferenceRange.
@@ -136,8 +137,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     private suspend fun processRanges(reader: VCFFileReader) =
         withContext(Dispatchers.IO) {
 
-            reader.forEachIndexed { index, context ->
-                processingChannel.send(contextToRange(context, index))
+            reader.forEach { context ->
+                processingChannel.send(contextToRange(context))
             }
 
         }
@@ -148,7 +149,6 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     data class RangeInfo(
         val rangeLookup: Array<Array<UByte>>,
         val rangeSeqHash: Array<String>,
-        val rangeId: Int,
         val range: ReferenceRange
     )
 
@@ -156,11 +156,10 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      * Convert a VariantContext to the ReferenceRange Information
      */
     private fun contextToRange(
-        context: VariantContext,
-        rangeId: Int
+        context: VariantContext
     ): RangeInfo {
 
-        val range = ReferenceRange(rangeId, context.contig, context.start, context.end)
+        val range = ReferenceRange(context.contig, context.start, context.end)
 
         val ploidy = context.getMaxPloidy(2)
 
@@ -173,7 +172,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
             allele.displayString.substringAfter("<").substringBefore(">")
         }.toTypedArray()
 
-        val rangeLookup = Array(ploidy) { Array(numOfSamples()) { UByte.MAX_VALUE } }
+        val rangeLookup = Array(ploidy) { Array(numberOfSamples()) { UByte.MAX_VALUE } }
         context.genotypes.forEach { genotype ->
             val sampleId = sampleNameToIdMap[genotype.sampleName]!!
             genotype.alleles.forEachIndexed { index, allele ->
@@ -182,7 +181,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
             }
         }
 
-        return RangeInfo(rangeLookup, rangeSeqHash, rangeId, range)
+        return RangeInfo(rangeLookup, rangeSeqHash, range)
 
     }
 
@@ -194,12 +193,12 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         val lookupList = mutableListOf<Array<Array<UByte>>>()
         val seqHashList = mutableListOf<Array<String>>()
-        val rangeMap = mutableMapOf<Int, ReferenceRange>()
+        val rangeMap = mutableMapOf<ReferenceRange, Int>()
 
         for (rangeInfo in processingChannel) {
-            lookupList.add(rangeInfo.rangeLookup)
-            seqHashList.add(rangeInfo.rangeSeqHash)
-            rangeMap[rangeInfo.rangeId] = rangeInfo.range
+            val rangeId = rangeMap.getOrPut(rangeInfo.range) { rangeMap.size }
+            lookupList.add(rangeId, rangeInfo.rangeLookup)
+            seqHashList.add(rangeId, rangeInfo.rangeSeqHash)
         }
 
         lookup = lookupList.toTypedArray()
