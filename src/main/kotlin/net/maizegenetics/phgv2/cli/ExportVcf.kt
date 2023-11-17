@@ -20,7 +20,7 @@ class ExportVcf : CliktCommand() {
     val datasetType by option(help = "Type of dataset to export: choices are gvcf or hvcf, defaults to hvcf")
         .default("hvcf")
 
-    val sampleNames by option(help = "Sample names to export")
+    val sampleNames by option(help = "Comma separated list of Sample names to export")
         .required()
 
     val outputDir by option("-o", "--outputDir", help = "Directory where temporary and final files will be written")

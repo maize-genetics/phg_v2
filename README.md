@@ -72,3 +72,8 @@ To populate that database
 ## Load
 ./phg load-vcf --vcf my_impute.vcf --dbpath /my/db/uri
 ```
+
+```
+## Export from Tiledb
+./phg export-vcf --db-path /my/db/uri --dataset-type hvcf --sample-Names LineA,LineB --output-dir /my/output/dir
+
