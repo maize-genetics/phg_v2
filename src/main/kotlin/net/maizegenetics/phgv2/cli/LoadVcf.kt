@@ -79,7 +79,6 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
                 if (overlap.isNotEmpty()) {
                     myLogger.warn("The following samples are already in the gvcf tiledb dataset: ${overlap.joinToString(",")}")
                     myLogger.warn("Please remove the vcf files containing these samples and try again.")
-                    throw IllegalArgumentException("LoadVCF: The following samples are already in the tiledb gvcf dataset: ${overlap.joinToString(",")}")
                 }
                 // Load the gvcf files!
                 myLogger.info("No overlap between tiledb and vcf files.  Loading gvcf files.")
@@ -105,7 +104,6 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
                     // Warning message is printed here to alert the user of the duplicate sample names.
                     myLogger.warn("The following samples are already in the tiledb hvcf dataset: ${overlap.joinToString(",")}")
                     myLogger.warn("Tiledb will not load duplicate positions for these samples.")
-                    //throw IllegalArgumentException("LoadVCF: The following samples are already in the tiledb hvcf dataset: ${overlap.joinToString(",")}")
                 }
                 // Load the hvcf files!
                 val datasetURI = "${dbPath}/hvcf_dataset"

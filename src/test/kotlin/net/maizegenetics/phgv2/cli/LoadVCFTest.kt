@@ -2,7 +2,6 @@ package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
 import com.google.common.io.Files
-import net.maizegenetics.phgv2.utils.VariantLoadingUtilsTest
 import net.maizegenetics.phgv2.utils.bgzipAndIndexGVCFfile
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -169,6 +168,7 @@ class LoadVCFTest {
         // This will load LineA.gvcf to the gvcf_dataset and Ref.hvcf to the hvcf_dataset
         vcfDir = TestExtension.testVCFDir
         var result = loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
+        assertEquals(result.statusCode, 0)
 
         // get the list of samples from tiledb gvcf_dataset
         var uri = "${dbPath}/gvcf_dataset"
@@ -186,43 +186,51 @@ class LoadVCFTest {
         assertEquals(sampleList2.size, 1)
         assertEquals(sampleList2[0], "Ref")
 
-        // Export to vcf and verify the number of lines in the vcf file
-        val exportHCF = ExportVcf()
-        val exportResult = exportHCF.test("--db-path ${dbPath} --sample-names Ref,LineA -o ${TestExtension.tempDir}")
+        // Export to hvcf and verify the number of lines in the vcf file
+        val exportHvcf = ExportVcf()
+        // datatype defaults to hvcf
+        val exportResultHvcf = exportHvcf.test("--db-path ${dbPath} --sample-names Ref -o ${TestExtension.tempDir}")
+        assertEquals(exportResultHvcf.statusCode, 0)
 
-        // TIledb writes the file to the output folder with a name of ${sampleName}.vcf
+        // Tiledb writes the file to the output folder with a name of ${sampleName}.vcf
         // Verify the tiledb exported file has the same number of lines as does the
         // original vcf file.
-        val exportFile = "${TestExtension.tempDir}Ref.vcf"
+        val exportFileHvcf = "${TestExtension.tempDir}Ref.vcf"
         val origFileH = "data/test/smallseq/Ref.h.vcf"
-        val origFileLines = File(origFileH).readLines().size
-        val exportFileLines = File(exportFile).readLines().size
-        assertEquals(origFileLines, exportFileLines)
+        val origFileLinesH = File(origFileH).readLines().size
+        val exportFileLines = File(exportFileHvcf).readLines().size
+        assertEquals(origFileLinesH, exportFileLines)
 
-        // Verfiy the same for the gvcf file
-        val exportFile2 = "${TestExtension.tempDir}LineA.vcf"
-        val origFile2 = "data/test/smallseq/LineA.g.vcf"
-        val origFileLines2 = File(origFile2).readLines().size
-        val exportFileLines2 = File(exportFile2).readLines().size
-        assertEquals(origFileLines2, exportFileLines2)
+        // Export the gvcf file, verify the number of lines in the exported vcf file matches the number in the original vcf file
+        val exportResultGvcf = exportHvcf.test("--db-path ${dbPath} --sample-names LineA --dataset-type gvcf -o ${TestExtension.tempDir}")
+        assertEquals(exportResultGvcf.statusCode, 0)
 
+        val exportFileGvcf = "${TestExtension.tempDir}LineA.vcf"
+        val origFileG = "data/test/smallseq/LineA.g.vcf"
+        val origFileLinesG = File(origFileG).readLines().size
+        val exportFileLinesG = File(exportFileGvcf).readLines().size
+        assertEquals(origFileLinesG, exportFileLinesG)
 
-        // Try to load the same files again, and verify the code exits with an error message
+        // Load the same files again, verify no error message,
         result = loadVCF.test(  "--vcf-dir ${vcfDir} --db-path ${dbPath} ")
-        // verify no errors are thrown
         assertEquals(result.statusCode, 0)
 
         // Export the hvcf and gvcf files again, verify the line numbers
-        // are still the same as the original vcf files
-        val exportResult2 = exportHCF.test("--db-path ${dbPath} --sample-names Ref,LineA -o ${TestExtension.tempDir}")
-        val exportFile3 = "${TestExtension.tempDir}Ref.vcf"
-        val exportFileLines3 = File(exportFile3).readLines().size
-        assertEquals(origFileLines, exportFileLines3) // same original hvcf file for comparision
+        // are still the same as the original vcf files (ie, not increased due to duplicate entries)
+        val exportResultH2 = exportHvcf.test("--db-path ${dbPath} --sample-names Ref --dataset-type hvcf -o ${TestExtension.tempDir}")
+        assertEquals(exportResultH2.statusCode, 0)
+        val exportFileHvcf2 = "${TestExtension.tempDir}Ref.vcf"
+        val exportFileLinesH2 = File(exportFileHvcf2).readLines().size
+        assertEquals(origFileLinesH, exportFileLinesH2) // same original hvcf file for comparision
 
-        // Check the vcf file lines
-        val exportFile4 = "${TestExtension.tempDir}LineA.vcf"
-        val exportFileLines4 = File(exportFile4).readLines().size
-        assertEquals(origFileLines2, exportFileLines4) // same original gvcf file for comparision
+        // Check the gvcf file lines
+        val exportResultG2 = exportHvcf.test("--db-path ${dbPath} --sample-names LineA --dataset-type gvcf -o ${TestExtension.tempDir}")
+        assertEquals(exportResultG2.statusCode, 0)
+
+        val exportFileGvcf2 = "${TestExtension.tempDir}LineA.vcf"
+        val exportFileLinesG2 = File(exportFileGvcf2).readLines().size
+        assertEquals(origFileLinesG, exportFileLinesG2) // same original gvcf file for comparision, number of lines should not have increased
+
 
     }
 
