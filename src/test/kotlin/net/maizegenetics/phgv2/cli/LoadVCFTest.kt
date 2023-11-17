@@ -185,12 +185,20 @@ class LoadVCFTest {
         assertEquals(sampleList2.size, 1)
         assertEquals(sampleList2[0], "Ref")
 
+        // Export to vcf and verify the number of lines in the vcf file
+
+
         // Try to load the same files again, and verify the code exits with an error message
         assertThrows<IllegalArgumentException> {
             //Check that an error is thrown when we attempt to load the same files again
             loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
         }
 
+        // THis can be removed - we would add assertions from the above test relating
+        // to the size of the vcf - number of lines should not have increased when we
+        // do an export.
+
+        // TODO LCJ _ REMOVE THIS TEST CASE _ see comment above
         // Above throws an exception based on the gvcf file already existing.
         // Remove this file, try to load again.  Should get another exception,
         // this time due to the hvcf file already existing.
@@ -199,7 +207,6 @@ class LoadVCFTest {
             //Check that an error is thrown when we attempt to load the same files again
             loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
         }
-
 
     }
 

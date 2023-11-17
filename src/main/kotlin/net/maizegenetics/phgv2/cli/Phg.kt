@@ -20,5 +20,5 @@ class Phg : CliktCommand() {
 }
 
 fun main(args: Array<String>) = Phg()
-    .subcommands(SetupEnvironment(), Initdb(),  CreateRanges(), AgcCompress(), AlignAssemblies(), CreateRefVcf(), CreateMafVcf(), LoadVcf(), ExportHvcf(), CreateFastaFromHvcf())
+    .subcommands(SetupEnvironment(), Initdb(),  CreateRanges(), AgcCompress(), AlignAssemblies(), CreateRefVcf(), CreateMafVcf(), LoadVcf(), ExportVcf(), CreateFastaFromHvcf())
     .main(args)

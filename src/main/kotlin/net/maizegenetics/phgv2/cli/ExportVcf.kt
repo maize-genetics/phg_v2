@@ -9,9 +9,9 @@ import java.io.File
 /**
  * This will export the give samples dataset to a hvcf file.
  */
-class ExportHvcf : CliktCommand() {
+class ExportVcf : CliktCommand() {
 
-    private val myLogger = LogManager.getLogger(ExportHvcf::class.java)
+    private val myLogger = LogManager.getLogger(ExportVcf::class.java)
 
     val dbPath by option(help = "Folder name where TileDB datasets are stored")
         .required()
