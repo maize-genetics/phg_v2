@@ -166,8 +166,9 @@ class LoadVCFTest {
         bgzipAndIndexGVCFfile(testHvcfFile)
 
         // load the vcf files stored in the data/test/smallseq folder
+        // This will load LineA.gvcf to the gvcf_dataset and Ref.hvcf to the hvcf_dataset
         vcfDir = TestExtension.testVCFDir
-        val result = loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
+        var result = loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
 
         // get the list of samples from tiledb gvcf_dataset
         var uri = "${dbPath}/gvcf_dataset"
@@ -186,27 +187,42 @@ class LoadVCFTest {
         assertEquals(sampleList2[0], "Ref")
 
         // Export to vcf and verify the number of lines in the vcf file
+        val exportHCF = ExportVcf()
+        val exportResult = exportHCF.test("--db-path ${dbPath} --sample-names Ref,LineA -o ${TestExtension.tempDir}")
+
+        // TIledb writes the file to the output folder with a name of ${sampleName}.vcf
+        // Verify the tiledb exported file has the same number of lines as does the
+        // original vcf file.
+        val exportFile = "${TestExtension.tempDir}Ref.vcf"
+        val origFileH = "data/test/smallseq/Ref.h.vcf"
+        val origFileLines = File(origFileH).readLines().size
+        val exportFileLines = File(exportFile).readLines().size
+        assertEquals(origFileLines, exportFileLines)
+
+        // Verfiy the same for the gvcf file
+        val exportFile2 = "${TestExtension.tempDir}LineA.vcf"
+        val origFile2 = "data/test/smallseq/LineA.g.vcf"
+        val origFileLines2 = File(origFile2).readLines().size
+        val exportFileLines2 = File(exportFile2).readLines().size
+        assertEquals(origFileLines2, exportFileLines2)
 
 
         // Try to load the same files again, and verify the code exits with an error message
-        assertThrows<IllegalArgumentException> {
-            //Check that an error is thrown when we attempt to load the same files again
-            loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
-        }
+        result = loadVCF.test(  "--vcf-dir ${vcfDir} --db-path ${dbPath} ")
+        // verify no errors are thrown
+        assertEquals(result.statusCode, 0)
 
-        // THis can be removed - we would add assertions from the above test relating
-        // to the size of the vcf - number of lines should not have increased when we
-        // do an export.
+        // Export the hvcf and gvcf files again, verify the line numbers
+        // are still the same as the original vcf files
+        val exportResult2 = exportHCF.test("--db-path ${dbPath} --sample-names Ref,LineA -o ${TestExtension.tempDir}")
+        val exportFile3 = "${TestExtension.tempDir}Ref.vcf"
+        val exportFileLines3 = File(exportFile3).readLines().size
+        assertEquals(origFileLines, exportFileLines3) // same original hvcf file for comparision
 
-        // TODO LCJ _ REMOVE THIS TEST CASE _ see comment above
-        // Above throws an exception based on the gvcf file already existing.
-        // Remove this file, try to load again.  Should get another exception,
-        // this time due to the hvcf file already existing.
-        File("${testGvcfFile}.gz").delete()
-        assertThrows<IllegalArgumentException> {
-            //Check that an error is thrown when we attempt to load the same files again
-            loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
-        }
+        // Check the vcf file lines
+        val exportFile4 = "${TestExtension.tempDir}LineA.vcf"
+        val exportFileLines4 = File(exportFile4).readLines().size
+        assertEquals(origFileLines2, exportFileLines4) // same original gvcf file for comparision
 
     }
 
