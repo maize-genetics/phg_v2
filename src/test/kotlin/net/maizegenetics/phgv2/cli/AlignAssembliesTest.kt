@@ -22,7 +22,7 @@ class AlignAssembliesTest {
 
         // Test missing gff file parameter,
         val resultMissingGff =
-            alignAssemblies.test(" --reference ${TestExtension.testRefFasta} -a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}")
+            alignAssemblies.test(" --reference-file ${TestExtension.testRefFasta} -a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}")
         assertEquals(resultMissingGff.statusCode, 1)
         assertEquals(
             "Usage: align-assemblies [<options>]\n" +
@@ -37,12 +37,12 @@ class AlignAssembliesTest {
         assertEquals(
             "Usage: align-assemblies [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --reference: --reference must not be blank\n", resultMissingRef.output
+                    "Error: invalid value for --reference-file: --reference-file must not be blank\n", resultMissingRef.output
         )
 
         // Test missing assemblies list file parameter,
         val resultMissingAssembliesList =
-            alignAssemblies.test(" --gff ${TestExtension.smallseqAnchorsGffFile} --reference ${TestExtension.smallseqRefFile} -o ${TestExtension.tempDir}")
+            alignAssemblies.test(" --gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} -o ${TestExtension.tempDir}")
         assertEquals(resultMissingAssembliesList.statusCode, 1)
         assertEquals(
             "Usage: align-assemblies [<options>]\n" +
@@ -52,7 +52,7 @@ class AlignAssembliesTest {
 
         // Test missing output directory parameter
         val resultMissingOutputDir =
-            alignAssemblies.test(" --gff ${TestExtension.smallseqAnchorsGffFile} --reference ${TestExtension.smallseqRefFile} -a ${TestExtension.smallseqAssembliesListFile}")
+            alignAssemblies.test(" --gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} -a ${TestExtension.smallseqAssembliesListFile}")
         assertEquals(resultMissingOutputDir.statusCode, 1)
         assertEquals(
             "Usage: align-assemblies [<options>]\n" +
@@ -72,7 +72,7 @@ class AlignAssembliesTest {
         val alignAssemblies = AlignAssemblies()
 
         val result = alignAssemblies.test(
-            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference ${TestExtension.smallseqRefFile} " +
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
                     "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}"
         )
 
