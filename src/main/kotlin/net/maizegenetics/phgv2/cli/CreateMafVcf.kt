@@ -308,7 +308,10 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
 
         //val check strandedness of the variants
         val strand = firstVariant.getAttributeAsString("ASM_Strand","+")
-        check(strand == lastVariant.getAttributeAsString("ASM_Strand","+")) { "Strand of first and last variantContexts do not match" }
+        //LCJ - the line below should be removed?  This was the first exception from scale-testing Zack was fixing,
+        // ie it is ok if these strands are not the same -handling inversion
+        // check(strand == lastVariant.getAttributeAsString("ASM_Strand","+")) { "Strand of first and last variantContexts do not match" }
+
         //Resize the first and last variantContext ASM start and end based on the regions
         var newASMStart = resizeVariantContext(firstVariant, region.first.position, strand)
         if(newASMStart == -1) {
@@ -345,9 +348,11 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
 
         //merge the first and last with the rest of the variants
         val mergedVariants = mutableListOf<Pair<Position,Position>>()
-        mergedVariants.add(resizedFirst)
-        mergedVariants.addAll(variantsConverted.subList(1,variantsConverted.size-1))
-        mergedVariants.add(resizedLast)
+        mergedVariants.add(resizedFirst) // add the first variant
+        if (variantsConverted.size > 2){ // add any variants in the middle
+            mergedVariants.addAll(variantsConverted.subList(1,variantsConverted.size-1))
+        }
+        mergedVariants.add(resizedLast) // add the last variant
 
         //merge the consecutive regions
         val mergedConsecutiveVariants = mergeConsecutiveRegions(mergedVariants)
