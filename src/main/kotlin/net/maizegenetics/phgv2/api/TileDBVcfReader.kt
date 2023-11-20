@@ -36,19 +36,6 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
      */
     data class SampleData(val sampleName: String, val contig: String, val startPos: Int, val endPos: Int, val genotype: List<String>, val AD: List<Int>? = null, val DP: Int? = null)
 
-
-    /**
-     * A range of genomic positions. If start and end positions are null then it represents an entire chromosome.
-     */
-    data class PositionRange(val contig: String, val startPos: Int? = null, val endPos: Int? = null) {
-        override fun toString(): String {
-            return if (startPos == null && endPos == null) contig
-            else if (endPos == null) "$contig:$startPos-$startPos"
-            else if (startPos == null) throw IllegalArgumentException("startPos is null and endPos = $endPos")
-            else "$contig:$startPos-$endPos"
-        }
-    }
-
     init {
         dbReader = if (samples == null) VCFReader(uri, null, Optional.empty(), Optional.empty())
         else {
@@ -56,7 +43,11 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
         }
     }
 
-    fun ranges(range: List<PositionRange>): TileDBVcfReader {
+    /**
+     * Sets range to be returned by the call to the tiledb database.
+     * Takes a list of ranges as input. Each range is a string that is "contig:start-end" or "contig"
+     */
+    fun ranges(range: List<String>): TileDBVcfReader {
         val rangeString = range.map { it.toString() }.toTypedArray()
         dbReader.setRanges(rangeString)
         return this
