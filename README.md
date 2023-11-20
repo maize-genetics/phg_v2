@@ -31,15 +31,18 @@ More information on terminology can be found [here](docs/terminology.md).
 # Example usage
 To populate that database
 ```
+## Setup conda environment
+./phg setup-environment
+
 ## Initialize DBs
-./phg initdb --dbpath /path/to/dbs
+./phg initdb --db-path /path/to/dbs
 
 ## Build VCF data
-./phg create-ranges --gff my.gff --boundary gene --pad 500 -o /path/to/bed/file.bed
-./phg align-assemblies --gff anchors.gff --ref Ref.fa -a assembliesList.txt -o /path/to/temp
-./anchorwave (ref.fasta, asm.fasta) -o /path/to/maf/files/
-./phg create-ref-vcf --bed /my/bed/file.bed --referencefile /my/ref.fasta --refurl https://url-for-ref --refname B73 --output-dir /path/to/vcfs
-./phg create-maf-vcf --db-path /path/to/dbs --bed /my/bed/file.bed --reference /my/ref.fasta --maf-dir /my/maf/files -o /path/to/vcfs
+./phg create-ranges --reference-file Ref.fa --gff my.gff --boundary gene --pad 500 -o /path/to/bed/file.bed
+./phg align-assemblies --gff anchors.gff --reference Ref.fa -a assembliesList.txt --total-threads 20 --in-parallel 4 -o /path/for/generatedFiles
+./phg agc-compress --db-path /path/to/dbs --reference-file /my/ref.fasta --fasta-list /my/assemblyFastaList.txt 
+./phg create-ref-vcf --bed /my/bed/file.bed --reference-file /my/ref.fasta --reference-url https://url-for-ref --reference-name B73 --output-dir /path/to/vcfs
+./phg create-maf-vcf --db-path /path/to/dbs --bed /my/bed/file.bed --reference-file /my/ref.fasta --maf-dir /my/maf/files -o /path/to/vcfs
 
 ## Load data into DBs
 ./phg load-vcf --vcf /my/vcf/dir --dbpath /path/to/dbs

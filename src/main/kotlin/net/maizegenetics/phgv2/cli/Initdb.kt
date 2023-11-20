@@ -27,11 +27,11 @@ class Initdb : CliktCommand(help="create tiledb datasets for g.vcf and h.vcf fil
 
     private val myLogger = LogManager.getLogger(Initdb::class.java)
 
-    val dbpath by option(help = "Folder name where TileDB datasets will be created")
+    val dbPath by option(help = "Folder name where TileDB datasets will be created")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--dbpath must not be blank"
+                "--db-path must not be blank"
             }
         }
 
@@ -108,7 +108,7 @@ class Initdb : CliktCommand(help="create tiledb datasets for g.vcf and h.vcf fil
     override fun run() {
 
         // call method to create the environment
-        createDataSets(dbpath)
+        createDataSets(dbPath)
     }
 
 }
