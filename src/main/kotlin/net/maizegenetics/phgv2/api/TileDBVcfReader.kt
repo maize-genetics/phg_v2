@@ -259,7 +259,7 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
 
     }
 
-    fun decodeVarlenChar(dataBuffer: ByteBuffer,
+    private fun decodeVarlenChar(dataBuffer: ByteBuffer,
                          offsetBuffer: ByteBuffer,
                          numberOfRecords: Int,
                          outputList: MutableList<String>)  {
@@ -273,7 +273,7 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
         }
     }
 
-    fun decodeInt(dataBuffer: ByteBuffer,
+    private fun decodeInt(dataBuffer: ByteBuffer,
                   numberOfRecords: Int,
                   outputList: MutableList<Int>) {
         val data = IntArray(numberOfRecords)
@@ -281,7 +281,7 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
         outputList.addAll(data.toList())
     }
 
-    fun decodeVarlenListChar(dataBuffer: ByteBuffer,
+    private fun decodeVarlenListChar(dataBuffer: ByteBuffer,
                              offsetBuffer: ByteBuffer,
                              listOffsetBuffer: ByteBuffer,
                              numberOfRecords: Int,
@@ -297,7 +297,7 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
         }
     }
 
-    fun decodeVarlenNullableInt(dataBuffer: ByteBuffer,
+    private fun decodeVarlenNullableInt(dataBuffer: ByteBuffer,
                                 offsetBuffer: ByteBuffer,
                                 validityBitset: BitSet,
                                 numberOfRecords: Int,
@@ -319,7 +319,7 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
 
     }
 
-    fun decodeNullableInt(dataBuffer: ByteBuffer,
+    private fun decodeNullableInt(dataBuffer: ByteBuffer,
                           validityBitset: BitSet,
                           numberOfRecords: Int,
                           outputList: MutableList<Int>) {
