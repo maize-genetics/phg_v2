@@ -59,7 +59,7 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
         val bufferSize = 10000
 
         // Open array and read samples
-        val tiledbUri = "uri/metadata/vcf_headers"
+        val tiledbUri = "${uri}/metadata/vcf_headers"
         val context = Context()
         val array = Array(context, tiledbUri, QueryType.TILEDB_READ)
         val query = Query(array, QueryType.TILEDB_READ)
@@ -92,8 +92,9 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
 
     fun headerForSample(sampleName: String): String {
         // open array
+        val tiledbUri = "${uri}/metadata/vcf_headers"
         val context = Context()
-        val array = Array(context, uri, QueryType.TILEDB_READ)
+        val array = Array(context, tiledbUri, QueryType.TILEDB_READ)
 
         // slice on a specific sample
         val subArray = SubArray(context, array)
