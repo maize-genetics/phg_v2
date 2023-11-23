@@ -266,6 +266,8 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
                          outputList: MutableList<String>)  {
         val offsets = IntArray(numberOfRecords + 1)
         offsetBuffer.asIntBuffer().get(offsets)
+
+        dataBuffer.rewind()
         for (ndx in 0..<numberOfRecords) {
             val sizeOfName = offsets[ndx + 1] - offsets[ndx]
             val nameByteArray = ByteArray(sizeOfName)
@@ -288,7 +290,6 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
                              numberOfRecords: Int,
                              outputList: MutableList<List<String>>) {
         val nameList = mutableListOf<String>()
-        decodeVarlenChar(dataBuffer, offsetBuffer, numberOfRecords, nameList)
         val listOffsets = IntArray(numberOfRecords + 1)
         listOffsetBuffer.asIntBuffer().get(listOffsets)
         val numberOfValues = listOffsets[numberOfRecords]

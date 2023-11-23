@@ -34,21 +34,24 @@ class TileDBVcfReaderTest {
 
         val dbPath = TestExtension.testTileDBURI
 
-
-        //create the database
-        if (!File("${dbPath}gvcf_dataset").exists()) {
-            Initdb().createDataSets(dbPath)
-            val loader = LoadVcf()
-
-            val command = "--vcf-dir ${TestExtension.testVCFDir} --db-path $dbPath"
-            val loaderResult = loader.test(command)
-            if (loaderResult.statusCode != 0) {
-                println("loader result status code = ${loaderResult.statusCode}")
-                println("stderr: ${loaderResult.stderr}")
-            }
+        //delete the database, if it exists
+        val dbFile = File(dbPath)
+        if (dbFile.exists()) {
+            dbFile.deleteRecursively()
         }
 
-        //create a VCFReader for vcf_headers for gvcf data
+        //create the database
+        Initdb().createDataSets(dbPath)
+        val loader = LoadVcf()
+
+        val command = "--vcf-dir ${TestExtension.testVCFDir} --db-path $dbPath"
+        val loaderResult = loader.test(command)
+        if (loaderResult.statusCode != 0) {
+            println("loader result status code = ${loaderResult.statusCode}")
+            println("stderr: ${loaderResult.stderr}")
+        }
+
+        //create a VCFReader for vcf_headers
         val path = "${dbPath}gvcf_dataset"
         println("$path is valid: ${File(path).exists()}")
         val reader = TileDBVcfReader(path)
@@ -72,7 +75,25 @@ class TileDBVcfReaderTest {
         }
 
         //set a range and read some data
+        reader.ranges(listOf("1:1-1000"))
+        val dataResult = reader.data()
 
+        //expected sample names
+        val expectedNames = listOf("LineA", "SampleLine")
+        val names = dataResult.map { it.sampleName }.distinct().sorted()
+        (0..1).forEach { assertEquals(expectedNames[it], names[it], "sample names do not match") }
 
+        //expected number of records per sample
+        //LineA 60, SampleLine 55
+        val lineAExpectedCount = 60
+        val sampleExpectedCount = 55
+        val lineACount = dataResult.filter { it.sampleName == "LineA" }.count()
+        val sampleCount = dataResult.filter { it.sampleName == "SampleLine" }.count()
+
+        println("name, contig, start, end, genotype")
+        dataResult.filter { it.sampleName == "LineA" }.forEach { println("${it.sampleName}, ${it.contig}, ${it.startPos}, ${it.endPos}, ${it.genotype}") }
+        dataResult.filter { it.sampleName == "SampleLine" }.forEach { println("${it.sampleName}, ${it.contig}, ${it.startPos}, ${it.endPos}, ${it.genotype}") }
+        assertEquals(lineAExpectedCount, lineACount, "counts of data for lineA")
+        assertEquals(sampleExpectedCount, sampleCount, "counts of data for SampleLine")
     }
 }
