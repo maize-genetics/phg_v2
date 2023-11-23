@@ -90,9 +90,9 @@ class TileDBVcfReaderTest {
         val lineACount = dataResult.filter { it.sampleName == "LineA" }.count()
         val sampleCount = dataResult.filter { it.sampleName == "SampleLine" }.count()
 
-        println("name, contig, start, end, genotype")
-        dataResult.filter { it.sampleName == "LineA" }.forEach { println("${it.sampleName}, ${it.contig}, ${it.startPos}, ${it.endPos}, ${it.genotype}") }
-        dataResult.filter { it.sampleName == "SampleLine" }.forEach { println("${it.sampleName}, ${it.contig}, ${it.startPos}, ${it.endPos}, ${it.genotype}") }
+        println("name, contig, start, end, genotype, AD, DP")
+        dataResult.filter { it.sampleName == "LineA" }.forEach { println("${it.sampleName}, ${it.contig}, ${it.startPos}, ${it.endPos}, ${it.genotype}, ${it.AD}, ${it.DP}") }
+        dataResult.filter { it.sampleName == "SampleLine" }.forEach { println("${it.sampleName}, ${it.contig}, ${it.startPos}, ${it.endPos}, ${it.genotype}, ${it.AD}, ${it.DP}") }
         assertEquals(lineAExpectedCount, lineACount, "counts of data for lineA")
         assertEquals(sampleExpectedCount, sampleCount, "counts of data for SampleLine")
     }

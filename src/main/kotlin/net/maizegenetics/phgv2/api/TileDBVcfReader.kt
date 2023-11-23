@@ -127,6 +127,8 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
     }
 
     fun data(): List<SampleData> {
+
+        //TODO determine what should be returned for allele depth: depth of genotype allele(s) or depth of all alleles?
         val capacity = 1024
         val attributeNames = arrayOf(
             "sample_name",
@@ -227,20 +229,27 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
                 alleles
             )
 
-            for (ndx in 0 until numberOfRecords) {
-                val currAlleles = alleles[ndx]
-                val geno = gtList[ndx].map { if( it < 0) "." else currAlleles[it] }
-                genotypes.add(geno)
-            }
-
             //get AD (fmt_AD, varlen, nullable, INT32)
+            val adList = mutableListOf<List<Int>>()
             if (hasAD) {
                 decodeVarlenNullableInt(dbReader.getBuffer("fmt_AD"),
                     dbReader.getOffsets("fmt_AD"),
                     BitSet.valueOf(dbReader.getBitMap("fmt_AD")),
-                    numberOfRecords, ADs
+                    numberOfRecords, adList
                 )
             }
+
+            for (ndx in 0 until numberOfRecords) {
+                val currAlleles = alleles[ndx]
+                val geno = gtList[ndx].map { if( it < 0) "." else currAlleles[it] }
+                genotypes.add(geno)
+                if (hasAD) {
+                    val ad = gtList[ndx].map { if( it < 0) -1 else adList[ndx][it] }
+                    ADs.add(ad)
+                }
+
+            }
+
 
             //get DP (fmt_DP, nullable, INT32)
             if (hasDP) {
@@ -316,9 +325,7 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
                     if (validityBitset.get(offsetIndex)) data[ndx] else missingInt
                 )
             }
-
         }
-
     }
 
     private fun decodeNullableInt(dataBuffer: ByteBuffer,
