@@ -53,16 +53,15 @@ class Initdb : CliktCommand(help="create tiledb datasets for g.vcf and h.vcf fil
             return
         }
 
-
-        // create a temp folder to hold the output and error logs
-        val tempDir = dbpath + "/temp"
+        val tempDir = "${dbpath}/temp"
         Files.createDirectories(Paths.get(tempDir))
 
         // create the hvcf dataset.  The processBuilder command must first set the conda
         // environment to phgv2-conda.  It is presumed that the user has already created
         // this environment.
+        var logFile = "${tempDir}/tiledbvcf_createHvcf.log"
 
-        var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","create","--uri",hvcf_dataset)
+        var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","create","--uri",hvcf_dataset,"-n","--log-level","debug","--log-file",logFile)
         var redirectOutput = tempDir + "/tiledb_hvcf_createURI_output.log"
         var redirectError = tempDir + "/tiledb_hvcf_createURI_error.log"
         builder.redirectOutput( File(redirectOutput))
@@ -84,7 +83,8 @@ class Initdb : CliktCommand(help="create tiledb datasets for g.vcf and h.vcf fil
         }
 
         // Now create the gvcf dataset
-        builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","create","--uri",gvcf_dataset)
+        logFile = "${tempDir}/tiledbvcf_createHvcf.log"
+        builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","create","--uri",gvcf_dataset,"-n","--log-level","debug","--log-file",logFile)
         redirectOutput = tempDir + "/tiledb_gvcf_createURI_output.log"
         redirectError = tempDir + "/tiledb_gvcf_createURI_error.log"
         builder.redirectOutput( File(redirectOutput))

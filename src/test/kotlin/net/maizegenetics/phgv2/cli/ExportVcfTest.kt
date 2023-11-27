@@ -12,11 +12,11 @@ import java.io.File
 import kotlin.test.assertEquals
 
 @ExtendWith(TestExtension::class)
-class ExportHvcfTest {
+class ExportVcfTest {
 
     companion object {
 
-        private val myLogger = LogManager.getLogger(ExportHvcfTest::class.java)
+        private val myLogger = LogManager.getLogger(ExportVcfTest::class.java)
 
         private val exportHvcfDir = "${TestExtension.tempDir}/export-vcfs/"
         private val outputHvcfDir = "${exportHvcfDir}/output/"
@@ -60,7 +60,7 @@ class ExportHvcfTest {
 
         // phg export-hvcf --db-path tiledb --sample-names Ref -o exported-vcfs
 
-        val result = ExportHvcf().test(
+        val result = ExportVcf().test(
             "--db-path $dbPath --sample-names Ref -o $outputHvcfDir"
         )
 
@@ -82,36 +82,36 @@ class ExportHvcfTest {
     fun testCliktParams() {
 
         // Test missing db-path parameter
-        val resultMissingDbpath = ExportHvcf().test(
+        val resultMissingDbpath = ExportVcf().test(
             "--sample-names Ref -o $outputHvcfDir"
         )
         assertEquals(resultMissingDbpath.statusCode, 1)
         assertEquals(
-            "Usage: export-hvcf [<options>]\n" +
+            "Usage: export-vcf [<options>]\n" +
                     "\n" +
                     "Error: missing option --db-path\n",
             resultMissingDbpath.output
         )
 
         // Test missing sample-names parameter
-        val resultMissingSampleNames = ExportHvcf().test(
+        val resultMissingSampleNames = ExportVcf().test(
             "--db-path $dbPath -o $outputHvcfDir"
         )
         assertEquals(resultMissingSampleNames.statusCode, 1)
         assertEquals(
-            "Usage: export-hvcf [<options>]\n" +
+            "Usage: export-vcf [<options>]\n" +
                     "\n" +
                     "Error: missing option --sample-names\n",
             resultMissingSampleNames.output
         )
 
         // Test missing output dir parameter
-        val resultMissingOutputDir = ExportHvcf().test(
+        val resultMissingOutputDir = ExportVcf().test(
             "--db-path $dbPath --sample-names Ref"
         )
         assertEquals(resultMissingOutputDir.statusCode, 1)
         assertEquals(
-            "Usage: export-hvcf [<options>]\n" +
+            "Usage: export-vcf [<options>]\n" +
                     "\n" +
                     "Error: missing option --outputDir\n",
             resultMissingOutputDir.output

@@ -87,7 +87,7 @@ class FullPipelineIT {
         //Run Anchorwave
         val alignAssemblies = AlignAssemblies()
         val alignAssembliesResult = alignAssemblies.test(
-            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference ${TestExtension.smallseqRefFile} " +
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
                     "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.testMafDir}"
         )
         println(alignAssembliesResult.output)
@@ -104,7 +104,7 @@ class FullPipelineIT {
         println(loadVCFResult.output)
 
         //Pull out the HVCF from TileDB
-        val exportHVCF = ExportHvcf()
+        val exportHVCF = ExportVcf()
         val exportHVCFRefResult = exportHVCF.test("--db-path ${TestExtension.testTileDBURI} --sample-names Ref,LineA,LineB -o ${TestExtension.testOutputGVCFDIr}")
         println(exportHVCFRefResult.output)
 

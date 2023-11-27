@@ -1,4 +1,5 @@
 ##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
 ##FORMAT=<ID=AD,Number=3,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
 ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth (only filtered reads used for calling)">
 ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
