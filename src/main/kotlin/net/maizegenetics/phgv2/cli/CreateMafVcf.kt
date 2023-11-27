@@ -346,21 +346,22 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         val lastVariant = variants.last()
 
         //val check strandedness of the variants
-        val strand = firstVariant.getAttributeAsString("ASM_Strand","+")
+        val firstStrand = firstVariant.getAttributeAsString("ASM_Strand","+")
         //LCJ - the line below should be removed?  This was the first exception from scale-testing Zack was fixing,
         // ie it is ok if these strands are not the same -handling inversion
         // check(strand == lastVariant.getAttributeAsString("ASM_Strand","+")) { "Strand of first and last variantContexts do not match" }
 
+        val lastStrand = lastVariant.getAttributeAsString("ASM_Strand","+")
         //Resize the first and last variantContext ASM start and end based on the regions
-        var newASMStart = resizeVariantContext(firstVariant, region.first.position, strand)
+        var newASMStart = resizeVariantContext(firstVariant, region.first.position, firstStrand)
         if(newASMStart == -1) {
-            newASMStart = if(strand == "+") firstVariant.getAttributeAsInt("ASM_Start",region.first.position)
+            newASMStart = if(firstStrand == "+") firstVariant.getAttributeAsInt("ASM_Start",region.first.position)
             else firstVariant.getAttributeAsInt("ASM_End",region.first.position)
         }
 
-        var newASMEnd = resizeVariantContext(lastVariant, region.second.position, strand)
+        var newASMEnd = resizeVariantContext(lastVariant, region.second.position, lastStrand)
         if(newASMEnd == -1) {
-            newASMEnd = if(strand == "+") lastVariant.getAttributeAsInt("ASM_End",region.second.position)
+            newASMEnd = if(lastStrand == "+") lastVariant.getAttributeAsInt("ASM_End",region.second.position)
             else lastVariant.getAttributeAsInt("ASM_Start",region.second.position)
         }
 
