@@ -410,7 +410,21 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         for(i in 1 until variants.size) {
             val nextStart = variants[i].first
             val nextEnd = variants[i].second
-            if(currentEnd < currentStart && nextEnd < nextStart) {
+
+            //Check to see if the next region is only 1 bp long.  If so we need to check both normal and inverted boundaries and extend if it makes sense, if not reset the currentStart and currentEnd
+            if(nextStart.position == nextEnd.position) {
+                //Check to see if the next region is on the + strand
+                //Using nextStart here as it equals nextEnd
+                if(nextStart.position == currentEnd.position + 1 || nextStart.position == currentEnd.position -1) {
+                    currentEnd = nextStart
+                }
+                else {
+                    mergedConsecutiveVariants.add(Pair(currentStart,currentEnd))
+                    currentStart = nextStart
+                    currentEnd = nextEnd
+                }
+            }
+            else if(currentEnd < currentStart && nextEnd < nextStart) {
                 //This is the case where we have a variant that is on the - strand
                 //We need to check if the next variant is consecutive
                 if(nextStart.position == (currentEnd.position - 1)) {

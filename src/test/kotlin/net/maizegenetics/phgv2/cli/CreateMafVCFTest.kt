@@ -579,6 +579,44 @@ class CreateMafVCFTest {
         assertEquals(2, mergedMixedRegions2.size)
         assertEquals(Pair(Position("chr1",280),Position("chr1",201)), mergedMixedRegions2[0])
         assertEquals(Pair(Position("chr1",1),Position("chr1",100)), mergedMixedRegions2[1])
+
+
+        //Test merging when they are consecutive but switch strands
+        val mixedRegions3 = mutableListOf(Pair(Position("chr1",1),Position("chr1",10)),
+            Pair(Position("chr1",11),Position("chr1",20)),
+            Pair(Position("chr1",21),Position("chr1",30)),
+            Pair(Position("chr1",31),Position("chr1",40)),
+            Pair(Position("chr1",41),Position("chr1",50)),
+            Pair(Position("chr1",51),Position("chr1",60)),
+            Pair(Position("chr1",61),Position("chr1",70)),
+            Pair(Position("chr1",71),Position("chr1",80)),
+            Pair(Position("chr1",81),Position("chr1",90)),
+            Pair(Position("chr1",91),Position("chr1",100)),
+            Pair(Position("chr1",150),Position("chr1",141)),
+            Pair(Position("chr1",140),Position("chr1",121)),
+            Pair(Position("chr1",120),Position("chr1",101)))
+        val mergedMixedRegions3 = createMafVcf.mergeConsecutiveRegions(mixedRegions3)
+        assertEquals(2, mergedMixedRegions3.size)
+        assertEquals(Pair(Position("chr1",1),Position("chr1",100)), mergedMixedRegions3[0])
+        assertEquals(Pair(Position("chr1",150),Position("chr1",101)), mergedMixedRegions3[1])
+
+
+        //have inverted regions that are single bp regions
+        val singleRegions = mutableListOf(Pair(Position("chr1",1),Position("chr1",30)),
+                Pair(Position("chr1",31),Position("chr1",31)),
+                Pair(Position("chr1",32),Position("chr1",60)))
+
+        val mergedSingleRegions = createMafVcf.mergeConsecutiveRegions(singleRegions)
+        assertEquals(1, mergedSingleRegions.size)
+        assertEquals(Pair(Position("chr1",1),Position("chr1",60)), mergedSingleRegions[0])
+
+        val singleRegionsInverted = mutableListOf(Pair(Position("chr1",60),Position("chr1",32)),
+                Pair(Position("chr1",31),Position("chr1",31)),
+                Pair(Position("chr1",30),Position("chr1",1)))
+
+        val mergedSingleRegionsInverted = createMafVcf.mergeConsecutiveRegions(singleRegionsInverted)
+        assertEquals(1, mergedSingleRegionsInverted.size)
+        assertEquals(Pair(Position("chr1",60),Position("chr1",1)), mergedSingleRegionsInverted[0])
     }
 
     @Test
