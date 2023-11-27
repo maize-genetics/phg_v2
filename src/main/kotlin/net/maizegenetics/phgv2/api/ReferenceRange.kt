@@ -2,6 +2,7 @@ package net.maizegenetics.phgv2.api
 
 data class ReferenceRange(val contig: String, val start: Int, val end: Int) :
     Comparable<ReferenceRange> {
+
     override fun compareTo(other: ReferenceRange): Int {
         return when {
             contig != other.contig -> contig.compareTo(other.contig)
@@ -9,4 +10,9 @@ data class ReferenceRange(val contig: String, val start: Int, val end: Int) :
             else -> end.compareTo(other.end)
         }
     }
+
+    override fun toString(): String {
+        return "$contig:$start-$end"
+    }
+
 }
