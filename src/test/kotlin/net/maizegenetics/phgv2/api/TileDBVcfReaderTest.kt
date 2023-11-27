@@ -63,7 +63,8 @@ class TileDBVcfReaderTest {
 
         //check the headers
         //remove the ##FILTER line that is inserted by TileDB
-        val headerFromTileDB = reader.headerForSample("SampleLine").lines().filter { !it.startsWith("##FILTER") }
+        //set the initial buffer size to a small value for testing
+        val headerFromTileDB = reader.headerForSample("SampleLine", 500).lines().filter { !it.startsWith("##FILTER") }
         val headerFromFile = BufferedReader(InputStreamReader(GZIPInputStream(FileInputStream(samplegz)))).use { vcfReader ->
             vcfReader.lines().limit(10).toList()
         }
@@ -95,5 +96,15 @@ class TileDBVcfReaderTest {
         dataResult.filter { it.sampleName == "SampleLine" }.forEach { println("${it.sampleName}, ${it.contig}, ${it.startPos}, ${it.endPos}, ${it.genotype}, ${it.AD}, ${it.DP}") }
         assertEquals(lineAExpectedCount, lineACount, "counts of data for lineA")
         assertEquals(sampleExpectedCount, sampleCount, "counts of data for SampleLine")
+
+        //create a new reader to test setting the sample name
+        val oneSampleReader = TileDBVcfReader(path, listOf("SampleLine"))
+        oneSampleReader.ranges(listOf("1:1-1000"))
+        val oneSampleResult = oneSampleReader.data()
+        val lineARecount = oneSampleResult.filter { it.sampleName == "LineA" }.count()
+        val sampleRecount = oneSampleResult.filter { it.sampleName == "SampleLine" }.count()
+        assertEquals(0, lineARecount, "recounts of data for lineA")
+        assertEquals(sampleExpectedCount, sampleRecount, "recounts of data for SampleLine")
+
     }
 }
