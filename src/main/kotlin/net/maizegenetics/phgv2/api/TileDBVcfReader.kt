@@ -53,10 +53,9 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
         return this
     }
 
-    fun sampleNames(): List<String> {
-        //buffer size
-        //buffer size should be adequate as the query is called iteratively until all sample names have been read
-        val bufferSize = 10000
+    fun sampleNames(bufferSize: Int = 10000): List<String> {
+        //The default buffer size should be adequate as the query is called iteratively until all sample names
+        // have been read.
 
         // Open array and read samples
         val tiledbUri = "${uri}/metadata/vcf_headers"
@@ -90,7 +89,7 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
         return samples
     }
 
-    fun headerForSample(sampleName: String): String {
+    fun headerForSample(sampleName: String, initBufferSize: Int = 100000): String {
         // open array
         val tiledbUri = "${uri}/metadata/vcf_headers"
         val context = Context()
@@ -103,7 +102,7 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
         query.setSubarray(subArray)
 
         // alloc buffers
-        var bufferSize = 1000000
+        var bufferSize = initBufferSize
         query.setDataBuffer("header", NativeArray(context, bufferSize, Datatype.TILEDB_STRING_ASCII))
         query.setOffsetsBuffer("header", NativeArray(context, 1024, Datatype.TILEDB_UINT64))
         var data: ByteArray
@@ -115,7 +114,8 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
             if (data.isEmpty() && query.queryStatus === QueryStatus.TILEDB_INCOMPLETE) {
                 // if buffer size is small increase the size by a factor of 2
                 bufferSize *= 2
-                query.setDataBuffer("header", NativeArray(context, bufferSize, Datatype.TILEDB_CHAR))
+                println("buffer reset to $bufferSize")
+                query.setDataBuffer("header", NativeArray(context, bufferSize, Datatype.TILEDB_STRING_ASCII))
                 query.setOffsetsBuffer("header", NativeArray(context, 1024, Datatype.TILEDB_UINT64))
             }
         } while (query.queryStatus === QueryStatus.TILEDB_INCOMPLETE) // run until query complete
@@ -126,10 +126,9 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
         return data.toString(Charset.forName("US-ASCII"))
     }
 
-    fun data(): List<SampleData> {
+    fun data(capacity: Int = 10000): List<SampleData> {
 
         //TODO determine what should be returned for allele depth: depth of genotype allele(s) or depth of all alleles?
-        val capacity = 1024
         val attributeNames = arrayOf(
             "sample_name",
             "contig",
@@ -176,6 +175,9 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
         val ADs = mutableListOf<List<Int>>()
         val DPs = mutableListOf<Int>()
 
+        //dbReader.submit only returns as many records as the buffers will hold. If the query does not
+        //  return all of the records then the status is incomplete and the query needs to be resubmitted.
+        //  Data is processed and added to the above lists in each loop until all records have been returned.
         while (!dbReader.status.equals(VCFReader.Status.COMPLETED)) {
             dbReader.submit()
             val numberOfRecords = dbReader.numRecords.toInt()
@@ -276,6 +278,8 @@ class TileDBVcfReader(val uri: String, samples: List<String>? = null) {
         val offsets = IntArray(numberOfRecords + 1)
         offsetBuffer.asIntBuffer().get(offsets)
 
+        //If there are multiple submit loops, the dataBuffer must be reset to the beginning each time.
+        //Otherwise, reading just starts at the next position after the last get.
         dataBuffer.rewind()
         for (ndx in 0..<numberOfRecords) {
             val sizeOfName = offsets[ndx + 1] - offsets[ndx]
