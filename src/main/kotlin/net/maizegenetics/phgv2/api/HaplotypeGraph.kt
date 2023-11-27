@@ -160,6 +160,12 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
     /**
      * ReferenceRange Information
+     *
+     * @param rangeLookup This is the lookup sequence checksum
+     * indices for one Reference Range rangeLookup[sampleId]
+     * @param rangeSeqHash This is the sequence checksums for
+     * one Reference Range rangeSeqHash[lookup: UByte]
+     * @param range This is the ReferenceRange
      */
     data class RangeInfo(
         val rangeLookup: Array<UByte>,
