@@ -70,30 +70,38 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         //load the bed file into some data structure
 //        val ranges = bedfileToSRangeSet(bedFileName,referenceFileName)
         val ranges = loadRanges(bedFileName)
+        println("CreateASMHvcfs: calling buildRefGenomeSeq")
         val refGenomeSequence = buildRefGenomeSeq(referenceFileName)
 
         //loop through the maf files in mafDirName and getGVCFVariantsFromMafFile
         File(mafDirName).walk().filter { !it.isHidden && !it.isDirectory }
             .filter { it.extension == "maf" }
             .forEach {
+                println("CreateASMHvcfs: processing ${it.absolutePath}")
                 val sampleName = it.nameWithoutExtension //This will likely need to change in the future
-                val gvcfVariants = getGVCFVariantsFromMafFile(referenceFileName, it.absolutePath, it.nameWithoutExtension, twoGvcfs=twoGvcfs)
+                val gvcfVariants = getGVCFVariantsFromMafFile(refGenomeSequence, it.absolutePath, it.nameWithoutExtension, twoGvcfs=twoGvcfs)
 
                 //export the gvcfRecords
                 if (gvcfVariants.size == 1){
+                    println("createASMHvcfs: gvcfVariants.size == 1")
                     val sampleName = gvcfVariants.keys.first()
                     val variants = gvcfVariants.values.first()
+                    println("createASMHvcfs: processing sampleName = $sampleName")
                     exportVariantContext(sampleName, variants, "${outputDirName}/${it.nameWithoutExtension}.g.vcf",refGenomeSequence, setOf())
                     bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.g.vcf")
+
                     val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
                     //convert the GVCF records into hvcf records
+                    println("createASMHvcfs: calling convertGVCFToHVCF for $sampleName")
                     val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines)
                     val asmHeaderSet = asmHeaderLines.values.toSet()
                     //export the hvcfRecords
+                    println("createASMHvcfs: calling exportVariantContext for $sampleName")
                     exportVariantContext(sampleName, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, asmHeaderSet)
                     //bgzip the files
                     bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.h.vcf")
                 } else if (gvcfVariants.size == 2) {
+                    println("createASMHvcfs: gvcfVariants.size == 2")
                     val gvcfOutput = "${outputDirName}/${it.nameWithoutExtension}.g.vcf"
                     val outputNames = MAFToGVCF().twoOutputFiles(gvcfOutput)
                     gvcfVariants.entries.forEachIndexed { index, (name, variants) ->
@@ -149,10 +157,10 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
      * 7. outputType - either gvcf or vcf (BioKotlin doesn't currently have h.vcf, default is gvcf)
      *
      */
-    fun getGVCFVariantsFromMafFile(referenceFileName: String, mafFileName : String, sampleName: String, fillGaps: Boolean = false, twoGvcfs: Boolean = false) : Map<String,List<VariantContext>> {
+    fun getGVCFVariantsFromMafFile(refSeq: Map<String,NucSeq>, mafFileName : String, sampleName: String, fillGaps: Boolean = false, twoGvcfs: Boolean = false) : Map<String,List<VariantContext>> {
         return MAFToGVCF().getVariantContextsfromMAF(
             mafFileName,
-            NucSeqIO(referenceFileName).readAll(),
+            refSeq,
             sampleName,
             fillGaps,
             twoGvcfs
@@ -170,6 +178,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         val bedRegionsByContig = bedRanges.groupBy { it.first.contig }
 
 
+        println("in convertGVCFToHVCF: sort and call converGVCFToHVCFForChrom")
         return gvcfVariantsByContig.keys
             .sortedWith(compareBy(SeqRangeSort.alphaThenNumberSort){ name:String -> name}) //Need to do a sort here as we need to make sure we process the chromosomes in
             .filter { bedRegionsByContig.containsKey(it) }
@@ -188,6 +197,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
          * Then extract the sequence out of the AGC archive and md5 hash it
          * Then call the createHVCFRecord with this information
          */
+        println("in convertGVCFToHVCFForChrom: bedRanges.size = ${bedRanges.size}")
         val outputVariantMetadata = mutableListOf<HVCFRecordMetadata>()
         var currentVariantIdx = 0
         for(region in bedRanges) {
@@ -467,6 +477,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         }
 
         val ranges = metaDataToRangeLookup.flatMap { it.second }
+        println("LCJ addSequencesToMetaData: calling retrieveAgcContigs with ranges.size = ${ranges.size}")
         val seqs = retrieveAgcContigs(dbPath,ranges)
 
         return metaDataToRangeLookup.map { it.first.copy(asmSeq = buildSeq(seqs,it.third,it.first)) } //This is a useful way to keep things immutable
