@@ -176,11 +176,21 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
             val regions =  altMetaData!!.regions
             val queryRanges = mutableListOf<String>()
             val displayRanges = mutableListOf<String>()
+            val displayRegions = mutableListOf<DisplayRegion>()
             for(region in regions) {
-                queryRanges.add("${region.first.contig}@${sampleName}:${region.first.position-1}-${region.second.position-1}")
-                displayRanges.add("${region.first.contig}:${region.first.position-1}-${region.second.position-1}")
+//                queryRanges.add("${region.first.contig}@${sampleName}:${region.first.position-1}-${region.second.position-1}")
+//                displayRanges.add("${region.first.contig}:${region.first.position-1}-${region.second.position-1}")
+
+                if(region.first.position-1 > region.second.position-1) {
+                    queryRanges.add("${region.first.contig}@${sampleName}:${region.second.position-1}-${region.first.position-1}")
+                }
+                else {
+                    queryRanges.add("${region.first.contig}@${sampleName}:${region.first.position - 1}-${region.second.position - 1}")
+                }
+                displayRegions.add(DisplayRegion(region.first.contig,region.first.position-1,region.second.position-1))
             }
-            Triple(queryRanges, displayRanges, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, regions))
+//            Triple(queryRanges, displayRanges, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, regions))
+            Triple(queryRanges, displayRegions, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, regions))
         }
 
         //Create a list of ranges we need to extract.
@@ -197,12 +207,19 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
      * Function to build the haplotype sequence based on the list of display regions and the given haplotype sequence object.
      * The sequence is already extracted out of AGC and stored in the seqs map.
      */
-    fun buildHapSeq(seqs: Map<String,NucSeq> ,displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
+//    fun buildHapSeq(seqs: Map<String,NucSeq> ,displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
+    fun buildHapSeq(seqs: Map<String,NucSeq> ,displayRegions : List<DisplayRegion>, hapSeqObjects: HaplotypeSequence) : String {
         val hapSeqRegions = hapSeqObjects.asmRegions
 
         return displayRegions.mapIndexed{ idx, currentDisplayRegion ->
             val currentHapSeqRegion = hapSeqRegions[idx]
-            val seq = seqs[currentDisplayRegion]!!
+            val displayString = if(currentDisplayRegion.start <= currentDisplayRegion.end) {
+                "${currentDisplayRegion.contig}:${currentDisplayRegion.start}-${currentDisplayRegion.end}"
+            } else {
+                "${currentDisplayRegion.contig}:${currentDisplayRegion.end}-${currentDisplayRegion.start}"
+            }
+//            val seq = seqs[currentDisplayRegion]!!
+            val seq = seqs[displayString]!!
 
             //Means it is the first region
             if(currentHapSeqRegion.first.position > currentHapSeqRegion.second.position) {
