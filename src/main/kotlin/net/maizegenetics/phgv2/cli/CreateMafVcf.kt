@@ -483,27 +483,20 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         //get out the assembly coordinates and build them into the regions
         val metaDataToRangeLookup = metadata.map {
             val queries = mutableListOf<String>()
-//            val displayNames = mutableListOf<String>()
-            val displayRegions = mutableListOf<DisplayRegion>()
-//            it.asmRegions.map {range ->
-//                queries.add("${range.first.contig}@${it.sampleName}:${range.first.position-1}-${range.second.position-1}")
-//                displayNames.add("${range.first.contig}:${range.first.position-1}-${range.second.position-1}")
-//                displayRegions.add(DisplayRegion(range.first.contig,range.first.position-1,range.second.position-1))
-//            }
+            val displayNames = mutableListOf<String>()
 
             for(range in it.asmRegions) {
                 if(range.first.position-1 > range.second.position-1) {
                     queries.add("${range.first.contig}@${it.sampleName}:${range.second.position-1}-${range.first.position-1}")
+                    displayNames.add("${range.first.contig}:${range.second.position-1}-${range.first.position-1}")
                 }
                 else {
                     queries.add("${range.first.contig}@${it.sampleName}:${range.first.position - 1}-${range.second.position - 1}")
+                    displayNames.add("${range.first.contig}:${range.first.position-1}-${range.second.position-1}")
                 }
-//                displayNames.add("${range.first.contig}:${range.first.position-1}-${range.second.position-1}")
-                displayRegions.add(DisplayRegion(range.first.contig,range.first.position-1,range.second.position-1))
             }
 
-//            Triple(it,queries, displayNames)
-            Triple(it,queries, displayRegions)
+            Triple(it,queries, displayNames)
         }
 
         val ranges = metaDataToRangeLookup.flatMap { it.second }
@@ -518,25 +511,16 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
      * Function to build the haplotype sequence based on the list of display regions and the given haplotype sequence object.
      * The sequence is already extracted out of AGC and stored in the seqs map.
      */
-//    fun buildSeq(seqs: Map<String,NucSeq> ,displayRegions : List<String>, hvcfRecordMetadata: HVCFRecordMetadata) : String {
-    fun buildSeq(seqs: Map<String,NucSeq> ,displayRegions : List<DisplayRegion>, hvcfRecordMetadata: HVCFRecordMetadata) : String {
+    fun buildSeq(seqs: Map<String,NucSeq> ,displayRegions : List<String>, hvcfRecordMetadata: HVCFRecordMetadata) : String {
         val hapSeqRegions = hvcfRecordMetadata.asmRegions
 
         return displayRegions.mapIndexed{ idx, currentDisplayRegion ->
             val currentHapSeqRegion = hapSeqRegions[idx]
 
-            val displayString = if(currentDisplayRegion.start <= currentDisplayRegion.end) {
-                "${currentDisplayRegion.contig}:${currentDisplayRegion.start}-${currentDisplayRegion.end}"
-            } else {
-                "${currentDisplayRegion.contig}:${currentDisplayRegion.end}-${currentDisplayRegion.start}"
-            }
-
-//            val seq = seqs[currentDisplayRegion]!!
-            val seq = seqs[displayString]!!
+            val seq = seqs[currentDisplayRegion]!!
 
             //Means it is the first region
             if(currentHapSeqRegion.first.position > currentHapSeqRegion.second.position) {
-//            if(currentDisplayRegion.start > currentDisplayRegion.end) {
                 //Means it needs to be reverse complemented
                 seq.reverse_complement().seq()
             }
