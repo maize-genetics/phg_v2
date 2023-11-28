@@ -85,7 +85,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      */
     fun hapIdToSamples(range: ReferenceRange): Map<String, List<String>> {
         val rangeId = refRangeMap[range]
-            ?: throw IllegalArgumentException("hapIdToSamples: range: $range not found")
+        require(rangeId != null) { "hapIdToSamples: range: $range not found" }
         val result = mutableMapOf<String, MutableList<String>>()
         lookup[rangeId].forEachIndexed { index, seqIndex ->
             val hapId = seqHash[rangeId][seqIndex.toInt()]
