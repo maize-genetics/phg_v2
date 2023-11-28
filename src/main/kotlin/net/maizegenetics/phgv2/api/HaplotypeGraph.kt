@@ -10,6 +10,11 @@ import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.util.*
 
+/**
+ * Class to create a HaplotypeGraph from a list of hvcf files.
+ * The HaplotypeGraph is a data structure that allows for fast
+ * lookup of haplotype sequences for a given ReferenceRange.
+ */
 class HaplotypeGraph(hvcfFiles: List<String>) {
 
     private val myLogger = LogManager.getLogger(HaplotypeGraph::class.java)
