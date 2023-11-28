@@ -1,4 +1,4 @@
-package net.maizegenetics.phgv2.cli
+package net.maizegenetics.phgv2.agc
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default

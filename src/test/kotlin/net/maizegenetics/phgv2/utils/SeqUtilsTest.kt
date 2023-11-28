@@ -2,7 +2,7 @@ package net.maizegenetics.phgv2.utils
 
 import biokotlin.genome.fastaToNucSeq
 import com.github.ajalt.clikt.testing.test
-import net.maizegenetics.phgv2.cli.AgcCompress
+import net.maizegenetics.phgv2.agc.AgcCompress
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.cli.TestExtension.Companion.testOutputFastaDir
 import org.junit.jupiter.api.AfterAll

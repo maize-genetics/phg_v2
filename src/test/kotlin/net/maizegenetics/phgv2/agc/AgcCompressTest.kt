@@ -1,15 +1,14 @@
-package net.maizegenetics.phgv2.cli
+package net.maizegenetics.phgv2.agc
 
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.cli.TestExtension
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.io.File
-import java.lang.Exception
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.LocalDate
-import java.util.stream.Collectors
 import kotlin.test.assertEquals
 
 class AgcCompressTest {

@@ -1,17 +1,15 @@
 package net.maizegenetics.phgv2.cli
 
 import biokotlin.seq.NucSeq
-import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
+import net.maizegenetics.phgv2.agc.AgcCompress
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.createRefRangeVC
 import net.maizegenetics.phgv2.utils.createSNPVC
 import net.maizegenetics.phgv2.utils.getChecksumForString
 import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
