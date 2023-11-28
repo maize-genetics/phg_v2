@@ -23,7 +23,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     private lateinit var sampleNameToIdMap: Map<String, Int>
     private lateinit var sampleNames: Array<String>
 
-    // lookup sequence checksum index
+    // lookup the sequence checksum index
+    // which is the index into seqHash
     // lookup[refRangeId][sampleId]
     private lateinit var lookup: Array<Array<UByte>>
 
