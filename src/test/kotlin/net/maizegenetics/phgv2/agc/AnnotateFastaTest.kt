@@ -61,7 +61,7 @@ class AnnotateFastaTest {
 
         // Test the AnnotateFasta class
         val annotateFasta = AnnotateFasta()
-        val result = annotateFasta.test( "--fasta-list ${filesToUpdate} --output-dir ${TestExtension.testOutputFastaDir}")
+        val result = annotateFasta.test( "--fasta-list ${filesToUpdate} --threads 2 --output-dir ${TestExtension.testOutputFastaDir}")
         assertEquals(result.statusCode, 0)
 
         // get a list of fasta files created in the fastaOutputDir, as a List<String> in variable named updatedFiles
@@ -79,5 +79,42 @@ class AnnotateFastaTest {
             }
         }
 
+        // run this again on the newly updated files - verify the idlines are not updated if sampleName= is already present
+        // Create a new fasta list file with the updated fasta files
+        val filesToUpdate2 = File(fastaOutputDir, "fastaCreateFileNames2.txt")
+        filesToUpdate2.writeText(updatedFiles.joinToString("\n"))
+        // run the annotateFasta command again on the updated fasta files.  This will overwrite the existing files
+        // in the outputDir
+        val secondOutputDir = "${TestExtension.testOutputFastaDir}/secondOutputDir"
+        // create the new outputDir
+        File(secondOutputDir).mkdirs()
+        val result2 = annotateFasta.test( "--fasta-list ${filesToUpdate2} --output-dir ${secondOutputDir}")
+
+        // Get list of fastas files in the newOutputDir
+        val updatedFiles2 = File(secondOutputDir).listFiles().filter { it.extension == "fa" || it.extension == "fasta" }.map { it.absolutePath }
+        assertEquals(result2.statusCode, 0)
+        // verify the idlines lines of each fasta files contain only a single "sampleName=${sampleName}" string
+        updatedFiles2.forEach { fastaFile ->
+            val sampleName = File(fastaFile).nameWithoutExtension
+            val newFilename = "${fastaOutputDir}/${File(fastaFile).name}"
+            File(newFilename).forEachLine { line ->
+                if (line.startsWith(">")) {
+                    assertTrue(line.contains("sampleName=${sampleName}"))
+                    assertTrue(line.indexOf("sampleName=${sampleName}") == line.lastIndexOf("sampleName=${sampleName}"))
+                }
+            }
+        }
+
+        // verify that each file in the updatedFiles list is the same as the corresponding file in the updatedFiles2 list
+        updatedFiles.forEachIndexed { index, fastaFile ->
+
+            val newFilename = "${fastaOutputDir}/${File(fastaFile).name}"
+            val newFilename2 = "${secondOutputDir}/${File(fastaFile).name}"
+
+            // compare the contents of the two files
+            val file1 = File(newFilename).readLines()
+            val file2 = File(newFilename2).readLines()
+            assertEquals(file1, file2)
+        }
     }
 }
