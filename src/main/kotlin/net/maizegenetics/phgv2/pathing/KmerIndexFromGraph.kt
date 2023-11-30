@@ -65,6 +65,7 @@ class KmerIndexFromGraph: CliktCommand(help="Create a kmer index for a Haplotype
      * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
      */
     fun processGraphKmersSinglePass() : Long2ObjectOpenHashMap<Set<Int>> {
+        //TODO use haplotype fastas for input instead of a HaplotypeGraph
         val keepMap = Long2ObjectOpenHashMap<Set<Int>>()
         val discardSet = LongOpenHashSet()
         var rangeCount = 0
