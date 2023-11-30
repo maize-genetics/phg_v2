@@ -1,6 +1,7 @@
 package net.maizegenetics.phgv2.api
 
 import net.maizegenetics.phgv2.cli.TestExtension
+import net.maizegenetics.phgv2.utils.Sizeof
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.test.assertEquals
@@ -36,6 +37,15 @@ class HaplotypeGraphTest {
         assertTrue(ranges.isSorted(), "ranges not sorted")
 
         assertEquals(graph.numberOfRanges(), ranges.size, "ranges size not equal to numberOfRanges")
+
+        ranges.forEach { range ->
+            println("$range: ${graph.hapIdToSamples(range)}")
+            graph.hapIdToSamples(range).forEach { (hapId, samples) ->
+                println("$hapId: ${samples.joinToString(", ")}")
+            }
+        }
+
+        Sizeof.printMemoryUse()
 
     }
 
