@@ -268,7 +268,7 @@ polymorphism, or whole-genome duplications. Since this software is
 already set up during the Conda environment step, there is no need
 to install this manually.
 
-To run this aligner, we can call the `align-assemblies` command:
+To run the aligner step, we can call the `align-assemblies` command:
 
 ```shell
 ./phg align-assemblies \
@@ -281,16 +281,18 @@ To run this aligner, we can call the `align-assemblies` command:
 ```
 
 This command uses several parameters:
-* `--gff` - GFF file for the reference genome.
-* `--reference-file` - the reference genome in 
+* `--gff` - GFF file for the reference genome. This is used to
+  identify full-length coding sequences to use as anchors
+* `--reference-file` - The reference genome in 
   [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format.
-* `--assemblies` - a text file containing a list of assembly genomes.
+* `--assemblies` - A text file containing a list of assembly genomes.
   The contents of this file should be either full or relative paths
   to each assembly you would like to align. For example, since I am
   using the example data found on the 
   [PHGv2 GitHub repository](https://github.com/maize-genetics/phg_v2/tree/main/data/test/smallseq),
   I can create a text file called `assemblies_list.txt` and populate
   it with the following lines:
+
   ```
   data/LineA.fa
   data/LineB.fa
@@ -301,19 +303,138 @@ This command uses several parameters:
 
 * `--total-threads` - How many threads would you like to allocate for
   the alignment step? More information about this step and the 
-  `--in-parallel` step can be found in the following **Details** section.
+  `--in-parallel` step can be found in the following **Details - 
+  threads and parallelization** section.
 * `--in-parallel` - How many genomes would like to run in parallel?
   More information about this step and the `--total-threads` step can
-  be found in the following **Details** section.
-* `-o` - The name of the directory
+  be found in the following **Details - threads and parallelization** 
+  section.
+* `-o` - The name of the directory for the alignment outputs. 
 
-#### Details
+> [!WARNING]
+> The directory that you specify in the output (`-o`) section must
+> be a an existing directory.
+
+Once alignment is finished, and you have navigated into the output 
+directory (in my case, this would be `output/alignment_files`),
+you will see several different file types. In addition to various 
+logging files (`.log`) for the AnchorWave procedures, you will notice 
+that each assembly will have a collection of different file types:
+
+| File extension | Property                                                                                   |
+|----------------|--------------------------------------------------------------------------------------------|
+| `.sam`         | [sequence alignment map](https://en.wikipedia.org/wiki/SAM_(file_format)) (SAM) file       |
+| `.maf`         | [multiple alignment format](https://genome.ucsc.edu/FAQ/FAQformat.html#format5) (MAF) file |
+| `.anchorspro`  | alignment blocks between reference and assembly genomes (used for dotplot generation)      |
+
+The MAF files from this output will be used in the VCF creation step.
+
+
+#### Details - threads and parallelization
+
+***WIP*** - revisit once we can agree on naming and parameter conventions
 
 <img src="img/build_and_load/align_assemblies_01.svg" width="300"/>
 
+***WIP*** - revisit once we can agree on naming and parameter conventions
+
+<img src="img/build_and_load/align_assemblies_02.svg" width="300"/>
+
+
+The table below shows the memory usage for a single assembly alignment
+based on processor type:
+
+| Processor | peak memory (Gb) | wall time |
+|-----------|------------------|-----------|
+| SSE2      | 20.1             | 26:47:17  | 
+| SSE4.1    | 20.6             | 24:05:07  |
+| AVX2      | 20.1             | 21:40:00  |
+| AVX512    | 20.1             | 18:31:39  |
+| ARM       | 34.2             | 18:08:57  |
+
 
 ### Compress FASTA files
+For optimal storage of sequence information, we can convert our 
+"plain-text" FASTA files into a more compact representation using 
+compression. For PHGv2, we can use a command called `agc-compress`, 
+which is a wrapper for the
+[Assembled Genomes Compressor](https://github.com/refresh-bio/agc) 
+(AGC). AGC provides performant and efficient compression ratios for 
+our assembly genomes. Like AnchorWave, AGC is also installed during
+the Conda environment setup phase, so there is no need to install 
+this manually.
+
+To run the compression step, we can call the `align-assemblies` 
+command:
+
+```shell
+./phg agc-compress \
+    --db-path vcf_dbs \
+    --fasta-list data/assemblies_list.txt \
+    --reference-file data/Ref.fa
+```
+
+This command takes in 3 parameters:
+* `--db-path` - path to directory storing the TileDB instances. The
+  AGC compressed genomes will be placed here on completion.
+
+> [!NOTE]
+> The directory specified here should be the same directory used to 
+> initialize the TileDB instances in the database initialization 
+> (`initdb`) step.
+
+* `--fasta-list` - List of assembly FASTA genomes to compress.
+
+> [!TIP]
+> The list specified in `--fasta-list` can be the same list used
+> in the alignment (`align-assemblies`) step.
+
+* `--reference-file` - Reference FASTA genome.
+
+After compression is finished, we can navigate to the directory
+containing the TileDB instances. In my case, this would be the
+subdirectory, `vcf_dbs`. Here, you will see a new file created:
+`assemblies.agc`. This is the compressed AGC file containing our 
+assemblies. This file will be used later to query for haplotype
+sequence regions and composite genome creation.
+
 
 ### Create VCF files
+Now that we have (1) created alignments of our assemblies against a
+single reference genome and (2) created compressed representations
+of our assembly genomes, we can now create VCF information to
+populate our TileDB instances. This process is performed using two
+commands:
+
+1. Create hVCF data from reference genome:
+
+```shell
+./phg create-ref-vcf \
+    --bed output/ref_ranges.bed \
+    --reference-file data/Ref.fa \
+    --reference-name B73 \
+    -o output/vcf_files
+```
+
+2. Create hVCF and gVCF data from assembly alignments against reference
+   genome:
+
+```shell
+./phg create-maf-vcf \
+    --db-path vcf_dbs \
+    --bed output/ref_ranges.bed \
+    --reference-file data/Ref.fa \
+    --maf-dir output/alignment_files \
+    -o output/vcf_files
+```
+
+> [!TIP]
+> For more information about the haplotype VCF (hVCF) specification,
+> please refer the hVCF specification documentation.
+
+
+
+
+
 
 ### Load VCF data into DBs
