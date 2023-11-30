@@ -18,7 +18,7 @@ fun setupDebugLogging() {
     sendDebugLog4jToStdout()
 }
 
-fun sendDebugLog4jToStdout() {
+private fun sendDebugLog4jToStdout() {
 
     val context = LogManager.getContext(false) as LoggerContext
 
