@@ -229,16 +229,16 @@ This command uses several parameters:
     we would extend the region 500 base pairs upstream and downstream
     of the defined boundary (in this case, `gene`).
 
-  > [!NOTE]
-  > There is a possibility that overlaps of regions will occur. If
-  > this does happen, `create-ranges` will identify any overlapping
-  > regions and merge regions together:
-  > ```
-  > [---Overlap 1----]
-  >            [-------Overlap 2-------]
-  > ====================================
-  > [---------Merged overlap-----------]
-  >  ```
+> [!NOTE]
+> There is a possibility that overlaps of regions will occur. If
+> this does happen, `create-ranges` will identify any overlapping
+> regions and merge regions together:
+> ```
+> [---Overlap 1----]
+>            [-------Overlap 2-------]
+> ====================================
+> [---------Merged overlap-----------]
+>  ```
   
 * `-o` - Name for the output BED file.
 
