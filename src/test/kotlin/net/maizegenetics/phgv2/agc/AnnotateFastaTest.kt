@@ -19,11 +19,11 @@ class AnnotateFastaTest {
             File(TestExtension.testOutputFastaDir).mkdirs()
         }
 
-//        @JvmStatic
-//        @AfterAll
-//        fun teardown() {
-//            File(TestExtension.tempDir).deleteRecursively()
-//        }
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+            File(TestExtension.tempDir).deleteRecursively()
+        }
     }
 
     @Test
