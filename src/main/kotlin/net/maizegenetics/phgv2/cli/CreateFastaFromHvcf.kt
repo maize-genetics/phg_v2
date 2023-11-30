@@ -219,7 +219,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
             else {
                 seq.seq()
             }
-        }.joinToString()
+        }.joinToString("")
 
     }
 

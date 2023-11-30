@@ -1,12 +1,15 @@
 package net.maizegenetics.phgv2.cli
 
+import biokotlin.seq.NucSeq
 import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.testing.test
+import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeader
 import htsjdk.variant.vcf.VCFHeaderVersion
 import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.createHVCFRecord
 import net.maizegenetics.phgv2.utils.getChecksumForString
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -21,6 +24,7 @@ import kotlin.test.assertTrue
 
 @ExtendWith(TestExtension::class)
 class CreateFastaFromHvcfTest {
+
     companion object {
         @JvmStatic
         @BeforeAll
@@ -328,6 +332,133 @@ class CreateFastaFromHvcfTest {
 
 
 
+
+    }
+
+    @Test
+    fun testExtractInversions() {
+        val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
+        val sampleName = "Ref"
+        val seqs = NucSeqIO("data/test/smallseq/Ref.fa").readAll()
+
+        //create a list of a single haplotype variant with inverted regions
+        val hvcfRecord = createHVCFRecord("Ref", Position("1",1),Position("1",100),  Pair("A","2b4590f722ef9229c15d29e0b4e51a0e"))
+        val variantList = listOf<VariantContext>(hvcfRecord)
+        //create a map of altHeaders
+        val altHeader =AltHeaderMetaData("2b4590f722ef9229c15d29e0b4e51a0e","\"haplotype data for line: Ref\"","6","\"data/test/smallseq/Ref.fa\"",
+            listOf(Pair(Position("1",1), Position("1",50)), Pair(Position("1",60), Position("1", 100))), "Md5", "2b4590f722ef9229c15d29e0b4e51a0e")
+
+        val altHeaders = mapOf<String, AltHeaderMetaData>("2b4590f722ef9229c15d29e0b4e51a0e" to altHeader)
+
+        val createFastaFromHvcf = CreateFastaFromHvcf()
+
+        val sequences = createFastaFromHvcf.createHaplotypeSequences(dbPath, sampleName, variantList, altHeaders)
+
+        val firstSeq = sequences.first()
+        assertEquals(2, firstSeq.asmRegions.size)
+        assertEquals(Position("1",1), firstSeq.asmRegions[0].first)
+        assertEquals(Position("1",50), firstSeq.asmRegions[0].second)
+        assertEquals(Position("1",60), firstSeq.asmRegions[1].first)
+        assertEquals(Position("1",100), firstSeq.asmRegions[1].second)
+
+        assertEquals("2b4590f722ef9229c15d29e0b4e51a0e", firstSeq.id)
+        assertEquals("${seqs["1"]!![0..49]}${seqs["1"]!![59..99]}", firstSeq.sequence)
+
+
+        //Test a variant with a single inversion
+        val hvcfRecord2 = createHVCFRecord("Ref", Position("1",1),Position("1",100),  Pair("A","db22dfc14799b1aa666eb7d571cf04ec"))
+        val variantList2 = listOf<VariantContext>(hvcfRecord2)
+        //create a map of altHeaders
+        val altHeader2 =AltHeaderMetaData("db22dfc14799b1aa666eb7d571cf04ec","\"haplotype data for line: Ref\"","6","\"data/test/smallseq/Ref.fa\"",
+            listOf(Pair(Position("1",50), Position("1",1)), Pair(Position("1",100), Position("1", 60))), "Md5", "db22dfc14799b1aa666eb7d571cf04ec")
+
+        val altHeaders2 = mapOf<String, AltHeaderMetaData>("db22dfc14799b1aa666eb7d571cf04ec" to altHeader2)
+
+        val sequences2 = createFastaFromHvcf.createHaplotypeSequences(dbPath, sampleName, variantList2, altHeaders2)
+
+        val firstSeq2 = sequences2.first()
+        assertEquals(2, firstSeq2.asmRegions.size)
+        assertEquals(Position("1",50), firstSeq2.asmRegions[0].first)
+        assertEquals(Position("1",1), firstSeq2.asmRegions[0].second)
+        assertEquals(Position("1",100), firstSeq2.asmRegions[1].first)
+        assertEquals(Position("1",60), firstSeq2.asmRegions[1].second)
+
+        assertEquals("db22dfc14799b1aa666eb7d571cf04ec", firstSeq2.id)
+        assertEquals("${seqs["1"]!![0..49].reverse_complement()}${seqs["1"]!![59..99].reverse_complement()}", firstSeq2.sequence)
+
+
+        //Test a variant with mixed normal and inversion
+        val hvcfRecord3 = createHVCFRecord("Ref", Position("1",1),Position("1",100),  Pair("A","5812acb1aff74866003656316c4539a6"))
+        val variantList3 = listOf<VariantContext>(hvcfRecord3)
+        //create a map of altHeaders
+
+        val altHeader3 =AltHeaderMetaData("5812acb1aff74866003656316c4539a6","\"haplotype data for line: Ref\"","6","\"data/test/smallseq/Ref.fa\"",
+            listOf(Pair(Position("1",1), Position("1",50)), Pair(Position("1",100), Position("1", 60))), "Md5", "5812acb1aff74866003656316c4539a6")
+
+        val altHeaders3 = mapOf<String, AltHeaderMetaData>("5812acb1aff74866003656316c4539a6" to altHeader3)
+
+        val sequences3 = createFastaFromHvcf.createHaplotypeSequences(dbPath, sampleName, variantList3, altHeaders3)
+
+        val firstSeq3 = sequences3.first()
+        assertEquals(2, firstSeq3.asmRegions.size)
+        assertEquals(Position("1",1), firstSeq3.asmRegions[0].first)
+        assertEquals(Position("1",50), firstSeq3.asmRegions[0].second)
+        assertEquals(Position("1",100), firstSeq3.asmRegions[1].first)
+        assertEquals(Position("1",60), firstSeq3.asmRegions[1].second)
+
+        assertEquals("5812acb1aff74866003656316c4539a6", firstSeq3.id)
+        assertEquals("${seqs["1"]!![0..49]}${seqs["1"]!![59..99].reverse_complement()}", firstSeq3.sequence)
+
+    }
+
+    @Test
+    fun testHapSequenceRetrieval() {
+        val createFastaFromHvcf = CreateFastaFromHvcf()
+        val seqs = NucSeqIO("data/test/smallseq/Ref.fa").readAll()
+
+        //make a simple hapSeq Objects
+        val firstHapSeq = HaplotypeSequence("id1","", "id1", "1", 1, 100,
+            listOf(Pair(Position("1", 1), Position("1", 50)),
+                    Pair(Position("1", 60), Position("1", 100))))
+
+        val region = listOf("1:0-49","1:59-99")
+
+        val extractedSeqs = mapOf<String,NucSeq>("1:0-49" to seqs["1"]!![0..49],
+            "1:59-99" to seqs["1"]!![59 .. 99])
+
+        val hapSeq = createFastaFromHvcf.buildHapSeq(extractedSeqs, region, firstHapSeq)
+        assertEquals(91, hapSeq.length)
+        assertEquals(extractedSeqs.values.joinToString("") { it.seq() }, hapSeq)
+
+        //test inversion
+        val secondHapSeq = HaplotypeSequence("id2","", "id2", "1", 1, 100,
+            listOf(Pair(Position("1", 50), Position("1", 1)),
+                Pair(Position("1", 100), Position("1", 60))))
+
+        val region2 = listOf("1:49-0","1:59-99")
+
+        val extractedSeqs2 = mapOf<String,NucSeq>("1:49-0" to seqs["1"]!![0..49],
+            "1:59-99" to seqs["1"]!![59 .. 99])
+
+        val hapSeq2 = createFastaFromHvcf.buildHapSeq(extractedSeqs2, region2, secondHapSeq)
+        assertEquals(91, hapSeq2.length)
+        assertEquals(extractedSeqs2.values.joinToString("") { it.reverse_complement().seq() }, hapSeq2)
+
+
+        // test mixed normal and inversion
+        val thirdHapSeq = HaplotypeSequence("id3","", "id3", "1", 1, 100,
+            listOf(Pair(Position("1", 1), Position("1", 50)),
+                Pair(Position("1", 100), Position("1", 60))))
+
+        val region3 = listOf("1:0-49","1:59-99")
+
+        val extractedSeqs3 = mapOf<String,NucSeq>("1:0-49" to seqs["1"]!![0..49],
+            "1:59-99" to seqs["1"]!![59 .. 99])
+
+        val hapSeq3 = createFastaFromHvcf.buildHapSeq(extractedSeqs3, region3, thirdHapSeq)
+        assertEquals(91, hapSeq3.length)
+        val expectedSeq = extractedSeqs3["1:0-49"]!!.seq() + extractedSeqs3["1:59-99"]!!.reverse_complement().seq()
+        assertEquals(expectedSeq, hapSeq3)
 
     }
 }
