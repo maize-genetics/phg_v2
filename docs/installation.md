@@ -38,7 +38,7 @@ to download and set up the PHGv2 package.
 
 ## Requirements
 PHGv2 requires basic software components: a Unix-style operating 
-system (_at the moment only Linux_) and Java version 17 or higher. PHGv2 
+system and Java version 17 or higher. PHGv2 
 also relies on external programs for alignment and storage, including 
 [AnchorWave](https://github.com/baoxingsong/AnchorWave) and 
 [TileDB-VCF](https://docs.tiledb.com/main/integrations-and-extensions/genomics/population-genomics). 
@@ -46,6 +46,11 @@ To facilitate this, we strongly recommend using the
 [Conda](https://en.wikipedia.org/wiki/Conda_(package_manager)) 
 environment management system, with a focus on the lightweight Conda 
 package manager, [Miniconda](https://conda.io/miniconda.html).
+
+> [!NOTE]
+> This has currently been tested on _Fedora_- and 
+> _Debian_-derived Unix systems
+
 
 ## Get PHGv2
 You can download the latest version of PHGv2 
@@ -60,9 +65,16 @@ curl -s https://api.github.com/repos/maize-genetics/phg_v2/releases/latest \
 | awk -F': ' '/browser_download_url/ && /\.tar/ {gsub(/"/, "", $(NF)); system("curl -LO " $(NF))}'
 ```
 
-Once downloaded, simple untar the release using 
-`tar -xvf <PHGv2_release>.tar`, where `<PHGv2_release>.tar` is the
-downloaded PHGv2 package.
+Once downloaded, simple untar the release using:
+```
+tar -xvf <PHGv2_release>.tar
+```
+...where `<PHGv2_release>.tar` is the
+downloaded PHGv2 package. After the source has been decompressed,
+we can remove the initial tar file using: 
+```
+rm <PHGv2_release>.tar
+```
 
 
 ## "Installation"
