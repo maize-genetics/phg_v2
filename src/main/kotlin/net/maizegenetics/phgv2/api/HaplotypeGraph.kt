@@ -23,14 +23,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     private lateinit var sampleNameToIdMap: Map<String, Int>
     private lateinit var sampleNames: Array<String>
 
-    // lookup the sequence checksum index
-    // which is the index into seqHash
-    // lookup[refRangeId][sampleId]
-    private lateinit var lookup: Array<Array<UByte>>
-
-    // seqHash[refRangeId][lookup: UByte]
+    // seqHash[refRangeId][sampleID] -> checksum / hapid
     // jagged array because different number of haplotypes for each refRange
-    private lateinit var seqHash: Array<Array<String>>
+    private lateinit var rangeToSampleToChecksum: Array<Array<String?>>
 
     // Map<ReferenceRange, refRangeId>
     private lateinit var refRangeMap: SortedMap<ReferenceRange, Int>
@@ -50,8 +45,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         runBlocking { addSites() }
 
-        myLogger.info("lookup: ${lookup.size} x ${lookup[0].size}")
-        myLogger.info("seqHash: ${seqHash.size} x ${seqHash[0].size}")
+        myLogger.info("rangeToSampleToChecksum: ${rangeToSampleToChecksum.size} x ${rangeToSampleToChecksum[0].size}")
         myLogger.info("numOfSamples: ${numberOfSamples()}")
         myLogger.info("numOfRanges: ${numberOfRanges()}")
 
@@ -87,10 +81,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         val rangeId = refRangeMap[range]
         require(rangeId != null) { "hapIdToSamples: range: $range not found" }
         val result = mutableMapOf<String, MutableList<String>>()
-        lookup[rangeId].forEachIndexed { index, seqIndex ->
-            val hapId = seqHash[rangeId][seqIndex.toInt()]
-            val sampleName = sampleNames[index]
-            result.getOrPut(hapId) { mutableListOf() }.add(sampleName)
+        rangeToSampleToChecksum[rangeId].forEachIndexed { sampleId, hapId ->
+            result.getOrPut(hapId!!) { mutableListOf() }.add(sampleNames[sampleId])
         }
         return result
     }
@@ -98,26 +90,33 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     /**
      * Returns the hapId for the sample in the specified ReferenceRange.
      */
-    fun sampleToHapId(range: ReferenceRange, sample: String): String {
+    fun sampleToHapId(range: ReferenceRange, sample: String): String? {
         val rangeId = refRangeMap[range]
         require(rangeId != null) { "sampleToHapId: range: $range not found" }
         val sampleId = sampleNameToIdMap[sample]
         require(sampleId != null) { "sampleToHapId: sample: $sample not found" }
-        return seqHash[rangeId][lookup[rangeId][sampleId].toInt()]
+        return rangeToSampleToChecksum[rangeId][sampleId]
     }
 
     private suspend fun processFiles(hvcfFiles: List<String>) {
 
         val readers = mutableListOf<VCFFileReader>()
         val sampleNamesSet = mutableSetOf<String>()
+        val sampleNamesList = mutableListOf<String>()
 
         hvcfFiles.forEach { hvcfFile ->
             val reader = VCFFileReader(File(hvcfFile), false)
             readers.add(reader)
             sampleNamesSet.addAll(reader.header.sampleNamesInOrder)
+            sampleNamesList.addAll(reader.header.sampleNamesInOrder)
 
             // extract out the haplotype sequence boundaries for each haplotype from the hvcf
             altHeaderMap.putAll(parseALTHeader(reader.header))
+        }
+
+        sampleNamesSet.forEach { sampleNamesList.remove(it) }
+        if (sampleNamesList.isNotEmpty()) {
+            throw IllegalArgumentException("processFiles: duplicate sample names: $sampleNamesList")
         }
 
         sampleNames = sampleNamesSet.sorted().toTypedArray()
@@ -167,15 +166,12 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     /**
      * ReferenceRange Information
      *
-     * @param rangeLookup This is the lookup sequence checksum
-     * indices for one Reference Range rangeLookup[sampleId]
-     * @param rangeSeqHash This is the sequence checksums for
-     * one Reference Range rangeSeqHash[lookup: UByte]
+     * @param rangeSampleToChecksum This is the sequence checksums for
+     * one Reference Range indexed by sampleId
      * @param range This is the ReferenceRange
      */
     data class RangeInfo(
-        val rangeLookup: Array<UByte>,
-        val rangeSeqHash: Array<String>,
+        val rangeSampleToChecksum: Array<String?>,
         val range: ReferenceRange
     )
 
@@ -188,24 +184,19 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         val range = ReferenceRange(context.contig, context.start, context.end)
 
-        val symToID = context.alleles.mapIndexed { index, allele ->
-            val symbolicAllele = allele.displayString.substringAfter("<").substringBefore(">")
-            Pair(symbolicAllele, index)
-        }.toMap()
-
-        val rangeSeqHash = context.alleles.map { allele ->
-            allele.displayString.substringAfter("<").substringBefore(">")
-        }.toTypedArray()
-
-        val rangeLookup = Array(numberOfSamples()) { UByte.MAX_VALUE }
+        val rangeSampleToChecksum = Array<String?>(numberOfSamples()) { null }
         context.genotypes.forEach { genotype ->
+
             val sampleId = sampleNameToIdMap[genotype.sampleName]!!
+
+            // Number of alleles should always be 1 for a haplotype
+            // Diploids need to be handled by sample names
             check(genotype.alleles.size == 1) { "genotype.alleles.size != 1" }
-            val alleleId = symToID[genotype.alleles[0].displayString.substringAfter("<").substringBefore(">")]!!
-            rangeLookup[sampleId] = alleleId.toUByte()
+
+            rangeSampleToChecksum[sampleId] = genotype.alleles[0].displayString.substringAfter("<").substringBefore(">")
         }
 
-        return RangeInfo(rangeLookup, rangeSeqHash, range)
+        return RangeInfo(rangeSampleToChecksum, range)
 
     }
 
@@ -215,20 +206,40 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      */
     private suspend fun addSites() {
 
-        val lookupList = mutableListOf<Array<UByte>>()
-        val seqHashList = mutableListOf<Array<String>>()
+        // rangeIdToSampleToChecksum[refRangeId][sampleId] -> Checksum / hapid
+        val rangeIdToSampleToChecksum = mutableListOf<Array<String?>>()
+
         val rangeMap = mutableMapOf<ReferenceRange, Int>()
 
         for (rangeInfo in processingChannel) {
+
             val rangeId = rangeMap.getOrPut(rangeInfo.range) { rangeMap.size }
-            lookupList.add(rangeId, rangeInfo.rangeLookup)
-            seqHashList.add(rangeId, rangeInfo.rangeSeqHash)
+            myLogger.info("processingChannel rangeId: $rangeId")
+
+            if (rangeId < rangeIdToSampleToChecksum.size) {
+                rangeIdToSampleToChecksum[rangeId] =
+                    mergeStringArrays(rangeIdToSampleToChecksum.getOrNull(rangeId), rangeInfo.rangeSampleToChecksum)
+            } else {
+                rangeIdToSampleToChecksum.add(
+                    rangeId,
+                    mergeStringArrays(rangeIdToSampleToChecksum.getOrNull(rangeId), rangeInfo.rangeSampleToChecksum)
+                )
+            }
+
         }
 
-        lookup = lookupList.toTypedArray()
-        seqHash = seqHashList.toTypedArray()
         refRangeMap = rangeMap.toSortedMap()
 
+        rangeToSampleToChecksum = rangeIdToSampleToChecksum.toTypedArray()
+
+    }
+
+    private fun mergeStringArrays(seqHash1: Array<String?>?, seqHash2: Array<String?>): Array<String?> {
+        return seqHash1?.let {
+            Array(seqHash2.size) { index ->
+                if (seqHash1[index] != null) seqHash1[index] else seqHash2[index]
+            }
+        } ?: seqHash2
     }
 
 }
