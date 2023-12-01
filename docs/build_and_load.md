@@ -61,7 +61,10 @@ In this document, we will discuss the steps needed to:
     ```
 * Load data into DBs
     ```shell
-    ./phg load-vcf --vcf /my/vcf/dir --db-path /path/to/dbs
+    ./phg load-vcf \
+        --vcf /my/vcf/dir \
+        --db-path /path/to/dbs \
+        --threads 10
     ```
 
 ## Detailed walkthrough
@@ -440,7 +443,7 @@ data:
 The `create-ref-vcf` command requires the following inputs:
 
 * `--bed` - A BED file containing ordered reference ranges (_see
-  the **Create reference ranges** section for further details_). This
+  the [**"Create reference ranges"**](#create-reference-ranges) section for further details_). This
   is used to define the positional information of the VCF.
 * `--reference-file` - Reference FASTA genome used for creating
   MD5 hashes of sequence information guided by reference range
@@ -451,6 +454,12 @@ The `create-ref-vcf` command requires the following inputs:
 > [!WARNING]
 > The directory that you specify in the output (`-o`) section must
 > be a an existing directory.
+
+> [!NOTE]
+> Optionally, `create-ref-vcf` can also use another parameter, 
+> `--reference-url`. This is an optional URL where the reference
+> FASTA file can be downloaded. This will be added to the VCF header
+> information.
 
 Once the command is complete and you have navigated into the output
 directory (in my case, `output/vcf_files`), you will see two files:
@@ -474,9 +483,9 @@ The `create-maf-vcf` command requires the following inputs:
 * `--db-path` - Path to the directory containing the TileDB 
   instances. This is needed to access the AGC compressed assembly
   genome information found in the `assemblies.agc` file (_see the 
-  **"Compress FASTA files"** section for further details_).
+  [**"Compress FASTA files"**](#compress-fasta-files) section for further details_).
 * `--bed` - A BED file containing ordered reference ranges (_see
-  the **Create reference ranges** section for further details_). This
+  the [**"Create reference ranges"**](#create-reference-ranges) section for further details_). This
   is used to define the positional information of the VCF in relation
   to the reference genome.
 * `--reference-file` - Reference FASTA genome used for creating
@@ -485,7 +494,7 @@ The `create-maf-vcf` command requires the following inputs:
   hashed sequence data will place in the `##ALT` tag's `RefRange`
   key.
 * `--maf-dir` - Directory containing the MAF files generated using
-  the `align-assemblies` command (_see the **"Align assemblies"** 
+  the `align-assemblies` command (_see the [**"Align assemblies"**](#align-assemblies) 
   section for further details_).
 * `-o` - Output directory for the VCF data.
 
@@ -511,11 +520,23 @@ aligned to the reference genome.
 ### Load VCF data into DBs
 After VCF files are created, we can finally load the information
 into our empty TileDB instances. Instead of manually performing this
-action, we can use the `load-vcf` command to automatically load the
-data into the TileDB directories:
+action, we can use the `load-vcf` command to automatically load hVCF
+and gVCF files into their respective TileDB directories:
 
 ```shell
 ./phg load-vcf \
     --vcf output/vcf_files \
-    --db-path vcf_dbs
+    --db-path vcf_dbs \
+    --threads 10
 ```
+
+This command takes three parameters:
+* `--vcf` - Directory containing `h.vcf.gz` and/or `g.vcf.gz` 
+  files made from the `create-ref-vcf` and `create-maf-vcf` commands
+  (_See the [**"Create VCF files"**](#create-vcf-files) section for 
+  further details_). In my example case this is a subdirectory
+  called `output/vcf_files`.
+* `--db-path` - Path to the directory containing the TileDB instances.
+* `--threads` - Number of threads for use by the TileDB loading
+  procedure.
+
