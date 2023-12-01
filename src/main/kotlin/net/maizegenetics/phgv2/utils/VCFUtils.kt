@@ -8,7 +8,7 @@ import org.apache.logging.log4j.LogManager
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.VCFUtils")
 
 // Making Number a string as VCF allows for '.'
-data class AltHeaderMetaData(val id: String, val description:String, val number: String, val source:String,
+data class AltHeaderMetaData(val id: String, val description:String, val source:String,
                              val regions:List<Pair<Position, Position>>, val checksum:String, val refRange:String)
 
 /**
@@ -34,7 +34,6 @@ fun parseALTHeader(header: VCFHeader) : Map<String, AltHeaderMetaData> {
             check(idsToValueMap.containsKey("ID")) { "ALT Header does not contain ID" }
             check(idsToValueMap.containsKey("Description")) { "ALT Header does not contain Description" }
             //These are optional header fields so we check these in the unit test.
-            check(idsToValueMap.containsKey("Number")) { "ALT Header does not contain Number" }
             check(idsToValueMap.containsKey("Source")) { "ALT Header does not contain Source" }
             check(idsToValueMap.containsKey("Regions")) { "ALT Header does not contain Regions" }
             check(idsToValueMap.containsKey("Checksum")) { "ALT Header does not contain Checksum" }
@@ -43,7 +42,6 @@ fun parseALTHeader(header: VCFHeader) : Map<String, AltHeaderMetaData> {
             idsToValueMap["ID"]!! to AltHeaderMetaData(
                 idsToValueMap["ID"]!!,
                 idsToValueMap["Description"]!!,
-                idsToValueMap["Number"]!!,
                 idsToValueMap["Source"]!!,
                 parseRegions(idsToValueMap["Regions"]!!),
                 idsToValueMap["Checksum"]!!,

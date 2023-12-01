@@ -88,7 +88,6 @@ class CreateFastaFromHvcfTest {
         val currentHeader2b = altHeaders["2b4590f722ef9229c15d29e0b4e51a0e"]
         assertEquals(currentHeader2b?.id, "2b4590f722ef9229c15d29e0b4e51a0e")
         assertEquals(currentHeader2b?.description, "\"haplotype data for line: Ref\"")
-        assertEquals(currentHeader2b?.number, "6")
         assertEquals(currentHeader2b?.source, "\"data/test/smallseq/Ref.fa\"")
         assertEquals(currentHeader2b?.regions?.get(0), Pair(Position("1",11001), Position("1",12000)))
         assertEquals(currentHeader2b?.checksum, "Md5")
@@ -98,7 +97,6 @@ class CreateFastaFromHvcfTest {
         val currentHeaderdb = altHeaders["db22dfc14799b1aa666eb7d571cf04ec"]
         assertEquals(currentHeaderdb?.id, "db22dfc14799b1aa666eb7d571cf04ec")
         assertEquals(currentHeaderdb?.description, "\"haplotype data for line: Ref\"")
-        assertEquals(currentHeaderdb?.number, "6")
         assertEquals(currentHeaderdb?.source, "\"data/test/smallseq/Ref.fa\"")
         assertEquals(currentHeaderdb?.regions?.get(0), Pair(Position("2",16501), Position("2",17500)))
         assertEquals(currentHeaderdb?.checksum, "Md5")
@@ -109,87 +107,19 @@ class CreateFastaFromHvcfTest {
         val currentHeader581 = altHeaders["5812acb1aff74866003656316c4539a6"]
         assertEquals(currentHeader581?.id, "5812acb1aff74866003656316c4539a6")
         assertEquals(currentHeader581?.description, "\"haplotype data for line: Ref\"")
-        assertEquals(currentHeader581?.number, "6")
         assertEquals(currentHeader581?.source, "\"data/test/smallseq/Ref.fa\"")
         assertEquals(currentHeader581?.regions?.get(0), Pair(Position("2",1), Position("2",1000)))
         assertEquals(currentHeader581?.checksum, "Md5")
         assertEquals(currentHeader581?.refRange, "5812acb1aff74866003656316c4539a6")
 
-        //Note, ID and description are both required by VCFAltHeaderLine so we do not need to check them.
-        assertFailsWith<IllegalStateException>(
-            message = "No exception found when Testing Number",
-            block = {
-                parseALTHeader(VCFHeader(setOf(VCFAltHeaderLine("<ID=id," +
-                        "Description=\"haplotype data for line: testSample\">," +
-                        "Number_bad=6," +
-                        "Source=\"archive.agc\"," +
-                        "Regions=\"1:200-300\"," +
-                        "Checksum=\"Md5\"," +
-                        "RefRange=\"id\">", VCFHeaderVersion.VCF4_2))))
-            }
-        )
 
         assertFailsWith<IllegalStateException>(
             message = "No exception found when Testing Source",
             block = {
                 parseALTHeader(VCFHeader(setOf(VCFAltHeaderLine("<ID=id," +
                         "Description=\"haplotype data for line: testSample\">," +
-                        "Number=6," +
                         "Source_bad=\"archive.agc\"," +
                         "Regions=\"1:200-300\"," +
-                        "Checksum=\"Md5\"," +
-                        "RefRange=\"id\">", VCFHeaderVersion.VCF4_2))))
-            }
-        )
-
-        assertFailsWith<IllegalStateException>(
-            message = "No exception found when Testing Contig",
-            block = {
-                parseALTHeader(VCFHeader(setOf(VCFAltHeaderLine("<ID=id," +
-                        "Description=\"haplotype data for line: testSample\">," +
-                        "Number=9," +
-                        "Source=\"archive.agc\"," +
-                        "Contig_bad=\"1\"," +
-                        "Start=\"100\"," +
-                        "End=\"200\"," +
-                        "Asm_Contig=\"1\"," +
-                        "Asm_Start=\"200\"," +
-                        "Asm_End=\"300\"," +
-                        "Checksum=\"Md5\"," +
-                        "RefRange=\"id\">", VCFHeaderVersion.VCF4_2))))
-            }
-        )
-
-        assertFailsWith<IllegalStateException>(
-            message = "No exception found when Testing Start",
-            block = {
-                parseALTHeader(VCFHeader(setOf(VCFAltHeaderLine("<ID=id," +
-                        "Description=\"haplotype data for line: testSample\">," +
-                        "Number=9," +
-                        "Source=\"archive.agc\"," +
-                        "Contig=\"1\"," +
-                        "Start_bad=\"100\"," +
-                        "End=\"200\"," +
-                        "Asm_Contig=\"1\"," +
-                        "Asm_Start=\"200\"," +
-                        "Asm_End=\"300\"," +
-                        "Checksum=\"Md5\"," +
-                        "RefRange=\"id\">", VCFHeaderVersion.VCF4_2))))
-            }
-        )
-        assertFailsWith<IllegalStateException>(
-            message = "No exception found when Testing End",
-            block = {
-                parseALTHeader(VCFHeader(setOf(VCFAltHeaderLine("<ID=id," +
-                        "Description=\"haplotype data for line: testSample\">," +
-                        "Number=9," +
-                        "Source=\"archive.agc\"," +
-                        "Contig=\"1\"," +
-                        "Start=\"100\"," +
-                        "End_bad=\"200\"," +
-                        "Asm_Contig=\"1\"," +
-                        "Asm_Start=\"200\"," +
-                        "Asm_End=\"300\"," +
                         "Checksum=\"Md5\"," +
                         "RefRange=\"id\">", VCFHeaderVersion.VCF4_2))))
             }
@@ -199,7 +129,6 @@ class CreateFastaFromHvcfTest {
             block = {
                 parseALTHeader(VCFHeader(setOf(VCFAltHeaderLine("<ID=id," +
                         "Description=\"haplotype data for line: testSample\">," +
-                        "Number=6," +
                         "Source=\"archive.agc\"," +
                         "Regions=\"1:200-300\"," +
                         "Checksum_bad=\"Md5\"," +
@@ -211,7 +140,6 @@ class CreateFastaFromHvcfTest {
             block = {
                 parseALTHeader(VCFHeader(setOf(VCFAltHeaderLine("<ID=id," +
                         "Description=\"haplotype data for line: testSample\">," +
-                        "Number=6," +
                         "Source=\"archive.agc\"," +
                         "Regions=\"1:200-300\"," +
                         "Checksum=\"Md5\"," +
@@ -391,7 +319,7 @@ class CreateFastaFromHvcfTest {
         val hvcfRecord = createHVCFRecord("Ref", Position("1",1),Position("1",100),  Pair("A","2b4590f722ef9229c15d29e0b4e51a0e"))
         val variantList = listOf<VariantContext>(hvcfRecord)
         //create a map of altHeaders
-        val altHeader = AltHeaderMetaData("2b4590f722ef9229c15d29e0b4e51a0e","\"haplotype data for line: Ref\"","6","\"data/test/smallseq/Ref.fa\"",
+        val altHeader = AltHeaderMetaData("2b4590f722ef9229c15d29e0b4e51a0e","\"haplotype data for line: Ref\"","\"data/test/smallseq/Ref.fa\"",
             listOf(Pair(Position("1",1), Position("1",50)), Pair(Position("1",60), Position("1", 100))), "Md5", "2b4590f722ef9229c15d29e0b4e51a0e")
 
         val altHeaders = mapOf<String, AltHeaderMetaData>("2b4590f722ef9229c15d29e0b4e51a0e" to altHeader)
@@ -415,7 +343,7 @@ class CreateFastaFromHvcfTest {
         val hvcfRecord2 = createHVCFRecord("Ref", Position("1",1),Position("1",100),  Pair("A","db22dfc14799b1aa666eb7d571cf04ec"))
         val variantList2 = listOf<VariantContext>(hvcfRecord2)
         //create a map of altHeaders
-        val altHeader2 =AltHeaderMetaData("db22dfc14799b1aa666eb7d571cf04ec","\"haplotype data for line: Ref\"","6","\"data/test/smallseq/Ref.fa\"",
+        val altHeader2 =AltHeaderMetaData("db22dfc14799b1aa666eb7d571cf04ec","\"haplotype data for line: Ref\"","\"data/test/smallseq/Ref.fa\"",
             listOf(Pair(Position("1",50), Position("1",1)), Pair(Position("1",100), Position("1", 60))), "Md5", "db22dfc14799b1aa666eb7d571cf04ec")
 
         val altHeaders2 = mapOf<String, AltHeaderMetaData>("db22dfc14799b1aa666eb7d571cf04ec" to altHeader2)
@@ -438,7 +366,7 @@ class CreateFastaFromHvcfTest {
         val variantList3 = listOf<VariantContext>(hvcfRecord3)
         //create a map of altHeaders
 
-        val altHeader3 =AltHeaderMetaData("5812acb1aff74866003656316c4539a6","\"haplotype data for line: Ref\"","6","\"data/test/smallseq/Ref.fa\"",
+        val altHeader3 =AltHeaderMetaData("5812acb1aff74866003656316c4539a6","\"haplotype data for line: Ref\"","\"data/test/smallseq/Ref.fa\"",
             listOf(Pair(Position("1",1), Position("1",50)), Pair(Position("1",100), Position("1", 60))), "Md5", "5812acb1aff74866003656316c4539a6")
 
         val altHeaders3 = mapOf<String, AltHeaderMetaData>("5812acb1aff74866003656316c4539a6" to altHeader3)
