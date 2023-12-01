@@ -5,17 +5,28 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.long
+import htsjdk.variant.vcf.VCFFileReader
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
+import net.maizegenetics.phgv2.api.HaplotypeGraph
 import org.apache.logging.log4j.LogManager
+import java.io.BufferedReader
+import java.io.BufferedWriter
+import java.io.File
+import java.io.FileFilter
+import java.io.FileReader
+import java.io.FileWriter
 import java.lang.IllegalStateException
 import java.util.*
 
 
 import kotlin.math.ceil
 import kotlin.math.min
+import kotlin.system.measureNanoTime
+import kotlin.time.DurationUnit
+import kotlin.time.measureTimedValue
 
 /**
  * Creates a Map of 32-mer hash -> hapid list for the haplotypes in a HaplotypeGraph. Only hashes observed
@@ -28,11 +39,9 @@ import kotlin.math.min
  *
  * To use this class, ...
  */
-class KmerIndexFromGraph: CliktCommand(help="Create a kmer index for a HaplotypeGraph") {
+class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGraph") {
 
-    private val myLogger = LogManager.getLogger(KmerIndexFromGraph::class.java)
-
-
+    private val myLogger = LogManager.getLogger(BuildKmerIndex::class.java)
 
     val maxHaplotypeProportion by option("-p", "--maxHapProportion", help = "only kmers mapping to less than or " +
             "equal to maxHapProportion of haplotypes in a reference range will be retained.")
@@ -49,11 +58,29 @@ class KmerIndexFromGraph: CliktCommand(help="Create a kmer index for a Haplotype
         .long()
         .default(1)
 
+    val hvcfDir by option("--hvcf-dir", help = "Path to directory holding hVCF files. Data will be pulled directly from these files instead of querying TileDB")
+        .default("")
 
 
     override fun run() {
 
         TODO("Not yet implemented")
+    }
+
+    private fun buildHaplotypeGraph(): HaplotypeGraph {
+        val timedValue = measureTimedValue {
+            if(hvcfDir != "") {
+                val pathList = File(hvcfDir).listFiles { file -> file.extension == "vcf" || file.name.endsWith("vcf.gz") }.map { it.path }
+                HaplotypeGraph(pathList)
+            }
+            else   {
+                //Load in the TileDB
+                TODO("TileDB VCF Reader Not implemented yet.  Please run with --hvcf-dir")
+            }
+        }
+
+        myLogger.info("HaplotypeGraph built in ${timedValue.duration.toDouble(DurationUnit.MILLISECONDS)} ms.")
+        return timedValue.value
     }
 
     /**
@@ -65,17 +92,19 @@ class KmerIndexFromGraph: CliktCommand(help="Create a kmer index for a Haplotype
      * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
      */
     fun processGraphKmersSinglePass() : Long2ObjectOpenHashMap<Set<Int>> {
-        //TODO use haplotype fastas for input instead of a HaplotypeGraph
         val keepMap = Long2ObjectOpenHashMap<Set<Int>>()
         val discardSet = LongOpenHashSet()
         var rangeCount = 0
+        val graph = buildHaplotypeGraph()
         val startTime = System.nanoTime()
-        for (refrange in graph.referenceRanges()) {
+
+        for (refrange in graph.ranges()) {
             if (rangeCount++ % 5000 == 0) {
                 myLogger.debug("Processing range $rangeCount, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
             }
-            val nodes = graph.nodes(refrange)
-            val maxHaplotypes = ceil(nodes.size * maxHaplotypeProportion)
+
+            val hapidToSampleMap = graph.hapIdToSamples(refrange)
+            val maxHaplotypes = ceil(hapidToSampleMap.size * maxHaplotypeProportion)
 
             //create a map of hash -> count of occurrences for all the haplotypes in this reference range
             val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypesAndHapIds(graph.nodes(refrange))
@@ -105,6 +134,7 @@ class KmerIndexFromGraph: CliktCommand(help="Create a kmer index for a Haplotype
         myLogger.debug("Finished building kmer keep set, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
         return keepMap
     }
+
 
     /**
      * Function to count the kmerHashes for a single reference range's haplotype nodes.
