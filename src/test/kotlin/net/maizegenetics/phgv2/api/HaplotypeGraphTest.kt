@@ -4,7 +4,6 @@ import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.Sizeof
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import kotlin.test.Ignore
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -24,7 +23,6 @@ class HaplotypeGraphTest {
 
     }
 
-    @Ignore
     @Test
     fun testMultipleFilesHaplotypeGraph() {
 
