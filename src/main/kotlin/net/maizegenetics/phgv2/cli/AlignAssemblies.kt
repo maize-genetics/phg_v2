@@ -3,7 +3,7 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -12,7 +12,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.apache.logging.log4j.LogManager
 import java.io.File
-import java.util.stream.Collectors
 
 /**
  * This will align assemblies to a reference genome.
@@ -22,9 +21,9 @@ import java.util.stream.Collectors
  *
  * This function allows for multiple assembly alignments to be run
  * in parallel.  Users may specify number of alignments to run in parallel
- * and the number of threads to use per each alignment.  Anchorwave takes
- * 10G of RAM for the dynamic program aspects, and then another 10G+ per thread,
- * depending on the processor.
+ * and the total number of threads available to be split between the alignments.
+ * Anchorwave takes 10G of RAM for the dynamic program aspects, and then another
+ * 10G+ per thread, depending on the processor.
  *
  * The table below shows the memory usage for a single assembly alignment
  * based on processor type: (From Baoxing Song, 2023-11-10)
@@ -54,30 +53,50 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
     private val myLogger = LogManager.getLogger(AlignAssemblies::class.java)
 
     val gff by option(help = "Full path to the reference gff file")
-        .required()
+        .default("")
+        .validate {
+            require(it.isNotBlank()) {
+                "--gff must not be blank"
+            }
+        }
 
     val referenceFile by option(help = "Full path to reference fasta file")
-        .required()
+        .default("")
+        .validate {
+            require(it.isNotBlank()) {
+                "--reference-file must not be blank"
+            }
+        }
 
     val assemblies by option(
         "-a",
         "--assemblies",
         help = "File containing list of assemblies to align, 1 per line, full path to file"
     )
-        .required()
+        .default("")
+        .validate {
+            require(it.isNotBlank()) {
+                "--assemblies must not be blank"
+            }
+        }
 
-    val outputDir by option("-o", "--outputDir", help = "Directory where temporary and final files will be written")
-        .required()
+    val outputDir by option("-o", "--output-dir", help = "Directory where temporary and final files will be written")
+        .default("")
+        .validate {
+            require(it.isNotBlank()) {
+                "--output-dir must not be blank"
+            }
+        }
 
-    val threads by option(help = "Number of threads to use for each assembly processed")
+    val totalThreads by option(help = "Number of threads available.  These will be split among the alginments that are run in parallel")
         .int()
         .default(1)
 
-    val runs by option(
+    val inParallel by option(
         help = "Number of assemblies to simultaneously process. " +
-                "If you have 4 threads and 2 runs, then 2 assemblies will be processed at a time, each using 4 threads." +
-                "The anchorwave application can take up to 50G per thread for each assembly processed, plus some overhead." +
-                "Consider this memory factor when providing values for threadsPerRun and numRuns."
+                "If you have 10 threads and the in-parallel value is 2, then 2 assemblies will be aligned at a time, each using 5 threads." +
+                "The anchorwave application can take up to 30G per thread for each assembly processed, plus some overhead." +
+                "Consider this memory factor when providing values for the total-threads and in-parallel."
     )
         .int()
         .default(1)
@@ -114,7 +133,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         val refSamOutFile = "${outputDir}/${samOutFile}"
 
         val builder = ProcessBuilder(
-            "conda", "run", "-n", "phgv2-conda", "minimap2", "-x", "splice", "-t", threads.toString(), "-k", "12",
+            "conda", "run", "-n", "phgv2-conda", "minimap2", "-x", "splice", "-t", totalThreads.toString(), "-k", "12",
             "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile
         )
         val redirectError = "$outputDir/minimap2Ref_error.log"
@@ -122,7 +141,8 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         builder.redirectOutput(File(redirectOutput))
         builder.redirectError(File(redirectError))
 
-        myLogger.info("Ref minimap Command: " + builder.command().stream().collect(Collectors.joining(" ")));
+        myLogger.info("Ref minimap Command: " + builder.command().joinToString(" "));
+
         val process = builder.start()
         val error = process.waitFor()
         if (error != 0) {
@@ -158,7 +178,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         builder.redirectOutput(File(redirectOutput))
         builder.redirectError(File(redirectError))
 
-        myLogger.info("createCDSfromRefData command:" + builder.command().stream().collect(Collectors.joining(" ")))
+        myLogger.info("createCDSfromRefData command:" + builder.command().joinToString(" "))
         try {
             val process = builder.start()
             val error = process.waitFor()
@@ -207,7 +227,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
             // terminate above when there is no more data on the input channel
 
             // This calls anchorwave's proali, and minimap2 scripts to process the alignments
-            val workerThreads = (1..runs).map { run ->
+            val workerThreads = (1..inParallel).map { run ->
                 launch { alignAssembly(inputChannel, cdsFasta, gffFile) }
             }
 
@@ -218,6 +238,8 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         withContext(
             Dispatchers.Default
         ) {
+            val threadsPerRun = totalThreads / inParallel
+            println("alignAssembly: totalThreads: $totalThreads, inParallel: $inParallel, threadsPerRun: $threadsPerRun")
             for (assemblyEntry in inputChannel) {
                 // Column names were checked for validity above
                 val justName = File(assemblyEntry.asmFasta).nameWithoutExtension
@@ -225,6 +247,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
                 val asmSamFile = "${assemblyEntry.outputDir}/${samShort}"
 
                 myLogger.info("alignAssembly: asmFileFull: ${assemblyEntry.asmFasta}, outputFile: $asmSamFile")
+
 
                 val builder = ProcessBuilder(
                     "conda",
@@ -235,7 +258,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
                     "-x",
                     "splice",
                     "-t",
-                    threads.toString(),
+                    threadsPerRun.toString(),
                     "-k",
                     "12",
                     "-a",
@@ -253,9 +276,8 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
                 myLogger.info("redirectError: $redirectError")
                 builder.redirectOutput(File(redirectOutput))
                 builder.redirectError(File(redirectError))
-                myLogger.info(
-                    " begin minimap assembly Command: " + builder.command().stream().collect(Collectors.joining(" "))
-                );
+                myLogger.info(" begin minimap assembly Command: " + builder.command().joinToString(" "))
+
                 val process = builder.start()
                 val error = process.waitFor()
                 if (error != 0) {
@@ -269,7 +291,8 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
                     assemblyEntry.asmFasta,
                     cdsFasta,
                     assemblyEntry.refSamOutFile,
-                    asmSamFile
+                    asmSamFile,
+                    threadsPerRun.toString()
                 )
             }
         }
@@ -280,7 +303,8 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         asmFasta: String,
         cdsFasta: String,
         refSam: String,
-        asmSam: String
+        asmSam: String,
+        threadsPerRun: String
     ) {
 
         val justNameAsm = File(asmFasta).nameWithoutExtension
@@ -317,7 +341,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
             "-Q",
             queryMaxAlignCov.toString(),
             "-t",
-            threads.toString(),
+            threadsPerRun,
             "-o",
             outputFile
         )
@@ -339,8 +363,9 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         builder.redirectOutput(File(redirectError))
         builder.redirectError(File(redirectError))
         myLogger.info(
-            "runAnchorwaveProali proali Command for ${justNameAsm}: " + builder.command().joinToString { " " }
+            "runAnchorwaveProali proali Command for ${justNameAsm}: " + builder.command().joinToString (" ")
         )
+
         try {
             val process = builder.start()
             val error = process.waitFor()
