@@ -70,14 +70,23 @@ In this document, we will discuss the steps needed to:
 ## Detailed walkthrough
 
 ### Preamble
-For the following steps, we will first make an example directory to
-house our example input data. The overall structure of the directory
+For the following steps, I will first make an example directory to
+house our toy input data. The overall structure of the directory
 looks like the following
 
 ```shell
-$ tree phgv2_example
-...
+me@linux:~$ tree phg_v2_example
+phg_v2_example/
+├── data
+└── output
 ```
+
+For the following steps, I will be using example small sequence
+data from [PHGv2 GitHub repository](https://github.com/maize-genetics/phg_v2/tree/main/data/test/smallseq).
+This is a collection of small raw sequence and alignment files that
+we use for pipeline testing. These will be placed in the `data`
+subdirectory while files created by this pipeline will be placed in
+the `output` subdirectory.
 
 We will also assume that the PHGv2 application is placed in your 
 system's `PATH` variable (_see installation documentation for further 
