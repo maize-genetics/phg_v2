@@ -7,17 +7,15 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
-import htsjdk.variant.vcf.VCFHeader
+import net.maizegenetics.phgv2.utils.AltHeaderMetaData
 import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.parseALTHeader
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
 
 
-//Making Number a string as VCF allows for '.'
-data class AltHeaderMetaData(val id: String, val description:String, val number: String, val source:String,
-                             val regions:List<Pair<Position, Position>>, val checksum:String, val refRange:String)
 data class HaplotypeSequence(val id: String, val sequence: String, val refRangeId: String, val refContig: String, val refStart: Int, val refEnd: Int,
                              val asmRegions:List<Pair<Position, Position>>)
 
@@ -25,7 +23,7 @@ data class HaplotypeSequence(val id: String, val sequence: String, val refRangeI
  * Class to create either a composite or a haplotype fasta file from an input hvcf file or from TileDB directly.
  *
  * As mentioned in the terminology section of the Documentation, a composite fasta file is a fasta file that contains
- * all of the haplotypes for a given contig concatenated together by contig.  This pseudo genome can be used for rare
+ * all the haplotypes for a given contig concatenated together by contig.  This pseudo genome can be used for rare
  * allele finding.
  *
  * A Haplotype fasta file is where we output each haplotype as a separate fasta entry.  This can be used for read
@@ -115,52 +113,6 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
             writeCompositeSequence(outputWriter, haplotypeSequences)
         else if(fastaType == "haplotype") {
             writeHaplotypeSequence(outputWriter, haplotypeSequences)
-        }
-    }
-
-
-    /**
-     * Helper function to parse out the ALT headers from the VCF file.
-     *
-     * We need to do a bit more involved parsing in this function as we cannot use the .getOtherHeaders() call from HTSJDK.
-     * For some reason this only returns the first header when called and we need all of them.
-     * The work around is that we can get all the metadata, filter out any that are not ALT then parse the ALT header using normal string parsing.
-     * To make this easy, we just parse each piece of metadata into a key-value pair and then store in a map.
-     */
-    fun parseALTHeader(header: VCFHeader) : Map<String, AltHeaderMetaData> {
-        //Need to turn the ALT File header into a Map<ID,AltHeaderMetaData>
-        return header.metaDataInInputOrder
-            .filter { it.key == "ALT" }
-            .map { it.toString()
-                .substringAfter("<")
-                .substringBeforeLast(">")
-            } //Keep the useful part of the ALT Tag
-            .map { it.split(",") }
-            .associate {
-                val idsToValueMap = it.map { token -> token.split("=") }.associate { token -> token[0] to token[1] }
-                //ID and Description are required fields by VCF spec, if these errors are thrown there is something wrong with the htsjdk library
-                check(idsToValueMap.containsKey("ID")) { "ALT Header does not contain ID" }
-                check(idsToValueMap.containsKey("Description")) { "ALT Header does not contain Description" }
-                //These are optional header fields so we check these in the unit test.
-                check(idsToValueMap.containsKey("Number")) { "ALT Header does not contain Number" }
-                check(idsToValueMap.containsKey("Source")) { "ALT Header does not contain Source" }
-                check(idsToValueMap.containsKey("Regions")) { "ALT Header does not contain Regions" }
-                check(idsToValueMap.containsKey("Checksum")) { "ALT Header does not contain Checksum" }
-                check(idsToValueMap.containsKey("RefRange")) { "ALT Header does not contain RefRange" }
-
-                idsToValueMap["ID"]!! to AltHeaderMetaData(idsToValueMap["ID"]!!,idsToValueMap["Description"]!!,idsToValueMap["Number"]!!,idsToValueMap["Source"]!!,
-                    parseRegions(idsToValueMap["Regions"]!!),idsToValueMap["Checksum"]!!,idsToValueMap["RefRange"]!!)
-            }
-    }
-
-    /**
-     * Function to parse the regions from the ALT header.
-     */
-    fun parseRegions(regions: String) : List<Pair<Position, Position>> {
-        return regions.split(",").map { it.split(":") }.map {
-            val positions = it[1].split("-").map { position -> position.toInt() }
-            check(positions.size == 2) { "Region ${it} is not in the correct format.  It needs to be in the form: chr:stPos-endPos." }
-            Pair(Position(it[0],positions[0]), Position(it[0],positions[1]))
         }
     }
 

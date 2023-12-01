@@ -19,7 +19,7 @@ class TestExtension : BeforeAllCallback {
         const val smallSeqInputDir = "data/test/smallseq/"
         const val smallseqLineAFile = "${smallSeqInputDir}LineA.fa"
         const val smallseqLineAMafFile = "${smallSeqInputDir}LineA.maf"
-        const val smallseqLineBFile = "${smallSeqInputDir}LineB.fa"
+        const val smallSeqLineAGvcfFile = "${smallSeqInputDir}LineA.g.vcf"
         const val smallseqLineBMafFile = "${smallSeqInputDir}LineB.maf"
         const val smallseqRefFile = "${smallSeqInputDir}Ref.fa"
         const val smallseqAnchorsBedFile = "${smallSeqInputDir}anchors.bed"
@@ -27,6 +27,8 @@ class TestExtension : BeforeAllCallback {
         const val smallseqGvcfFile = "${smallSeqInputDir}sample.gvcf"
         const val smallseqAssembliesListFile = "${smallSeqInputDir}assembliesList.txt"
         const val smallseqRefHvcfFile = "${smallSeqInputDir}Ref.h.vcf"
+        const val smallseqLineAHvcfFile = "${smallSeqInputDir}LineA.h.vcf"
+        const val smallseqLineBHvcfFile = "${smallSeqInputDir}LineB.h.vcf"
 
         const val refLineName = "Ref"
         const val refFastaName = "Ref.fa"
