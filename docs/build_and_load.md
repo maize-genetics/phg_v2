@@ -430,11 +430,92 @@ commands:
 
 > [!TIP]
 > For more information about the haplotype VCF (hVCF) specification,
-> please refer the hVCF specification documentation.
+> please refer to the hVCF specification documentation.
+
+VCF creation is split up into two separate commands since the
+reference genome and aligned assemblies require different sets of
+data:
+
+#### `create-ref-vcf` inputs
+The `create-ref-vcf` command requires the following inputs:
+
+* `--bed` - A BED file containing ordered reference ranges (_see
+  the **Create reference ranges** section for further details_). This
+  is used to define the positional information of the VCF.
+* `--reference-file` - Reference FASTA genome used for creating
+  MD5 hashes of sequence information guided by reference range
+  positional data from the BED file used in the `--bed` parameter.
+* `--reference-name` - The name of the reference sample
+* `-o` - Output directory for the VCF data.
+
+> [!WARNING]
+> The directory that you specify in the output (`-o`) section must
+> be a an existing directory.
+
+Once the command is complete and you have navigated into the output
+directory (in my case, `output/vcf_files`), you will see two files:
 
 
+| File                      | Description                                              |
+|---------------------------|----------------------------------------------------------|
+| `<ref_name>.h.vcf.gz`     | compressed reference haplotype VCF (hVCF) file           |
+| `<ref_name>.h.vcf.gz.csi` | coordinate sorted index (CSI) of the reference hVCF file |
+
+Here, `<ref_name>` is the name of the reference genome provided
+using the `--reference-name` parameter. Since I defined this
+parameter as `B73` in the above example, my two files would be:
+
+* `B73.h.vcf.gz`
+* `B73.h.vcf.gz.csi`
+
+#### `create-maf-vcf` inputs
+The `create-maf-vcf` command requires the following inputs:
+
+* `--db-path` - Path to the directory containing the TileDB 
+  instances. This is needed to access the AGC compressed assembly
+  genome information found in the `assemblies.agc` file (_see the 
+  **"Compress FASTA files"** section for further details_).
+* `--bed` - A BED file containing ordered reference ranges (_see
+  the **Create reference ranges** section for further details_). This
+  is used to define the positional information of the VCF in relation
+  to the reference genome.
+* `--reference-file` - Reference FASTA genome used for creating
+  MD5 hashes of sequence information guided by reference range
+  positional data from the BED file used in the `--bed` parameter.
+  hashed sequence data will place in the `##ALT` tag's `RefRange`
+  key.
+* `--maf-dir` - Directory containing the MAF files generated using
+  the `align-assemblies` command (_see the **"Align assemblies"** 
+  section for further details_).
+* `-o` - Output directory for the VCF data.
+
+> [!WARNING]
+> The directory that you specify in the output (`-o`) section must
+> be a an existing directory.
+
+Once the command is complete and you have navigated into the output
+directory (in my case, `output/vcf_files`), you will see a collection
+of different file types for each sample:
 
 
+| File                         | Description                                              |
+|------------------------------|----------------------------------------------------------|
+| `<sample_name>.h.vcf.gz`     | compressed reference haplotype VCF (hVCF) file           |
+| `<sample_name>.h.vcf.gz.csi` | coordinate sorted index (CSI) of the reference hVCF file |
+| `<sample_name>.g.vcf.gz`     | compressed reference genomic VCF (gVCF) file             |
+| `<sample_name>.g.vcf.gz.csi` | coordinate sorted index (CSI) of the reference gVCF file |
 
+Here, `<sample_name>` would be the name of each sample that was
+aligned to the reference genome.
 
 ### Load VCF data into DBs
+After VCF files are created, we can finally load the information
+into our empty TileDB instances. Instead of manually performing this
+action, we can use the `load-vcf` command to automatically load the
+data into the TileDB directories:
+
+```shell
+./phg load-vcf \
+    --vcf output/vcf_files \
+    --db-path vcf_dbs
+```
