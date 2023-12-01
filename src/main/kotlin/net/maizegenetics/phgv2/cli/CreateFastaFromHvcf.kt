@@ -211,9 +211,9 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
 
             val seq = seqs[currentDisplayRegion]!!
 
-            //Means it is the first region
+            //Check to see if we have an inverted sub region based on the currentHapSeqRegion
             if(currentHapSeqRegion.first.position > currentHapSeqRegion.second.position) {
-                //Means it needs to be reverse complemented
+                //If so we need to reverse compliment the sequence
                 seq.reverse_complement().seq()
             }
             else {

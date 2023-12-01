@@ -66,6 +66,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
     /**
      * Function to create the ASM hVCF and gVCF.
      * It will first use Biokotlin to build the gVCF and then will use the BED file to extract out the hVCF information.
+     * if [twoGvcfs] is true, then the output will be split into two gvcf files, one for each gamete.
      */
     fun createASMHvcfs(dbPath: String, bedFileName: String, referenceFileName: String, mafDirName: String, outputDirName: String, twoGvcfs:Boolean=false) {
         //load the bed file into some data structure
@@ -149,13 +150,13 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
     /**
      * Simple Wrapper Function to call biokotlin's MAFToGVCF.getVariantContextsfromMAF
      * The parameters to BioKotlin's (version 0.10) getVariantContextsfromMAF are:
-     * 1. mafFileName - the name of the MAF file
-     * 2. refGenomeSequence - the reference genome sequence
-     * 3. sampleName - the name of the sample
-     * 4. fillGaps - whether to fill in the gaps in the MAF file, default is false
-     * 5. twoGvcfs - whether to split the output into two gvcf files, default false
-     * 6. outJustGT - whether to only output the GT field, default false
-     * 7. outputType - either gvcf or vcf (BioKotlin doesn't currently have h.vcf, default is gvcf)
+     * 1. [mafFileName] - the name of the MAF file
+     * 2. [refGenomeSequence] - the reference genome sequence
+     * 3. [sampleName] - the name of the sample
+     * 4. [fillGaps] - whether to fill in the gaps in the MAF file, default is false
+     * 5. [twoGvcfs] - whether to split the output into two gvcf files, default false
+     * 6. [outJustGT] - whether to only output the GT field, default false
+     * 7. [outputType] - either gvcf or vcf (BioKotlin doesn't currently have h.vcf, default is gvcf)
      *
      */
     fun getGVCFVariantsFromMafFile(refSeq: Map<String,NucSeq>, mafFileName : String, sampleName: String, fillGaps: Boolean = false, twoGvcfs: Boolean = false) : Map<String,List<VariantContext>> {
