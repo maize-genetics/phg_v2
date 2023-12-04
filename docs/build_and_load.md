@@ -10,15 +10,15 @@ In this document, we will discuss the steps needed to:
 ## Quick start
 * Set up the PHGv2 Conda environment:
     ```shell
-    ./phg setup-environment --env-file phg_environment.yml
+    phg setup-environment --env-file phg_environment.yml
     ```
 * Initialize TileDB instances:
     ```shell
-    ./phg initdb --db-path /path/to/dbs
+    phg initdb --db-path /path/to/dbs
     ```
 * Create BED file from GFF for reference range coordinates:
     ```shell
-    ./phg create-ranges \
+    phg create-ranges \
         --reference-file /my/ref.fasta \
         --gff my.gff \
         --boundary gene \
@@ -27,7 +27,7 @@ In this document, we will discuss the steps needed to:
     ```
 * Align assemblies:
     ```shell
-    ./phg align-assemblies \
+    phg align-assemblies \
         --gff anchors.gff \
         --reference-file /my/ref.fasta \
         --assemblies assemblies_list.txt \
@@ -37,7 +37,7 @@ In this document, we will discuss the steps needed to:
     ```
 * Compress FASTA files
     ```shell
-    ./phg agc-compress \
+    phg agc-compress \
         --db-path /path/to/dbs \
         --reference-file \
         --fasta-list /my/assembly_fasta_list.txt
@@ -45,14 +45,14 @@ In this document, we will discuss the steps needed to:
 * Create VCF files
     ```shell
     # Reference VCF
-    ./phg create-ref-vcf \
+    phg create-ref-vcf \
         --bed /path/to/bed_file.bed \
         --reference-file /my/ref.fasta \
         --reference-name B73 \
         -o /path/to/ref_vcf.vcf
   
     # MAF alignments VCF
-    ./phg create-maf-vcf \
+    phg create-maf-vcf \
         --db-path /path/to/dbs \
         --bed /path/to/bed_file.bed \
         --reference-file /my/ref.fasta \
@@ -61,7 +61,7 @@ In this document, we will discuss the steps needed to:
     ```
 * Load data into DBs
     ```shell
-    ./phg load-vcf \
+    phg load-vcf \
         --vcf /my/vcf/dir \
         --db-path /path/to/dbs \
         --threads 10
@@ -87,9 +87,9 @@ we use for pipeline testing. These will be placed in the `data`
 subdirectory while files created by this pipeline will be placed in
 the `output` subdirectory.
 
-We will also assume that the PHGv2 application is placed in your 
-system's `PATH` variable (_see installation documentation for further 
-details_).
+This documentation will also assume that the PHGv2 application is 
+placed in your system's `PATH` variable (_see installation 
+documentation for further details_).
 
 ### Set up Conda environment
 Once you have downloaded the latest release of PHGv2 and have Conda 
@@ -112,7 +112,7 @@ Instead of setting this up manually, we can use the
 run, use the following command:
 
 ```shell
-./phg setup-environment --env-file phg_environment.yml
+phg setup-environment --env-file phg_environment.yml
 ```
 
 This command takes one parameter, `--env-file`. This is a path to the 
@@ -340,6 +340,59 @@ that each assembly will have a collection of different file types:
 
 The MAF files from this output will be used in the VCF creation step.
 
+#### Internal AnchorWave and minimap2 commands
+While PHGv2 is flexible in terms of how data is processed, we have
+taken several opinionated steps with how the AnchorWave aligner runs
+in the `align-assemblies` command. If you are interested with what
+parameters are utilized, search for `ProcessBuilder()` methods within
+our [`AlignAssemblies.kt` source code](https://github.com/maize-genetics/phg_v2/blob/main/src/main/kotlin/net/maizegenetics/phgv2/cli/AlignAssemblies.kt)
+or review the following code blocks:
+
+* Run AnchorWave's `gff2seq` command:
+  ```shell
+  # Get the longest full-length CDS for each gene
+  anchorwave gff2seq \
+      -r <'--reference-file' parameter> \
+      -i <'--gff' parameter> \
+      -o ref.cds.fasta # directed to '-o' path
+  ```
+* Run minimap2
+  ```shell
+  # AnchorWave liftover steps (ref CDS to query)
+  minimap2 \
+      -x "splice" \
+      -t < '--total-threads' parameter > \
+      -k 12 \ 
+      -a \
+      -p 0.4 \
+      -N 20 \
+      <'--reference-file' parameter OR sample in '--assemblies' parameter> \
+      ref.cds.fasta \      # from prior 'gff2seq' step
+      -o <sample_name>.sam # drected to '-o' path
+  ```
+* Run AnchorWave's `proali` command:
+  ```shell
+  anchorwave proali \
+      -i <'--gff' parameter> \
+      -r <'--reference-file' parameter> \
+      -as ref.cds.fa \
+      -a <assembly_sample.sam> \
+      -ar <ref_assembly.sam> \
+      -s <assembly_sample.fa> \
+      -n <assembly_ref.anchorspro> \
+      -R 1 \    # manually set via --ref-max-align-cov
+      -Q 1 \    # manually set via --query-max-align-cov
+      -t <'--total-threads' / '--in-parallel' parameter> \
+      -o <assembly_sample.maf>
+  ```
+> [!NOTE]
+> In the above `proali` command, the maximum reference genome 
+> alignment coverage (`-R`) and maximum query genome coverage (`-Q`)
+> can be manually set using the `--ref-max-align-cov` and 
+> `--query-max-algin-cov` commands, respectively. If these are not
+> set, they will both default to the value of `1` as shown in the
+> prior `-R` and `-Q` parameters.
+
 
 [//]: # (#### Details - threads and parallelization)
 
@@ -429,12 +482,12 @@ sequence regions and composite genome creation.
 
 As of the current date of this document, the return methods of
 AGC will not keep track of sample IDs when returning 
-sequence information from the compressed file unless you explicitly 
+sequence information from the compressed file **unless you explicitly 
 state the sample information in the header lines of the FASTA files 
-you wish to compress for the PHGv2 databases. To explain this 
+you wish to compress for the PHGv2 databases**. To explain this 
 further, let's imagine that we have two FASTA files: `LineA.fa` and 
 `LineB.fa`. These files contain information for only chromosome 1 and 
-have a simple header that denotes this chromosome (e.g. `chr1`):
+have a simple header that denotes this sequence name (e.g. `chr1`):
 
 ```
 $ head LineA.fa
@@ -452,11 +505,11 @@ compressed sequence file when creating VCF data (_see
 the [**"Create VCF files"**](#create-vcf-files) section for further 
 details_). The issue arrives when we query the compressed data using
 [AGC's `getctg`](https://github.com/refresh-bio/agc#extract-contigs-from-the-archive) 
-command. When we query this hypothetical AGC file, we will get the
+command. When we query this hypothetical archive, we will get the
 following information:
 
 ```
-$ ./agc getctg assemblies.agc chr1@LineA chr1@LineB > queries.fa
+$ agc getctg assemblies.agc chr1@LineA chr1@LineB > queries.fa
 
 $ head queries.fa
 >chr1
@@ -500,32 +553,44 @@ append sample information to the headers of each FASTA file called
 `annotate-fasta`:
 
 ```shell
-./phg annotate-fasta \
+phg annotate-fasta \
     --fasta-list data/assemblies_list.txt \
     --threads 10 \
     --o output/annotated_assemblies
 ```
 
-Similar to `agc-compress`, this command will need a text file
-containing a list of paths to the FASTA files via the `--fasta-list`
-command. We must also specify a new output directory to contain the
-newly annotated FASTA files (`-o`) and an optional number of threads
-(`--threads`) where we can annotate multiple FASTA files in parallel.
+This command takes 3 parameters:
 
-> [!TIP]
-> The list specified in `--fasta-list` can be the same list used
-> in the alignment (`align-assemblies`) step.
+* `--fasta-list` - A [tab-delimited](https://en.wikipedia.org/wiki/Tab-separated_values) 
+  keyfile containing two columns:
 
-> [!NOTE]
+  | Column | Value                                                                                                                                                                                                                      |
+  |--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+  | 1      | Path to FASTA file you would like annotated (this is similar to the text files used to point to the FASTA file paths in the [`agc-compress`](#compress-fasta-files) and [`align-assemblies`](#align-assemblies) commands). |
+* | 2      | Name of the sample that will be appended to each header line                                                                                                                                                               |
+  + Example:
+  ```
+  data/LineA.fa   LineA
+  data/LineB.fa   LineB
+  ```
+* `--threads` - Optional number of threads to annotate multiple
+  FASTA files in parallel. _Defaults to `1`_.
+* `-o` - Output directory for the newly annotated FASTA files 
+
+> [!WARNING]
 > This step must be performed before the `agc-compress` step.
+
+> [!WARNING]
+> Sample IDs in the keyfile must match with what is found in the 
+> TileDB instances.
 
 > [!NOTE]
 > The names of the new annotated samples will be the same as the
 > file names found in the `--fasta-list` parameter.
 
 Once finished, this command will produce FASTA files with the name
-of the file appended to each header line. For example, in our
-hypothetical FASTA files, our headers go from this:
+of the sample from the keyfile appended to each header line. For 
+example, in our hypothetical FASTA files, our headers go from this:
 
 ```
 $ head LineA.fa
@@ -541,20 +606,21 @@ $ head LineA.fa
 ATGCGTACGCGCACCG
 ```
 
-This command will just append the name of a file to the end of the
-FASTA headers. For example, if we had a more detailed header:
-
-```
+>[!NOTE]
+>This command will just append the name of a file to the end of the
+>FASTA headers. For example, if we had a more detailed header:
+>
+>```
 >chr1 pos=1:16
-ATGCGTACGCGCACCG
-```
-
-...the header would become:
-
-```
+>ATGCGTACGCGCACCG
+>```
+>
+>...the header would become:
+>
+>```
 >chr1 pos=1:16 sampleName=LineA
-ATGCGTACGCGCACCG
-```
+>ATGCGTACGCGCACCG
+>```
 
 ### Create VCF files
 Now that we have (1) created alignments of our assemblies against a
@@ -566,7 +632,7 @@ commands:
 1. Create hVCF data from reference genome:
 
 ```shell
-./phg create-ref-vcf \
+phg create-ref-vcf \
     --bed output/ref_ranges.bed \
     --reference-file data/Ref.fa \
     --reference-name B73 \
@@ -577,7 +643,7 @@ commands:
    genome:
 
 ```shell
-./phg create-maf-vcf \
+phg create-maf-vcf \
     --db-path vcf_dbs \
     --bed output/ref_ranges.bed \
     --reference-file data/Ref.fa \
