@@ -94,7 +94,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     /**
      * Returns the AltHeaderMetaData for the specified hapId / checksum.
      */
-    fun altHeaderMap(hapid: String): AltHeaderMetaData? {
+    fun altHeader(hapid: String): AltHeaderMetaData? {
         return altHeaderMap[hapid]
     }
 
