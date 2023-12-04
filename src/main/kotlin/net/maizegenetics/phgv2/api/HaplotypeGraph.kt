@@ -52,13 +52,6 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     }
 
     /**
-     * Returns the number of nodes for this graph.
-     */
-    fun numberOfNodes(): Int {
-        TODO()
-    }
-
-    /**
      * Returns the number of samples for this graph.
      */
     fun numberOfSamples() = sampleNameToIdMap.size
