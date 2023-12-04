@@ -75,7 +75,6 @@ house our toy input data. The overall structure of the directory
 looks like the following
 
 ```shell
-me@linux:~$ tree phg_v2_example
 phg_v2_example/
 ├── data
 └── output
@@ -224,7 +223,7 @@ This command uses several parameters:
   reference ranges. Currently, these can be defined as either
   `gene` or `cds` regions:
 
-  <img src="img/build_and_load/create_ranges_01.svg" width="500"/>
+  <img src="img/build_and_load/create_ranges_01.svg" width="500" alt=""/>
   
   + In the above figure, if `--boundary` is set to `gene`, the start
     and end positions are at the UTR regions for each gene feature from
@@ -233,9 +232,9 @@ This command uses several parameters:
     transcript with the longest open reading frame if there are
     multiple transcript "children" for a gene "parent" in the GFF
     file.
-* `--pad` - The number of basepairs you would like to flank regions:
+* `--pad` - The number of base pairs you would like to flank regions:
 
-  <img src="img/build_and_load/create_ranges_02.svg" width="500"/>
+  <img src="img/build_and_load/create_ranges_02.svg" width="500" alt=""/>
 
   + For example, if we were to set the `--pad` parameter to `500`,
     we would extend the region 500 base pairs upstream and downstream
@@ -325,7 +324,7 @@ This command uses several parameters:
 
 > [!WARNING]
 > The directory that you specify in the output (`-o`) section must
-> be a an existing directory.
+> be an existing directory.
 
 Once alignment is finished, and you have navigated into the output 
 directory (in my case, this would be `output/alignment_files`),
@@ -337,32 +336,45 @@ that each assembly will have a collection of different file types:
 |----------------|--------------------------------------------------------------------------------------------|
 | `.sam`         | [sequence alignment map](https://en.wikipedia.org/wiki/SAM_(file_format)) (SAM) file       |
 | `.maf`         | [multiple alignment format](https://genome.ucsc.edu/FAQ/FAQformat.html#format5) (MAF) file |
-| `.anchorspro`  | alignment blocks between reference and assembly genomes (used for dotplot generation)      |
+| `.anchorspro`  | alignment blocks between reference and assembly genomes (used for dot plot generation)     |
 
 The MAF files from this output will be used in the VCF creation step.
 
 
-#### Details - threads and parallelization
+[//]: # (#### Details - threads and parallelization)
 
-***WIP*** - revisit once we can agree on naming and parameter conventions
+[//]: # ()
+[//]: # (***WIP*** - revisit once we can agree on naming and parameter conventions)
 
-<img src="img/build_and_load/align_assemblies_01.svg" width="300"/>
+[//]: # ()
+[//]: # (<img src="img/build_and_load/align_assemblies_01.svg" width="300" alt=""/>)
 
-***WIP*** - revisit once we can agree on naming and parameter conventions
+[//]: # ()
+[//]: # (***WIP*** - revisit once we can agree on naming and parameter conventions)
 
-<img src="img/build_and_load/align_assemblies_02.svg" width="300"/>
+[//]: # ()
+[//]: # (<img src="img/build_and_load/align_assemblies_02.svg" width="300" alt=""/>)
 
+[//]: # ()
+[//]: # ()
+[//]: # (The table below shows the memory usage for a single assembly alignment)
 
-The table below shows the memory usage for a single assembly alignment
-based on processor type:
+[//]: # (based on processor type:)
 
-| Processor | peak memory (Gb) | wall time |
-|-----------|------------------|-----------|
-| SSE2      | 20.1             | 26:47:17  | 
-| SSE4.1    | 20.6             | 24:05:07  |
-| AVX2      | 20.1             | 21:40:00  |
-| AVX512    | 20.1             | 18:31:39  |
-| ARM       | 34.2             | 18:08:57  |
+[//]: # ()
+[//]: # (| Processor | peak memory &#40;Gb&#41; | wall time |)
+
+[//]: # (|-----------|------------------|-----------|)
+
+[//]: # (| SSE2      | 20.1             | 26:47:17  | )
+
+[//]: # (| SSE4.1    | 20.6             | 24:05:07  |)
+
+[//]: # (| AVX2      | 20.1             | 21:40:00  |)
+
+[//]: # (| AVX512    | 20.1             | 18:31:39  |)
+
+[//]: # (| ARM       | 34.2             | 18:08:57  |)
 
 
 ### Compress FASTA files
@@ -410,6 +422,7 @@ subdirectory, `vcf_dbs`. Here, you will see a new file created:
 assemblies. This file will be used later to query for haplotype
 sequence regions and composite genome creation.
 
+#### :warning: Important information regarding `agc` compression :warning:
 
 ### Create VCF files
 Now that we have (1) created alignments of our assemblies against a
@@ -462,7 +475,7 @@ The `create-ref-vcf` command requires the following inputs:
 
 > [!WARNING]
 > The directory that you specify in the output (`-o`) section must
-> be a an existing directory.
+> be an existing directory.
 
 > [!NOTE]
 > Optionally, `create-ref-vcf` can also use another parameter, 
@@ -470,7 +483,7 @@ The `create-ref-vcf` command requires the following inputs:
 > FASTA file can be downloaded. This will be added to the VCF header
 > information.
 
-Once the command is complete and you have navigated into the output
+Once the command is complete, and you have navigated into the output
 directory (in my case, `output/vcf_files`), you will see two files:
 
 
@@ -509,9 +522,9 @@ The `create-maf-vcf` command requires the following inputs:
 
 > [!WARNING]
 > The directory that you specify in the output (`-o`) section must
-> be a an existing directory.
+> be an existing directory.
 
-Once the command is complete and you have navigated into the output
+Once the command is complete, and you have navigated into the output
 directory (in my case, `output/vcf_files`), you will see a collection
 of different file types for each sample:
 
