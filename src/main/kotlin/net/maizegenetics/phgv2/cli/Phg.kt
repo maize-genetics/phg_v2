@@ -3,7 +3,6 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.versionOption
-import net.maizegenetics.phgv2.agc.AgcCompress
 import net.maizegenetics.phgv2.agc.AnnotateFasta
 import net.maizegenetics.phgv2.utils.setupDebugLogging
 

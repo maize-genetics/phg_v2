@@ -6,7 +6,6 @@ import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeader
 import htsjdk.variant.vcf.VCFHeaderVersion
-import net.maizegenetics.phgv2.agc.AgcCompress
 import net.maizegenetics.phgv2.utils.getChecksumForString
 import net.maizegenetics.phgv2.utils.parseALTHeader
 import org.junit.jupiter.api.BeforeAll

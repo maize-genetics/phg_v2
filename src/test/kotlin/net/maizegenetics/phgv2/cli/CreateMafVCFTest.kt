@@ -4,7 +4,6 @@ import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
-import net.maizegenetics.phgv2.agc.AgcCompress
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.createRefRangeVC
 import net.maizegenetics.phgv2.utils.createSNPVC

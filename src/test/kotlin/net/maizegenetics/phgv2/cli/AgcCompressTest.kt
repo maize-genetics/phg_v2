@@ -1,7 +1,6 @@
-package net.maizegenetics.phgv2.agc
+package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
-import net.maizegenetics.phgv2.cli.TestExtension
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test

@@ -2,7 +2,6 @@ package net.maizegenetics.phgv2.cli
 
 import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.testing.test
-import net.maizegenetics.phgv2.agc.AgcCompress
 import net.maizegenetics.phgv2.cli.TestExtension.Companion.asmList
 import net.maizegenetics.phgv2.utils.getChecksumForString
 import org.junit.jupiter.api.AfterAll
