@@ -105,6 +105,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         val sampleNamesList = mutableListOf<String>()
 
         hvcfFiles.forEach { hvcfFile ->
+
+            myLogger.info("processFiles: $hvcfFile")
+
             val reader = VCFFileReader(File(hvcfFile), false)
             readers.add(reader)
             sampleNamesSet.addAll(reader.header.sampleNamesInOrder)
