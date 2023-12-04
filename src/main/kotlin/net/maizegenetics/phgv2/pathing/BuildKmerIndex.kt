@@ -1,30 +1,25 @@
 package net.maizegenetics.phgv2.pathing
 
+import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.long
-import htsjdk.variant.vcf.VCFFileReader
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.apache.logging.log4j.LogManager
-import java.io.BufferedReader
-import java.io.BufferedWriter
 import java.io.File
-import java.io.FileFilter
-import java.io.FileReader
-import java.io.FileWriter
 import java.lang.IllegalStateException
 import java.util.*
 
 
 import kotlin.math.ceil
 import kotlin.math.min
-import kotlin.system.measureNanoTime
 import kotlin.time.DurationUnit
 import kotlin.time.measureTimedValue
 
@@ -107,7 +102,10 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             val maxHaplotypes = ceil(hapidToSampleMap.size * maxHaplotypeProportion)
 
             //create a map of hash -> count of occurrences for all the haplotypes in this reference range
-            val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypesAndHapIds(graph.nodes(refrange))
+            //retrieveAgcContigs needs a list of contig@genome:start-end, one for each haplotype
+
+            val seqdata = retrieveAgcContigs()
+            val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(graph.nodes(refrange))
 
             for (hashCount in kmerHashCounts.entries) {
                 val hashValue = hashCount.key
@@ -136,19 +134,23 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
     }
 
 
+    private fun getSequenceForReferenceRange() {
+
+    }
+
     /**
      * Function to count the kmerHashes for a single reference range's haplotype nodes.
      * This gets put in 2 sets of maps.
      * One for the hash counts and one for a hash to a list of hapIds which contain that hash.
      */
-    private fun countKmerHashesForHaplotypesAndHapIds(nodes: List<HaplotypeNode>) : Pair<Map<Long,Int>,Map<Long,Set<Int>>> {
+    private fun countKmerHashesForHaplotypeSequence(sequenceList: List<String>) : Pair<Map<Long,Int>,Map<Long,Set<Int>>> {
         //start by splitting sequence into subsequences without N's
         val mapOfHashes = Long2IntOpenHashMap()
         val mapOfHapIds = Long2ObjectOpenHashMap<MutableSet<Int>>()
 
-        for (node in nodes) {
+        for (sequence in sequenceList) {
             //split sequence on N's then filter on length > 31
-            val splitList = node.haplotypeSequence().sequence()
+            val splitList = sequence
                 .split("N+".toRegex())
                 .filter{it.length > 31}
             for (sequence in splitList) {
