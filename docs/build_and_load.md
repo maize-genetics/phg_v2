@@ -542,7 +542,7 @@ ATGCGTACGCGCACCG
 ```
 
 This command will just append the name of a file to the end of the
-FASTA headers. So for example, if we had a more detailed header:
+FASTA headers. For example, if we had a more detailed header:
 
 ```
 >chr1 pos=1:16
