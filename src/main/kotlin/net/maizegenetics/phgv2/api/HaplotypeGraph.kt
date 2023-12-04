@@ -31,7 +31,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     private lateinit var refRangeMap: SortedMap<ReferenceRange, Int>
 
     // Map<ID (checksum), AltHeaderMetaData>
-    private val altHeaderMap: MutableMap<String, AltHeaderMetaData> = mutableMapOf()
+    val altHeaderMap: MutableMap<String, AltHeaderMetaData> = mutableMapOf()
 
     private val processingFiles = Channel<Deferred<Job>>(100)
     private val processingChannel = Channel<RangeInfo>(10)

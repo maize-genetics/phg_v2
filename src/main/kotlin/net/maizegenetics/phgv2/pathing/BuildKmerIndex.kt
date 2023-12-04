@@ -102,7 +102,10 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             val maxHaplotypes = ceil(hapidToSampleMap.size * maxHaplotypeProportion)
 
             //create a map of hash -> count of occurrences for all the haplotypes in this reference range
-            //retrieveAgcContigs needs a list of contig@genome:start-end, one for each haplotype
+            //retrieveAgcContigs needs a list of contig@genome:start-end, for all of the regions in the haplotype alt headers
+            val agcRangeList = graph.altHeaderMap.entries.map { (hapid, alt) ->
+
+            }
 
             val seqdata = retrieveAgcContigs()
             val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(graph.nodes(refrange))
@@ -142,8 +145,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * Function to count the kmerHashes for a single reference range's haplotype nodes.
      * This gets put in 2 sets of maps.
      * One for the hash counts and one for a hash to a list of hapIds which contain that hash.
+     * The sequenceList input is a map of hapidId -> list of sequences
      */
-    private fun countKmerHashesForHaplotypeSequence(sequenceList: List<String>) : Pair<Map<Long,Int>,Map<Long,Set<Int>>> {
+    private fun countKmerHashesForHaplotypeSequence(sequenceList: Map<String, List<String>>) : Pair<Map<Long,Int>,Map<Long,Set<Int>>> {
         //start by splitting sequence into subsequences without N's
         val mapOfHashes = Long2IntOpenHashMap()
         val mapOfHapIds = Long2ObjectOpenHashMap<MutableSet<Int>>()
