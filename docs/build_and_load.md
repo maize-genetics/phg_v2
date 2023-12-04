@@ -409,9 +409,12 @@ This command takes in 3 parameters:
 
 * `--fasta-list` - List of assembly FASTA genomes to compress.
 
-> [!TIP]
-> The list specified in `--fasta-list` can be the same list used
-> in the alignment (`align-assemblies`) step.
+> [!NOTE]
+> The list specified in `--fasta-list` _can_ be the same list used
+> in the alignment (`align-assemblies`) step, but make sure header
+> information in each FASTA contains sample IDs. See the 
+> [**"Important information regarding `agc` compression"**](#warning-important-information-regarding-agc-compression-warning)
+> section for further information and how to remedy this.
 
 * `--reference-file` - Reference FASTA genome.
 
@@ -423,6 +426,135 @@ assemblies. This file will be used later to query for haplotype
 sequence regions and composite genome creation.
 
 #### :warning: Important information regarding `agc` compression :warning:
+
+As of the current date of this document, the return methods of
+AGC will not keep track of sample IDs when returning 
+sequence information from the compressed file unless you explicitly 
+state the sample information in the header lines of the FASTA files 
+you wish to compress for the PHGv2 databases. To explain this 
+further, let's imagine that we have two FASTA files: `LineA.fa` and 
+`LineB.fa`. These files contain information for only chromosome 1 and 
+have a simple header that denotes this chromosome (e.g. `chr1`):
+
+```
+$ head LineA.fa
+>chr1
+ATGCGTACGCGCACCG
+
+$ head LineB.fa
+>chr1
+ATGCGTTCGCCTTCCG
+```
+
+After we compress this information using the `agc-compress` command, 
+we will have a file called `assemblies.agc`. PHGv2 leverages this
+compressed sequence file when creating VCF data (_see
+the [**"Create VCF files"**](#create-vcf-files) section for further 
+details_). The issue arrives when we query the compressed data using
+[AGC's `getctg`](https://github.com/refresh-bio/agc#extract-contigs-from-the-archive) 
+command. When we query this hypothetical AGC file, we will get the
+following information:
+
+```
+$ ./agc getctg assemblies.agc chr1@LineA chr1@LineB > queries.fa
+
+$ head queries.fa
+>chr1
+ATGCGTACGCGCACCG
+>chr1
+ATGCGTTCGCCTTCCG
+```
+
+As you can see from the above hypothetical output, we now have no 
+means to efficiently track where each sequence is coming from due
+to the lack of header information from our prior FASTA files. We
+can remedy this by adding sample information to the headers:
+
+```
+$ head LineA.fa
+>chr1 sampleName=LineA
+ATGCGTACGCGCACCG
+
+$ head LineB.fa
+>chr1 sampleName=LineB
+ATGCGTTCGCCTTCCG
+```
+
+Now, when we compress and query using AGC, we get enhanced sample ID
+tracking:
+
+```
+$ ./agc getctg assemblies_new_headers.agc chr1@LineA chr1@LineB > queries.fa
+
+$ head queries.fa
+>chr1 sampleName=LineA
+ATGCGTACGCGCACCG
+>chr1 sampleName=LineB
+ATGCGTTCGCCTTCCG
+```
+
+While we can either manually modify the header lines of our FASTA 
+file, this can become tedious and prone to a new set of downstream
+errors. To automate this, PHGv2 provides an optional command to
+append sample information to the headers of each FASTA file called
+`annotate-fasta`:
+
+```shell
+./phg annotate-fasta \
+    --fasta-list data/assemblies_list.txt \
+    --threads 10 \
+    --o output/annotated_assemblies
+```
+
+Similar to `agc-compress`, this command will need a text file
+containing a list of paths to the FASTA files via the `--fasta-list`
+command. We must also specify a new output directory to contain the
+newly annotated FASTA files (`-o`) and an optional number of threads
+(`--threads`) where we can annotate multiple FASTA files in parallel.
+
+> [!TIP]
+> The list specified in `--fasta-list` can be the same list used
+> in the alignment (`align-assemblies`) step.
+
+> [!NOTE]
+> This step must be performed before the `agc-compress` step.
+
+> [!NOTE]
+> The names of the new annotated samples will be the same as the
+> file names found in the `--fasta-list` parameter.
+
+Once finished, this command will produce FASTA files with the name
+of the file appended to each header line. For example, in our
+hypothetical FASTA files, our headers go from this:
+
+```
+$ head LineA.fa
+>chr1
+ATGCGTACGCGCACCG
+```
+
+to this:
+
+```
+$ head LineA.fa
+>chr1 sampleName=LineA
+ATGCGTACGCGCACCG
+```
+
+This command will just append the name of a file to the end of the
+FASTA headers. So for example, if we had a more detailed header:
+
+```
+>chr1 pos=1:16
+ATGCGTACGCGCACCG
+```
+
+...the header would become:
+
+```
+>chr1 pos=1:16 sampleName=LineA
+ATGCGTACGCGCACCG
+```
 
 ### Create VCF files
 Now that we have (1) created alignments of our assemblies against a
