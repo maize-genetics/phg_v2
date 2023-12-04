@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.agc
 
+import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
@@ -20,7 +21,7 @@ import java.io.File
  * These updates are required as AGC processing maintains  fasta comments, but it does not maintain the
  * sample name when included with a query request.
  *
- * The naming conventions are consistent with the naming requirements of the AGG compress code.  AGC loads the fasta name
+ * The naming conventions are consistent with the naming requirements of the AGC compress code.  AGC loads the fasta name
  * minus extension as the sample name when creating their compressed file.
  *
  * When determining the number of threads to use, keep in mind the memory capacity of the machine,
@@ -55,7 +56,7 @@ class AnnotateFasta : CliktCommand() {
         .default(1)
 
 
-    data class InputChannelData(val fastaFile:String, val sampleName:String, val outputDir:String)
+    data class InputChannelData(val fastaFile:String, val sampleName:String, val compressed:Boolean, val outputDir:String)
 
     override fun run() {
         // create list of assemblies to align from the assemblies file")
@@ -77,9 +78,13 @@ class AnnotateFasta : CliktCommand() {
             launch {
                 myLogger.info("Adding entries to the inputChannel:")
                 assemblies.forEach { asmFile ->
-                    val sampleName = File(asmFile).nameWithoutExtension
+                    // Allow for compressed or non-compressed, e.g. .fa or .fa.gz as extensions
+                    val sampleName = asmFile.substringAfterLast("/").substringBefore(".")
+                    val compressed = if (asmFile.endsWith(".gz")) true else false
+
+                    //val sampleName = File(asmFile).nameWithoutExtension
                     println("adding ${sampleName} to the inputChannel")
-                    inputChannel.send(InputChannelData(asmFile, sampleName, outputDir))
+                    inputChannel.send(InputChannelData(asmFile, sampleName,  compressed, outputDir))
                 }
                 myLogger.info("Done adding data to the inputChannel")
                 inputChannel.close()
@@ -109,9 +114,14 @@ class AnnotateFasta : CliktCommand() {
                 // the new file name is the same as the original but it is
                 // written to the outputDir
                 // if  the line starts with >, append " sampleName=${sampleName}" to the line
-                val newFilename = "${outputDir}/${File(fastaFile).name}"
+
+                // if file was previously compressed, we compress the new file.
+                // Strip off the .gz extension before writing the new non-compressed file.
+                // it wil be added when we re-compress the file.
+                val justName = if (fastaFile.endsWith(".gz")) File(fastaFile).nameWithoutExtension else File(fastaFile).name
+                val newFilename = "${outputDir}/${justName}"
                 File(newFilename).bufferedWriter().use { writer ->
-                    File(fastaFile).forEachLine { line ->
+                    bufferedReader(fastaFile).forEachLine { line ->
                         if (line.startsWith(">")) {
                             // Only append if the line does not already contain "sampleName=${sampleName}"
                             if (!line.contains("sampleName=${sampleName}") )
@@ -122,7 +132,32 @@ class AnnotateFasta : CliktCommand() {
                             writer.write("${line}\n")
                         }
                     }
+                    if (entry.compressed) {
+                        // If the input file was compressed, then the new output file will be compressed
+                        gzipFasta(newFilename)
+                    }
                 }
             }
         }
+    fun gzipFasta (file:String) {
+        try {
+
+            // gzip the file
+            // use the -f option to overwrite any existing file
+            myLogger.info("gzipping  file ${file}")
+            val gvcfGzippedFile = file + ".gz"
+            var builder = ProcessBuilder("conda","run","-n","phgv2-conda",
+                "gzip", "-f", file)
+
+            var process = builder.start()
+            var error: Int = process.waitFor()
+            if (error != 0) {
+                myLogger.warn("\nERROR $error creating gzipped  version of file: $file")
+                throw IllegalStateException("bgzipAndIndexGVCFfile: error trying to gzip file ${file}: ${error}")
+            }
+
+        } catch (exc:Exception) {
+            throw IllegalStateException("gzipFasta: error gzipping file ${file}")
+        }
+    }
 }
