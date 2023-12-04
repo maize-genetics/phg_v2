@@ -73,7 +73,7 @@ class AnnotateFastasTest {
         // Test the AnnotateFasta class
         val annotateFastas = AnnotateFastas()
         val result = annotateFastas.test( "--keyfile ${filesToUpdate} --threads 2 --output-dir ${TestExtension.testOutputFastaDir}")
-        assertEquals(result.statusCode, 0)
+        assertEquals(0, result.statusCode )
 
         // get a list of fasta files created in the fastaOutputDir, as a List<String>
         val updatedFiles = File(fastaOutputDir).listFiles().filter { it.extension == "fa" || it.extension == "fasta" }.map { it.absolutePath }
@@ -103,7 +103,7 @@ class AnnotateFastasTest {
 
         // Get list of fastas files in the newOutputDir
         val updatedFiles2 = File(secondOutputDir).listFiles().filter { it.extension == "fa" || it.extension == "fasta" }.map { it.absolutePath }
-        assertEquals(result2.statusCode, 0)
+        assertEquals(0,result2.statusCode)
         // verify the idlines lines of each fasta files contain only a single "sampleName=${sampleName}" string
         updatedFiles2.forEach { fastaFile ->
             val sampleName = File(fastaFile).nameWithoutExtension
@@ -163,7 +163,7 @@ class AnnotateFastasTest {
         // Test the AnnotateFasta class
         val annotateFastas = AnnotateFastas()
         val result = annotateFastas.test( "--keyfile ${filesToUpdate} --threads 2 --output-dir ${TestExtension.testOutputFastaDir}")
-        assertEquals(result.statusCode, 0)
+        assertEquals(0,result.statusCode)
 
         // get a list of fasta files created in the fastaOutputDir, as a List<String> in variable named updatedFiles
         val updatedFiles = File(fastaOutputDir).listFiles().filter { it.extension == ".gz" }.map { it.absolutePath }
@@ -197,7 +197,7 @@ class AnnotateFastasTest {
 
         // Get list of fastas files in the newOutputDir
         val updatedFiles2 = File(secondOutputDir).listFiles().filter { it.extension == ".gz" }.map { it.absolutePath }
-        assertEquals(result2.statusCode, 0)
+        assertEquals(0,result2.statusCode )
         // verify the idlines lines of each fasta files contain only a single "sampleName=${sampleName}" string
         updatedFiles2.forEach { fastaFile ->
             val sampleName = File(fastaFile).nameWithoutExtension.substringBefore(".")
