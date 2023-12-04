@@ -31,7 +31,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     private lateinit var refRangeMap: SortedMap<ReferenceRange, Int>
 
     // Map<ID (checksum), AltHeaderMetaData>
-    private val altHeaderMap: MutableMap<String, AltHeaderMetaData> = mutableMapOf()
+    private lateinit var altHeaderMap: Map<String, AltHeaderMetaData>
 
     private val processingFiles = Channel<Deferred<Job>>(100)
     private val processingChannel = Channel<RangeInfo>(10)
@@ -91,12 +91,20 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         return rangeToSampleToChecksum[rangeId][sampleId]
     }
 
+    /**
+     * Returns the AltHeaderMetaData for the specified hapId / checksum.
+     */
+    fun altHeaderMap(hapid: String): AltHeaderMetaData? {
+        return altHeaderMap[hapid]
+    }
+
     private suspend fun processFiles(hvcfFiles: List<String>) {
 
         val readers = mutableListOf<VCFFileReader>()
         val sampleNamesSet = mutableSetOf<String>()
         val sampleNamesList = mutableListOf<String>()
 
+        val mutableAltHeaderMap: MutableMap<String, AltHeaderMetaData> = mutableMapOf()
         hvcfFiles.forEach { hvcfFile ->
 
             myLogger.info("processFiles: $hvcfFile")
@@ -107,8 +115,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
             sampleNamesList.addAll(reader.header.sampleNamesInOrder)
 
             // extract out the haplotype sequence boundaries for each haplotype from the hvcf
-            altHeaderMap.putAll(parseALTHeader(reader.header))
+            mutableAltHeaderMap.putAll(parseALTHeader(reader.header))
         }
+        altHeaderMap = mutableAltHeaderMap.toMap()
 
         sampleNamesSet.forEach { sampleNamesList.remove(it) }
         if (sampleNamesList.isNotEmpty()) {
