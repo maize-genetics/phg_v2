@@ -15,28 +15,32 @@ import org.apache.logging.log4j.LogManager
 import java.io.File
 
 /**
- * This class takes a list of fasta files and updates each idline with the sample name.
- * The sample name is derived from the fasta file name, minus the extension.
- * Fasta files should be named with just the sample name, extension can be either .fa or .fasta.
- * These updates are required as AGC processing maintains  fasta comments, but it does not maintain the
- * sample name when included with a query request.
+ * This class takes a keyfile containing a list of fasta files and their sample names.
+ * The fasta files should be the full path name to the fasta file.
+ * The sample name is the name that identifies the genome to be loaded.  This name should
+ * be consistent with the sample names used in the GVCF files for these genomes.
  *
- * The naming conventions are consistent with the naming requirements of the AGC compress code.  AGC loads the fasta name
- * minus extension as the sample name when creating their compressed file.
+ * Fasta files may be compressed or uncompressed.  If compressed, the extension should be .gz.
+ * The output directory is the directory where the updated fasta files will be written.
  *
+ * THis class will take the fasta files, read them into memory, update the idlines with "sampleName=<sampleName>"
+ * The updated fasta files are written to the output directory with <sampleName>.fa as the file name.  If the original
+ * file was compressed, gzip compression will be performed on the new file.
+ *
+ * "threads" is an optional parameter.  This value determines how many fasta files will be processed concurrently.
  * When determining the number of threads to use, keep in mind the memory capacity of the machine,
  * and the size of the fasta files.  Each fasta is read into memory, idlines updated, then re-written
  * to a new file of the same name in the user specified output directory.
  *
  */
-class AnnotateFasta : CliktCommand() {
-    private val myLogger = LogManager.getLogger(AnnotateFasta::class.java)
+class AnnotateFastas : CliktCommand() {
+    private val myLogger = LogManager.getLogger(AnnotateFastas::class.java)
 
-    val fastaList by option(help = "File containing full path name for the fasta files, one per line, that will be updated. ")
+    val keyfile by option(help = "Tab-delimited file containing 2 columns name Fasta and SampleName.  Fasta column contains full path name for the fasta files.  SampleName contains the sample name for that assembly, e.g. B73 or CML247. ")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--fasta-list must not be blank"
+                "--keyfile must not be blank"
             }
         }
 
@@ -61,8 +65,14 @@ class AnnotateFasta : CliktCommand() {
     override fun run() {
         // create list of assemblies to align from the assemblies file")
         myLogger.info("creating assembliesList, calling createParallelANnotatedFastas")
-        val assembliesList = File(fastaList).readLines().filter { it.isNotBlank() }
-        createParallelAnnotatedFastas(assembliesList, outputDir)
+        // Read the keyfile, parse the fasta file names and the sampleName
+        // Create a list of pairs of fasta file name and sampleName
+        println("run: processing keyfile ${keyfile}")
+        val assemblies = File(keyfile).bufferedReader().readLines()
+            .map { it.split("\t") }
+            .map { Pair(it[0], it[1]) }
+
+        createParallelAnnotatedFastas(assemblies, outputDir)
     }
 
 
@@ -70,19 +80,19 @@ class AnnotateFasta : CliktCommand() {
     // The files are placed in an input queue, worker threads are launched
     // to process the queue entries.  The number of worker threads is based on the
     // number of threads specified by the user.
-    private fun createParallelAnnotatedFastas(assemblies:List<String>, outputDir:String) {
+    private fun createParallelAnnotatedFastas(assemblies:List<Pair<String,String>>, outputDir:String) {
 
         runBlocking {
             // Setup
             val inputChannel = Channel<InputChannelData>(100)
             launch {
                 myLogger.info("Adding entries to the inputChannel:")
-                assemblies.forEach { asmFile ->
+                assemblies.forEach { entry ->
+                    val asmFile = entry.first
                     // Allow for compressed or non-compressed, e.g. .fa or .fa.gz as extensions
-                    val sampleName = asmFile.substringAfterLast("/").substringBefore(".")
+                    val sampleName = entry.second
                     val compressed = if (asmFile.endsWith(".gz")) true else false
 
-                    //val sampleName = File(asmFile).nameWithoutExtension
                     println("adding ${sampleName} to the inputChannel")
                     inputChannel.send(InputChannelData(asmFile, sampleName,  compressed, outputDir))
                 }
