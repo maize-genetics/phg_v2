@@ -1,6 +1,8 @@
 package net.maizegenetics.phgv2.utils
 
+import biokotlin.genome.SeqRecordSorts
 import biokotlin.seq.NucSeq
+import biokotlin.seq.NucSeqRecord
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -245,10 +247,13 @@ fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
     // It is the same if we give a region for the chrom, e.g. 1@LineA:1-1000 and 1@LineB:1-1000,
     // we will get the same idline multiple times.
     val chromNucSeqMap = HashMap<String, NucSeq>()
+    val nucSeqRecs = mutableListOf<NucSeqRecord>()
+    val chromGenomeNucSeqMap = HashMap<Pair<String,String>,NucSeq>()
     try {
         agcOut.bufferedReader().use { br ->
             var currChrom = "-1"
             var currSeq = ByteArrayOutputStream()
+            var currGenome = "-1"
             var line = br.readLine()
             while (line != null) {
 
@@ -256,11 +261,17 @@ fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
                 if (line.startsWith(">")) {
                     if (currChrom != "-1") {
                         // finished with this chromosome's sequence
-                        myLogger.info("queryAgc: finished chrom $currChrom")
+                        myLogger.info("fastaToNucSeq: finished chrom $currChrom for genome $currGenome")
                         chromNucSeqMap[currChrom] = NucSeq(currSeq.toString())
+                        nucSeqRecs.add(NucSeqRecord(NucSeq(currSeq.toString()), currChrom, currGenome))
+                        chromGenomeNucSeqMap.put(Pair(currChrom,currGenome),NucSeq(currSeq.toString()))
                     }
                     // reset chromosome name and sequence, begin processing next chrom
                     currChrom = line.substring(1).split(" ")[0]
+                    val genomeStart = line.indexOf("sampleName=")
+                    val genomeEnd = line.indexOf(" ", genomeStart)
+                    currGenome = line.substring(genomeStart+11, genomeEnd)
+
                     currSeq = ByteArrayOutputStream()
                 } else {
                     currSeq.write(line.toByteArray())
@@ -270,6 +281,8 @@ fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
             if (currSeq.size() > 0) {
                 myLogger.info("queryAgc: finished chrom $currChrom")
                 chromNucSeqMap[currChrom] = NucSeq(currSeq.toString())
+                nucSeqRecs.add(NucSeqRecord(NucSeq(currSeq.toString()), currChrom, currGenome))
+                chromGenomeNucSeqMap.put(Pair(currChrom,currGenome),NucSeq(currSeq.toString()))
             }
         }
     } catch (exc:Exception) {
@@ -284,5 +297,8 @@ fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
         myLogger.error("queryAgc: errors found in errorStream: ${errors.size}")
         throw IllegalArgumentException("Error running AGC command: ${commands.joinToString(" ")}\nError: $errors")
     }
+    val sortedRecs = nucSeqRecs.sortedWith(SeqRecordSorts.alphaSort)
+    // For parsing purposes by the calling function, I believe a map is better than a list
+    // so will instead put this into a Map<Pair<String,String?,NucSeq>
     return chromNucSeqMap
 }
