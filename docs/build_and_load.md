@@ -279,6 +279,10 @@ polymorphism, or whole-genome duplications. Since this software is
 already set up during the Conda environment step, there is no need
 to install this manually.
 
+> [!NOTE]
+> For best results with imputation and rare allele calling pipelines, 
+> **please use high quality assemblies**!
+
 To run the aligner step, we can call the `align-assemblies` command:
 
 ```shell
@@ -550,25 +554,25 @@ While we can either manually modify the header lines of our FASTA
 file, this can become tedious and prone to a new set of downstream
 errors. To automate this, PHGv2 provides an optional command to
 append sample information to the headers of each FASTA file called
-`annotate-fasta`:
+`annotate-fastas`:
 
 ```shell
-phg annotate-fasta \
-    --fasta-list data/assemblies_list.txt \
+phg annotate-fastas \
+    --keyfile data/annotation_keyfile.txt \
     --threads 10 \
     --o output/annotated_assemblies
 ```
 
 This command takes 3 parameters:
 
-* `--fasta-list` - A [tab-delimited](https://en.wikipedia.org/wiki/Tab-separated_values) 
+* `--keyfile` - A [tab-delimited](https://en.wikipedia.org/wiki/Tab-separated_values) 
   keyfile containing two columns:
 
   | Column | Value                                                                                                                                                                                                                      |
   |--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
   | 1      | Path to FASTA file you would like annotated (this is similar to the text files used to point to the FASTA file paths in the [`agc-compress`](#compress-fasta-files) and [`align-assemblies`](#align-assemblies) commands). |
 * | 2      | Name of the sample that will be appended to each header line                                                                                                                                                               |
-  + Example:
+  + My example `annotation_keyfile.txt` file would look like this:
   ```
   data/LineA.fa   LineA
   data/LineB.fa   LineB
@@ -585,8 +589,8 @@ This command takes 3 parameters:
 > TileDB instances.
 
 > [!NOTE]
-> The names of the new annotated samples will be the same as the
-> file names found in the `--fasta-list` parameter.
+> FASTA files can be either uncompressed or compressed. If
+> compressed, the extension should be `*.gz`.
 
 Once finished, this command will produce FASTA files with the name
 of the sample from the keyfile appended to each header line. For 
