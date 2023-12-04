@@ -45,9 +45,11 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         runBlocking { addSites() }
 
-        myLogger.info("rangeToSampleToChecksum: ${rangeToSampleToChecksum.size} x ${rangeToSampleToChecksum[0].size}")
-        myLogger.info("numOfSamples: ${numberOfSamples()}")
-        myLogger.info("numOfRanges: ${numberOfRanges()}")
+        if (rangeToSampleToChecksum.isNotEmpty()) {
+            myLogger.info("rangeToSampleToChecksum: ${rangeToSampleToChecksum.size} x ${rangeToSampleToChecksum[0].size}")
+            myLogger.info("numOfSamples: ${numberOfSamples()}")
+            myLogger.info("numOfRanges: ${numberOfRanges()}")
+        }
 
     }
 
@@ -114,8 +116,16 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
             sampleNamesSet.addAll(reader.header.sampleNamesInOrder)
             sampleNamesList.addAll(reader.header.sampleNamesInOrder)
 
-            // extract out the haplotype sequence boundaries for each haplotype from the hvcf
-            mutableAltHeaderMap.putAll(parseALTHeader(reader.header))
+            try {
+                // extract out the haplotype sequence boundaries for each haplotype from the hvcf
+                mutableAltHeaderMap.putAll(parseALTHeader(reader.header))
+            } catch (exc: Exception) {
+                myLogger.error("processFiles: $hvcfFile: ${exc.message}")
+                processingFiles.close()
+                processingChannel.close()
+                readers.forEach { it.close() }
+                throw IllegalArgumentException("processFiles: $hvcfFile: ${exc.message}")
+            }
         }
         altHeaderMap = mutableAltHeaderMap.toMap()
 
