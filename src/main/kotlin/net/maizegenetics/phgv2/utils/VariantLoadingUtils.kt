@@ -129,7 +129,7 @@ fun bgzipAndIndexGVCFfile(gvcfFileName: String): String {
         }
         return gvcfGzippedFile
     } catch (exc:Exception) {
-        throw IllegalStateException("bgzipAndIndexGVCFfile: error bgzipping and/or indexing file ${gvcfFileName}")
+        throw IllegalStateException("bgzipAndIndexGVCFfile: error bgzipping and/or indexing file ${gvcfFileName}: Message:${exc.message}")
     }
 
 }
