@@ -33,7 +33,7 @@ import java.io.File
  * to a new file of the same name in the user specified output directory.
  *
  */
-class AnnotateFastas : CliktCommand() {
+class AnnotateFastas : CliktCommand(help="Annotate fasta file with sample names, write new fasta with name <sampleName>.fa") {
     private val myLogger = LogManager.getLogger(AnnotateFastas::class.java)
 
     val keyfile by option(help = "Tab-delimited file containing 2 columns name Fasta and SampleName.  Fasta column contains full path name for the fasta files.  SampleName contains the sample name for that assembly, e.g. B73 or CML247. ")
@@ -64,10 +64,10 @@ class AnnotateFastas : CliktCommand() {
 
     override fun run() {
         // create list of assemblies to align from the assemblies file")
-        myLogger.info("creating assembliesList, calling createParallelANnotatedFastas")
+        myLogger.info("creating assembliesList, calling createParallelAnnotatedFastas")
         // Read the keyfile, parse the fasta file names and the sampleName
         // Create a list of pairs of fasta file name and sampleName
-        println("run: processing keyfile ${keyfile}")
+
         val assemblies = File(keyfile).bufferedReader().readLines()
             .map { it.split("\t") }
             .map { Pair(it[0], it[1]) }
@@ -93,7 +93,7 @@ class AnnotateFastas : CliktCommand() {
                     val sampleName = entry.second
                     val compressed = if (asmFile.endsWith(".gz")) true else false
 
-                    println("adding ${sampleName} to the inputChannel")
+                    myLogger.info("adding ${sampleName} to the inputChannel")
                     inputChannel.send(InputChannelData(asmFile, sampleName,  compressed, outputDir))
                 }
                 myLogger.info("Done adding data to the inputChannel")
@@ -155,7 +155,6 @@ class AnnotateFastas : CliktCommand() {
             // gzip the file
             // use the -f option to overwrite any existing file
             myLogger.info("gzipping  file ${file}")
-            val gvcfGzippedFile = file + ".gz"
             var builder = ProcessBuilder("conda","run","-n","phgv2-conda",
                 "gzip", "-f", file)
 
