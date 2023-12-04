@@ -256,7 +256,7 @@ fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
                 if (line.startsWith(">")) {
                     if (currChrom != "-1") {
                         // finished with this chromosome's sequence
-                        myLogger.info("fastaToNucSeq: finished chrom $currChrom")
+                        myLogger.info("queryAgc: finished chrom $currChrom")
                         chromNucSeqMap[currChrom] = NucSeq(currSeq.toString())
                     }
                     // reset chromosome name and sequence, begin processing next chrom
