@@ -118,6 +118,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
 
     /**
      * Function to create haplotype Sequences for each of the haplotype variants in the hvcf
+     * TODO LCJ - determine how sampleName is used here.
+     * hmmm - because it is passed in, I think we assume all in this function are related to the same sample
      */
     fun createHaplotypeSequences(dbPath:String, sampleName: String, haplotypeVariants: List<VariantContext>, altHeaders: Map<String, AltHeaderMetaData>): List<HaplotypeSequence> {
         val rangesAndOtherInfo = haplotypeVariants.filter { it.hasGenotype(sampleName) }.map {
@@ -148,20 +150,20 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
         val ranges = rangesAndOtherInfo.flatMap { it.first }
         val seqs = retrieveAgcContigs(dbPath,ranges)
 
-        return rangesAndOtherInfo.map { it.third.copy(sequence = buildHapSeq(seqs, it.second,it.third)) }
+        return rangesAndOtherInfo.map { it.third.copy(sequence = buildHapSeq(seqs, sampleName, it.second,it.third)) }
     }
 
     /**
      * Function to build the haplotype sequence based on the list of display regions and the given haplotype sequence object.
      * The sequence is already extracted out of AGC and stored in the seqs map.
      */
-    fun buildHapSeq(seqs: Map<String,NucSeq> ,displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
+    fun buildHapSeq(seqs: Map<Pair<String,String>,NucSeq> , sampleName: String, displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
         val hapSeqRegions = hapSeqObjects.asmRegions
 
         return displayRegions.mapIndexed{ idx, currentDisplayRegion ->
             val currentHapSeqRegion = hapSeqRegions[idx]
 
-            val seq = seqs[currentDisplayRegion]!!
+            val seq = seqs[Pair(sampleName,currentDisplayRegion)]!!
 
             //Check to see if we have an inverted sub region based on the currentHapSeqRegion
             if(currentHapSeqRegion.first.position > currentHapSeqRegion.second.position) {

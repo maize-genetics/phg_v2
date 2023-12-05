@@ -47,22 +47,22 @@ private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.SeqUt
  *
  */
 
-fun retrieveAgcContigs(dbPath: String, sampleName: String, ranges: List<Pair<Position,Position>>) : Map<String, NucSeq> {
+fun retrieveAgcContigs(dbPath: String, sampleName: String, ranges: List<Pair<Position,Position>>) : Map<Pair<String,String>,NucSeq> {
     val rangesString = buildRangesString(sampleName, ranges)
     return retrieveAgcContigs(dbPath,rangesString)
 }
-fun retrieveAgcContigs(dbPath:String,ranges:List<String>):Map<String, NucSeq> {
+fun retrieveAgcContigs(dbPath:String,ranges:List<String>):Map<Pair<String,String>,NucSeq> {
 
     val commands = buildAgcCommandFromList(dbPath, "getctg",ranges)
-    val chromNucSeqMap = queryAgc(commands)
-    return chromNucSeqMap
+    val genomeChromNucSeqMap = queryAgc(commands)
+    return genomeChromNucSeqMap
 }
 
-fun retrieveAgcGenomes(dbPath:String,genomes:List<String>):Map<String, NucSeq> {
+fun retrieveAgcGenomes(dbPath:String,genomes:List<String>):Map<Pair<String,String>,NucSeq> {
 
     val commands = buildAgcCommandFromList(dbPath, "getset",genomes)
-    val chromNucSeqMap = queryAgc(commands)
-    return chromNucSeqMap
+    val genomeChromNucSeqMap = queryAgc(commands)
+    return genomeChromNucSeqMap
 }
 
 fun buildRangesString(sampleName: String, ranges: List<Pair<Position,Position>>) : List<String> {
@@ -227,8 +227,23 @@ fun buildAgcCommandFromList(dbPath:String, agcCmd:String, ranges:List<String>): 
  * This function should only be called when the AGC command is "getctg" or "getset"
  * as it specifically returns a Map<String, NucSeq>.  Other AGC commands processed
  * in this repository will return a List<String> and are processed in retrieveAgcData
+ *
+ * What AGC does is take the entire idline and append the range to it, (excluding the sample name).
+ * When the fasta looks like:
+ *    >1
+ * And the query is:
+ *     1@LineA:1-1000
+ * AGC will return:
+ *     >1:1-1000
+ * When we have the sample name including in the id line, e.g
+ *    >1 sampleName=LineA
+ *  And the query is:
+ *    1@LineA:1-1000
+ *  AGC will return:
+ *    >1 sampleName=LineA:1-1000
+ *  So we have to look for ":" or end of line to get th end of the sample name
  */
-fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
+fun queryAgc(commands:Array<String>):Map<Pair<String,String>,NucSeq> {
     check(commands.size > 0) { "Error:  No commands sent to queryAgc!" }
     myLogger.info("queryAgc: Running Agc Command:\n${commands.joinToString(" ")}")
 
@@ -247,30 +262,44 @@ fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
     // It is the same if we give a region for the chrom, e.g. 1@LineA:1-1000 and 1@LineB:1-1000,
     // we will get the same idline multiple times.
     val chromNucSeqMap = HashMap<String, NucSeq>()
-    val nucSeqRecs = mutableListOf<NucSeqRecord>()
-    val chromGenomeNucSeqMap = HashMap<Pair<String,String>,NucSeq>()
+    val genomeChromNucSeq = HashMap<Pair<String,String>,NucSeq>()
     try {
         agcOut.bufferedReader().use { br ->
             var currChrom = "-1"
             var currSeq = ByteArrayOutputStream()
             var currGenome = "-1"
+            var currRange = ""
             var line = br.readLine()
             while (line != null) {
-
                 line = line.trim()
                 if (line.startsWith(">")) {
                     if (currChrom != "-1") {
                         // finished with this chromosome's sequence
-                        myLogger.info("fastaToNucSeq: finished chrom $currChrom for genome $currGenome")
+                        myLogger.info("queryAgc: finished chrom $currChrom for genome $currGenome")
                         chromNucSeqMap[currChrom] = NucSeq(currSeq.toString())
-                        nucSeqRecs.add(NucSeqRecord(NucSeq(currSeq.toString()), currChrom, currGenome))
-                        chromGenomeNucSeqMap.put(Pair(currChrom,currGenome),NucSeq(currSeq.toString()))
+                        println("agcQuery: line 265 - currGenome: $currGenome, currChrom: $currChrom")
+                        val chromPlusRange = if (currRange == "") currChrom else "${currChrom}:${currRange}"
+                        genomeChromNucSeq.put(Pair(currGenome,chromPlusRange),NucSeq(currSeq.toString()))
                     }
                     // reset chromosome name and sequence, begin processing next chrom
                     currChrom = line.substring(1).split(" ")[0]
+
                     val genomeStart = line.indexOf("sampleName=")
-                    val genomeEnd = line.indexOf(" ", genomeStart)
-                    currGenome = line.substring(genomeStart+11, genomeEnd)
+                    if (genomeStart < 0) {
+                        // This is an error as we need the sampleName to map the genome to the
+                        // samplename/genome in the VCF files.
+                        myLogger.error("queryAgc: Error:  No sampleName= found in idline: returned from AGC query.")
+                        myLogger.error("Please run the AnnotateFastas command to add sampleName to your fasta files.")
+                        myLogger.error("This is necessary to associate the VCF samples with the AGC compressed genomes.")
+                        throw IllegalStateException("Error:  No sampleName found in idline: $line")
+                    }
+                    // indexof gives the index from the start of the string, but it starts looking
+                    // from where you tell it to look, in this case, from "genomeStart"
+                    val sampleNameEnd = if (line.indexOf(":", genomeStart) > 0) line.indexOf(":", genomeStart) else line.length
+
+                    currRange = if (sampleNameEnd == line.length ) "" else line.substring(sampleNameEnd+1)
+                    // genomeStart is the start of "sampleName="  We add 11 to get past this to the actual samplename
+                    currGenome = line.substring(genomeStart+11, sampleNameEnd)
 
                     currSeq = ByteArrayOutputStream()
                 } else {
@@ -281,8 +310,9 @@ fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
             if (currSeq.size() > 0) {
                 myLogger.info("queryAgc: finished chrom $currChrom")
                 chromNucSeqMap[currChrom] = NucSeq(currSeq.toString())
-                nucSeqRecs.add(NucSeqRecord(NucSeq(currSeq.toString()), currChrom, currGenome))
-                chromGenomeNucSeqMap.put(Pair(currChrom,currGenome),NucSeq(currSeq.toString()))
+                val chromPlusRange = if (currRange == "") currChrom else "${currChrom}:${currRange}"
+                println("agcQuery: line 301 - currGenome: $currGenome, currChrom: $currChrom")
+                genomeChromNucSeq.put(Pair(currGenome,chromPlusRange),NucSeq(currSeq.toString()))
             }
         }
     } catch (exc:Exception) {
@@ -297,8 +327,7 @@ fun queryAgc(commands:Array<String>):Map<String, NucSeq> {
         myLogger.error("queryAgc: errors found in errorStream: ${errors.size}")
         throw IllegalArgumentException("Error running AGC command: ${commands.joinToString(" ")}\nError: $errors")
     }
-    val sortedRecs = nucSeqRecs.sortedWith(SeqRecordSorts.alphaSort)
     // For parsing purposes by the calling function, I believe a map is better than a list
-    // so will instead put this into a Map<Pair<String,String?,NucSeq>
-    return chromNucSeqMap
+    // so will instead put this into a Map<Pair<String,String>NucSeq>
+    return genomeChromNucSeq
 }
