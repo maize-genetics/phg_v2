@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.utils
 import biokotlin.genome.fastaToNucSeq
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.cli.AgcCompress
+import net.maizegenetics.phgv2.cli.CreateMafVcf
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.cli.TestExtension.Companion.testOutputFastaDir
 import org.junit.jupiter.api.AfterAll
@@ -121,15 +122,30 @@ class SeqUtilsTest {
 
     @Test
     fun testRetrieveAgcContigsNoSampleName() {
-        // This tests the function retrieveAgcContigs.  retrieveAgcContigs() calls buildAgcCommandFromList() and
-        // and then queryAgc() to get the data from the agc compressed file.  The data is returned as a
-        // Map<String,NucSeq> where "String" is idline from the AGC created fasta, and NucSeq is the sequence.
+        //TODO - LCJ, fix this up, test no sampleName in idline
+        //This test is to verify queryAgc() throws an exception when there is no "sampleName=" in the idline
+        // AgcCompress() will take the file, but we will have problems processing queries related to
+        // that assembly in phg_v2
+        val fastaCreateFileNamesFile = "data/test/agcTestBad/fastaCreateFileNames.txt"
+        val dbPath = TestExtension.tempDir
+        val refFasta = "data/test/smallseq/B73.fa"
 
-        val dbPath = "${TestExtension.testTileDBURI}" // just the path, code appends "assemblies.agc"
-        var rangeList = mutableListOf<String>()
-        val range1 = "1@LineA:0-19" // AGC queries are 0-based !!
+        val agcCompress = AgcCompress()
+        // Create the initial compressed file
+        val agcCompressResult = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
+
+        val rangeList = mutableListOf<String>()
+        val range1 = "1@LineA_noSN:0-19" // AGC queries are 0-based !!
         rangeList.add(range1)
-        var agcResult = retrieveAgcContigs(dbPath, rangeList)
+        // Verify an exception is thrown when the idline does not contain "sampleName="
+
+        assertThrows<IllegalStateException> {
+            //Check that an error is thrown when the idline does not contain "sampleName="
+            // THis is thrown when we process the data returned from the agc command
+            var agcResult = retrieveAgcContigs(dbPath, rangeList)
+        }
+
+
     }
 
     @Test
