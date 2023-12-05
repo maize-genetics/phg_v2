@@ -4,12 +4,15 @@ import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.long
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.apache.logging.log4j.LogManager
@@ -38,6 +41,13 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
     private val myLogger = LogManager.getLogger(BuildKmerIndex::class.java)
 
+    val tiledbPath by option(help = "Tile DB URI")
+        .default("")
+
+    val agcPath by option(help = "AGC fasta DB URI")
+        .required()
+
+
     val maxHaplotypeProportion by option("-p", "--maxHapProportion", help = "only kmers mapping to less than or " +
             "equal to maxHapProportion of haplotypes in a reference range will be retained.")
         .double()
@@ -63,12 +73,13 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
     }
 
     private fun buildHaplotypeGraph(): HaplotypeGraph {
+        require(hvcfDir.isNotBlank() or tiledbPath.isNotBlank()) {"Either of --tiledb-path or --agc-path must be provided."}
         val timedValue = measureTimedValue {
             if(hvcfDir != "") {
                 val pathList = File(hvcfDir).listFiles { file -> file.extension == "vcf" || file.name.endsWith("vcf.gz") }.map { it.path }
                 HaplotypeGraph(pathList)
             }
-            else   {
+            else {
                 //Load in the TileDB
                 TODO("TileDB VCF Reader Not implemented yet.  Please run with --hvcf-dir")
             }
@@ -86,8 +97,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * This returns a HashMap of hash -> hapid list for all the kmers in the keep set.
      * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
      */
-    fun processGraphKmersSinglePass() : Long2ObjectOpenHashMap<Set<Int>> {
-        val keepMap = Long2ObjectOpenHashMap<Set<Int>>()
+    fun processGraphKmers() : Long2ObjectOpenHashMap<Set<String>> {
+        val keepMap = Long2ObjectOpenHashMap<Set<String>>()
         val discardSet = LongOpenHashSet()
         var rangeCount = 0
         val graph = buildHaplotypeGraph()
@@ -103,12 +114,29 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
             //create a map of hash -> count of occurrences for all the haplotypes in this reference range
             //retrieveAgcContigs needs a list of contig@genome:start-end, for all of the regions in the haplotype alt headers
-            val agcRangeList = graph.altHeaderMap.entries.map { (hapid, alt) ->
-
+            //subtract 1 from altHeader positions because AGC positions are 0-based.
+            //also need a map of source -> hapid in order to associate sequence from agc to the hapid that it came from
+            val agcRangeList = mutableListOf<String>()
+            val sourceHapidMap = mutableMapOf<String, String>()
+            for ((hapid, alt) in graph.altHeaderMap.entries) {
+                //mapping source name to hapid assumes there is only one hapid per source in a reference range
+                //this seems safe, but it is being checked here just in case
+                check(sourceHapidMap.contains(alt.source)) {"Two hapids from ${alt.source} at ${alt.regions[0].first.position}"}
+                sourceHapidMap[alt.source] = hapid
+                for (range in alt.regions) {
+                    if (range.first.position <= range.second.position) {
+                        agcRangeList.add("${range.first.contig}@${alt.source}:${range.first.position - 1}-${range.second.position - 1}")
+                    } else {
+                        agcRangeList.add("${range.first.contig}@${alt.source}:${range.second.position - 1}-${range.first.position - 1}")
+                    }
+                }
             }
 
-            val seqdata = retrieveAgcContigs()
-            val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(graph.nodes(refrange))
+            val agcdataMap = retrieveAgcContigs(agcPath, agcRangeList)
+            //TODO method to get source name from the agcdataMap keys
+            val hapidSeqMap = agcdataMap.entries.map { (agcid, seq) -> }
+
+            val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidSeqMap)
 
             for (hashCount in kmerHashCounts.entries) {
                 val hashValue = hashCount.key
@@ -147,44 +175,47 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * One for the hash counts and one for a hash to a list of hapIds which contain that hash.
      * The sequenceList input is a map of hapidId -> list of sequences
      */
-    private fun countKmerHashesForHaplotypeSequence(sequenceList: Map<String, List<String>>) : Pair<Map<Long,Int>,Map<Long,Set<Int>>> {
+    private fun countKmerHashesForHaplotypeSequence(sequenceMap: Map<String, List<String>>) : Pair<Map<Long,Int>,Map<Long,Set<String>>> {
         //start by splitting sequence into subsequences without N's
         val mapOfHashes = Long2IntOpenHashMap()
-        val mapOfHapIds = Long2ObjectOpenHashMap<MutableSet<Int>>()
+        val mapOfHapIds = Long2ObjectOpenHashMap<MutableSet<String>>()
 
-        for (sequence in sequenceList) {
-            //split sequence on N's then filter on length > 31
-            val splitList = sequence
-                .split("N+".toRegex())
-                .filter{it.length > 31}
-            for (sequence in splitList) {
-                var previousHash = Pair(0L, 0L)
+        for ((hapid, seqList) in sequenceMap) {
+            for (sequence in seqList) {
+                val splitList = sequence
+                    .split("N+".toRegex())
+                    .filter{it.length > 31}
+                for (sequence in splitList) {
+                    var previousHash = Pair(0L, 0L)
 
-                //for first 31 nucleotides just update the hash
-                for (nucleotide in sequence.subSequence(0..30)) {
-                    previousHash = updateKmerHashAndReverseCompliment(previousHash, nucleotide)
-                }
+                    //for first 31 nucleotides just update the hash
+                    for (nucleotide in sequence.subSequence(0..30)) {
+                        previousHash = updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+                    }
 
-                //start using kmers starting with the 32nd nucleotide
-                for (nucleotide in sequence.subSequence(31 until sequence.length)) {
-                    previousHash = updateKmerHashAndReverseCompliment(previousHash, nucleotide)
-                    val minHash = min(previousHash.first, previousHash.second)
-                    // Use only kmers with a specific ending nucleotide(s)
-                    // hashMask determines how many positions will be used
-                    // hashFilterValue determines which nucleotide will be kept at that position
-                    //at this point the hash value, which is a ULong, must be converted to a Long in order to make
-                    //use of the fastutils Long2IntOpenHashMap
-                    if ((minHash and hashMask) == hashFilterValue) {
-                        mapOfHashes.addTo(minHash,1)
-                        if(mapOfHapIds.containsKey(minHash)) {
-                            mapOfHapIds[minHash].add(node.id())
-                        }
-                        else {
-                            mapOfHapIds[minHash] = mutableSetOf(node.id())
+                    //start using kmers starting with the 32nd nucleotide
+                    for (nucleotide in sequence.subSequence(31 until sequence.length)) {
+                        previousHash = updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+                        val minHash = min(previousHash.first, previousHash.second)
+                        // Use only kmers with a specific ending nucleotide(s)
+                        // hashMask determines how many positions will be used
+                        // hashFilterValue determines which nucleotide will be kept at that position
+                        //at this point the hash value, which is a ULong, must be converted to a Long in order to make
+                        //use of the fastutils Long2IntOpenHashMap
+                        if ((minHash and hashMask) == hashFilterValue) {
+                            mapOfHashes.addTo(minHash,1)
+                            if(mapOfHapIds.containsKey(minHash)) {
+                                mapOfHapIds[minHash].add(hapid)
+                            }
+                            else {
+                                mapOfHapIds[minHash] = mutableSetOf(hapid)
+                            }
                         }
                     }
                 }
             }
+            //split sequence on N's then filter on length > 31
+
         }
         return Pair(mapOfHashes,mapOfHapIds)
     }
