@@ -56,7 +56,6 @@ class SeqUtilsTest {
 
             val refFasta = File(fastaOutputDir, "Ref.fa").toString()
 
-            // TODO repeat this:  must do it twice, once for an assemblies.agc that does not
             // contain fastas with the sampleName, and once when it does contain the sampleName
             val agcCompress = AgcCompress()
             // Create the initial compressed file
@@ -122,7 +121,6 @@ class SeqUtilsTest {
 
     @Test
     fun testRetrieveAgcContigsNoSampleName() {
-        //TODO - LCJ, fix this up, test no sampleName in idline
         //This test is to verify queryAgc() throws an exception when there is no "sampleName=" in the idline
         // AgcCompress() will take the file, but we will have problems processing queries related to
         // that assembly in phg_v2
@@ -144,7 +142,6 @@ class SeqUtilsTest {
             // THis is thrown when we process the data returned from the agc command
             var agcResult = retrieveAgcContigs(dbPath, rangeList)
         }
-
 
     }
 
