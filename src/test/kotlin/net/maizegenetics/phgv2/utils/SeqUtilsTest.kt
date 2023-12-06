@@ -126,11 +126,14 @@ class SeqUtilsTest {
         // that assembly in phg_v2
         val fastaCreateFileNamesFile = "data/test/agcTestBad/fastaCreateFileNames.txt"
         val dbPath = TestExtension.tempDir
-        val refFasta = "data/test/smallseq/B73.fa"
+        val refFasta = "data/test/smallseq/Ref.fa"
 
         val agcCompress = AgcCompress()
         // Create the initial compressed file
         val agcCompressResult = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
+
+        // verify agcCompressResult
+        assertEquals(0, agcCompressResult.statusCode)
 
         val rangeList = mutableListOf<String>()
         val range1 = "1@LineA_noSN:0-19" // AGC queries are 0-based !!
