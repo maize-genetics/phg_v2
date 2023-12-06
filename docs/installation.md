@@ -51,6 +51,10 @@ package manager, [Miniconda](https://conda.io/miniconda.html).
 > This has currently been tested on _Fedora_- and 
 > _Debian_-derived Unix systems
 
+> [!NOTE]
+> AnchorWave is currently not supported on Windows. 
+> [See AnchorWave documentation for further details](https://github.com/baoxingsong/AnchorWave#installation).
+
 
 ## Get PHGv2
 You can download the latest version of PHGv2 
@@ -65,7 +69,7 @@ curl -s https://api.github.com/repos/maize-genetics/phg_v2/releases/latest \
 | awk -F': ' '/browser_download_url/ && /\.tar/ {gsub(/"/, "", $(NF)); system("curl -LO " $(NF))}'
 ```
 
-Once downloaded, simple untar the release using:
+Once downloaded, untar the release using:
 ```
 tar -xvf <PHGv2_release>.tar
 ```
@@ -119,7 +123,7 @@ the following command:
 
 > [!NOTE]
 > This assumes that you have added `phg` to your `PATH` using the
-> above example or you are within the `bin` subdirectory.
+> above example, or you are within the `bin` subdirectory.
 
 This should output summary text to the terminal including syntax
 help and a list of subcommands and descriptions.

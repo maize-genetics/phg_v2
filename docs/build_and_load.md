@@ -257,7 +257,7 @@ In the above example, I am using test data from the
 [PHGv2 GitHub repository](https://github.com/maize-genetics/phg_v2/tree/main/data/test/smallseq).
 After the command is finished, we have produced a BED file (which
 in my case, is located in a subdirectory labelled `output`). This BED 
-file contains 4 columns of information:
+file contains 6 columns of information:
 
 | Column | Value               |
 |--------|---------------------|
@@ -265,6 +265,15 @@ file contains 4 columns of information:
 | `2`    | Start position (bp) |
 | `3`    | End position (bp)   |
 | `4`    | Range id            |
+| `5`    | Score (always `0`)  |
+| `6`    | Strand information  |
+
+> [!NOTE]
+> Column `4` will either be gene or cds name depending on the boundary
+> input.  If regions overlapped and were merged, the name is a comma 
+> separated string of all the genes/CDS features included in this BED 
+> region.
+
 
 
 ### Align assemblies
