@@ -14,6 +14,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap
 import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.apache.logging.log4j.LogManager
 import java.io.File
@@ -70,6 +71,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
     override fun run() {
 
         TODO("Not yet implemented")
+
+        //write index to hvcfDir
     }
 
     private fun buildHaplotypeGraph(): HaplotypeGraph {
@@ -98,7 +101,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
      */
     fun processGraphKmers() : Long2ObjectOpenHashMap<Set<String>> {
+        //keepMap is a map of hash -> Set of haplotype ids
         val keepMap = Long2ObjectOpenHashMap<Set<String>>()
+        //discardSet is a Set of hashes
         val discardSet = LongOpenHashSet()
         var rangeCount = 0
         val graph = buildHaplotypeGraph()
@@ -133,8 +138,11 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             }
 
             val agcdataMap = retrieveAgcContigs(agcPath, agcRangeList)
-            //TODO method to get source name from the agcdataMap keys
-            val hapidSeqMap = agcdataMap.entries.map { (agcid, seq) -> }
+            //TODO method to get source name from the agcdataMap
+            //the value is a NucSeqRec with id = contig and name=source
+            //hapidSeqMap is a map of hapid -> list of sequences
+            //get hapid using sourceHapidMap[NucSeqRec.name]
+            val hapidSeqMap = agcdataMap.entries.map { (agcid, seqrec) -> }
 
             val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidSeqMap)
 
@@ -221,12 +229,15 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
     }
 
     /**
-     * Function to save the kmer hash map to the specified file.  If writeToDB is set to true it will also update the haplotype list ID.
+     * Function to save the kmer hash map to the specified file.
      */
-    fun saveKmerHashesAndHapids(filePath: String, kmerMapToHapIds: Long2ObjectOpenHashMap<Set<Int>>, writeToDb: Boolean = true) {
-        //TODO replace next two lines after graph (interface?) is finished
-        val refRangeToHapidMap = getRefRangeToHapidMap(graph)
-        val hapIdToRefRangeMap = graph.referenceRanges().flatMap { graph.nodes(it) }.map { Pair(it.id(),it.referenceRange().id()) }.toMap()
+    fun saveKmerHashesAndHapids(graph: HaplotypeGraph, filePath: String, kmerMapToHapIds: Long2ObjectOpenHashMap<Set<String>>) {
+        val refRangeToHapidMap = graph.ranges().associateWith { graph.hapIdToSamples(it).keys.toList() }
+
+        val hapIdToRefRangeMap = mutableMapOf<String, ReferenceRange>()
+        for ((range, hapidList) in refRangeToHapidMap) {
+            for (hapid in hapidList) hapIdToRefRangeMap[hapid] = range
+        }
 
         //Walk through the map and associate kmerLongs with specific referenceRanges
         val refRangeToKmerSetMap = mutableMapOf<Int,MutableSet<Long>>()
@@ -241,15 +252,15 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             }
         }
 
-//TODO replace haplotypeListId with something that allows the graph to be stored
-        val haplotypeListId = if(writeToDb) {
-            PHGdbAccess(DBLoadingUtils.connection(false)).use { phgdb ->
-                getHaplotypeListIdForGraph(graph, phgdb)
-            }
-        }
-        else {
-            -1
-        }
+// graph persistence not needed for now, will write index to hvcfDir
+//        val haplotypeListId = if(writeToDb) {
+//            PHGdbAccess(DBLoadingUtils.connection(false)).use { phgdb ->
+//                getHaplotypeListIdForGraph(graph, phgdb)
+//            }
+//        }
+//        else {
+//            -1
+//        }
 
 
         var rangeCount = 0
