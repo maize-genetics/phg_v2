@@ -118,8 +118,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
 
     /**
      * Function to create haplotype Sequences for each of the haplotype variants in the hvcf
-     * TODO LCJ - determine how sampleName is used here.
-     * hmmm - because it is passed in, I think we assume all in this function are related to the same sample
+     * Currently, sampleName is from a single HVCF file, and is the sample from which the haplotype sequences will be
+     * extracted.
      */
     fun createHaplotypeSequences(dbPath:String, sampleName: String, haplotypeVariants: List<VariantContext>, altHeaders: Map<String, AltHeaderMetaData>): List<HaplotypeSequence> {
         val rangesAndOtherInfo = haplotypeVariants.filter { it.hasGenotype(sampleName) }.map {
@@ -155,7 +155,10 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
 
     /**
      * Function to build the haplotype sequence based on the list of display regions and the given haplotype sequence object.
-     * The sequence is already extracted out of AGC and stored in the seqs map.
+     * The sequence has already extracted out of AGC and stored in the seqs map.
+     * The incoming "seqs" parameter has the key as a Pair(sampleName,displayRegion), where display region could
+     * be just a contig, or a contig with ranges:  e.g. "chr1" or "chr1:100-200".  SampleName is the sample from which
+     * the sequence was extracted.
      */
     fun buildHapSeq(seqs: Map<Pair<String,String>,NucSeq> , sampleName: String, displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
         val hapSeqRegions = hapSeqObjects.asmRegions
