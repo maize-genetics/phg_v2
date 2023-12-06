@@ -90,7 +90,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
 
     val totalThreads by option(help = "Number of threads available.  These will be split among the alginments that are run in parallel")
         .int()
-        .default(1)
+        .default(0)
 
     val inParallel by option(
         help = "Number of assemblies to simultaneously process. " +
@@ -99,7 +99,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
                 "Consider this memory factor when providing values for the total-threads and in-parallel."
     )
         .int()
-        .default(1)
+        .default(0)
 
     val refMaxAlignCov by option(help = "Anchorwave proali parameter R, indicating reference genome maximum alignment coverage.")
         .int()
@@ -118,6 +118,12 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
     )
 
     override fun run() {
+
+        val threadsAndRuns = calculatedNumThreadsAndRuns(totalThreads, inParallel, assemblies)
+        val freeMemory = Runtime.getRuntime().freeMemory()
+        val processors = Runtime.getRuntime().availableProcessors()
+
+        println("freeMemory: $freeMemory, processors: $processors")
 
         // create CDS fasta from reference and gff3 file
         val cdsFasta = "$outputDir/ref.cds.fasta"
@@ -154,6 +160,62 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
 
     }
 
+    fun calculatedNumThreadsAndRuns(totalThreads:Int, inParallel:Int, assemblies:String): Pair<Int, Int> {
+        // If totalThreads or inParallel are 0, it means the user did not specify them
+        // In that case we calculate these values based on the number of processors available
+        // and the amount of free memory available.
+        val freeMemory = Runtime.getRuntime().freeMemory()
+        val processors = if (totalThreads > 0) totalThreads else Runtime.getRuntime().availableProcessors()
+
+        // If the user did not specify the number of threads to use, we will use all available
+        // processors.  If the user did specify the number of threads, we will use that number
+        // of threads, but we will not exceed the number of processors available.
+        val totalThreadsToUse = if (totalThreads > 0) {
+            if (totalThreads > processors) {
+                myLogger.warn("The number of threads specified ($totalThreads) exceeds the number of processors available ($processors).  Using $processors threads.")
+                processors
+            } else {
+                totalThreads
+            }
+        } else {
+            processors
+        }
+
+        // Per Baoxing's chart, it takes just over 20G/thread to run anchorwave
+        // THe number of threads that can be run simultaneously is limited by the amount of
+        // free memory available.  We will use 21G/thread as the memory requirement, and
+        // calculate the number of threads that can be run simultaneously based on the
+        // amount of free memory available.
+
+        val totalConcurrentThreads = (freeMemory / 21e9).toInt()
+
+        // Now that we know how many threads can be run concurrently, we need to
+        // determine how many parallel alignments to do, and how many threads each
+        // one gets.  If the user specified the number of parallel alignments to do,
+        // we will use that number.
+
+        val numAssemblies = File(assemblies).readLines().filter { it.isNotBlank() }.size
+        // This needs to return a Pair<Int, Int> where the first value is the number of runs, the seconds is threadsPerRun
+        val runsAndThreads = if (inParallel > 0) {
+            if (inParallel > totalConcurrentThreads) {
+                myLogger.warn("The number of parallel alignments specified ($inParallel) exceeds the number of threads that can be run concurrently ($totalConcurrentThreads).  Using $totalConcurrentThreads threads.")
+                Pair(totalConcurrentThreads, 1)
+            } else {
+                Pair(inParallel, totalConcurrentThreads / inParallel)
+            }
+        } else {
+            // Need to do calcuations here to determine the best value
+            maximizeRunsAndThreads(totalConcurrentThreads, numAssemblies)
+        }
+        return runsAndThreads
+    }
+
+    fun maximizeRunsAndThreads(totalConcurrentThreads:Int, numAssemblies:Int): Pair<Int, Int> {
+        // This needs to return a Pair<Int, Int> where the first value is the number of runs, the seconds is threadsPerRun
+
+        // TODO - determine how this works!
+        return Pair(1, 1) // this is fake!
+    }
     private fun createCDSfromRefData(refFasta: String, gffFile: String, cdsFasta: String, outputDir: String): Boolean {
 
         // val command = "anchorwave gff2seq -r ${refFasta} -i ${gffFile} -o ${cdsFasta} "
