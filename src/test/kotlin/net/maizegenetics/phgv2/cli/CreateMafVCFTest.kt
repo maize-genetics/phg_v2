@@ -697,7 +697,7 @@ class CreateMafVCFTest {
         //Make a variant context based on this:
 //        Chromosome04	35920437	.	C	<NON_REF>	.	.	ASM_Chr=chr8;ASM_End=4514;ASM_Start=14076;ASM_Strand=-;END=35929999	GT:AD:DP:PL	0:30,0:30:0,90,90
 
-        //Need to have reveresed asm coords because that is how it looks with GVCFs coming from Biokotlin
+        //Need to have reversed asm coords because that is how it looks with GVCFs coming from Biokotlin
         val refBlockVariant = createRefRangeVC(mapOf("Chromosome04" to NucSeq("A".repeat(35929999))),"cassava_test",
             Position("Chromosome04",35920437), Position("Chromosome04",35929999),
             Position("chr8",14076), Position("chr8",4514))
