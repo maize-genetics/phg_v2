@@ -397,10 +397,10 @@ class CreateFastaFromHvcfTest {
 
         val region = listOf("1:0-49","1:59-99")
 
-        val extractedSeqs = mapOf<String,NucSeq>("1:0-49" to seqs["1"]!![0..49],
-            "1:59-99" to seqs["1"]!![59 .. 99])
+        val extractedSeqs = mapOf<Pair<String,String>,NucSeq>(Pair("Ref","1:0-49") to seqs["1"]!![0..49],
+            Pair("Ref","1:59-99") to seqs["1"]!![59 .. 99])
 
-        val hapSeq = createFastaFromHvcf.buildHapSeq(extractedSeqs, region, firstHapSeq)
+        val hapSeq = createFastaFromHvcf.buildHapSeq(extractedSeqs, "Ref",region, firstHapSeq)
         assertEquals(91, hapSeq.length)
         assertEquals(extractedSeqs.values.joinToString("") { it.seq() }, hapSeq)
 
@@ -411,10 +411,10 @@ class CreateFastaFromHvcfTest {
 
         val region2 = listOf("1:49-0","1:59-99")
 
-        val extractedSeqs2 = mapOf<String,NucSeq>("1:49-0" to seqs["1"]!![0..49],
-            "1:59-99" to seqs["1"]!![59 .. 99])
+        val extractedSeqs2 = mapOf<Pair<String,String>,NucSeq>(Pair("Ref","1:49-0") to seqs["1"]!![0..49],
+            Pair("Ref","1:59-99") to seqs["1"]!![59 .. 99])
 
-        val hapSeq2 = createFastaFromHvcf.buildHapSeq(extractedSeqs2, region2, secondHapSeq)
+        val hapSeq2 = createFastaFromHvcf.buildHapSeq(extractedSeqs2, "Ref",region2, secondHapSeq)
         assertEquals(91, hapSeq2.length)
         assertEquals(extractedSeqs2.values.joinToString("") { it.reverse_complement().seq() }, hapSeq2)
 
@@ -426,12 +426,12 @@ class CreateFastaFromHvcfTest {
 
         val region3 = listOf("1:0-49","1:59-99")
 
-        val extractedSeqs3 = mapOf<String,NucSeq>("1:0-49" to seqs["1"]!![0..49],
-            "1:59-99" to seqs["1"]!![59 .. 99])
+        val extractedSeqs3 = mapOf<Pair<String,String>,NucSeq>(Pair("Ref","1:0-49") to seqs["1"]!![0..49],
+            Pair("Ref","1:59-99") to seqs["1"]!![59 .. 99])
 
-        val hapSeq3 = createFastaFromHvcf.buildHapSeq(extractedSeqs3, region3, thirdHapSeq)
+        val hapSeq3 = createFastaFromHvcf.buildHapSeq(extractedSeqs3, "Ref",region3, thirdHapSeq)
         assertEquals(91, hapSeq3.length)
-        val expectedSeq = extractedSeqs3["1:0-49"]!!.seq() + extractedSeqs3["1:59-99"]!!.reverse_complement().seq()
+        val expectedSeq = extractedSeqs3[Pair("Ref","1:0-49")]!!.seq() + extractedSeqs3[Pair("Ref","1:59-99")]!!.reverse_complement().seq()
         assertEquals(expectedSeq, hapSeq3)
 
     }
