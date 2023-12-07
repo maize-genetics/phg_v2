@@ -1,7 +1,6 @@
 package net.maizegenetics.phgv2.api
 
 import net.maizegenetics.phgv2.cli.TestExtension
-import net.maizegenetics.phgv2.utils.Sizeof
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.test.assertEquals
@@ -44,8 +43,6 @@ class HaplotypeGraphTest {
                 println("$hapId: ${samples.joinToString(", ")}")
             }
         }
-
-        Sizeof.printMemoryUse()
 
     }
 
