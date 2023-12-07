@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.utils
 import biokotlin.genome.fastaToNucSeq
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.cli.AgcCompress
+import net.maizegenetics.phgv2.cli.CreateMafVcf
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.cli.TestExtension.Companion.testOutputFastaDir
 import org.junit.jupiter.api.AfterAll
@@ -55,6 +56,7 @@ class SeqUtilsTest {
 
             val refFasta = File(fastaOutputDir, "Ref.fa").toString()
 
+            // contain fastas with the sampleName, and once when it does contain the sampleName
             val agcCompress = AgcCompress()
             // Create the initial compressed file
             println("Calling agcCompress for CREATE")
@@ -118,6 +120,35 @@ class SeqUtilsTest {
     }
 
     @Test
+    fun testRetrieveAgcContigsNoSampleName() {
+        //This test is to verify queryAgc() throws an exception when there is no "sampleName=" in the idline
+        // AgcCompress() will take the file, but we will have problems processing queries related to
+        // that assembly in phg_v2
+        val fastaCreateFileNamesFile = "data/test/agcTestBad/fastaCreateFileNames.txt"
+        val dbPath = TestExtension.tempDir
+        val refFasta = "data/test/smallseq/Ref.fa"
+
+        val agcCompress = AgcCompress()
+        // Create the initial compressed file
+        val agcCompressResult = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
+
+        // verify agcCompressResult
+        assertEquals(0, agcCompressResult.statusCode)
+
+        val rangeList = mutableListOf<String>()
+        val range1 = "1@LineA_noSN:0-19" // AGC queries are 0-based !!
+        rangeList.add(range1)
+        // Verify an exception is thrown when the idline does not contain "sampleName="
+
+        assertThrows<IllegalStateException> {
+            //Check that an error is thrown when the idline does not contain "sampleName="
+            // THis is thrown when we process the data returned from the agc command
+            var agcResult = retrieveAgcContigs(dbPath, rangeList)
+        }
+
+    }
+
+    @Test
     fun testRetrieveAgcContigs() {
         // This tests the function retrieveAgcContigs.  retrieveAgcContigs() calls buildAgcCommandFromList() and
         // and then queryAgc() to get the data from the agc compressed file.  The data is returned as a
@@ -133,7 +164,8 @@ class SeqUtilsTest {
         assertEquals(1, agcResult.size)
         assertEquals(1, agcResult.keys.size)
         // verify the key as "1:0-19".  The genome is not included in AGC's id line
-        assertEquals("1:0-19", agcResult.keys.first())
+        //assertEquals("1:0-19", agcResult.keys.first())
+        assertEquals(Pair("LineA","1:0-19"), agcResult.keys.first())
         // verify the sequence - this is copied from LineA:1-20 in the fasta file
         assertEquals("GCGCGGGGACCGAGAAACCC", agcResult.values.first().toString())
 
@@ -150,15 +182,16 @@ class SeqUtilsTest {
 
         // This is a map, the keys will not be in any specific order, so verify
         // that each key exists in the list of expected keys
-        val keyList = mutableListOf<String>("1:0-19", "1:20-39", "1:40-59")
+        //val keyList = mutableListOf<String>("1:0-19", "1:20-39", "1:40-59")
+        val keyList = mutableListOf<Pair<String,String>>(Pair("LineA","1:0-19"), Pair("LineA","1:20-39"), Pair("LineA","1:40-59"))
         // verify the map returned contains all keys from the keyList
         assertTrue(agcResult.keys.containsAll(keyList))
 
         // verify the sequences: these are copied from LineA:1-20, LineA:21-40, and LineA:41-60 in the fasta file
         // used in the setup() function
-        assertEquals("GCGCGGGGACCGAGAAACCC", agcResult["1:0-19"].toString())
-        assertEquals("GGCGGGGCAGGACGAACCGG", agcResult["1:20-39"].toString())
-        assertEquals("GCGAGAACGGACAACCCCCC", agcResult["1:40-59"].toString())
+        assertEquals("GCGCGGGGACCGAGAAACCC", agcResult[Pair("LineA","1:0-19")].toString())
+        assertEquals("GGCGGGGCAGGACGAACCGG", agcResult[Pair("LineA","1:20-39")].toString())
+        assertEquals("GCGAGAACGGACAACCCCCC", agcResult[Pair("LineA","1:40-59")].toString())
 
     }
 
@@ -183,8 +216,8 @@ class SeqUtilsTest {
 
         // Verify that agcResult contains the same sequences as the fasta file for the 2 chromosomes
         // Might have to deal with newlines in the sequences stored in LineA.fa
-        assertEquals(lineA["1"]!!.toString(), agcResult["1"]!!.toString())
-        assertEquals(lineA["2"]!!.toString(), agcResult["2"]!!.toString())
+        assertEquals(lineA["1"]!!.toString(), agcResult[Pair("LineA","1")]!!.toString())
+        assertEquals(lineA["2"]!!.toString(), agcResult[Pair("LineA","2")]!!.toString())
     }
 
     @Test
@@ -249,19 +282,23 @@ class SeqUtilsTest {
         val lineA = fastaToNucSeq(fastaFile)
 
         // Check the sequences match
-        assertEquals(lineA["1"]!!.toString(), agcResult["1"]!!.toString())
-        assertEquals(lineA["2"]!!.toString(), agcResult["2"]!!.toString())
+        assertEquals(lineA["1"]!!.toString(), agcResult[Pair("LineA","1")]!!.toString())
+        assertEquals(lineA["2"]!!.toString(), agcResult[Pair("LineA","2")]!!.toString())
 
-        // try again with 2 genomes on the list.  This is probablematic
-        // because AGC does not incldue genome names in the idlines, and
-        // because LineA and LineC have the same chromosome names, the
-        // Map<String,NucSeq> values are overwritten for each chromosome.
-        // This test is here to remind us of this issue.
+        // try again with 2 genomes on the list.  This should now work
+        // as we have updated the idline to contain the samplename
         val gn2 ="LineC"
         genomeList.add(gn2)
         agcResult = retrieveAgcGenomes(dbPath, genomeList)
-        assertEquals(2, agcResult.size)
-        assertEquals(2, agcResult.keys.size)
+        assertEquals(4, agcResult.size)
+        assertEquals(4, agcResult.keys.size)
+
+        //TODO LCJ - add test to verify the genome names are included in the results
+        val keys = agcResult.keys
+        assertTrue(keys.contains(Pair("LineA","1")))
+        assertTrue(keys.contains(Pair("LineA","2")))
+        assertTrue(keys.contains(Pair("LineC","1")))
+        assertTrue(keys.contains(Pair("LineC","2")))
     }
 
     @Test
@@ -318,12 +355,13 @@ class SeqUtilsTest {
 
         println("Results from agcResult")
         for (entry in agcResult) {
-            println("entry =${entry}LCJ")
+            println("entry =${entry}")
         }
-        // Verify agcResult contains the entry"LineA:1,2"
-        assertTrue(agcResult.contains("LineA:1,2"))
-        // Verify agcResult contains the entry"LineB:1,2"
-        assertTrue(agcResult.contains("LineB:1,2"))
+        // Verify agcResult contains the entry"LineA:1 sampleName=LineA,2 sampleName=LineA"
+        // Remember - AGC returns the full idLine, including all comments
+        assertTrue(agcResult.contains("LineA:1 sampleName=LineA,2 sampleName=LineA"))
+        // Verify agcResult contains the entry"LineB:1 sampleName=LineB,2 sampleName=LineB"
+        assertTrue(agcResult.contains("LineB:1 sampleName=LineB,2 sampleName=LineB"))
 
     }
 }

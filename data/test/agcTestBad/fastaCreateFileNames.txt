@@ -1,0 +1,1 @@
+data/test/agcTestBad/LineA_noSN.fa
