@@ -23,9 +23,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     private lateinit var sampleNameToIdMap: Map<String, Int>
     private lateinit var sampleNames: Array<String>
 
-    // seqHash[refRangeId][sampleID] -> checksum / hapid
+    // rangeByGameteIdToHapid[refRangeId][sampleId][gameteID] -> checksum / hapid
     // jagged array because different number of haplotypes for each refRange
-    private lateinit var rangeToSampleToChecksum: Array<Array<String?>>
+    private lateinit var rangeByGameteIdToHapid: Array<Array<Array<String?>>>
 
     // Map<ReferenceRange, refRangeId>
     private lateinit var refRangeMap: SortedMap<ReferenceRange, Int>
@@ -45,8 +45,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         runBlocking { addSites() }
 
-        if (rangeToSampleToChecksum.isNotEmpty()) {
-            myLogger.info("rangeToSampleToChecksum: ${rangeToSampleToChecksum.size} x ${rangeToSampleToChecksum[0].size}")
+        if (rangeByGameteIdToHapid.isNotEmpty()) {
+            myLogger.info("rangeToSampleToChecksum: ${rangeByGameteIdToHapid.size} x ${rangeByGameteIdToHapid[0].size}")
             myLogger.info("numOfSamples: ${numberOfSamples()}")
             myLogger.info("numOfRanges: ${numberOfRanges()}")
         }
@@ -72,12 +72,12 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      * Returns a hapId -> sample list map for the given ReferenceRange.
      * Returned Map<hapId, List<sampleName>>
      */
-    fun hapIdToSamples(range: ReferenceRange): Map<String, List<String>> {
+    fun hapIdToSamples(range: ReferenceRange, gameteId: Int = 0): Map<String, List<String>> {
         val rangeId = refRangeMap[range]
         require(rangeId != null) { "hapIdToSamples: range: $range not found" }
         val result = mutableMapOf<String, MutableList<String>>()
-        rangeToSampleToChecksum[rangeId].forEachIndexed { sampleId, hapId ->
-            result.getOrPut(hapId!!) { mutableListOf() }.add(sampleNames[sampleId])
+        rangeByGameteIdToHapid[rangeId].forEachIndexed { sampleId, hapIdList ->
+            result.getOrPut(hapIdList[gameteId]!!) { mutableListOf() }.add(sampleNames[sampleId])
         }
         return result
     }
@@ -85,12 +85,12 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     /**
      * Returns the hapId for the sample in the specified ReferenceRange.
      */
-    fun sampleToHapId(range: ReferenceRange, sample: String): String? {
+    fun sampleToHapId(range: ReferenceRange, sample: String, gameteId: Int = 0): String? {
         val rangeId = refRangeMap[range]
         require(rangeId != null) { "sampleToHapId: range: $range not found" }
         val sampleId = sampleNameToIdMap[sample]
         require(sampleId != null) { "sampleToHapId: sample: $sample not found" }
-        return rangeToSampleToChecksum[rangeId][sampleId]
+        return rangeByGameteIdToHapid[rangeId][sampleId][gameteId]
     }
 
     /**
@@ -182,11 +182,11 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      * ReferenceRange Information
      *
      * @param rangeSampleToChecksum This is the sequence checksums for
-     * one Reference Range indexed by sampleId
+     * one Reference Range indexed by sampleId and gameteId
      * @param range This is the ReferenceRange
      */
     data class RangeInfo(
-        val rangeSampleToChecksum: Array<String?>,
+        val rangeSampleToChecksum: Array<MutableList<String?>>,
         val range: ReferenceRange
     )
 
@@ -199,16 +199,15 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         val range = ReferenceRange(context.contig, context.start, context.end)
 
-        val rangeSampleToChecksum = Array<String?>(numberOfSamples()) { null }
+        val rangeSampleToChecksum = Array<MutableList<String?>>(numberOfSamples()) { mutableListOf() }
         context.genotypes.forEach { genotype ->
 
             val sampleId = sampleNameToIdMap[genotype.sampleName]!!
 
-            // Number of alleles should always be 1 for a haplotype
-            // Diploids need to be handled by sample names
-            check(genotype.alleles.size == 1) { "genotype.alleles.size != 1" }
+            genotype.alleles.forEach { allele ->
+                rangeSampleToChecksum[sampleId].add(allele.displayString.substringAfter("<").substringBefore(">"))
+            }
 
-            rangeSampleToChecksum[sampleId] = genotype.alleles[0].displayString.substringAfter("<").substringBefore(">")
         }
 
         return RangeInfo(rangeSampleToChecksum, range)
@@ -221,15 +220,14 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      */
     private suspend fun addSites() {
 
-        // rangeIdToSampleToChecksum[refRangeId][sampleId] -> Checksum / hapid
-        val rangeIdToSampleToChecksum = mutableListOf<Array<String?>>()
+        // rangeIdToSampleToChecksum[refRangeId][sampleId][gameteId] -> Checksum / hapid
+        val rangeIdToSampleToChecksum = mutableListOf<Array<MutableList<String?>>>()
 
         val rangeMap = mutableMapOf<ReferenceRange, Int>()
 
         for (rangeInfo in processingChannel) {
 
             val rangeId = rangeMap.getOrPut(rangeInfo.range) { rangeMap.size }
-            myLogger.info("processingChannel rangeId: $rangeId")
 
             if (rangeId < rangeIdToSampleToChecksum.size) {
                 rangeIdToSampleToChecksum[rangeId] =
@@ -245,16 +243,41 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         refRangeMap = rangeMap.toSortedMap()
 
-        rangeToSampleToChecksum = rangeIdToSampleToChecksum.toTypedArray()
+        //rangeByGameteIdToHapid = rangeIdToSampleToChecksum.toTypedArray()
+        rangeByGameteIdToHapid = rangeIdToSampleToChecksum.map { sampleGameteHapid ->
+            sampleGameteHapid.map { gameteHapid ->
+                gameteHapid.toTypedArray()
+            }.toTypedArray()
+        }.toTypedArray()
 
     }
 
-    private fun mergeStringArrays(seqHash1: Array<String?>?, seqHash2: Array<String?>): Array<String?> {
-        return seqHash1?.let {
-            Array(seqHash2.size) { index ->
-                if (seqHash1[index] != null) seqHash1[index] else seqHash2[index]
+    // sampleGameteHapid[sampleId][gameteId] -> Checksum / hapid
+    private fun mergeStringArrays(
+        sampleGameteHapid1: Array<MutableList<String?>>?,
+        sampleGameteHapid2: Array<MutableList<String?>>
+    ): Array<MutableList<String?>> {
+
+        return if (sampleGameteHapid1 == null) {
+            sampleGameteHapid2
+        } else {
+            sampleGameteHapid2.forEachIndexed { sampleId, gameteList ->
+                gameteList.forEachIndexed { gameteId, gamete ->
+                    if (sampleGameteHapid1[sampleId] == null) {
+                        sampleGameteHapid1[sampleId] = mutableListOf()
+                    }
+                    if (gameteId < sampleGameteHapid1[sampleId].size) {
+                        if (sampleGameteHapid1[sampleId][gameteId] == null) {
+                            sampleGameteHapid1[sampleId][gameteId] = gamete
+                        }
+                    } else {
+                        sampleGameteHapid1[sampleId].add(gameteId, gamete)
+                    }
+                }
             }
-        } ?: seqHash2
+            sampleGameteHapid1
+        }
+
     }
 
 }
