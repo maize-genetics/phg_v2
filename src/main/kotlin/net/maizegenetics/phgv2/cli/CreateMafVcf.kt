@@ -511,14 +511,16 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
     /**
      * Function to build the haplotype sequence based on the list of display regions and the given haplotype sequence object.
      * The sequence is already extracted out of AGC and stored in the seqs map.
+     * The seqs map is keyed by a Pair of (sampleName, displayRegion) and the value is the NucSeq object.
+     * The Pair may look something like ("B97", "1:1-1000") or ("B97", "chr1")
      */
-    fun buildSeq(seqs: Map<String,NucSeq> ,displayRegions : List<String>, hvcfRecordMetadata: HVCFRecordMetadata) : String {
+    fun buildSeq(seqs: Map<Pair<String,String>,NucSeq> ,displayRegions : List<String>, hvcfRecordMetadata: HVCFRecordMetadata) : String {
         val hapSeqRegions = hvcfRecordMetadata.asmRegions
 
         return displayRegions.mapIndexed{ idx, currentDisplayRegion ->
             val currentHapSeqRegion = hapSeqRegions[idx]
 
-            val seq = seqs[currentDisplayRegion]!!
+            val seq = seqs[Pair(hvcfRecordMetadata.sampleName,currentDisplayRegion)]!!
 
             //Means it is the first region
             if(currentHapSeqRegion.first.position > currentHapSeqRegion.second.position) {
