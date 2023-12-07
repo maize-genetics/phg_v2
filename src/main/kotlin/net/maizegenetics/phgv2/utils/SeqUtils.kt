@@ -261,7 +261,6 @@ fun queryAgc(commands:Array<String>):Map<Pair<String,String>,NucSeq> {
     // when processing into a map.
     // It is the same if we give a region for the chrom, e.g. 1@LineA:1-1000 and 1@LineB:1-1000,
     // we will get the same idline multiple times.
-    val chromNucSeqMap = HashMap<String, NucSeq>()
     val genomeChromNucSeq = HashMap<Pair<String,String>,NucSeq>()
     try {
         agcOut.bufferedReader().use { br ->
@@ -275,8 +274,7 @@ fun queryAgc(commands:Array<String>):Map<Pair<String,String>,NucSeq> {
                 if (line.startsWith(">")) {
                     if (currChrom != "-1") {
                         // finished with this chromosome's sequence
-                        myLogger.info("queryAgc: finished chrom $currChrom for genome $currGenome")
-                        chromNucSeqMap[currChrom] = NucSeq(currSeq.toString())
+                        //myLogger.info("queryAgc: finished chrom $currChrom for genome $currGenome")
                         val chromPlusRange = if (currRange == "") currChrom else "${currChrom}:${currRange}"
                         genomeChromNucSeq.put(Pair(currGenome,chromPlusRange),NucSeq(currSeq.toString()))
                     }
@@ -308,7 +306,6 @@ fun queryAgc(commands:Array<String>):Map<Pair<String,String>,NucSeq> {
             }
             if (currSeq.size() > 0) {
                 myLogger.info("queryAgc: finished chrom $currChrom")
-                chromNucSeqMap[currChrom] = NucSeq(currSeq.toString())
                 val chromPlusRange = if (currRange == "") currChrom else "${currChrom}:${currRange}"
                 println("agcQuery: line 301 - currGenome: $currGenome, currChrom: $currChrom")
                 genomeChromNucSeq.put(Pair(currGenome,chromPlusRange),NucSeq(currSeq.toString()))
@@ -326,7 +323,5 @@ fun queryAgc(commands:Array<String>):Map<Pair<String,String>,NucSeq> {
         myLogger.error("queryAgc: errors found in errorStream: ${errors.size}")
         throw IllegalArgumentException("Error running AGC command: ${commands.joinToString(" ")}\nError: $errors")
     }
-    // For parsing purposes by the calling function, I believe a map is better than a list
-    // so will instead put this into a Map<Pair<String,String>NucSeq>
     return genomeChromNucSeq
 }
