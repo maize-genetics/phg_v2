@@ -22,6 +22,10 @@ class AlignAssembliesTest {
         // 4 runs: 2 threads
         // 5 runs: 2 threads
         // 6 or higher runs: 1 thread
+
+        // BUT .. the calculations do NOT take into account the number of assemblies
+        // the user wants to align.  In AlignAssemblies, this is called whenever the user
+        // has not specified an inParallel amount.
         val threadsToAssembliesMap = mutableMapOf<Int, Int>()
         val totalConcurrentThreads = 10
        // val totalAssemblies = 20

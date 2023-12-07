@@ -187,31 +187,48 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         // calculate the number of threads that can be run simultaneously based on the
         // amount of free memory available.
 
-        val totalConcurrentThreads = (freeMemory / 21e9).toInt()
+        val concurrentThreads = (freeMemory / 21e9).toInt()
+        val totalConcurrentThreads = if (concurrentThreads > totalThreadsToUse) {
+            totalThreadsToUse
+        } else {
+            concurrentThreads
+        }
+
 
         // Now that we know how many threads can be run concurrently, we need to
         // determine how many parallel alignments to do, and how many threads each
-        // one gets.  If the user specified the number of parallel alignments to do,
+        // one gets.  If the user specified the number of parallel alignments to run,
         // we will use that number.
 
         val numAssemblies = File(assemblies).readLines().filter { it.isNotBlank() }.size
         // This needs to return a Pair<Int, Int> where the first value is the number of runs, the seconds is threadsPerRun
+        //TODO this is not considering the actual number of assemblies in the calculations
         val runsAndThreads = if (inParallel > 0) {
             if (inParallel > totalConcurrentThreads) {
-                myLogger.warn("The number of parallel alignments specified ($inParallel) exceeds the number of threads that can be run concurrently ($totalConcurrentThreads).  Using $totalConcurrentThreads threads.")
+                myLogger.warn("The number of parallel alignments specified ($inParallel) exceeds the number of threads that can be run concurrently ($totalConcurrentThreads).  Will run $totalConcurrentThreads concurrent alignments with 1 thread each.")
                 Pair(totalConcurrentThreads, 1)
             } else {
+                // InParallel was defined by the user and is <= totalConcurrentThreads
+                // Number of concurrent alignments is "inParallel", and number of threads-per-alignment becomes
+                //  totalConcurrentThreads/inParallel
                 Pair(inParallel, totalConcurrentThreads / inParallel)
             }
         } else {
-            // Need to do calcuations here to determine the best value
+            // Need to do calculations here to determine the best values for
+            // concurrent runs and number of threads per run
             maximizeRunsAndThreads(totalConcurrentThreads, numAssemblies)
         }
         return runsAndThreads
     }
 
+    /**
+     * This method should only be called if the user did not specify the number of parallel alignments
+     *
+     * TODO - this needs to consider the total assemblies in the calculations
+     * as that makes a different as to how many threads to give it.
+     */
     fun maximizeRunsAndThreads(totalConcurrentThreads:Int, totalAssemblies:Int): Pair<Int, Int> {
-        // This needs to return a Pair<Int, Int> where the first value is the number of runs, the seconds is threadsPerRun
+        // This returns a Pair<Int, Int> where the first value is the number of runs, the seconds is threadsPerRun
         // THe maximum number of current runs is the total number of threads available,
         // which would be each assembly getting a single thread.
         // We believe it is more efficient to run fewer assemblies at a time, each with more threads.
