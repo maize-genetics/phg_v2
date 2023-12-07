@@ -13,6 +13,62 @@ import kotlin.test.assertTrue
 class AlignAssembliesTest {
 
     @Test
+    fun testNumThreadsAndRuns() {
+        // ok - this is now working.  It is giving me 3/3
+        // The numbers with 10 threads and 20 total assemblies are:
+        // 1 run: 10 threads
+        // 2 runs: 5 threads
+        // 3 runs: 3 threads
+        // 4 runs: 2 threads
+        // 5 runs: 2 threads
+        // 6 or higher runs: 1 thread
+        val threadsToAssembliesMap = mutableMapOf<Int, Int>()
+        val totalConcurrentThreads = 10
+       // val totalAssemblies = 20
+       // val assembliesMax = 10
+        // This loop says if each assembly gets "numThreads", how many concurrent runs can we do?
+        for (numThreads in 1..totalConcurrentThreads) {
+            //val numRuns = assembliesMax / numThreads
+            val numRuns = totalConcurrentThreads/numThreads
+            val currentThreads = threadsToAssembliesMap[numRuns]
+            // if currentThreads is not null and is > than numThreads, ignore.
+            // otherwise, replace this entry
+            if (currentThreads == null || currentThreads < numThreads) {
+                threadsToAssembliesMap[numRuns] = numThreads
+            }
+        }
+        // we should now have a map with the highest number of threads for each number of runs
+        //At this point, we pick
+        // 1.  if only 1 entry, use that
+        // 2.  if are only 2 entries, use the one with the highest number of threads
+        // 3.  if there are > 3 entries, drop the one with the lowest number of runs and the one with the highest number of runs.
+        // Repeat then there are 2 entries or fewer entries left.
+
+        // 1.  if only 1 entry, use that
+        if (threadsToAssembliesMap.size == 1) {
+            val entry = threadsToAssembliesMap.entries.first()
+            println("Using ${entry.value} threads for ${entry.key} runs")
+        } else if (threadsToAssembliesMap.size == 2) {
+            // 2.  if are only 2 entries, use the one with the highest number of threads
+            val entry = threadsToAssembliesMap.entries.maxByOrNull { it.value }
+            println("Using ${entry!!.value} threads for ${entry.key} runs")
+        } else {
+            // 3.  if there are > 3 entries, drop the one with the lowest number of runs and the one with the highest number of runs.
+            // Repeat then there are 2 entries or fewer entries left.
+            while (threadsToAssembliesMap.size > 2) {
+                val minEntry = threadsToAssembliesMap.entries.minByOrNull { it.key }
+                val maxEntry = threadsToAssembliesMap.entries.maxByOrNull { it.key }
+                threadsToAssembliesMap.remove(minEntry!!.key)
+                threadsToAssembliesMap.remove(maxEntry!!.key)
+            }
+            // 2.  if are only 2 entries, use the one with the highest number of threads
+            val entry = threadsToAssembliesMap.entries.maxByOrNull { it.value }
+            println("Using ${entry!!.value} threads for ${entry.key} runs")
+        }
+
+
+    }
+    @Test
     fun testCliktParams() {
         val alignAssemblies = AlignAssemblies()
 
