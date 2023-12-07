@@ -118,6 +118,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
 
     /**
      * Function to create haplotype Sequences for each of the haplotype variants in the hvcf
+     * Currently, sampleName is from a single HVCF file, and is the sample from which the haplotype sequences will be
+     * extracted.
      */
     fun createHaplotypeSequences(dbPath:String, sampleName: String, haplotypeVariants: List<VariantContext>, altHeaders: Map<String, AltHeaderMetaData>): List<HaplotypeSequence> {
         val rangesAndOtherInfo = haplotypeVariants.filter { it.hasGenotype(sampleName) }.map {
@@ -148,20 +150,23 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
         val ranges = rangesAndOtherInfo.flatMap { it.first }
         val seqs = retrieveAgcContigs(dbPath,ranges)
 
-        return rangesAndOtherInfo.map { it.third.copy(sequence = buildHapSeq(seqs, it.second,it.third)) }
+        return rangesAndOtherInfo.map { it.third.copy(sequence = buildHapSeq(seqs, sampleName, it.second,it.third)) }
     }
 
     /**
      * Function to build the haplotype sequence based on the list of display regions and the given haplotype sequence object.
-     * The sequence is already extracted out of AGC and stored in the seqs map.
+     * The sequence has already extracted out of AGC and stored in the seqs map.
+     * The incoming "seqs" parameter has the key as a Pair(sampleName,displayRegion), where display region could
+     * be just a contig, or a contig with ranges:  e.g. "chr1" or "chr1:100-200".  SampleName is the sample from which
+     * the sequence was extracted.
      */
-    fun buildHapSeq(seqs: Map<String,NucSeq> ,displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
+    fun buildHapSeq(seqs: Map<Pair<String,String>,NucSeq> , sampleName: String, displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
         val hapSeqRegions = hapSeqObjects.asmRegions
 
         return displayRegions.mapIndexed{ idx, currentDisplayRegion ->
             val currentHapSeqRegion = hapSeqRegions[idx]
 
-            val seq = seqs[currentDisplayRegion]!!
+            val seq = seqs[Pair(sampleName,currentDisplayRegion)]!!
 
             //Check to see if we have an inverted sub region based on the currentHapSeqRegion
             if(currentHapSeqRegion.first.position > currentHapSeqRegion.second.position) {
