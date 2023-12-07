@@ -1,7 +1,7 @@
 # hVCF - Haplotype Variant Call Format Specification
 
 * **_Specification version:_** `v2.1`
-* **_Date:_** 2023-10-31
+* **_Date:_** 2023-12-07
 
 ## Overview
 hVCF stands for **h**aplotype **V**ariant **C**all **F**ormat. This 
