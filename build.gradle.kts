@@ -55,6 +55,8 @@ dependencies {
     implementation(files("repo/tiledb-vcf-java-0.25.2.jar"))
     implementation(files("repo/tiledb-java-0.19.6-SNAPSHOT.jar"))
 
+    implementation("it.unimi.dsi:fastutil:8.2.2")
+
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
 
     val kotestVersion = "5.6.2"

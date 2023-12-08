@@ -1,6 +1,7 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.utils.importKmerIndex
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -49,5 +50,18 @@ class MapKmersTest {
         )
     }
 
+
+    @Test
+    fun testImportKmerMap() {
+        val kmerIndexFile = "data/test/kmerReadMapping/SimpleIndex.txt"
+        val kmerMapData = importKmerIndex(kmerIndexFile)
+
+        val kmerMap = kmerMapData.kmerHashToLongMap
+
+
+        println(kmerMap.keys)
+
+
+    }
 
 }

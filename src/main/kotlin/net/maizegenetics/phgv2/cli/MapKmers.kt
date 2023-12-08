@@ -20,6 +20,14 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
     //    --output read_count_out.map \ // could we pipe this into impute method? // thousands of outputs
     //    // consider batch interface here ^^
 
+    val hvcfDir by option(help = "Directory containing hvcf which build up the Haplotype Graph.")
+        .default("")
+        .validate {
+            require(it.isNotBlank()) {
+                "--hvcf-dir must not be blank"
+            }
+        }
+
     val kmerIndex by option(help = "Kmer index file")
         .default("")
         .validate {
@@ -47,8 +55,10 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
             }
         }
 
+
+
     override fun run() {
         myLogger.info("Begin mapping reads to the pangenome kmer index.")
-        alignReadsToHaplotypes(kmerIndex, readFiles, paired, outputDir)
+        alignReadsToHaplotypes(hvcfDir, kmerIndex, readFiles, paired, outputDir)
     }
 }
