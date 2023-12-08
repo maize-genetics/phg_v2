@@ -159,6 +159,11 @@ jobs:
           name: 'PHG2_VERSION'
           value: '${{ env.VERSION }}'
           token: ${{secrets.PHGV2CD}}
+      - uses: action-pack/set-variable@v1
+        with:
+          name: 'PHG2_RELEASE'
+          value: '${{ env.RELEASE }}'
+          token: ${{secrets.PHGV2CD}}
       - name: Calculate MD5 of package
         run: |
           echo "PHG2_VERSION_MD5=$(md5sum PHGv2-v${{ env.RELEASE }}.tar | cut -d ' ' -f 1)" >> $GITHUB_ENV

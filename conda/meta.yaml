@@ -5,7 +5,7 @@ package:
   version: "{{ PHG2_VERSION }}"
 
 source:
-  url: https://github.com/maize-genetics/phg_v2/releases/download/{{ PHG2_VERSION }}/PHGv2-v2.2.tar
+  url: https://github.com/maize-genetics/phg_v2/releases/download/{{ PHG2_VERSION }}/PHGv2-v{{ PHG2_RELEASE }}.tar
   md5: "{{ PHG2_VERSION_MD5 }}"
 
 build:
