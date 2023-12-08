@@ -1,0 +1,32 @@
+name: Build and Upload Conda Package When Release is Published
+
+# Triggers when a release is made (in our case by the run_deploy_on_merge.yml action)
+on:
+  workflow_dispatch:
+  pull_request:
+  release:
+    types: [published]
+
+env:
+  ANACONDA_API_TOKEN: ${{ secrets.CONDA_TOKEN }}
+  PHG2_VERSION: ${{ vars.PHG2_VERSION }}
+  PHG2_VERSION_MD5: ${{ vars.PHG2_VERSION_MD5 }}
+
+jobs:
+  build-upload-conda:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Conda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          python-version: 3.11
+      - name: Install Conda build dependencies
+        run: |
+          conda install -c defaults anaconda-client conda-build
+          conda config --set anaconda_upload yes
+      - name: Build and upload package
+        run: |
+          conda build ./conda

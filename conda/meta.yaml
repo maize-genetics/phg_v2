@@ -1,0 +1,31 @@
+{% set name = "PHG2" %}
+
+package:
+  name: {{ name|lower }}
+  version: "{{ PHG2_VERSION }}"
+
+source:
+  url: https://github.com/maize-genetics/phg_v2/releases/download/{{ PHG2_VERSION }}/PHGv2-v2.2.tar
+  md5: "{{ PHG2_VERSION_MD5 }}"
+
+build:
+  noarch: generic
+
+# NOTE: Dependencies like AnchorWave are not included here
+#       since they are used within the phgv2-conda environment.
+#       In future if it's desired to move away from that design
+#       decision those dependencies can be added and the reliance
+#       on a bespoke environment for execution can be removed.
+requirements:
+  run:
+    - openjdk >=17.0
+
+test:
+  commands:
+    - 'phg2 | grep "Usage: phg"'
+
+about:
+  home: https://github.com/maize-genetics/phg_v2
+  license: Apache-2.0
+  summary: 'The Practical Haplotype Graph (PHG) is a powerful tool for representing pangenomes.'
+  dev_url: https://github.com/maize-genetics/phg_v2
