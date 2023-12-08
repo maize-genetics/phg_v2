@@ -23,6 +23,7 @@ jobs:
         with:
           auto-update-conda: true
           python-version: 3.11
+          channels: conda-forge
       - name: Install Conda build dependencies
         run: |
           conda install -c defaults anaconda-client conda-build
