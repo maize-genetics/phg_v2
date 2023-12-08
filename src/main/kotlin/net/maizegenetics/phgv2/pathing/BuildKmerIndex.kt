@@ -1,25 +1,30 @@
 package net.maizegenetics.phgv2.pathing
 
-import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
-import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.long
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.apache.logging.log4j.LogManager
+import java.io.BufferedReader
+import java.io.BufferedWriter
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.lang.IllegalStateException
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.*
+import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
 
 
 import kotlin.math.ceil
@@ -123,6 +128,26 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             //also need a map of source -> hapid in order to associate sequence from agc to the hapid that it came from
             val agcRangeList = mutableListOf<String>()
             val sourceHapidMap = mutableMapOf<String, String>()
+
+            hapidToSampleMap.keys.forEach { hapid ->
+                val alt = graph.altHeaderMap[hapid] ?: throw IllegalStateException("No alt header for $hapid")
+                //mapping source name to hapid assumes there is only one hapid per source in a reference range
+                //this seems safe, but it is being checked here just in case
+                //alt.source is not the agc sample name, but is serving as a place holder until the correct name is available
+                //not sure what alt.property will be the one to use
+                //TODO get the correct sample name from alt
+                check(sourceHapidMap.contains(alt.source)) {"Two hapids from ${alt.source} at ${alt.regions[0].first.position}"}
+                sourceHapidMap[alt.source] = hapid
+                for (range in alt.regions) {
+                    if (range.first.position <= range.second.position) {
+                        agcRangeList.add("${range.first.contig}@${alt.source}:${range.first.position - 1}-${range.second.position - 1}")
+                    } else {
+                        agcRangeList.add("${range.first.contig}@${alt.source}:${range.second.position - 1}-${range.first.position - 1}")
+                    }
+                }
+
+            }
+
             for ((hapid, alt) in graph.altHeaderMap.entries) {
                 //mapping source name to hapid assumes there is only one hapid per source in a reference range
                 //this seems safe, but it is being checked here just in case
@@ -139,10 +164,12 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
             val agcdataMap = retrieveAgcContigs(agcPath, agcRangeList)
             //TODO method to get source name from the agcdataMap
-            //the value is a NucSeqRec with id = contig and name=source
-            //hapidSeqMap is a map of hapid -> list of sequences
-            //get hapid using sourceHapidMap[NucSeqRec.name]
-            val hapidSeqMap = agcdataMap.entries.map { (agcid, seqrec) -> }
+            //retrieveAgcContigs returns a Map<Pair<String,String>,NucSeq> where Pair is
+            // sampleName, contig:start-end and NucSeq is the sequence
+            val hapidSeqMap = agcdataMap.entries.map { (sample, seqrec) ->
+                val hapid = sourceHapidMap[sample.first] ?: throw IllegalStateException("No hapid for ${sample.second}")
+                hapid to seqrec.seq()
+                }.groupBy ({it.first}, {it.second})
 
             val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidSeqMap)
 
@@ -172,11 +199,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         return keepMap
     }
 
-
-    private fun getSequenceForReferenceRange() {
-
-    }
-
     /**
      * Function to count the kmerHashes for a single reference range's haplotype nodes.
      * This gets put in 2 sets of maps.
@@ -185,12 +207,15 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      */
     private fun countKmerHashesForHaplotypeSequence(sequenceMap: Map<String, List<String>>) : Pair<Map<Long,Int>,Map<Long,Set<String>>> {
         //start by splitting sequence into subsequences without N's
+        //mapOfHashes is a map of hash -> count of occurrences
         val mapOfHashes = Long2IntOpenHashMap()
+        //mapOfHapIds is a map of hash -> Set of haplotype ids
         val mapOfHapIds = Long2ObjectOpenHashMap<MutableSet<String>>()
 
         for ((hapid, seqList) in sequenceMap) {
-            for (sequence in seqList) {
-                val splitList = sequence
+            for (sequenceWithNs in seqList) {
+                //split sequence on N's then filter on length > 31 because we are looking for 32-mers
+                val splitList = sequenceWithNs
                     .split("N+".toRegex())
                     .filter{it.length > 31}
                 for (sequence in splitList) {
@@ -222,7 +247,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                     }
                 }
             }
-            //split sequence on N's then filter on length > 31
+
 
         }
         return Pair(mapOfHashes,mapOfHapIds)
@@ -232,63 +257,59 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * Function to save the kmer hash map to the specified file.
      */
     fun saveKmerHashesAndHapids(graph: HaplotypeGraph, filePath: String, kmerMapToHapIds: Long2ObjectOpenHashMap<Set<String>>) {
-        val refRangeToHapidMap = graph.ranges().associateWith { graph.hapIdToSamples(it).keys.toList() }
+        //refRangeToHapidMap is a map of refRange -> (map of hapid -> index of hapid)
+        val refRangeToHapIndexMap = getRefRangeToHapidMap(graph)
 
+        //hapIdToRefRangeMap is a map of hapid -> ReferenceRange
         val hapIdToRefRangeMap = mutableMapOf<String, ReferenceRange>()
-        for ((range, hapidList) in refRangeToHapidMap) {
-            for (hapid in hapidList) hapIdToRefRangeMap[hapid] = range
+        for (range in graph.ranges()) {
+            for (hapid in graph.hapIdToSamples(range).keys) {
+                hapIdToRefRangeMap[hapid] = range
+            }
         }
 
-        //Walk through the map and associate kmerLongs with specific referenceRanges
-        val refRangeToKmerSetMap = mutableMapOf<Int,MutableSet<Long>>()
+        //Walk through the map and associate kmerLongs (the kmer hashes) with specific referenceRanges
+        //refRangeToKmerSetMap is a map of refRange -> Set of kmer hashes
+        val refRangeToKmerSetMap = mutableMapOf<ReferenceRange,MutableSet<Long>>()
         for(kmerMap in kmerMapToHapIds.long2ObjectEntrySet()) {
             val kmer = kmerMap.longKey
             val currentRefRange = hapIdToRefRangeMap[kmerMap.value.first()]!!
             if(refRangeToKmerSetMap.containsKey(currentRefRange)) {
-                refRangeToKmerSetMap[currentRefRange]?.add(kmer)
+                refRangeToKmerSetMap[currentRefRange]!!.add(kmer)
             }
             else {
                 refRangeToKmerSetMap[currentRefRange] = mutableSetOf(kmer)
             }
         }
 
-// graph persistence not needed for now, will write index to hvcfDir
-//        val haplotypeListId = if(writeToDb) {
-//            PHGdbAccess(DBLoadingUtils.connection(false)).use { phgdb ->
-//                getHaplotypeListIdForGraph(graph, phgdb)
-//            }
-//        }
-//        else {
-//            -1
-//        }
-
+        // graph persistence not needed for now, will write index to hvcfDir
+        //TODO add sufficient information to be able to reproduce the graph from the index file
 
         var rangeCount = 0
         val startTime = System.nanoTime()
-        var seqscanTime = 0L
 
-        Utils.getBufferedWriter(filePath).use { myWriter ->
-            //start with haplistid header
-            myWriter.write("#haplotypeListId=$haplotypeListId\n")
+        getBufferedWriter(filePath).use { myWriter ->
+            //do NOT start with haplistid header
 
-            for(refrangeId in refRangeToKmerSetMap.keys) {
-                if(rangeCount%1000 == 0) {
-                    myLogger.info("Time Spent Processing output: ${(System.nanoTime() - startTime)/1e9} seconds.  Processed ${rangeCount} Ranges.")
+            for(refrange in refRangeToKmerSetMap.keys) {
+                if(rangeCount % 1000 == 0) {
+                    myLogger.info("Time Spent Processing output: ${(System.nanoTime() - startTime)/1e9} seconds.  Processed $rangeCount Ranges.")
                 }
                 rangeCount++
-                val kmers = refRangeToKmerSetMap[refrangeId]?:throw IllegalStateException("Error no kmers associated with this refRange ID: ${refrangeId}")
+                val kmers = refRangeToKmerSetMap[refrange]?:throw IllegalStateException("Error no kmers associated with this refRange: $refrange")
 
-                val mapForRange = kmers.map { Pair(it, kmerMapToHapIds[it]) }.toMap()
+                //mapForRange is a map of kmer hash -> Set of hapid ids
+                val mapForRange = kmers.associateWith { kmerMapToHapIds[it] }
 
                 //generate map of hapidSet -> kmer hash list
-                val hapidKmerHashMap = mutableMapOf<MutableSet<Int>, MutableList<Long>>()
+                val hapidKmerHashMap = mutableMapOf<MutableSet<String>, MutableList<Long>>()
                 for (entry in mapForRange.entries) {
                     val kmerHashList = hapidKmerHashMap[entry.value]
                     if (kmerHashList == null) hapidKmerHashMap.put(entry.value.toMutableSet(), mutableListOf(entry.key))
                     else kmerHashList.add(entry.key)
                 }
 
-                val numberOfHaplotypesInRange = refRangeToHapidMap[refrangeId]?.size?:throw IllegalStateException("Error no haplotypes associated with this refRange.")
+                val numberOfHaplotypesInRange = refRangeToHapIndexMap[refrange]?.size?:throw IllegalStateException("Error no haplotypes associated with this refRange.")
                 val numberOfHapSets = hapidKmerHashMap.size
                 if (numberOfHapSets == 0) continue  //skip to next refrange because there are no kmers here
                 val numberOfBitsNeeded = numberOfHaplotypesInRange * numberOfHapSets
@@ -301,8 +322,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                 val kmerHashOffsets = mutableListOf<Pair<Long,Int>>()
 
                 var offset = 0
-                val hapidIndex = refRangeToHapidMap[refrangeId]
-                check(hapidIndex != null) {"hapidIndex null for $refrangeId"}
+                val hapidIndex = refRangeToHapIndexMap[refrange]
+                check(hapidIndex != null) {"hapidIndex null for $refrange"}
 
                 hapidKmerHashMap.entries.forEachIndexed { index, entry ->
                     //this line encodes a haplotype set (hapset)
@@ -314,7 +335,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
                 //write the results of the range to a file
                 //line 1: >rangeid
-                myWriter.write(">${refrangeId}\n")
+                myWriter.write(">${refrange}\n")
                 //line 2: long1,long2,...,longn (range has hapid sets encoded into a bitSet, which can be stored as longs)
                 myWriter.write("${encodedHapSets.toLongArray().joinToString(",")}\n")
                 //line 3: hash1,offset1,hash2,offset2,...,hashn,offsetn
@@ -323,7 +344,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             }
         }
 
-        myLogger.info("Saved kmer mapping to $filePath, elapsed time ${(System.nanoTime() - startTime)/1e9} sec, seqscan time ${seqscanTime/1e9} sec")
+        myLogger.info("Saved kmer mapping to $filePath, elapsed time ${(System.nanoTime() - startTime)/1e9} sec")
     }
 
     companion object {
@@ -373,7 +394,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             var refrangeId = 0
             var haplotypeListId = -1
 
-            Utils.getBufferedReader(filename).useLines {
+            getBufferedReader(filename).useLines {
                 it.forEach { inputStr ->
                     totalLineCount++
 
@@ -424,7 +445,33 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
             return KmerMapData(haplotypeListId, rangeToBitSetMap, kmerHashMap)
         }
-    }
-}
 
+        fun getBufferedReader(filePath: String): BufferedReader {
+            return if (filePath.endsWith(".gz")) {
+                GZIPInputStream(FileInputStream(filePath)).bufferedReader()
+            } else {
+                Files.newBufferedReader(Paths.get(filePath))
+            }
+        }
+
+        fun getBufferedWriter(filePath: String): BufferedWriter {
+            return if (filePath.endsWith(".gz")) {
+                GZIPOutputStream(FileOutputStream(filePath)).bufferedWriter()
+            } else {
+                Files.newBufferedWriter(Paths.get(filePath))
+            }
+        }
+
+        /**
+         * Creates a map of ReferenceRange -> (map of hapid -> index) for a [HaplotypeGraph]
+         */
+        fun getRefRangeToHapidMap(graph: HaplotypeGraph) : Map<ReferenceRange,Map<String,Int>>{
+            //This creates a map of ReferenceRangeId -> (map of hapid -> index)
+            return graph.ranges().associateWith { range ->
+                graph.hapIdToSamples(range).keys.toSortedSet()
+                    .mapIndexed { index, hapid -> hapid to index }.toMap()
+            }
+        }
+
+    }
 }
