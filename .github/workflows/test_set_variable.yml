@@ -3,9 +3,12 @@ name: Test Set Variable
 # Hacky solution: https://stackoverflow.com/a/76439748
 # Annoying that I have to do this for GitHub to show any action not on main
 
+env:
+  VERSION=1.2.3.4
+  RELEASE=1.2
+
 on:
   workflow_dispatch:
-  pull_request:
 
 jobs:
   test-set-variable:
@@ -14,8 +17,6 @@ jobs:
       # Update repository variables for Conda package
       - name: Fake data for testing
         run: |
-          export VERSION=1.2.3.4
-          export RELEASE=1.2
           touch PHGv2-v${{ env.RELEASE }}.tar
       - uses: action-pack/set-variable@v1
         with:
