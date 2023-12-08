@@ -280,7 +280,7 @@ class CreateFastaFromHvcfTest {
     @Test
     fun testCreateHaplotypeSequenceImputedVCf() {
         // This file has a samplename of "LineImpute".
-        // All of the hapltoypes for chrom1 are from LineA, all of the haplotypes for chrom2 are from LineB
+        // All of the haplotypes for chrom1 are from LineA, all of the haplotypes for chrom2 are from LineB
         val refHVCFFile = File("data/test/smallseq/LineImpute.h.vcf")
         val vcfReader = VCFFileReader(refHVCFFile, false)
         val createFastaFromHvcf = CreateFastaFromHvcf()

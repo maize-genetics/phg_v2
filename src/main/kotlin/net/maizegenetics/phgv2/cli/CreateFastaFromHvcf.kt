@@ -167,7 +167,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
      * the sequence was extracted.
      */
     fun buildHapSeq(seqs: Map<Pair<String,String>,NucSeq> , displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
-        // hapSeqRegions is the HapltoypeSEquence object's list of regions.
+        // hapSeqRegions is the HaplotypeSequence object's list of regions.
         // This was passed in as part of the Triple created in the calling method.
         // Because of the way these were created, the displayRegions and the hapSeqRegions should be in the same order.
         val hapSeqRegions = hapSeqObjects.asmRegions
