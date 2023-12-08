@@ -1,0 +1,28 @@
+name: Test Set Variable
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-set-variable:
+    runs-on: ubuntu-latest
+    steps:
+      # Update repository variables for Conda package
+      - name: Fake data for testing
+        run: |
+          export VERSION=1.2.3.4
+          export RELEASE=1.2
+          touch PHGv2-v${{ env.RELEASE }}.tar
+      - uses: action-pack/set-variable@v1
+        with:
+          name: 'PHG2_VERSION'
+          value: '${{ env.VERSION }}'
+          token: ${{secrets.PHGV2CD}}
+      - name: Calculate MD5 of package
+        run: |
+          export PHG2_VERSION_MD5=$(md5sum PHGv2-v${{ env.RELEASE }}.tar)
+      - uses: action-pack/set-variable@v1
+        with:
+          name: 'PHG2_VERSION_MD5'
+          value: '${{ env.PHG2_VERSION_MD5 }}'
+          token: ${{secrets.PHGV2CD}}
