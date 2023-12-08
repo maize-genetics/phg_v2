@@ -51,6 +51,13 @@ class TestExtension : BeforeAllCallback {
         val testOutputHaplotypeFasta = "${testOutputFastaDir}haplotypes.fa"
         val testOutputCompositeFasta = "${testOutputFastaDir}composite.fa"
 
+        //Imputation test files
+        val testKmerIndex = "${tempDir}testKmerIndex.txt"
+        val testReads = "${tempDir}testReads.fastq"
+        val testOutputDir = "${tempDir}testOutputDir/"
+        val testOutputReadMapping = "${testOutputDir}readMapping.txt"
+
+
     }
 
     override fun beforeAll(context: ExtensionContext) {
