@@ -3,7 +3,6 @@ name: Build and Upload Conda Package When Release is Published
 # Triggers when a release is made (in our case by the run_deploy_on_merge.yml action)
 on:
   workflow_dispatch:
-  pull_request:
   release:
     types: [published]
 
