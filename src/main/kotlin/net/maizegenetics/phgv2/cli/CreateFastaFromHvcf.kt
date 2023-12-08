@@ -139,11 +139,11 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
             for(region in regions) {
                 if(region.first.position-1 > region.second.position-1) {
                     queryRanges.add("${region.first.contig}@${hapSampleName}:${region.second.position-1}-${region.first.position-1}")
-                    displayRanges.add("${region.first.contig}:${region.second.position-1}-${region.first.position-1}")
+                    displayRanges.add("${hapSampleName}@${region.first.contig}:${region.second.position-1}-${region.first.position-1}")
                 }
                 else {
                     queryRanges.add("${region.first.contig}@${hapSampleName}:${region.first.position - 1}-${region.second.position - 1}")
-                    displayRanges.add("${region.first.contig}:${region.first.position-1}-${region.second.position-1}")
+                    displayRanges.add("${hapSampleName}@${region.first.contig}:${region.first.position-1}-${region.second.position-1}")
                 }
             }
             Triple(queryRanges, displayRanges, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, regions))
@@ -156,7 +156,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
         val ranges = rangesAndOtherInfo.flatMap { it.first }
         val seqs = retrieveAgcContigs(dbPath,ranges)
 
-        return rangesAndOtherInfo.map { it.third.copy(sequence = buildHapSeq(seqs, sampleName, it.second,it.third)) }
+        return rangesAndOtherInfo.map { it.third.copy(sequence = buildHapSeq(seqs, it.second,it.third)) }
     }
 
     /**
@@ -166,13 +166,23 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
      * be just a contig, or a contig with ranges:  e.g. "chr1" or "chr1:100-200".  SampleName is the sample from which
      * the sequence was extracted.
      */
-    fun buildHapSeq(seqs: Map<Pair<String,String>,NucSeq> , sampleName: String, displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
+    fun buildHapSeq(seqs: Map<Pair<String,String>,NucSeq> , displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
+        // hapSeqRegions is the HapltoypeSEquence object's list of regions.
+        // This was passed in as part of the Triple created in the calling method.
+        // Because of the way these were created, the displayRegions and the hapSeqRegions should be in the same order.
         val hapSeqRegions = hapSeqObjects.asmRegions
 
+        // This gets all the sequences from all the regions in the list,
+        // and joins them to a string with no separator.  The string that is
+        // returned is the sequence for the haplotype.
         return displayRegions.mapIndexed{ idx, currentDisplayRegion ->
             val currentHapSeqRegion = hapSeqRegions[idx]
 
-            val seq = seqs[Pair(sampleName,currentDisplayRegion)]!!
+            // The displayRegions are of the form: sampleName@contig:stPos-endPos
+            val sampleName = currentDisplayRegion.split("@")[0]
+            val region = currentDisplayRegion.split("@")[1]
+
+            val seq = seqs[Pair(sampleName,region)]!!
 
             //Check to see if we have an inverted sub region based on the currentHapSeqRegion
             if(currentHapSeqRegion.first.position > currentHapSeqRegion.second.position) {
