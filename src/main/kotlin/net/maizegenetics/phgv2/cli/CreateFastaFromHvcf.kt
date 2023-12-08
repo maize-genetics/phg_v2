@@ -120,23 +120,29 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
      * Function to create haplotype Sequences for each of the haplotype variants in the hvcf
      * Currently, sampleName is from a single HVCF file, and is the sample from which the haplotype sequences will be
      * extracted.
+     *
+     * In this function,
+     *    "sampleName" parameter is the sampleName from the headerline of the hvcf file
+     *    "hapSampleName" is the samplename associated with the haplotype sequence, and this information
+     *           is pulled from the ALT header line using the hapid as an index.
      */
     fun createHaplotypeSequences(dbPath:String, sampleName: String, haplotypeVariants: List<VariantContext>, altHeaders: Map<String, AltHeaderMetaData>): List<HaplotypeSequence> {
         val rangesAndOtherInfo = haplotypeVariants.filter { it.hasGenotype(sampleName) }.map {
             val hapId = it.getGenotype(sampleName).getAllele(0).displayString.replace("<","").replace(">","")
             check(altHeaders.containsKey(hapId)) { "Haplotype ID $hapId not found in ALT Header" }
             val altMetaData = altHeaders[hapId]
+            val hapSampleName = altMetaData!!.sampleName
             //Need to subtract 1 from start as it uses 0 based format
             val regions =  altMetaData!!.regions
             val queryRanges = mutableListOf<String>()
             val displayRanges = mutableListOf<String>()
             for(region in regions) {
                 if(region.first.position-1 > region.second.position-1) {
-                    queryRanges.add("${region.first.contig}@${sampleName}:${region.second.position-1}-${region.first.position-1}")
+                    queryRanges.add("${region.first.contig}@${hapSampleName}:${region.second.position-1}-${region.first.position-1}")
                     displayRanges.add("${region.first.contig}:${region.second.position-1}-${region.first.position-1}")
                 }
                 else {
-                    queryRanges.add("${region.first.contig}@${sampleName}:${region.first.position - 1}-${region.second.position - 1}")
+                    queryRanges.add("${region.first.contig}@${hapSampleName}:${region.first.position - 1}-${region.second.position - 1}")
                     displayRanges.add("${region.first.contig}:${region.first.position-1}-${region.second.position-1}")
                 }
             }
