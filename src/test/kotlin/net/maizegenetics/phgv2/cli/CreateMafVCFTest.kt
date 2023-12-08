@@ -369,36 +369,43 @@ class CreateMafVCFTest {
             Position("chr1",5), Position("chr1",10),
             Position("chr1",15), Position("chr1",20))
 
+        //Need to have reveresed asm coords because that is how it looks with GVCFs coming from Biokotlin
+        val refBlockVariantNegativeStrand = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
+            Position("chr1",5), Position("chr1",10),
+            Position("chr1",20), Position("chr1",15))
+
         assertEquals(15, createMafVCF.resizeVariantContext(refBlockVariant, 5, "+"))
-        assertEquals(20, createMafVCF.resizeVariantContext(refBlockVariant, 5, "-"))
+        assertEquals(20, createMafVCF.resizeVariantContext(refBlockVariantNegativeStrand, 5, "-"))
 
 
         assertEquals(17, createMafVCF.resizeVariantContext(refBlockVariant, 7, "+"))
-        assertEquals(18, createMafVCF.resizeVariantContext(refBlockVariant, 7, "-"))
+        assertEquals(18, createMafVCF.resizeVariantContext(refBlockVariantNegativeStrand, 7, "-"))
 
         assertEquals(15, createMafVCF.resizeVariantContext(refBlockVariant, 2, "+"))
         assertEquals(20, createMafVCF.resizeVariantContext(refBlockVariant, 100, "+"))
 
         //Negative strand flips so we resize to the correct start/end on ASM
-        assertEquals(15, createMafVCF.resizeVariantContext(refBlockVariant, 100, "-"))
-        assertEquals(20, createMafVCF.resizeVariantContext(refBlockVariant, 2, "-"))
+        assertEquals(15, createMafVCF.resizeVariantContext(refBlockVariantNegativeStrand, 100, "-"))
+        assertEquals(20, createMafVCF.resizeVariantContext(refBlockVariantNegativeStrand, 2, "-"))
 
         assertEquals(-1, createMafVCF.resizeVariantContext(refBlockVariant, 7, "NOT_A_STRAND"))
 
         //Testing MultiAllelicPolymorphisms
         val multiAllelicSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",10),
                                                 Pair("AAAAA", "TTTTT"), Position("chr1",10), Position("chr1",15))
+        val multiAllelicSNPVariantNegativeStrand = createSNPVC("B97", Position("chr1",5),Position("chr1",10),
+                                                Pair("AAAAA", "TTTTT"), Position("chr1",15), Position("chr1",10))
         //Check that we can resize the variant to the correct start/end on the ASM
         assertEquals(10, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 5, "+"))
-        assertEquals(15, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 5, "-"))
+        assertEquals(15, createMafVCF.resizeVariantContext(multiAllelicSNPVariantNegativeStrand, 5, "-"))
         assertEquals(12, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 7, "+"))
-        assertEquals(13, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 7, "-"))
+        assertEquals(13, createMafVCF.resizeVariantContext(multiAllelicSNPVariantNegativeStrand, 7, "-"))
 
         //Check for positions out of the record
         assertEquals(15, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 100, "+"))
-        assertEquals(10, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 100, "-"))
+        assertEquals(10, createMafVCF.resizeVariantContext(multiAllelicSNPVariantNegativeStrand, 100, "-"))
         assertEquals(10, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 2, "+"))
-        assertEquals(15, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 2, "-"))
+        assertEquals(15, createMafVCF.resizeVariantContext(multiAllelicSNPVariantNegativeStrand, 2, "-"))
 
         val standardSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "T"), Position("chr1",10), Position("chr1",10))
         //no matter what we request it should return 10 as it is only one bp of size
@@ -656,6 +663,51 @@ class CreateMafVCFTest {
 
         assertEquals(Position("chr1",5), resizedRange2.first)
         assertEquals(Position("chr1",15), resizedRange2.second)
+
+    }
+
+    @Test
+    fun testGVCFResizingIssue() {
+        //Issue found with one of Matt's cassava lines
+        //I think the issue is that we have a refBlock variant which is before the end of the bed region which then attempts to get resized.
+        //The resulting coordiantes fall within the negative boundaries which is not correct.
+
+        // |-------BED------------|
+        //           |--GCVF--|
+
+        val createMafVcf = CreateMafVcf()
+
+        //create a bedRange
+        //Chromosome04	35928654	35931063
+        val bedRange = Pair(Position("Chromosome04",35928654), Position("Chromosome04",35931063))
+
+
+        //Test forward strand - working initially
+
+        val refBlockVariantForward = createRefRangeVC(mapOf("Chromosome04" to NucSeq("A".repeat(35929999))),"cassava_test",
+            Position("Chromosome04",35920437), Position("Chromosome04",35929999),
+            Position("chr8",4514), Position("chr8",14076))
+
+        val resizedVariantStartForward = createMafVcf.resizeVariantContext(refBlockVariantForward, bedRange.first.position, "+")
+        assertEquals(12731, resizedVariantStartForward)
+
+        val resizedVariantEndForward = createMafVcf.resizeVariantContext(refBlockVariantForward, bedRange.second.position, "+")
+        assertEquals(14076, resizedVariantEndForward)
+
+        //Make a variant context based on this:
+//        Chromosome04	35920437	.	C	<NON_REF>	.	.	ASM_Chr=chr8;ASM_End=4514;ASM_Start=14076;ASM_Strand=-;END=35929999	GT:AD:DP:PL	0:30,0:30:0,90,90
+
+        //Need to have reversed asm coords because that is how it looks with GVCFs coming from Biokotlin
+        val refBlockVariant = createRefRangeVC(mapOf("Chromosome04" to NucSeq("A".repeat(35929999))),"cassava_test",
+            Position("Chromosome04",35920437), Position("Chromosome04",35929999),
+            Position("chr8",14076), Position("chr8",4514))
+
+
+        val resizedVariantStart = createMafVcf.resizeVariantContext(refBlockVariant, bedRange.first.position, "-")
+        assertEquals(5859, resizedVariantStart)
+
+        val resizedVariantEnd = createMafVcf.resizeVariantContext(refBlockVariant, bedRange.second.position, "-")
+        assertEquals(4514, resizedVariantEnd)
 
     }
 
