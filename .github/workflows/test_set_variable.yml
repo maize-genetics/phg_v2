@@ -1,7 +1,11 @@
 name: Test Set Variable
 
+# Hacky solution: https://stackoverflow.com/a/76439748
+# Annoying that I have to do this for GitHub to show any action not on main
+
 on:
   workflow_dispatch:
+  pull_request:
 
 jobs:
   test-set-variable:
