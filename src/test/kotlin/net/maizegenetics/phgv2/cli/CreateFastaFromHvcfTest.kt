@@ -87,8 +87,8 @@ class CreateFastaFromHvcfTest {
         assertTrue(altHeaders.containsKey("2b4590f722ef9229c15d29e0b4e51a0e"))
         val currentHeader2b = altHeaders["2b4590f722ef9229c15d29e0b4e51a0e"]
         assertEquals(currentHeader2b?.id, "2b4590f722ef9229c15d29e0b4e51a0e")
-        assertEquals(currentHeader2b?.description, "\"haplotype data for line: Ref\"")
-        assertEquals(currentHeader2b?.source, "\"data/test/smallseq/Ref.fa\"")
+        assertEquals(currentHeader2b?.description, "haplotype data for line: Ref")
+        assertEquals(currentHeader2b?.source, "data/test/smallseq/Ref.fa")
         assertEquals(currentHeader2b?.regions?.get(0), Pair(Position("1",11001), Position("1",12000)))
         assertEquals(currentHeader2b?.checksum, "Md5")
         assertEquals(currentHeader2b?.refRange, "2b4590f722ef9229c15d29e0b4e51a0e")
@@ -96,8 +96,8 @@ class CreateFastaFromHvcfTest {
         assertTrue(altHeaders.containsKey("db22dfc14799b1aa666eb7d571cf04ec"))
         val currentHeaderdb = altHeaders["db22dfc14799b1aa666eb7d571cf04ec"]
         assertEquals(currentHeaderdb?.id, "db22dfc14799b1aa666eb7d571cf04ec")
-        assertEquals(currentHeaderdb?.description, "\"haplotype data for line: Ref\"")
-        assertEquals(currentHeaderdb?.source, "\"data/test/smallseq/Ref.fa\"")
+        assertEquals(currentHeaderdb?.description, "haplotype data for line: Ref")
+        assertEquals(currentHeaderdb?.source, "data/test/smallseq/Ref.fa")
         assertEquals(currentHeaderdb?.regions?.get(0), Pair(Position("2",16501), Position("2",17500)))
         assertEquals(currentHeaderdb?.checksum, "Md5")
         assertEquals(currentHeaderdb?.refRange, "db22dfc14799b1aa666eb7d571cf04ec")
@@ -106,8 +106,8 @@ class CreateFastaFromHvcfTest {
         assertTrue(altHeaders.containsKey("5812acb1aff74866003656316c4539a6"))
         val currentHeader581 = altHeaders["5812acb1aff74866003656316c4539a6"]
         assertEquals(currentHeader581?.id, "5812acb1aff74866003656316c4539a6")
-        assertEquals(currentHeader581?.description, "\"haplotype data for line: Ref\"")
-        assertEquals(currentHeader581?.source, "\"data/test/smallseq/Ref.fa\"")
+        assertEquals(currentHeader581?.description, "haplotype data for line: Ref")
+        assertEquals(currentHeader581?.source, "data/test/smallseq/Ref.fa")
         assertEquals(currentHeader581?.regions?.get(0), Pair(Position("2",1), Position("2",1000)))
         assertEquals(currentHeader581?.checksum, "Md5")
         assertEquals(currentHeader581?.refRange, "5812acb1aff74866003656316c4539a6")

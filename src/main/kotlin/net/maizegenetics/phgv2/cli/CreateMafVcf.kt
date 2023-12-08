@@ -557,7 +557,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
             asmHeaders[assemblyHaplotypeHash] =
             VCFAltHeaderLine(
                 "<ID=${assemblyHaplotypeHash}, Description=\"haplotype data for line: ${metaDataRecord.sampleName}\">," +
-                        "Number=4,Source=\"${dbPath}/assemblies.agc\"," +
+                        "Source=\"${dbPath}/assemblies.agc\"," +
                         "Regions=\"${metaDataRecord.asmRegions.map { "${it.first.contig}:${it.first.position}-${it.second.position}" }.joinToString(",")}\"," +
                         "Checksum=\"Md5\",RefRange=\"${refSeqHash}\">",
                 VCFHeaderVersion.VCF4_2
@@ -580,17 +580,15 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
         //check to see if the variant is either a RefBlock or is a SNP with equal lengths
         return if(isVariantResizable(variant)) {
             when {
-                position < variant.start && strand == "+" -> variant.getAttributeAsInt("ASM_Start",variant.start)
-                position < variant.start && strand == "-" -> variant.getAttributeAsInt("ASM_End",variant.end)
-                position > variant.end && strand == "+" -> variant.getAttributeAsInt("ASM_End",variant.end)
-                position > variant.end && strand == "-" -> variant.getAttributeAsInt("ASM_Start",variant.start)
+                position < variant.start -> variant.getAttributeAsInt("ASM_Start",variant.start)
+                position > variant.end -> variant.getAttributeAsInt("ASM_End",variant.end)
                 strand == "+" -> {
                     val offset = position - variant.start
                     variant.getAttributeAsInt("ASM_Start",variant.start) + offset
                 }
                 strand == "-" -> {
                     val offset = position - variant.start
-                    variant.getAttributeAsInt("ASM_End",variant.end) - offset
+                    variant.getAttributeAsInt("ASM_Start",variant.end) - offset
                 }
                 else -> -1
             }

@@ -2,6 +2,7 @@
 
 package net.maizegenetics.phgv2.utils
 
+import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeader
 import org.apache.logging.log4j.LogManager
 
@@ -20,34 +21,29 @@ data class AltHeaderMetaData(val id: String, val description:String, val source:
  * To make this easy, we just parse each piece of metadata into a key-value pair and then store in a map.
 */
 fun parseALTHeader(header: VCFHeader) : Map<String, AltHeaderMetaData> {
-    //Need to turn the ALT File header into a Map<ID,AltHeaderMetaData>
-    return header.metaDataInInputOrder
-        .filter { it.key == "ALT" }
-        .map { it.toString()
-            .substringAfter("<")
-            .substringBeforeLast(">")
-        } //Keep the useful part of the ALT Tag
-        .map { it.split(",") }
-        .associate {
-            val idsToValueMap = it.map { token -> token.split("=") }.associate { token -> token[0] to token[1] }
-            //ID and Description are required fields by VCF spec, if these errors are thrown there is something wrong with the htsjdk library
-            check(idsToValueMap.containsKey("ID")) { "ALT Header does not contain ID" }
-            check(idsToValueMap.containsKey("Description")) { "ALT Header does not contain Description" }
-            //These are optional header fields so we check these in the unit test.
-            check(idsToValueMap.containsKey("Source")) { "ALT Header does not contain Source" }
-            check(idsToValueMap.containsKey("Regions")) { "ALT Header does not contain Regions" }
-            check(idsToValueMap.containsKey("Checksum")) { "ALT Header does not contain Checksum" }
-            check(idsToValueMap.containsKey("RefRange")) { "ALT Header does not contain RefRange" }
 
-            idsToValueMap["ID"]!! to AltHeaderMetaData(
-                idsToValueMap["ID"]!!,
-                idsToValueMap["Description"]!!,
-                idsToValueMap["Source"]!!,
-                parseRegions(idsToValueMap["Regions"]!!),
-                idsToValueMap["Checksum"]!!,
-                idsToValueMap["RefRange"]!!
+    return header.metaDataInInputOrder.filter { it.key =="ALT" }
+        .map{it as VCFAltHeaderLine }
+        .map{it.genericFields}
+        .associateBy { it["ID"]!! }
+        .map {
+            check(it.value.containsKey("ID")) { "ALT Header does not contain ID" }
+            check(it.value.containsKey("Description")) { "ALT Header does not contain Description" }
+            //These are optional header fields so we check these in the unit test.
+            check(it.value.containsKey("Source")) { "ALT Header does not contain Source" }
+            check(it.value.containsKey("Regions")) { "ALT Header does not contain Regions" }
+            check(it.value.containsKey("Checksum")) { "ALT Header does not contain Checksum" }
+            check(it.value.containsKey("RefRange")) { "ALT Header does not contain RefRange" }
+            it.key to AltHeaderMetaData(
+                it.value["ID"]!!,
+                it.value["Description"]!!,
+                it.value["Source"]!!,
+                parseRegions(it.value["Regions"]!!),
+                it.value["Checksum"]!!,
+                it.value["RefRange"]!!
             )
         }
+        .toMap()
 }
 
 /**
