@@ -4,8 +4,8 @@ name: Test Set Variable
 # Annoying that I have to do this for GitHub to show any action not on main
 
 env:
-  VERSION=1.2.3.4
-  RELEASE=1.2
+  VERSION: 1.2.3.4
+  RELEASE: 1.2
 
 on:
   workflow_dispatch:
