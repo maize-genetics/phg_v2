@@ -13,8 +13,20 @@ import kotlin.test.assertTrue
 class AlignAssembliesTest {
 
     @Test
+    fun testSystemMemory() {
+         val s_runtime = Runtime.getRuntime()
+        val s_totalMemory = s_runtime.totalMemory()
+        val s_freeMemory = s_runtime.freeMemory()
+        val s_maxMemory = s_runtime.maxMemory()
+        val fromTerry = Runtime.getRuntime().maxMemory() / 1048576L
+        val freeMemGigs = Runtime.getRuntime().maxMemory() / 1e-9
+        println("fromTerry: $fromTerry , freeMemGigs: $freeMemGigs")
+        println("System memory: total: $s_totalMemory, free: $s_freeMemory, max: $s_maxMemory")
+    }
+    @Test
     fun testNumThreadsAndRuns() {
-        // ok - this is now working.  It is giving me 3/3
+        // Test more assemblies than threads, it will pick the
+        // middle option that has the highest number of parallel alignments
         // The numbers with 10 threads and 20 total assemblies are:
         // 1 run: 10 threads
         // 2 runs: 5 threads
@@ -23,52 +35,44 @@ class AlignAssembliesTest {
         // 5 runs: 2 threads
         // 6 or higher runs: 1 thread
 
-        // BUT .. the calculations do NOT take into account the number of assemblies
-        // the user wants to align.  In AlignAssemblies, this is called whenever the user
-        // has not specified an inParallel amount.
-        val threadsToAssembliesMap = mutableMapOf<Int, Int>()
-        val totalConcurrentThreads = 10
-       // val totalAssemblies = 20
-       // val assembliesMax = 10
-        // This loop says if each assembly gets "numThreads", how many concurrent runs can we do?
-        for (numThreads in 1..totalConcurrentThreads) {
-            //val numRuns = assembliesMax / numThreads
-            val numRuns = totalConcurrentThreads/numThreads
-            val currentThreads = threadsToAssembliesMap[numRuns]
-            // if currentThreads is not null and is > than numThreads, ignore.
-            // otherwise, replace this entry
-            if (currentThreads == null || currentThreads < numThreads) {
-                threadsToAssembliesMap[numRuns] = numThreads
-            }
-        }
-        // we should now have a map with the highest number of threads for each number of runs
-        //At this point, we pick
-        // 1.  if only 1 entry, use that
-        // 2.  if are only 2 entries, use the one with the highest number of threads
-        // 3.  if there are > 3 entries, drop the one with the lowest number of runs and the one with the highest number of runs.
-        // Repeat then there are 2 entries or fewer entries left.
+        var totalConcurrentThreads = 10
+        var totalAssemblies = 20
 
-        // 1.  if only 1 entry, use that
-        if (threadsToAssembliesMap.size == 1) {
-            val entry = threadsToAssembliesMap.entries.first()
-            println("Using ${entry.value} threads for ${entry.key} runs")
-        } else if (threadsToAssembliesMap.size == 2) {
-            // 2.  if are only 2 entries, use the one with the highest number of threads
-            val entry = threadsToAssembliesMap.entries.maxByOrNull { it.value }
-            println("Using ${entry!!.value} threads for ${entry.key} runs")
-        } else {
-            // 3.  if there are > 3 entries, drop the one with the lowest number of runs and the one with the highest number of runs.
-            // Repeat then there are 2 entries or fewer entries left.
-            while (threadsToAssembliesMap.size > 2) {
-                val minEntry = threadsToAssembliesMap.entries.minByOrNull { it.key }
-                val maxEntry = threadsToAssembliesMap.entries.maxByOrNull { it.key }
-                threadsToAssembliesMap.remove(minEntry!!.key)
-                threadsToAssembliesMap.remove(maxEntry!!.key)
-            }
-            // 2.  if are only 2 entries, use the one with the highest number of threads
-            val entry = threadsToAssembliesMap.entries.maxByOrNull { it.value }
-            println("Using ${entry!!.value} threads for ${entry.key} runs")
-        }
+        var alignmentsToThreads = AlignAssemblies().maximizeRunsAndThreads(totalConcurrentThreads, totalAssemblies)
+        println("\nAlignAssembliesTest: alignmentsToThreads: $alignmentsToThreads")
+        assertEquals(alignmentsToThreads, Pair(3, 3))
+
+        totalAssemblies = 5
+        // This picks 3/3
+        // Options will be:
+        // 1 run: 10 threads
+        // 2 runs: 5 threads
+        // 3 runs: 3 threads
+        // 4 runs: 2 threads
+        // 5 runs: 2 threads
+        alignmentsToThreads = AlignAssemblies().maximizeRunsAndThreads(totalConcurrentThreads, totalAssemblies)
+        println("\nAlignAssembliesTest: alignmentsToThreads: $alignmentsToThreads")
+        assertEquals(alignmentsToThreads, Pair(3, 3))
+
+        // test higher number of threads:
+        // This picks 6/7
+        // Options will be: (only number highest number of runs with the same thread count is kept)
+        // 1 run:  45 threads
+        // 2 runs: 22 threads
+        // 3 runs: 15 threads
+        // 4 runs: 11 threads
+        // 5 runs: 9 threads
+        // 6 runs: 7 threads
+        // 7 runs: 6 threads
+        // 9 runs: 5 threads
+        // 11 runs: 4 threads
+        // 15 runs: 3 threads
+        // 22 runs: 2 threads
+        totalConcurrentThreads = 45
+        totalAssemblies = 25
+        alignmentsToThreads = AlignAssemblies().maximizeRunsAndThreads(totalConcurrentThreads, totalAssemblies)
+        println("\nAlignAssembliesTest: alignmentsToThreads: $alignmentsToThreads")
+        assertEquals( Pair(6,7), alignmentsToThreads)
 
 
     }
