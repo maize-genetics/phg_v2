@@ -152,3 +152,18 @@ jobs:
             ${{ steps.matching_release.outputs.body }}
             ${{ env.COMMIT_MSG }}
 
+      # Update repository variables based on new release version and its MD5 hash
+      # These are used by the Conda package build Action
+      - uses: action-pack/set-variable@v1
+        with:
+          name: 'PHG2_VERSION'
+          value: '${{ env.VERSION }}'
+          token: ${{secrets.PHGV2CD}}
+      - name: Calculate MD5 of package
+        run: |
+          echo "PHG2_VERSION_MD5=$(md5sum PHGv2-v${{ env.RELEASE }}.tar | cut -d ' ' -f 1)" >> $GITHUB_ENV
+      - uses: action-pack/set-variable@v1
+        with:
+          name: 'PHG2_VERSION_MD5'
+          value: '${{ env.PHG2_VERSION_MD5 }}'
+          token: ${{secrets.PHGV2CD}}
