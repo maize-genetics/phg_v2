@@ -335,7 +335,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
                 //write the results of the range to a file
                 //line 1: >rangeid
-                myWriter.write(">${refrange}\n")
+                myWriter.write(">$refrange\n")
                 //line 2: long1,long2,...,longn (range has hapid sets encoded into a bitSet, which can be stored as longs)
                 myWriter.write("${encodedHapSets.toLongArray().joinToString(",")}\n")
                 //line 3: hash1,offset1,hash2,offset2,...,hashn,offsetn
@@ -375,50 +375,52 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         /**
          * data class to hold the KmerMap information.
          */
-        data class KmerMapData(val haplotypeListId: Int, val rangeToBitSetMap: Map<Int, BitSet>, val kmerHashToLongMap: Long2LongOpenHashMap)
+        data class KmerMapData(val rangeToBitSetMap: Map<ReferenceRange, BitSet>, val kmerHashToLongMap: Long2LongOpenHashMap)
 
         /**
          * Loads a kmer hash map file to memory for use in mapping reads.
          */
-        fun loadKmerMaps(filename: String): KmerMapData {
+        fun loadKmerMaps(filename: String, graph: HaplotypeGraph): KmerMapData {
             //Load the contents of the file into
-            //rangeHapidMap: a map of refRangeId to an IntArray of the haplotype ids in the ReferenceRange
+            //rangeHapidMap: a map of refRange to an Array<String> of the haplotype ids in the ReferenceRange
             // and the BitSet of all hapid sets
             //kmerHashmap: a map of kmer hash to reference range and offset into its BitSet, encoded as a long
             //These data structures all the reference range and haplotype set to be looked up for a kmer has
 
-            val rangeToBitSetMap = mutableMapOf<Int, BitSet>()
+
+            val rangeToBitSetMap = mutableMapOf<ReferenceRange, BitSet>()
             val kmerHashMap = Long2LongOpenHashMap()
             var lineCount = 0
             var totalLineCount = 0
-            var refrangeId = 0
-            var haplotypeListId = -1
+            var refrange = ReferenceRange("NULL", 0, 0)
 
+            val refRangeToIdMap = getReferenceRangeToIndexMap(graph)
             getBufferedReader(filename).useLines {
                 it.forEach { inputStr ->
                     totalLineCount++
 
                     lineCount = when(inputStr.first()) {
                         '>' -> 1
-                        '#' -> 4
                         else -> lineCount + 1
                     }
 
                     when (lineCount) {
                         1 -> {
-                            refrangeId = inputStr.substring(1).toInt()                  }
+                            //line 1 is the range
+                            refrange = ReferenceRange.parse(inputStr.substring(1))
+                        }
                         2-> {
                             try {
                                 val parsedLine = inputStr.split(",")
                                 val myBitset = BitSet.valueOf(parsedLine.map { it.toLong() }.toLongArray())
-                                rangeToBitSetMap[refrangeId] = myBitset
+                                rangeToBitSetMap[refrange] = myBitset
                             } catch(e: Exception) {
                                 println("error at line $totalLineCount for input = $inputStr")
                                 throw java.lang.IllegalArgumentException(e)
                             }
                         }
                         3 -> {
-                            val refrangeLong = (refrangeId.toLong()) shl 32
+                            val refrangeLong = (refRangeToIdMap[refrange]!!.toLong()) shl 32
                             val parsedLine = inputStr.split(",")
                             //values are pairs of hash, offset (long,int)
                             //add the pairs of entries to kmerHashMap
@@ -434,16 +436,14 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                                 kmerHashMap.put(hash, offset)
                             }
                         }
-                        4 -> {
-                            if (inputStr.startsWith("#haplotypeListId="))
-                                haplotypeListId = inputStr.substringAfter('=', "-1").toInt()
-
+                        else -> {
+                            throw IllegalArgumentException("Line count = $lineCount in kmerMap file format at line $totalLineCount in file $filename")
                         }
                     }
                 }
             }
 
-            return KmerMapData(haplotypeListId, rangeToBitSetMap, kmerHashMap)
+            return KmerMapData(rangeToBitSetMap, kmerHashMap)
         }
 
         fun getBufferedReader(filePath: String): BufferedReader {
@@ -473,5 +473,12 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             }
         }
 
+        /**
+         * Creates a map of ReferenceRange -> index for a [HaplotypeGraph]. Because the ranges are sorted by the
+         * HaplotypeGraph method range(), a graph always returns the same map.
+         */
+        fun getReferenceRangeToIndexMap(graph: HaplotypeGraph) : Map<ReferenceRange,Int> {
+            return graph.ranges().mapIndexed { index, range -> range to index }.toMap()
+        }
     }
 }
