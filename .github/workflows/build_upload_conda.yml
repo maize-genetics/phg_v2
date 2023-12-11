@@ -9,6 +9,7 @@ on:
 env:
   ANACONDA_API_TOKEN: ${{ secrets.CONDA_TOKEN }}
   PHG2_VERSION: ${{ vars.PHG2_VERSION }}
+  PHG2_RELEASE: ${{ vars.PHG2_RELEASE }}
   PHG2_VERSION_MD5: ${{ vars.PHG2_VERSION_MD5 }}
 
 jobs:
