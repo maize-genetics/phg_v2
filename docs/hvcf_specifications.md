@@ -1,7 +1,7 @@
 # hVCF - Haplotype Variant Call Format Specification
 
-* **_Specification version:_** `v2.1`
-* **_Date:_** 2023-10-31
+* **_Specification version:_** `v2.2`
+* **_Date:_** 2023-12-07
 
 ## Overview
 hVCF stands for **h**aplotype **V**ariant **C**all **F**ormat. This 
@@ -44,16 +44,16 @@ The following code block illustrates a formatted example hVCF file:
 ##contig=<ID=2,length=55000>
 ##reference=https://s3.amazonaws.com/maizegenetics/phg/phgV2Test/Ref.fa
 #CHROM POS   ID REF ALT                                                                   QUAL FILTER INFO      FORMAT Ref B97 CML231
-1      1     .  G   <546d1839623a5b0ea98bbff9a8a320e2>                                    .    .      END=1000  GT     1|1 1|1 1|1
-1      1001  .  A   <57705b1e2541c7634ea59a48fc52026f>,<1bda8c63ae8e2f3678b85bac0ee7b8b9> .    .      END=5500  GT     1|1 2|2 1|1
-1      27501 .  G   <105c85412229b45439db1f03c3f064f4>                                    .    .      END=28500 GT     1|1 1|1 1|1
-1      39501 .  G   <073286a82fe47d6a370e8a7a3803f1d3>                                    .    .      END=44000 GT     1|1 1|1 1|1
-1      45001 .  G   <06ae4e937668d301e325d43725a38c3f>                                    .    .      END=49500 GT     1|1 1|1 1|1
-2      11001 .  A   <347f0478b1a553ef107243cb60a9ba7d>                                    .    .      END=12000 GT     1|1 1|1 1|1
-2      22001 .  A   <43687e13112bbe841f811b0a9de82a94>,<5fedf293a1a5443cc896d59f12d1b92f> .    .      END=23000 GT     1|1 1|1 2|2
-2      34001 .  A   <2c4b8564bbbdf70c6560fdefdbe3ef6a>                                    .    .      END=38500 GT     1|1 1|1 1|1
-2      49501 .  G   <39f96726321b329964435865b3694fd2>                                    .    .      END=50500 GT     1|1 1|1 1|1
-2      50501 .  G   <105e63346a01d88e8339eddf9131c435>                                    .    .      END=55000 GT     1|1 1|1 1|1
+1      1     .  G   <546d1839623a5b0ea98bbff9a8a320e2>                                    .    .      END=1000  GT     1   1   1
+1      1001  .  A   <57705b1e2541c7634ea59a48fc52026f>,<1bda8c63ae8e2f3678b85bac0ee7b8b9> .    .      END=5500  GT     1   2   1
+1      27501 .  G   <105c85412229b45439db1f03c3f064f4>                                    .    .      END=28500 GT     1   1   1
+1      39501 .  G   <073286a82fe47d6a370e8a7a3803f1d3>                                    .    .      END=44000 GT     1   1   1
+1      45001 .  G   <06ae4e937668d301e325d43725a38c3f>                                    .    .      END=49500 GT     1   1   1
+2      11001 .  A   <347f0478b1a553ef107243cb60a9ba7d>                                    .    .      END=12000 GT     1   1   1
+2      22001 .  A   <43687e13112bbe841f811b0a9de82a94>,<5fedf293a1a5443cc896d59f12d1b92f> .    .      END=23000 GT     1   1   2
+2      34001 .  A   <2c4b8564bbbdf70c6560fdefdbe3ef6a>                                    .    .      END=38500 GT     1   1   1
+2      49501 .  G   <39f96726321b329964435865b3694fd2>                                    .    .      END=50500 GT     1   1   1
+2      50501 .  G   <105e63346a01d88e8339eddf9131c435>                                    .    .      END=55000 GT     1   1   1
 ```
 > [!NOTE]
 > In the prior example, the hVCF output columns below the header line
@@ -105,7 +105,7 @@ given haplotype sequence and defining the `Description` value with
 information about the origin of the haplotype sequence. 
 
 Since this haplotype sequence is (I) derived from a particular 
-sample, (II) related to related to reference range information, 
+sample, (II) related to reference range information, 
 and (III) has its own positional information, we can populate 
 the alternative allele field with additional key-value information. 
 Take the following example:
@@ -220,31 +220,53 @@ in the prior example (_with added header for additional clarity_):
 
 ```
 #CHROM POS   ID REF ALT                                                                   QUAL FILTER INFO      FORMAT Ref B97 CML231
-1      1001  .  A   <57705b1e2541c7634ea59a48fc52026f>,<1bda8c63ae8e2f3678b85bac0ee7b8b9> .    .      END=5500  GT     1|1 2|2 1|1
+1      1001  .  A   <57705b1e2541c7634ea59a48fc52026f>,<1bda8c63ae8e2f3678b85bac0ee7b8b9> .    .      END=5500  GT     1   2   1
 ```
 
 One thing you will notice is that there are no calls to the 
 "reference" allele field; only calls to the alternate field
 since these allele values represent the haplotype sequence in
-MD5 hash form. Additionally, all allele values are separated with a
-"phased" indicator (`|`) and never with an unphased indicator (`/`).
-Allele values represent the indexed order of haplotype sequences in
-the `ALT` field. In other terms if a sample has an allele value of
-`1|1`, this would refer to the _first_ symbolic allele in the `ALT`
-field for both haploid values. 
+MD5 hash form. Allele values, **if using haploid path finding**,
+are represented using 
+[singular values](https://samtools.github.io/hts-specs/VCFv4.2.pdf#subsubsection.1.4.2) 
+(e.g. `1`, `2`) which represent the indexed order of haplotype 
+sequences in the `ALT` field. In other terms, if a sample has an 
+allele value of `1`, this would refer to the _first_ symbolic allele 
+in the `ALT` field for the haploid value.
 
-Using this information with prior example, we can infer the following
-haplotype sequence information for the given reference range record
-(`1:1001-5500`):
+Using this information with the prior example, we can infer the 
+following haplotype sequence information for the given reference 
+range record (`1:1001-5500`):
 
 | Sample ID | Allele values | MD5 symbolic allele                |
 |-----------|---------------|------------------------------------|
-| `Ref`     | `1\|1`        | `57705b1e2541c7634ea59a48fc52026f` |
-| `B97`     | `2\|2`        | `1bda8c63ae8e2f3678b85bac0ee7b8b9` |
-| `CML231`  | `1\|1`        | `57705b1e2541c7634ea59a48fc52026f` |
+| `Ref`     | `1`           | `57705b1e2541c7634ea59a48fc52026f` |
+| `B97`     | `2`           | `1bda8c63ae8e2f3678b85bac0ee7b8b9` |
+| `CML231`  | `1`           | `57705b1e2541c7634ea59a48fc52026f` |
 
-> [!NOTE]
-> While the values shown here are homozygous, allele values are
-> represented as diploid to accomodate for possible heterozygous 
-> diploid path (e.g. `1|2`) finding options within the imputation 
-> pipeline for the PHG.
+Alternatively, allele values in hVCF files can be generated **using 
+diploid path finding** during the PHGv2 imputation process. Here is
+an example entry of this:
+
+```
+#CHROM POS   ID REF ALT                                                                   QUAL FILTER INFO      FORMAT Ref B97 CML231
+1      1001  .  A   <57705b1e2541c7634ea59a48fc52026f>,<1bda8c63ae8e2f3678b85bac0ee7b8b9> .    .      END=5500  GT     1|1 2|1 1|1
+```
+
+Allele values are separated with a "phased" indicator (`|`) and
+never with an "unphased" indicator (`/`). Similar to haploid path
+finding, allele values represent the indexed order of haplotype
+sequences in the `ALT` field. In other terms, if a sample has an 
+allele value of `2|1`, this would refer to the _second_ symbolic 
+allele in the `ALT` field for the first gamete and the _first_ 
+symbolic allele for the second gamete.
+
+Using this information with the prior example, we can infer the
+following haploid sequence information for the given reference
+range record (`1:1001-5500`) using diploid values:
+
+| Sample ID | Allele values | MD5 symbolic allele (gamete 1)     | MD5 symbolic allele (gamete 2)     |
+|-----------|---------------|------------------------------------|------------------------------------|
+| `Ref`     | `1\|1`        | `57705b1e2541c7634ea59a48fc52026f` | `57705b1e2541c7634ea59a48fc52026f` |
+| `B97`     | `2\|1`        | `1bda8c63ae8e2f3678b85bac0ee7b8b9` | `57705b1e2541c7634ea59a48fc52026f` |
+| `CML231`  | `1\|1`        | `57705b1e2541c7634ea59a48fc52026f` | `57705b1e2541c7634ea59a48fc52026f` |
