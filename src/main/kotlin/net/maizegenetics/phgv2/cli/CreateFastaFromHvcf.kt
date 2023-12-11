@@ -77,7 +77,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
     fun buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfDir: String ,hvcfFile : String) {
         if(hvcfDir != "") {
             //Loop through the directory and figure out which files are hvcf files
-            val hvcfFiles = File(hvcfDir).listFiles { file -> file.extension == "vcf" || file.name.endsWith("vcf.gz") }
+            // the gvcf and hvcf files may be in the same folder, so verify specific extension
+            val hvcfFiles = File(hvcfDir).listFiles { file -> file.extension == "h.vcf" || file.name.endsWith("h.vcf.gz") || file.name.endsWith("hvcf") || file.name.endsWith("hvcf.gz")}
             //Loop through each file and run the buildFastaFromHVCF function
             BufferedWriter(FileWriter(outputFile)).use { output ->
                 writeSequences(output,hvcfFiles.flatMap { processSingleHVCF(VCFFileReader(it,false), dbPath) }
