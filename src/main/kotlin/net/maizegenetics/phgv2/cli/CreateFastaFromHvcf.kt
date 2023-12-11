@@ -77,7 +77,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
     fun buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfDir: String ,hvcfFile : String) {
         if(hvcfDir != "") {
             //Loop through the directory and figure out which files are hvcf files
-            val hvcfFiles = File(hvcfDir).listFiles { file -> file.extension == "vcf" || file.name.endsWith("vcf.gz") }
+            // the gvcf and hvcf files may be in the same folder, so verify specific extension
+            val hvcfFiles = File(hvcfDir).listFiles { file -> file.extension == "h.vcf" || file.name.endsWith("h.vcf.gz") || file.name.endsWith("hvcf") || file.name.endsWith("hvcf.gz")}
             //Loop through each file and run the buildFastaFromHVCF function
             BufferedWriter(FileWriter(outputFile)).use { output ->
                 writeSequences(output,hvcfFiles.flatMap { processSingleHVCF(VCFFileReader(it,false), dbPath) }
@@ -120,24 +121,30 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
      * Function to create haplotype Sequences for each of the haplotype variants in the hvcf
      * Currently, sampleName is from a single HVCF file, and is the sample from which the haplotype sequences will be
      * extracted.
+     *
+     * In this function,
+     *    "sampleName" parameter is the sampleName from the headerline of the hvcf file
+     *    "hapSampleName" is the samplename associated with the haplotype sequence, and this information
+     *           is pulled from the ALT header line using the hapid as an index.
      */
     fun createHaplotypeSequences(dbPath:String, sampleName: String, haplotypeVariants: List<VariantContext>, altHeaders: Map<String, AltHeaderMetaData>): List<HaplotypeSequence> {
         val rangesAndOtherInfo = haplotypeVariants.filter { it.hasGenotype(sampleName) }.map {
             val hapId = it.getGenotype(sampleName).getAllele(0).displayString.replace("<","").replace(">","")
             check(altHeaders.containsKey(hapId)) { "Haplotype ID $hapId not found in ALT Header" }
             val altMetaData = altHeaders[hapId]
+            val hapSampleName = altMetaData!!.sampleName
             //Need to subtract 1 from start as it uses 0 based format
             val regions =  altMetaData!!.regions
             val queryRanges = mutableListOf<String>()
             val displayRanges = mutableListOf<String>()
             for(region in regions) {
                 if(region.first.position-1 > region.second.position-1) {
-                    queryRanges.add("${region.first.contig}@${sampleName}:${region.second.position-1}-${region.first.position-1}")
-                    displayRanges.add("${region.first.contig}:${region.second.position-1}-${region.first.position-1}")
+                    queryRanges.add("${region.first.contig}@${hapSampleName}:${region.second.position-1}-${region.first.position-1}")
+                    displayRanges.add("${hapSampleName}@${region.first.contig}:${region.second.position-1}-${region.first.position-1}")
                 }
                 else {
-                    queryRanges.add("${region.first.contig}@${sampleName}:${region.first.position - 1}-${region.second.position - 1}")
-                    displayRanges.add("${region.first.contig}:${region.first.position-1}-${region.second.position-1}")
+                    queryRanges.add("${region.first.contig}@${hapSampleName}:${region.first.position - 1}-${region.second.position - 1}")
+                    displayRanges.add("${hapSampleName}@${region.first.contig}:${region.first.position-1}-${region.second.position-1}")
                 }
             }
             Triple(queryRanges, displayRanges, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, regions))
@@ -150,7 +157,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
         val ranges = rangesAndOtherInfo.flatMap { it.first }
         val seqs = retrieveAgcContigs(dbPath,ranges)
 
-        return rangesAndOtherInfo.map { it.third.copy(sequence = buildHapSeq(seqs, sampleName, it.second,it.third)) }
+        return rangesAndOtherInfo.map { it.third.copy(sequence = buildHapSeq(seqs, it.second,it.third)) }
     }
 
     /**
@@ -160,13 +167,23 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
      * be just a contig, or a contig with ranges:  e.g. "chr1" or "chr1:100-200".  SampleName is the sample from which
      * the sequence was extracted.
      */
-    fun buildHapSeq(seqs: Map<Pair<String,String>,NucSeq> , sampleName: String, displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
+    fun buildHapSeq(seqs: Map<Pair<String,String>,NucSeq> , displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
+        // hapSeqRegions is the HaplotypeSequence object's list of regions.
+        // This was passed in as part of the Triple created in the calling method.
+        // Because of the way these were created, the displayRegions and the hapSeqRegions should be in the same order.
         val hapSeqRegions = hapSeqObjects.asmRegions
 
+        // This gets all the sequences from all the regions in the list,
+        // and joins them to a string with no separator.  The string that is
+        // returned is the sequence for the haplotype.
         return displayRegions.mapIndexed{ idx, currentDisplayRegion ->
             val currentHapSeqRegion = hapSeqRegions[idx]
 
-            val seq = seqs[Pair(sampleName,currentDisplayRegion)]!!
+            // The displayRegions are of the form: sampleName@contig:stPos-endPos
+            val sampleName = currentDisplayRegion.split("@")[0]
+            val region = currentDisplayRegion.split("@")[1]
+
+            val seq = seqs[Pair(sampleName,region)]!!
 
             //Check to see if we have an inverted sub region based on the currentHapSeqRegion
             if(currentHapSeqRegion.first.position > currentHapSeqRegion.second.position) {
