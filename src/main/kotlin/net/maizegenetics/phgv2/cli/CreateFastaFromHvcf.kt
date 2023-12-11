@@ -128,6 +128,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
      *           is pulled from the ALT header line using the hapid as an index.
      */
     fun createHaplotypeSequences(dbPath:String, sampleName: String, haplotypeVariants: List<VariantContext>, altHeaders: Map<String, AltHeaderMetaData>): List<HaplotypeSequence> {
+        val chromToAltEntryData = mutableMapOf<String, MutableList<Triple<MutableList<String>,MutableList<String>,HaplotypeSequence>>>()
+        val hapSeqList = mutableListOf<HaplotypeSequence>()
         val rangesAndOtherInfo = haplotypeVariants.filter { it.hasGenotype(sampleName) }.map {
             val hapId = it.getGenotype(sampleName).getAllele(0).displayString.replace("<","").replace(">","")
             check(altHeaders.containsKey(hapId)) { "Haplotype ID $hapId not found in ALT Header" }
@@ -147,17 +149,24 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
                     displayRanges.add("${hapSampleName}@${region.first.contig}:${region.first.position-1}-${region.second.position-1}")
                 }
             }
+            val chromList = chromToAltEntryData.getOrDefault(it.contig, mutableListOf())
+            chromList.add(Triple(queryRanges, displayRanges, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, regions)))
+            chromToAltEntryData[it.contig] = chromList
             Triple(queryRanges, displayRanges, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, regions))
         }
 
-        //Create a list of ranges we need to extract.
-        //Go through and split them into sets of non-identical ranges
-        //Pull all the non-identical ranges in a multithreaded fashion
-        //Store in Map<Range,Sequence>
-        val ranges = rangesAndOtherInfo.flatMap { it.first }
-        val seqs = retrieveAgcContigs(dbPath,ranges)
+        // The full set of ranges in a single query is too much for both ProcessBuilder
+        // and for AGC.  Loop over the chromosomes, grabbing sequence from AGC a chrom at a time.
+        // This returns a list of HaplotypeSequence objects.
+        for(chrom in chromToAltEntryData.keys) {
+            val ranges = chromToAltEntryData[chrom]!!.flatMap { it.first }
+            val seqs = retrieveAgcContigs(dbPath,ranges)
+            // update the HaplotypeSequence objects in the chromToAltEntryData object for this chromosome
+            // with the sequence obtained from AGC
+             hapSeqList.addAll(chromToAltEntryData[chrom]!!.map { it.third.copy(sequence = buildHapSeq(seqs, it.second,it.third)) })
+        }
 
-        return rangesAndOtherInfo.map { it.third.copy(sequence = buildHapSeq(seqs, it.second,it.third)) }
+        return hapSeqList
     }
 
     /**
