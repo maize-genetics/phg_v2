@@ -17,7 +17,13 @@ The PHG is a trellis graph based representation of genic and intergenic regions 
 You can download PHG2 from [the releases](https://github.com/maize-genetics/phg_v2/releases) page, but we recommend installing through Conda:
 
 ```
-conda install -c maize-genetics phg2
+conda install --channel maize-genetics phg2
+```
+
+We recommend creating a dedicated Conda environment for each of your bioinformatics projects, as opposed to installing directly into the base environment; please refer to Conda's documentation [on managing environments](https://conda.io/projects/conda/en/latest/user-guide/getting-started.html#managing-environments). To create an environment and install PHG2 in a single command, do as follows:
+
+```
+conda create --name my_env --channel maize-genetics phg2
 ```
 
 If you've already installed PHG2, you can update to the newest version via:
