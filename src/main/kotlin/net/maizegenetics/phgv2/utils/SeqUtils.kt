@@ -99,6 +99,7 @@ fun retrieveAgcData(dbPath:String,agcCmdList:List<String>):List<String>? {
     command.addAll(commandPrefix)
     command.addAll(genomes)
 
+    myLogger.info("retrieveAgcData: Running Agc Command:\n${command.joinToString(" ")}")
     val agcProcess = ProcessBuilder(*command.toTypedArray())
         .start()
 
