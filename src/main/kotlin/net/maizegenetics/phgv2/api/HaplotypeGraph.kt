@@ -252,7 +252,13 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
     }
 
-    // sampleGameteHapid[sampleId][gameteId] -> Checksum / hapid
+    /**
+     * Merges two jagged arrays of strings for each sample.
+     * This is needed since the input files are processed in
+     * multiple threads. This aggregates the results.
+     *
+     * sampleGameteHapid[sampleId][gameteId] -> Checksum / hapid
+     */
     private fun mergeStringArrays(
         sampleGameteHapid1: Array<MutableList<String?>>?,
         sampleGameteHapid2: Array<MutableList<String?>>
