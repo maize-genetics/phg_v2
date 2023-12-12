@@ -25,7 +25,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
     // rangeByGameteIdToHapid[refRangeId][sampleId][gameteID] -> checksum / hapid
     // jagged array because different number of haplotypes for each refRange
-    private lateinit var rangeByGameteIdToHapid: Array<Array<Array<String?>>>
+    private lateinit var rangeByGameteIdToHapid: Array<Array<Array<String>>>
 
     // Map<ReferenceRange, refRangeId>
     private lateinit var refRangeMap: SortedMap<ReferenceRange, Int>
@@ -77,7 +77,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         require(rangeId != null) { "hapIdToSamples: range: $range not found" }
         val result = mutableMapOf<String, MutableList<String>>()
         rangeByGameteIdToHapid[rangeId].forEachIndexed { sampleId, hapIdList ->
-            result.getOrPut(hapIdList[gameteId]!!) { mutableListOf() }.add(sampleNames[sampleId])
+            result.getOrPut(hapIdList[gameteId]) { mutableListOf() }.add(sampleNames[sampleId])
         }
         return result
     }
@@ -85,7 +85,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     /**
      * Returns the hapId for the sample in the specified ReferenceRange.
      */
-    fun sampleToHapId(range: ReferenceRange, sample: String, gameteId: Int = 0): String? {
+    fun sampleToHapId(range: ReferenceRange, sample: String, gameteId: Int = 0): String {
         val rangeId = refRangeMap[range]
         require(rangeId != null) { "sampleToHapId: range: $range not found" }
         val sampleId = sampleNameToIdMap[sample]
@@ -246,7 +246,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         //rangeByGameteIdToHapid = rangeIdToSampleToChecksum.toTypedArray()
         rangeByGameteIdToHapid = rangeIdToSampleToChecksum.map { sampleGameteHapid ->
             sampleGameteHapid.map { gameteHapid ->
-                gameteHapid.toTypedArray()
+                gameteHapid.map { it ?: "" }.toTypedArray()
             }.toTypedArray()
         }.toTypedArray()
 
@@ -263,9 +263,6 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         } else {
             sampleGameteHapid2.forEachIndexed { sampleId, gameteList ->
                 gameteList.forEachIndexed { gameteId, gamete ->
-                    if (sampleGameteHapid1[sampleId] == null) {
-                        sampleGameteHapid1[sampleId] = mutableListOf()
-                    }
                     if (gameteId < sampleGameteHapid1[sampleId].size) {
                         if (sampleGameteHapid1[sampleId][gameteId] == null) {
                             sampleGameteHapid1[sampleId][gameteId] = gamete
