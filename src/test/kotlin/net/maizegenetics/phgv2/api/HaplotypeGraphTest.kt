@@ -49,7 +49,7 @@ class HaplotypeGraphTest {
     @Test
     fun testBadInputHaplotypeGraph() {
         val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFileBadAltTag))
-        check(graph == null || graph.numberOfRanges() == 0) { "graph not null or empty" }
+        assert(graph == null || graph.numberOfRanges() == 0) { "graph not null or empty" }
     }
 
     /**
