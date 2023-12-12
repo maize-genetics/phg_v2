@@ -37,12 +37,28 @@ class HaplotypeGraphTest {
 
         assertEquals(graph.numberOfRanges(), ranges.size, "ranges size not equal to numberOfRanges")
 
-        ranges.forEach { range ->
-            println("$range: ${graph.hapIdToSamples(range)}")
-            graph.hapIdToSamples(range).forEach { (hapId, samples) ->
-                println("$hapId: ${samples.joinToString(", ")}")
-            }
-        }
+        // test hapIdToSamples() method
+
+        var hapIdToSamples = graph.hapIdToSamples(ranges[0])
+
+        assertEquals(2, hapIdToSamples.size, "hapIdToSamples size not 2: ${hapIdToSamples.size}")
+
+        var hapid = "12f0cec9102e84a161866e37072443b7"
+        var samples = hapIdToSamples[hapid]
+        assertEquals("LineA", samples?.get(0), "sample not LineA: ${samples?.get(0)}")
+
+        hapid = "4fc7b8af32ddd74e07cb49d147ef1938"
+        samples = hapIdToSamples[hapid]
+        assertEquals("LineB", samples?.get(0), "sample not LineB: ${samples?.get(0)}")
+
+        hapIdToSamples = graph.hapIdToSamples(ranges[ranges.size - 1])
+        hapid = "0eb9029f3896313aebc69c8489923141"
+        samples = hapIdToSamples[hapid]
+        assertEquals("LineA", samples?.get(0), "sample not LineA: ${samples?.get(0)}")
+
+        hapid = "5031218d4ac709dd51a946acd0550356"
+        samples = hapIdToSamples[hapid]
+        assertEquals("LineB", samples?.get(0), "sample not LineB: ${samples?.get(0)}")
 
     }
 
