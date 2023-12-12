@@ -1,13 +1,20 @@
 package net.maizegenetics.phgv2.pathing
 
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.cli.AgcCompress
 import net.maizegenetics.phgv2.cli.TestExtension
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import java.io.BufferedWriter
+import java.io.File
+import java.io.FileWriter
 import kotlin.test.assertEquals
 
 @ExtendWith(TestExtension::class)
 class BuildKmerIndexTest {
+
     @Test
     fun testKmerUpdating() {
         val testString = "ACACGTGTAACCGGTTGTGACTGACGGTAACGTCGAATGACGTAACCGTCGA"
@@ -49,11 +56,47 @@ class BuildKmerIndexTest {
                 "Error: missing option --agc-path\n", noargResult.stderr)
     }
 
-    //Tests to run
-    //test buildHaplotypeGraph method
-    //   throws error both of --tiledb-path and --hvcf-dir are empty strings
-    //   when --hvcf-dir is provided returns not yet implemented
-    //
-    //test processGraphKmers method
-    //test saveKmerHashesAndHapids method
+
+    @Test
+    fun testProcessGraphKmers() {
+
+        //populate the AGC database
+        setupAgc()
+
+        //set up temporary file names
+        val tempTestDir = "${TestExtension.tempDir}kmerTest/"
+        val tempHvcfDir = "${tempTestDir}hvcfDir/"
+        val tempAGCDir = "${TestExtension.testOutputFastaDir}/dbPath"
+
+        //copy hvcf files to temp directory
+        listOf(TestExtension.smallseqLineAHvcfFile,TestExtension.smallseqLineBHvcfFile).forEach { hvcfFile ->
+            val dst = File("$tempHvcfDir${File(hvcfFile).name}")
+            if (!dst.exists()) {
+                File(hvcfFile).copyTo(dst)
+            }
+        }
+
+        //create a HaplotypeGraph from the hvcf files
+        val buildIndexResult = BuildKmerIndex().test("--agc-path $tempAGCDir --hvcf-dir $tempHvcfDir")
+
+        //Was the index created?
+        assertEquals(0, buildIndexResult.statusCode)
+        assert(File("${tempHvcfDir}/kmerIndex.txt").exists())
+    }
+
+    private fun setupAgc() {
+        //create an AGC record with the Ref in it
+        val altFileListFile = TestExtension.testOutputFastaDir+"/agc_altList.txt"
+        BufferedWriter(FileWriter(altFileListFile)).use { writer ->
+            writer.write("data/test/smallseq/LineA.fa\n")
+            writer.write("data/test/smallseq/LineB.fa\n")
+        }
+
+        val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
+        File(dbPath).mkdirs()
+
+        //Call AGCCompress to create the AGC file
+        val agcCompress = AgcCompress()
+        agcCompress.processAGCFiles(dbPath,altFileListFile,"data/test/smallseq/Ref.fa")
+    }
 }

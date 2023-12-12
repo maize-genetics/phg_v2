@@ -79,8 +79,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         val graph = buildHaplotypeGraph()
         val hashToHapidMap = processGraphKmers(graph)
 
-        //for now, the name of the kmerIndex will be kmerIndex.gz. Later, the file path and name can be set by the user.
-        val kmerIndexFilename = "kmerIndex.gz"
+        //for now, the name of the kmerIndex will be kmerIndex.txt. Later, the file path and name can be set by the user.
+        val kmerIndexFilename = "${hvcfDir}kmerIndex.txt"
 
         //save the kmerIndex
         saveKmerHashesAndHapids(graph, kmerIndexFilename, hashToHapidMap)
@@ -134,45 +134,30 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             val agcRangeList = mutableListOf<String>()
             val sourceHapidMap = mutableMapOf<String, String>()
 
+
             hapidToSampleMap.keys.forEach { hapid ->
                 val alt = graph.altHeaderMap[hapid] ?: throw IllegalStateException("No alt header for $hapid")
                 //mapping source name to hapid assumes there is only one hapid per source in a reference range
                 //this seems safe, but it is being checked here just in case
                 //alt.source is not the agc sample name, but is serving as a place holder until the correct name is available
                 //not sure what alt.property will be the one to use
-                //TODO get sample name from alt instead of source
-                check(sourceHapidMap.contains(alt.source)) {"Two hapids from ${alt.source} at ${alt.regions[0].first.position}"}
-                sourceHapidMap[alt.source] = hapid
+                check(!sourceHapidMap.contains(alt.sampleName)) {"Two hapids from ${alt.sampleName} at ${alt.regions[0].first.contig}:${alt.regions[0].first.position}\n$sourceHapidMap"}
+                sourceHapidMap[alt.sampleName] = hapid
                 for (range in alt.regions) {
                     if (range.first.position <= range.second.position) {
-                        agcRangeList.add("${range.first.contig}@${alt.source}:${range.first.position - 1}-${range.second.position - 1}")
+                        agcRangeList.add("${range.first.contig}@${alt.sampleName}:${range.first.position - 1}-${range.second.position - 1}")
                     } else {
-                        agcRangeList.add("${range.first.contig}@${alt.source}:${range.second.position - 1}-${range.first.position - 1}")
+                        agcRangeList.add("${range.first.contig}@${alt.sampleName}:${range.second.position - 1}-${range.first.position - 1}")
                     }
                 }
 
-            }
-
-            for ((hapid, alt) in graph.altHeaderMap.entries) {
-                //mapping source name to hapid assumes there is only one hapid per source in a reference range
-                //this seems safe, but it is being checked here just in case
-                check(sourceHapidMap.contains(alt.source)) {"Two hapids from ${alt.source} at ${alt.regions[0].first.position}"}
-                sourceHapidMap[alt.source] = hapid
-                for (range in alt.regions) {
-                    if (range.first.position <= range.second.position) {
-                        agcRangeList.add("${range.first.contig}@${alt.source}:${range.first.position - 1}-${range.second.position - 1}")
-                    } else {
-                        agcRangeList.add("${range.first.contig}@${alt.source}:${range.second.position - 1}-${range.first.position - 1}")
-                    }
-                }
             }
 
             val agcdataMap = retrieveAgcContigs(agcPath, agcRangeList)
-            //TODO method to get source name from the agcdataMap
             //retrieveAgcContigs returns a Map<Pair<String,String>,NucSeq> where Pair is
             // sampleName, contig:start-end and NucSeq is the sequence
             val hapidSeqMap = agcdataMap.entries.map { (sample, seqrec) ->
-                val hapid = sourceHapidMap[sample.first] ?: throw IllegalStateException("No hapid for ${sample.second}")
+                val hapid = sourceHapidMap[sample.first] ?: throw IllegalStateException("No hapid for ${sample.first}")
                 hapid to seqrec.seq()
                 }.groupBy ({it.first}, {it.second})
 
@@ -289,6 +274,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         // graph persistence not needed for now, will write index to hvcfDir
         //TODO add sufficient information to be able to reproduce the graph from the index file
+        //   for example a list of the hvcf files or tiledb sample names
 
         var rangeCount = 0
         val startTime = System.nanoTime()
