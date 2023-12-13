@@ -37,7 +37,7 @@ class HaplotypeGraphTest {
 
         assertEquals(graph.numberOfRanges(), ranges.size, "ranges size not equal to numberOfRanges")
 
-        // test hapIdToSamples() method
+        // tests hapIdToSamples() method
 
         var hapIdToSamples = graph.hapIdToSamples(ranges[0])
 
@@ -59,6 +59,36 @@ class HaplotypeGraphTest {
         hapid = "5031218d4ac709dd51a946acd0550356"
         samples = hapIdToSamples[hapid]
         assertEquals("LineB", samples?.get(0), "sample not LineB: ${samples?.get(0)}")
+
+        // tests for sampleToHapId() method
+
+        var checksum = graph.sampleToHapId(ranges[0], "LineA")
+        assertEquals(
+            "12f0cec9102e84a161866e37072443b7",
+            checksum,
+            "sampleToHapId: checksum not 12f0cec9102e84a161866e37072443b7: $checksum"
+        )
+
+        checksum = graph.sampleToHapId(ranges[0], "LineB")
+        assertEquals(
+            "4fc7b8af32ddd74e07cb49d147ef1938",
+            checksum,
+            "sampleToHapId: checksum not 4fc7b8af32ddd74e07cb49d147ef1938: $checksum"
+        )
+
+        checksum = graph.sampleToHapId(ranges[ranges.size - 1], "LineA")
+        assertEquals(
+            "0eb9029f3896313aebc69c8489923141",
+            checksum,
+            "sampleToHapId: checksum not 0eb9029f3896313aebc69c8489923141: $checksum"
+        )
+
+        checksum = graph.sampleToHapId(ranges[ranges.size - 1], "LineB")
+        assertEquals(
+            "5031218d4ac709dd51a946acd0550356",
+            checksum,
+            "sampleToHapId: checksum not 5031218d4ac709dd51a946acd0550356: $checksum"
+        )
 
     }
 
