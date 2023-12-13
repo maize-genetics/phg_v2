@@ -14,15 +14,12 @@ class AlignAssembliesTest {
 
     @Test
     fun testSystemMemory() {
-         val s_runtime = Runtime.getRuntime()
-        val s_totalMemory = s_runtime.totalMemory()
-        val s_freeMemory = s_runtime.freeMemory()
-        val s_maxMemory = s_runtime.maxMemory()
-        val fromTerry = Runtime.getRuntime().maxMemory() / 1048576L
-        val freeMemGigs = Runtime.getRuntime().maxMemory() / 1e-9
-        println("fromTerry: $fromTerry , freeMemGigs: $freeMemGigs")
-        println("System memory: total: $s_totalMemory, free: $s_freeMemory, max: $s_maxMemory")
+        val availMemory = AlignAssemblies().getSystemMemory()
+        // What can we test here? Verify that memory is not 0, as we don't
+        // know how much memory will be on the system running the test.
+        assertTrue(availMemory > 0, "System memory is 0")
     }
+
     @Test
     fun testNumThreadsAndRuns() {
         // Test more assemblies than threads, it will pick the
@@ -73,9 +70,8 @@ class AlignAssembliesTest {
         alignmentsToThreads = AlignAssemblies().maximizeRunsAndThreads(totalConcurrentThreads, totalAssemblies)
         println("\nAlignAssembliesTest: alignmentsToThreads: $alignmentsToThreads")
         assertEquals( Pair(6,7), alignmentsToThreads)
-
-
     }
+
     @Test
     fun testCliktParams() {
         val alignAssemblies = AlignAssemblies()

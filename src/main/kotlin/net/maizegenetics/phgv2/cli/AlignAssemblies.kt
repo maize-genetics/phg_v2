@@ -12,6 +12,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.lang.management.ManagementFactory
+import javax.management.MBeanServer
+import javax.management.ObjectName
 
 /**
  * This will align assemblies to a reference genome.
@@ -88,7 +91,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
             }
         }
 
-    val totalThreads by option(help = "Number of threads available.  These will be split among the alginments that are run in parallel")
+    val totalThreads by option(help = "Number of threads available.  These will be split among the alignments that are run in parallel")
         .int()
         .default(0)
 
@@ -123,8 +126,6 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
 
         // Returns Pair<Int, Int> where the first value is the number of parallel alignments, the second is threadsPerAlignment
         val runsAndThreads = calculatedNumThreadsAndRuns(totalThreads, inParallel, assemblies)
-//        val freeMemory = Runtime.getRuntime().freeMemory()
-//        val processors = Runtime.getRuntime().availableProcessors()
 
         // create CDS fasta from reference and gff3 file
         val cdsFasta = "$outputDir/ref.cds.fasta"
@@ -162,15 +163,41 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
 
     }
 
+    /**
+     * This method uses a java managment facotry bean to determine the
+     * amount of system memory on the hosting machine.
+     */
+    fun getSystemMemory():Double {
+        val mBeanServer: MBeanServer = ManagementFactory.getPlatformMBeanServer()
+        // attribute is in bytes
+        val attribute =
+            mBeanServer.getAttribute(ObjectName("java.lang", "type", "OperatingSystem"), "TotalPhysicalMemorySize")
+        // translate bytes to gigabutes
+        val memoryGibi = attribute as Long / 1e9
+        // and now to gibibytes, as anchorwave uses GiB
+        val memoryGigi = memoryGibi * 0.93
+        myLogger.info("getSystemMemory: Total system memory: $attribute Bytes, $memoryGibi GB, $memoryGigi GiB")
+        return memoryGigi
+    }
+
+    /**
+     * This function calculates the number of available processors, and the maxium
+     * system memory avilable for this machine.  It returns a Pair<Int, Int> where
+     * the first value is the number of alignments to run in parallel, and the second
+     * value is the number of threads to use for each alignment.
+     *
+     * An algorithm is used that selects a middle value between the number of threads
+     * and the number of alignments to run in parallel.
+     *
+     */
     fun calculatedNumThreadsAndRuns(totalThreads:Int, inParallel:Int, assemblies:String): Pair<Int, Int> {
         // If totalThreads or inParallel are 0, it means the user did not specify them
         // In that case we calculate these values based on the number of processors available
         // and the amount of free memory available.
-        //val freeMemory = Runtime.getRuntime().freeMemory()
-        val freeMemory = Runtime.getRuntime().maxMemory() / 1e9
         val processors = Runtime.getRuntime().availableProcessors() - 2 // leave 2 processors for the OS
+        val systemMemory = getSystemMemory()
 
-        myLogger.info("\nLCJ: freeMemory: $freeMemory, processors: $processors")
+        myLogger.info("calculateNumThreadsAndRuns: systemMemory: $systemMemory, processors: $processors")
 
         // If the user did not specify the number of threads to use, we will use all available
         // processors.  If the user did specify the number of threads, we will use that number
@@ -186,23 +213,26 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
             processors
         }
 
-        println("LCJ: totalThreadsToUse: $totalThreadsToUse")
+        myLogger.info("calculateNumThreadsAndRuns: totalThreadsToUse: $totalThreadsToUse")
         // Per Baoxing's chart, it takes just over 20G/thread to run anchorwave on a sample maize genome.
         // THe number of threads that can be run simultaneously is limited by the amount of
         // free memory available.  We will use 21G/thread as the memory requirement, and
         // calculate the number of threads that can be run simultaneously based on the
-        // amount of free memory available.
+        // amount of system memory available. This calculation assumes the user has access to
+        // all memory and processors on the machine.
 
-        val concurrentThreads = (freeMemory/21).toInt()
-        println("LCJ: concurrentThreads: $concurrentThreads")
+        val concurrentThreads = (systemMemory/21).toInt()
+        myLogger.info("calculateNumThreadsAndRuns: max concurrent threads: $concurrentThreads")
         if (concurrentThreads < 1) {
-            // FreeMemory is often low when running CI or junit tests.  This allows them to pass.
-            myLogger.warn("There is not enough free memory to run anchorwave.  Free memory: $freeMemory")
+            //TODO: Lcj - do we still need this code?
+            // systemMemory may be low when running CI or junit tests.
+            // The test files are also very small.
+            // This clause allows junits to run.
+            myLogger.warn("There is not enough systemMemory to run anchorwave.  Free memory: $systemMemory")
             myLogger.warn("will attempt to run one alignment at a time, using just a single thread.")
             return(Pair(1,1))
         }
 
-        // THis is sometimes
         // Calculate how many threads we can run at the same time (based on memory availability)
         val totalConcurrentThreads = if (concurrentThreads > totalThreadsToUse) {
             totalThreadsToUse
@@ -211,7 +241,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         }
 
         // Now that we know how many threads can be run concurrently, we need to
-        // determine how many parallel alignments to do, and how many threads each
+        // determine how many parallel alignments to run, and how many threads each
         // one gets.  If the user specified the number of parallel alignments to run,
         // we will use that number, or the number of assemblies in the list, whichever
         // is smaller.
@@ -245,7 +275,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
             // concurrent alignments and number of threads per alignment
             maximizeRunsAndThreads(totalConcurrentThreads, numAssemblies)
         }
-        println("LCJ: calculatedNumThreadsAndRuns: returning runsAndThreads values: $runsAndThreads")
+        myLogger.info("calculatedNumThreadsAndRuns: returning runsAndThreads values: $runsAndThreads")
         return runsAndThreads
     }
 
@@ -270,7 +300,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         // 5 runs: 2 threads
         // 6 or higher runs: 1 thread
         // This code will return 3 runs, 3 threads each.
-        println("LCJ: maximizeRunsAndThreads: totalConcurrentThreads: $totalConcurrentThreads, totalAssemblies: $totalAssemblies")
+        myLogger.info("maximizeRunsAndThreads: totalConcurrentThreads: $totalConcurrentThreads, totalAssemblies: $totalAssemblies")
         val assembliesToThreads = mutableMapOf<Int, Int>()
 
         // This loop says if each assembly gets "numThreads", how many concurrent runs can we do?
@@ -293,21 +323,21 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         // Repeat until there are 2 entries or fewer entries left.
 
 
-        println("LCJ: maximizeRunsAndThreads: we had the chart, it looks like:")
-        println("numRuns\tthreadsPerRun")
+        myLogger.info("maximizeRunsAndThreads: potential run/thread combinations:")
+        myLogger.info("numAlignments\tthreadsPerAlignments")
         assembliesToThreads.forEach { (numRuns, threadsPerRun) ->
-            println("$numRuns\t$threadsPerRun")
+            myLogger.info("$numRuns\t$threadsPerRun")
         }
 
         // 1.  if only 1 entry, use that
         if (assembliesToThreads.size == 1) {
             val entry = assembliesToThreads.entries.first()
-            println("Using ${entry.value} threads for ${entry.key} runs")
+            myLogger.info("Running ${entry!!.key} runs with ${entry.value} threads per runs")
             return Pair(entry.key, entry.value)
         } else if (assembliesToThreads.size == 2) {
             // 2.  if are only 2 entries, use the one with the highest number of concurrent assemblies
             val entry = assembliesToThreads.entries.maxByOrNull { it.key }
-            println("Using ${entry!!.value} threads for ${entry.key} runs")
+            myLogger.info("Running ${entry!!.key} runs with ${entry.value} threads per runs")
             return Pair(entry.key, entry.value)
         } else {
             // 3.  if there are > 3 entries, drop the one with the lowest number of runs and the one with the highest number of runs.
@@ -319,15 +349,12 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
                 assembliesToThreads.remove(maxEntry!!.key)
             }
             // 2.  if are only 2 entries, use the one with the highest number of concurrent alignments
-            // But this may mean we are not using all the threads available.  If we pick the one with
-            // the highest number of threads, that could be better utilization of the threads.
-            // If there are 10 threads and 5 alignments, this will pick 2 alignments with 5 threads each.
+            // This may mean we are not using all the threads available, but it avoids the case of choosing
+            // to run 1 alignment with all threads, rather than 2 alignments with hald the threads when
+            // these are our only choices.
 
-            // If we choose based on remaining enty with the largest number of concurrent alignments,
-            // we will pick 3 alignments with 3 threads each.  Because we already dropped 5 alignments
-            // and 2 threads.
             val entry = assembliesToThreads.entries.maxByOrNull { it.key }
-            println("Running ${entry!!.key} concurrent alignments with  ${entry!!.value} threads for each run")
+            myLogger.info("Running ${entry!!.key} concurrent alignments with  ${entry!!.value} threads for each run")
             return Pair(entry.key, entry.value)
         }
     }
