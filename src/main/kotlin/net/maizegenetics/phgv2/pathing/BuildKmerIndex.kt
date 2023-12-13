@@ -7,23 +7,19 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.long
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap
-import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.apache.logging.log4j.LogManager
-import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.lang.IllegalStateException
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
-import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
 
@@ -363,14 +359,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             }
         }
 
-        fun getBufferedReader(filePath: String): BufferedReader {
-            return if (filePath.endsWith(".gz")) {
-                GZIPInputStream(FileInputStream(filePath)).bufferedReader()
-            } else {
-                Files.newBufferedReader(Paths.get(filePath))
-            }
-        }
-
         fun getBufferedWriter(filePath: String): BufferedWriter {
             return if (filePath.endsWith(".gz")) {
                 GZIPOutputStream(FileOutputStream(filePath)).bufferedWriter()
@@ -388,14 +376,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                 graph.hapIdToSamples(range).keys.toSortedSet()
                     .mapIndexed { index, hapid -> hapid to index }.toMap()
             }
-        }
-
-        /**
-         * Creates a map of ReferenceRange -> index for a [HaplotypeGraph]. Because the ranges are sorted by the
-         * HaplotypeGraph method range(), a graph always returns the same map.
-         */
-        fun getReferenceRangeToIndexMap(graph: HaplotypeGraph) : Map<ReferenceRange,Int> {
-            return graph.ranges().mapIndexed { index, range -> range to index }.toMap()
         }
     }
 }
