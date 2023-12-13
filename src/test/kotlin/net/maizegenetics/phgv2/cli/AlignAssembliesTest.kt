@@ -133,7 +133,7 @@ class AlignAssembliesTest {
 
         val result = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}"
+                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1"
         )
 
         println("testRunningAlignAssemblies: result output: ${result.output}")
@@ -171,6 +171,39 @@ class AlignAssembliesTest {
         println("LineB actual checksum2: $checksum2")
 
         assertEquals(checksum1, checksum2, "LineB.maf checksums do not match")
+
+    }
+
+    @Test
+    fun testSystemDefinedThreadsAndRuns() {
+
+        // phg align-assemblies --gff /workdir/tmc46/AlignAssemblies/smallSeq_data/anchors.gff
+        // --ref /workdir/tmc46/AlignAssemblies/smallSeq_data/Ref.fa
+        // -a /workdir/tmc46/AlignAssemblies/assembliesList.txt
+        // -o /workdir/tmc46/AlignAssemblies/temp
+
+        val alignAssemblies = AlignAssemblies()
+
+        val result = alignAssemblies.test(
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} "
+        )
+
+        println("testRunningAlignAssemblies: result output: ${result.output}")
+
+        assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
+
+        val lineAMAF = TestExtension.tempDir + "LineA.maf"
+        assertTrue(File(lineAMAF).exists(), "File $lineAMAF does not exist")
+
+        val lineBMAF = TestExtension.tempDir + "LineB.maf"
+        assertTrue(File(lineBMAF).exists(), "File $lineBMAF does not exist")
+
+        // Checksums of files are not verified here.  Because running in parallel means
+        // the entries in the maf files are in unspecified order, the files, while containing
+        // the same data, will have different checksums.  This is not a problem, as the
+        // order of the entries in the maf files is not important.
+
 
     }
 
