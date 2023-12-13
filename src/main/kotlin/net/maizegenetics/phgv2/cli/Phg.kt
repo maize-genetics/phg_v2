@@ -8,11 +8,24 @@ import net.maizegenetics.phgv2.utils.setupDebugLogging
 
 class Phg : CliktCommand() {
 
-    // Need an automated way to get version from build.gradle.kts
-    private val version = "2.2.0"
-
     init {
         setupDebugLogging()
+
+        // get version from version.properties file
+        var majorVersion = 0
+        var minorVersion = 0
+        var patchVersion = 0
+        var buildNumber = 0
+        Phg::class.java.getResourceAsStream("/version.properties").bufferedReader().readLines().forEach {
+            val (key, value) = it.split("=")
+            when (key) {
+                "majorVersion" -> majorVersion = value.toInt()
+                "minorVersion" -> minorVersion = value.toInt()
+                "patchVersion" -> patchVersion = value.toInt()
+                "buildNumber" -> buildNumber = value.toInt()
+            }
+        }
+        val version = "$majorVersion.$minorVersion.$patchVersion.$buildNumber"
         versionOption(version)
     }
 
