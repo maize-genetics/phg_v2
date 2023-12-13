@@ -99,7 +99,8 @@ fun retrieveAgcData(dbPath:String,agcCmdList:List<String>):List<String>? {
     command.addAll(commandPrefix)
     command.addAll(genomes)
 
-    myLogger.info("retrieveAgcData: Running Agc Command:\n${command.joinToString(" ")}")
+    val commandToPrint = if (command.joinToString(" ").length > 150) command.joinToString(" ").substring(0,150) else command.joinToString(" ")
+    myLogger.info("retrieveAgcData: Running Agc Command:\n${commandToPrint}...")
     val agcProcess = ProcessBuilder(*command.toTypedArray())
         .start()
 
@@ -246,7 +247,8 @@ fun buildAgcCommandFromList(dbPath:String, agcCmd:String, ranges:List<String>): 
  */
 fun queryAgc(commands:Array<String>):Map<Pair<String,String>,NucSeq> {
     check(commands.size > 0) { "Error:  No commands sent to queryAgc!" }
-    myLogger.info("queryAgc: Running Agc Command:\n${commands.joinToString(" ")}")
+    val commandToPrint = if (commands.joinToString(" ").length > 150) commands.joinToString(" ").substring(0,150) else commands.joinToString(" ")
+    myLogger.info("queryAgc: Running Agc Command:\n${commandToPrint}...")
 
     // .redirectError(ProcessBuilder.Redirect.INHERIT) redirects to stdout
     // For now, running without redirecting output or error.  The errorStream will be
