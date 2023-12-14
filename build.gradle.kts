@@ -1,5 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
+val ktorVersion = "2.3.7"
+
 plugins {
     kotlin("jvm") version "1.9.10"
     application
@@ -56,6 +58,14 @@ dependencies {
 
     implementation(files("repo/tiledb-vcf-java-0.25.2.jar"))
     implementation(files("repo/tiledb-java-0.19.6-SNAPSHOT.jar"))
+
+    implementation("io.ktor:ktor-server-netty:$ktorVersion")
+    implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
+    implementation("io.ktor:ktor-server-websockets:$ktorVersion")
+    implementation("io.ktor:ktor-server-default-headers:$ktorVersion")
+    implementation("io.ktor:ktor-server-call-logging:$ktorVersion")
+    implementation("io.ktor:ktor-serialization-jackson:$ktorVersion")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
 
