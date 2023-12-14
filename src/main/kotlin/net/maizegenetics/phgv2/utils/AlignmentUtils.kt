@@ -5,6 +5,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.pathing.BuildKmerIndex
 import org.apache.logging.log4j.LogManager
 import java.io.*
 import java.nio.file.Files
@@ -267,13 +268,13 @@ private fun readToHapidSet(read: String,
 
         //for first 31 nucleotides just update the hash
         for (nucleotide in sequence.subSequence(0..30)) {
-//            previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+            previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
         }
 
         //start using kmers starting with the 32nd nucleotide
         //lookup hapids and add to the list
         for (nucleotide in sequence.subSequence(31 until sequence.length)) {
-//            previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+            previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
             val minHash = min(previousHash.first, previousHash.second).toLong()
             val hapidsMatched = rangeHapidMapFromKmerHash(minHash, kmerHashOffsetMap, refrangeToBitSet, rangeToHapidIndexMap)
             for (entry in hapidsMatched) {
