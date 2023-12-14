@@ -52,10 +52,14 @@ class TestExtension : BeforeAllCallback {
         val testOutputCompositeFasta = "${testOutputFastaDir}composite.fa"
 
         //Imputation test files
+        val readMappingDir = "data/test/kmerReadMapping/"
         val testKmerIndex = "${tempDir}testKmerIndex.txt"
         val testReads = "${tempDir}testReads.fastq"
         val testOutputDir = "${tempDir}testOutputDir/"
         val testOutputReadMapping = "${testOutputDir}readMapping.txt"
+        val testKeyFile = "${readMappingDir}keyFile.txt"
+        val testKeyFileNoHeader = "${readMappingDir}keyFileNoHeader.txt"
+        val testKeyFileMissingFileName = "${readMappingDir}keyFileMissingFileName.txt"
 
 
     }

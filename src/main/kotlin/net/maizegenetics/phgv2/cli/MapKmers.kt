@@ -21,17 +21,23 @@ sealed class ReadInputFile {
         @Override
         override fun getReadFiles(): List<KeyFileData> {
             check(File(keyFile).exists()) { "Key file $keyFile does not exist." }
-            return File(keyFile).bufferedReader().readLines().map { lines ->
-                val line = lines.split("\t")
-                KeyFileData(line[0], line[1], line[2])
+            val linesWithHeader = File(keyFile).bufferedReader().readLines()
+            val header = linesWithHeader.first().split("\t")
+            //convert the header into a map of column name to column index
+            val headerMap = header.mapIndexed { index, s -> s to index }.toMap()
+            check(headerMap.containsKey("sampleName")) { "Key file $keyFile must have a column named sampleName." }
+            check(headerMap.containsKey("filename")) { "Key file $keyFile must have a column named filename." }
+            return linesWithHeader.drop(1).map{lines -> lines.split("\t")}.map { linesSplit ->
+                KeyFileData(linesSplit[headerMap["sampleName"]!!], linesSplit[headerMap["filename"]!!], if(headerMap.containsKey("filename2") && linesSplit.indices.contains(headerMap["filename2"]!!)) linesSplit[headerMap["filename2"]!!] else "")
             }
         }
     }
     data class ReadFiles(val readFiles: String): ReadInputFile() {
         @Override
         override fun getReadFiles(): List<KeyFileData> {
+            check(readFiles.isNotEmpty()) { "--read-files must have at least one file." }
             val fileNames = readFiles.split(",")
-            check(fileNames.size in 1 ..2) { "--read-files must have 1 or 2 files separated by commas.  You provided: ${fileNames.size}" }
+            check(fileNames.size <= 2) { "--read-files must have 1 or 2 files separated by commas.  You provided: ${fileNames.size}" }
             return listOf(KeyFileData("noSample",fileNames.first(), if(fileNames.size==1) "" else fileNames.last()))
         }
 
