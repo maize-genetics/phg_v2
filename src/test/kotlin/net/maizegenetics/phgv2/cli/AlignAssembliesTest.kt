@@ -15,8 +15,9 @@ class AlignAssembliesTest {
     @Test
     fun testSystemMemory() {
         val availMemory = AlignAssemblies().getSystemMemory()
-        // What can we test here? Verify that memory is not 0, as we don't
-        // know how much memory will be on the system running the test.
+        // Verify that memory is not 0.  It is difficult to know precisely
+        // what should be returned as we do not know the system running the test.
+        // This has been tested manually on multiple systems.
         assertTrue(availMemory > 0, "System memory is 0")
     }
 
@@ -53,7 +54,7 @@ class AlignAssembliesTest {
 
         // test higher number of threads:
         // This picks 6/7
-        // Options will be: (only number highest number of runs with the same thread count is kept)
+        // Options will be: (only highest number of runs with the same thread count is kept)
         // 1 run:  45 threads
         // 2 runs: 22 threads
         // 3 runs: 15 threads
@@ -177,11 +178,6 @@ class AlignAssembliesTest {
     @Test
     fun testSystemDefinedThreadsAndRuns() {
 
-        // phg align-assemblies --gff /workdir/tmc46/AlignAssemblies/smallSeq_data/anchors.gff
-        // --ref /workdir/tmc46/AlignAssemblies/smallSeq_data/Ref.fa
-        // -a /workdir/tmc46/AlignAssemblies/assembliesList.txt
-        // -o /workdir/tmc46/AlignAssemblies/temp
-
         val alignAssemblies = AlignAssemblies()
 
         val result = alignAssemblies.test(
@@ -199,8 +195,8 @@ class AlignAssembliesTest {
         val lineBMAF = TestExtension.tempDir + "LineB.maf"
         assertTrue(File(lineBMAF).exists(), "File $lineBMAF does not exist")
 
-        // Checksums of files are not verified here.  Because running in parallel means
-        // the entries in the maf files are in unspecified order, the files, while containing
+        // Checksums of files are not verified here.  Running in parallel means
+        // the entries in the maf files are in unspecified order.  The files, while containing
         // the same data, will have different checksums.  This is not a problem, as the
         // order of the entries in the maf files is not important.
 
