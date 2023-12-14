@@ -501,18 +501,21 @@ align and system capacities, when determining the anchorwave setup.
 ### Annotate Fastas
 Next, we must annotate our FASTA files with sample information. AGC, when queried for sequence
 belonging to a specific sample, does not maintain the sample name when returning sequence information.
-For example:  If I user requested the same chromosome and position range from two different samples with
+For example:  If a user requested the same chromosome and position range from two different samples with
 a command that included:
   ```
 chr1@LineA:1-100,chr1@LineB:1-100
   ```
 The returned data would have identical idlines for both samples' fasta sequences and would look like:
-```agsl
+```
 >chr1:1-100
 ```
 
-To avoid this, we will append the sample name to the idline of each fasta sequence with the text "sampleName=<sampleName>".  
-In addition, the updated fasta is renamed to be <sampleName>.fa.  This is done with the annotate-fastas command:
+The user has no way to determine which chr1:1-100 entry belongs to LineA and which belongs to LineB.
+
+To avoid this confusion, the annotate-fastas command appends the sample name to the idline of each fasta sequence with the text "sampleName=<sampleName>".  
+Because AGC maintains the fasta comments, the sample name is now available for each sequence returned from AGC.
+In addition, the updated fasta is renamed to <sampleName>.fa.  To run annotate-fastas, use the following command
 ```shell
 phg annotate-fastas \
     --keyfile data/annotation_keyfile.txt \
@@ -528,7 +531,7 @@ The output directory will contain the updated fasta files with the sample name a
 renamed to <sampleName>.fa.  These are the files you want to load to the AGC database in the step below.
 
 The threads parameter is optional and defaults to 1.  If you have multiple fasta files to annotate, you can use this
-to run the annotation in parallel.
+to run annotations in parallel.
 
 
 ### Compress FASTA files
