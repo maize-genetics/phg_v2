@@ -62,28 +62,28 @@ class HaplotypeGraphTest {
 
         // tests for sampleToHapId() method
 
-        var checksum = graph.sampleToHapId(ranges[0], "LineA")
+        var checksum = graph.sampleToHapId(ranges[0], SampleGamete("LineA"))
         assertEquals(
             "12f0cec9102e84a161866e37072443b7",
             checksum,
             "sampleToHapId: checksum not 12f0cec9102e84a161866e37072443b7: $checksum"
         )
 
-        checksum = graph.sampleToHapId(ranges[0], "LineB")
+        checksum = graph.sampleToHapId(ranges[0], SampleGamete("LineB"))
         assertEquals(
             "4fc7b8af32ddd74e07cb49d147ef1938",
             checksum,
             "sampleToHapId: checksum not 4fc7b8af32ddd74e07cb49d147ef1938: $checksum"
         )
 
-        checksum = graph.sampleToHapId(ranges[ranges.size - 1], "LineA")
+        checksum = graph.sampleToHapId(ranges[ranges.size - 1], SampleGamete("LineA"))
         assertEquals(
             "0eb9029f3896313aebc69c8489923141",
             checksum,
             "sampleToHapId: checksum not 0eb9029f3896313aebc69c8489923141: $checksum"
         )
 
-        checksum = graph.sampleToHapId(ranges[ranges.size - 1], "LineB")
+        checksum = graph.sampleToHapId(ranges[ranges.size - 1], SampleGamete("LineB"))
         assertEquals(
             "5031218d4ac709dd51a946acd0550356",
             checksum,

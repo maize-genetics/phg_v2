@@ -85,12 +85,12 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     /**
      * Returns the hapId for the sample in the specified ReferenceRange.
      */
-    fun sampleToHapId(range: ReferenceRange, sample: String, gameteId: Int = 0): String {
+    fun sampleToHapId(range: ReferenceRange, sample: SampleGamete): String {
         val rangeId = refRangeMap[range]
         require(rangeId != null) { "sampleToHapId: range: $range not found" }
-        val sampleId = sampleNameToIdMap[sample]
+        val sampleId = sampleNameToIdMap[sample.name]
         require(sampleId != null) { "sampleToHapId: sample: $sample not found" }
-        return rangeByGameteIdToHapid[rangeId][sampleId][gameteId]
+        return rangeByGameteIdToHapid[rangeId][sampleId][sample.gameteId]
     }
 
     /**
