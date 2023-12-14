@@ -65,6 +65,14 @@ dependencies {
     }
 }
 
+// include versions.properties file in jar file
+tasks.jar {
+    from(sourceSets.main.get().output)
+    from(projectDir) {
+        include("version.properties")
+    }
+}
+
 koverReport {
     verify {
         rule {
