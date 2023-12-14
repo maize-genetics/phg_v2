@@ -132,7 +132,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
 
             hapidToSampleMap.keys.forEach { hapid ->
-                val alt = graph.altHeaderMap[hapid] ?: throw IllegalStateException("No alt header for $hapid")
+                val alt = graph.altHeader(hapid) ?: throw IllegalStateException("No alt header for $hapid")
                 //mapping source name to hapid assumes there is only one hapid per source in a reference range
                 //this seems safe, but it is being checked here just in case
                 //alt.source is not the agc sample name, but is serving as a place holder until the correct name is available
