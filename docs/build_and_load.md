@@ -31,8 +31,6 @@ In this document, we will discuss the steps needed to:
         --gff anchors.gff \
         --reference-file /my/ref.fasta \
         --assemblies assemblies_list.txt \
-        --total-threads 20 \
-        --in-parallel 4 \
         -o /path/for/generated_files
     ```
 * Compress FASTA files
@@ -325,6 +323,12 @@ This command uses several parameters:
   `LineB`. Since these are located in a subdirectory called `data`
   relative to my working directory, I will also add that to the path.
 
+* `-o` - The name of the directory for the alignment outputs.
+
+  
+In addition to the above parameters, there are two optional parameters. When values are not specified for these parameters,
+default values are calculated by the software based on the system processor and memory configuration.
+
 * `--total-threads` - How many threads would you like to allocate for
   the alignment step? More information about this step and the 
   `--in-parallel` step can be found in the following **Details - 
@@ -333,7 +337,7 @@ This command uses several parameters:
   More information about this step and the `--total-threads` step can
   be found in the following **Details - threads and parallelization** 
   section.
-* `-o` - The name of the directory for the alignment outputs. 
+
 
 > [!WARNING]
 > The directory that you specify in the output (`-o`) section must
@@ -407,7 +411,52 @@ or review the following code blocks:
 > prior `-R` and `-Q` parameters.
 
 
-[//]: # (#### Details - threads and parallelization)
+# (#### Details - threads and parallelization)
+Aligning with anchorwave is memory intensive and can be slow.  Processing speed may be increased by
+using multiple threads for each alignment, and/or by running multiple alignments in parallel.  The amount of memory
+each thread takes is dependent on the processor type.  The table below shows the memory usage for a single
+alignment based on processor type:
+
+| Processor | peak memory (Gb) | wall time |
+|-----------|------------------|-----------|
+| SSE2      | 20.1             | 26:47:17  |
+| SSE4.1    | 20.6             | 24:05:07  |
+| AVX2      | 20.1             | 21:40:00  |
+| AVX512    | 20.1             | 18:31:39  |
+| ARM       | 34.2             | 18:08:57  |
+
+The `--total-threads` parameter indicates the total number of threads available for system use.  The `--in-parallel`
+parameter controls the number of alignments run in parallel.  When these values are not specified, the software will
+compute the optimal values based on the system processor and memory configuration. 
+
+The number of threads that may be run in parallel is limited by the amount of memory available.  The
+system is queried for memory and processor information.  The number of threads that may be run in parallel
+is determined by "system memory" / "peak memory" from the table above.  To generalize the calculation, we divide
+memory available (Gib) by 21 and round down to the nearest integer.
+
+For example, if the system has 512 Gb of memory, 80 processors and 5 assemblies that need aligning,
+the maximum number of threads that could be run in parallel is 24 (512/21).  The number of potential parallel
+alignments with the threads allocated for each is shown in the table below
+
+
+| Alignments in parallel | Threads per alignment |
+|------------------------|-----------------------|
+| 5                      | 4                     |
+| 4                      | 6                     |
+| 3                      | 8                     |
+| 2                      | 12                    |
+| 1                      | 24                    |
+
+The software will select a pairing that maximizes the number of alignments run in parallel while utilizing multiple threads, 
+opting for a value in the middle.  In the case above with 5 assemblies and a possibility of 24 concurrent threads,
+the system will choose to run 3 alignments in parallel with 8 threads each.  The total number of threads used
+will be 24 (3 * 8).
+
+User defined values for in-parallel and total-threads are considered along with the number of assemblies to
+align and system capacities, when determining the anchorwave setup.
+
+
+
 
 [//]: # ()
 [//]: # (***WIP*** - revisit once we can agree on naming and parameter conventions)
