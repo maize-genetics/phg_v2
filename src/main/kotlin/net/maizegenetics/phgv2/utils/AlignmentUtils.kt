@@ -5,11 +5,9 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
-import net.maizegenetics.phgv2.pathing.BuildKmerIndex
 import org.apache.logging.log4j.LogManager
 import java.io.*
 import java.nio.file.Files
-import java.nio.file.Paths
 import java.nio.file.Paths.*
 import java.util.*
 import java.util.zip.GZIPInputStream
@@ -23,11 +21,12 @@ import kotlin.math.min
 //data class KmerMapData(val haplotypeListId: Int, val rangeToBitSetMap: Map<Int, BitSet>, val kmerHashToLongMap: Long2LongOpenHashMap)
 data class KmerMapData(val rangeToBitSetMap: Map<ReferenceRange, BitSet>, val kmerHashToLongMap: Long2LongOpenHashMap)
 
+data class KeyFileData(val sampleName: String, val file1: String, val file2: String = "")
 
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.AlignmentUtils")
 
 
-fun alignReadsToHaplotypes(hvcfDir: String, kmerIndexFile:String, readFiles:String, paired:Boolean, outputDir:String) {
+fun alignReadsToHaplotypes(hvcfDir: String, kmerIndexFile:String, keyFileRecords:List<KeyFileData>, paired:Boolean, outputDir:String) {
     //loop through all files in hvcfDir and create a list of hvcf files
     val hvcfFiles = File(hvcfDir).walkTopDown().filter { it.isFile }.filter { it.extension == "h.vcf" }.map { "${it.path}/${it.name}" }.toList()
 
@@ -268,13 +267,13 @@ private fun readToHapidSet(read: String,
 
         //for first 31 nucleotides just update the hash
         for (nucleotide in sequence.subSequence(0..30)) {
-            previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+//            previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
         }
 
         //start using kmers starting with the 32nd nucleotide
         //lookup hapids and add to the list
         for (nucleotide in sequence.subSequence(31 until sequence.length)) {
-            previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+//            previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
             val minHash = min(previousHash.first, previousHash.second).toLong()
             val hapidsMatched = rangeHapidMapFromKmerHash(minHash, kmerHashOffsetMap, refrangeToBitSet, rangeToHapidIndexMap)
             for (entry in hapidsMatched) {
