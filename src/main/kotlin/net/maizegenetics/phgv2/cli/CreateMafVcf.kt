@@ -557,7 +557,7 @@ class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave M
             asmHeaders[assemblyHaplotypeHash] =
             VCFAltHeaderLine(
                 "<ID=${assemblyHaplotypeHash}, Description=\"haplotype data for line: ${metaDataRecord.sampleName}\">," +
-                        "Source=\"${dbPath}/assemblies.agc\"," +
+                        "Source=\"${dbPath}/assemblies.agc\",SampleName=\"${metaDataRecord.sampleName}\"," +
                         "Regions=\"${metaDataRecord.asmRegions.map { "${it.first.contig}:${it.first.position}-${it.second.position}" }.joinToString(",")}\"," +
                         "Checksum=\"Md5\",RefRange=\"${refSeqHash}\">",
                 VCFHeaderVersion.VCF4_2

@@ -278,6 +278,28 @@ class CreateFastaFromHvcfTest {
     }
 
     @Test
+    fun testCreateHaplotypeSequencesFromImputedVCf() {
+        // This file has a samplename of "LineImpute".
+        // All of the haplotypes for chrom1 are from LineA, all of the haplotypes for chrom2 are from LineB
+        val refHVCFFile = File("data/test/smallseq/LineImpute.h.vcf")
+        val vcfReader = VCFFileReader(refHVCFFile, false)
+        val createFastaFromHvcf = CreateFastaFromHvcf()
+        val altHeaders= parseALTHeader(vcfReader.header)
+
+        val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
+
+        val hapSequence = createFastaFromHvcf.createHaplotypeSequences(dbPath, "LineImpute", vcfReader.iterator().asSequence().toList(), altHeaders)
+
+        assertEquals(37, hapSequence.size)
+        val truthHashes = altHeaders.values.map { it.id }.toSet()
+
+        //This verifies that we do indeed extract out the correct sequences
+        hapSequence.forEach{
+            assertTrue(truthHashes.contains(it.id))
+        }
+    }
+
+    @Test
     fun testBuildFastaFromHVCF() {
         //buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfFile : String)
         val refHVCFFileName = "data/test/smallseq/Ref.h.vcf"
@@ -319,7 +341,7 @@ class CreateFastaFromHvcfTest {
         val hvcfRecord = createHVCFRecord("Ref", Position("1",1),Position("1",100),  Pair("A","2b4590f722ef9229c15d29e0b4e51a0e"))
         val variantList = listOf<VariantContext>(hvcfRecord)
         //create a map of altHeaders
-        val altHeader = AltHeaderMetaData("2b4590f722ef9229c15d29e0b4e51a0e","\"haplotype data for line: Ref\"","\"data/test/smallseq/Ref.fa\"",
+        val altHeader = AltHeaderMetaData("2b4590f722ef9229c15d29e0b4e51a0e","\"haplotype data for line: Ref\"","\"data/test/smallseq/Ref.fa\"",sampleName,
             listOf(Pair(Position("1",1), Position("1",50)), Pair(Position("1",60), Position("1", 100))), "Md5", "2b4590f722ef9229c15d29e0b4e51a0e")
 
         val altHeaders = mapOf<String, AltHeaderMetaData>("2b4590f722ef9229c15d29e0b4e51a0e" to altHeader)
@@ -343,7 +365,7 @@ class CreateFastaFromHvcfTest {
         val hvcfRecord2 = createHVCFRecord("Ref", Position("1",1),Position("1",100),  Pair("A","db22dfc14799b1aa666eb7d571cf04ec"))
         val variantList2 = listOf<VariantContext>(hvcfRecord2)
         //create a map of altHeaders
-        val altHeader2 =AltHeaderMetaData("db22dfc14799b1aa666eb7d571cf04ec","\"haplotype data for line: Ref\"","\"data/test/smallseq/Ref.fa\"",
+        val altHeader2 =AltHeaderMetaData("db22dfc14799b1aa666eb7d571cf04ec","\"haplotype data for line: Ref\"","\"data/test/smallseq/Ref.fa\"",sampleName,
             listOf(Pair(Position("1",50), Position("1",1)), Pair(Position("1",100), Position("1", 60))), "Md5", "db22dfc14799b1aa666eb7d571cf04ec")
 
         val altHeaders2 = mapOf<String, AltHeaderMetaData>("db22dfc14799b1aa666eb7d571cf04ec" to altHeader2)
@@ -366,7 +388,7 @@ class CreateFastaFromHvcfTest {
         val variantList3 = listOf<VariantContext>(hvcfRecord3)
         //create a map of altHeaders
 
-        val altHeader3 =AltHeaderMetaData("5812acb1aff74866003656316c4539a6","\"haplotype data for line: Ref\"","\"data/test/smallseq/Ref.fa\"",
+        val altHeader3 =AltHeaderMetaData("5812acb1aff74866003656316c4539a6","\"haplotype data for line: Ref\"","\"data/test/smallseq/Ref.fa\"",sampleName,
             listOf(Pair(Position("1",1), Position("1",50)), Pair(Position("1",100), Position("1", 60))), "Md5", "5812acb1aff74866003656316c4539a6")
 
         val altHeaders3 = mapOf<String, AltHeaderMetaData>("5812acb1aff74866003656316c4539a6" to altHeader3)
@@ -395,12 +417,12 @@ class CreateFastaFromHvcfTest {
             listOf(Pair(Position("1", 1), Position("1", 50)),
                     Pair(Position("1", 60), Position("1", 100))))
 
-        val region = listOf("1:0-49","1:59-99")
+        val region = listOf("Ref@1:0-49","Ref@1:59-99")
 
         val extractedSeqs = mapOf<Pair<String,String>,NucSeq>(Pair("Ref","1:0-49") to seqs["1"]!![0..49],
             Pair("Ref","1:59-99") to seqs["1"]!![59 .. 99])
 
-        val hapSeq = createFastaFromHvcf.buildHapSeq(extractedSeqs, "Ref",region, firstHapSeq)
+        val hapSeq = createFastaFromHvcf.buildHapSeq(extractedSeqs, region, firstHapSeq)
         assertEquals(91, hapSeq.length)
         assertEquals(extractedSeqs.values.joinToString("") { it.seq() }, hapSeq)
 
@@ -409,12 +431,12 @@ class CreateFastaFromHvcfTest {
             listOf(Pair(Position("1", 50), Position("1", 1)),
                 Pair(Position("1", 100), Position("1", 60))))
 
-        val region2 = listOf("1:49-0","1:59-99")
+        val region2 = listOf("Ref@1:49-0","Ref@1:59-99")
 
         val extractedSeqs2 = mapOf<Pair<String,String>,NucSeq>(Pair("Ref","1:49-0") to seqs["1"]!![0..49],
             Pair("Ref","1:59-99") to seqs["1"]!![59 .. 99])
 
-        val hapSeq2 = createFastaFromHvcf.buildHapSeq(extractedSeqs2, "Ref",region2, secondHapSeq)
+        val hapSeq2 = createFastaFromHvcf.buildHapSeq(extractedSeqs2, region2, secondHapSeq)
         assertEquals(91, hapSeq2.length)
         assertEquals(extractedSeqs2.values.joinToString("") { it.reverse_complement().seq() }, hapSeq2)
 
@@ -424,12 +446,12 @@ class CreateFastaFromHvcfTest {
             listOf(Pair(Position("1", 1), Position("1", 50)),
                 Pair(Position("1", 100), Position("1", 60))))
 
-        val region3 = listOf("1:0-49","1:59-99")
+        val region3 = listOf("Ref@1:0-49","Ref@1:59-99")
 
         val extractedSeqs3 = mapOf<Pair<String,String>,NucSeq>(Pair("Ref","1:0-49") to seqs["1"]!![0..49],
             Pair("Ref","1:59-99") to seqs["1"]!![59 .. 99])
 
-        val hapSeq3 = createFastaFromHvcf.buildHapSeq(extractedSeqs3, "Ref",region3, thirdHapSeq)
+        val hapSeq3 = createFastaFromHvcf.buildHapSeq(extractedSeqs3, region3, thirdHapSeq)
         assertEquals(91, hapSeq3.length)
         val expectedSeq = extractedSeqs3[Pair("Ref","1:0-49")]!!.seq() + extractedSeqs3[Pair("Ref","1:59-99")]!!.reverse_complement().seq()
         assertEquals(expectedSeq, hapSeq3)

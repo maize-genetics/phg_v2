@@ -19,4 +19,15 @@ data class ReferenceRange(val contig: String, val start: Int, val end: Int) :
         return "$contig:$start-$end"
     }
 
+    companion object {
+        /**
+         * Parse a string of the form "contig:start-end" into a ReferenceRange.
+         */
+        fun parse(rangeString: String): ReferenceRange {
+            val contig = rangeString.substringBefore(":")
+            val start = rangeString.substringAfter(":").substringBefore("-").toInt()
+            val end = rangeString.substringAfter("-").toInt()
+            return ReferenceRange(contig, start, end)
+        }
+    }
 }

@@ -41,6 +41,8 @@ dependencies {
 
     implementation("com.github.samtools:htsjdk:4.0.1")
 
+    implementation("it.unimi.dsi:fastutil:8.5.12")
+
     implementation("org.jetbrains.kotlin:kotlin-test:1.9.10")
     implementation("org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-script-runtime:${kotlinVersion}")
@@ -62,6 +64,14 @@ dependencies {
     val kotestVersion = "5.6.2"
     listOf("runner-junit5", "assertions-core", "property", "framework-datatest").forEach {
         testImplementation("io.kotest:kotest-$it-jvm:$kotestVersion")
+    }
+}
+
+// include versions.properties file in jar file
+tasks.jar {
+    from(sourceSets.main.get().output)
+    from(projectDir) {
+        include("version.properties")
     }
 }
 

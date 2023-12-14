@@ -162,7 +162,7 @@ class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference g
 
                     val calls = Pair(refAllele,intervalHash)
                     // this prevents them from being written to the hvcf file
-                    // THe intervalStart/intervalEnd values passed here are 1-based
+                    // The intervalStart/intervalEnd values passed here are 1-based
                     val vc = createHVCFRecord(
                         refName,
                         intervalStart,
@@ -176,8 +176,8 @@ class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference g
                     // headerLines.add(VCFAltHeaderLine("<ID=${intervalHash}, Description=\"${nodeDescription(node)}\">", VCFHeaderVersion.VCF4_2))
                     altHeaderLines.add(
                         VCFAltHeaderLine(
-                                "<ID=${intervalHash}, Description=\"haplotype data for line: ${refName}\",Number=\"4\"," +
-                                        "Source=\"${refGenome}\",Regions=\"${chr}:${anchorStart}-${anchorEnd}\"," +
+                              "<ID=${intervalHash}, Description=\"haplotype data for line: ${refName}\"," +
+                                       "Source=\"${refGenome}\",SampleName=\"${refName}\",Regions=\"${chr}:${anchorStart}-${anchorEnd}\"," +
                                         "Checksum=\"Md5\",RefRange=\"${intervalHash}\">",
                         VCFHeaderVersion.VCF4_2
                     )
