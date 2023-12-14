@@ -71,6 +71,15 @@ class AlignAssembliesTest {
         alignmentsToThreads = AlignAssemblies().maximizeRunsAndThreads(totalConcurrentThreads, totalAssemblies)
         println("\nAlignAssembliesTest: alignmentsToThreads: $alignmentsToThreads")
         assertEquals( Pair(6,7), alignmentsToThreads)
+
+        // test with just 1 thread and 1 run. This is to hit
+        // code coverage for the case where there is only 1 option
+        // for the number of runs and threads.
+        totalConcurrentThreads = 1
+        totalAssemblies = 1
+        alignmentsToThreads = AlignAssemblies().maximizeRunsAndThreads(totalConcurrentThreads, totalAssemblies)
+        println("\nAlignAssembliesTest: alignmentsToThreads: $alignmentsToThreads")
+        assertEquals( Pair(1,1), alignmentsToThreads)
     }
 
     @Test
@@ -200,6 +209,55 @@ class AlignAssembliesTest {
         // the same data, will have different checksums.  This is not a problem, as the
         // order of the entries in the maf files is not important.
 
+
+    }
+
+    @Test
+    fun testRequestedThreadsGreaterThanAvail() {
+        // I'm assuming all of the machines which will run this test will
+        // have less than 300 threads available for processing.  The code
+        // should default to the maximum number of threads available (minus 2 for IO)
+        // This test ups our code coverage.
+        val alignAssemblies = AlignAssemblies()
+
+        val result = alignAssemblies.test(
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 300 --in-parallel 1"
+        )
+
+        println("testRunningAlignAssemblies: result output: ${result.output}")
+
+        assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
+
+        val lineAMAF = TestExtension.tempDir + "LineA.maf"
+        assertTrue(File(lineAMAF).exists(), "File $lineAMAF does not exist")
+
+        val lineBMAF = TestExtension.tempDir + "LineB.maf"
+        assertTrue(File(lineBMAF).exists(), "File $lineBMAF does not exist")
+
+    }
+
+    @Test
+    fun testInParallelGreaterThanNumberOfAssemblies() {
+        // There are only 2 assemblies that we are aligning, will give it
+        // in-parallel of 4.  It should adjust to 2.
+        // This test ups our code coverage.
+        val alignAssemblies = AlignAssemblies()
+
+        val result = alignAssemblies.test(
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 4 --in-parallel 4"
+        )
+
+        println("testRunningAlignAssemblies: result output: ${result.output}")
+
+        assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
+
+        val lineAMAF = TestExtension.tempDir + "LineA.maf"
+        assertTrue(File(lineAMAF).exists(), "File $lineAMAF does not exist")
+
+        val lineBMAF = TestExtension.tempDir + "LineB.maf"
+        assertTrue(File(lineBMAF).exists(), "File $lineBMAF does not exist")
 
     }
 
