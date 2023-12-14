@@ -33,6 +33,13 @@ In this document, we will discuss the steps needed to:
         --assemblies assemblies_list.txt \
         -o /path/for/generated_files
     ```
+* Update FASTA headers with sample information:
+    ```shell
+    phg annotate-fastas \
+        --keyfile /path/to/keyfile \
+        --output-dir /path/to/annotated/fastas \
+        --threads 10
+    ```
 * Compress FASTA files
     ```shell
     phg agc-compress \
@@ -490,6 +497,37 @@ align and system capacities, when determining the anchorwave setup.
 [//]: # (| AVX512    | 20.1             | 18:31:39  |)
 
 [//]: # (| ARM       | 34.2             | 18:08:57  |)
+
+### Annotate Fastas
+Next, we must annotate our FASTA files with sample information. AGC, when queried for sequence
+belonging to a specific sample, does not maintain the sample name when returning sequence information.
+For example:  If I user requested the same chromosome and position range from two different samples with
+a command that included:
+  ```
+chr1@LineA:1-100,chr1@LineB:1-100
+  ```
+The returned data would have identical idlines for both samples' fasta sequences and would look like:
+```agsl
+>chr1:1-100
+```
+
+To avoid this, we will append the sample name to the idline of each fasta sequence with the text "sampleName=<sampleName>".  
+In additiona, the updated fasta is renamed to be <sampleName>.fa.  This is done with the annotate-fastas command:
+```shell
+phg annotate-fastas \
+    --keyfile data/annotation_keyfile.txt \
+    --threads 10 \
+    --o output/annotated_assemblies
+```
+The keyfile is a tab-delimited file with two columns:
+  1. Path to fasta file
+  2. Sample name
+
+The output directory will contain the updated fasta files with the sample name appended to the idline, and the fastas
+renamed to <sampleName>.fa
+
+
+
 
 
 ### Compress FASTA files

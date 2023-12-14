@@ -172,7 +172,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         // attribute is in bytes
         val attribute =
             mBeanServer.getAttribute(ObjectName("java.lang", "type", "OperatingSystem"), "TotalPhysicalMemorySize")
-        // translate bytes to gigabutes
+        // translate bytes to gigabytes
         val memoryGibi = attribute as Long / 1e9
         // and now to gibibytes, as anchorwave uses GiB
         val memoryGigi = memoryGibi * 0.93
@@ -182,18 +182,17 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
 
     /**
      * This function calculates the number of available processors, and the maxium
-     * system memory avilable for this machine.  It returns a Pair<Int, Int> where
+     * system memory available for this machine.  It returns a Pair<Int, Int> where
      * the first value is the number of alignments to run in parallel, and the second
      * value is the number of threads to use for each alignment.
      *
      * An algorithm is used that selects a middle value between the number of threads
      * and the number of alignments to run in parallel.
-     *
      */
     fun calculatedNumThreadsAndRuns(totalThreads:Int, inParallel:Int, assemblies:String): Pair<Int, Int> {
         // If totalThreads or inParallel are 0, it means the user did not specify them
         // In that case we calculate these values based on the number of processors available
-        // and the amount of free memory available.
+        // and the amount of memory available.
         val processors = if (Runtime.getRuntime().availableProcessors() - 2 > 0)  Runtime.getRuntime().availableProcessors() - 2 else 1 // leave 2 processors for the OS
         val systemMemory = getSystemMemory()
 
