@@ -512,22 +512,23 @@ The returned data would have identical idlines for both samples' fasta sequences
 ```
 
 To avoid this, we will append the sample name to the idline of each fasta sequence with the text "sampleName=<sampleName>".  
-In additiona, the updated fasta is renamed to be <sampleName>.fa.  This is done with the annotate-fastas command:
+In addition, the updated fasta is renamed to be <sampleName>.fa.  This is done with the annotate-fastas command:
 ```shell
 phg annotate-fastas \
     --keyfile data/annotation_keyfile.txt \
     --threads 10 \
     --o output/annotated_assemblies
 ```
+This command takes 3 parameters:
 The keyfile is a tab-delimited file with two columns:
   1. Path to fasta file
   2. Sample name
 
 The output directory will contain the updated fasta files with the sample name appended to the idline, and the fastas
-renamed to <sampleName>.fa
+renamed to <sampleName>.fa.  These are the files you want to load to the AGC database in the step below.
 
-
-
+The threads parameter is optional and defaults to 1.  If you have multiple fasta files to annotate, you can use this
+to run the annotation in parallel.
 
 
 ### Compress FASTA files
