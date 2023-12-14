@@ -41,6 +41,8 @@ dependencies {
 
     implementation("com.github.samtools:htsjdk:4.0.1")
 
+    implementation("it.unimi.dsi:fastutil:8.5.12")
+
     implementation("org.jetbrains.kotlin:kotlin-test:1.9.10")
     implementation("org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-script-runtime:${kotlinVersion}")
