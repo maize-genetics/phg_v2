@@ -29,6 +29,14 @@ class FileUtilsTest {
             assertEquals(">Ref", line)
             val line2 = br.readLine()
             assertEquals("ACGT", line2)
+
+            //test again with buffersize = 0
+            val brBuffer0 = getBufferedReader(tmpFilepath, bufSize = 0)
+            val line1Buffer0 = brBuffer0.readLine()
+            assertEquals(">Ref", line1Buffer0)
+            val line2Buffer0 = brBuffer0.readLine()
+            assertEquals("ACGT", line2Buffer0)
+
         }
 
         @Test
@@ -49,25 +57,4 @@ class FileUtilsTest {
             assertEquals("ACGT", line2)
         }
 
-        @Test
-        fun testGetBufferedReaderURL() {
-            val exception = assertThrows<FileNotFoundException> {
-                getBufferedReader("https://s3.amazonaws.com/maizegenetics/phg/phgV2Test/Ref.fa")
-            }
-            assertEquals(
-                "https:/s3.amazonaws.com/maizegenetics/phg/phgV2Test/Ref.fa (No such file or directory)",
-                exception.message
-            )
-        }
-
-        @Test
-        fun testGetBufferedReaderURLGzip() {
-            val exception = assertThrows<FileNotFoundException> {
-                getBufferedReader("https://s3.amazonaws.com/maizegenetics/phg/phgV2Test/Ref.fa.gz")
-            }
-            assertEquals(
-                "https:/s3.amazonaws.com/maizegenetics/phg/phgV2Test/Ref.fa.gz (No such file or directory)",
-                exception.message
-            )
-        }
 }
