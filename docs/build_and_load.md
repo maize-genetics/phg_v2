@@ -418,13 +418,13 @@ or review the following code blocks:
 > prior `-R` and `-Q` parameters.
 
 
-# (#### Details - threads and parallelization)
+#### Details - threads and parallelization
 Aligning with anchorwave is memory intensive and can be slow.  Processing speed may be increased by
 using multiple threads for each alignment, and/or by running multiple alignments in parallel.  The amount of memory
 each thread takes is dependent on the processor type.  The table below shows the memory usage for a single
 alignment based on processor type:
 
-| Processor | peak memory (Gb) | wall time |
+| Processor | peak memory (GB) | wall time |
 |-----------|------------------|-----------|
 | SSE2      | 20.1             | 26:47:17  |
 | SSE4.1    | 20.6             | 24:05:07  |
@@ -439,9 +439,9 @@ compute the optimal values based on the system processor and memory configuratio
 The number of threads that may be run in parallel is limited by the amount of memory available.  The
 system is queried for memory and processor information.  The number of threads that may be run in parallel
 is determined by "system memory" / "peak memory" from the table above.  To generalize the calculation, we divide
-memory available (Gib) by 21 and round down to the nearest integer.
+memory available (GiB) by 21 and round down to the nearest integer.
 
-For example, if the system has 512 Gb of memory, 80 processors and 5 assemblies that need aligning,
+For example, if the system has 512 GB of memory, 80 processors and 5 assemblies that need aligning,
 the maximum number of threads that could be run in parallel is 24 (512/21).  The number of potential parallel
 alignments with the threads allocated for each is shown in the table below
 
