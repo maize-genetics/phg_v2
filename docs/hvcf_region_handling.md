@@ -75,6 +75,22 @@ The `Region` key can house multiple region elements using comma
 displayed as follows:
 
 ```
-Regions=1:13-16,1:21-19
+Regions="1:13-16,1:21-19"
 ```
+
+In the above example, we provide multiple regions (_separated by 
+commas_) to indicate the normal and inverted portions of the 
+alignment:
+
+| Region    | Chromosome | Range (bp) | Type     |
+|-----------|------------|------------|----------|
+| `1:13-16` | 1          | 13 to 16   | normal   |
+| `1:21-19` | 1          | 21 to 19   | inverted |
+
+Since the last element of the region is inverted, the larger value 
+will be the first value left of the `-` character and the smaller
+value will be to the right of the `-` character. This will indicate
+to PHGv2 that reverse transcription of the sequence will need to
+occur before the MD5 hashing step.
+
 
