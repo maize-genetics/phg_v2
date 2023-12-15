@@ -168,8 +168,10 @@ class CreateRefVcfTest {
 
         // Verify the RefAllele for the first haplotype for each chromosome is correct
         val genomeLines = bufferedReader(genome).readLines()
-        val firstChrom = genomeLines.filter { it.startsWith(">") }[0].removePrefix(">")
-        val secondChrom = genomeLines.filter { it.startsWith(">") }[1].removePrefix(">")
+        // Verify the chromosome names match the first column of the bed file, minus comments
+        // The comments here are "sampleName=..."
+        val firstChrom = genomeLines.filter { it.startsWith(">") }[0].removePrefix(">").substringBefore(" ")
+        val secondChrom = genomeLines.filter { it.startsWith(">") }[1].removePrefix(">").substringBefore(" ")
 
         // get the vcf data lines
         val vcfDataLines = bufferedReader(outFileCompressed).readLines().filter { !it.startsWith("#") }

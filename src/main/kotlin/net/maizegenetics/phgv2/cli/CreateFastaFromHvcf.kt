@@ -1,29 +1,29 @@
 package net.maizegenetics.phgv2.cli
 
+import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
-import htsjdk.variant.vcf.VCFHeader
+import net.maizegenetics.phgv2.utils.AltHeaderMetaData
+import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.parseALTHeader
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
 
 
-//Making Number a string as VCF allows for '.'
-data class AltHeaderMetaData(val id: String, val description:String, val number: String, val source:String,
-                             val contig:String, val start:Int, val end:Int, val checksum:String, val refRange:String)
 data class HaplotypeSequence(val id: String, val sequence: String, val refRangeId: String, val refContig: String, val refStart: Int, val refEnd: Int,
-                             val asmContig : String, val asmStart: Int, val asmEnd: Int)
+                             val asmRegions:List<Pair<Position, Position>>)
 
 /**
  * Class to create either a composite or a haplotype fasta file from an input hvcf file or from TileDB directly.
  *
  * As mentioned in the terminology section of the Documentation, a composite fasta file is a fasta file that contains
- * all of the haplotypes for a given contig concatenated together by contig.  This pseudo genome can be used for rare
+ * all the haplotypes for a given contig concatenated together by contig.  This pseudo genome can be used for rare
  * allele finding.
  *
  * A Haplotype fasta file is where we output each haplotype as a separate fasta entry.  This can be used for read
@@ -77,7 +77,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
     fun buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfDir: String ,hvcfFile : String) {
         if(hvcfDir != "") {
             //Loop through the directory and figure out which files are hvcf files
-            val hvcfFiles = File(hvcfDir).listFiles { file -> file.extension == "vcf" || file.name.endsWith("vcf.gz") }
+            // the gvcf and hvcf files may be in the same folder, so verify specific extension
+            val hvcfFiles = File(hvcfDir).listFiles { file -> file.extension == "h.vcf" || file.name.endsWith("h.vcf.gz") || file.name.endsWith("hvcf") || file.name.endsWith("hvcf.gz")}
             //Loop through each file and run the buildFastaFromHVCF function
             BufferedWriter(FileWriter(outputFile)).use { output ->
                 writeSequences(output,hvcfFiles.flatMap { processSingleHVCF(VCFFileReader(it,false), dbPath) }
@@ -116,61 +117,91 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
         }
     }
 
-
-    /**
-     * Helper function to parse out the ALT headers from the VCF file.
-     *
-     * We need to do a bit more involved parsing in this function as we cannot use the .getOtherHeaders() call from HTSJDK.
-     * For some reason this only returns the first header when called and we need all of them.
-     * The work around is that we can get all the metadata, filter out any that are not ALT then parse the ALT header using normal string parsing.
-     * To make this easy, we just parse each piece of metadata into a key-value pair and then store in a map.
-     */
-    fun parseALTHeader(header: VCFHeader) : Map<String, AltHeaderMetaData> {
-        //Need to turn the ALT File header into a Map<ID,AltHeaderMetaData>
-        return header.metaDataInInputOrder
-            .filter { it.key == "ALT" }
-            .map { it.toString()
-                .substringAfter("<")
-                .substringBeforeLast(">")
-            } //Keep the useful part of the ALT Tag
-            .map { it.split(",") }
-            .associate {
-                val idsToValueMap = it.map { token -> token.split("=") }.associate { token -> token[0] to token[1] }
-                //ID and Description are required fields by VCF spec, if these errors are thrown there is something wrong with the htsjdk library
-                check(idsToValueMap.containsKey("ID")) { "ALT Header does not contain ID" }
-                check(idsToValueMap.containsKey("Description")) { "ALT Header does not contain Description" }
-                //These are optional header fields so we check these in the unit test.
-                check(idsToValueMap.containsKey("Number")) { "ALT Header does not contain Number" }
-                check(idsToValueMap.containsKey("Source")) { "ALT Header does not contain Source" }
-                check(idsToValueMap.containsKey("Contig")) { "ALT Header does not contain Contig" }
-                check(idsToValueMap.containsKey("Start")) { "ALT Header does not contain Start" }
-                check(idsToValueMap.containsKey("End")) { "ALT Header does not contain End" }
-                check(idsToValueMap.containsKey("Checksum")) { "ALT Header does not contain Checksum" }
-                check(idsToValueMap.containsKey("RefRange")) { "ALT Header does not contain RefRange" }
-
-                idsToValueMap["ID"]!! to AltHeaderMetaData(idsToValueMap["ID"]!!,idsToValueMap["Description"]!!,idsToValueMap["Number"]!!,idsToValueMap["Source"]!!,
-                    idsToValueMap["Contig"]!!,idsToValueMap["Start"]!!.toInt(),idsToValueMap["End"]!!.toInt(),idsToValueMap["Checksum"]!!,idsToValueMap["RefRange"]!!)
-            }
-    }
-
     /**
      * Function to create haplotype Sequences for each of the haplotype variants in the hvcf
+     * Currently, sampleName is from a single HVCF file, and is the sample from which the haplotype sequences will be
+     * extracted.
+     *
+     * In this function,
+     *    "sampleName" parameter is the sampleName from the headerline of the hvcf file
+     *    "hapSampleName" is the samplename associated with the haplotype sequence, and this information
+     *           is pulled from the ALT header line using the hapid as an index.
      */
     fun createHaplotypeSequences(dbPath:String, sampleName: String, haplotypeVariants: List<VariantContext>, altHeaders: Map<String, AltHeaderMetaData>): List<HaplotypeSequence> {
-        val rangesAndOtherInfo = haplotypeVariants.filter { it.hasGenotype(sampleName) }.map {
+        val chromToAltEntryData = mutableMapOf<String, MutableList<Triple<MutableList<String>,MutableList<String>,HaplotypeSequence>>>()
+        val hapSeqList = mutableListOf<HaplotypeSequence>()
+        haplotypeVariants.filter { it.hasGenotype(sampleName) }.map {
             val hapId = it.getGenotype(sampleName).getAllele(0).displayString.replace("<","").replace(">","")
             check(altHeaders.containsKey(hapId)) { "Haplotype ID $hapId not found in ALT Header" }
             val altMetaData = altHeaders[hapId]
+            val hapSampleName = altMetaData!!.sampleName
             //Need to subtract 1 from start as it uses 0 based format
-            val range = "${altMetaData!!.contig}@${sampleName}:${altMetaData!!.start-1}-${altMetaData!!.end-1}"
-            val outputDisplayName = "${altMetaData!!.contig}:${altMetaData!!.start-1}-${altMetaData!!.end-1}"
-            Triple(range, outputDisplayName, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, altMetaData!!.contig, altMetaData!!.start, altMetaData!!.end))
+            val regions =  altMetaData!!.regions
+            val queryRanges = mutableListOf<String>()
+            val displayRanges = mutableListOf<String>()
+            for(region in regions) {
+                if(region.first.position-1 > region.second.position-1) {
+                    queryRanges.add("${region.first.contig}@${hapSampleName}:${region.second.position-1}-${region.first.position-1}")
+                    displayRanges.add("${hapSampleName}@${region.first.contig}:${region.second.position-1}-${region.first.position-1}")
+                }
+                else {
+                    queryRanges.add("${region.first.contig}@${hapSampleName}:${region.first.position - 1}-${region.second.position - 1}")
+                    displayRanges.add("${hapSampleName}@${region.first.contig}:${region.first.position-1}-${region.second.position-1}")
+                }
+            }
+            //Add the haplotype sequence to the list of haplotype sequences for this chromosome
+            val chromList = chromToAltEntryData.getOrDefault(it.contig, mutableListOf())
+            chromList.add(Triple(queryRanges, displayRanges, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, regions)))
+            chromToAltEntryData[it.contig] = chromList
         }
 
-        val ranges = rangesAndOtherInfo.map { it.first }
-        val seqs = retrieveAgcContigs(dbPath,ranges)
+        // The full set of ranges in a single query is too much for both ProcessBuilder
+        // and for AGC.  Loop over the chromosomes, grabbing sequence from AGC a chrom at a time.
+        // This returns a list of HaplotypeSequence objects.
+        for(chrom in chromToAltEntryData.keys) {
+            val ranges = chromToAltEntryData[chrom]!!.flatMap { it.first }
+            val seqs = retrieveAgcContigs(dbPath,ranges)
+            // add to the hapSeqList an updated HaplotypeSequence object containing the sequence built from AGC contigs
+             hapSeqList.addAll(chromToAltEntryData[chrom]!!.map { it.third.copy(sequence = buildHapSeq(seqs, it.second,it.third)) })
+        }
+        return hapSeqList
+    }
 
-        return rangesAndOtherInfo.map { it.third.copy(sequence = seqs[it.second]!!.seq()) }
+    /**
+     * Function to build the haplotype sequence based on the list of display regions and the given haplotype sequence object.
+     * The sequence has already extracted out of AGC and stored in the seqs map.
+     * The incoming "seqs" parameter has the key as a Pair(sampleName,displayRegion), where display region could
+     * be just a contig, or a contig with ranges:  e.g. "chr1" or "chr1:100-200".  SampleName is the sample from which
+     * the sequence was extracted.
+     */
+    fun buildHapSeq(seqs: Map<Pair<String,String>,NucSeq> , displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
+        // hapSeqRegions is the HaplotypeSequence object's list of regions.
+        // This was passed in as part of the Triple created in the calling method.
+        // Because of the way these were created, the displayRegions and the hapSeqRegions should be in the same order.
+        val hapSeqRegions = hapSeqObjects.asmRegions
+
+        // This gets all the sequences from all the regions in the list,
+        // and joins them to a string with no separator.  The string that is
+        // returned is the sequence for the haplotype.
+        return displayRegions.mapIndexed{ idx, currentDisplayRegion ->
+            val currentHapSeqRegion = hapSeqRegions[idx]
+
+            // The displayRegions are of the form: sampleName@contig:stPos-endPos
+            val sampleName = currentDisplayRegion.split("@")[0]
+            val region = currentDisplayRegion.split("@")[1]
+
+            val seq = seqs[Pair(sampleName,region)]!!
+
+            //Check to see if we have an inverted sub region based on the currentHapSeqRegion
+            if(currentHapSeqRegion.first.position > currentHapSeqRegion.second.position) {
+                //If so we need to reverse compliment the sequence
+                seq.reverse_complement().seq()
+            }
+            else {
+                seq.seq()
+            }
+        }.joinToString("")
+
     }
 
     /**
@@ -203,7 +234,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvc
             if(exportFullIdLine) {
                 outputFileWriter.write(" Ref_Range_Id=${hapSeq.refRangeId} " +
                 "Ref_Contig=${hapSeq.refContig} Ref_Start=${hapSeq.refStart} Ref_End=${hapSeq.refEnd} " +
-                        "Asm_Contig=${hapSeq.asmContig} Asm_Start=${hapSeq.asmStart} Asm_End=${hapSeq.asmEnd}")
+                        "Asm_Regions=${hapSeq.asmRegions.joinToString(",") { "${it.first.contig}:${it.first.position}-${it.second.position}" }}")
             }
             outputFileWriter.write("\n")
             hapSeq.sequence

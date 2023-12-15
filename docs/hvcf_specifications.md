@@ -1,7 +1,7 @@
 # hVCF - Haplotype Variant Call Format Specification
 
-* **_Specification version:_** `v2.1`
-* **_Date:_** 2023-10-31
+* **_Specification version:_** `v2.2`
+* **_Date:_** 2023-12-07
 
 ## Overview
 hVCF stands for **h**aplotype **V**ariant **C**all **F**ormat. This 
@@ -26,34 +26,34 @@ The following code block illustrates a formatted example hVCF file:
 ```
 ##fileformat=VCFv4.2
 ##FILTER=<ID=PASS,Description="All filters passed">
-##ALT=<ID=06ae4e937668d301e325d43725a38c3f,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=45001,End=49500,Checksum=Md5,RefRange=06ae4e937668d301e325d43725a38c3f>
-##ALT=<ID=073286a82fe47d6a370e8a7a3803f1d3,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=39501,End=44000,Checksum=Md5,RefRange=073286a82fe47d6a370e8a7a3803f1d3>
-##ALT=<ID=105c85412229b45439db1f03c3f064f4,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=27501,End=28500,Checksum=Md5,RefRange=105c85412229b45439db1f03c3f064f4>
-##ALT=<ID=105e63346a01d88e8339eddf9131c435,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=2,Start=50501,End=55000,Checksum=Md5,RefRange=105e63346a01d88e8339eddf9131c435>
-##ALT=<ID=2c4b8564bbbdf70c6560fdefdbe3ef6a,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=2,Start=34001,End=38500,Checksum=Md5,RefRange=2c4b8564bbbdf70c6560fdefdbe3ef6a>
-##ALT=<ID=347f0478b1a553ef107243cb60a9ba7d,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=2,Start=11001,End=12000,Checksum=Md5,RefRange=347f0478b1a553ef107243cb60a9ba7d>
-##ALT=<ID=39f96726321b329964435865b3694fd2,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=2,Start=49501,End=50500,Checksum=Md5,RefRange=39f96726321b329964435865b3694fd2>
-##ALT=<ID=43687e13112bbe841f811b0a9de82a94,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=2,Start=22001,End=23000,Checksum=Md5,RefRange=43687e13112bbe841f811b0a9de82a94>
-##ALT=<ID=546d1839623a5b0ea98bbff9a8a320e2,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=1,End=1000,Checksum=Md5,RefRange=546d1839623a5b0ea98bbff9a8a320e2>
-##ALT=<ID=57705b1e2541c7634ea59a48fc52026f,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=1001,End=5500,Checksum=Md5,RefRange=57705b1e2541c7634ea59a48fc52026f>
-##ALT=<ID=1bda8c63ae8e2f3678b85bac0ee7b8b9,Description="haplotype data for line: B97",Number=6,Source="data/test/smallseq/B97.fa",Contig=1,Start=1250,End=6750,Checksum=Md5,RefRange=57705b1e2541c7634ea59a48fc52026f>
-##ALT=<ID=5fedf293a1a5443cc896d59f12d1b92f,Description="haplotype data for line: CML231",Number=6,Source="data/test/smallseq/CML231.fa",Contig=2,Start=22001,End=23000,Checksum=Md5,RefRange=43687e13112bbe841f811b0a9de82a94>
+##ALT=<ID=06ae4e937668d301e325d43725a38c3f,Description="haplotype data for line: Ref",Source="data/test/smallseq/Ref.fa",Regions=1:45001-49500,Checksum=Md5,RefRange=06ae4e937668d301e325d43725a38c3f>
+##ALT=<ID=073286a82fe47d6a370e8a7a3803f1d3,Description="haplotype data for line: Ref",Source="data/test/smallseq/Ref.fa",Regions=1:39501-44000,Checksum=Md5,RefRange=073286a82fe47d6a370e8a7a3803f1d3>
+##ALT=<ID=105c85412229b45439db1f03c3f064f4,Description="haplotype data for line: Ref",Source="data/test/smallseq/Ref.fa",Regions=1:27501-28500,Checksum=Md5,RefRange=105c85412229b45439db1f03c3f064f4>
+##ALT=<ID=105e63346a01d88e8339eddf9131c435,Description="haplotype data for line: Ref",Source="data/test/smallseq/Ref.fa",Regions=2:50501-55000,Checksum=Md5,RefRange=105e63346a01d88e8339eddf9131c435>
+##ALT=<ID=2c4b8564bbbdf70c6560fdefdbe3ef6a,Description="haplotype data for line: Ref",Source="data/test/smallseq/Ref.fa",Regions=2:34001-38500,Checksum=Md5,RefRange=2c4b8564bbbdf70c6560fdefdbe3ef6a>
+##ALT=<ID=347f0478b1a553ef107243cb60a9ba7d,Description="haplotype data for line: Ref",Source="data/test/smallseq/Ref.fa",Regions=2:11001-12000,Checksum=Md5,RefRange=347f0478b1a553ef107243cb60a9ba7d>
+##ALT=<ID=39f96726321b329964435865b3694fd2,Description="haplotype data for line: Ref",Source="data/test/smallseq/Ref.fa",Regions=2:49501-50500,Checksum=Md5,RefRange=39f96726321b329964435865b3694fd2>
+##ALT=<ID=43687e13112bbe841f811b0a9de82a94,Description="haplotype data for line: Ref",Source="data/test/smallseq/Ref.fa",Regions=2:22001-23000,Checksum=Md5,RefRange=43687e13112bbe841f811b0a9de82a94>
+##ALT=<ID=546d1839623a5b0ea98bbff9a8a320e2,Description="haplotype data for line: Ref",Source="data/test/smallseq/Ref.fa",Regions=1:1-1000,Checksum=Md5,RefRange=546d1839623a5b0ea98bbff9a8a320e2>
+##ALT=<ID=57705b1e2541c7634ea59a48fc52026f,Description="haplotype data for line: Ref",Source="data/test/smallseq/Ref.fa",Regions=1:1001-5500,Checksum=Md5,RefRange=57705b1e2541c7634ea59a48fc52026f>
+##ALT=<ID=1bda8c63ae8e2f3678b85bac0ee7b8b9,Description="haplotype data for line: B97",Source="data/test/smallseq/B97.fa",Regions=1:1250-6750,Checksum=Md5,RefRange=57705b1e2541c7634ea59a48fc52026f>
+##ALT=<ID=5fedf293a1a5443cc896d59f12d1b92f,Description="haplotype data for line: CML231"Source="data/test/smallseq/CML231.fa",Regions=2:22001-23000,Checksum=Md5,RefRange=43687e13112bbe841f811b0a9de82a94>
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
 ##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
 ##contig=<ID=1,length=55000>
 ##contig=<ID=2,length=55000>
 ##reference=https://s3.amazonaws.com/maizegenetics/phg/phgV2Test/Ref.fa
 #CHROM POS   ID REF ALT                                                                   QUAL FILTER INFO      FORMAT Ref B97 CML231
-1      1     .  G   <546d1839623a5b0ea98bbff9a8a320e2>                                    .    .      END=1000  GT     1|1 1|1 1|1
-1      1001  .  A   <57705b1e2541c7634ea59a48fc52026f>,<1bda8c63ae8e2f3678b85bac0ee7b8b9> .    .      END=5500  GT     1|1 2|2 1|1
-1      27501 .  G   <105c85412229b45439db1f03c3f064f4>                                    .    .      END=28500 GT     1|1 1|1 1|1
-1      39501 .  G   <073286a82fe47d6a370e8a7a3803f1d3>                                    .    .      END=44000 GT     1|1 1|1 1|1
-1      45001 .  G   <06ae4e937668d301e325d43725a38c3f>                                    .    .      END=49500 GT     1|1 1|1 1|1
-2      11001 .  A   <347f0478b1a553ef107243cb60a9ba7d>                                    .    .      END=12000 GT     1|1 1|1 1|1
-2      22001 .  A   <43687e13112bbe841f811b0a9de82a94>,<5fedf293a1a5443cc896d59f12d1b92f> .    .      END=23000 GT     1|1 1|1 2|2
-2      34001 .  A   <2c4b8564bbbdf70c6560fdefdbe3ef6a>                                    .    .      END=38500 GT     1|1 1|1 1|1
-2      49501 .  G   <39f96726321b329964435865b3694fd2>                                    .    .      END=50500 GT     1|1 1|1 1|1
-2      50501 .  G   <105e63346a01d88e8339eddf9131c435>                                    .    .      END=55000 GT     1|1 1|1 1|1
+1      1     .  G   <546d1839623a5b0ea98bbff9a8a320e2>                                    .    .      END=1000  GT     1   1   1
+1      1001  .  A   <57705b1e2541c7634ea59a48fc52026f>,<1bda8c63ae8e2f3678b85bac0ee7b8b9> .    .      END=5500  GT     1   2   1
+1      27501 .  G   <105c85412229b45439db1f03c3f064f4>                                    .    .      END=28500 GT     1   1   1
+1      39501 .  G   <073286a82fe47d6a370e8a7a3803f1d3>                                    .    .      END=44000 GT     1   1   1
+1      45001 .  G   <06ae4e937668d301e325d43725a38c3f>                                    .    .      END=49500 GT     1   1   1
+2      11001 .  A   <347f0478b1a553ef107243cb60a9ba7d>                                    .    .      END=12000 GT     1   1   1
+2      22001 .  A   <43687e13112bbe841f811b0a9de82a94>,<5fedf293a1a5443cc896d59f12d1b92f> .    .      END=23000 GT     1   1   2
+2      34001 .  A   <2c4b8564bbbdf70c6560fdefdbe3ef6a>                                    .    .      END=38500 GT     1   1   1
+2      49501 .  G   <39f96726321b329964435865b3694fd2>                                    .    .      END=50500 GT     1   1   1
+2      50501 .  G   <105e63346a01d88e8339eddf9131c435>                                    .    .      END=55000 GT     1   1   1
 ```
 > [!NOTE]
 > In the prior example, the hVCF output columns below the header line
@@ -105,28 +105,25 @@ given haplotype sequence and defining the `Description` value with
 information about the origin of the haplotype sequence. 
 
 Since this haplotype sequence is (I) derived from a particular 
-sample, (II) related to related to reference range information, 
+sample, (II) related to reference range information, 
 and (III) has its own positional information, we can populate 
 the alternative allele field with additional key-value information. 
 Take the following example:
 
 ```
-##ALT=<ID=06ae4e937668d301e325d43725a38c3f,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=1,Start=45001,End=49500,Checksum=Md5,RefRange=06ae4e937668d301e325d43725a38c3f>
+##ALT=<ID=06ae4e937668d301e325d43725a38c3f,Description="haplotype data for line: Ref",Source="data/test/smallseq/Ref.fa",Regions=1:45001-49500,Checksum=Md5,RefRange=06ae4e937668d301e325d43725a38c3f>
 ```
 
 Here, we have the following information:
 
-| Key           | Value                              | Description                                                         |
-|---------------|------------------------------------|---------------------------------------------------------------------|
-| `ID`          | `06ae4e937668d301e325d43725a38c3f` | MD5 checksum identifier for haplotype sequence                      |
-| `Description` | `"haplotype data for line: Ref"`   | Information about the origin of the haplotype sequence              |
-| `Number`      | `6`                                | Number of fields following the `Description` key                    |
-| `Source`      | `"data/test/smallseq/Ref.fa"`      | Fasta file ID and path containing haplotype sequence                |
-| `Contig`      | `1`                                | Sequence identifier for assembly containing haplotype sequence      |
-| `Start`       | `45001`                            | Start position (bp) for assembly containing haplotype sequence      |
-| `End`         | `49500`                            | End position (bp) of assembly containing haplotype sequence         |
-| `Checksum`    | `Md5`                              | Identifier describing the digest hashing algorithm for the `ID` key |
-| `RefRange`    | `20b13a1d5b466ff438174aa897c985f7` | MD5 checksum identifier for reference sequence                      |
+| Key           | Value                              | Description                                                                                                                                   |
+|---------------|------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| `ID`          | `06ae4e937668d301e325d43725a38c3f` | MD5 checksum identifier for haplotype sequence                                                                                                |
+| `Description` | `"haplotype data for line: Ref"`   | Information about the origin of the haplotype sequence                                                                                        |
+| `Source`      | `"data/test/smallseq/Ref.fa"`      | Fasta file ID and path containing haplotype sequence                                                                                          |
+| `Regions`     | `1:45001-49500`                    | List of regions which make up the haplotype.  They are in the format contig:startPos-endPos.  All the sub-regions will be separated by commas |
+| `Checksum`    | `Md5`                              | Identifier describing the digest hashing algorithm for the `ID` key                                                                           |
+| `RefRange`    | `20b13a1d5b466ff438174aa897c985f7` | MD5 checksum identifier for reference sequence                                                                                                |
 
 #### Individual format (`##FORMAT`) field
 The meta-information contained in the individual format field closely 
@@ -223,31 +220,53 @@ in the prior example (_with added header for additional clarity_):
 
 ```
 #CHROM POS   ID REF ALT                                                                   QUAL FILTER INFO      FORMAT Ref B97 CML231
-1      1001  .  A   <57705b1e2541c7634ea59a48fc52026f>,<1bda8c63ae8e2f3678b85bac0ee7b8b9> .    .      END=5500  GT     1|1 2|2 1|1
+1      1001  .  A   <57705b1e2541c7634ea59a48fc52026f>,<1bda8c63ae8e2f3678b85bac0ee7b8b9> .    .      END=5500  GT     1   2   1
 ```
 
 One thing you will notice is that there are no calls to the 
 "reference" allele field; only calls to the alternate field
 since these allele values represent the haplotype sequence in
-MD5 hash form. Additionally, all allele values are separated with a
-"phased" indicator (`|`) and never with an unphased indicator (`/`).
-Allele values represent the indexed order of haplotype sequences in
-the `ALT` field. In other terms if a sample has an allele value of
-`1|1`, this would refer to the _first_ symbolic allele in the `ALT`
-field for both haploid values. 
+MD5 hash form. Allele values, **if using haploid path finding**,
+are represented using 
+[singular values](https://samtools.github.io/hts-specs/VCFv4.2.pdf#subsubsection.1.4.2) 
+(e.g. `1`, `2`) which represent the indexed order of haplotype 
+sequences in the `ALT` field. In other terms, if a sample has an 
+allele value of `1`, this would refer to the _first_ symbolic allele 
+in the `ALT` field for the haploid value.
 
-Using this information with prior example, we can infer the following
-haplotype sequence information for the given reference range record
-(`1:1001-5500`):
+Using this information with the prior example, we can infer the 
+following haplotype sequence information for the given reference 
+range record (`1:1001-5500`):
 
 | Sample ID | Allele values | MD5 symbolic allele                |
 |-----------|---------------|------------------------------------|
-| `Ref`     | `1\|1`        | `57705b1e2541c7634ea59a48fc52026f` |
-| `B97`     | `2\|2`        | `1bda8c63ae8e2f3678b85bac0ee7b8b9` |
-| `CML231`  | `1\|1`        | `57705b1e2541c7634ea59a48fc52026f` |
+| `Ref`     | `1`           | `57705b1e2541c7634ea59a48fc52026f` |
+| `B97`     | `2`           | `1bda8c63ae8e2f3678b85bac0ee7b8b9` |
+| `CML231`  | `1`           | `57705b1e2541c7634ea59a48fc52026f` |
 
-> [!NOTE]
-> While the values shown here are homozygous, allele values are
-> represented as diploid to accomodate for possible heterozygous 
-> diploid path (e.g. `1|2`) finding options within the imputation 
-> pipeline for the PHG.
+Alternatively, allele values in hVCF files can be generated **using 
+diploid path finding** during the PHGv2 imputation process. Here is
+an example entry of this:
+
+```
+#CHROM POS   ID REF ALT                                                                   QUAL FILTER INFO      FORMAT Ref B97 CML231
+1      1001  .  A   <57705b1e2541c7634ea59a48fc52026f>,<1bda8c63ae8e2f3678b85bac0ee7b8b9> .    .      END=5500  GT     1|1 2|1 1|1
+```
+
+Allele values are separated with a "phased" indicator (`|`) and
+never with an "unphased" indicator (`/`). Similar to haploid path
+finding, allele values represent the indexed order of haplotype
+sequences in the `ALT` field. In other terms, if a sample has an 
+allele value of `2|1`, this would refer to the _second_ symbolic 
+allele in the `ALT` field for the first gamete and the _first_ 
+symbolic allele for the second gamete.
+
+Using this information with the prior example, we can infer the
+following haploid sequence information for the given reference
+range record (`1:1001-5500`) using diploid values:
+
+| Sample ID | Allele values | MD5 symbolic allele (gamete 1)     | MD5 symbolic allele (gamete 2)     |
+|-----------|---------------|------------------------------------|------------------------------------|
+| `Ref`     | `1\|1`        | `57705b1e2541c7634ea59a48fc52026f` | `57705b1e2541c7634ea59a48fc52026f` |
+| `B97`     | `2\|1`        | `1bda8c63ae8e2f3678b85bac0ee7b8b9` | `57705b1e2541c7634ea59a48fc52026f` |
+| `CML231`  | `1\|1`        | `57705b1e2541c7634ea59a48fc52026f` | `57705b1e2541c7634ea59a48fc52026f` |

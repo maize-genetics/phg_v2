@@ -33,7 +33,12 @@ data class Position (val contig: String, val position: Int) : Comparable<Positio
         }
         return this.contig.compareTo(other.contig)
     }
+
+    override fun toString(): String {
+        return "$contig:$position"
+    }
 }
+
 /**
  * Function to write out the Variant Contexts to a file.
  */
@@ -129,7 +134,7 @@ fun bgzipAndIndexGVCFfile(gvcfFileName: String): String {
         }
         return gvcfGzippedFile
     } catch (exc:Exception) {
-        throw IllegalStateException("bgzipAndIndexGVCFfile: error bgzipping and/or indexing file ${gvcfFileName}")
+        throw IllegalStateException("bgzipAndIndexGVCFfile: error bgzipping and/or indexing file ${gvcfFileName}: Message:${exc.message}")
     }
 
 }
