@@ -1,6 +1,9 @@
 package net.maizegenetics.phgv2.pathing
 
 import com.google.common.collect.Multimap
+import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.api.SampleGamete
 
 /**
  * Given a set of read mappings, finds the most likely parents in a stepwise fashion. The parent with the most reads
@@ -11,14 +14,16 @@ import com.google.common.collect.Multimap
  * of reads mapping to any of the likely parents divided by the total number of reads.
  */
 class MostLikelyParents {
+    //list of parents, which are the samples (eventually sampleGametes) present in the HaplotypeGraph
     val myParentList: List<String>
-    val myParentToHapidMap: Map<ReferenceRange, Map<String,Int>>
+    //a map of ReferenceRange ->
+    val myParentToHapidMap: Map<ReferenceRange, Map<String,String>>
 
     /**
      * A constructor that takes a [HaplotypeGraph].
      */
     constructor(hapGraph: HaplotypeGraph) {
-        myParentList = hapGraph.taxaInGraph().map { it.name }
+        myParentList = getSampleNames(hapGraph)
         myParentToHapidMap = parentToHapidByRefrange(hapGraph)
     }
 
@@ -26,7 +31,7 @@ class MostLikelyParents {
      * A constructor that takes a list of parents and for each ReferenceRange, a map of parent name to its hapid.
      * This constructor is intended mainly for unit testing.
      */
-    constructor(parentList: List<String>, parentHapidMap: Map<ReferenceRange, Map<String,Int>>) {
+    constructor(parentList: List<String>, parentHapidMap: Map<ReferenceRange, Map<String,String>>) {
         myParentList = parentList
         myParentToHapidMap = parentHapidMap
     }
@@ -81,14 +86,37 @@ class MostLikelyParents {
         return bestParentList
     }
 
-    private fun parentToHapidByRefrange(hapGraph: HaplotypeGraph) : Map<ReferenceRange, Map<String,Int>> {
-        return hapGraph.referenceRangeList().associateWith { refrange -> parentToHapidForOneRefRange(refrange, hapGraph) }
-    }
 
-    private fun parentToHapidForOneRefRange(refrange: ReferenceRange, hapGraph: HaplotypeGraph) : Map<String, Int> {
-        return hapGraph.nodes(refrange).map { node -> node.taxaList().map { Pair(it.name,node.id()) } }.flatten().toMap()
-    }
+    companion object {
+        fun getSampleNames(hapGraph: HaplotypeGraph) : List<String> {
+            val sampleSet = mutableSetOf<String>()
+            for (refrange in hapGraph.ranges()) {
+                hapGraph.hapIdToSamples(refrange).values.forEach { sampleSet.addAll(it) }
+            }
+            return sampleSet.sorted()
+        }
 
+        fun parentToHapidByRefrange(hapGraph: HaplotypeGraph) : Map<ReferenceRange, Map<String,String>> {
+            val parentMap = mutableMapOf<ReferenceRange, Map<String, String>>()
+            for (refrange in hapGraph.ranges()) {
+                val sampleSet = hapGraph.hapIdToSamples(refrange).map { it.value }.flatten().toSet()
+                val rangeParentMap = sampleSet.associateWith { hapGraph.sampleToHapId(refrange, SampleGamete(it)) }
+                parentMap.put(refrange, rangeParentMap)
+            }
+            return parentMap
+        }
+
+        fun parentListToHapidByRefrange(hapGraph: HaplotypeGraph, sampleSet: List<String>) : Map<ReferenceRange, Map<String,String>> {
+            val parentMap = mutableMapOf<ReferenceRange, Map<String, String>>()
+            for (refrange in hapGraph.ranges()) {
+                //TODO deal with case where sample is not in this reference range
+                val rangeParentMap = sampleSet.associateWith { hapGraph.sampleToHapId(refrange, SampleGamete(it)) }
+                parentMap.put(refrange, rangeParentMap)
+            }
+            return parentMap
+        }
+
+    }
 }
 
 /**
