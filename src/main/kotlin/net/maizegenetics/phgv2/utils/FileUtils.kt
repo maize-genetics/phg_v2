@@ -10,14 +10,14 @@ import java.util.zip.GZIPOutputStream
  * Currently, the only methods implemented are for getting buffered readers and writers
  * for text files and gzipped text files.
  *
- * The code was ported from TASSEL. That code contained checked for http sources. That
+ * The code was ported from TASSEL. That code checked for http sources. That
  * feature was not ported because of a lack of a good source for testing and could be
  * added if needed.
  */
 
 /**
  * Gets a BufferedReader for a text file. Checks for a .gz ending and
- * handles that as a gzip file. Buffer size can be set but defaults to 8192.
+ * handles that as a gzip file. [bufSize] can be set but defaults to 8192.
  */
 fun getBufferedReader(forFile: File, bufSize: Int = 8192): BufferedReader {
     return if (bufSize < 1) {
@@ -31,7 +31,7 @@ fun getBufferedReader(forFile: File, bufSize: Int = 8192): BufferedReader {
 
 /**
  * Gets a BufferedReader for a text file. Checks for a .gz ending and
- * handles that as a gzip file. Buffer size can be set but defaults to 8192.
+ * handles that as a gzip file. [bufSize] can be set but defaults to 8192.
  */
 fun getBufferedReader(filename: String, bufSize: Int = 8192): BufferedReader {
     return getBufferedReader(File(filename), bufSize)
@@ -40,7 +40,7 @@ fun getBufferedReader(filename: String, bufSize: Int = 8192): BufferedReader {
 /**
  * Gets a BufferedWriter for a text file. If the file name ends in .gz it
  * will create a gzipped file. If [append] is true and the file exists, the
- * content will be appended. Otherwise the original file will be overwritten.
+ * content will be appended. Otherwise, the original file will be overwritten.
  */
 fun getBufferedWriter(file: File, append: Boolean): BufferedWriter {
     return if (file.name.endsWith(".gz")) {
@@ -53,7 +53,7 @@ fun getBufferedWriter(file: File, append: Boolean): BufferedWriter {
 /**
  * Gets a BufferedWriter for a text file. If the file name ends in .gz it
  * will create a gzipped file. If [append] is true and the file exists, the
- * content will be appended. Otherwise the original file will be overwritten.
+ * content will be appended. Otherwise, the original file will be overwritten.
  */
 fun getBufferedWriter(filename: String, append: Boolean): BufferedWriter {
     return getBufferedWriter(File(filename), append)
