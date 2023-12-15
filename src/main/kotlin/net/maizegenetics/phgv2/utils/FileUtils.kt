@@ -1,7 +1,6 @@
 package net.maizegenetics.phgv2.utils
 
 import java.io.*
-import java.net.URL
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
