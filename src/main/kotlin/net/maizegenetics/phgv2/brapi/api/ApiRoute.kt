@@ -21,6 +21,8 @@ fun Routing.apiRoute() {
         // to process data for the endpoints.
         serverInfo()
 
+        samples()
+
         // calls()
         // callSets()
         // referenceSets()
