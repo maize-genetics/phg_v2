@@ -6,6 +6,8 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
+import kotlinx.coroutines.channels.Channel
+import net.maizegenetics.phgv2.api.HaplotypeGraph
 import java.io.File
 
 /**
@@ -37,21 +39,22 @@ class HaploidPathFinding : CliktCommand(help = "Create gVCF and hVCF from Anchor
         .required()
         .validate() { require(File(it).exists()) {"$it is not a valid file"} }
 
-    //don't know how to build the graph. For now, assume instruction is in config
-    val graphConfig by option(help = "The config file specifying a HaplotypeGraph")
+    val hvcfDir by option(help = "The directory containing the hvcf files used to build a HaplotypeGraph for path finding.")
         .required()
-        .validate {  require(File(it).exists()) {"$it is not a valid file"} }
+        .validate() { require(File(it).isDirectory)}
 
     val threads by option(help = "number of threads used to find paths.").int().default(3)
 
     //other parameters: probReadMappedCorrectly, useMostLikelyParents, maxParents, minCoverage, likelyParentFile
 
-    private fun buildHaplotypeGraph() {
-        TODO("Not yet implemented")
+    private fun buildHaplotypeGraph(): HaplotypeGraph {
+        val listOfHvcfFilenames = File(hvcfDir).listFiles().map { it.path }
+        return HaplotypeGraph(listOfHvcfFilenames)
     }
 
     override fun run() {
         TODO("Not yet implemented")
+
     }
 
     private fun processKeyFile() {
@@ -62,6 +65,22 @@ class HaploidPathFinding : CliktCommand(help = "Create gVCF and hVCF from Anchor
 
         //TODO migrate Viterbi
         //TODO loop through keyFile records to run Viterbi and store resulting paths
+
+    }
+
+    data class ReadMappingResult(val name: String) //placeholder
+    data class Path(val name: String, val hapids: List<String>) //placeholder
+    private fun processReadMappings() {
+        //create a channel for read mappings
+        val readMappingChannel = Channel<ReadMappingResult>(10)
+
+        //create a channel for paths
+        val pathChannel = Channel<Path>(10)
+
+        //load read mappings for each sample into a channel
+        //create worker threads to process entries from the read mapping channel
+
+        //create a coroutine to store paths
 
     }
 

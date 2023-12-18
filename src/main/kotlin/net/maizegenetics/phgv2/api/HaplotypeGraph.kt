@@ -22,6 +22,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     // Map<sampleName, sampleId>
     private lateinit var sampleNameToIdMap: Map<String, Int>
     private lateinit var sampleNames: Array<String>
+    private lateinit var sampleGametes: Array<SampleGamete>
 
     // rangeByGameteIdToHapid[refRangeId][sampleId][gameteID] -> checksum / hapid
     // jagged array because different number of haplotypes for each refRange
@@ -82,6 +83,20 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         return result
     }
 
+    fun hapIdToSampleGametes(range:ReferenceRange): Map<String, List<SampleGamete>> {
+        val rangeId = refRangeMap[range]
+        require(rangeId != null) { "hapIdToSamples: range: $range not found" }
+
+        val result = mutableMapOf<String, MutableList<SampleGamete>>()
+        for (sampleId in rangeByGameteIdToHapid[rangeId].indices) {
+            for (gameteId in rangeByGameteIdToHapid[rangeId][sampleId].indices) {
+                val hapid = rangeByGameteIdToHapid[rangeId][sampleId][gameteId]
+                result.getOrPut(hapid) { mutableListOf() }.add(SampleGamete(sampleNames[sampleId], gameteId))
+            }
+        }
+        return result
+    }
+
     /**
      * Returns the hapId for the sample in the specified ReferenceRange.
      */
@@ -113,6 +128,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
             val reader = VCFFileReader(File(hvcfFile), false)
             readers.add(reader)
+            //sampleNames are being added to both a Set and List so that they can be compared to detect and report
+            //  duplicate sample names
             sampleNamesSet.addAll(reader.header.sampleNamesInOrder)
             sampleNamesList.addAll(reader.header.sampleNamesInOrder)
 
@@ -127,6 +144,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
                 throw IllegalArgumentException("processFiles: $hvcfFile: ${exc.message}")
             }
         }
+
+        //make the alt header map immutable
         altHeaderMap = mutableAltHeaderMap.toMap()
 
         sampleNamesSet.forEach { sampleNamesList.remove(it) }
@@ -215,13 +234,13 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     }
 
     /**
-     * Add reference ranges to data structures, as
-     * made available on the processingChannel.
+     * Add reference ranges from the processingChannel to data structures.
      */
     private suspend fun addSites() {
 
         // rangeIdToSampleToChecksum[refRangeId][sampleId][gameteId] -> Checksum / hapid
         val rangeIdToSampleToChecksum = mutableListOf<Array<MutableList<String?>>>()
+//        val hapidByrangeBySampleGamete = mutableListOf<>()
 
         val rangeMap = mutableMapOf<ReferenceRange, Int>()
 
