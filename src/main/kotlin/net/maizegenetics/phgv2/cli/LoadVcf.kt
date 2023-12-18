@@ -27,7 +27,7 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
 
     private val myLogger = LogManager.getLogger(LoadVcf::class.java)
 
-    val vcfDir by option(help = "VCF file directory")
+    val vcfDir by option(help = "Full path to VCF file directory")
         .default("")
         .validate {
             require(it.isNotBlank()) {
