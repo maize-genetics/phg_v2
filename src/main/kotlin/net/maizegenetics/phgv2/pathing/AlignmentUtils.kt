@@ -5,6 +5,8 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.utils.getBufferedWriter
+import net.maizegenetics.phgv2.utils.getBufferedReader
 import org.apache.logging.log4j.LogManager
 import java.io.*
 import java.nio.file.Files
@@ -105,22 +107,6 @@ fun loadKmerMaps(filename: String, graph: HaplotypeGraph): KmerMapData {
     }
 
     return KmerMapData(rangeToBitSetMap, kmerHashMap)
-}
-
-fun getBufferedReader(filePath: String): BufferedReader {
-    return if (filePath.endsWith(".gz")) {
-        GZIPInputStream(FileInputStream(filePath)).bufferedReader()
-    } else {
-        Files.newBufferedReader(get(filePath))
-    }
-}
-
-fun getBufferedWriter(filePath: String): BufferedWriter {
-    return if (filePath.endsWith(".gz")) {
-        GZIPOutputStream(FileOutputStream(filePath)).bufferedWriter()
-    } else {
-        Files.newBufferedWriter(get(filePath))
-    }
 }
 
 /**
@@ -281,7 +267,7 @@ private fun hapidsFromOneReferenceRange(rangeHapidMap: Map<Int, List<Int>>, minS
  * Function to export the read mapping files to disk.  These files can then be read in to be used in path finding
  */
 fun exportReadMapping(outputFileName: String, hapIdMapping: Map<List<String>, Int>, taxon : String, fastqFiles: Pair<String,String>) {
-    File(outputFileName).bufferedWriter().use { output ->
+    getBufferedWriter(outputFileName).use { output ->
         output.write("#sampleName=${taxon}\n")
         output.write("#filename1=${fastqFiles.first}\n")
         if(fastqFiles.second.isNotEmpty()) {
@@ -296,10 +282,9 @@ fun exportReadMapping(outputFileName: String, hapIdMapping: Map<List<String>, In
  * Function to read in the Readmapping file into a Map<List<String>,Int>
  */
 fun importReadMapping(inputFileName: String) : Map<List<String>, Int> {
-    return File(inputFileName).bufferedReader().readLines()
+    return getBufferedReader(inputFileName).readLines()
         .filter { !it.startsWith("#") } //remove any of the metadata
-        .filter { !it.startsWith("HapIds") }
-        .map {
+        .filter { !it.startsWith("HapIds") }.associate {
             val lineSplit = it.split("\t")
             val hapIds = lineSplit[0].split(",")
                 .map { hapId -> hapId }
@@ -308,5 +293,4 @@ fun importReadMapping(inputFileName: String) : Map<List<String>, Int> {
 
             Pair(hapIds, count)
         }
-        .toMap()
 }

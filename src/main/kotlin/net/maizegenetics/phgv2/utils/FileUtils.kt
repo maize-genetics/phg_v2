@@ -41,7 +41,7 @@ fun getBufferedReader(filename: String, bufSize: Int = 8192): BufferedReader {
  * will create a gzipped file. If [append] is true and the file exists, the
  * content will be appended. Otherwise, the original file will be overwritten.
  */
-fun getBufferedWriter(file: File, append: Boolean): BufferedWriter {
+fun getBufferedWriter(file: File, append: Boolean = false): BufferedWriter {
     return if (file.name.endsWith(".gz")) {
         BufferedWriter(OutputStreamWriter(GZIPOutputStream(FileOutputStream(file, append))))
     } else {
@@ -54,7 +54,7 @@ fun getBufferedWriter(file: File, append: Boolean): BufferedWriter {
  * will create a gzipped file. If [append] is true and the file exists, the
  * content will be appended. Otherwise, the original file will be overwritten.
  */
-fun getBufferedWriter(filename: String, append: Boolean): BufferedWriter {
+fun getBufferedWriter(filename: String, append: Boolean = false): BufferedWriter {
     return getBufferedWriter(File(filename), append)
 }
 
