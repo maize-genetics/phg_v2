@@ -6,6 +6,7 @@ plugins {
     kotlin("jvm") version "1.9.10"
     application
     id("org.jetbrains.kotlinx.kover") version "0.7.3"
+    kotlin("plugin.serialization") version "1.6.21"
 }
 
 group = "net.maizegenetics"
