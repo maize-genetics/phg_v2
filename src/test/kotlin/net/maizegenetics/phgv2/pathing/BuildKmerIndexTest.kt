@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
+import kotlin.test.Ignore
 import kotlin.test.assertEquals
 import kotlin.test.fail
 
@@ -114,6 +115,7 @@ class BuildKmerIndexTest {
 
     }
 
+    @Ignore
     @Test
     fun testExtractKmersAndExportIndexForRefRange() {
         fail("Implement this test")
@@ -190,10 +192,12 @@ class BuildKmerIndexTest {
         assertEquals(truth,buildKmerIndex.createHapIdToKmerMap(kmerMapToHapIds))
 
     }
+    @Ignore
     @Test
     fun testBuildEncodedHapSetsAndHashOffsets() {
         fail("Implement this test")
     }
+    @Ignore
     @Test
     fun testExportRefRangeKmerIndex() {
         fail("Implement this test")
