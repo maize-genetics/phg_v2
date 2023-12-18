@@ -2,6 +2,7 @@ package net.maizegenetics.phgv2.pathing
 
 import com.google.common.collect.HashMultiset
 import com.google.common.collect.Multimap
+import net.maizegenetics.phgv2.api.HaplotypeGraph
 import org.apache.logging.log4j.LogManager
 import kotlin.math.E
 import kotlin.math.log
