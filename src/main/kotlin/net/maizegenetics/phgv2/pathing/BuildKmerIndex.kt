@@ -343,7 +343,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         myWriter: BufferedWriter,
         refrange: ReferenceRange,
         encodedHapSets: BitSet,
-        kmerHashOffsets: MutableList<Pair<Long, Int>>
+        kmerHashOffsets: List<Pair<Long, Int>>
     ) {
         //write the results of the range to a file
         //line 1: >rangeid

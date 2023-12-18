@@ -5,12 +5,15 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.cli.AgcCompress
 import net.maizegenetics.phgv2.cli.TestExtension
+import net.maizegenetics.phgv2.utils.getBufferedReader
+import net.maizegenetics.phgv2.utils.getBufferedWriter
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
+import java.util.*
 import kotlin.test.Ignore
 import kotlin.test.assertEquals
 import kotlin.test.fail
@@ -192,15 +195,70 @@ class BuildKmerIndexTest {
         assertEquals(truth,buildKmerIndex.createHapIdToKmerMap(kmerMapToHapIds))
 
     }
-    @Ignore
+
     @Test
     fun testBuildEncodedHapSetsAndHashOffsets() {
-        fail("Implement this test")
+        val buildKmerIndex = BuildKmerIndex()
+        //make a range
+        val refRange = ReferenceRange("chr1",10,50)
+        //There are 5 haplotypes in this refRange
+        val numberOfHaplotypesInRange = 5
+        //There are 3 hapSets in this refRange
+        val numberOfHapSets = 3
+        //make a refRangeToHapIndexMap
+        val refRangeToHapIndexMap = mapOf(
+            ReferenceRange("chr1",10,50) to mapOf("hap1" to 0,"hap2" to 1,"hap3" to 2,"hap4" to 3,"hap5" to 4)
+        )
+        //make a hapidKmerHashMap
+        val hapidKmerHashMap = mapOf<Set<String>,List<Long>>(
+            setOf("hap1","hap2") to listOf(1L),
+            setOf("hap3","hap4") to listOf(2L),
+            setOf("hap1","hap2","hap3","hap4") to listOf(5L),
+        )
+
+        //Create the truth which should have this type
+        //Pair<BitSet, MutableList<Pair<Long, Int>>>
+        val truthBitset = BitSet()
+        truthBitset.set(0)
+        truthBitset.set(1)
+        truthBitset.set(7)
+        truthBitset.set(8)
+        truthBitset.set(10)
+        truthBitset.set(11)
+        truthBitset.set(12)
+        truthBitset.set(13)
+
+        //TODO Check this, I am not fully understanding the kmer hash long here.  The offsets make sense, but the kmer hashes need another look.
+        val truth = Pair(truthBitset, mutableListOf(Pair(1L,0),Pair(2L,5),Pair(5L,10)))
+
+        assertEquals(truth,buildKmerIndex.buildEncodedHapSetsAndHashOffsets(numberOfHaplotypesInRange,numberOfHapSets,refRangeToHapIndexMap,refRange,hapidKmerHashMap))
+
     }
-    @Ignore
     @Test
     fun testExportRefRangeKmerIndex() {
-        fail("Implement this test")
+        //Very simple unit test to make sure that we are exporting what is expected.
+        //create a refRange
+        val refRange = ReferenceRange("chr1",10,50)
+
+        //make an encoded HapBitSet
+        val encodedHapSets = BitSet()
+        encodedHapSets.set(1)
+        encodedHapSets.set(2)
+        encodedHapSets.set(3)
+
+        //make a kmerHashOffsets
+        val kmerHashOffsets = listOf(Pair(1L,1),Pair(2L,2),Pair(3L,3))
+
+        getBufferedWriter(TestExtension.testKmerIndex).use { writer ->
+            BuildKmerIndex().exportRefRangeKmerIndex(writer,refRange,encodedHapSets,kmerHashOffsets)
+        }
+
+
+        //read in the file and make sure it is correct
+        val truth = listOf(">chr1:10-50","14","1@1,2@2,3@3")
+        //compare truth with the file
+        val inputFile = getBufferedReader(TestExtension.testKmerIndex).readLines()
+        assertEquals(truth,inputFile)
     }
 
     private fun setupAgc() {

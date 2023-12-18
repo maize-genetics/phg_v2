@@ -254,7 +254,7 @@ private fun hapidsFromOneReferenceRange(rangeHapidMap: Map<Int, List<Int>>, minS
     val maxHapidCount = rangeHapidMap.values.maxOf { it.size }
     if (maxHapidCount.toDouble() / numberOfHapids.toDouble() < minSameReferenceRange) return listOf()
     val entryWithMaxCount = rangeHapidMap.entries.find { it.value.size == maxHapidCount }
-    check(entryWithMaxCount != null) { "No entry has the max count (how did this happen?)" }
+    check(entryWithMaxCount != null) { "No entry has the max count.  This should never happen." }
     return entryWithMaxCount.value
 }
 
