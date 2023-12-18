@@ -1,13 +1,10 @@
-package net.maizegenetics.phgv2.cli
+package net.maizegenetics.phgv2.pathing
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
 import com.github.ajalt.clikt.parameters.groups.required
 import com.github.ajalt.clikt.parameters.groups.single
 import com.github.ajalt.clikt.parameters.options.*
-import com.github.ajalt.clikt.parameters.types.float
-import net.maizegenetics.phgv2.utils.KeyFileData
-import net.maizegenetics.phgv2.utils.alignReadsToHaplotypes
 import java.io.File
 import java.util.logging.Logger
 

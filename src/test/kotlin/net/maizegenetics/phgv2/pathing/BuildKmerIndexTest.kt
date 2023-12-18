@@ -1,6 +1,8 @@
 package net.maizegenetics.phgv2.pathing
 
 import com.github.ajalt.clikt.testing.test
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
+import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.cli.AgcCompress
 import net.maizegenetics.phgv2.cli.TestExtension
 import org.junit.jupiter.api.Test
@@ -10,6 +12,7 @@ import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
 import kotlin.test.assertEquals
+import kotlin.test.fail
 
 @ExtendWith(TestExtension::class)
 class BuildKmerIndexTest {
@@ -111,6 +114,90 @@ class BuildKmerIndexTest {
 
     }
 
+    @Test
+    fun testExtractKmersAndExportIndexForRefRange() {
+        fail("Implement this test")
+    }
+    @Test
+    fun testGetRefRangeToKmerSetMap() {
+        //fun getRefRangeToKmerSetMap(
+        val buildKmerIndex = BuildKmerIndex()
+
+        //create a kmerMapToHapIds
+        val kmerMapToHapIds = Long2ObjectOpenHashMap<Set<String>>()
+
+        //create a hapIdToRefRangeMap
+        val hapIdToRefRangeMap = mutableMapOf<String, ReferenceRange>()
+
+        //add in some KmerToHapIdSets
+        kmerMapToHapIds[1L] = setOf("hap1","hap2")
+        kmerMapToHapIds[2L] = setOf("hap3","hap4")
+        kmerMapToHapIds[3L] = setOf("hap1","hap3")
+        kmerMapToHapIds[4L] = setOf("hap2","hap4")
+        kmerMapToHapIds[5L] = setOf("hap1","hap2","hap3","hap4")
+        kmerMapToHapIds[10L] = setOf("hap10","hap11","hap12")
+        kmerMapToHapIds[11L] = setOf("hap10","hap11")
+        kmerMapToHapIds[12L] = setOf("hap12")
+
+
+        //create a hapId ToRangeMap
+        hapIdToRefRangeMap["hap1"] = ReferenceRange("chr1",10,50)
+        hapIdToRefRangeMap["hap2"] = ReferenceRange("chr1",10,50)
+        hapIdToRefRangeMap["hap3"] = ReferenceRange("chr1",10,50)
+        hapIdToRefRangeMap["hap4"] = ReferenceRange("chr1",10,50)
+        hapIdToRefRangeMap["hap10"] = ReferenceRange("chr1",100,150)
+        hapIdToRefRangeMap["hap11"] = ReferenceRange("chr1",100,150)
+        hapIdToRefRangeMap["hap12"] = ReferenceRange("chr1",100,150)
+
+        //setup the truth
+        val truth = mapOf(
+            ReferenceRange("chr1",10,50) to setOf(1L,2L,3L,4L,5L),
+            ReferenceRange("chr1",100,150) to setOf(10L,11L,12L)
+        )
+
+        assertEquals(truth,buildKmerIndex.getRefRangeToKmerSetMap(kmerMapToHapIds,hapIdToRefRangeMap))
+
+    }
+
+
+    @Test
+    fun testCreateHapIdToKmerMap() {
+
+        val buildKmerIndex = BuildKmerIndex()
+
+        //create a kmerMapToHapIds
+        val kmerMapToHapIds = mutableMapOf<Long,Set<String>>()
+
+        //add in some KmerToHapIdSets
+        kmerMapToHapIds[1L] = setOf("hap1","hap2")
+        kmerMapToHapIds[2L] = setOf("hap3","hap4")
+        kmerMapToHapIds[3L] = setOf("hap1","hap3")
+        kmerMapToHapIds[4L] = setOf("hap2","hap4")
+        kmerMapToHapIds[5L] = setOf("hap1","hap2","hap3","hap4")
+        kmerMapToHapIds[10L] = setOf("hap10","hap11","hap12")
+        kmerMapToHapIds[11L] = setOf("hap10","hap11")
+        kmerMapToHapIds[12L] = setOf("hap12")
+
+        val truth = mapOf(setOf("hap1", "hap2") to listOf(1L),
+            setOf("hap3", "hap4") to listOf(2L),
+            setOf("hap1", "hap2", "hap3", "hap4") to listOf(5L),
+            setOf("hap1", "hap3") to listOf(3L),
+            setOf("hap2", "hap4") to listOf(4L),
+            setOf("hap10", "hap11", "hap12") to listOf(10L),
+            setOf("hap10", "hap11") to listOf(11L),
+            setOf("hap12") to listOf(12L))
+
+        assertEquals(truth,buildKmerIndex.createHapIdToKmerMap(kmerMapToHapIds))
+
+    }
+    @Test
+    fun testBuildEncodedHapSetsAndHashOffsets() {
+        fail("Implement this test")
+    }
+    @Test
+    fun testExportRefRangeKmerIndex() {
+        fail("Implement this test")
+    }
 
     private fun setupAgc() {
         //create an AGC record with the Ref in it

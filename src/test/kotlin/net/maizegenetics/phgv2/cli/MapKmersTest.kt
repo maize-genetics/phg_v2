@@ -1,6 +1,8 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.pathing.MapKmers
+import net.maizegenetics.phgv2.pathing.ReadInputFile
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test

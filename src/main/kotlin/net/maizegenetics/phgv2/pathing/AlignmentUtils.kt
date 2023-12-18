@@ -1,11 +1,10 @@
-package net.maizegenetics.phgv2.utils
+package net.maizegenetics.phgv2.pathing
 
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
-import net.maizegenetics.phgv2.pathing.BuildKmerIndex
 import org.apache.logging.log4j.LogManager
 import java.io.*
 import java.nio.file.Files
@@ -275,4 +274,39 @@ private fun hapidsFromOneReferenceRange(rangeHapidMap: Map<Int, List<Int>>, minS
     val entryWithMaxCount = rangeHapidMap.entries.find { it.value.size == maxHapidCount }
     check(entryWithMaxCount != null) { "No entry has the max count (how did this happen?)" }
     return entryWithMaxCount.value
+}
+
+
+/**
+ * Function to export the read mapping files to disk.  These files can then be read in to be used in path finding
+ */
+fun exportReadMapping(outputFileName: String, hapIdMapping: Map<List<String>, Int>, taxon : String, fastqFiles: Pair<String,String>) {
+    File(outputFileName).bufferedWriter().use { output ->
+        output.write("#sampleName=${taxon}\n")
+        output.write("#filename1=${fastqFiles.first}\n")
+        if(fastqFiles.second.isNotEmpty()) {
+            output.write("#filename2=${fastqFiles.second}\n")
+        }
+        output.write("HapIds\tcount\n")
+        hapIdMapping.keys.forEach { output.write("${it.joinToString(",")}\t${hapIdMapping[it]}\n") }
+    }
+}
+
+/**
+ * Function to read in the Readmapping file into a Map<List<String>,Int>
+ */
+fun importReadMapping(inputFileName: String) : Map<List<String>, Int> {
+    return File(inputFileName).bufferedReader().readLines()
+        .filter { !it.startsWith("#") } //remove any of the metadata
+        .filter { !it.startsWith("HapIds") }
+        .map {
+            val lineSplit = it.split("\t")
+            val hapIds = lineSplit[0].split(",")
+                .map { hapId -> hapId }
+                .toList()
+            val count = lineSplit[1].toInt()
+
+            Pair(hapIds, count)
+        }
+        .toMap()
 }
