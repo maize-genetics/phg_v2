@@ -4,17 +4,25 @@ import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.cli.TestExtension
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
+import java.io.File
 
 @ExtendWith(TestExtension::class)
 class MapKmersTest {
 
     companion object {
         @JvmStatic
+        @BeforeAll
+        fun setup() {
+            File(TestExtension.testOutputDir).mkdirs()
+        }
+        @JvmStatic
         @AfterAll
         fun tearDown() {
+            File(TestExtension.testOutputDir).deleteRecursively()
         }
     }
 
@@ -160,6 +168,46 @@ class MapKmersTest {
         assertEquals(readFilesData5[0].file1, "file1.txt|file2.txt")
         assertEquals(readFilesData5[0].file2, "")
 
+    }
+
+    @Test
+    fun testRoundTrippingReadMappings() {
+        //fun exportReadMapping(outputFileName: String, hapIdMapping: Map<List<String>, Int>, taxon : String, fastqFiles: Pair<String,String>) {
+
+        val hapIdMapping = mapOf(listOf("hap1", "hap2") to 15, listOf("hap3") to 20, listOf("hap1") to 25, listOf("hap1", "hap2", "hap3") to 30,
+            listOf("hap10", "hap11", "hap12") to 35, listOf("hap10", "hap11") to 40, listOf("hap12") to 45)
+
+        val sampleName = "sample1"
+        val fastqFilesSingle = Pair(TestExtension.testReads, "")
+        val fastqFilesPaired = Pair(TestExtension.testReads, TestExtension.testReads)
+
+        //test single end mapping
+        exportReadMapping(TestExtension.testOutputReadMappingSingleEnd, hapIdMapping, sampleName, fastqFilesSingle)
+
+        val readMappingSingleEnd = importReadMapping(TestExtension.testOutputReadMappingSingleEnd)
+        assertEquals(readMappingSingleEnd.size, 7)
+        assertEquals(readMappingSingleEnd, hapIdMapping)
+
+
+        //test paired end mapping
+        exportReadMapping(TestExtension.testOutputReadMappingPairedEnd, hapIdMapping, sampleName, fastqFilesPaired)
+        val readMappingPairedEnd = importReadMapping(TestExtension.testOutputReadMappingPairedEnd)
+        assertEquals(readMappingPairedEnd.size, 7)
+        assertEquals(readMappingPairedEnd, hapIdMapping)
+
+        //Open up the files and make sure they have the right headers
+        val readMappingSingleEndFile = File(TestExtension.testOutputReadMappingSingleEnd).readLines().filter { it.startsWith("#") }.toSet()
+
+        val truthHeaderSingleEndLines = setOf("#sampleName=sample1", "#filename1=${TestExtension.testReads}")
+        for(line in truthHeaderSingleEndLines) {
+            assert(readMappingSingleEndFile.contains(line))
+        }
+
+        val readMappingPairedEndFile = File(TestExtension.testOutputReadMappingPairedEnd).readLines().filter { it.startsWith("#") }.toSet()
+        val truthHeaderPairedEndLines = setOf("#sampleName=sample1", "#filename1=${TestExtension.testReads}", "#filename2=${TestExtension.testReads}")
+        for(line in truthHeaderPairedEndLines) {
+            assert(readMappingPairedEndFile.contains(line))
+        }
     }
 
 }

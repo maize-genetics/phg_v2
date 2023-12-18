@@ -9,11 +9,7 @@ import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.getBufferedReader
 import org.apache.logging.log4j.LogManager
 import java.io.*
-import java.nio.file.Files
-import java.nio.file.Paths.*
 import java.util.*
-import java.util.zip.GZIPInputStream
-import java.util.zip.GZIPOutputStream
 import kotlin.math.ceil
 import kotlin.math.min
 
@@ -266,9 +262,9 @@ private fun hapidsFromOneReferenceRange(rangeHapidMap: Map<Int, List<Int>>, minS
 /**
  * Function to export the read mapping files to disk.  These files can then be read in to be used in path finding
  */
-fun exportReadMapping(outputFileName: String, hapIdMapping: Map<List<String>, Int>, taxon : String, fastqFiles: Pair<String,String>) {
+fun exportReadMapping(outputFileName: String, hapIdMapping: Map<List<String>, Int>, sampleName : String, fastqFiles: Pair<String,String>) {
     getBufferedWriter(outputFileName).use { output ->
-        output.write("#sampleName=${taxon}\n")
+        output.write("#sampleName=${sampleName}\n")
         output.write("#filename1=${fastqFiles.first}\n")
         if(fastqFiles.second.isNotEmpty()) {
             output.write("#filename2=${fastqFiles.second}\n")
