@@ -128,3 +128,41 @@ the following command:
 This should output summary text to the terminal including syntax
 help and a list of subcommands and descriptions.
 
+
+## Setting memory
+The amount of data you wish to process will affect the amount of
+computational resources that you will need. Since PHGv2 leverages
+a [Java virtual machine](https://en.wikipedia.org/wiki/Java_virtual_machine) 
+(JVM) for a majority of its tasks, we can manually alter the maximum 
+amount of memory allocated to the JVM using the following command 
+prompt:
+
+```shell
+export JAVA_OPTS="-Xmx<memory_amount>"
+```
+
+...where `<memory_amount>` is a specified unit of memory. For 
+example, if I want to allocate a maximum of 50 gigabytes (GB) of 
+memory for my operations, I would use the input `"-Xmx50g"`, where `g`
+stands for GB:
+
+```shell
+export JAVA_OPTS="-Xmx50g"
+```
+
+> [!NOTE]
+> In order for memory to properly be set, you must set this 
+> **before** running any of the PHGv2 commands.
+
+> [!NOTE]
+> Setting JVM memory will only affect JVM-intensive commands. Since
+> PGHv2 utilizes several external pieces of software several commands
+> will **not** be affected by this. Currently, these are:
+>
+> * `setup-environment`
+> * `initdb`
+> * `align-assemblies`
+> * `agc-compress`
+> 
+> ...which rely on conda, TileDB, AnchorWave, and AGC, respectively.
+
