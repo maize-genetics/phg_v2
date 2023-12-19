@@ -30,6 +30,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
     // Map<ReferenceRange, refRangeId>
     private lateinit var refRangeMap: SortedMap<ReferenceRange, Int>
+    //A list of contigs in this graph
+    private lateinit var contigs: List<String>
 
     // Map<ID (checksum), AltHeaderMetaData>
     private lateinit var altHeaderMap: Map<String, AltHeaderMetaData>
@@ -68,6 +70,18 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      * Returns a list of ReferenceRanges for this graph.
      */
     fun ranges(): List<ReferenceRange> = refRangeMap.keys.sorted()
+
+    /**
+     * Returns a list of the contigs in this graph.
+     */
+    fun contigs(): List<String> = contigs
+
+    /**
+     * Returns a map of contig to a sorted list of ReferenceRanges in each contig
+     */
+    fun rangesByContig(): Map<String, List<ReferenceRange>> {
+        return ranges().groupBy { refrange -> refrange.contig }.mapValues { (_, rangeList) -> rangeList.sorted() }
+    }
 
     /**
      * Returns a hapId -> sample list map for the given ReferenceRange.

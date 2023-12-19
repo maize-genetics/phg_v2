@@ -3,131 +3,71 @@ package net.maizegenetics.phgv2.pathing
 import com.google.common.collect.HashMultiset
 import com.google.common.collect.Multimap
 import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.api.SampleGamete
 import org.apache.logging.log4j.LogManager
 import kotlin.math.E
 import kotlin.math.log
 
-class PathFinderForSingleTaxonNodesFactory  (graph: HaplotypeGraph,
-                                             val sameGameteProbability: Double = 0.99,
-                                             val probCorrect: Double = 0.99,
-                                             val minTaxaPerRange: Int = 2,
-                                             val minReadsPerRange: Int = 1,
-                                             val maxReadsPerKB: Int = 1000,
-                                             val removeEqual: Boolean = false,
-                                             val inbreedCoef: Double = 0.0,
-                                             val maxParents: Int = Int.MAX_VALUE,
-                                             val minCoverage: Double = 1.0) {
-    private val myLogger = LogManager.getLogger(PathFinderForSingleTaxonNodesFactory::class.java)
-    val myGraph: HaplotypeGraph
-    val useLikelyParents: Boolean
-    val parentFinder: MostLikelyParents?
-
-    init {
-        //remove ranges that have fewer than minTaxaPerRange taxa
-        //the input graph may contain missing taxa nodes
-        //filtering on node.id() > 0 keeps these from being added to the taxa count used for filtering
-        //TODO consider whether this filtering step is necessary
-
-        var hapgraph = graph
-        val rangesToRemove = graph.referenceRangeList().filter { refrange ->
-            val taxaSet = graph.nodes(refrange).filter { node -> node.id() > 0 }.flatMap { it.taxaList() }.toSet()
-            taxaSet.size < minTaxaPerRange
-        }.toList()
-        if (rangesToRemove.isNotEmpty()) hapgraph = FilterGraphPlugin(null, false).refRanges(rangesToRemove.toList())
-            .filter(graph)
-
-        myGraph = hapgraph
-        myLogger.info("After filtering PathFinderForSingleTaxonNodesFactory.myGraph has ${myGraph.numberOfRanges()} ranges and ${myGraph.totalNumberTaxa()} taxa")
-
-        //should the graph be filtered on likely parents?
-        useLikelyParents = maxParents < myGraph.totalNumberTaxa() || minCoverage < 1.0
-        parentFinder = if (useLikelyParents) MostLikelyParents(myGraph) else null
-    }
-
-    fun build(
-        readMap: Multimap<ReferenceRange, HapIdSetCount>,
-        parentList: String = ""
-    ): PathFinderForSingleTaxonNodes {
-        return PathFinderForSingleTaxonNodes(
-            inputGraph = myGraph, readMap, probCorrect, sameGameteProbability,
-            minReadsPerRange, maxReadsPerKB, removeEqual, inbreedCoef, parentList,
-            useLikelyParents, parentFinder, maxParents, minCoverage
-        )
-    }
-
-    class PathFinderForSingleTaxonNodes(
-        inputGraph: HaplotypeGraph,
-        val readMap: Multimap<ReferenceRange, HapIdSetCount>,
+    class PathFinderWithViterbiHMM(
+        val graph: HaplotypeGraph,
         val probCorrect: Double,
         val sameGameteProbability: Double,
+        val minTaxaPerRange: Int,
         val minReadsPerRange: Int,
         val maxReadsPerKB: Int,
         val removeEqual: Boolean,
-        val inbreedCoef: Double,
-        parentList: String,
-        useLikelyParents: Boolean,
-        parentFinder: MostLikelyParents?,
-        maxParents: Int,
-        minCoverage: Double
+        val inbreedCoef: Double = 1.0,
+        useLikelyParents: Boolean = false,
+        maxParents: Int = Int.MAX_VALUE,
+        minCoverage: Double = 1.0
     ) {
 
-
-        private val myLogger = LogManager.getLogger(PathFinderForSingleTaxonNodes::class.java)
+        private val myLogger = LogManager.getLogger(PathFinderWithViterbiHMM::class.java)
+        private val parentFinder: MostLikelyParents?
 
         private data class PathNode(
             val parent: PathNode?,
-            val hapnode: HaplotypeNode?,
-            val gamete: String,
+            val sample: SampleGamete,
+            val haplotype: String,
             val totalProbability: Double
         )
 
         private data class DiploidPathNode(
             val parent: DiploidPathNode?,
-            val hapnode: Pair<HaplotypeNode, HaplotypeNode>,
+            val samples: Pair<SampleGamete, SampleGamete>,
+            val haplotypes: Pair<String, String>,
             val state: Int,
             val totalProbability: Double
         )
 
-        private data class HapNode(val hapnode: HaplotypeNode, val emissionP: Double)
-
-        private val graph: HaplotypeGraph
-        private val totalNumberOfTaxa: Int
-        val likelyParents: List<Pair<String, Int>>
+        private data class HapNode(val hapnode: String, val emissionP: Double)
 
         init {
-            graph = if (useLikelyParents && parentFinder != null) {
-                likelyParents = parentFinder.findMostLikelyParents(readMap, maxParents, minCoverage)
-                val graphTaxa = TaxaListBuilder().addAll(likelyParents.map { it.first }).build()
-                FilterGraphPlugin(null, false).taxaList(graphTaxa).filter(inputGraph)
-            } else if (parentList.trim().length > 0) {
-                likelyParents = listOf()
-                FilterGraphPlugin(null, false).taxaList(parentList).filter(inputGraph)
-            } else {
-                likelyParents = listOf()
-                inputGraph
-            }
-
-            totalNumberOfTaxa = graph.totalNumberTaxa()
+            parentFinder = if (useLikelyParents) {
+                MostLikelyParents(graph)
+            } else null
         }
 
-        fun findBestPath(): List<HaplotypeNode> {
-            val haplotypeList = ArrayList<HaplotypeNode>(graph.numberOfRanges())
-            graph.chromosomes().forEach { chr ->
-                haplotypeList.addAll(viterbiOneGametePerNode(chr, readMap))
+        fun findBestHaploidPath(readMap: Map<List<String>, Int>): List<String> {
+            val haplotypeList = mutableListOf<String>()
+            graph.contigs().forEach { chr ->
+                haplotypeList.addAll(haploidViterbi(chr, readMap))
             }
             return haplotypeList
         }
 
-        fun findBestDiploidPath(): List<List<HaplotypeNode>> {
-            val haplotypeList = listOf(mutableListOf<HaplotypeNode>(), mutableListOf<HaplotypeNode>())
-            graph.chromosomes().forEach { chr ->
-                val start = System.nanoTime()
-                val chrLists = diploidViterbi(chr, readMap)
-                myLogger.info("Elapsed time for chr $chr: ${(System.nanoTime() - start) / 1e9} sec.")
-                haplotypeList[0].addAll(chrLists[0])
-                haplotypeList[1].addAll(chrLists[1])
-            }
-            return haplotypeList
+        fun findBestDiploidPath(): List<List<String>> {
+            TODO("Not implemented yet")
+//            val haplotypeList = listOf(mutableListOf<HaplotypeNode>(), mutableListOf<HaplotypeNode>())
+//            graph.chromosomes().forEach { chr ->
+//                val start = System.nanoTime()
+//                val chrLists = diploidViterbi(chr, readMap)
+//                myLogger.info("Elapsed time for chr $chr: ${(System.nanoTime() - start) / 1e9} sec.")
+//                haplotypeList[0].addAll(chrLists[0])
+//                haplotypeList[1].addAll(chrLists[1])
+//            }
+//            return haplotypeList
         }
 
         /**
@@ -140,11 +80,11 @@ class PathFinderForSingleTaxonNodesFactory  (graph: HaplotypeGraph,
          * @param readMap   a Multimap of read mappings for graph
          * @return  a list of HaplotypeNodes representing the most likely path
          */
-        private fun viterbiOneGametePerNode(
-            chrom: Chromosome,
-            readMap: Multimap<ReferenceRange, HapIdSetCount>
-        ): List<HaplotypeNode> {
-            myLogger.info("Finding path for chromosome ${chrom.name} using ViterbiOneGametePerNode")
+        private fun haploidViterbi(
+            chrom: String,
+            readMap: Map<List<String>, Int>
+        ): List<String> {
+            myLogger.info("Finding path for chromosome $chrom using haploidViterbi")
             val switchProbability = 1 - sameGameteProbability
             val rangeToNodesMap = graph.tree(chrom)
             val taxaSet = graph.taxaInGraph().map { it.name }.toSortedSet()
@@ -634,4 +574,3 @@ class PathFinderForSingleTaxonNodesFactory  (graph: HaplotypeGraph,
         }
 
     }
-}
