@@ -1,9 +1,14 @@
 package net.maizegenetics.phgv2.brapi.service
 
+import com.typesafe.config.ConfigFactory
+import io.ktor.server.config.*
 import net.maizegenetics.phgv2.brapi.model.Sample
 import net.maizegenetics.phgv2.utils.inputStreamProcessing
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedInputStream
+
+private val config = HoconApplicationConfig(ConfigFactory.load())
+val tiledbURI = config.property("TILEDB_URI").getString()
 
 object SamplesService {
 
@@ -11,7 +16,7 @@ object SamplesService {
 
     // Cached map of all taxa. Key is genoid mapped to Sample object
     private val taxa: Map<String, Sample> by lazy {
-        taxaMap("Need to add URI here.")
+        taxaMap("${tiledbURI}/hvcf_dataset")
     }
 
     private val taxaByName: Map<String, Sample> by lazy {

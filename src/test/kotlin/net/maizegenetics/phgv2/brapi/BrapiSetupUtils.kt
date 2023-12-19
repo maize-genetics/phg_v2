@@ -14,6 +14,7 @@ import kotlin.test.assertEquals
  */
 fun createSmallSeqTiledb() {
     val setupEnv = SetupEnvironment()
+    println("createSmallSeqTiledb: calling setupEnv")
     setupEnv.test("--output-dir ${TestExtension.tempDir}")
 
     //Run InitDB
