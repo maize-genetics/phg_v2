@@ -6,7 +6,12 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import java.io.File
 
@@ -68,20 +73,39 @@ class HaploidPathFinding : CliktCommand(help = "Create gVCF and hVCF from Anchor
 
     }
 
-    data class ReadMappingResult(val name: String) //placeholder
-    data class Path(val name: String, val hapids: List<String>) //placeholder
-    private fun processReadMappings() {
+    data class ReadMappingResult(val name: String, val readMappingCounts: Map<List<String>, Int>) //placeholder
+    data class Path(val name: String, val hapidLists: List<String>) //placeholder
+    private fun processReadMappings() = runBlocking {
+
+        val myGraph = buildHaplotypeGraph()
+
         //create a channel for read mappings
         val readMappingChannel = Channel<ReadMappingResult>(10)
 
         //create a channel for paths
         val pathChannel = Channel<Path>(10)
 
-        //load read mappings for each sample into a channel
         //create worker threads to process entries from the read mapping channel
+        repeat(threads) {
+            launch(Dispatchers.Default) {
+                imputePath(myGraph, readMappingChannel, pathChannel)
+            }
+        }
 
         //create a coroutine to store paths
+        launch(Dispatchers.Default) {
+            savePath(pathChannel)
+        }
+
+        //load read mappings for each sample into a channel
 
     }
 
+    suspend fun imputePath(graph: HaplotypeGraph, readMappings: ReceiveChannel<ReadMappingResult>, result: SendChannel<Path>) {
+
+    }
+
+    suspend fun savePath(pathChannel : ReceiveChannel<Path>) {
+
+    }
 }
