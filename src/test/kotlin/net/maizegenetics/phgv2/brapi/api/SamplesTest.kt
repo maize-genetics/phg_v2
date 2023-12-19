@@ -16,14 +16,24 @@ import io.ktor.client.request.get
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.*
 import net.maizegenetics.phgv2.brapi.model.SampleListResponse
+import org.junit.jupiter.api.AfterAll
 import kotlin.test.*
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeAll
 
+/**
+ * Test the brapi samples endpoint
+ * This test uses the ktor test harness
+ *
+ * This works when the application.conf file has been modified to include
+ * a value for TILEDB_URI.  Need to determine how to do this programmatically
+ * for the test harness (but not when running the server)
+ */
 class SamplesTest {
     companion object {
 
         @JvmStatic
-        @AnnotationSpec.BeforeAll
+        @BeforeAll
         fun setup() {
             // delete, reset the directories
             resetDirs()
@@ -34,7 +44,7 @@ class SamplesTest {
         }
 
         @JvmStatic
-        @AnnotationSpec.AfterAll
+        @AfterAll
         fun teardown() {
             File(TestExtension.tempDir).deleteRecursively()
         }
@@ -54,6 +64,11 @@ class SamplesTest {
         assertEquals(HttpStatusCode.OK, response.status)
         val samples = response.body<SampleListResponse>().result
         println("samples: $samples")
+        assertEquals(3, samples.data.size)
+        val sampleEntries = samples.data
+        assertEquals("LineA", sampleEntries[0].sampleName)
+        assertEquals("LineB", sampleEntries[1].sampleName)
+        assertEquals("Ref", sampleEntries[2].sampleName)
 
     }
 
