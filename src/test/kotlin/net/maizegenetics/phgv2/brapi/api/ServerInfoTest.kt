@@ -1,77 +1,48 @@
 package net.maizegenetics.phgv2.brapi.api
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
-import net.maizegenetics.phgv2.brapi.createSmallSeqTiledb
 import net.maizegenetics.phgv2.brapi.model.ServerInfoResponse
-import net.maizegenetics.phgv2.brapi.resetDirs
-import net.maizegenetics.phgv2.cli.StartServer
-import net.maizegenetics.phgv2.cli.TestExtension
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.Test
-import java.io.File
-import java.net.http.HttpResponse
-
-import io.kotest.common.runBlocking
-import io.kotest.matchers.shouldBe
-import io.ktor.client.HttpClient
 import io.ktor.client.call.*
-import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
-import org.junit.jupiter.api.DisplayName
 import io.ktor.client.request.get
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.testing.*
+
+import kotlin.test.*
 import org.junit.jupiter.api.Assertions.assertEquals
 
+/**
+ * This class tests the Brapi ServerInfo endpoint.
+ * It makes use of the ktor testApplication method to test the server.
+ * No need to have an external server running - this bypasses the server and
+ * executes the tests.
+ */
 
 class ServerInfoTest {
     companion object {
-
-        @JvmStatic
-        @BeforeAll
-        fun setup() {
-            // This is not needed for ServerInfoTest
-            // It is here as an example of what shoudl be put in the @BeforeAll for other tests
-            // that must access a tiledb dataset
-            resetDirs()
-
-            // create the tiledb datasets, load them with from the vcf files
-            createSmallSeqTiledb()
-
-            // now start the server
-            // This is currently not working.  You must start the server in a separate
-            // terminal window before executing these tests
-            //StartServer()
-
-        }
-
-        @JvmStatic
-        @AfterAll
-        fun teardown() {
-            File(TestExtension.tempDir).deleteRecursively()
-        }
+        // Don't need anything here for now
     }
+
 
     @Test
-    fun testServerInfo() {
-        val query = "http://localhost:8080/brapi/v2/serverinfo"
+    fun testServerInfo() = testApplication {
 
-        runBlocking {
-            // This is needed or you get "NoTransformationFOundException" from ktor HttpClient
-            val client = HttpClient(CIO) {
-                install(ContentNegotiation) {
-                    json()
-                }
-            }
-            client.use { myClient ->
-                val response = myClient.get("http://localhost:8080/brapi/v2/serverinfo")
-                assertEquals(HttpStatusCode.OK, response.status)
-                val serverInfo = response.body<ServerInfoResponse>().result
-                println("serverInfo: $serverInfo")
-                assertEquals(4, serverInfo.calls.size)
+        // This is needed or you get "NoTransformationFoundException" from ktor HttpClient
+        val client = createClient {
+            install(ContentNegotiation) {
+                json()
             }
         }
+
+        val response = client.get("/brapi/v2/serverinfo")
+        assertEquals(HttpStatusCode.OK, response.status)
+        val serverInfo = response.body<ServerInfoResponse>().result
+        println("serverInfo: $serverInfo")
+
+        // This assert will need to change when more endpoints are supported
+        assertEquals(4, serverInfo.calls.size)
+        val calls = serverInfo.calls
+        assertEquals("/allelematrix", calls[0].service)
     }
+
 }

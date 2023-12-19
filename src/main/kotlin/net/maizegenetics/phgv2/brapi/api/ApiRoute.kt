@@ -16,6 +16,8 @@ val defaultVariantsPageSize = config.property("variantsPageSize").getString().to
 fun Routing.apiRoute() {
 
     route("/brapi/v2") {
+        // this one is for testing
+        baseRoute()
 
         // Add an api function for each endpoint, which should call a corresponding service
         // to process data for the endpoints.

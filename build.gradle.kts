@@ -76,6 +76,13 @@ dependencies {
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
 
+
+    // for testing ktor
+    testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
+    testImplementation("io.ktor:ktor-client-mock:$ktorVersion")
+    testImplementation("org.jetbrains.kotlin:kotlin-test:$kotlinVersion")
+
+
     val kotestVersion = "5.6.2"
     listOf("runner-junit5", "assertions-core", "property", "framework-datatest").forEach {
         testImplementation("io.kotest:kotest-$it-jvm:$kotestVersion")
