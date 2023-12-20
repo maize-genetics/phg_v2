@@ -283,7 +283,10 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         myWriter: BufferedWriter
     ) {
         //Check to make sure the refRange maps have the correct keys.
-        check(refRangeToKmerSetMap.containsKey(refrange)) { "Error no kmers assiciated with this refRange: $refrange" }
+        if(!refRangeToKmerSetMap.containsKey(refrange)) {
+            myLogger.warn("No kmers associated with this refRange: $refrange")
+            return
+        }
         check(refRangeToHapIndexMap.containsKey(refrange)) { "Error no haplotypes associated with this refRange: $refrange" }
 
         val kmers = refRangeToKmerSetMap[refrange]!!

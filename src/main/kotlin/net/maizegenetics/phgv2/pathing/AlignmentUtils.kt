@@ -24,16 +24,20 @@ data class KeyFileData(val sampleName: String, val file1: String, val file2: Str
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.AlignmentUtils")
 
 
-fun alignReadsToHaplotypes(hvcfDir: String, kmerIndexFile:String, keyFileRecords:List<KeyFileData>, paired:Boolean, outputDir:String) {
+/**
+ * Function to align the reads coming from a single ended Fastq or a pair of fastq files to the haplotype graph kmer index found in [kmerIndexFile] and create a readMapping file which will be written to the [outputDir].
+
+ */
+fun alignReadsToHaplotypes(hvcfDir: String, kmerIndexFile:String, keyFileRecords:List<KeyFileData>, outputDir:String) {
     //loop through all files in hvcfDir and create a list of hvcf files
-    val hvcfFiles = File(hvcfDir).walkTopDown().filter { it.isFile }.filter { it.extension == "h.vcf" }.map { "${it.path}/${it.name}" }.toList()
+    val hvcfFiles = File(hvcfDir).walkTopDown().filter { it.isFile }.filter { it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz") }.map { "${it.path}/${it.name}" }.toList()
 
     //create a HaplotypeGraph from the list of hvcf files
     val graph = HaplotypeGraph(hvcfFiles)
 
     val kmerIndexMap = loadKmerMaps(kmerIndexFile, graph)
 
-
+    TODO("Finish implementing this function")
 }
 
 /**
@@ -106,19 +110,9 @@ fun loadKmerMaps(filename: String, graph: HaplotypeGraph): KmerMapData {
 }
 
 /**
- * Creates a map of ReferenceRange -> (map of hapid -> index) for a [HaplotypeGraph]
- */
-fun getRefRangeToHapidMap(graph: HaplotypeGraph) : Map<ReferenceRange,Map<String,Int>>{
-    //This creates a map of ReferenceRangeId -> (map of hapid -> index)
-    return graph.ranges().associateWith { range ->
-        graph.hapIdToSamples(range).keys.toSortedSet()
-            .mapIndexed { index, hapid -> hapid to index }.toMap()
-    }
-}
-
-/**
- * Creates a map of ReferenceRange -> index for a [HaplotypeGraph]. Because the ranges are sorted by the
- * HaplotypeGraph method range(), a graph always returns the same map.
+ * Creates a map of ReferenceRange -> index for a [HaplotypeGraph].
+ * Because the ranges are sorted by the when calling the ranges() method,
+ * a graph always returns the same map in the same order.
  */
 fun getReferenceRangeToIndexMap(graph: HaplotypeGraph) : Map<ReferenceRange,Int> {
     return graph.ranges().mapIndexed { index, range -> range to index }.toMap()
