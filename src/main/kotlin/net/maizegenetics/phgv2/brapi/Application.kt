@@ -11,15 +11,9 @@ import net.maizegenetics.phgv2.brapi.api.apiRoute
 
 /**
  * This is the main method that starts the PHG ktor web service.
- * It uses a Ktor HOCON application configuration file to get web and database information.
+ * It uses a Ktor HOCON application configuration file to get web and tiledb
+ * location information.
  * That file is  src/main/kotlin/resources/application.conf
- *
- * This web service makes use of HikariCP connection pools for managing database connections.
- * See the service/DataSource object for the connections.  Individual service endpoints should
- * call DataSource.connection to connect to the configured database.
- * See these sites for HirkariCP details:
- *   http://zetcode.com/articles/hikaricp/
- *   https://www.baeldung.com/hikaricp
  *
  *   @author lcj34
  */
