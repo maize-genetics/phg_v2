@@ -1,0 +1,4 @@
+sampleName	filename2
+sample1	read2.txt
+sample2	read4.txt
+sample3	read5.txt
