@@ -1,9 +1,9 @@
 package net.maizegenetics.phgv2.pathing
 
-import com.google.common.collect.*
 import net.maizegenetics.phgv2.api.ReferenceRange
 import java.lang.IllegalArgumentException
 import org.apache.commons.math3.distribution.BinomialDistribution
+import kotlin.math.ln
 
 /**
  * @author Peter Bradbury
@@ -18,20 +18,24 @@ import org.apache.commons.math3.distribution.BinomialDistribution
  *
  */
 
-class HaplotypeEmissionProbability(val refRangeToHapListMap : Map<ReferenceRange, List<String>>,
+class HaplotypeEmissionProbability(val refRangeToHapSetMap : Map<ReferenceRange, Set<String>>,
                                    val readMap : Map<ReferenceRange, List<HaploidPathFinding.HaplotypeListCount>>,
                                    val pCorrect : Double) {
-    var currentRefRange = ReferenceRange("none",0,0)
-    var currentEmissionProbabilities = mapOf<String, Double>()
-    var minProbability : Double = 0.0
+    private var currentRefRange = ReferenceRange("none",0,0)
+    private var currentEmissionProbabilities = mapOf<String, Double>()
+    private var minProbability : Double = 0.0
 
+    /**
+     * Returns the natural log of the probability of observing the read mapping counts for this range
+     * given the [haplotype]
+     */
     fun getLnProbObsGivenState(haplotype: String, refRange: ReferenceRange): Double {
         //refrange is a 0..n index into nodeTree.keys
         //haplotype is an index into the List<HaplotypeNode>> for this ReferenceRange
 
         if (currentRefRange != refRange) {
             currentRefRange = refRange
-            currentEmissionProbabilities = calculateHaplotypeProbabilities()
+            currentEmissionProbabilities = calculateLnHaplotypeProbabilities()
 
         }
 
@@ -39,7 +43,7 @@ class HaplotypeEmissionProbability(val refRangeToHapListMap : Map<ReferenceRange
     }
 
 
-    fun calculateHaplotypeProbabilities() : Map<String, Double> {
+    private fun calculateLnHaplotypeProbabilities() : Map<String, Double> {
         /*
         * P_emission = P(obs|haplotype)
         * = binom(#trials, #successes, P_success)
@@ -51,17 +55,16 @@ class HaplotypeEmissionProbability(val refRangeToHapListMap : Map<ReferenceRange
         * */
 
         val myRefRange = currentRefRange
-        val haplotypes = refRangeToHapListMap[myRefRange]
+        val haplotypes = refRangeToHapSetMap[myRefRange]
         check(!haplotypes.isNullOrEmpty()) {IllegalArgumentException("$myRefRange contains no haplotypes.")}
 
-        val numberOfHaplotypes = haplotypes.size
         val myHapMappings = readMap[myRefRange]
 
-        if (myHapMappings == null || myHapMappings.size == 0) {
-            //minProbability has to be set because it will be used for hap index < 0 in getProbObsGivenState()
-            //since there are no reads mapped all haplotypes have the same probability
-            minProbability = 1.0 / numberOfHaplotypes.toDouble()
-            return haplotypes.associateWith { minProbability }
+        if (myHapMappings.isNullOrEmpty()) {
+            //if there no reads then all haplotypes get assigned the same probability, it does not matter what it is.
+            //note that 0.0 is ln(1), so this actually assigns a probability of 1 not zero. One interpretation is that
+            //if there are no reads then every haplotype will have 0 reads with a probability of 1.
+            return haplotypes.associateWith { 0.0 }
 
         } else {
             val numberOfReads = myHapMappings.map { it.count }.sum()
@@ -74,7 +77,7 @@ class HaplotypeEmissionProbability(val refRangeToHapListMap : Map<ReferenceRange
                 .fold(0) { sum, pr -> sum + pr.second }
 
             return haplotypes.associateWith { hapid ->
-                binom.probability(hapidCountMap[hapid] ?: 0)
+                ln( binom.probability(hapidCountMap[hapid] ?: 0) )
             }
 
         }

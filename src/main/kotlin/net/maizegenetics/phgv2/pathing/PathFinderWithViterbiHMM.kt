@@ -83,6 +83,7 @@ import kotlin.math.log
         private fun haploidViterbi(
             chrom: String,
             readMap: Map<ReferenceRange, List<HaploidPathFinding.HaplotypeListCount>>
+            rangeToHaplotypeMap: Map<ReferenceRange, Set<String>>
         ): List<String> {
             myLogger.info("Finding path for chromosome $chrom using haploidViterbi")
             val switchProbability = 1 - sameGameteProbability
@@ -98,13 +99,15 @@ import kotlin.math.log
             val counters = IntArray(4) { 0 }
 
             //create emission probability
-            val emissionProb = HaplotypeEmissionProbability(rangeToNodesMap, readMap, probCorrect)
+            val emissionProb = HaplotypeEmissionProbability(rangeToHaplotypeMap, readMap, probCorrect)
 
             val rangeToNodesMapIter = rangeToNodesMap.entries.iterator()
             var rangeIndex = 0
 
             var initialEntry =
                 rangeToNodesMapIter.next()  //entry key is ReferenceRange, entry value is List<HaplotypeNode>
+
+            //TODO verify that useRange is doing something useful
             while (!useRange(
                     readMap[initialEntry.key],
                     counters,
@@ -449,15 +452,15 @@ import kotlin.math.log
         }
 
         private fun useRange(
-            setCounts: Collection<HapIdSetCount>,
+            setCounts: Collection<MostLikelyParents.Companion.HapIdSetCount>,
             counters: IntArray,
             refRange: ReferenceRange,
-            nodesInRange: List<HaplotypeNode>
+            nodesInRange: List<SampleGamete>
         ): Boolean {
             //diagnostic counters for discarded ranges:
             //countTooFewReads, countTooManyReadsPerKB, countReadsEqual, countDiscardedRanges
             //data class HapIdSetCount(val hapIdSet : Set<Int>, val count : Int)
-            val rangeLength = refRange.end() - refRange.start() + 1
+            val rangeLength = refRange.end - refRange.start + 1
 
             if (setCounts.size < minReadsPerRange) {
                 counters[0]++
