@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.fail
 
 @ExtendWith(TestExtension::class)
 class HaplotypeGraphTest {
@@ -96,6 +97,38 @@ class HaplotypeGraphTest {
     fun testBadInputHaplotypeGraph() {
         val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFileBadAltTag))
         assert(graph == null || graph.numberOfRanges() == 0) { "graph not null or empty" }
+    }
+
+    @Test
+    fun testHapIdToRefRangeMap() {
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile, TestExtension.smallseqLineBHvcfFile))
+        val hapIdToRefRangeMap = graph.hapIdToRefRangeMap()
+        assertEquals(76, hapIdToRefRangeMap.size, "hapIdToRefRangeMap size not 38: ${hapIdToRefRangeMap.size}")
+        for (range in graph.ranges()) {
+            val hapIdLineA = graph.sampleToHapId(range, SampleGamete("LineA"))
+            val refRangeLineA = hapIdToRefRangeMap[hapIdLineA]
+            assertEquals(range, refRangeLineA, "hapIdToRefRangeMap does not contain correct range $refRangeLineA for LineA")
+            val hapIdLineB = graph.sampleToHapId(range, SampleGamete("LineB"))
+            val refRangeLineB = hapIdToRefRangeMap[hapIdLineB]
+            assertEquals(range, refRangeLineB, "hapIdToRefRangeMap does not contain correct range $refRangeLineB for LineB")
+        }
+    }
+
+    @Test
+    fun testRefRangeToHapIdMap() {
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile, TestExtension.smallseqLineBHvcfFile))
+        val refRangeToHapidMap = graph.refRangeToHapIdMap()
+
+        assertEquals(38, refRangeToHapidMap.size, "refRangeToHapidMap size not 38: ${refRangeToHapidMap.size}")
+        for(range in graph.ranges()) {
+            val hapIds = refRangeToHapidMap[range]!!.keys
+            val hapIdLineA = graph.sampleToHapId(range, SampleGamete("LineA"))
+            assertTrue(hapIdLineA in hapIds, "refRangeToHapidMap does not contain correct hapId $hapIdLineA for LineA")
+
+            val hapIdLineB = graph.sampleToHapId(range, SampleGamete("LineB"))
+            assertTrue(hapIdLineB in hapIds, "refRangeToHapidMap does not contain correct hapId $hapIdLineB for LineB")
+        }
+
     }
 
     /**
