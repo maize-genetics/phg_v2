@@ -12,6 +12,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.lang.management.ManagementFactory
+import javax.management.MBeanServer
+import javax.management.ObjectName
 
 /**
  * This will align assemblies to a reference genome.
@@ -88,9 +91,9 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
             }
         }
 
-    val totalThreads by option(help = "Number of threads available.  These will be split among the alginments that are run in parallel")
+    val totalThreads by option(help = "Number of threads available.  These will be split among the alignments that are run in parallel")
         .int()
-        .default(1)
+        .default(0)
 
     val inParallel by option(
         help = "Number of assemblies to simultaneously process. " +
@@ -99,7 +102,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
                 "Consider this memory factor when providing values for the total-threads and in-parallel."
     )
         .int()
-        .default(1)
+        .default(0)
 
     val refMaxAlignCov by option(help = "Anchorwave proali parameter R, indicating reference genome maximum alignment coverage.")
         .int()
@@ -114,10 +117,15 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         val asmFasta: String,
         val outputDir: String,
         val gffFile: String,
-        val refSamOutFile: String
+        val refSamOutFile: String,
+        val maxRuns:Int,
+        val threadsPerRun:Int
     )
 
     override fun run() {
+
+        // Returns Pair<Int, Int> where the first value is the number of parallel alignments, the second is threadsPerAlignment
+        val runsAndThreads = calculatedNumThreadsAndRuns(totalThreads, inParallel, assemblies)
 
         // create CDS fasta from reference and gff3 file
         val cdsFasta = "$outputDir/ref.cds.fasta"
@@ -132,8 +140,9 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         val samOutFile = "${justNameRef}.sam"
         val refSamOutFile = "${outputDir}/${samOutFile}"
 
+        // For minimap2, we will use the number of processors available as the number of threads.
         val builder = ProcessBuilder(
-            "conda", "run", "-n", "phgv2-conda", "minimap2", "-x", "splice", "-t", totalThreads.toString(), "-k", "12",
+            "conda", "run", "-n", "phgv2-conda", "minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
             "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile
         )
         val redirectError = "$outputDir/minimap2Ref_error.log"
@@ -150,8 +159,201 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
             throw IllegalStateException("Error running minimap2 for reference: $error")
         }
 
-        runAnchorWaveMultiThread(referenceFile, assembliesList, cdsFasta, gff, refSamOutFile)
+        runAnchorWaveMultiThread(referenceFile, assembliesList, cdsFasta, gff, refSamOutFile,runsAndThreads)
 
+    }
+
+    /**
+     * This method uses a java management factory bean to determine the
+     * amount of system memory on the hosting machine.
+     */
+    fun getSystemMemory():Double {
+        val mBeanServer: MBeanServer = ManagementFactory.getPlatformMBeanServer()
+        // attribute is in bytes
+        val attribute =
+            mBeanServer.getAttribute(ObjectName("java.lang", "type", "OperatingSystem"), "TotalPhysicalMemorySize")
+        // translate bytes to gigabytes
+        val memoryGibi = attribute as Long / 1e9
+        // and now to gibibytes, as anchorwave uses GiB
+        val memoryGigi = memoryGibi * 0.93
+        myLogger.info("getSystemMemory: Total system memory: $attribute Bytes, $memoryGibi GB, $memoryGigi GiB")
+        return memoryGigi
+    }
+
+    /**
+     * This function calculates the number of available processors, and the maxium
+     * system memory available for this machine.  It returns a Pair<Int, Int> where
+     * the first value is the number of alignments to run in parallel, and the second
+     * value is the number of threads to use for each alignment.
+     *
+     * An algorithm is used that selects a middle value between the number of threads
+     * and the number of alignments to run in parallel.
+     */
+    fun calculatedNumThreadsAndRuns(totalThreads:Int, inParallel:Int, assemblies:String): Pair<Int, Int> {
+        // If totalThreads or inParallel are 0, it means the user did not specify them
+        // In that case we calculate these values based on the number of processors available
+        // and the amount of memory available.
+        val processors = if (Runtime.getRuntime().availableProcessors() - 2 > 0)  Runtime.getRuntime().availableProcessors() - 2 else 1 // leave 2 processors for the OS
+        val systemMemory = getSystemMemory()
+
+        myLogger.info("calculateNumThreadsAndRuns: systemMemory: $systemMemory, processors: $processors")
+
+        // If the user did not specify the number of threads to use, we will use all available
+        // processors.  If the user did specify the number of threads, we will use that number
+        // of threads, but we will not exceed the number of processors available.
+        val totalThreadsToUse = if (totalThreads > 0) {
+            if (totalThreads > processors) {
+                myLogger.warn("The number of threads specified ($totalThreads) exceeds the number of processors available ($processors).  Using $processors threads.")
+                processors
+            } else {
+                totalThreads
+            }
+        } else {
+            processors
+        }
+
+        myLogger.info("calculateNumThreadsAndRuns: totalThreadsToUse: $totalThreadsToUse")
+        // Per Baoxing's chart, it takes just over 20G/thread to run anchorwave on a sample maize genome.
+        // The number of threads that can be run simultaneously is limited by the amount of
+        // memory available.  We will use 21G/thread as the memory requirement, and
+        // calculate the number of threads that can be run simultaneously based on the
+        // amount of system memory available. This calculation assumes the user has access to
+        // all memory and processors on the machine.
+
+        val concurrentThreads = (systemMemory/21).toInt()
+        myLogger.info("calculateNumThreadsAndRuns: max concurrent threads: $concurrentThreads")
+        if (concurrentThreads < 1) {
+            // do we still need this code?
+            // systemMemory may be low when running CI or junit tests.
+            // The test files are also very small.
+            // This clause allows junits to run.
+            myLogger.warn("There is not enough systemMemory to run anchorwave.  Free memory: $systemMemory")
+            myLogger.warn("will attempt to run one alignment at a time, using just a single thread.")
+            return(Pair(1,1))
+        }
+
+        // Calculate how many threads we can run at the same time (based on memory availability)
+        val totalConcurrentThreads = if (concurrentThreads > totalThreadsToUse) {
+            totalThreadsToUse
+        } else {
+            concurrentThreads
+        }
+
+        // Now that we know how many threads can be run concurrently, we need to
+        // determine how many parallel alignments to run, and how many threads each
+        // one gets.  If the user specified the number of parallel alignments to run,
+        // we will use that number, or the number of assemblies in the list, whichever
+        // is smaller.
+
+        val numAssemblies = File(assemblies).readLines().filter { it.isNotBlank() }.size
+        // This needs to return a Pair<Int, Int> where the first value is the number of alignments, the seconds is threadsPerAlignment
+        val runsAndThreads = if (inParallel > 0) {
+            if (inParallel > totalConcurrentThreads) {
+
+                myLogger.warn("The number of parallel alignments specified ($inParallel) exceeds the number of threads that can be run concurrently ($totalConcurrentThreads).  Will run $totalConcurrentThreads concurrent alignments with 1 thread each.")
+                if (numAssemblies < totalConcurrentThreads){
+                    // there are fewer assemblies than threads available, so split the number of threads
+                    // evenly among the assemblies.  This may leave some threads unused.
+                    Pair(numAssemblies, totalConcurrentThreads/numAssemblies)
+                } else {
+                    // we have as many concurrent aligments as there are threads available, so each alignment gets 1 thread
+                    Pair(totalConcurrentThreads, 1)
+                }
+
+            } else {
+                // InParallel was defined by the user and is <= totalConcurrentThreads
+                // THis is adjusted lower if there are fewer assemblies to align than the number of parallel alignments
+                // Number of concurrent alignments is "inParallel", and number of threads-per-alignment becomes
+                //  totalConcurrentThreads/inParallel
+                val concurrentAlignments = if (numAssemblies < inParallel) numAssemblies else inParallel
+                Pair(concurrentAlignments, totalConcurrentThreads / concurrentAlignments)
+            }
+        } else {
+            // User did not specify the number of alignments they want run in parallel (the inParallel param)
+            // Need to do calculations here to determine the best values for
+            // concurrent alignments and number of threads per alignment
+            maximizeRunsAndThreads(totalConcurrentThreads, numAssemblies)
+        }
+        myLogger.info("calculatedNumThreadsAndRuns: returning runsAndThreads values: $runsAndThreads")
+        return runsAndThreads
+    }
+
+    /**
+     * This considers the number of threads on the machine, the number of threads user may have
+     * specified, and the number of assemblies to align.  It calculates a middle value balancing
+     * number of threads and number of concurrent alignments.
+     */
+    fun maximizeRunsAndThreads(totalConcurrentThreads:Int, totalAssemblies:Int): Pair<Int, Int> {
+        // This returns a Pair<Int, Int> where the first value is the number of runs, the seconds is threadsPerRun
+        // The maximum number of current runs is the total number of threads available,
+        // which would be each assembly getting a single thread.
+        // We believe it is more efficient to run fewer assemblies at a time, each with more threads.
+        // What this code does is calculate the middle of this.  For example: If there are 20 assemblies
+        // and 10 threads, our options are:
+        // 1 run: 10 threads
+        // 2 runs: 5 threads
+        // 3 runs: 3 threads
+        // 4 runs: 2 threads
+        // 5 runs: 2 threads
+        // 6 or higher runs: 1 thread
+        // This code will return 3 runs, 3 threads each.
+        myLogger.info("maximizeRunsAndThreads: totalConcurrentThreads: $totalConcurrentThreads, totalAssemblies: $totalAssemblies")
+        val assembliesToThreads = mutableMapOf<Int, Int>()
+
+        // This loop asks if each assembly gets "numThreads", how many concurrent runs can we do?
+        for (numThreads in 1..totalConcurrentThreads) {
+
+            val numRuns =totalConcurrentThreads/numThreads
+            if (numRuns > totalAssemblies) continue // invalid, number of runs is greater than the number of assemblies
+            val currentThreads = assembliesToThreads[numRuns]
+            // if currentThreads is not null and is > than numThreads, ignore.
+            // otherwise, replace this entry
+            if (currentThreads == null || currentThreads < numThreads) {
+                assembliesToThreads[numRuns] = numThreads
+            }
+        }
+        // we should now have a map with the highest number of threads for each number of runs
+        // We choose the best option based on:
+        // 1.  if only 1 entry, use that
+        // 2.  if only 2 entries, use the one with the highest number of threads
+        // 3.  if there are > 3 entries, drop the one with the lowest number of runs and the one with the highest number of runs.
+        // Repeat until there are 2 or fewer entries left.
+
+
+        myLogger.info("maximizeRunsAndThreads: potential run/thread combinations:")
+        myLogger.info("numAlignments\tthreadsPerAlignments")
+        assembliesToThreads.forEach { (numRuns, threadsPerRun) ->
+            myLogger.info("$numRuns\t$threadsPerRun")
+        }
+
+        // 1.  if only 1 entry, use that
+        if (assembliesToThreads.size == 1) {
+            val entry = assembliesToThreads.entries.first()
+            myLogger.info("Running ${entry!!.key} runs with ${entry.value} threads per runs")
+            return Pair(entry.key, entry.value)
+        } else if (assembliesToThreads.size == 2) {
+            // 2.  if are only 2 entries, use the one with the highest number of concurrent assemblies
+            val entry = assembliesToThreads.entries.maxByOrNull { it.key }
+            myLogger.info("Running ${entry!!.key} runs with ${entry.value} threads per runs")
+            return Pair(entry.key, entry.value)
+        } else {
+            // 3.  if there are > 3 entries, drop the one with the lowest number of runs and the one with the highest number of runs.
+            // Repeat until there are 2 entries or fewer entries left.
+            while (assembliesToThreads.size > 2) {
+                val minEntry = assembliesToThreads.entries.minByOrNull { it.key }
+                val maxEntry = assembliesToThreads.entries.maxByOrNull { it.key }
+                assembliesToThreads.remove(minEntry!!.key)
+                assembliesToThreads.remove(maxEntry!!.key)
+            }
+            // 2.  if  only 2 entries, use the one with the highest number of concurrent alignments
+            // This may mean we are not using all the threads available, but it avoids the case of choosing
+            // to run 1 alignment with all threads, rather than 2 alignments with half the threads when
+            // these are our only choices.
+
+            val entry = assembliesToThreads.entries.maxByOrNull { it.key }
+            myLogger.info("Running ${entry!!.key} concurrent alignments with  ${entry!!.value} threads for each run")
+            return Pair(entry.key, entry.value)
+        }
     }
 
     private fun createCDSfromRefData(refFasta: String, gffFile: String, cdsFasta: String, outputDir: String): Boolean {
@@ -203,7 +405,8 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         assemblies: List<String>,
         cdsFasta: String,
         gffFile: String,
-        refSamOutFile: String
+        refSamOutFile: String,
+        runsAndThreads: Pair<Int, Int> // Pair(concurrentRuns, threadsPerRun)
     ) {
         runBlocking {
             // Setup
@@ -215,9 +418,8 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
                 assemblies.forEach { asmFile ->
 
                     // Column names were checked for validity above
-
                     myLogger.info("Adding: $asmFile for processing")
-                    inputChannel.send(InputChannelData(refFasta, asmFile, outputDir, gffFile, refSamOutFile))
+                    inputChannel.send(InputChannelData(refFasta, asmFile, outputDir, gffFile, refSamOutFile, runsAndThreads.first, runsAndThreads.second))
                 }
                 myLogger.info("Done Adding data to the inputChannel:")
                 inputChannel.close() // Need to close this here to show the workers that it is done adding more data
@@ -227,7 +429,10 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
             // terminate above when there is no more data on the input channel
 
             // This calls anchorwave's proali, and minimap2 scripts to process the alignments
-            val workerThreads = (1..inParallel).map { run ->
+            // The number of worker threads should equal the number of concurrent runs
+            // Inside alignAssembly(), each alignment will get threadsAndRuns.second, which is the number
+            // of threads allocated for each alignment.  This data is included in the InputChannelData record
+            val workerThreads = (1..runsAndThreads.first).map { run ->
                 launch { alignAssembly(inputChannel, cdsFasta, gffFile) }
             }
 
@@ -238,16 +443,14 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
         withContext(
             Dispatchers.Default
         ) {
-            val threadsPerRun = totalThreads / inParallel
-            println("alignAssembly: totalThreads: $totalThreads, inParallel: $inParallel, threadsPerRun: $threadsPerRun")
+
             for (assemblyEntry in inputChannel) {
                 // Column names were checked for validity above
                 val justName = File(assemblyEntry.asmFasta).nameWithoutExtension
                 val samShort = "${justName}.sam"
                 val asmSamFile = "${assemblyEntry.outputDir}/${samShort}"
 
-                myLogger.info("alignAssembly: asmFileFull: ${assemblyEntry.asmFasta}, outputFile: $asmSamFile")
-
+                myLogger.info("alignAssembly: asmFileFull: ${assemblyEntry.asmFasta}, outputFile: $asmSamFile , threadsPerRun: ${assemblyEntry.threadsPerRun}")
 
                 val builder = ProcessBuilder(
                     "conda",
@@ -258,7 +461,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
                     "-x",
                     "splice",
                     "-t",
-                    threadsPerRun.toString(),
+                    assemblyEntry.threadsPerRun.toString(),
                     "-k",
                     "12",
                     "-a",
@@ -292,7 +495,7 @@ class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
                     cdsFasta,
                     assemblyEntry.refSamOutFile,
                     asmSamFile,
-                    threadsPerRun.toString()
+                    assemblyEntry.threadsPerRun.toString()
                 )
             }
         }

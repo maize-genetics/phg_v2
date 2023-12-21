@@ -326,5 +326,31 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
     }
 
+
+    /**
+     * Returns a map of hapid -> ReferenceRange
+     */
+    fun hapIdToRefRangeMap(): MutableMap<String, ReferenceRange> {
+        //hapIdToRefRangeMap is a map of hapid -> ReferenceRange
+        val hapIdToRefRangeMap = mutableMapOf<String, ReferenceRange>()
+        for (range in ranges()) {
+            for (hapid in hapIdToSamples(range).keys) {
+                hapIdToRefRangeMap[hapid] = range
+            }
+        }
+        return hapIdToRefRangeMap
+    }
+
+    /**
+     * Creates a map of ReferenceRange -> (map of hapid -> index)
+     */
+    fun refRangeToHapIdMap() : Map<ReferenceRange,Map<String,Int>>{
+        //This creates a map of ReferenceRangeId -> (map of hapid -> index)
+        return ranges().associateWith { range ->
+            hapIdToSamples(range).keys.toSortedSet()
+                .mapIndexed { index, hapid -> hapid to index }.toMap()
+        }
+    }
+
 }
 
