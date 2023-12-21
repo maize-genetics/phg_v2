@@ -1,12 +1,9 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
-val ktorVersion = "2.3.7"
-
 plugins {
     kotlin("jvm") version "1.9.10"
     application
     id("org.jetbrains.kotlinx.kover") version "0.7.3"
-    kotlin("plugin.serialization") version "1.6.21"
 }
 
 group = "net.maizegenetics"
@@ -60,28 +57,9 @@ dependencies {
     implementation(files("repo/tiledb-vcf-java-0.25.2.jar"))
     implementation(files("repo/tiledb-java-0.19.6-SNAPSHOT.jar"))
 
-    implementation("io.ktor:ktor-server-netty:$ktorVersion")
-    implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
-    implementation("io.ktor:ktor-server-websockets:$ktorVersion")
-    implementation("io.ktor:ktor-server-default-headers:$ktorVersion")
-    implementation("io.ktor:ktor-server-call-logging:$ktorVersion")
-    implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
-    implementation("io.ktor:ktor-serialization-jackson:$ktorVersion")
-    implementation("io.ktor:ktor-client-core:$ktorVersion")
-    implementation("io.ktor:ktor-client-cio:$ktorVersion")
-    implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
-    implementation("io.ktor:ktor-client-websockets:$ktorVersion")
-
+    implementation("it.unimi.dsi:fastutil:8.5.12")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
-
-
-    // for testing ktor
-    testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
-    testImplementation("io.ktor:ktor-client-mock:$ktorVersion")
-    testImplementation("org.jetbrains.kotlin:kotlin-test:$kotlinVersion")
-
 
     val kotestVersion = "5.6.2"
     listOf("runner-junit5", "assertions-core", "property", "framework-datatest").forEach {
