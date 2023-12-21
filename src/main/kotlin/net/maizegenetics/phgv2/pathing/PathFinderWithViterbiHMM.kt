@@ -82,14 +82,14 @@ import kotlin.math.log
          */
         private fun haploidViterbi(
             chrom: String,
-            readMap: Map<List<String>, Int>
+            readMap: Map<ReferenceRange, List<HaploidPathFinding.HaplotypeListCount>>
         ): List<String> {
             myLogger.info("Finding path for chromosome $chrom using haploidViterbi")
             val switchProbability = 1 - sameGameteProbability
-            val rangeToNodesMap = graph.tree(chrom)
-            val taxaSet = graph.taxaInGraph().map { it.name }.toSortedSet()
-            val numberOfTaxa = taxaSet.size
-            val nodesPerRange = numberOfTaxa
+            val rangeToNodesMap = graph.rangesByContig()
+            val sampleGameteSet = graph.sampleGametesInGraph()
+            val numberOfSampleGametes = sampleGameteSet.size
+            val nodesPerRange = numberOfSampleGametes
             val logSwitch = log(switchProbability / (nodesPerRange.toDouble() - 1.0), E)
             val logNoSwitch = log(1.0 - switchProbability, E)
 

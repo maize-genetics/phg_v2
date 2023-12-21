@@ -22,7 +22,6 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     // Map<sampleName, sampleId>
     private lateinit var sampleNameToIdMap: Map<String, Int>
     private lateinit var sampleNames: Array<String>
-    private lateinit var sampleGametes: Array<SampleGamete>
 
     // rangeByGameteIdToHapid[refRangeId][sampleId][gameteID] -> checksum / hapid
     // jagged array because different number of haplotypes for each refRange
@@ -81,6 +80,17 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      */
     fun rangesByContig(): Map<String, List<ReferenceRange>> {
         return ranges().groupBy { refrange -> refrange.contig }.mapValues { (_, rangeList) -> rangeList.sorted() }
+    }
+
+    /**
+     * A sorted set of all SampleGametes in the graph
+     */
+    fun sampleGametesInGraph(): SortedSet<SampleGamete> {
+        val gameteSet = sortedSetOf<SampleGamete>()
+        for (refrange in ranges()) {
+            gameteSet.addAll(hapIdToSampleGametes(refrange).values.flatten())
+        }
+        return gameteSet
     }
 
     /**

@@ -13,6 +13,7 @@ import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.ReferenceRange
 import java.io.File
 
 /**
@@ -51,6 +52,7 @@ class HaploidPathFinding : CliktCommand(help = "Create gVCF and hVCF from Anchor
     val threads by option(help = "number of threads used to find paths.").int().default(3)
 
     //other parameters: probReadMappedCorrectly, useMostLikelyParents, maxParents, minCoverage, likelyParentFile
+    data class HaplotypeListCount(val haplotypeList: List<String>, val count: Int )
 
     private fun buildHaplotypeGraph(): HaplotypeGraph {
         val listOfHvcfFilenames = File(hvcfDir).listFiles().map { it.path }
@@ -107,5 +109,26 @@ class HaploidPathFinding : CliktCommand(help = "Create gVCF and hVCF from Anchor
 
     suspend fun savePath(pathChannel : ReceiveChannel<Path>) {
 
+    }
+
+    companion object {
+
+        /**
+         * Takes read mapping counts, [readMappings], identifies the ReferenceRange for each hapid set,
+         * then outputs the result as a map of ReferenceRange to read mapping counts for that ReferenceRange.
+         * Here read mapping counts is a map of hapid set (List<String>) to a count.
+         */
+        fun readMappingByRange(readMappings: Map<List<String>, Int>, graph: HaplotypeGraph): Map<ReferenceRange, List<HaplotypeListCount>> {
+            val hapidToRefrangeMap = graph.ranges().map { refrange ->
+                graph.hapIdToSampleGametes(refrange).keys.map { Pair(it, refrange) }
+            }.flatten().toMap()
+
+            val mappingByRange = mutableMapOf<ReferenceRange, MutableList<HaplotypeListCount>>()
+            for ((haplist, count) in readMappings.entries) {
+                val refrange = hapidToRefrangeMap[haplist.first()]!!
+                mappingByRange.getOrPut(refrange) { mutableListOf<HaplotypeListCount>() }.add(HaplotypeListCount(haplist, count))
+            }
+            return mappingByRange
+        }
     }
 }
