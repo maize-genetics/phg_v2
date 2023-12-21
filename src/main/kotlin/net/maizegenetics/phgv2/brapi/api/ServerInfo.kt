@@ -32,12 +32,12 @@ fun Route.serverInfo() {
 
         val endpointCalls = mutableListOf(
 
-            Service(
-                listOf(WSMIMEDataTypes.APPLICATION_JSON),
-                listOf(MethodsEnum.GET),
-                "/allelematrix",
-                listOf(VersionsEnum._2)
-            ),
+//            Service(
+//                listOf(WSMIMEDataTypes.APPLICATION_JSON),
+//                listOf(MethodsEnum.GET),
+//                "/allelematrix",
+//                listOf(VersionsEnum._2)
+//            ),
 
             Service(
                 listOf(WSMIMEDataTypes.APPLICATION_JSON),
