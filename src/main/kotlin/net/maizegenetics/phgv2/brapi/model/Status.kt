@@ -14,7 +14,7 @@ import java.util.*
 @Serializable
 data class Status (
         /* A short message concerning the status of this request/response */
-        val message: kotlin.String,
+        val message: String,
         /* The logging level for the attached message */
         val messageType: Status.MessageType
 
@@ -23,7 +23,7 @@ data class Status (
      * The logging level for the attached message
      * Values: dEBUG,eRROR,wARNING,iNFO
      */
-    enum class MessageType(val value: kotlin.String){
+    enum class MessageType(val value: String){
         dEBUG("DEBUG"),
         eRROR("ERROR"),
         wARNING("WARNING"),

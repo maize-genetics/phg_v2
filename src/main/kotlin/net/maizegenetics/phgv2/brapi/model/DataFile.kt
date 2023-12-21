@@ -14,17 +14,17 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class DataFile (
         /* The absolute URL where the file is located */
-        val fileURL: kotlin.String
+        val fileURL: String
         ,
         /* A human readable description of the file contents */
-        val fileDescription: kotlin.String? = null,
+        val fileDescription: String? = null,
         /* The MD5 Hash of the file contents to be used as a check sum */
-        val fileMD5Hash: kotlin.String? = null,
+        val fileMD5Hash: String? = null,
         /* The name of the file */
-        val fileName: kotlin.String? = null,
+        val fileName: String? = null,
         /* The size of the file in bytes */
-        val fileSize: kotlin.Int? = null,
+        val fileSize: Int? = null,
         /* The type or format of the file. Preferably MIME Type. */
-        val fileType: kotlin.String? = null
+        val fileType: String? = null
 ) {
 }
