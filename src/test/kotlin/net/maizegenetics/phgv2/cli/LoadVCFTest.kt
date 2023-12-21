@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.testing.test
 import com.google.common.io.Files
 import net.maizegenetics.phgv2.utils.bgzipAndIndexGVCFfile
+import net.maizegenetics.phgv2.utils.verifyURI
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -60,7 +61,7 @@ class LoadVCFTest {
         //Test non-existant dbPath
         assertThrows<IllegalStateException> {
             //Check that an error is thrown when the dbPath folder does not exist
-            LoadVcf().verifyURI(badPath, URI)
+            verifyURI(badPath, URI)
         }
 
         // Test tiledb URI is a file, not a tiledb array
@@ -73,7 +74,7 @@ class LoadVCFTest {
         }
         assertThrows<IllegalArgumentException> {
             //Check that an error is thrown when the dbPath is good, but the URI is a regular file, not a tiledb array
-            LoadVcf().verifyURI(goodPath, fileURI)
+            verifyURI(goodPath, fileURI)
         }
 
         // Test tiledbURI is a directory, but not a tiledb array
@@ -85,7 +86,7 @@ class LoadVCFTest {
         File(dirURI).mkdirs()
         assertThrows<IllegalArgumentException> {
             //Check that an error is thrown when the dbPath is good, but the URI is a regular directory file, not a tiledb array
-            LoadVcf().verifyURI(goodPath, fileURI)
+            verifyURI(goodPath, fileURI)
         }
     }
 
