@@ -70,7 +70,7 @@ class HaploidPathFinding : CliktCommand(help = "Create gVCF and hVCF from Anchor
         val sampleNameColIndex = keyFile.columnNameMap["SampleName"]
         val readMappingColIndex = keyFile.columnNameMap["ReadMappingFiles"]
 
-        //TODO migrate Viterbi
+
         //TODO loop through keyFile records to run Viterbi and store resulting paths
 
     }
@@ -132,3 +132,4 @@ class HaploidPathFinding : CliktCommand(help = "Create gVCF and hVCF from Anchor
         }
     }
 }
+

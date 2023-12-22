@@ -18,28 +18,28 @@ import kotlin.math.ln
  *
  */
 
-class HaplotypeEmissionProbability(val refRangeToHapSetMap : Map<ReferenceRange, Set<String>>,
-                                   val readMap : Map<ReferenceRange, List<HaploidPathFinding.HaplotypeListCount>>,
+class HaplotypeEmissionProbability(val refRangeToHapListMap : Map<ReferenceRange, List<String>>,
+                                   val readMap : Map<ReferenceRange, Map<List<String>, Int>>,
                                    val pCorrect : Double) {
     private var currentRefRange = ReferenceRange("none",0,0)
     private var currentEmissionProbabilities = mapOf<String, Double>()
-    private var minProbability : Double = 0.0
+    private var nullProbability : Double = 1e-6
 
     /**
      * Returns the natural log of the probability of observing the read mapping counts for this range
      * given the [haplotype]
      */
-    fun getLnProbObsGivenState(haplotype: String, refRange: ReferenceRange): Double {
+    fun getLnProbObsGivenState(haplotype: String?, refRange: ReferenceRange): Double {
         //refrange is a 0..n index into nodeTree.keys
         //haplotype is an index into the List<HaplotypeNode>> for this ReferenceRange
-
         if (currentRefRange != refRange) {
             currentRefRange = refRange
             currentEmissionProbabilities = calculateLnHaplotypeProbabilities()
 
         }
 
-        return currentEmissionProbabilities[haplotype] ?: minProbability
+        //TODO make a better choice for the probability of a null haplotype
+        return currentEmissionProbabilities[haplotype] ?: nullProbability
     }
 
 
@@ -55,7 +55,7 @@ class HaplotypeEmissionProbability(val refRangeToHapSetMap : Map<ReferenceRange,
         * */
 
         val myRefRange = currentRefRange
-        val haplotypes = refRangeToHapSetMap[myRefRange]
+        val haplotypes = refRangeToHapListMap[myRefRange]
         check(!haplotypes.isNullOrEmpty()) {IllegalArgumentException("$myRefRange contains no haplotypes.")}
 
         val myHapMappings = readMap[myRefRange]
@@ -67,12 +67,11 @@ class HaplotypeEmissionProbability(val refRangeToHapSetMap : Map<ReferenceRange,
             return haplotypes.associateWith { 0.0 }
 
         } else {
-            val numberOfReads = myHapMappings.map { it.count }.sum()
+            val numberOfReads = myHapMappings.map { it.value }.sum()
             val binom = BinomialDistribution(numberOfReads, pCorrect)
-            minProbability = binom.probability(0) //probability of 0 reads hitting a haplotype
 
             //this next line maps hapid -> sum of counts for sets containing that hapid
-            val hapidCountMap = myHapMappings.flatMap { hapCounts -> hapCounts.haplotypeList.map { Pair(it, hapCounts.count)} }
+            val hapidCountMap = myHapMappings.flatMap { hapCounts -> hapCounts.key.map { Pair(it, hapCounts.value)} }
                 .groupingBy { it.first }
                 .fold(0) { sum, pr -> sum + pr.second }
 

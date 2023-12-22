@@ -347,8 +347,17 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     fun refRangeToHapIdMap() : Map<ReferenceRange,Map<String,Int>>{
         //This creates a map of ReferenceRangeId -> (map of hapid -> index)
         return ranges().associateWith { range ->
-            hapIdToSamples(range).keys.toSortedSet()
+            hapIdToSampleGametes(range).keys.toSortedSet()
                 .mapIndexed { index, hapid -> hapid to index }.toMap()
+        }
+    }
+
+    /**
+     * Returns a map of ReferenceRange -> list of all haplotype ids in that range
+     */
+    fun refRangeToHapIdList() : Map<ReferenceRange, List<String>> {
+        return ranges().associateWith { range ->
+            hapIdToSampleGametes(range).keys.toList()
         }
     }
 

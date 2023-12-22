@@ -89,7 +89,6 @@ class MostLikelyParents
 
     companion object {
 
-        data class HapIdSetCount(val hapIdSet : Set<String>, val count : Int)
         fun getSampleGametes(hapGraph: HaplotypeGraph) : List<SampleGamete> {
             val sampleSet = mutableSetOf<SampleGamete>()
             for (refrange in hapGraph.ranges()) {
