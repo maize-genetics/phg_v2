@@ -15,7 +15,6 @@ import java.util.stream.Collectors
 class StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
 
     private val myLogger = LogManager.getLogger(StartServer::class.java)
-
     val dbPath by option(help = "Full path to folder where TileDB datasets are stored.   ")
         .default("")
         .validate {
@@ -35,15 +34,13 @@ class StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
             return
         }
 
-        // Create and Args list to pass to the server
+        // Create an Args list to pass to the server
         // This tells the endpoint code where the datasets are located.
-        val args = listOf("TILEDB_URI=${dbPath}").toTypedArray()
+        val dbUri = "-P:TILEDB_URI=${dbPath}"
+        val args = arrayOf(dbUri)
 
         // commandLineEnvironment reads the application.config file
         // https://ktor.io/docs/configuration.html#hocon-file
         embeddedServer(Netty, commandLineEnvironment(args)).start(wait = true)
     }
-
-
-
 }

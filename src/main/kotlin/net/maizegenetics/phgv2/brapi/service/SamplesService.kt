@@ -8,6 +8,9 @@ import org.apache.logging.log4j.LogManager
 import java.io.BufferedInputStream
 
 private val config = HoconApplicationConfig(ConfigFactory.load())
+// THis uses environment.config.property, but "environment" isn't found in the imports
+// https://ktor.io/docs/configuration-file.html#read-configuration-in-code
+//val tiledbURI = environment.config.property("TILEDB_URI").getString()
 val tiledbURI = config.property("TILEDB_URI").getString()
 
 object SamplesService {
@@ -29,6 +32,12 @@ object SamplesService {
 
     // This function runs tiledbvcf list --uri <uri> and returns a map of sample names
     private fun taxaMap(uri: String): Map<String, Sample> {
+        if (tiledbURI != null) {
+            println("LCJ taxaMap: tiledbURI: $tiledbURI")
+        }else{
+            println("LCJ taxaMap: tiledbURI is null!!!")
+        }
+
         try {
             var builder = ProcessBuilder("conda", "run", "-n", "phgv2-conda", "tiledbvcf", "list", "--uri", uri)
                 .start()
