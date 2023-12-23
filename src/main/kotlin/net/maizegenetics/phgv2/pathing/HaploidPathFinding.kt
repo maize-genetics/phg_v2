@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.utils.getBufferedReader
 import java.io.File
 
 /**
@@ -41,7 +42,8 @@ import java.io.File
  *
  */
 class HaploidPathFinding : CliktCommand(help = "Create gVCF and hVCF from Anchorwave MAF files") {
-    val pathKeyfile by option(help = "key file with columns: SampleName, ReadMappingFiles")
+    val pathKeyfile by option(help = "tab-delimited file with first two columns: SampleName, ReadMappingFiles. ReadMappingFiles " +
+            "must be the full path to a read mapping file or a comma separated list of file paths.")
         .required()
         .validate() { require(File(it).exists()) {"$it is not a valid file"} }
 
@@ -66,19 +68,30 @@ class HaploidPathFinding : CliktCommand(help = "Create gVCF and hVCF from Anchor
 
     private fun processKeyFile() {
         //build HaplotypeGraph
-        val keyFile = KeyFile(File(pathKeyfile), listOf("SampleName","ReadMappingFiles"), listOf("SampleName"))
-        val sampleNameColIndex = keyFile.columnNameMap["SampleName"]
-        val readMappingColIndex = keyFile.columnNameMap["ReadMappingFiles"]
+        val keyFileLines = getBufferedReader(pathKeyfile).use { it.readLines()}
+            .map { it.split("\t") }
+            .filter { it.size > 1 }
+        val headerList = keyFileLines[0]
 
+        val sampleNameIsFirstColumn = headerList[0].equals("SampleName", true)
+        val readMappingIsSecondColumn =  headerList[1].equals("ReadMappingFiles", true)
+        require(sampleNameIsFirstColumn && readMappingIsSecondColumn) {"The first column heading of the keyfile " +
+                "must be SampleName and the second column heading must be ReadMappingFiles."}
 
-        //TODO loop through keyFile records to run Viterbi and store resulting paths
+        //check for duplicate sample names (not allowed)
+        val sampleNameSet = keyFileLines.drop(1).map { it[0] }.toSet()
+        check(sampleNameSet.size == keyFileLines.size - 1) {"key file contains duplicate sample names"}
 
+        //map of sampleName -> list of read mapping file names
+        val sampleToFiles = keyFileLines.drop(1).map { Pair(it[0], it[1]) }.toMap()
+            .mapValues { it.value.split(",").map{filename -> filename.trim()} }
+        processReadMappings(sampleToFiles)
     }
 
     data class ReadMappingResult(val name: String, val readMappingCounts: Map<List<String>, Int>) //placeholder
     data class Path(val name: String, val hapidLists: List<String>) //placeholder
-    private fun processReadMappings() = runBlocking {
-
+    private fun processReadMappings(sampleToFiles: Map<String, List<String>>) = runBlocking {
+        //TODO loop through keyFile records to run Viterbi and store resulting paths
         val myGraph = buildHaplotypeGraph()
 
         //create a channel for read mappings
