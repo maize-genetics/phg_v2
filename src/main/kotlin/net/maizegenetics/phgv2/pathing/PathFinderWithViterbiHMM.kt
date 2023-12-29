@@ -12,10 +12,9 @@ import kotlin.math.log
         val graph: HaplotypeGraph,
         val probCorrect: Double,
         val sameGameteProbability: Double,
-        val minTaxaPerRange: Int,
+        val minGametesPerRange: Int,
         val minReadsPerRange: Int,
         val maxReadsPerKB: Int,
-        val removeEqual: Boolean,
         val inbreedCoef: Double = 1.0,
         useLikelyParents: Boolean = false,
         maxParents: Int = Int.MAX_VALUE,
@@ -34,14 +33,6 @@ import kotlin.math.log
             val totalProbability: Double
         )
 
-        private data class DiploidPathNode(
-            val parent: DiploidPathNode?,
-            val samples: Pair<SampleGamete, SampleGamete>,
-            val haplotypes: Pair<String, String>,
-            val state: Int,
-            val totalProbability: Double
-        )
-
         private data class HapNode(val hapnode: String, val emissionP: Double)
 
         init {
@@ -52,7 +43,7 @@ import kotlin.math.log
         }
 
         fun findBestHaploidPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>): List<String> {
-            //TODO add parentFinder functionality
+
             val haplotypeList = mutableListOf<String>()
             graph.contigs().forEach { chr ->
                 haplotypeList.addAll(haploidViterbi(chr, readMap))
@@ -463,21 +454,6 @@ import kotlin.math.log
                 counters[1]++
                 counters[3]++
                 return false
-            }
-
-            if ( removeEqual && numberOfReads > 0 ) {
-                //count the number of reads for each haplotype
-                val readsPerHapid = hapidListCounts!!.entries.map{ (hapList, count) -> hapList.map { Pair(it, count) }}
-                    .flatten().groupingBy { it.first }.eachCount()
-
-                //test whether any of the counts is not equal to the first count
-                val counts = readsPerHapid.values
-                val allCountsEqual = counts.all { it == counts.first() }
-                if (allCountsEqual) {
-                    counters[2]++
-                    counters[3]++
-                    return false
-                }
             }
 
             return true
