@@ -46,6 +46,7 @@ import kotlin.math.log
 
             val haplotypeList = mutableListOf<String>()
             graph.contigs().forEach { chr ->
+                //Todo use likely parents to create a list of sampleGametes as an additional argument to haploidViterbi
                 haplotypeList.addAll(haploidViterbi(chr, readMap))
             }
             return haplotypeList

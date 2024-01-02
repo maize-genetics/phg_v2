@@ -1,6 +1,5 @@
 package net.maizegenetics.phgv2.pathing
 
-import com.google.common.collect.Multimap
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
@@ -39,15 +38,17 @@ class MostLikelyParents
     /**
      * Finds the most likely parents for a set of hapid counts from read mappings.
      */
-    fun findMostLikelyParents(refRangeToHapIdSetCounts: Multimap<ReferenceRange, HapIdSetCount>, maxParents: Int, minCoverage: Double) : List<Pair<SampleGamete, Int>> {
+    fun findMostLikelyParents(refRangeToHapIdListCounts: Map<ReferenceRange, Map<List<String>, Int>>, maxParents: Int, minCoverage: Double) : List<Pair<SampleGamete, Int>> {
         //convert refRangeToHapIdSetCounts to a Map<ReferenceRange,List<HapIdSetCount>>
         //use only the counts for ranges that are present in myParentToHapidMap
-        var filteredCounts = refRangeToHapIdSetCounts.entries().filter { (refrange, _) -> myParentToHapidMapByRefRange.keys.contains(refrange) }
-            .groupBy({it.key},{it.value})
+        var filteredCounts = refRangeToHapIdListCounts.filter { (refrange, _) ->
+            myParentToHapidMapByRefRange.keys.contains(refrange) }
         val bestParentList = mutableListOf<Pair<SampleGamete, Int>>()
         var iteration = 0
         var coverage = 0.0
-        val totalCount = filteredCounts.map {(_,setCounts) -> setCounts.sumOf { it.count } }.sum()
+
+        //total Count of reads, which is the sum of the read counts for each reference range (outer sum)
+        val totalCount = filteredCounts.map {(_,setCounts) -> setCounts.values }.flatten().sum()
         var cumulativeCount = 0
 
         while (iteration < maxParents && coverage < minCoverage) {
@@ -56,12 +57,11 @@ class MostLikelyParents
             var highestCount = 0
             for (parent in myParentList) {
                 //get count for this parent
-                val parentCount = //for each refrange count parent use
+                val parentCount =
                     filteredCounts.keys.sumOf { refrange ->
-                        //for each refrange count parent use
                         val hapid = myParentToHapidMapByRefRange[refrange]!![parent]
                         if (hapid == null) 0 else
-                            filteredCounts[refrange]!!.filter { it.hapIdSet.contains(hapid) }.sumOf { it.count }
+                            filteredCounts[refrange]!!.filter { it.key.contains(hapid) }.entries.sumOf { it.value }
                     }
                 if (parentCount > highestCount) {
                     highestCount = parentCount
@@ -78,7 +78,7 @@ class MostLikelyParents
             filteredCounts = filteredCounts.keys.map { refrange ->
                 //for each refrange count parent use
                 val hapid = myParentToHapidMapByRefRange[refrange]!![bestParent]
-                val filteredList = filteredCounts[refrange]!!.filter { !it.hapIdSet.contains(hapid) }
+                val filteredList = filteredCounts[refrange]!!.filter { !it.key.contains(hapid) }
                 Pair(refrange, filteredList)
             }.filter { it.second.isNotEmpty() }.toMap()
         }

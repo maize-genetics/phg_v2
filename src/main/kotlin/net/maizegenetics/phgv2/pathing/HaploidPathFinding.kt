@@ -67,7 +67,7 @@ class HaploidPathFinding : CliktCommand(help = "Create gVCF and hVCF from Anchor
         .double()
         .default(0.99)
 
-    val minGametes by option("The minimum number of gametes with a haplotype in a reference range. " +
+    val minGametes by option(help = "The minimum number of gametes with a haplotype in a reference range. " +
             "Reference ranges with fewer gametes will not be imputed.")
         .int()
         .default(2)
@@ -229,7 +229,7 @@ class HaploidPathFinding : CliktCommand(help = "Create gVCF and hVCF from Anchor
         val headerSet = mutableSetOf<VCFHeaderLine>()
         for (metadata in altHeadersReference) headerSet.add(altHeaderMetadataToVCFHeaderLine(metadata))
         for (metadata in altHeadersSample) headerSet.add(altHeaderMetadataToVCFHeaderLine(metadata))
-        val referenceSequence = NucSeqIO("referenceFileName").readAll()
+        val referenceSequence = NucSeqIO(referenceGenome).readAll()
         exportVariantContext(myPath.name, variantContexts, "hvcfFileName", referenceSequence, headerSet)
 
     }
