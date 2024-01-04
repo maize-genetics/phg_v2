@@ -10,7 +10,6 @@ import com.github.ajalt.clikt.parameters.types.boolean
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import htsjdk.variant.vcf.VCFAltHeaderLine
-import htsjdk.variant.vcf.VCFHeaderLine
 import htsjdk.variant.vcf.VCFHeaderVersion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -210,34 +209,29 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
 
         //start the altHeaderList with the Reference haplotypes
         val referenceSequence = NucSeqIO(referenceGenome).readAll()
-        val altHeadersReference = mutableListOf<AltHeaderMetaData>()
         val altHeadersSample = mutableListOf<AltHeaderMetaData>()
         for (hapid in myPath.hapidList) {
             val sampleAlt = myPath.graph.altHeader(hapid)
             check(sampleAlt != null) {"There is no ReferenceRange for sample haplotype $hapid."}
             altHeadersSample.add(sampleAlt)
-            val refAlt = myPath.graph.altHeader(sampleAlt.refRange)
-            check(refAlt != null) {"There is no ReferenceRange for reference haplotype $hapid."}
-            altHeadersReference.add(refAlt)
         }
+
         val hapidToRefRange = myPath.graph.hapIdToRefRangeMap()
         val variantContexts = altHeadersSample.map { sampleAlt ->
             val refRange = hapidToRefRange[sampleAlt.id]!!
             val startPos = Position(refRange.contig, refRange.start)
             val endPos = Position(refRange.contig, refRange.end)
-            //the ref allele needs to the nucleotide at start Pos, not the haplotype id (hash)
 
-            val refAllele = referenceSequence[refRange.contig]!!.sequence[refRange.start].name
+            //the ref allele needs to b the nucleotide at start Pos, not the haplotype id (hash)
+            //Biokotlin positions are 0-based, so use refRange.start - 1
+            val refAllele = referenceSequence[refRange.contig]!!.sequence[refRange.start - 1].name
             createHVCFRecord(myPath.name, startPos ,endPos, Pair(refAllele, sampleAlt.id))
         }
 
-        //need refGenomeSequence to export hvcf
         //exportVariantContext()
         val hvcfFileName = if (outputDir.endsWith("/")) "${outputDir}${myPath.name}.h.vcf"
         else "${outputDir}/${myPath.name}.h.vcf"
-        val headerSet = mutableSetOf<VCFHeaderLine>()
-        for (metadata in altHeadersReference) headerSet.add(altHeaderMetadataToVCFHeaderLine(metadata))
-        for (metadata in altHeadersSample) headerSet.add(altHeaderMetadataToVCFHeaderLine(metadata))
+        val headerSet = altHeadersSample.map { altHeaderMetadataToVCFHeaderLine(it) }.toSet()
 
         exportVariantContext(myPath.name, variantContexts, hvcfFileName, referenceSequence, headerSet)
 
