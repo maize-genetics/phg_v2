@@ -71,6 +71,8 @@ class HaploidPathFindingTest {
         //plan for this test:
         //build a haplotype groph from Ref, lineA, and lineB
         //for that need an hvcfdir with the files in it
+        //make sure the test output directory exists
+        File(TestExtension.testOutputDir).mkdirs()
 
         //erase any hvcf files in testVCFDir (which is created by TestExtension, if it does not already exist)
         val vcfDir = File(TestExtension.testVCFDir)
