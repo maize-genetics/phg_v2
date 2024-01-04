@@ -120,7 +120,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                 myLogger.debug("Processing range $rangeCount, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
             }
 
-            val hapidToSampleMap = graph.hapIdToSamples(refrange)
+            val hapidToSampleMap = graph.hapIdToSampleGametes(refrange)
             val maxHaplotypes = ceil(hapidToSampleMap.size * maxHaplotypeProportion)
 
             //create a map of hash -> count of occurrences for all the haplotypes in this reference range

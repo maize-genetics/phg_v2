@@ -90,20 +90,6 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         return gameteSet
     }
 
-    /**
-     * Returns a hapId -> sample list map for the given ReferenceRange.
-     * Returned Map<hapId, List<sampleName>>
-     */
-    fun hapIdToSamples(range: ReferenceRange, gameteId: Int = 0): Map<String, List<String>> {
-        val rangeId = refRangeMap[range]
-        require(rangeId != null) { "hapIdToSamples: range: $range not found" }
-        val result = mutableMapOf<String, MutableList<String>>()
-        rangeByGameteIdToHapid[rangeId].forEachIndexed { sampleId, hapIdList ->
-            result.getOrPut(hapIdList[gameteId]) { mutableListOf() }.add(sampleNames[sampleId])
-        }
-        return result
-    }
-
     fun hapIdToSampleGametes(range:ReferenceRange): Map<String, List<SampleGamete>> {
         val rangeId = refRangeMap[range]
         require(rangeId != null) { "hapIdToSamples: range: $range not found" }
