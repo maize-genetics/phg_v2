@@ -1,6 +1,5 @@
 package net.maizegenetics.phgv2.pathing
 
-import com.google.common.collect.HashMultiset
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
@@ -45,7 +44,7 @@ import kotlin.math.log
         fun findBestHaploidPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>): List<String> {
 
             val haplotypeList = mutableListOf<String>()
-            graph.contigs().forEach { chr ->
+            graph.contigs.forEach { chr ->
                 //Todo use likely parents to create a list of sampleGametes as an additional argument to haploidViterbi
                 haplotypeList.addAll(haploidViterbi(chr, readMap))
             }
@@ -88,7 +87,6 @@ import kotlin.math.log
         ): List<String> {
             myLogger.info("Finding path for chromosome $chrom using haploidViterbi")
             val switchProbability = 1 - sameGameteProbability
-            val rangeToNodesMap = graph.rangesByContig()
             val numberOfSampleGametes = sampleGametesInGraph.size
             val chrRanges = graph.ranges().filter { it.contig == chrom }
             val logSwitch = log(switchProbability / (numberOfSampleGametes.toDouble() - 1.0), E)
@@ -214,7 +212,7 @@ import kotlin.math.log
             }
 
             //countTooFewReads, countTooManyReadsPerKB, countReadsEqual, countDiscardedRanges
-            myLogger.info("Finished processing reads for a sample: ${counters[3]} ranges discarded out of ${rangeToNodesMap.size}.")
+            myLogger.info("Finished processing reads for a sample: ${counters[3]} ranges discarded out of ${chrRanges.size}.")
             myLogger.info("${counters[0]} ranges had too few reads; ${counters[1]} ranges had too many reads; ${counters[2]} ranges had all reads equal")
 
             //terminate

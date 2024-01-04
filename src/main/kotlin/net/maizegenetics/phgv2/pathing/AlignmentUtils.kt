@@ -286,7 +286,7 @@ fun importReadMapping(inputFileName: String) : Map<List<String>, Int> {
 }
 
 /**
- * Funtion to merge multiple read mapping lists into a single list by summing the counts
+ * Function to merge multiple read mapping lists into a single list by summing the counts
  * for each read mapping set in the lists.
  */
 fun mergeReadMappings(listOfReadMappings: List<Map<List<String>, Int>>): Map<List<String>, Int> {

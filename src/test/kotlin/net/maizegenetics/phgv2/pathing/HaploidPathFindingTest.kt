@@ -1,13 +1,16 @@
 package net.maizegenetics.phgv2.pathing
 
 import com.github.ajalt.clikt.testing.test
+import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension
+import net.maizegenetics.phgv2.utils.getBufferedWriter
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import kotlin.random.Random
-
+import kotlin.test.assertEquals
 
 @ExtendWith(TestExtension::class)
 class HaploidPathFindingTest {
@@ -68,11 +71,10 @@ class HaploidPathFindingTest {
         //plan for this test:
         //build a haplotype groph from Ref, lineA, and lineB
         //for that need an hvcfdir with the files in it
-        val vcfDir = File(TestExtension.testVCFDir)
-        vcfDir.mkdirs()
 
-        //erase any files in testVCFDir
-        val vcfFiles = vcfDir.listFiles(){name -> name.endsWith("vcf")}
+        //erase any hvcf files in testVCFDir (which is created by TestExtension, if it does not already exist)
+        val vcfDir = File(TestExtension.testVCFDir)
+        val vcfFiles = vcfDir.listFiles(){file -> file.name.endsWith(".h.vcf")}
         for (vcfFile in vcfFiles) {
             vcfFile.delete()
         }
@@ -84,17 +86,45 @@ class HaploidPathFindingTest {
                 origFile.copyTo(vcfDir.resolve(origFile.name))
             }
 
+        //create a read mapping file
+        val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
+        val myGraph = HaplotypeGraph(listOfHvcfFilenames)
+        val readMappingFile = TestExtension.testOutputDir + "testReadMapping.txt"
+        createReadMappings(myGraph, readMappingFile)
+
+        //create a keyfile
+        val keyFilename = TestExtension.testOutputDir + "keyfileForPathTest.txt"
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("SampleName\tReadMappingFiles\n")
+            myWriter.write("TestLine\t$readMappingFile\n")
+        }
+
+        val pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir}"
+
+        val pathFindingResult = HaploidPathFinding().test(pathFindingTestArgs)
+        println(pathFindingResult.stderr)
+        println("-----------------")
+        println(pathFindingResult.output)
+        assertEquals(0, pathFindingResult.statusCode, "pathFinding status code was ${pathFindingResult.statusCode}")
 
 
+        //are all the haplotypes in the path from LineA?
+        val resultHvcfName = "${TestExtension.testOutputDir}TestLine.h.vcf"
+        val vcfReader = VCFFileReader(File(resultHvcfName), false)
 
-
+        val sampleA = SampleGamete("LineA")
+        val haplotypesA = myGraph.ranges().map { myGraph.sampleToHapId(it, sampleA) }
+        for (record in vcfReader) {
+            val testHaplotype = record.genotypes["TestLine"].alleles[0].displayString
+                .substringAfter("<").substringBefore(">")
+            assert(haplotypesA.contains(testHaplotype)) {"$testHaplotype not a LineA haplotype"}
+        }
     }
 
-    fun getReadMappings(hvcfDir: File): Map<List<String>, Int> {
-        val probMapToA = 0.95
-        val probMapToOther = 0.5
-        val listOfHvcfFilenames = hvcfDir.listFiles().map { it.path }
-        val graph = HaplotypeGraph(listOfHvcfFilenames)
+    private fun createReadMappings(graph: HaplotypeGraph, mappingFile: String) {
+        val probMapToA = 0.99
+        val probMapToOther = 0.2
         val readMap = mutableMapOf<List<String>, Int>()
         for (range in graph.ranges()) {
             val hapids = graph.hapIdToSampleGametes(range)
@@ -104,13 +134,16 @@ class HaploidPathFindingTest {
                 for ((hapid, samples) in hapids.entries) {
                     val isLineA = samples.any { it.name == "LineA" }
 
-                    if (isLineA && Random.nextDouble() < probMapToA) hapidList.add("LineA")
-                    if (!isLineA && Random.nextDouble() < probMapToOther) hapidList.add(samples[0].name)
+                    if (isLineA && Random.nextDouble() < probMapToA) hapidList.add(hapid)
+                    if (!isLineA && Random.nextDouble() < probMapToOther) hapidList.add(hapid)
                 }
-                if (hapidList.size > 0) readMap.put(hapidList, 2)
+                if (hapidList.size > 0) {
+                    val reads = readMap[hapidList] ?: 0
+                    readMap[hapidList] = reads + 2
+                }
             }
         }
 
-        return readMap
+        exportReadMapping(mappingFile, readMap, "TestLine", Pair("file1", "file2"))
     }
 }

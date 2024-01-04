@@ -100,28 +100,14 @@ class MostLikelyParents
         fun refRangeToMapOfSampleToHapid(hapGraph: HaplotypeGraph) : Map<ReferenceRange, Map<SampleGamete,String>> {
             val parentMap = mutableMapOf<ReferenceRange, Map<SampleGamete, String>>()
             for (refrange in hapGraph.ranges()) {
-                val sampleSet = hapidToSampleGametes(hapGraph, refrange).map { it.value }.flatten().toSet()
-                val rangeParentMap = sampleSet.associateWith { hapGraph.sampleToHapId(refrange, it) }
+                val rangeParentMap = hapGraph.hapIdToSampleGametes(refrange).map { (hapid, sampleGameteList) ->
+                    sampleGameteList.map { sampleGamete -> Pair(sampleGamete, hapid) }
+                }.flatten().toMap()
                 parentMap.put(refrange, rangeParentMap)
             }
             return parentMap
         }
 
-        fun refRangeToMapOfSampleToHapid(hapGraph: HaplotypeGraph, sampleSet: List<SampleGamete>) : Map<ReferenceRange, Map<SampleGamete,String>> {
-            val parentMap = mutableMapOf<ReferenceRange, Map<SampleGamete, String>>()
-            for (refrange in hapGraph.ranges()) {
-                //TODO deal with case where sample is not in this reference range
-                val rangeParentMap = sampleSet.associateWith { hapGraph.sampleToHapId(refrange, it) }
-                parentMap.put(refrange, rangeParentMap)
-            }
-            return parentMap
-        }
-
-        fun hapidToSampleGametes(graph: HaplotypeGraph, refrange: ReferenceRange): Map<String, List<SampleGamete>> {
-            return graph.hapIdToSamples(refrange).entries.map { (hapid, nameList) ->
-                hapid to nameList.map{SampleGamete(it)}
-            }.toMap()
-        }
     }
 }
 

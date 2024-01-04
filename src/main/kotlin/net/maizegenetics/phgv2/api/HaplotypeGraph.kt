@@ -29,8 +29,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
     // Map<ReferenceRange, refRangeId>
     private lateinit var refRangeMap: SortedMap<ReferenceRange, Int>
+
     //A list of contigs in this graph
-    private lateinit var contigs: List<String>
+    val contigs: List<String>
 
     // Map<ID (checksum), AltHeaderMetaData>
     private lateinit var altHeaderMap: Map<String, AltHeaderMetaData>
@@ -53,6 +54,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
             myLogger.info("numOfRanges: ${numberOfRanges()}")
         }
 
+        contigs = refRangeMap.keys.map { it.contig }.toSortedSet().toList()
     }
 
     /**
@@ -69,11 +71,6 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      * Returns a list of ReferenceRanges for this graph.
      */
     fun ranges(): List<ReferenceRange> = refRangeMap.keys.sorted()
-
-    /**
-     * Returns a list of the contigs in this graph.
-     */
-    fun contigs(): List<String> = contigs
 
     /**
      * Returns a map of contig to a sorted list of ReferenceRanges in each contig
@@ -124,12 +121,13 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     /**
      * Returns the hapId for the sample in the specified ReferenceRange.
      */
-    fun sampleToHapId(range: ReferenceRange, sample: SampleGamete): String {
+    fun sampleToHapId(range: ReferenceRange, sample: SampleGamete): String? {
         val rangeId = refRangeMap[range]
         require(rangeId != null) { "sampleToHapId: range: $range not found" }
         val sampleId = sampleNameToIdMap[sample.name]
         require(sampleId != null) { "sampleToHapId: sample: $sample not found" }
-        return rangeByGameteIdToHapid[rangeId][sampleId][sample.gameteId]
+        val sampleHapids = rangeByGameteIdToHapid[rangeId][sampleId]
+        return if (sampleHapids.size > sample.gameteId) sampleHapids[sample.gameteId] else null
     }
 
     /**
@@ -334,7 +332,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         //hapIdToRefRangeMap is a map of hapid -> ReferenceRange
         val hapIdToRefRangeMap = mutableMapOf<String, ReferenceRange>()
         for (range in ranges()) {
-            for (hapid in hapIdToSamples(range).keys) {
+            for (hapid in hapIdToSampleGametes(range).keys) {
                 hapIdToRefRangeMap[hapid] = range
             }
         }
