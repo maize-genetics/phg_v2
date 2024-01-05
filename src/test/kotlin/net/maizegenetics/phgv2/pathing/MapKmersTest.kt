@@ -2,6 +2,9 @@ package net.maizegenetics.phgv2.pathing
 
 import com.github.ajalt.clikt.testing.test
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.cli.TestExtension
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -98,6 +101,61 @@ class MapKmersTest {
 
 
 
+    }
+
+    @Test
+    fun testConvertRefRangeToIdBitsetMap() {
+        //convertRefRangeToIdBitsetMap(rangeToBitSetMap: Map<ReferenceRange, BitSet>, refRangeToIndexMap: Map<ReferenceRange, Int>): Map<Int, BitSet>
+        val bitSet1 = BitSet(6)
+        bitSet1.set(0)
+        bitSet1.set(1)
+
+        val bitset2 = BitSet(6)
+        bitset2.set(4)
+        bitset2.set(5)
+
+        val rangeToBitSetMap = mapOf(ReferenceRange("1",100,200) to bitSet1, ReferenceRange("1",300,400) to bitset2)
+        val refRangeToIndexMap = mapOf(ReferenceRange("1",100,200) to 0, ReferenceRange("1",300,400) to 1)
+
+        val refRangeToIdBitsetMap = convertRefRangeToIdBitsetMap(rangeToBitSetMap, refRangeToIndexMap)
+        assertEquals(2, refRangeToIdBitsetMap.size)
+        assertEquals(bitSet1, refRangeToIdBitsetMap[0])
+        assertEquals(bitset2, refRangeToIdBitsetMap[1])
+    }
+
+    @Test
+    fun testAddListsToMap() {
+        //addListsToMap(hapidSetCounts: MutableMap<List<String>, Int>, hapLists: ReceiveChannel<List<String>>)
+        //This is a suspend function so we need to run it in a coroutine
+        val receiveChannel = Channel<List<String>>(100)
+        runBlocking {
+            launch(Dispatchers.IO) {
+                //fill the receiveChannel with lists of strings
+                val lists = mutableListOf<List<String>>()
+                for(i in 1..10) {
+                   lists.add(listOf("1","2","3"))
+                }
+                for(i in 1 .. 5) {
+                    lists.add(listOf("1","2"))
+                }
+                lists.add(listOf("1"))
+
+                lists.shuffled().forEach { receiveChannel.send(it) }
+
+                receiveChannel.close()
+
+            }
+
+            val jobList: MutableList<Job> = mutableListOf()
+            val hapidSetCounts = mutableMapOf<List<String>, Int>()
+            jobList.add(launch(Dispatchers.IO) { addListsToMap(hapidSetCounts, receiveChannel) })//do it on a single thread
+
+            jobList.joinAll()
+            assertEquals(3, hapidSetCounts.size)
+            assertEquals(10, hapidSetCounts[listOf("1","2","3")])
+            assertEquals(5, hapidSetCounts[listOf("1","2")])
+            assertEquals(1, hapidSetCounts[listOf("1")])
+        }
     }
 
     @Test
