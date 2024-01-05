@@ -2,39 +2,35 @@
 [![PHGv2 CI](https://github.com/maize-genetics/phg_v2/actions/workflows/phgv2_ci.yml/badge.svg)](https://github.com/maize-genetics/phg_v2/actions/workflows/phgv2_ci.yml) [![codecov](https://codecov.io/gh/maize-genetics/phg_v2/graph/badge.svg?token=4BVD2QXQ1A)](https://codecov.io/gh/maize-genetics/phg_v2) [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 The Practical Haplotype Graph (PHG) is a powerful tool for 
-representing pangenomes.  The PHG is optimized for the plant breeding 
+representing pangenomes. The PHG is optimized for plant breeding 
 and genetics, where genomic diversity can be high, phased haplotypes 
 are common (e.g. inbred lines), and imputation with low density 
-markers is essential for breeding efficiency. This serves as a strong
-complement to other bioinformatics tools such as [BEAGLE](https://faculty.washington.edu/browning/beagle/beagle.html) where
-it can be used extensively in low diversity, unphased species with 
-high density genotyping.
+markers is essential for breeding efficiency. This complements 
+other imputation tools (e.g. [BEAGLE](https://faculty.washington.edu/browning/beagle/beagle.html)) 
+designed explicitly for handling samples from unphased species 
+characterized by low genetic diversity and high-density genotyping.
 
 The PHG is a trellis graph based representation of consecutive genic 
 and intergenic regions (called reference ranges) which represent 
 diversity across and between samples. It can be used to:
 
-* create custom genomes for alignment
-* call rare alleles
-* impute genotypes, 
-* efficiently store genomic data from many samples (i.e. reference, 
-  assemblies, and other lines). 
+* Create custom genomes for alignment
+* Call rare alleles
+* Impute genotypes 
+* Efficiently store genomic data from many samples (i.e. reference, 
+  assemblies, and other lines)
 
 The PHG also works well with community 
-standards including the Breeding API [BrAPI](https://brapi.org) and efficent tools 
-for R such as [rPHG](https://github.com/maize-genetics/rPHG) for 
-pangenome extraction and 
-[rTASSEL](https://github.com/maize-genetics/rTASSEL) for connecting 
-genotype to phenotype.
-
-
+standards including the Breeding API ([BrAPI](https://brapi.org)) and efficient 
+tools for R such as [rPHG](https://github.com/maize-genetics/rPHG) for pangenome extraction and 
+[rTASSEL](https://github.com/maize-genetics/rTASSEL) for connecting genotype to phenotype.
 
 
 ## Quick start
 
 ### Build and load data
 
-_Long form documentation can be found [here](docs/build_and_load.md)_
+_Long-form documentation for this section can be found [here](docs/build_and_load.md)_
 
 ```shell
 ## Setup conda environment
@@ -59,8 +55,10 @@ _Long form documentation can be found [here](docs/build_and_load.md)_
 
 ### Imputation
 
-_Long form documentation can be found [here](docs/imputation.md)_
-
+> [!NOTE]
+> This section is currently in progress and command input may be
+> subject to change. The following pseudocode is a possible
+> representation of the imputation workflow:
 
 ```shell
 ## Index
@@ -88,6 +86,11 @@ _Long form documentation can be found [here](docs/imputation.md)_
 ```
 
 ### Data retrieval
+
+> [!NOTE]
+> This section is currently in progress and command input may be
+> subject to change. The following pseudocode is a possible
+> representation of the retrieval workflow:
 
 ```shell
 ## Export from Tiledb
@@ -130,7 +133,8 @@ haplotype (`.g.vcf`). Our implementation of haplotype encoding in VCF
 heavily relies on the VCF ALT haplotype specification defined in
 [v4.2](http://samtools.github.io/hts-specs/VCFv4.2.pdf).
 
-* High-quality phased genome assemblies (or similar) are available to
+Other important things to note:
+* **High-quality phased genome assemblies** (or similar) are available to
   initialize the PHG.
 * Ancestral haplotypes are aligned to the reference genome for the
   identification of haplotypes.
@@ -139,8 +143,8 @@ heavily relies on the VCF ALT haplotype specification defined in
 * We rely on public tools like TileDB, Minimap2, GATK, AnchorWave,
   BioKotlin, and HTSJDK.
 * Genotyping with low-density markers is now done using a memory- and
-  speed-efficient kmer approach, followed by pathfinding (imputation)
-  with HMM, BWT, or our ML model.
+  speed-efficient k-mer approach, followed by pathfinding (imputation)
+  with [hidden Markov model](https://en.wikipedia.org/wiki/Hidden_Markov_model) methods. 
 * Rare allele discovery with short reads is based on the above path,
   involving short read alignment to the inferred haplotype path
   genome and the GATK haplotype caller.
@@ -148,11 +152,28 @@ heavily relies on the VCF ALT haplotype specification defined in
 
 ## Terminology
 
-    Reference genome - the genome used for initial alignment and base coordinates
-    Reference range - a segment of the reference genome
-    Haplotype - the sequence of part of an individual chromosome.
-    Founder Paths - 
-    Path - the phased set of haplotypes that represent a chromosome (phased haplotype scaffold in BEAGLE)
-    Composite Reference Haplotypes 
+When describing components used in the PHG, certain terms are used to 
+efficiently communicate more complicated ideas. Some common terms you 
+may find are:
 
-More information on terminology can be found [here](docs/terminology.md).
+| Term             | Definition                                                |
+|------------------|-----------------------------------------------------------|
+| reference genome | A genome used for initial alignment and base coordinates. |
+| reference range  | A segment of the reference genome.                        |
+| haplotype        | The sequence of part of an individual chromosome.         |
+| path             | The phased set of haplotypes that represent a chromosome. |
+
+More commonly used terms can be found [here](docs/terminology.md).
+
+## Long-form documentation
+
+### PHG workflows
+1. [Installation](docs/installation.md)
+2. [Building and loading](docs/build_and_load.md)
+3. [Imputation](docs/imputation.md) (_**WIP**_) 🚧
+
+### Reference
+* [hVCF format specifications](docs/hvcf_specifications.md)
+* [haplotype region handling](docs/hvcf_region_handling.md)
+* [PHGv2 terminology](docs/terminology.md)
+* [PHGv2 architecture](docs/img/architecture/phg_v2_architecture-Diagram.drawio.svg)
