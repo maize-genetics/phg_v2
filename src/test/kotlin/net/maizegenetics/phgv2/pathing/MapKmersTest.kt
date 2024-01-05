@@ -1,6 +1,7 @@
 package net.maizegenetics.phgv2.pathing
 
 import com.github.ajalt.clikt.testing.test
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import net.maizegenetics.phgv2.cli.TestExtension
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -9,6 +10,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
+import java.util.*
+import kotlin.math.min
+import kotlin.test.fail
 
 @ExtendWith(TestExtension::class)
 class MapKmersTest {
@@ -209,5 +213,146 @@ class MapKmersTest {
             assert(readMappingPairedEndFile.contains(line))
         }
     }
+
+
+    @Test
+    fun testReadToHapidSet() {
+        fail("Not yet implemented")
+    }
+
+    @Test
+    fun testExtractKmersFromSequence() {
+        //Create a simple sequence of 32 bps
+        val sequence = "ACACGTGTAACCGGTTGTGACTGACGGTAACG"
+        //build the hash for this seq
+        var hashValue = Pair(0L, 0L)
+        for (i in 0..31) {
+            hashValue = BuildKmerIndex.updateKmerHashAndReverseCompliment(hashValue, sequence[i])
+        }
+        val minHash = min(hashValue.first, hashValue.second)
+
+        val bitSet = buildSimple2HapBitset()
+        val rangeToBitSetMap = mapOf(1 to bitSet)
+
+
+        val kmerHashOffsetMap = Long2LongOpenHashMap()
+        //make some offsets  THey need to be 0, 2, 4
+        kmerHashOffsetMap[minHash] = (1.toLong() shl 32) or 4.toLong()
+
+        val rangeToHapidIndexMap = mapOf(1 to mapOf("1" to 0, "2" to 1))
+
+        val rangeToHapIdMap = mutableMapOf<Int,MutableList<String>>()
+
+        extractKmersFromSequence(sequence, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap, rangeToHapIdMap)
+
+        assertEquals(1, rangeToHapIdMap.size)
+        assertEquals(mutableListOf("1","2"), rangeToHapIdMap[1])
+
+    }
+
+    fun buildSimple2HapBitset() : BitSet {
+        //make a bitset with the right states
+        val bitSet = BitSet(6)
+        //The full bitset should be the following: 100111
+        //Set bits for set [1]  this would be 10
+        bitSet.set(0)
+        //Set bits for set [2]  this would be 01
+        bitSet.set(3) // for set [2]
+        //Set bits for set [1,2] this would be 11
+        bitSet.set(4)
+        bitSet.set(5)
+        return bitSet
+    }
+
+    @Test
+    fun testRangeHapidMapFromKmerHash() {
+        //at this ref range we have 2 haplotypes so we can have the following sets:
+        //1, 2, [1,2]
+        //so the bitset has 6 states
+        val bitSet = buildSimple2HapBitset()
+
+        val rangeToBitSetMap = mapOf(1 to bitSet)
+
+        val rangeToHapidIndexMap = mapOf(1 to mapOf("1" to 0, "2" to 1))
+
+        //make kmer 1 map to just set [1]
+        val kmer1Hash = 1.toLong()
+        //make kmer 2 map to just set [2]
+        val kmer2Hash = 2.toLong()
+        //make kmer 3 map to set [1,2]
+        val kmer3Hash = 3.toLong()
+
+        val kmerHashOffsetMap = Long2LongOpenHashMap()
+        //make some offsets  THey need to be 0, 2, 4
+        kmerHashOffsetMap[kmer1Hash] = (1.toLong() shl 32) or 0.toLong()
+        kmerHashOffsetMap[kmer2Hash] = (1.toLong() shl 32) or 2.toLong()
+        kmerHashOffsetMap[kmer3Hash] = (1.toLong() shl 32) or 4.toLong()
+
+        val rangeHapidMap1 = rangeHapidMapFromKmerHash(kmer1Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        assertEquals(1, rangeHapidMap1.size)
+        assertEquals(mutableListOf("1"), rangeHapidMap1[1])
+
+        val rangeHapidMap2 = rangeHapidMapFromKmerHash(kmer2Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        assertEquals(1, rangeHapidMap2.size)
+        assertEquals(mutableListOf("2"), rangeHapidMap2[1])
+
+        val rangeHapidMap3 = rangeHapidMapFromKmerHash(kmer3Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        assertEquals(1, rangeHapidMap3.size)
+        assertEquals(mutableListOf("1","2"), rangeHapidMap3[1])
+
+        //Try a kmer that does not exist
+        val kmer4Hash = 4.toLong()
+        val rangeHapidMap4 = rangeHapidMapFromKmerHash(kmer4Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        assertEquals(0, rangeHapidMap4.size)
+
+        //Make it so the hapIdIndex is not found
+        val rangeToHapidIndexMap2 = mapOf(2 to mapOf("1" to 0))
+        val rangeHapIdMapMissingRangeHapIdx = rangeHapidMapFromKmerHash(kmer3Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap2)
+        assertEquals(0, rangeHapIdMapMissingRangeHapIdx.size)
+
+        //Make it so the hapId is not found for the bitset
+        val rangeToBitSetMapMissingRange = mapOf(2 to bitSet)
+        val rangeHapIdMapMissingRange = rangeHapidMapFromKmerHash(kmer3Hash, kmerHashOffsetMap, rangeToBitSetMapMissingRange, rangeToHapidIndexMap)
+        assertEquals(0, rangeHapIdMapMissingRange.size)
+
+    }
+
+    @Test
+    fun testDecodeRangeIdAndOffset() {
+        //Testing:
+        //decodeRangeIdAndOffset(rangeIdAndOffset: Int): Pair<Int, Int>
+
+        //create a valid rangeID and offset
+        val rangeID = 1
+        val offset = 2
+
+        val encoded = (rangeID.toLong() shl 32) or offset.toLong()
+        assertEquals(decodeRangeIdAndOffset(encoded), Pair(rangeID, offset))
+
+
+        val rangeID100 = 100
+        val offset100 = 200
+
+        val encoded100 = (rangeID100.toLong() shl 32) or offset100.toLong()
+        assertEquals(decodeRangeIdAndOffset(encoded100), Pair(rangeID100, offset100))
+    }
+
+    @Test
+    fun testHapidsFromOneReferenceRange() {
+        //Testing:
+        //hapidsFromOneReferenceRange(rangeHapidMap: Map<Int, List<Int>>, minSameReferenceRange: Double = 0.9): List<Int>
+
+        //Create a rangeToHapIdMap
+        val rangeToHapIdMap = mapOf(1 to listOf("1","2","3"), 2 to listOf("100"))
+
+        val hapIdsFor100Percent = hapidsFromOneReferenceRange(rangeToHapIdMap, 1.0)
+        //should be an empty list
+        assertEquals(hapIdsFor100Percent.size, 0)
+
+        val hapIdsFor50Percent = hapidsFromOneReferenceRange(rangeToHapIdMap, 0.5)
+        assertEquals(hapIdsFor50Percent.size, 3)
+        assertEquals(hapIdsFor50Percent, listOf("1","2","3"))
+    }
+
 
 }

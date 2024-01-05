@@ -57,7 +57,7 @@ fun loadKmerMaps(filename: String, graph: HaplotypeGraph): KmerMapData {
     var totalLineCount = 0
     var refrange = ReferenceRange("NULL", 0, 0)
 
-    val refRangeToIdMap = getReferenceRangeToIndexMap(graph)
+    val refRangeToIdMap = graph.refRangeToIndexMap()
     getBufferedReader(filename).useLines {
         it.forEach { inputStr ->
             totalLineCount++
@@ -109,14 +109,7 @@ fun loadKmerMaps(filename: String, graph: HaplotypeGraph): KmerMapData {
     return KmerMapData(rangeToBitSetMap, kmerHashMap)
 }
 
-/**
- * Creates a map of ReferenceRange -> index for a [HaplotypeGraph].
- * Because the ranges are sorted by the when calling the ranges() method,
- * a graph always returns the same map in the same order.
- */
-fun getReferenceRangeToIndexMap(graph: HaplotypeGraph) : Map<ReferenceRange,Int> {
-    return graph.ranges().mapIndexed { index, range -> range to index }.toMap()
-}
+
 
 
 /**
@@ -124,19 +117,19 @@ fun getReferenceRangeToIndexMap(graph: HaplotypeGraph) : Map<ReferenceRange,Int>
  * To Work with single ended reads, the second String in the Pair should be an empty String.
  */
 suspend fun processReads(reads: ReceiveChannel<Pair<String, String>>,
-                               sortedLists: SendChannel<List<Int>>,
+                               sortedLists: SendChannel<List<String>>,
                                minProportionOfMaxCount: Double = 1.0,
                                minSameReferenceRange: Double = 0.9,
                                kmerHashOffsetMap: Long2LongOpenHashMap,
                                refrangeToBitSet: Map<Int, BitSet>,
-                               rangeToHapidIndexMap: Map<Int, Map<Int, Int>>) {
+                               rangeToHapidIndexMap: Map<Int, Map<String, Int>>) {
     for (pairOfReads in reads) {
         val result1 = readToHapidSet(pairOfReads.first, minProportionOfMaxCount, minSameReferenceRange, kmerHashOffsetMap, refrangeToBitSet, rangeToHapidIndexMap)
         val result2 = if(pairOfReads.second.isNotEmpty()) {
             readToHapidSet(pairOfReads.second, minProportionOfMaxCount, minSameReferenceRange, kmerHashOffsetMap, refrangeToBitSet, rangeToHapidIndexMap)
         }
         else {
-            setOf<Int>()
+            setOf<String>()
         }
 
         val intersectResult = if(result2.isNotEmpty()) {
@@ -161,32 +154,14 @@ private fun readToHapidSet(read: String,
                            minSameReferenceRange: Double = 0.9,
                            kmerHashOffsetMap: Long2LongOpenHashMap,
                            refrangeToBitSet: Map<Int, BitSet>,
-                           rangeToHapidIndexMap: Map<Int, Map<Int, Int>>): Set<Int> {
+                           rangeToHapidIndexMap: Map<Int, Map<String, Int>>): Set<String> {
     //generate kmer hash from the read
-    val rangeToHapidMap = mutableMapOf<Int, MutableList<Int>>()
+    val rangeToHapidMap = mutableMapOf<Int, MutableList<String>>()
     val splitList = read
         .split("[^ACGT]+".toRegex())
         .filter { it.length > 31 }
     for (sequence in splitList) {
-        var previousHash = Pair(0L, 0L)
-
-        //for first 31 nucleotides just update the hash
-        for (nucleotide in sequence.subSequence(0..30)) {
-            previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
-        }
-
-        //start using kmers starting with the 32nd nucleotide
-        //lookup hapids and add to the list
-        for (nucleotide in sequence.subSequence(31 until sequence.length)) {
-            previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
-            val minHash = min(previousHash.first, previousHash.second).toLong()
-            val hapidsMatched = rangeHapidMapFromKmerHash(minHash, kmerHashOffsetMap, refrangeToBitSet, rangeToHapidIndexMap)
-            for (entry in hapidsMatched) {
-                val hapidList = rangeToHapidMap[entry.key]
-                if (hapidList == null) rangeToHapidMap.put(entry.key, entry.value)
-                else hapidList.addAll(entry.value)
-            }
-        }
+        extractKmersFromSequence(sequence, kmerHashOffsetMap, refrangeToBitSet, rangeToHapidIndexMap, rangeToHapidMap)
     }
 
     //if no hapids map to this read, return an empty set
@@ -202,10 +177,39 @@ private fun readToHapidSet(read: String,
     //determine maxcount then create a hapidset from the hapids with maxcount
 
     val maxcount = hapidCounts.values.maxOrNull()
-    return if (maxcount == null) setOf<Int>()
+    return if (maxcount == null) setOf<String>()
     else {
         val retainCount = ceil(maxcount.toDouble() * minProportionOfMaxCount)
         hapidCounts.entries.filter { (_, hapidCount) -> hapidCount >= retainCount }.map { it.key }.toHashSet()
+    }
+}
+
+fun extractKmersFromSequence(
+    sequence: String,
+    kmerHashOffsetMap: Long2LongOpenHashMap,
+    refrangeToBitSet: Map<Int, BitSet>,
+    rangeToHapidIndexMap: Map<Int, Map<String, Int>>,
+    rangeToHapidMap: MutableMap<Int, MutableList<String>>
+) {
+    var previousHash = Pair(0L, 0L)
+
+    //for first 31 nucleotides just update the hash
+    for (nucleotide in sequence.subSequence(0..30)) {
+        previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+    }
+
+    //start using kmers starting with the 32nd nucleotide
+    //lookup hapids and add to the list
+    for (nucleotide in sequence.subSequence(31 until sequence.length)) {
+        previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+        val minHash = min(previousHash.first, previousHash.second)
+        val hapidsMatched =
+            rangeHapidMapFromKmerHash(minHash, kmerHashOffsetMap, refrangeToBitSet, rangeToHapidIndexMap)
+        for (entry in hapidsMatched) {
+            val hapidList = rangeToHapidMap[entry.key]
+            if (hapidList == null) rangeToHapidMap.put(entry.key, entry.value)
+            else hapidList.addAll(entry.value)
+        }
     }
 }
 
@@ -214,10 +218,10 @@ private fun readToHapidSet(read: String,
  * for all of the haplotypes containing that kmer. The method returns an empty map if the kmer hash
  * does not map to any haplotypes.
  */
-private fun rangeHapidMapFromKmerHash(kmerHash: Long,
+fun rangeHapidMapFromKmerHash(kmerHash: Long,
                                       kmerHashOffsetMap: Long2LongOpenHashMap,
                                       refrangeToBitSet: Map<Int, BitSet>,
-                                      rangeToHapidIndexMap: Map<Int, Map<Int, Int>>): Map<Int, MutableList<Int>> {
+                                      rangeToHapidIndexMap: Map<Int, Map<String, Int>>): Map<Int, MutableList<String>> {
     //get the encoded refrangeId, offset from the kmerMap
     val encodedOffset = kmerHashOffsetMap[kmerHash]
 
@@ -225,9 +229,7 @@ private fun rangeHapidMapFromKmerHash(kmerHash: Long,
     //so if encodedOffset = 0, the kmerhash does not map to any haplotypes. Return an empty map.
     if (encodedOffset == 0L) return mapOf()
 
-    //decode the long encoded refrangeId, offset
-    val rangeId = (encodedOffset shr 32).toInt()
-    val offset = (encodedOffset and 0xFFFFFFFF).toInt()
+    val (rangeId, offset) = decodeRangeIdAndOffset(encodedOffset)
 
     val hapidIndex = rangeToHapidIndexMap[rangeId]
     val hapidBitSet = refrangeToBitSet[rangeId]
@@ -239,11 +241,21 @@ private fun rangeHapidMapFromKmerHash(kmerHash: Long,
 }
 
 /**
+ * Takes a long encoded refrangeId, offset into a Long and returns the rangeId and offset as a Pair<Int,Int>
+ */
+fun decodeRangeIdAndOffset(encodedOffset: Long): Pair<Int, Int> {
+    //decode the long encoded refrangeId, offset
+    val rangeId = (encodedOffset shr 32).toInt()
+    val offset = (encodedOffset and 0xFFFFFFFF).toInt()
+    return Pair(rangeId, offset)
+}
+
+/**
  * Takes a map of range -> (haplotype id list) then determines whether at least [minSameReferenceRange] of them
  * map to the same reference range and returns only those hapids mapping to that reference range.
  * Returns an empty list if there is no reference range meeting that criterion.
  */
-private fun hapidsFromOneReferenceRange(rangeHapidMap: Map<Int, List<Int>>, minSameReferenceRange: Double = 0.9): List<Int> {
+fun hapidsFromOneReferenceRange(rangeHapidMap: Map<Int, List<String>>, minSameReferenceRange: Double = 0.9): List<String> {
     val numberOfHapids = rangeHapidMap.values.sumOf { it.size }
     val maxHapidCount = rangeHapidMap.values.maxOf { it.size }
     if (maxHapidCount.toDouble() / numberOfHapids.toDouble() < minSameReferenceRange) return listOf()

@@ -308,6 +308,14 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
                 .mapIndexed { index, hapid -> hapid to index }.toMap()
         }
     }
+    /**
+     * Creates a map of ReferenceRange -> index for this [HaplotypeGraph].
+     * Because the ranges are sorted when calling the ranges() method,
+     * a graph always returns the same map in the same order.
+     */
+    fun refRangeToIndexMap() : Map<ReferenceRange,Int> {
+        return ranges().mapIndexed { index, range -> range to index }.toMap()
+    }
 
 }
 

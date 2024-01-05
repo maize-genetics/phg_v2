@@ -131,6 +131,18 @@ class HaplotypeGraphTest {
 
     }
 
+    @Test
+    fun testRefRangeToIndexMap() {
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile, TestExtension.smallseqLineBHvcfFile))
+        val refRangeToIndexMap = graph.refRangeToIndexMap()
+
+        assertEquals(38, refRangeToIndexMap.size, "refRangeToIndexMap size not 38: ${refRangeToIndexMap.size}")
+        for((index,range) in graph.ranges().withIndex()) {
+            val mappedIndex = refRangeToIndexMap[range]
+            assertEquals(index, mappedIndex, "refRangeToIndexMap does not contain correct index $index for range $range")
+        }
+    }
+
     /**
      * Returns true if the list of ReferenceRange is sorted.
      */
