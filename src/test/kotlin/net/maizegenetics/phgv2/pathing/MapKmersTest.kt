@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import java.util.*
 import kotlin.math.min
+import kotlin.test.assertTrue
 import kotlin.test.fail
 
 @ExtendWith(TestExtension::class)
@@ -217,7 +218,71 @@ class MapKmersTest {
 
     @Test
     fun testReadToHapidSet() {
-        fail("Not yet implemented")
+        //Make a read of 100 bps
+        val read = "ACACGTGTAACCGGTTGTGACTGACGGTAACGACACGTGTAACCGGTTGTGACTGACGGTAACGACACGTGTAACCGGTTGTGACTGACGGTAACGACACGTGTAACCGGTTGTGACTGACGGTAACG"
+
+        val bitSet = buildSimple2HapBitset()
+        val rangeToBitSetMap = mapOf(1 to bitSet, 2 to bitSet) //Can use the same bitset here
+
+        val rangeToHapidIndexMap = mapOf(1 to mapOf("1" to 0, "2" to 1), 2 to mapOf("3" to 0, "4" to 1))
+
+        val kmerHashOffsetMap = Long2LongOpenHashMap()
+        //Build minKmers for the read and add them to the kmerHashOffsetMap
+        var previousHash = Pair(0L, 0L)
+
+        //for first 31 nucleotides just update the hash
+        for (nucleotide in read.subSequence(0..30)) {
+            previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+        }
+
+        //start using kmers starting with the 32nd nucleotide
+        val minKmers = mutableSetOf<Long>()
+        //lookup hapids and add to the list
+        for (nucleotide in read.subSequence(31 until read.length)) {
+            previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+            val minHash = min(previousHash.first, previousHash.second)
+            minKmers.add(minHash)
+        }
+
+        val minKmerList = minKmers.toList()
+        //take 80 percent and assign to refRange1 and 20 percent and assign to refRange2
+        val percentile80 = (minKmers.size * 0.8).toInt()
+        val refRange1Kmers = minKmerList.take(percentile80)
+        val refRange2Kmers = minKmerList.takeLast(minKmers.size-percentile80)
+
+
+        val test = 123
+        //Make offsets for refRange1Kmers using % to assign offset
+        refRange1Kmers.forEachIndexed() { index, kmerHash ->
+            val offset = (index % 3) * 2
+//            kmerHashOffsetMap[kmerHash] = (1.toLong() shl 32) or offset.toLong()
+            kmerHashOffsetMap[kmerHash] = (1.toLong() shl 32) or 2.toLong()
+        }
+        refRange2Kmers.forEachIndexed() { index, kmerHash ->
+            val offset = (index % 3) * 2
+            kmerHashOffsetMap[kmerHash] = (2.toLong() shl 32) or offset.toLong()
+        }
+
+        val hapIdsSameRefRange90 = readToHapidSet(read, 1.0, .9, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        //should be an empty set
+        assertEquals(0, hapIdsSameRefRange90.size)
+
+        val hapIdsSameRefRange50 = readToHapidSet(read, 1.0, .5, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        //Should just have hap2 in it
+        //Have to set this lower as we have less than 100 kmers after we turn into a set
+        assertEquals(1, hapIdsSameRefRange50.size)
+        assertTrue(hapIdsSameRefRange50.contains("2"))
+        //Try a kmer not found in the map
+        val simpleSeq = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        //build hash for this seq
+        var hashValue = Pair(0L, 0L)
+        for (i in 0..31) {
+            hashValue = BuildKmerIndex.updateKmerHashAndReverseCompliment(hashValue, simpleSeq[i])
+        }
+        val minHash = min(hashValue.first, hashValue.second)
+        val hapIdsSameRefRange50MissingKmer = readToHapidSet(simpleSeq, 1.0, .5, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        assertEquals(0, hapIdsSameRefRange50MissingKmer.size)
+
     }
 
     @Test
