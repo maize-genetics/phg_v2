@@ -1,6 +1,10 @@
 package net.maizegenetics.phgv2.pathing
 
+import biokotlin.util.bufferedReader
+import htsjdk.samtools.fastq.FastqReader
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import net.maizegenetics.phgv2.api.HaplotypeGraph
@@ -11,6 +15,7 @@ import org.apache.logging.log4j.LogManager
 import java.io.*
 import java.util.*
 import kotlin.math.ceil
+import kotlin.math.max
 import kotlin.math.min
 
 /**
@@ -28,7 +33,7 @@ private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.Align
  * Function to align the reads coming from a single ended Fastq or a pair of fastq files to the haplotype graph kmer index found in [kmerIndexFile] and create a readMapping file which will be written to the [outputDir].
 
  */
-fun alignReadsToHaplotypes(hvcfDir: String, kmerIndexFile:String, keyFileRecords:List<KeyFileData>, outputDir:String) {
+fun alignReadsToHaplotypes(hvcfDir: String, kmerIndexFile:String, keyFileRecords:List<KeyFileData>, outputDir:String, numThreads : Int = 5) {
     //loop through all files in hvcfDir and create a list of hvcf files
     val hvcfFiles = File(hvcfDir).walkTopDown().filter { it.isFile }.filter { it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz") }.map { "${it.path}/${it.name}" }.toList()
 
@@ -37,7 +42,18 @@ fun alignReadsToHaplotypes(hvcfDir: String, kmerIndexFile:String, keyFileRecords
 
     val kmerIndexMap = loadKmerMaps(kmerIndexFile, graph)
 
-    TODO("Finish implementing this function")
+    for(keyFileRecord in keyFileRecords) {
+        val hapIdMapping = processReadMappingForKeyFileRecord(keyFileRecord, kmerIndexMap, graph, numThreads)
+
+        //export the read mapping to disk
+        //Use the first file name as the readmapping output name
+        val inputFile1 = File(keyFileRecord.file1)
+        val outputFileName = "${outputDir}/${inputFile1.nameWithoutExtension}_readMapping.txt"
+
+
+        exportReadMapping(outputFileName, hapIdMapping, keyFileRecord.sampleName, Pair(keyFileRecord.file1, keyFileRecord.file2))
+    }
+
 }
 
 /**
@@ -110,6 +126,97 @@ fun loadKmerMaps(filename: String, graph: HaplotypeGraph): KmerMapData {
 }
 
 
+fun processReadMappingForKeyFileRecord(keyFileRecord: KeyFileData,
+                                       kmerIndexMap : KmerMapData,
+                                       graph: HaplotypeGraph,
+                                       numThreads : Int = 5,
+                                       minProportionOfMaxCount: Double = 1.0,
+                                       minSameReferenceRange: Double = 0.9,) : Map<List<String>, Int> {
+    val fastqFiles = Pair(keyFileRecord.file1, keyFileRecord.file2)
+
+    val hapidSetCount = mutableMapOf<List<String>, Int>()
+    myLogger.info("reading records from the fastq file(s): ${fastqFiles.first}, ${fastqFiles.second}")
+    var readCount = 0
+
+    val rangeIdToBitsetMap = convertRefRangeToIdBitsetMap(kmerIndexMap.rangeToBitSetMap, graph.refRangeToIndexMap())
+
+    FastqReader(bufferedReader(fastqFiles.first)).use { reader1 ->
+        //Need to do this otherwise we cannot handle single and paired end in a efficient way
+        val reader2 = if(fastqFiles.second.isNotEmpty()) {
+            FastqReader(bufferedReader(fastqFiles.second))
+        }
+        else {
+            null
+        }
+
+        val readStringChannel = Channel<Pair<String, String>>(100)
+        val sortedHapidListChannel = Channel<List<String>>(100)
+        val numberOfMappingThreads = max(1, numThreads - 2)
+
+
+        runBlocking {
+            launch(Dispatchers.IO) {
+                while (reader1.hasNext() && reader2?.hasNext()?:true) {
+                    val seq1 = reader1.next().readString
+                    val seq2 = reader2?.next()?.readString?:""
+
+                    readStringChannel.send(Pair(seq1, seq2))
+                    readCount++
+
+                }
+                readStringChannel.close()
+            }
+
+            val jobList: MutableList<Job> = mutableListOf()
+            repeat(numberOfMappingThreads) {
+                jobList.add(launch(Dispatchers.Default) {
+                    processReads(readStringChannel,
+                        sortedHapidListChannel,
+                        minProportionOfMaxCount,
+                        minSameReferenceRange,
+                        kmerIndexMap.kmerHashToLongMap,
+                        rangeIdToBitsetMap,
+                        graph.refRangeIdToHapIdMap())
+                })
+            }
+
+            val listJob = launch {
+                addListsToMap(hapidSetCount, sortedHapidListChannel)
+            }
+
+            jobList.joinAll()
+            sortedHapidListChannel.close()
+            listJob.join()
+        }
+
+
+
+        reader2?.close()
+    }
+
+    return hapidSetCount
+
+}
+
+fun convertRefRangeToIdBitsetMap(rangeToBitSetMap: Map<ReferenceRange, BitSet>, refRangeToIndexMap: Map<ReferenceRange, Int>): Map<Int, BitSet> {
+    val rangeIdToBitsetMap = mutableMapOf<Int, BitSet>()
+    for((range, bitset) in rangeToBitSetMap) {
+        val rangeId = refRangeToIndexMap[range]!!
+        rangeIdToBitsetMap[rangeId] = bitset
+    }
+    return rangeIdToBitsetMap
+}
+
+/**
+ * Takes a [hapidSetCounts] map and a [hapLists] channel and adds the hapLists to the map.
+ */
+suspend fun addListsToMap(hapidSetCounts: MutableMap<List<String>, Int>, hapLists: ReceiveChannel<List<String>>) {
+    for (hapList in hapLists) {
+        val count = hapidSetCounts[hapList]
+        if (count == null) hapidSetCounts[hapList] = 1
+        else hapidSetCounts[hapList] = count + 1
+    }
+}
 
 
 /**
@@ -149,7 +256,7 @@ suspend fun processReads(reads: ReceiveChannel<Pair<String, String>>,
  * reference range. If no kmers map or if fewer than [minSameReferenceRange] of the kmers map to a single
  * reference range an empty Set will be returned.
  */
-private fun readToHapidSet(read: String,
+fun readToHapidSet(read: String,
                            minProportionOfMaxCount: Double = 1.0,
                            minSameReferenceRange: Double = 0.9,
                            kmerHashOffsetMap: Long2LongOpenHashMap,
