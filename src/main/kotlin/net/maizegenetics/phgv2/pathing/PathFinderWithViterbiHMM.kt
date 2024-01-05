@@ -459,91 +459,92 @@ import kotlin.math.log
         }
     }
 
-    class DiploidTransitionProbabilityWithInbreeding(
-        val numberOfTaxaNames: Int,
-        haploidNoSwitchProb: Double,
-        val f: Double
-    ) {
-        private val pNoSwitch: Double
-        private val pSingleSwitch: Double
-        private val pDoubleSwitch: Double
-        private val pAAtoAB: Double
-        private val pAAtoBB: Double
-        private val pAAtoBC: Double
-        private val numberOfPairs = numberOfTaxaNames * numberOfTaxaNames
-        private val probabilityMatrix = Array(numberOfPairs) { DoubleArray(numberOfPairs) { 0.0 } }
-
-        init {
-            val haploidSwitchProb = (1.0 - haploidNoSwitchProb) / (numberOfTaxaNames.toDouble() - 1.0)
-            pNoSwitch = haploidNoSwitchProb * haploidNoSwitchProb
-            pSingleSwitch = haploidNoSwitchProb * haploidSwitchProb
-            pDoubleSwitch = haploidSwitchProb * haploidSwitchProb
-            pAAtoAB = (1.0 - f) * pSingleSwitch
-            pAAtoBB = f * pSingleSwitch + (1.0 - f) * pDoubleSwitch
-            pAAtoBC = (1.0 - f) * pDoubleSwitch
-
-            for (from in 0 until numberOfPairs) {
-                for (to in 0 until numberOfPairs) {
-                    probabilityMatrix[to][from] = log(transitionProbability(pairFromIndex(from), pairFromIndex(to)), E)
-                }
-            }
-        }
-
-        fun pairFromIndex(index: Int): Pair<Int, Int> {
-            return Pair(index / numberOfTaxaNames, index % numberOfTaxaNames)
-        }
-
-        /**
-         * Adds the vector of [fromProbability] to a vector of transition probabilities and returns
-         * the index of the maximum value and the maximum value as a Pair<Int,Double>
-         */
-        fun maxIndexAndProbabilityForTarget(fromProbability: DoubleArray, to: Int): Pair<Int, Double> {
-            val transProbs = probabilityMatrix[to]
-
-            var maxIndex = 0
-            var maxProb = fromProbability[maxIndex] + transProbs[maxIndex]
-            for (ndx in 1 until fromProbability.size) {
-                val prob = fromProbability[ndx] + transProbs[ndx]
-                if (prob > maxProb) {
-                    maxProb = prob
-                    maxIndex = ndx
-                }
-            }
-            return Pair(maxIndex, maxProb)
-        }
-
-        fun transitionProbability(from: Pair<Int, Int>, to: Pair<Int, Int>): Double {
-//        diploid transition as a function of f (inbreeding coefficient)
-//        The coefficient of inbreeding of an individual is the probability that two alleles at any locus in an individual are identical by descent from the common ancestor(s) of the two parents
+//Comment out Diploid code, which will be migrated later
+//    class DiploidTransitionProbabilityWithInbreeding(
+//        val numberOfTaxaNames: Int,
+//        haploidNoSwitchProb: Double,
+//        val f: Double
+//    ) {
+//        private val pNoSwitch: Double
+//        private val pSingleSwitch: Double
+//        private val pDoubleSwitch: Double
+//        private val pAAtoAB: Double
+//        private val pAAtoBB: Double
+//        private val pAAtoBC: Double
+//        private val numberOfPairs = numberOfTaxaNames * numberOfTaxaNames
+//        private val probabilityMatrix = Array(numberOfPairs) { DoubleArray(numberOfPairs) { 0.0 } }
 //
-//        p(A,A -> A,A) = P(no switch) * P(no switch) [same whether ibd or not]
-//        p(A,A -> A,B | not ibd) = P(single switch) * P(no switch)
-//        p(A,A -> A,B | ibd) = 0
-//        p(A,A -> B,B  | not ibd) = P(single switch) * P(single switch)
-//        p(A,A -> B,B  | ibd) = P(single switch)
-//        p(A,A -> B,C | not ibd) = P(single switch) * P(single switch)
-//        p(A,A -> B,C | ibd) = 0
-//        transition from het is always not ibd
-
-
-            return if (from.first == from.second) {
-                when {
-                    from.first == to.first && from.second == to.second -> pNoSwitch
-                    from.first == to.first || from.second == to.second -> pAAtoAB
-                    to.first == to.second -> pAAtoBB
-                    else -> pAAtoBC
-                }
-            } else {
-                when {
-                    from.first == to.first && from.second == to.second -> pNoSwitch
-                    from.first == to.first || from.second == to.second -> pSingleSwitch
-                    else -> pDoubleSwitch
-                }
-            }
-        }
-
-        fun lnTransitionProbability(from: Pair<Int, Int>, to: Pair<Int, Int>): Double {
-            return probabilityMatrix[to.first * numberOfTaxaNames + to.second][from.first * numberOfTaxaNames + from.second]
-        }
-
-    }
+//        init {
+//            val haploidSwitchProb = (1.0 - haploidNoSwitchProb) / (numberOfTaxaNames.toDouble() - 1.0)
+//            pNoSwitch = haploidNoSwitchProb * haploidNoSwitchProb
+//            pSingleSwitch = haploidNoSwitchProb * haploidSwitchProb
+//            pDoubleSwitch = haploidSwitchProb * haploidSwitchProb
+//            pAAtoAB = (1.0 - f) * pSingleSwitch
+//            pAAtoBB = f * pSingleSwitch + (1.0 - f) * pDoubleSwitch
+//            pAAtoBC = (1.0 - f) * pDoubleSwitch
+//
+//            for (from in 0 until numberOfPairs) {
+//                for (to in 0 until numberOfPairs) {
+//                    probabilityMatrix[to][from] = log(transitionProbability(pairFromIndex(from), pairFromIndex(to)), E)
+//                }
+//            }
+//        }
+//
+//        fun pairFromIndex(index: Int): Pair<Int, Int> {
+//            return Pair(index / numberOfTaxaNames, index % numberOfTaxaNames)
+//        }
+//
+//        /**
+//         * Adds the vector of [fromProbability] to a vector of transition probabilities and returns
+//         * the index of the maximum value and the maximum value as a Pair<Int,Double>
+//         */
+//        fun maxIndexAndProbabilityForTarget(fromProbability: DoubleArray, to: Int): Pair<Int, Double> {
+//            val transProbs = probabilityMatrix[to]
+//
+//            var maxIndex = 0
+//            var maxProb = fromProbability[maxIndex] + transProbs[maxIndex]
+//            for (ndx in 1 until fromProbability.size) {
+//                val prob = fromProbability[ndx] + transProbs[ndx]
+//                if (prob > maxProb) {
+//                    maxProb = prob
+//                    maxIndex = ndx
+//                }
+//            }
+//            return Pair(maxIndex, maxProb)
+//        }
+//
+//        fun transitionProbability(from: Pair<Int, Int>, to: Pair<Int, Int>): Double {
+////        diploid transition as a function of f (inbreeding coefficient)
+////        The coefficient of inbreeding of an individual is the probability that two alleles at any locus in an individual are identical by descent from the common ancestor(s) of the two parents
+////
+////        p(A,A -> A,A) = P(no switch) * P(no switch) [same whether ibd or not]
+////        p(A,A -> A,B | not ibd) = P(single switch) * P(no switch)
+////        p(A,A -> A,B | ibd) = 0
+////        p(A,A -> B,B  | not ibd) = P(single switch) * P(single switch)
+////        p(A,A -> B,B  | ibd) = P(single switch)
+////        p(A,A -> B,C | not ibd) = P(single switch) * P(single switch)
+////        p(A,A -> B,C | ibd) = 0
+////        transition from het is always not ibd
+//
+//
+//            return if (from.first == from.second) {
+//                when {
+//                    from.first == to.first && from.second == to.second -> pNoSwitch
+//                    from.first == to.first || from.second == to.second -> pAAtoAB
+//                    to.first == to.second -> pAAtoBB
+//                    else -> pAAtoBC
+//                }
+//            } else {
+//                when {
+//                    from.first == to.first && from.second == to.second -> pNoSwitch
+//                    from.first == to.first || from.second == to.second -> pSingleSwitch
+//                    else -> pDoubleSwitch
+//                }
+//            }
+//        }
+//
+//        fun lnTransitionProbability(from: Pair<Int, Int>, to: Pair<Int, Int>): Double {
+//            return probabilityMatrix[to.first * numberOfTaxaNames + to.second][from.first * numberOfTaxaNames + from.second]
+//        }
+//
+//    }
