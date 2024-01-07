@@ -9,9 +9,11 @@ import net.maizegenetics.phgv2.brapi.model.SampleListResponse
 import net.maizegenetics.phgv2.brapi.model.SampleListResponseResult
 import net.maizegenetics.phgv2.brapi.service.SamplesService
 
-fun Route.samples() {
-
+fun Route.samples(args:Array<String>) {
+//fun Route.samples() {
     val samplesService = SamplesService
+    println("\nLCJRoute.samples: args[0]: ${args[0]}\n")
+    val tiledbURI = args[0].substringAfter("TILEDB_URI=").substringBefore(" ")
 
     route("/samples") {
 
@@ -19,7 +21,9 @@ fun Route.samples() {
             call.respond(
                 SampleListResponse(
                     Metadata(),
-                    SampleListResponseResult(samplesService.allTaxaNames().toTypedArray())
+                    SampleListResponseResult(samplesService.lcjAllTaxaNames(tiledbURI).toTypedArray())
+                    //SampleListResponseResult(samplesService.allTaxaNames().toTypedArray())
+
                 )
             )
         }

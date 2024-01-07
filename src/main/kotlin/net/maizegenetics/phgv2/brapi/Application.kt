@@ -18,7 +18,10 @@ import net.maizegenetics.phgv2.brapi.api.apiRoute
  *   @author lcj34
  */
 
-fun Application.module() {
+fun Application.module(args:Array<String>) {
+    println("\nLCJApplication.mainModule: args[0]: ${args[0]}\n")
+//fun Application.module () {
+
     install(DefaultHeaders)
     install(CallLogging)
     // install(WebSockets)
@@ -31,13 +34,20 @@ fun Application.module() {
         })
     }
 
+    // If environemnt.config.propertyOrNull("TILEDB_URI") is null, then then return
+    // the value "dummy" otherwise set tiledbURI to the value of the property
+    //val tiledbURI= environment.config.propertyOrNull("TILEDB_URI")?.getString() ?: "dummy"
+    //val tiledbURI= environment.config.propertyOrNull("TILEDB_URI")?.getString()
+
     // Setup routing.  Individual endpoints create Kotlin Route extensions
     // to handle processing REST requests.
+    //val args2 = arrayOf(tiledbURI)
 
     routing {
         // this method routes brapi/v2/
         // Within apiRoute(), specific endpoint calls are handled
-        apiRoute()
+        //apiRoute()
+        apiRoute(args)
     }
 
 }

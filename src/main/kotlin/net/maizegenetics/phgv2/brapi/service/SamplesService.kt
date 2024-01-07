@@ -11,7 +11,7 @@ private val config = HoconApplicationConfig(ConfigFactory.load())
 // THis uses environment.config.property, but "environment" isn't found in the imports
 // https://ktor.io/docs/configuration-file.html#read-configuration-in-code
 //val tiledbURI = environment.config.property("TILEDB_URI").getString()
-val tiledbURI = config.property("TILEDB_URI").getString()
+val tiledbURI = "dummy" // need this until we remove it in val taxa below
 
 object SamplesService {
 
@@ -26,17 +26,19 @@ object SamplesService {
         taxa.values.associateBy { it.sampleName }
     }
 
+    fun lcjAllTaxaNames(uri:String):List<Sample> {
+        println("\nLCJ SamplesService.lcjAllTaxaNames: uri: $uri\n")
+        val tiledburi = "${uri}/hvcf_dataset"
+        val myTaxaMap = taxaMap(tiledburi)
+        return myTaxaMap.values.toList()
+    }
+
     fun allTaxaNames(): List<Sample> {
         return taxa.values.toList()
     }
 
     // This function runs tiledbvcf list --uri <uri> and returns a map of sample names
     private fun taxaMap(uri: String): Map<String, Sample> {
-        if (tiledbURI != null) {
-            println("LCJ taxaMap: tiledbURI: $tiledbURI")
-        }else{
-            println("LCJ taxaMap: tiledbURI is null!!!")
-        }
 
         try {
             var builder = ProcessBuilder("conda", "run", "-n", "phgv2-conda", "tiledbvcf", "list", "--uri", uri)
