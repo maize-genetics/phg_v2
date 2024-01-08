@@ -158,10 +158,10 @@ may find are:
 
 | Term             | Definition                                                |
 |------------------|-----------------------------------------------------------|
-| reference genome | A genome used for initial alignment and base coordinates. |
-| reference range  | A segment of the reference genome.                        |
 | haplotype        | The sequence of part of an individual chromosome.         |
 | path             | The phased set of haplotypes that represent a chromosome. |
+| reference genome | A genome used for initial alignment and base coordinates. |
+| reference range  | A segment of the reference genome.                        |
 
 More commonly used terms can be found [here](docs/terminology.md).
 
