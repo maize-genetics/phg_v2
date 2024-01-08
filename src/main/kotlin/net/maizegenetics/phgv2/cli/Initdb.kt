@@ -84,7 +84,7 @@ class Initdb : CliktCommand(help="create tiledb datasets for g.vcf and h.vcf fil
 
         // Now create the gvcf dataset
         logFile = "${tempDir}/tiledbvcf_createHvcf.log"
-        builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","create","--uri",gvcf_dataset,"-n","--log-level","debug","--log-file",logFile)
+        builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","create","--uri",gvcf_dataset,"-n","--log-level","debug","--log-file",logFile,"--anchor-gap","1000000")
         redirectOutput = tempDir + "/tiledb_gvcf_createURI_output.log"
         redirectError = tempDir + "/tiledb_gvcf_createURI_error.log"
         builder.redirectOutput( File(redirectOutput))
