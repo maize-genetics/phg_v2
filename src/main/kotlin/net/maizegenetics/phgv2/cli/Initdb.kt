@@ -36,11 +36,11 @@ class Initdb : CliktCommand(help="create tiledb datasets for g.vcf and h.vcf fil
             }
         }
 
-    val gvcfAnchorGap by option("-g", "--gvcf-anchor-gap", help = "tiledbvcf --anchor-gap for gvcf database")
+    val gvcfAnchorGap by option("-g", "--gvcf-anchor-gap", help = "tiledbvcf --anchor-gap for gvcf database (default: 1000000)")
         .int()
         .default(1000000)
 
-    val hvcfAnchorGap by option("-h", "--hvcf-anchor-gap", help = "tiledbvcf --anchor-gap for hvcf database")
+    val hvcfAnchorGap by option("-h", "--hvcf-anchor-gap", help = "tiledbvcf --anchor-gap for hvcf database (default: 1000)")
         .int()
         .default(1000)
 
