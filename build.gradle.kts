@@ -1,3 +1,4 @@
+import org.gradle.kotlin.dsl.distTar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 val ktorVersion = "2.3.7"
@@ -94,6 +95,13 @@ tasks.jar {
     from(sourceSets.main.get().output)
     from(projectDir) {
         include("version.properties")
+    }
+    exclude("application.conf")
+}
+
+tasks.distTar {
+    from("${projectDir}/src/main/resources/application.conf") {
+        into("phg/resources/")
     }
 }
 
