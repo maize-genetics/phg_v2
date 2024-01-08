@@ -1,10 +1,12 @@
 package net.maizegenetics.phgv2.cli
 
+import com.github.ajalt.clikt.testing.test
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.io.File
 import kotlin.test.Ignore
+import kotlin.test.assertEquals
 
 class InitdbTest {
     companion object {
@@ -60,5 +62,38 @@ class InitdbTest {
         // verify the datasets still exist
         val expectedDatasetFiles = listOf("${dbPath}gvcf_dataset", "${dbPath}hvcf_dataset")
         expectedDatasetFiles.forEach { assert(File(it).exists()) }
+    }
+
+    @Test
+    fun testAnchorGaps() {
+        // testing that we can change the anchor gap size on both the gvcf and hvcf databases
+
+        val dbPath = tempDir + "tiledb_datasets_anchor/"
+        val initdb = Initdb()
+        val gGap_truth = 10000
+        val hGap_truth = 5000
+
+        val result = initdb.test("--db-path $dbPath -g $gGap_truth -h $hGap_truth")
+
+        assertEquals(result.statusCode, 0)
+
+        // get stats to show that anchor-gap was set correctly for gvcf
+        var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri", "$dbPath/gvcf_dataset/")
+        var process = builder.start()
+        var stats = process.inputStream.readAllBytes().decodeToString()
+        process.waitFor()
+        val gGap = stats.split("\n").filter{it.startsWith("- Anchor gap: ")}.map{it.replace("- Anchor gap: ", "").replace(",","")}[0].toInt()
+
+        assertEquals(gGap_truth, gGap)
+
+        // get stats to show that anchor-gap was set correctly for hvcf
+        builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri", "$dbPath/hvcf_dataset/")
+        process = builder.start()
+        stats = process.inputStream.readAllBytes().decodeToString()
+        process.waitFor()
+        val hGap = stats.split("\n").filter{it.startsWith("- Anchor gap: ")}.map{it.replace("- Anchor gap: ", "").replace(",","")}[0].toInt()
+
+        assertEquals(hGap_truth, hGap)
+
     }
 }
