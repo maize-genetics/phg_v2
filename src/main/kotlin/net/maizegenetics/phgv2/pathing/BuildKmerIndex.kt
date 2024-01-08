@@ -86,7 +86,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         require(hvcfDir.isNotBlank() or tiledbPath.isNotBlank()) {"Either of --tiledb-path or --hvcf-dir must be provided."}
         val timedValue = measureTimedValue {
             if(hvcfDir != "") {
-                val pathList = File(hvcfDir).listFiles { file -> file.extension == "vcf" || file.name.endsWith("vcf.gz") }.map { it.path }
+                val pathList = File(hvcfDir).listFiles { file -> file.name.endsWith(".h.vcf") || file.name.endsWith(".h.vcf.gz") }.map { it.path }
                 HaplotypeGraph(pathList)
             }
             else {

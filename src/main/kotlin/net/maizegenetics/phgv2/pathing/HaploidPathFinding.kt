@@ -102,7 +102,7 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
     private val myLogger = LogManager.getLogger(HaploidPathFinding::class.java)
 
     private fun buildHaplotypeGraph(): HaplotypeGraph {
-        val listOfHvcfFilenames = File(hvcfDir).listFiles().filter { it.name.endsWith(".h.vcf") }.map { it.path }
+        val listOfHvcfFilenames = File(hvcfDir).listFiles().filter { it.name.endsWith(".h.vcf") || it.name.endsWith(".h.vcf.gz")}.map { it.path }
         return HaplotypeGraph(listOfHvcfFilenames)
     }
 
