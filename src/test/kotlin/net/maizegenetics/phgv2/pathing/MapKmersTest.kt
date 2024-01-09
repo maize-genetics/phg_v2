@@ -4,7 +4,9 @@ import com.github.ajalt.clikt.testing.test
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.cli.AgcCompress
 import net.maizegenetics.phgv2.cli.TestExtension
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -12,7 +14,9 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
+import java.io.BufferedWriter
 import java.io.File
+import java.io.FileWriter
 import java.util.*
 import kotlin.math.min
 import kotlin.test.assertTrue
@@ -89,18 +93,50 @@ class MapKmersTest {
 
     @Test
     fun testImportKmerMap() {
-//        val kmerIndexFile = "data/test/kmerReadMapping/SimpleIndex.txt"
-//        val kmerMapData = importKmerIndex(kmerIndexFile)
-//
-//        val kmerMap = kmerMapData.kmerHashToLongMap
-//
-//
-//        println(kmerMap.keys)
-
         //We should try to round trip a kmerIndex.  Write it out and then read it back in and compare the two.
+        //Build the graph
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile, TestExtension.smallseqLineBHvcfFile))
+        val kmerIndexFile = "${TestExtension.testOutputDir}/kmerIndex.txt"
+        val buildKmerIndex = BuildKmerIndex()
+        setupAgc()
+        val agcPath = "${TestExtension.testOutputFastaDir}/dbPath"
+        //Long2ObjectOpenHashMap<Set<String>>
+        val kmerMapToHapids = buildKmerIndex.processGraphKmers(graph, .75, agcPath)
+        buildKmerIndex.saveKmerHashesAndHapids(graph, kmerIndexFile, kmerMapToHapids)
 
+        val loadedKmerMapData = loadKmerMaps(kmerIndexFile, graph)
 
+        //Then load it in and compare the two
+        //loadKmerMaps(filename: String, graph: HaplotypeGraph): KmerMapData
+        //The output will be KmerMapData(val rangeToBitSetMap: Map<ReferenceRange, BitSet>,
+        //                               val kmerHashToLongMap: Long2LongOpenHashMap)
+        val ranges = graph.ranges()
 
+        assertEquals(ranges.size, loadedKmerMapData.rangeToBitSetMap.size)
+
+        val refRangeIdToHapIdMap = graph.refRangeIdToHapIdMap()
+
+        //loop through the kmers in kmerHashToLong Map
+        loadedKmerMapData.kmerHashToLongMap.long2LongEntrySet().forEach { (kmerHash,encodedOffset) ->
+            val kmerHashLong = kmerHash.toLong()
+            assertTrue(kmerMapToHapids.containsKey(kmerHashLong))
+
+            val (refRangeId, offset) = decodeRangeIdAndOffset(encodedOffset)
+            //get the ref range so we can look up refRange -> HapId Index
+            val hapIdToIndexMap = refRangeIdToHapIdMap[refRangeId]!!
+
+            val hapIds = kmerMapToHapids[kmerHashLong]!!
+
+            val currentBitSet = loadedKmerMapData.rangeToBitSetMap[ranges[refRangeId]]!!
+            //check to make sure all hapIds are in HapIdToIndexMap
+            //We do not want to check the other direction as there are more hapIds in the graph than are hit by this kmer
+            hapIds.forEach { hapId ->
+                assertTrue(hapIdToIndexMap.containsKey(hapId))
+                //check the bitset at offset + hapIdToIndexMap[hapId] is true
+                val hapIndex = hapIdToIndexMap[hapId]!!
+                assertTrue(currentBitSet[hapIndex + offset])
+            }
+        }
     }
 
     @Test
@@ -477,5 +513,20 @@ class MapKmersTest {
         assertEquals(hapIdsFor50Percent, listOf("1","2","3"))
     }
 
+    //TODO move this to a utility
+    private fun setupAgc() {
+        //create an AGC record with the Ref in it
+        val altFileListFile = TestExtension.testOutputFastaDir+"/agc_altList.txt"
+        BufferedWriter(FileWriter(altFileListFile)).use { writer ->
+            writer.write("data/test/smallseq/LineA.fa\n")
+            writer.write("data/test/smallseq/LineB.fa\n")
+        }
 
+        val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
+        File(dbPath).mkdirs()
+
+        //Call AGCCompress to create the AGC file
+        val agcCompress = AgcCompress()
+        agcCompress.processAGCFiles(dbPath,altFileListFile,"data/test/smallseq/Ref.fa")
+    }
 }
