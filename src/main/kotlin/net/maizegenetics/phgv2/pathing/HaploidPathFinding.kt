@@ -20,7 +20,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
-import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.File
@@ -97,7 +96,7 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
         .default(1.0)
         .validate { require(it in 0.5..1.0) {"min-coverage must be between 0.5 and 1.0"} }
 
-    val likelyAncestorFile by option(help="if useLikelyAncestors is true a record of the ancestors used for each sample will be written to this file, if a name is provided.")
+    val likelyAncestorFile by option(help="If useLikelyAncestors is true, a record of the ancestors used for each sample will be written to this file.")
         .default("")
 
     val threads by option(help = "number of threads used to find paths.").int().default(3)
