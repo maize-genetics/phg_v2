@@ -14,7 +14,10 @@ In this document, we will discuss the steps needed to:
     ```
 * Initialize TileDB instances:
     ```shell
-    phg initdb --db-path /path/to/dbs
+    phg initdb \
+        --db-path /path/to/dbs \
+        --gvcf-anchor-gap 1000000 \
+        --hvcf-anchor-gap 1000
     ```
 * Create BED file from GFF for reference range coordinates:
     ```shell
@@ -175,13 +178,24 @@ up our Conda environment from the prior section, we can automate this
 process using the `initdb` command:
 
 ```shell
-./phg initdb --db-path vcf_dbs
+./phg initdb \
+    --db-path vcf_dbs \
+    --gvcf-anchor-gap 1000000 \
+    --hvcf-anchor-gap 1000
 ```
 
-This command takes one parameter, `--db-path` which is the path or
+This command takes one required parameter, `--db-path` which is the path or
 subdirectory to where we want to place our databases. In this
 example project, I will set up the databases in a subdirectory called
 `vcf_dbs`.
+
+Two optional parameters, `--gvcf-anchor-gap` and `--hvcf-anchor-gap` may also 
+be set. These parameters define the distance between anchors in the two 
+TileDB-VCF sparse arrays. Smaller values enable faster data retrieval. However, 
+if there are non-symbolic variants that span many anchors (for example, 
+very large deletions), then the `load-vcf` command will require a large amount 
+of RAM to process variant information for each assembly. More information can be 
+found in the [TileDB-VCF docs.](https://tiledb-inc.github.io/TileDB-VCF/documentation/the-solution.html)
 
 After initialization is complete, we will have two empty TileDB-VCF
 instances and a `temp` directory in our `vcf_dbs` subdirectory:
