@@ -284,3 +284,19 @@ fun importReadMapping(inputFileName: String) : Map<List<String>, Int> {
             Pair(hapIds, count)
         }
 }
+
+/**
+ * Function to merge multiple read mapping lists into a single list by summing the counts
+ * for each read mapping set in the lists.
+ */
+fun mergeReadMappings(listOfReadMappings: List<Map<List<String>, Int>>): Map<List<String>, Int> {
+    if (listOfReadMappings.size == 1) return listOfReadMappings[0]
+    val mergedMappings = listOfReadMappings[0].toMutableMap()
+    listOfReadMappings.drop(1).forEach {
+        it.entries.forEach { (haplist, count) ->
+            val newCount = count + (mergedMappings[haplist] ?: 0)
+            mergedMappings.put(haplist, newCount)
+        }
+    }
+    return mergedMappings
+}
