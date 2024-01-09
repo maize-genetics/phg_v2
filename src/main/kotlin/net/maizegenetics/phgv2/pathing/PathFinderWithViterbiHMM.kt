@@ -4,10 +4,28 @@ import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
 import org.apache.logging.log4j.LogManager
+import java.io.File
 import kotlin.math.E
 import kotlin.math.log
 
-    class PathFinderWithViterbiHMM(
+/**
+ * This class finds the most likely path through a graph from read mapping data for any number of samples using the Viterbi algorithm.
+ *
+ * @param graph The [HaplotypeGraph] used to impute paths. The reads must have been mapped against this graph (or a superset of it).
+ * @param probCorrect The probability that a read was mapped to the correct range.
+ * @param sameGameteProbability The probability that a parent in any given range is the same as the parent in the previous range.
+ * @param minGametesPerRange Ranges with fewer than this many sampleGametes in the graph will not be imputed.
+ * @param minReadsPerRange Ranges with fewer then this many mapped reads will not be imputed.
+ * @param maxReadsPerKB If the number of reads for a range is greater than maxReadsPerKB, then those reads will not be used.
+ * @param inbreedCoef The average inbreeding coefficient (F) of the submitted samples. Only used for diploid path finding.
+ * @param useLikelyParents Use only likely parents for path finding. Likely parents are determined for each sample based on the read mappings for that sample.
+ * @param maxParents If useLikelyParents is true, use at most this many parents
+ * @param minCoverage If useLikelyParents is true, stop selecting parents when combined coverage is greater than or equal to this value.
+ *
+ * Likely parents (or ancestors) are determined and used in pathfinding only when (1) useLikelyParents is true and (2) either
+ * maxParents is less than the number of parents in the graph or minCoverage is less than 1.0.
+ */
+class PathFinderWithViterbiHMM(
         val graph: HaplotypeGraph,
         val probCorrect: Double,
         val sameGameteProbability: Double,
@@ -16,11 +34,12 @@ import kotlin.math.log
         val maxReadsPerKB: Int,
         val inbreedCoef: Double = 1.0,
         useLikelyParents: Boolean = false,
-        maxParents: Int = Int.MAX_VALUE,
-        minCoverage: Double = 1.0
+        val maxParents: Int = Int.MAX_VALUE,
+        val minCoverage: Double = 1.0
     ) {
 
         private val myLogger = LogManager.getLogger(PathFinderWithViterbiHMM::class.java)
+        private val findLikelyParents: Boolean
         private val parentFinder: MostLikelyParents?
         private val sampleGametesInGraph = graph.sampleGametesInGraph()
         private val rangeToHaplotypeMap = graph.refRangeToHapIdList()
@@ -32,27 +51,38 @@ import kotlin.math.log
             val totalProbability: Double
         )
 
-        private data class HapNode(val hapnode: String, val emissionP: Double)
-
         init {
-
-            parentFinder = if (useLikelyParents) {
-                MostLikelyParents(graph)
-            } else null
+            findLikelyParents = useLikelyParents && (maxParents < graph.sampleGametesInGraph().size || minCoverage < 1.0)
+            parentFinder = if (findLikelyParents) MostLikelyParents(graph) else null
         }
 
-        fun findBestHaploidPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>): List<String> {
-
+        /**
+         * For a map (list of hapids -> count of reads hitting the set), find the most likely path through the graph.
+         * If useLikelyParents = true, then a likely parents list is generated for each sample and only those parents are
+         * candiates for the path nodes for that sample.
+         *
+         * @param readMap a map of [ReferenceRange] to map(list of hapids to count of reads mapping to that list)
+         */
+        fun findBestHaploidPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>): Pair<List<String>, List<MostLikelyParents.ParentStats>> {
             val haplotypeList = mutableListOf<String>()
+            var likelyParentList = mutableListOf<MostLikelyParents.ParentStats>()
             graph.contigs.forEach { chr ->
-                //Todo use likely parents to create a list of sampleGametes as an additional argument to haploidViterbi
-                haplotypeList.addAll(haploidViterbi(chr, readMap))
+                if (findLikelyParents) {
+                    likelyParentList.addAll( parentFinder!!
+                        .findMostLikelyParents(readMap, maxParents = maxParents, minCoverage = minCoverage))
+
+                    haplotypeList.addAll(haploidViterbi(chr, readMap, likelyParentList.map { it.parent }.toSet()))
+                } else {
+                    haplotypeList.addAll(haploidViterbi(chr, readMap))
+                }
+
             }
-            return haplotypeList
+            return Pair(haplotypeList, likelyParentList)
         }
 
-        fun findBestDiploidPath(): List<List<String>> {
-            TODO("Not implemented yet")
+
+//        fun findBestDiploidPath(): List<List<String>> {
+//            TODO("Not implemented yet")
 //            val haplotypeList = listOf(mutableListOf<HaplotypeNode>(), mutableListOf<HaplotypeNode>())
 //            graph.chromosomes().forEach { chr ->
 //                val start = System.nanoTime()
@@ -62,7 +92,7 @@ import kotlin.math.log
 //                haplotypeList[1].addAll(chrLists[1])
 //            }
 //            return haplotypeList
-        }
+//        }
 
         /**
          * This method takes a graph and  a single chromosome and read mappings and returns a list of HaplotypeNodes that
@@ -71,8 +101,9 @@ import kotlin.math.log
          * the same graph may be used to process multiple samples. It is the responsibility of the calling code to ensure the condition
          * is satisfied.
          *
-         * The input parameter [gameteList], which defaults to all the SampleGametes in the graph, can be a subset of those
-         * in order to restrict the imputation to a subset of potential ancestors.
+         * The input parameter [gameteList], which defaults to all the SampleGametes in the graph, can be used
+         * to restrict the imputation to a subset of potential ancestors. Only the SampleGametes in gameteList will be
+         * used for imputation.
          *
          * @param chrom a chromosome name
          * @param readMap   a map of read mappings by ReferenceRange for graph.
