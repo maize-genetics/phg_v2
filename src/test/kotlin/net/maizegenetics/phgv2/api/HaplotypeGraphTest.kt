@@ -25,12 +25,12 @@ class HaplotypeGraphTest {
 
     @Test
     fun testMultipleFilesHaplotypeGraph() {
+        //include RefHvcf to test what happens when a sample has no haplotype in at least one ReferenceRange
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile, TestExtension.smallseqLineBHvcfFile, TestExtension.smallseqRefHvcfFile))
 
-        val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile, TestExtension.smallseqLineBHvcfFile))
+        assertEquals(40, graph.numberOfRanges(), "numOfRanges not 40: ${graph.numberOfRanges()}")
 
-        assertEquals(38, graph.numberOfRanges(), "numOfRanges not 38: ${graph.numberOfRanges()}")
-
-        assertEquals(2, graph.numberOfSamples(), "numOfSamples not 2: ${graph.numberOfSamples()}")
+        assertEquals(3, graph.numberOfSamples(), "numOfSamples not 3: ${graph.numberOfSamples()}")
 
         val ranges = graph.ranges()
 
@@ -40,26 +40,26 @@ class HaplotypeGraphTest {
 
         // tests hapIdToSamples() method
 
-        var hapIdToSamples = graph.hapIdToSamples(ranges[0])
+        var hapIdToSamples = graph.hapIdToSampleGametes(ranges[0])
 
-        assertEquals(2, hapIdToSamples.size, "hapIdToSamples size not 2: ${hapIdToSamples.size}")
+        assertEquals(3, hapIdToSamples.size, "hapIdToSamples size not 3: ${hapIdToSamples.size}")
 
         var hapid = "12f0cec9102e84a161866e37072443b7"
         var samples = hapIdToSamples[hapid]
-        assertEquals("LineA", samples?.get(0), "sample not LineA: ${samples?.get(0)}")
+        assertEquals("LineA", samples?.get(0)?.name, "sample not LineA: ${samples?.get(0)?.name}")
 
         hapid = "4fc7b8af32ddd74e07cb49d147ef1938"
         samples = hapIdToSamples[hapid]
-        assertEquals("LineB", samples?.get(0), "sample not LineB: ${samples?.get(0)}")
+        assertEquals("LineB", samples?.get(0)?.name, "sample not LineB: ${samples?.get(0)?.name}")
 
-        hapIdToSamples = graph.hapIdToSamples(ranges[ranges.size - 1])
+        hapIdToSamples = graph.hapIdToSampleGametes(ranges[ranges.size - 2])
         hapid = "0eb9029f3896313aebc69c8489923141"
         samples = hapIdToSamples[hapid]
-        assertEquals("LineA", samples?.get(0), "sample not LineA: ${samples?.get(0)}")
+        assertEquals("LineA", samples?.get(0)?.name, "sample not LineA: ${samples?.get(0)?.name}")
 
         hapid = "5031218d4ac709dd51a946acd0550356"
         samples = hapIdToSamples[hapid]
-        assertEquals("LineB", samples?.get(0), "sample not LineB: ${samples?.get(0)}")
+        assertEquals("LineB", samples?.get(0)?.name, "sample not LineB: ${samples?.get(0)?.name}")
 
         // tests for sampleToHapId() method
 
@@ -77,14 +77,14 @@ class HaplotypeGraphTest {
             "sampleToHapId: checksum not 4fc7b8af32ddd74e07cb49d147ef1938: $checksum"
         )
 
-        checksum = graph.sampleToHapId(ranges[ranges.size - 1], SampleGamete("LineA"))
+        checksum = graph.sampleToHapId(ranges[ranges.size - 2], SampleGamete("LineA"))
         assertEquals(
             "0eb9029f3896313aebc69c8489923141",
             checksum,
             "sampleToHapId: checksum not 0eb9029f3896313aebc69c8489923141: $checksum"
         )
 
-        checksum = graph.sampleToHapId(ranges[ranges.size - 1], SampleGamete("LineB"))
+        checksum = graph.sampleToHapId(ranges[ranges.size - 2], SampleGamete("LineB"))
         assertEquals(
             "5031218d4ac709dd51a946acd0550356",
             checksum,
