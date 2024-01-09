@@ -28,10 +28,10 @@ class MostLikelyParentsTest {
 
         val parentList = MostLikelyParents(myGraph).findMostLikelyParents(refrangeToReadCounts, 3, 1.0)
         assertEquals(2, parentList.size)
-        assertEquals("LineA", parentList[0].first.name)
-        assertEquals("LineB", parentList[1].first.name)
-        assertEquals(190, parentList[0].second)
-        assertEquals(38, parentList[1].second)
+        assertEquals("LineA", parentList[0].parent.name)
+        assertEquals("LineB", parentList[1].parent.name)
+        assertEquals(190, parentList[0].readCount)
+        assertEquals(38, parentList[1].readCount)
 
     }
 
