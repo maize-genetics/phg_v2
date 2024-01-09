@@ -44,7 +44,7 @@ class Initdb : CliktCommand(help="create tiledb datasets for g.vcf and h.vcf fil
         .int()
         .default(1000)
 
-    fun createDataSets(dbpath:String) {
+    fun createDataSets(dbpath:String, gvcfAnchorGap: Int = 1000000, hvcfAnchorGap: Int = 1000) {
         // Check that the user supplied folder exists
         val dbfolder = File(dbpath)
 
@@ -117,7 +117,7 @@ class Initdb : CliktCommand(help="create tiledb datasets for g.vcf and h.vcf fil
     override fun run() {
 
         // call method to create the environment
-        createDataSets(dbPath)
+        createDataSets(dbPath, gvcfAnchorGap, hvcfAnchorGap)
     }
 
 }
