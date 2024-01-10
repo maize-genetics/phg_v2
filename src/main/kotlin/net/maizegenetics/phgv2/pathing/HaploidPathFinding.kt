@@ -200,8 +200,12 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
 
     private suspend fun savePath(pathChannel : ReceiveChannel<Path>) {
         for (path in pathChannel) {
-            writeHvcf(path)
-            if (path.parentsUsed.size > 0) appendParentStats(path)
+            if (path.hapidList.isNullOrEmpty())
+                myLogger.error("No hVCF was written for ${path.name} because no haplotypes were imputed.")
+            else {
+                writeHvcf(path)
+                if (path.parentsUsed.size > 0) appendParentStats(path)
+            }
         }
     }
 

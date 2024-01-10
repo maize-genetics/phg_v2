@@ -178,6 +178,7 @@ class PathFinderWithViterbiHMM(
                 val newPaths = ArrayList<PathNode>()
 
                 //TODO revisit whether randomly picking best is a good strategy
+                //TODO figure out how to test lines 217-222
                 //choose the most probable path from the previous range. If more than one, any one will do.
                 //the most likely path in the previous range
                 val bestPath = paths.maxByOrNull { it.totalProbability }
