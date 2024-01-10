@@ -116,7 +116,8 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: 'gradle'
-
+      - name: Update applications.conf
+        run: src/scripts/update_applications_conf.sh
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
