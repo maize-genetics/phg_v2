@@ -88,8 +88,10 @@ class BuildKmerIndexTest {
         val tempHvcfDir = "${tempTestDir}hvcfDir/"
         val tempAGCDir = "${TestExtension.testOutputFastaDir}/dbPath"
 
-        //copy hvcf files to temp directory
-        listOf(TestExtension.smallseqLineAHvcfFile,TestExtension.smallseqLineBHvcfFile).forEach { hvcfFile ->
+        //copy hvcf files to temp directory,
+        // include the ref hvcf to test what happens when samples have no haplotype in some ref range
+        listOf(TestExtension.smallseqLineAHvcfFile,TestExtension.smallseqLineBHvcfFile, TestExtension.smallseqRefHvcfFile)
+            .forEach { hvcfFile ->
             val dst = File("$tempHvcfDir${File(hvcfFile).name}")
             if (!dst.exists()) {
                 File(hvcfFile).copyTo(dst)

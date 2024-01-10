@@ -8,8 +8,9 @@ import java.io.File
 class TestExtension : BeforeAllCallback {
 
     companion object {
-
-        val tempDir = "${System.getProperty("user.home")}/temp/phgv2Tests/tempDir/"
+        //the next line converts Windows \ to linux / in the user home path
+        val userHome = System.getProperty("user.home").replace('\\', '/')
+        val tempDir = "${userHome}/temp/phgv2Tests/tempDir/"
         val testVCFDir = "${tempDir}vcfDir/"
         val testMafDir = "${tempDir}mafDir/"
         val testInputFastaDir = "${tempDir}inputFastaDir/"
