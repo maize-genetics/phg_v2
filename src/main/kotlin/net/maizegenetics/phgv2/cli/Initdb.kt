@@ -5,6 +5,7 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.types.int
 import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.lang.Exception
@@ -35,7 +36,15 @@ class Initdb : CliktCommand(help="create tiledb datasets for g.vcf and h.vcf fil
             }
         }
 
-    fun createDataSets(dbpath:String) {
+    val gvcfAnchorGap by option("-g", "--gvcf-anchor-gap", help = "tiledbvcf --anchor-gap for gvcf database (default: 1000000)")
+        .int()
+        .default(1000000)
+
+    val hvcfAnchorGap by option("-h", "--hvcf-anchor-gap", help = "tiledbvcf --anchor-gap for hvcf database (default: 1000)")
+        .int()
+        .default(1000)
+
+    fun createDataSets(dbpath:String, gvcfAnchorGap: Int = 1000000, hvcfAnchorGap: Int = 1000) {
         // Check that the user supplied folder exists
         val dbfolder = File(dbpath)
 
@@ -61,7 +70,7 @@ class Initdb : CliktCommand(help="create tiledb datasets for g.vcf and h.vcf fil
         // this environment.
         var logFile = "${tempDir}/tiledbvcf_createHvcf.log"
 
-        var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","create","--uri",hvcf_dataset,"-n","--log-level","debug","--log-file",logFile)
+        var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","create","--uri",hvcf_dataset,"-n","--log-level","debug","--log-file",logFile,"--anchor-gap",hvcfAnchorGap.toString())
         var redirectOutput = tempDir + "/tiledb_hvcf_createURI_output.log"
         var redirectError = tempDir + "/tiledb_hvcf_createURI_error.log"
         builder.redirectOutput( File(redirectOutput))
@@ -84,7 +93,7 @@ class Initdb : CliktCommand(help="create tiledb datasets for g.vcf and h.vcf fil
 
         // Now create the gvcf dataset
         logFile = "${tempDir}/tiledbvcf_createHvcf.log"
-        builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","create","--uri",gvcf_dataset,"-n","--log-level","debug","--log-file",logFile)
+        builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","create","--uri",gvcf_dataset,"-n","--log-level","debug","--log-file",logFile,"--anchor-gap",gvcfAnchorGap.toString())
         redirectOutput = tempDir + "/tiledb_gvcf_createURI_output.log"
         redirectError = tempDir + "/tiledb_gvcf_createURI_error.log"
         builder.redirectOutput( File(redirectOutput))
@@ -108,7 +117,7 @@ class Initdb : CliktCommand(help="create tiledb datasets for g.vcf and h.vcf fil
     override fun run() {
 
         // call method to create the environment
-        createDataSets(dbPath)
+        createDataSets(dbPath, gvcfAnchorGap, hvcfAnchorGap)
     }
 
 }
