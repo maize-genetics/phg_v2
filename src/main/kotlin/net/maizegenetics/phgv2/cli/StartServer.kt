@@ -66,7 +66,7 @@ class StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
         // but it does when calculated here.
 
         // Create a configPath using the appHome variable created above
-        val configPath = Paths.get("${appHome}/resources/application.conf")
+        val configPath = Paths.get("${appHome}/resources/main/application.conf")
 
         myLogger.info("writeConfigFile: configPath = ${configPath}")
         var config = Files.readString(Paths.get(configPath.toString()))
@@ -92,7 +92,7 @@ class StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
 
     // Find the TILEDB_URI from the application.conf file
     fun getDbPathFromConfigFile(appHome:String):String? {
-        val configPath = Paths.get("${appHome}/resources/application.conf")
+        val configPath = Paths.get("${appHome}/resources/main/application.conf")
 
         var config = Files.readString(Paths.get(configPath.toString()))
         // Find the line in the config file that starts with "TILEDB_URI"

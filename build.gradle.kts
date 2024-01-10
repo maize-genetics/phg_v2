@@ -102,7 +102,7 @@ tasks.jar {
 
 tasks.distTar {
     from("${projectDir}/src/main/resources/application.conf") {
-        into("phg/resources/")
+        into("phg/resources/main/")
     }
 }
 
