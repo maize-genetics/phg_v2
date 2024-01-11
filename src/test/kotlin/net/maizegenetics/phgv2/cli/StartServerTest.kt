@@ -71,22 +71,9 @@ class StartServerTest {
         }
     }
 
-    // This test should not be run as it results in the software hanging while the
-    // server is active.
-    @Test
-    fun testStartServer() {
-
-//        val dbUri = "/Users/lcj34/temp/phgv2Tests/tempDir/testTileDBURI/"
-//        val command = StartServer()
-//        val result = command.test("--db-path $dbUri")
-//        println("result: $result")
-//
-//        // This doesn't get hit because we don't come back from the server call above
-//        // can the server call be put into a ProcessBuilder command?
-//        println("Now calling stopServer - will this work?")
-//        //StartServer().stopServer()
-
-    }
+    // We do not include a test that calls StartServer as it results in the software hanging while the
+    // server is active.  JUnit tests for brAPI endpoints are executed using the Ktor testApplication
+    // which doesn't require the server to be running.
 
     @Test
     fun testGetDbPathFromConfigFile() {
