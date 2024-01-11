@@ -36,7 +36,7 @@ repositories {
 }
 
 dependencies {
-    //testImplementation(kotlin("test"))
+
     val kotlinVersion = rootProject.extra["kotlinVersion"]
 
     implementation("org.biokotlin:biokotlin:0.10")
@@ -95,6 +95,28 @@ tasks.jar {
     from(sourceSets.main.get().output)
     from(projectDir) {
         include("version.properties")
+    }
+    exclude("application.conf")
+}
+
+tasks.distTar {
+    from("${projectDir}/src/main/resources/application.conf") {
+        into("phg/resources/main/")
+    }
+}
+
+tasks.startScripts {
+    classpath = classpath?.plus(files("resources"))
+    doLast {
+        val windowsScriptFile = windowsScript
+        val unixScriptFile = unixScript
+
+        windowsScriptFile.writeText(
+            windowsScriptFile.readText().replace("%APP_HOME%\\lib\\resources", "%APP_HOME%\\resources\\main")
+        )
+        unixScriptFile.writeText(
+            unixScriptFile.readText().replace("\$APP_HOME/lib/resources", "\$APP_HOME/resources/main")
+        )
     }
 }
 
