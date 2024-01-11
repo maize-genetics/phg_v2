@@ -376,7 +376,7 @@ fun verifyURI(dbPath:String,uri:String): Boolean {
             throw IllegalArgumentException("Error running ProcessBuilder to stat tiledb URI: ${exc}")
         }
 
-        myLogger.info("Using existing TileDB datasets previously created in folder $dbPath.")
+        myLogger.info("Using  TileDB datasets created in folder $dbPath.")
         return true
     } else {
         myLogger.info("TileDB datasets not found in folder $dbPath. Please run InitDB to create the datasets.")

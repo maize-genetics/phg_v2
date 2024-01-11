@@ -11,6 +11,15 @@ import org.apache.logging.log4j.LogManager
 import java.nio.file.Files
 import java.nio.file.Paths
 
+/**
+ * This class starts the PHGv2 BrAPI server.
+ * It is called from the main function in src/main/kotlin/net/maizegenetics/phgv2/cli/PHGv2.kt
+ * It takes a single optional parameter, dbPath, which defines the location of the folder containing the TileDB datasets.
+ * If dbPath is not supplied, the application.conf file is checked for a TILEDB_URI line.
+ * If that is not found, an error is thrown.
+ * If dbPath is supplied, we verify that it contains a valid hvcf_dataset.
+ *
+ */
 class StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
 
     private val myLogger = LogManager.getLogger(StartServer::class.java)
@@ -38,11 +47,19 @@ class StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
             }
         } else { // dbPath has a value
             if (configPath!=null && configPath.isNotBlank()) {
-                myLogger.info("\nstart-server:  TILEDB_URI is already set in application.conf file.  \nUsing the application.conf TILEDB_URI value of ${configPath}.")
+                if (configPath != dbPath) {
+                    if (!verifyURI(dbPath,"hvcf_dataset")) {
+                        myLogger.error("start-server:  \ndp-path does not contain a valid tiledb created hvcf_dataset.  \nPlease re-run start-server with a valid value for db-path parameter.")
+                        throw IllegalArgumentException("start-server:  \nTILEDB_URI is not valid.  \nPlease re-run start-server with a valid value for dbPath parameter.")
+                    }
+                    // Updating TILEDB_URI in the application.conf with value from db-path
+                    myLogger.error("start-server:  Updating TILEDB_URI in the application.conf with value from db-path: ${dbPath}")
+                    updateConfigFile(dbPath,appHome)
+                } else {
+                    myLogger.info("\nstart-server:  Running server with db-path/TILEDB_URI of ${configPath}.")
+                }
             } else {
-                // verify the URI is good
-                val hvcfExists = verifyURI(tiledbPath,"hvcf_dataset")
-                if (!hvcfExists) {
+                if (!verifyURI(tiledbPath,"hvcf_dataset")) {
                     myLogger.error("hvcf_dataset does not exist in $dbPath.  Please check your path, and/or run Initdb to create the datasets.")
                     throw IllegalArgumentException("A valid hvcf_dataset does not exist in $dbPath.")
                 }
@@ -77,6 +94,21 @@ class StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
         configPath.toFile().writeText(config)
     }
 
+    fun updateConfigFile(dbPath:String,appHome:String) {
+        val configPath = Paths.get("${appHome}/resources/main/application.conf")
+        // write the existing file minus the TILEDB_URI line
+        var config = ""
+        Files.lines(Paths.get(configPath.toString())).forEach { line ->
+            if (!line.startsWith("TILEDB_URI")) {
+                config += line + "\n"
+            }
+        }
+
+        // append to the beginning of config the line "TILEDB_URI=${dbPath}"
+        config  = "TILEDB_URI=${dbPath}\n" + config
+        //write the new config file - do I have permission ???
+        configPath.toFile().writeText(config.toString())
+    }
 
     // Find the path to this class from the jar file
     // Use that to determine the path to the application.conf file
