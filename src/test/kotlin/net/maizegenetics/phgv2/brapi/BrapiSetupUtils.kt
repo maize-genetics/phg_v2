@@ -28,6 +28,19 @@ fun createSmallSeqTiledb() {
     var agcResult = agcCompress.test("--fasta-list ${TestExtension.smallseqAssembliesListFile} --db-path ${TestExtension.testTileDBURI} --reference-file ${TestExtension.smallseqRefFile}")
     println(agcResult.output)
 
+    // Run CreateRefVcf
+    println("createSmallSeqTiledb - calling CreateRefVcf")
+    val createRefVcf = CreateRefVcf()
+    val tiledbURI = TestExtension.testTileDBURI
+    val refName = "Ref"
+    val refUrl = TestExtension.refURL
+
+    val ranges = "data/test/smallseq/anchors.bed"
+    val genome = "data/test/smallseq/Ref.fa"
+
+    val result = CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $genome --reference-url ${refUrl} --db-path $tiledbURI")
+    assertEquals(0, result.statusCode )
+
     //Load All HVCFs into Tile DB
     println("createSmallSeqTiledb - calling LoadVcf")
     loadVcfFiles()

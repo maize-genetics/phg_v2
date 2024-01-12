@@ -1,10 +1,21 @@
 package net.maizegenetics.phgv2.brapi.api
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import io.kotest.matchers.shouldBe
+import io.ktor.client.call.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.testing.*
+import model.VariantsListResponse
 import net.maizegenetics.phgv2.brapi.createSmallSeqTiledb
+import net.maizegenetics.phgv2.brapi.model.SampleListResponse
 import net.maizegenetics.phgv2.brapi.resetDirs
 import net.maizegenetics.phgv2.brapi.service.VariantsService
 import net.maizegenetics.phgv2.cli.TestExtension
 import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -41,7 +52,55 @@ class VariantsTest {
         // in the referenceRanges list
         val bedFileLines = bedFile.readLines()
         assert(bedFileLines.size == referenceRanges.size)
+    }
 
+    @Test
+    fun testVariantsDefaultPageSize() = testApplication {
+
+        // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
+        val client = createClient {
+            install(ContentNegotiation) {
+                json()
+            }
+        }
+
+        val response = client.get("/brapi/v2/variants")
+        Assertions.assertEquals(HttpStatusCode.OK, response.status)
+        val variants = response.body<VariantsListResponse>().result
+        println("variants: $variants")
+        Assertions.assertEquals(40, variants.data.size)
+        val variantEntries = variants.data
+        Assertions.assertEquals(1, variantEntries[0].start)
+        Assertions.assertEquals(1001, variantEntries[1].start)
+        Assertions.assertEquals(5501, variantEntries[2].start)
+
+    }
+
+    @Test
+    fun testVariantsPageSize3() = testApplication {
+
+        // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
+        val client = createClient {
+            install(ContentNegotiation) {
+                json()
+            }
+        }
+
+        val response = client.get("/brapi/v2/variants?pageSize=3")
+        Assertions.assertEquals(HttpStatusCode.OK, response.status)
+
+        val variants = response.body<VariantsListResponse>().result
+        println("variants: $variants")
+        Assertions.assertEquals(3, variants.data.size)
+        val variantEntries = variants.data
+
+        Assertions.assertEquals(1, variantEntries[0].start)
+        Assertions.assertEquals(1001, variantEntries[1].start)
+        Assertions.assertEquals(5501, variantEntries[2].start)
+
+        val pagination = response.body<VariantsListResponse>().metadata.pagination
+        val nextPageToken = pagination!!.nextPageToken
+        nextPageToken shouldBe "4"
 
     }
 }

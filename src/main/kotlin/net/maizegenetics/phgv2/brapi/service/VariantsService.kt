@@ -24,9 +24,8 @@ private val config = HoconApplicationConfig(ConfigFactory.load())
  * Class to handle all the Variant creation.
  */
 
-// NOTE: when using the variantCache to pull reference range data,
-// use variantDbId-1.  The variantDbIds are 1-based:  actual reference range ids
-// These are stored in order, in a list that is 0-based.
+// Cache manager stores the reference range data im memory for
+// quick access.
 private val cacheManager = CacheManagerBuilder.newCacheManagerBuilder()
     .using(statisticsVariantsService)
     .withCache(
@@ -78,8 +77,8 @@ class VariantsService {
                 val fields = range.split("\\s+".toRegex())
                 val referenceRange = ReferenceRange(
                     contig = fields[0],
-                    start = fields[1].toInt(),
-                    end = fields[2].toInt(),
+                    start = fields[1].toInt() + 1, // because bed is 0-based, but ref ranges are 1-based
+                    end = fields[2].toInt(), // bed file end is exclusive, no need to add 1
                 )
                 referenceRange
             }
@@ -131,13 +130,15 @@ class VariantsService {
         Collections.sort(sortedRangeList)
 
         val startId = currentPageToken-1 // because tokens are 1 based, but list is 0-based
-        val endId = startId + pageSize -1; // endId is inclusive
+        val endId = if(startId + pageSize  < referenceRanges.size) startId + pageSize else referenceRanges.size  // endId is exclusive
+
         val totalCount = referenceRanges.size
 
-        // Now we pull from the sortedRangeList just those list entries that are between the startId and endId,
+        // Pull from the sortedRangeList just those list entries that are between the startId and endId,
         // and write them to a new list
-        // LCJ - manually check this - we don't need a variant, we just want the list entries.
-        val variants = sortedRangeList.subList(startId,endId+1).map { range ->
+        println("\nLCJ VariantsService:generateVariantsListFromCache - startId: $startId, endId: $endId \n")
+        // Note: subList the endId is exclusive, accounted for when creating the endId above
+        val variants = sortedRangeList.subList(startId,endId).map { range ->
             Variant(
                 referenceName = range.contig,
                 start = range.start,
@@ -160,10 +161,8 @@ class VariantsService {
             )
         }
 
-        // Plus 2:  Because we dropped 1 to go to 0-based for the referenceRanges list.
-        // Now we need to add that back to get to 1-based, plus add 1 more to get to the
-        // first variant beyond what we've already processed.
-        var nextPageToken: String? = (endId+2).toString()
+        // add 1 to get to the next page token.  If the endId is the last reference range,
+        var nextPageToken: String? = (endId+1).toString()
         if (endId > referenceRanges.size) {
             nextPageToken = null
         }

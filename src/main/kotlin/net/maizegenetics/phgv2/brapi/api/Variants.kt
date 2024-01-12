@@ -24,14 +24,13 @@ fun Route.variants() {
         //This can be used to get the list of all the ids to further get more information using the other endpoints.
         get("") {
             val pageToken =
-                call.parameters["page"]?.toInt() ?: 1 // token is reference range ID, they are stored in order
+                call.parameters["page"]?.toInt() ?: 1 // token is index into the list of reference ranges, which are stored in sorted order
             val pageSize = call.parameters["pageSize"]?.toInt() ?: defaultVariantsPageSize
 
-            // These are tokens, not array indices.  The ranges are pulled from the database based on
-            // reference_range_id BETWEEN start and end.  0 as a start won't cause an error, but it also
-            // isn't truly valid.
+            // These are array indices, but user will think of them as 1 based, not 0-based.
+            // the software will handle this.
             if (pageToken < 1) {
-                call.respond(" ${HttpStatusCode.NotFound}: Invalid page token: ${pageToken}. The page token represents a reference range id, which is 1 or greater.")
+                call.respond(" ${HttpStatusCode.NotFound}: Invalid page token: ${pageToken}. The page token must be greater than 0")
             }
 
             val variantsAndPagination = variantService.generateVariantsListFromCache(pageToken, pageSize,"all")
