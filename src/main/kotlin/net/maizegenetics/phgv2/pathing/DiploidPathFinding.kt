@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.maizegenetics.phgv2.api.HaplotypeGraph
@@ -31,8 +32,8 @@ import java.io.File
  *
  * Steps:
  * 1. Read the keyfile
- * 1. Build the HaplotypeGraph
- * 2. For each entry in the keyfile (multithreaded)
+ * 2. Build the HaplotypeGraph
+ * 3. For each entry in the keyfile (multithreaded)
  *      a. Get the read mapping data
  *      b. Use Viterbi algorithm to find the best path
  *      c. Store the path (write hvcf)
@@ -80,7 +81,6 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
         .double()
         .default(0.0)
         .validate { require(it in 0.0..1.0) {"inbreeding-coefficient must be between 0.0 and 1.0"} }
-
 
     val maxReadsPerKb by option(help = "ReferenceRanges with more than max-reads-per-kb will not be imputed.")
         .int()
@@ -196,6 +196,27 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
         pathChannel.close()
 
         //block should not finish until savePath is finished processing results
+    }
+
+    private suspend fun imputePath(graph: HaplotypeGraph, readMappingChannel: ReceiveChannel<ReadMappingResult>, pathChannel: SendChannel<Path>) {
+        val pathFinder = PathFinderWithViterbiHMM(graph = graph,
+            probCorrect = probCorrect,
+            sameGameteProbability = probSameGamete,
+            minGametesPerRange = minGametes,
+            minReadsPerRange = minReads,
+            maxReadsPerKB =  maxReadsPerKb,
+            useLikelyParents = useLikelyAncestors,
+            maxParents = maxAncestors,
+            minCoverage = minCoverage,
+            inbreedCoef = inbreedingCoefficient
+        )
+
+        for (result in readMappingChannel) {
+            val mappingsByRefrange = HaploidPathFinding.readMappingByRange(result.readMappingCounts, graph)
+            val hapidList = pathFinder.findBestDiploidPath(mappingsByRefrange)
+            pathChannel.send(Path(result.name, hapidList, graph))
+        }
+
     }
 
     private suspend fun savePath(pathChannel : ReceiveChannel<Path>) {

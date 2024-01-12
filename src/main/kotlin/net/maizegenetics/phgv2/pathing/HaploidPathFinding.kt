@@ -107,6 +107,7 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
     }
 
     override fun run() {
+        //TODO determine how samples with no haplotype are being handled
         processKeyFile()
     }
 

@@ -51,17 +51,17 @@ import kotlin.math.log
             return haplotypeList
         }
 
-        fun findBestDiploidPath(): List<List<String>> {
-            TODO("Not implemented yet")
-//            val haplotypeList = listOf(mutableListOf<HaplotypeNode>(), mutableListOf<HaplotypeNode>())
-//            graph.chromosomes().forEach { chr ->
-//                val start = System.nanoTime()
-//                val chrLists = diploidViterbi(chr, readMap)
-//                myLogger.info("Elapsed time for chr $chr: ${(System.nanoTime() - start) / 1e9} sec.")
-//                haplotypeList[0].addAll(chrLists[0])
-//                haplotypeList[1].addAll(chrLists[1])
-//            }
-//            return haplotypeList
+        fun findBestDiploidPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>): List<List<String>> {
+
+            val haplotypeList = listOf(mutableListOf<String>(), mutableListOf<String>())
+            graph.contigs.forEach { chr ->
+                val start = System.nanoTime()
+                val chrLists = diploidViterbi(chr, readMap)
+                myLogger.info("Elapsed time for chr $chr: ${(System.nanoTime() - start) / 1e9} sec.")
+                haplotypeList[0].addAll(chrLists[0])
+                haplotypeList[1].addAll(chrLists[1])
+            }
+            return haplotypeList
         }
 
         /**
@@ -230,198 +230,198 @@ import kotlin.math.log
                 return haplotypeList
         }
 
-//        private fun diploidViterbi(
-//            chrom: Chromosome,
-//            readMap: Multimap<ReferenceRange, HapIdSetCount>
-//        ): List<List<HaplotypeNode>> {
-//            myLogger.info("Finding path for chromosome ${chrom.name} using diploidViterbi")
+        private fun diploidViterbi(
+            chrom: String,
+            readMap: Map<ReferenceRange, Map<List<String>, Int>>
+        ): List<List<String>> {
+            myLogger.info("Finding path for chromosome $chrom using diploidViterbi")
 //            val rangeToNodesMap = graph.tree(chrom)
-//            val taxaSet = graph.taxaInGraph().map { it.name }.toSortedSet()
-//            val taxaNamePairs =
-//                taxaSet.map { firstName -> taxaSet.map { secondName -> Pair(firstName, secondName) } }.flatten()
-//            val lnSameGameteProb = log(sameGameteProbability, E)
-//            val numberOfTaxa = taxaSet.size
-//            val numberOfStates = numberOfTaxa * numberOfTaxa
-//            var elapsedTimeForPathLoop = 0L
-//
-//            //diagnostic counters for discarded ranges:
-//            //countTooFewReads, countTooManyReadsPerKB, countReadsEqual, countDiscardedRanges
-//            val counters = IntArray(4) { 0 }
-//
-//            //create emission and transition probability
-//            val emissionProb = DiploidEmissionProbability(rangeToNodesMap, readMap, probCorrect)
-//            val transitionProb =
-//                DiploidTransitionProbabilityWithInbreeding(taxaSet.size, sameGameteProbability, inbreedCoef)
-//
-//            val rangeToNodesMapIter = rangeToNodesMap.entries.iterator()
-//            var rangeIndex = 0
-//
-//            var initialEntry =
-//                rangeToNodesMapIter.next()  //entry key is ReferenceRange, entry value is List<HaplotypeNode>
-//            while (!useRange(
-//                    readMap[initialEntry.key],
-//                    counters,
-//                    initialEntry.key,
-//                    initialEntry.value
-//                ) && rangeToNodesMapIter.hasNext()
-//            ) {
-//                initialEntry = rangeToNodesMapIter.next()
-//                rangeIndex++
-//            }
-//
-//            //for each ordered pair of taxa create a new path
-//            //For that need a map of taxa pair to node pair index in order to get emission probabilities
-//            //Creating the taxa pair to node pair index makes it unnecessary to split the graph by taxa first
-//            //However, the missing taxa node has to be added so that all taxa are in all reference ranges
-//            //nodes may have a taxaList with multiple taxa. In that case, all possible taxa pairs should map to same index
-//            val currentNodePairs = initialEntry.value.map { firstNode ->
-//                initialEntry.value.map { secondNode ->
-//                    Pair(
-//                        firstNode,
-//                        secondNode
-//                    )
-//                }
-//            }.flatten()
-//            val taxaPairToIndexMap = taxaPairToIndexMapFromNodePairs(currentNodePairs)
-//
-//            //map of trellis states to node pair index. The taxa Int pair index is the state
-//            val nodePairIndexByState = taxaNamePairs.map { taxaPairToIndexMap[it] }
-//
-//            //create a path for every state
-//            var paths = (0 until numberOfStates).map { index ->
-//                val nodePairIndex = nodePairIndexByState[index]
-//                check(nodePairIndex != null) { "node pair index is missing for " }
-//                val logEmissionP = emissionProb.getLnProbObsGivenState(nodePairIndex, rangeIndex)
-//                DiploidPathNode(null, currentNodePairs[nodePairIndex], index, logEmissionP)
-//            }
-//
-//            while (rangeToNodesMapIter.hasNext()) {
-//                //for each node in the next range find the maximum value of path probability * transition
-//                //actually only two to consider (1-r) * same taxon (switchProbability) and r/(n-1) * all other taxa
-//                //where n is number of taxa. Since the transition likelihood is the same for all n of the recombinant taxa,
-//                //only the most likely of those needs to be considered.
-//                //TODO instead of skipping the range consider setting the number of reads to zero
-//                val nextEntry = rangeToNodesMapIter.next()
-//                rangeIndex++
-//                if (!useRange(readMap[nextEntry.key], counters, nextEntry.key, nextEntry.value)) {
-//                    continue
-//                }
-//                val newPaths = ArrayList<DiploidPathNode>()
-//
-//                //choose the most probable path from the previous range. If more than one, any one will do.
-//                val bestPath = paths.maxByOrNull { it.totalProbability }  //the most likely path in the previous range
-//                check(bestPath != null) { "no most likely path before range at ${nextEntry.key.chromosome().name}:${nextEntry.key.start()}" }
-//
-//                val currentNodePairs = nextEntry.value.map { firstNode ->
-//                    nextEntry.value.map { secondNode ->
-//                        Pair(
-//                            firstNode,
-//                            secondNode
-//                        )
-//                    }
-//                }.flatten()
-//                val taxaPairToIndexMap = taxaPairToIndexMapFromNodePairs(currentNodePairs)
-//                val nodePairIndexByState = taxaNamePairs.map { taxaPairToIndexMap[it] }
-//                val totalProbabilityArray = paths.map { it.totalProbability }.toDoubleArray()
-//
-//                val start = System.nanoTime()  //to time path finding loop
-//                for (state in 0 until numberOfStates) {
-//                    //find the most likely path leading to this node
-//                    //if the bestPath ends in the same taxa pair as this node, then that is the most likely path.
-//                    // create the new path and continue
-//                    val nodePairIndex = nodePairIndexByState[state]
-//                    check(nodePairIndex != null) { "node pair index is null" }
-//                    val pairEmissionProbability = emissionProb.getLnProbObsGivenState(nodePairIndex, rangeIndex)
-//
-//                    if (bestPath.state == state) {
-//                        newPaths.add(
-//                            DiploidPathNode(
-//                                bestPath,
-//                                currentNodePairs[nodePairIndex],
-//                                state,
-//                                bestPath.totalProbability + pairEmissionProbability + lnSameGameteProb
-//                            )
-//                        )
-//                    } else {
-//                        val (parentState, tmpProbability) = transitionProb.maxIndexAndProbabilityForTarget(
-//                            totalProbabilityArray,
-//                            state
-//                        )
-//
-//                        //for the best path, add emission probability to total probability then add to new paths
-//                        newPaths.add(
-//                            DiploidPathNode(
-//                                paths[parentState],
-//                                currentNodePairs[nodePairIndex],
-//                                state,
-//                                tmpProbability + pairEmissionProbability
-//                            )
-//                        )
-//                    }
-//                }
-//                elapsedTimeForPathLoop += System.nanoTime() - start
-//                paths = newPaths
-//            }
-//
-//            myLogger.info("Elapsed time for path loop = ${elapsedTimeForPathLoop / 1e9} seconds.")
-//
-//            //terminate
-//            //back track the most likely path to get two HaplotypeNode Lists
-//            var currentPathnode = paths.maxByOrNull { it.totalProbability }
-//            val nodeList1 = mutableListOf<HaplotypeNode>()
-//            val nodeList2 = mutableListOf<HaplotypeNode>()
-//            while (currentPathnode != null) {
-//                nodeList1.add(currentPathnode.hapnode.first)
-//                nodeList2.add(currentPathnode.hapnode.second)
-//                currentPathnode = currentPathnode.parent
-//            }
-//
-//            //the resulting node lists are last to first, so reverse it
-//            nodeList1.reverse()
-//            nodeList2.reverse()
-//            return listOf(nodeList1, nodeList2)
-//
-//        }
+            val sampleGameteSet = graph.sampleGametesInGraph()
+            val sampleGametePairs =
+                sampleGameteSet.map { firstName -> sampleGameteSet.map { secondName -> Pair(firstName, secondName) } }.flatten()
+            val lnSameGameteProb = log(sameGameteProbability, E)
+            val numberOfSampleGametes = sampleGameteSet.size
+            val numberOfStates = numberOfSampleGametes * numberOfSampleGametes
+            var elapsedTimeForPathLoop = 0L
 
-//        private fun taxaPairToIndexMapFromNodePairs(nodePairs: List<Pair<HaplotypeNode, HaplotypeNode>>): Map<Pair<String, String>, Int> {
-//            val taxaPairToIndexMap = mutableMapOf<Pair<String, String>, Int>()
-//            nodePairs.forEachIndexed { index, pair ->
-//                pair.first.taxaList().map { it.name }.forEach { firstName ->
-//                    pair.second.taxaList().map { it.name }.forEach { secondName ->
-//                        taxaPairToIndexMap.put(Pair(firstName, secondName), index)
-//                    }
-//                }
-//            }
-//            return taxaPairToIndexMap
-//        }
+            //diagnostic counters for discarded ranges:
+            //countTooFewReads, countTooManyReadsPerKB, countReadsEqual, countDiscardedRanges
+            val counters = IntArray(4) { 0 }
 
-//        private fun printHapCountDiagnostic(
-//            paths: List<PathNode>,
-//            setCounts: Collection<HapIdSetCount>,
-//            nodes: Map.Entry<ReferenceRange, List<HaplotypeNode>>
-//        ) {
-//            println("---------------------\ndiagnostics for ${nodes.key}")
-//            for (path in paths) println("${path.gamete} has p = ${path.totalProbability}")
-//
-//            //which is best?
-//            val bestProb = paths.map { it.totalProbability }.maxOrNull()
-//            paths.filter { it.totalProbability == bestProb }.forEach { println("BEST PATH = ${it.gamete}") }
-//
-//            //taxon -> hapid map
-//            val haptaxa = HashMap<String, Int>()
-//            for (node in nodes.value) {
-//                for (taxon in node.taxaList()) haptaxa.put(taxon.name, node.id())
-//            }
-//
-//            //print out count per taxon
-//            val hapCounts = HashMultiset.create<Int>()
-//            for (idset in setCounts) {
-//                for (hid in idset.hapIdSet) hapCounts.add(hid, idset.count)
-//            }
-//
-//            for (taxon in haptaxa.keys) println("$taxon hapcount = ${hapCounts.count(haptaxa[taxon])}")
-//
-//        }
+            //create emission and transition probability
+            val emissionProb = DiploidEmissionProbability(readMap, probCorrect)
+            val transitionProb =
+                DiploidTransitionProbabilityWithInbreeding(sampleGameteSet.size, sameGameteProbability, inbreedCoef)
+
+            val rangeToNodesMapIter = rangeToNodesMap.entries.iterator()
+            var rangeIndex = 0
+
+            var initialEntry =
+                rangeToNodesMapIter.next()  //entry key is ReferenceRange, entry value is List<HaplotypeNode>
+            while (!useRange(
+                    readMap[initialEntry.key],
+                    counters,
+                    initialEntry.key,
+                    initialEntry.value
+                ) && rangeToNodesMapIter.hasNext()
+            ) {
+                initialEntry = rangeToNodesMapIter.next()
+                rangeIndex++
+            }
+
+            //for each ordered pair of taxa create a new path
+            //For that need a map of taxa pair to node pair index in order to get emission probabilities
+            //Creating the taxa pair to node pair index makes it unnecessary to split the graph by taxa first
+            //However, the missing taxa node has to be added so that all taxa are in all reference ranges
+            //nodes may have a taxaList with multiple taxa. In that case, all possible taxa pairs should map to same index
+            val currentNodePairs = initialEntry.value.map { firstNode ->
+                initialEntry.value.map { secondNode ->
+                    Pair(
+                        firstNode,
+                        secondNode
+                    )
+                }
+            }.flatten()
+            val taxaPairToIndexMap = taxaPairToIndexMapFromNodePairs(currentNodePairs)
+
+            //map of trellis states to node pair index. The taxa Int pair index is the state
+            val nodePairIndexByState = sampleGametePairs.map { taxaPairToIndexMap[it] }
+
+            //create a path for every state
+            var paths = (0 until numberOfStates).map { index ->
+                val nodePairIndex = nodePairIndexByState[index]
+                check(nodePairIndex != null) { "node pair index is missing for " }
+                val logEmissionP = emissionProb.getLnProbObsGivenState(nodePairIndex, rangeIndex)
+                DiploidPathNode(null, currentNodePairs[nodePairIndex], index, logEmissionP)
+            }
+
+            while (rangeToNodesMapIter.hasNext()) {
+                //for each node in the next range find the maximum value of path probability * transition
+                //actually only two to consider (1-r) * same taxon (switchProbability) and r/(n-1) * all other taxa
+                //where n is number of taxa. Since the transition likelihood is the same for all n of the recombinant taxa,
+                //only the most likely of those needs to be considered.
+                //TODO instead of skipping the range consider setting the number of reads to zero
+                val nextEntry = rangeToNodesMapIter.next()
+                rangeIndex++
+                if (!useRange(readMap[nextEntry.key], counters, nextEntry.key, nextEntry.value)) {
+                    continue
+                }
+                val newPaths = ArrayList<DiploidPathNode>()
+
+                //choose the most probable path from the previous range. If more than one, any one will do.
+                val bestPath = paths.maxByOrNull { it.totalProbability }  //the most likely path in the previous range
+                check(bestPath != null) { "no most likely path before range at ${nextEntry.key.chromosome().name}:${nextEntry.key.start()}" }
+
+                val currentNodePairs = nextEntry.value.map { firstNode ->
+                    nextEntry.value.map { secondNode ->
+                        Pair(
+                            firstNode,
+                            secondNode
+                        )
+                    }
+                }.flatten()
+                val taxaPairToIndexMap = taxaPairToIndexMapFromNodePairs(currentNodePairs)
+                val nodePairIndexByState = sampleGametePairs.map { taxaPairToIndexMap[it] }
+                val totalProbabilityArray = paths.map { it.totalProbability }.toDoubleArray()
+
+                val start = System.nanoTime()  //to time path finding loop
+                for (state in 0 until numberOfStates) {
+                    //find the most likely path leading to this node
+                    //if the bestPath ends in the same taxa pair as this node, then that is the most likely path.
+                    // create the new path and continue
+                    val nodePairIndex = nodePairIndexByState[state]
+                    check(nodePairIndex != null) { "node pair index is null" }
+                    val pairEmissionProbability = emissionProb.getLnProbObsGivenState(nodePairIndex, rangeIndex)
+
+                    if (bestPath.state == state) {
+                        newPaths.add(
+                            DiploidPathNode(
+                                bestPath,
+                                currentNodePairs[nodePairIndex],
+                                state,
+                                bestPath.totalProbability + pairEmissionProbability + lnSameGameteProb
+                            )
+                        )
+                    } else {
+                        val (parentState, tmpProbability) = transitionProb.maxIndexAndProbabilityForTarget(
+                            totalProbabilityArray,
+                            state
+                        )
+
+                        //for the best path, add emission probability to total probability then add to new paths
+                        newPaths.add(
+                            DiploidPathNode(
+                                paths[parentState],
+                                currentNodePairs[nodePairIndex],
+                                state,
+                                tmpProbability + pairEmissionProbability
+                            )
+                        )
+                    }
+                }
+                elapsedTimeForPathLoop += System.nanoTime() - start
+                paths = newPaths
+            }
+
+            myLogger.info("Elapsed time for path loop = ${elapsedTimeForPathLoop / 1e9} seconds.")
+
+            //terminate
+            //back track the most likely path to get two HaplotypeNode Lists
+            var currentPathnode = paths.maxByOrNull { it.totalProbability }
+            val nodeList1 = mutableListOf<HaplotypeNode>()
+            val nodeList2 = mutableListOf<HaplotypeNode>()
+            while (currentPathnode != null) {
+                nodeList1.add(currentPathnode.hapnode.first)
+                nodeList2.add(currentPathnode.hapnode.second)
+                currentPathnode = currentPathnode.parent
+            }
+
+            //the resulting node lists are last to first, so reverse it
+            nodeList1.reverse()
+            nodeList2.reverse()
+            return listOf(nodeList1, nodeList2)
+
+        }
+
+        private fun taxaPairToIndexMapFromNodePairs(nodePairs: List<Pair<HaplotypeNode, HaplotypeNode>>): Map<Pair<String, String>, Int> {
+            val taxaPairToIndexMap = mutableMapOf<Pair<String, String>, Int>()
+            nodePairs.forEachIndexed { index, pair ->
+                pair.first.taxaList().map { it.name }.forEach { firstName ->
+                    pair.second.taxaList().map { it.name }.forEach { secondName ->
+                        taxaPairToIndexMap.put(Pair(firstName, secondName), index)
+                    }
+                }
+            }
+            return taxaPairToIndexMap
+        }
+
+        private fun printHapCountDiagnostic(
+            paths: List<PathNode>,
+            setCounts: Collection<HapIdSetCount>,
+            nodes: Map.Entry<ReferenceRange, List<HaplotypeNode>>
+        ) {
+            println("---------------------\ndiagnostics for ${nodes.key}")
+            for (path in paths) println("${path.gamete} has p = ${path.totalProbability}")
+
+            //which is best?
+            val bestProb = paths.map { it.totalProbability }.maxOrNull()
+            paths.filter { it.totalProbability == bestProb }.forEach { println("BEST PATH = ${it.gamete}") }
+
+            //taxon -> hapid map
+            val haptaxa = HashMap<String, Int>()
+            for (node in nodes.value) {
+                for (taxon in node.taxaList()) haptaxa.put(taxon.name, node.id())
+            }
+
+            //print out count per taxon
+            val hapCounts = HashMultiset.create<Int>()
+            for (idset in setCounts) {
+                for (hid in idset.hapIdSet) hapCounts.add(hid, idset.count)
+            }
+
+            for (taxon in haptaxa.keys) println("$taxon hapcount = ${hapCounts.count(haptaxa[taxon])}")
+
+        }
 
         /**
          * Determines whether a range meets these conditions:
