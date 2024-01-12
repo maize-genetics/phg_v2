@@ -12,10 +12,16 @@ import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeaderLine
 import htsjdk.variant.vcf.VCFHeaderVersion
 import net.maizegenetics.phgv2.utils.*
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.*
 import java.util.logging.Logger
 
-
+/**
+ * This class takes a reference genome and a bed file of intervals and creates a haplotype vcf for the reference genome.
+ * The bed file and reference genome name are stored to the dbPath/reference folder
+ * The hvcf file is stored to the dbPath/hvcf_files folder
+ */
 class CreateRefVcf : CliktCommand(help = "Create a haplotype VCF for the reference genome") {
 
     private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.cli.CreateRefVcf")
@@ -51,18 +57,17 @@ class CreateRefVcf : CliktCommand(help = "Create a haplotype VCF for the referen
             }
         }
 
-    val outputDir by option("-o", "--output-dir", help = "Name for output VCF file Directory")
+    val dbPath by option(help = "Folder holding TileDB datasets")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--output-dir/-o must not be blank"
+                "--db-path must not be blank"
             }
         }
 
     override fun run() {
         myLogger.info("begin run")
-        createRefHvcf(bed,referenceFile,referenceName,referenceUrl,outputDir)
-
+        createRefHvcf(bed,referenceFile,referenceName,referenceUrl,dbPath)
     }
 
     fun createRefHvcf(ranges:String,refGenome:String,refName:String,refUrl:String,outputDir:String) {
@@ -191,15 +196,36 @@ class CreateRefVcf : CliktCommand(help = "Create a haplotype VCF for the referen
             // Load to an hvcf file, write files to user specified outputDir
 
             val hvcfFileName = "${refName}.h.vcf"
-            var localRefHVCFFile = outputDir + "/" + hvcfFileName
+            val tiledbHvcfDir = "${dbPath}/hvcf_files"
+
+            // Make a folder for the hvcf files
+            // ALl hvcf files loaded to this tiledb dataset will be saved in this subfolder
+            Files.createDirectories(Paths.get(tiledbHvcfDir)) // skips folders that already exist
+            var localRefHVCFFile = tiledbHvcfDir + "/" + hvcfFileName
 
             //  This is in VariantUtils - it exports the gvcf file.
             // Include the VCF ALT Header lines created in the loop above
             exportVariantContext(refName, fullRefVCList, localRefHVCFFile, myRefSequence!!,altHeaderLines)
             //bgzip and csi index the file
             val bgzippedGVCFFileName = bgzipAndIndexGVCFfile(localRefHVCFFile)
-            myLogger.info("${bgzippedGVCFFileName} created and stored to ${outputDir}")
+            myLogger.info("${bgzippedGVCFFileName} created and stored to ${tiledbHvcfDir}")
 
+            // Load the Ref hvcf file to tiledb
+            val loadVcf = LoadVcf()
+            loadVcf.loadVcfFiles(tiledbHvcfDir,dbPath,outputDir)
+
+            // Store the bed file and the reference fasta file to the dbPath/reference folder
+            // Create the dbPath/reference folder if it doesn't exist
+            val tiledbRefDir = "${dbPath}/reference"
+            Files.createDirectories(Paths.get(tiledbRefDir)) // skips folders that already exist
+            val localBedFile = tiledbRefDir + "/" + Paths.get(ranges).fileName.toString()
+
+            // The ref fasta file will be stored as <refName>.fa.  This allows methods
+            // in other parts of the pipeline to know the sampleName of the reference genome as it
+            // is stored in tileDB and AGC.
+            val localRefFile = "${tiledbRefDir}/${refName}.fa"
+            Files.copy(Paths.get(ranges), Paths.get(localBedFile))
+            Files.copy(Paths.get(refGenome), Paths.get(localRefFile))
 
         } catch (exc: Exception) {
             myLogger.severe("Error creating Ref HVCF file: ${exc.message}")
