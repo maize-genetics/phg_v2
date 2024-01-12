@@ -96,6 +96,9 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
         .default(1.0)
         .validate { require(it in 0.5..1.0) {"min-coverage must be between 0.5 and 1.0"} }
 
+    val likelyAncestorFile by option(help="If useLikelyAncestors is true, a record of the ancestors used for each sample will be written to this file.")
+        .default("")
+
     val threads by option(help = "number of threads used to find paths.").int().default(3)
 
 
@@ -135,7 +138,8 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
     }
 
     data class ReadMappingResult(val name: String, val readMappingCounts: Map<List<String>, Int>) //placeholder
-    data class Path(val name: String, val hapidList: List<String>, val graph: HaplotypeGraph)
+    data class Path(val name: String, val hapidList: List<String>, val graph: HaplotypeGraph, val parentsUsed: List<MostLikelyParents.ParentStats> )
+
     private fun processReadMappings(sampleToFiles: Map<String, List<String>>) = runBlocking {
         myLogger.info("processing read mappings.")
         val myGraph = buildHaplotypeGraph()
@@ -190,13 +194,18 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
         for (result in readMappings) {
             val mappingsByRefrange = readMappingByRange(result.readMappingCounts, graph)
             val hapidList = pathFinder.findBestHaploidPath(mappingsByRefrange)
-            resultChannel.send(Path(result.name, hapidList, graph))
+            resultChannel.send(Path(result.name, hapidList.first, graph, hapidList.second))
         }
     }
 
     private suspend fun savePath(pathChannel : ReceiveChannel<Path>) {
         for (path in pathChannel) {
-            writeHvcf(path)
+            if (path.hapidList.isNullOrEmpty())
+                myLogger.error("No hVCF was written for ${path.name} because no haplotypes were imputed.")
+            else {
+                writeHvcf(path)
+                if (path.parentsUsed.size > 0) appendParentStats(path)
+            }
         }
     }
 
@@ -235,6 +244,16 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
 
         exportVariantContext(myPath.name, variantContexts, hvcfFileName, referenceSequence, headerSet)
 
+    }
+
+    private fun appendParentStats(path: Path) {
+        val fileExists = File(likelyAncestorFile).exists()
+        getBufferedWriter(likelyAncestorFile, append = true).use { myWriter ->
+            if (!fileExists) myWriter.write("sample\tancestor\tgameteId\treads\tcoverage\n")
+            for (stats in path.parentsUsed) {
+                myWriter.write("${path.name}\t${stats.parent.name}\t${stats.parent.gameteId}\t${stats.readCount}\t${stats.coverage}\n")
+            }
+        }
     }
 
     companion object {
