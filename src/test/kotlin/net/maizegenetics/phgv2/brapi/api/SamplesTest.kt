@@ -1,25 +1,20 @@
 package net.maizegenetics.phgv2.brapi.api
 
-import io.kotest.common.runBlocking
-import io.kotest.core.spec.style.AnnotationSpec
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.statement.*
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
 import net.maizegenetics.phgv2.brapi.createSmallSeqTiledb
+import net.maizegenetics.phgv2.brapi.model.SampleListResponse
 import net.maizegenetics.phgv2.brapi.resetDirs
 import net.maizegenetics.phgv2.cli.TestExtension
-import org.junit.jupiter.api.Assertions
-import java.io.File
-
-import io.ktor.client.request.get
-import io.ktor.http.HttpStatusCode
-import io.ktor.serialization.kotlinx.json.*
-import net.maizegenetics.phgv2.brapi.model.SampleListResponse
 import org.junit.jupiter.api.AfterAll
-import kotlin.test.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
+import java.io.File
+import kotlin.test.Test
 
 /**
  * Test the brapi samples endpoint
@@ -48,12 +43,13 @@ class SamplesTest {
         fun teardown() {
             File(TestExtension.tempDir).deleteRecursively()
         }
+
     }
 
     @Test
     fun testSamples() = testApplication {
 
-        // This is needed or you get "NoTransformationFoundException" from ktor HttpClient
+        // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
             install(ContentNegotiation) {
                 json()
@@ -69,6 +65,26 @@ class SamplesTest {
         assertEquals("LineA", sampleEntries[0].sampleName)
         assertEquals("LineB", sampleEntries[1].sampleName)
         assertEquals("Ref", sampleEntries[2].sampleName)
+
+    }
+
+    @Test
+    fun testSampleID() = testApplication {
+
+        // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
+        val client = createClient {
+            install(ContentNegotiation) {
+                json()
+            }
+        }
+
+        val response = client.get("/brapi/v2/samples/1")
+        assertEquals(HttpStatusCode.OK, response.status)
+        val samples = response.body<SampleListResponse>().result
+        println("samples: $samples")
+        assertEquals(1, samples.data.size)
+        val sampleEntries = samples.data
+        assertEquals("LineB", sampleEntries[0].sampleName)
 
     }
 

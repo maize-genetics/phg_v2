@@ -30,7 +30,7 @@ data class BedRecord(val contig: String, val start : Int, val end: Int, val name
  *
  * Reference ranges are parsed from an input GFF file and converted to a BED file
  */
-class CreateRanges: CliktCommand(help="Create BED file of reference ranges from GFF file") {
+class CreateRanges: CliktCommand(help="Create a BED file of reference ranges from a GFF file") {
     val gff by option(help = "GFF file")
         .default("")
         .validate {

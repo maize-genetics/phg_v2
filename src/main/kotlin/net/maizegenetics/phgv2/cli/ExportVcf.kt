@@ -10,7 +10,7 @@ import java.io.File
 /**
  * This will export the give samples dataset to a hvcf file.
  */
-class ExportVcf : CliktCommand() {
+class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
 
     private val myLogger = LogManager.getLogger(ExportVcf::class.java)
 
