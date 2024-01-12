@@ -1,21 +1,136 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.option
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import net.maizegenetics.phgv2.utils.setupDebugLogging
+import net.maizegenetics.phgv2.utils.verifyURI
 import org.apache.logging.log4j.LogManager
+import java.nio.file.Files
+import java.nio.file.Paths
 
+/**
+ * This class starts the PHGv2 BrAPI server.
+ * It is called from the main function in src/main/kotlin/net/maizegenetics/phgv2/cli/PHGv2.kt
+ * It takes a single optional parameter, dbPath, which defines the location of the folder containing the TileDB datasets.
+ * If dbPath is not supplied, the application.conf file is checked for a TILEDB_URI line.
+ * If that is not found, an error is thrown.
+ * If dbPath is supplied, we verify that it contains a valid hvcf_dataset.
+ *
+ */
 class StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
 
     private val myLogger = LogManager.getLogger(StartServer::class.java)
+    val dbPath by option(help = "Full path to folder where TileDB datasets are stored.  \nThis must be run at least once before starting the server. \nIf you have already run it for this server instance you do not need to supply this again.")
+        .default("")
+
 
     override fun run() {
         setupDebugLogging()
+        var tiledbPath = dbPath
 
+        val appHome = getClassPath()
+        // Check if the application.conf file has a TILEDB_URI line that is not commented out.
+        val configPath = getDbPathFromConfigFile(appHome)
+
+        // dbPath must either be passed, or it must already exist in the application.conf file.
+        // If application.conf file has a value, use that.
+        // Otherwise, use the dbPath value.
+        // If dbPath is blank, and there is no value in the application.conf file, error.
+        if (dbPath.isBlank()) {
+            myLogger.info("start-server:  dbPath is blank.  Reading application.conf file to get TILEDB_URI")
+            if (configPath == null) {
+                myLogger.error("start-server:  \nTILEDB_URI is not set in application.conf file.  \nPlease re-run start-server with a valid value for dbPath parameter.")
+                throw IllegalArgumentException("start-server:  \nTILEDB_URI is not set in application.conf file.  \nPlease re-run start-server with a valid value for dbPath parameter.")
+            }
+        } else { // dbPath has a value
+            if (configPath!=null && configPath.isNotBlank()) {
+                if (configPath != dbPath) {
+                    if (!verifyURI(dbPath,"hvcf_dataset")) {
+                        myLogger.error("start-server:  \ndp-path does not contain a valid tiledb created hvcf_dataset.  \nPlease re-run start-server with a valid value for db-path parameter.")
+                        throw IllegalArgumentException("start-server:  \nTILEDB_URI is not valid.  \nPlease re-run start-server with a valid value for dbPath parameter.")
+                    }
+                    // Updating TILEDB_URI in the application.conf with value from db-path
+                    myLogger.error("start-server:  Updating TILEDB_URI in the application.conf with value from db-path: ${dbPath}")
+                    updateConfigFile(dbPath,appHome)
+                } else {
+                    myLogger.info("\nstart-server:  Running server with db-path/TILEDB_URI of ${configPath}.")
+                }
+            } else {
+                if (!verifyURI(tiledbPath,"hvcf_dataset")) {
+                    myLogger.error("hvcf_dataset does not exist in $dbPath.  Please check your path, and/or run Initdb to create the datasets.")
+                    throw IllegalArgumentException("A valid hvcf_dataset does not exist in $dbPath.")
+                }
+                myLogger.info("start-server:  dbPath = ${dbPath}, writing to application.conf file")
+                writeConfigFile(dbPath,appHome)
+            }
+        }
+
+        // Checks have passed - Ready to start the server!
         // commandLineEnvironment reads the application.config file
         // https://ktor.io/docs/configuration.html#hocon-file
         embeddedServer(Netty, commandLineEnvironment(emptyArray())).start(wait = true)
     }
 
+    // write the dbPath to the application.conf file using
+    // the appHome variable created above
+    fun writeConfigFile(dbPath:String,appHome:String) {
+
+        // the application file is in ${appHome}/resources
+        // NOTE for the CLASSPATH, APP_HOME does not include the "phg" resources,
+        // but it does when calculated here.
+
+        // Create a configPath using the appHome variable created above
+        val configPath = Paths.get("${appHome}/resources/main/application.conf")
+
+        myLogger.info("writeConfigFile: configPath = ${configPath}")
+        var config = Files.readString(Paths.get(configPath.toString()))
+
+        // append to the beginning of config the line "TILEDB_URI=${dbPath}"
+        config  = "TILEDB_URI=${dbPath}\n" + config
+        //write the new config file - do I have permission ???
+        configPath.toFile().writeText(config)
+    }
+
+    fun updateConfigFile(dbPath:String,appHome:String) {
+        val configPath = Paths.get("${appHome}/resources/main/application.conf")
+        // write the existing file minus the TILEDB_URI line
+        var config = ""
+        Files.lines(Paths.get(configPath.toString())).forEach { line ->
+            if (!line.startsWith("TILEDB_URI")) {
+                config += line + "\n"
+            }
+        }
+
+        // append to the beginning of config the line "TILEDB_URI=${dbPath}"
+        config  = "TILEDB_URI=${dbPath}\n" + config
+        //write the new config file - do I have permission ???
+        configPath.toFile().writeText(config.toString())
+    }
+
+    // Find the path to this class from the jar file
+    // Use that to determine the path to the application.conf file
+    fun getClassPath():String {
+        // little bit of help from ecerer answer in https://stackoverflow.com/questions/227486/find-where-java-class-is-loaded-from
+        val c: Class<*> = StartServer::class.java
+        val path = c.getResource(c.getSimpleName() + ".class").path.replace(c.getSimpleName() + ".class", "")
+        val appHome = path.substringAfter("file:").substringBefore("lib/phg_v2.jar")
+
+        myLogger.info("getClassPath: \n  path = $path \n  appHome = $appHome")
+        return appHome
+    }
+
+    // Find the TILEDB_URI from the application.conf file
+    fun getDbPathFromConfigFile(appHome:String):String? {
+        val configPath = Paths.get("${appHome}/resources/main/application.conf")
+
+        var config = Files.readString(Paths.get(configPath.toString()))
+        // Find the line in the config file that starts with "TILEDB_URI"
+        // and extract the path
+        // This will return null if the line is not found
+        val tiledbPath = config.lines().find { it.startsWith("TILEDB_URI") }?.substringAfter("=")?.substringBefore("\n")
+        return tiledbPath
+    }
 }

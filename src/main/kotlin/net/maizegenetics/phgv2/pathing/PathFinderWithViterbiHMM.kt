@@ -7,7 +7,24 @@ import org.apache.logging.log4j.LogManager
 import kotlin.math.E
 import kotlin.math.log
 
-    class PathFinderWithViterbiHMM(
+/**
+ * This class finds the most likely path through a graph from read mapping data for any number of samples using the Viterbi algorithm.
+ *
+ * @param graph The [HaplotypeGraph] used to impute paths. The reads must have been mapped against this graph (or a superset of it).
+ * @param probCorrect The probability that a read was mapped to the correct range.
+ * @param sameGameteProbability The probability that a parent in any given range is the same as the parent in the previous range.
+ * @param minGametesPerRange Ranges with fewer than this many sampleGametes in the graph will not be imputed.
+ * @param minReadsPerRange Ranges with fewer than this many mapped reads will not be imputed.
+ * @param maxReadsPerKB If the number of reads for a range is greater than maxReadsPerKB, then those reads will not be used.
+ * @param inbreedCoef The average inbreeding coefficient (F) of the submitted samples. Only used for diploid path finding.
+ * @param useLikelyParents Use only likely parents for path finding. Likely parents are determined for each sample based on the read mappings for that sample.
+ * @param maxParents If useLikelyParents is true, use at most this many parents
+ * @param minCoverage If useLikelyParents is true, stop selecting parents when combined coverage is greater than or equal to this value.
+ *
+ * Likely parents (or ancestors) are determined and used in pathfinding only when (1) useLikelyParents is true and (2) either
+ * maxParents is less than the number of parents in the graph or minCoverage is less than 1.0.
+ */
+class PathFinderWithViterbiHMM(
         val graph: HaplotypeGraph,
         val probCorrect: Double,
         val sameGameteProbability: Double,
@@ -16,11 +33,12 @@ import kotlin.math.log
         val maxReadsPerKB: Int,
         val inbreedCoef: Double = 1.0,
         useLikelyParents: Boolean = false,
-        maxParents: Int = Int.MAX_VALUE,
-        minCoverage: Double = 1.0
+        val maxParents: Int = Int.MAX_VALUE,
+        val minCoverage: Double = 1.0
     ) {
 
         private val myLogger = LogManager.getLogger(PathFinderWithViterbiHMM::class.java)
+        private val findLikelyParents: Boolean
         private val parentFinder: MostLikelyParents?
         private val sampleGametesInGraph = graph.sampleGametesInGraph()
         private val rangeToHaplotypeMap = graph.refRangeToHapIdList()
@@ -32,23 +50,33 @@ import kotlin.math.log
             val totalProbability: Double
         )
 
-        private data class HapNode(val hapnode: String, val emissionP: Double)
-
         init {
-
-            parentFinder = if (useLikelyParents) {
-                MostLikelyParents(graph)
-            } else null
+            findLikelyParents = useLikelyParents && (maxParents < graph.sampleGametesInGraph().size || minCoverage < 1.0)
+            parentFinder = if (findLikelyParents) MostLikelyParents(graph) else null
         }
 
-        fun findBestHaploidPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>): List<String> {
-
+        /**
+         * For a map (list of hapids -> count of reads hitting the set), find the most likely path through the graph.
+         * If useLikelyParents = true, then a likely parents list is generated for each sample and only those parents are
+         * candiates for the path nodes for that sample.
+         *
+         * @param readMap a map of [ReferenceRange] to map(list of hapids to count of reads mapping to that list)
+         */
+        fun findBestHaploidPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>): Pair<List<String>, List<MostLikelyParents.ParentStats>> {
             val haplotypeList = mutableListOf<String>()
+            val likelyParentList = if (findLikelyParents) parentFinder!!
+                .findMostLikelyParents(readMap, maxParents = maxParents, minCoverage = minCoverage)
+            else listOf()
+
             graph.contigs.forEach { chr ->
-                //Todo use likely parents to create a list of sampleGametes as an additional argument to haploidViterbi
-                haplotypeList.addAll(haploidViterbi(chr, readMap))
+                if (findLikelyParents) {
+                    haplotypeList.addAll(haploidViterbi(chr, readMap, likelyParentList.map { it.parent }.toSet()))
+                } else {
+                    haplotypeList.addAll(haploidViterbi(chr, readMap))
+                }
+
             }
-            return haplotypeList
+            return Pair(haplotypeList, likelyParentList)
         }
 
         fun findBestDiploidPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>): List<List<String>> {
@@ -71,13 +99,13 @@ import kotlin.math.log
          * the same graph may be used to process multiple samples. It is the responsibility of the calling code to ensure the condition
          * is satisfied.
          *
-         * The input parameter [gameteList], which defaults to all the SampleGametes in the graph, can be a subset of those
-         * in order to restrict the imputation to a subset of potential ancestors.
+         * The input parameter [gameteSet], which defaults to all the SampleGametes in the graph, can be used
+         * to restrict the imputation to a subset of potential ancestors. Only the SampleGametes in gameteList will be
+         * used for imputation.
          *
          * @param chrom a chromosome name
          * @param readMap   a map of read mappings by ReferenceRange for graph.
-         * @param rangeToHaplotypeMap map of ReferenceRange to haplotype ids
-         * @param gameteList a list of the SampleGametes used for imputation
+         * @param gameteSet a list of the SampleGametes used for imputation
          * @return  a list of HaplotypeNodes representing the most likely path
          */
         private fun haploidViterbi(
@@ -93,7 +121,7 @@ import kotlin.math.log
             val logNoSwitch = log(1.0 - switchProbability, E)
 
             //diagnostic counters for discarded ranges:
-            //countTooFewReads, countTooManyReadsPerKB, countReadsEqual, countDiscardedRanges
+            //countTooFewReads, countTooManyReadsPerKB, countOfTooFewGametes, countDiscardedRanges
             val counters = IntArray(4) { 0 }
 
             //create emission probability
@@ -104,8 +132,6 @@ import kotlin.math.log
             val rangeIterator = chrRanges.iterator()
             var initialRange = rangeIterator.next()
 
-            //TODO consider not using reads (setting read count to 0) rather than skipping the range
-            //TODO need to test whether an initialRange was selected and warn or throw an exception if not
             while (!useRange(
                     readMap[initialRange],
                     counters,
@@ -151,25 +177,18 @@ import kotlin.math.log
                 val newPaths = ArrayList<PathNode>()
 
                 //TODO revisit whether randomly picking best is a good strategy
+                //TODO figure out how to test lines 217-222
                 //choose the most probable path from the previous range. If more than one, any one will do.
                 //the most likely path in the previous range
                 val bestPath = paths.maxByOrNull { it.totalProbability }
                 check(bestPath != null) { "no most likely path before range at ${nextRange.contig}:${nextRange.start}" }
-
-                //need a map of taxon -> haplotype node, index
-//                val taxaMap = nextEntry.value.mapIndexed { index, haplotypeNode ->
-//                    val probEmission = emissionProb.getLnProbObsGivenState(index, rangeIndex)
-//                    haplotypeNode.taxaList().map { taxon -> Pair(taxon.name, HapNode(haplotypeNode, probEmission)) }
-//                }.flatten().toMap()
 
                 //map of sampleGamete to path node for the previous range
                 val gameteToPath = paths.associateBy { it.sample }
 
                 //iterate over gametes for the new range
                 val probSwitch = bestPath.totalProbability + logSwitch
-                val gameteToPathMap = paths.associateBy { it.sample }
                 gameteSet.forEach { sampleGamete ->
-//                    val myTaxonNode = taxaMap[taxonName]
                     val gameteHaplotype = sampleGameteToHaplotypeMap[sampleGamete]
                     if (bestPath.sample == sampleGamete) {
                         //this is the best path for this node since is also the no switch path (same gamete)
@@ -211,9 +230,9 @@ import kotlin.math.log
                 }
             }
 
-            //countTooFewReads, countTooManyReadsPerKB, countReadsEqual, countDiscardedRanges
+            //countTooFewReads, countTooManyReadsPerKB, countOfTooFewGametes, countDiscardedRanges
             myLogger.info("Finished processing reads for a sample: ${counters[3]} ranges discarded out of ${chrRanges.size}.")
-            myLogger.info("${counters[0]} ranges had too few reads; ${counters[1]} ranges had too many reads; ${counters[2]} ranges had all reads equal")
+            myLogger.info("${counters[0]} ranges had too few reads; ${counters[1]} ranges had too many reads; ${counters[2]} ranges too few samples with haplotypes")
 
             //terminate
             //back track the most likely path to get a HaplotypeNode List
@@ -221,7 +240,7 @@ import kotlin.math.log
                 val haplotypeList = mutableListOf<String>()
                 while (currentPathnode != null) {
                     val node = currentPathnode.parent
-                    if (node != null && node.haplotype != null) haplotypeList.add(node.haplotype)
+                    if (node?.haplotype != null) haplotypeList.add(node.haplotype)
                     currentPathnode = node
                 }
 
@@ -435,7 +454,8 @@ import kotlin.math.log
             refRange: ReferenceRange
         ): Boolean {
             //diagnostic counters for discarded ranges:
-            //countTooFewReads, countTooManyReadsPerKB, countReadsEqual, countDiscardedRanges
+            //countTooFewReads(0), countTooManyReadsPerKB(1), countOfTooFewGametes(2), countDiscardedRanges(3)
+            //
             //data class HapIdSetCount(val hapIdSet : Set<Int>, val count : Int)
             if (minReadsPerRange < 1) return true
 
@@ -451,6 +471,13 @@ import kotlin.math.log
             }
             if (numberOfReads * 1000 / rangeLength > maxReadsPerKB) {
                 counters[1]++
+                counters[3]++
+                return false
+            }
+
+            val numberOfSampleGametes = graph.hapIdToSampleGametes(refRange).entries.sumOf { (_, gametes) -> gametes.size }
+            if (minGametesPerRange > numberOfSampleGametes) {
+                counters[2]++
                 counters[3]++
                 return false
             }
