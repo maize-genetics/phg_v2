@@ -31,8 +31,8 @@ data class Variant(
     val alternateBases: List<String> = listOf(),
     val ciend: List<Int> = listOf(),
     val cipos: List<Int> = listOf(),
-   // @Serializable(with = OffsetDateTimeAsStringSerializer::class)
-   // val created: OffsetDateTime? = null,
+    @Serializable(with = OffsetDateTimeAsStringSerializer::class)
+    val created: OffsetDateTime? = null,
     val end: Int, val filtersApplied: Boolean = false,
     val filtersFailed: List<String> = listOf(),
     val filtersPassed: Boolean = true,
@@ -40,8 +40,8 @@ data class Variant(
     val referenceName: String,
     val start: Int,
     val svlen: Int,
-    //@Serializable(with = OffsetDateTimeAsStringSerializer::class)
-   // val updated: OffsetDateTime? = null,
+    @Serializable(with = OffsetDateTimeAsStringSerializer::class)
+    val updated: OffsetDateTime? = null,
     val variantDbId: String,
     val variantNames: List<String> = listOf(),
     val variantSetDbId: List<String> = listOf(),
