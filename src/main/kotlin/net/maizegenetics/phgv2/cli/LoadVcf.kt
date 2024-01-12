@@ -23,6 +23,9 @@ import java.util.stream.Collectors
  *  2. verify the dbpath exists and TileDB datasets exists in that folder
  *      a. if no datasets exist, create them
  *  3. load the gvcf and hvcf files
+ *  4. when loading the hvcf files, make a copy of the file in the db-path/hvcf_files folder
+ *     This will be used by the brAPI server to create the initial graph used to service
+ *     the brAPI calls.
  */
 class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datasets") {
 
@@ -51,7 +54,10 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
         .default("1")
 
     override fun run() {
+        loadVcfFiles(vcfDir,dbPath,threads)
+    }
 
+    fun loadVcfFiles(vcfDir:String,dbPath:String,threads:String) {
         // Check the type of files in the vcfDir
         // anything with h.vcf.gz or hvcf.gz is a hvcf file
         // anything with g.vcf.gz or gvcf.gz is a gvcf file
@@ -75,7 +81,7 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
                 // verify the samples in the vcf files are not already in the tiledb dataset
                 val vcfSampleList = getVcfSampleLists(fileLists.first)
                 // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
-                val overlap = tiledbSampleList.intersect(vcfSampleList)
+                val overlap = tiledbSampleList.intersect(vcfSampleList.keys)
                 // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
                 if (overlap.isNotEmpty()) {
                     myLogger.warn("The following samples are already in the gvcf tiledb dataset: ${overlap.joinToString(",")}")
@@ -88,8 +94,8 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
             }
         }
         if (fileLists.second.isNotEmpty()) {
-            val hvcfExists = verifyURI(dbPath,"hvcf_dataset")
-            if (hvcfExists){
+            val hvcfExists = verifyURI(dbPath, "hvcf_dataset")
+            if (hvcfExists) {
                 // look for duplicate sample names
                 // Get samples from tiledb
                 val uri = dbPath + "/hvcf_dataset"
@@ -97,23 +103,40 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
                 // verify the samples in the vcf files are not already in the tiledb dataset
                 val vcfSampleList = getVcfSampleLists(fileLists.second)
                 // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
-                val overlap = tiledbSampleList.intersect(vcfSampleList)
+                val overlap = tiledbSampleList.intersect(vcfSampleList.keys)
                 // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
                 if (overlap.isNotEmpty()) {
                     // tiledb dataset was created with the -n/--no-duplicates option.  It will not load
                     // duplicate positions, but will quietly skip them.
                     // Warning message is printed here to alert the user of the duplicate sample names.
-                    myLogger.warn("The following samples are already in the tiledb hvcf dataset: ${overlap.joinToString(",")}")
+                    myLogger.warn(
+                        "The following samples are already in the tiledb hvcf dataset: ${
+                            overlap.joinToString(
+                                ","
+                            )
+                        }"
+                    )
                     myLogger.warn("Tiledb will not load duplicate positions for these samples.")
                 }
                 // Load the hvcf files!
                 val datasetURI = "${dbPath}/hvcf_dataset"
                 loadVCFToTiledb(fileLists.second, datasetURI, threads)
+
+                // Copy the hvcf files to the hvcf_files folder, omitting any that are duplicates
+                // of those already loaded
+                val tiledbHvcfDir = "${dbPath}/hvcf_files"
+                Files.createDirectories(Paths.get(tiledbHvcfDir)) // skips folders that already exist
+                for (sample in vcfSampleList.keys) {
+                    val sourceFile = vcfSampleList[sample]
+                    val destFile = "${tiledbHvcfDir}/${sourceFile?.split("/")?.last()}"
+                    if (!File(destFile).exists()) {
+                        myLogger.info("Copying ${sourceFile} to ${destFile}")
+                        File(sourceFile).copyTo(File(destFile))
+                    }
+                }
             }
         }
-
     }
-
     // This function walks the files in the vcf folder and returns a pair of lists,
     // one for gvcf files and one for hvcf files.
     fun getFileLists(vcfDir:String):Pair<List<String>,List<String>> {
@@ -148,7 +171,7 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
         }
     }
 
-    fun getVcfSampleLists(fileLists:List<String>):List<String> {
+    fun getVcfSampleListsOrig(fileLists:List<String>):List<String> {
         // get the sample names from the vcf files
         val vcfSampleList = mutableListOf<String>()
         for (file in fileLists) {
@@ -161,6 +184,21 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
             }
         }
         return vcfSampleList
+    }
+
+    fun getVcfSampleLists(fileLists:List<String>):Map<String,String> {
+        // get the sample names from the vcf files
+        val vcfSampleToFileName = mutableMapOf<String,String>()
+        for (file in fileLists) {
+            // use htsjdk to read the vcf file and parse the sample names
+            val vcfReader = VCFFileReader(File(file),false)
+            val vcfHeader = vcfReader.fileHeader
+            val samples = vcfHeader.sampleNamesInOrder
+            for (sample in samples) {
+                vcfSampleToFileName.put(sample,file)
+            }
+        }
+        return vcfSampleToFileName
     }
 
     fun loadVCFToTiledb(vcfList:List<String>, uri:String, threads:String) {

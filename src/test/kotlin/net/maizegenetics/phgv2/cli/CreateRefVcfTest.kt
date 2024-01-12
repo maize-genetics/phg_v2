@@ -38,29 +38,29 @@ class CreateRefVcfTest {
 
         // Test missing bed file parameter, also missing refurl
         // it is the missing bed file parameter that will be flagged
-        val resultMissingBed = createRefVCF.test("--reference-name ${TestExtension.refLineName} --reference-file ${TestExtension.testRefFasta}  -o ${TestExtension.testVCFDir}")
+        val resultMissingBed = createRefVCF.test("--reference-name ${TestExtension.refLineName} --reference-file ${TestExtension.testRefFasta}  --db-path ${TestExtension.testTileDBURI}")
         assertEquals(resultMissingBed.statusCode, 1)
         assertEquals("Usage: create-ref-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --bed: --bed must not be blank\n",resultMissingBed.output)
 
         // Test missing reference file
-        val resultMissingRef = createRefVCF.test("--bed ${TestExtension.testBEDFile} --reference-url ${TestExtension.refURL} --reference-name ${TestExtension.refLineName} -o ${TestExtension.testVCFDir}")
+        val resultMissingRef = createRefVCF.test("--bed ${TestExtension.testBEDFile} --reference-url ${TestExtension.refURL} --reference-name ${TestExtension.refLineName} --db-path ${TestExtension.testTileDBURI}")
         assertEquals(resultMissingRef.statusCode, 1)
         assertEquals("Usage: create-ref-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --reference-file: --reference-file must not be blank\n",resultMissingRef.output)
 
 
-        // Test missing output directory
+        // Test missing dbPath directory
         val resultMissingOutput = createRefVCF.test("--bed ${TestExtension.testBEDFile} --reference-url ${TestExtension.refURL} --reference-name ${TestExtension.refLineName} --reference-file ${TestExtension.testRefFasta}")
         assertEquals(resultMissingOutput.statusCode, 1)
         assertEquals("Usage: create-ref-vcf [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --output-dir: --output-dir/-o must not be blank\n",resultMissingOutput.output)
+                "Error: invalid value for --db-path: --db-path must not be blank\n",resultMissingOutput.output)
 
         // Test missing ref name parameter
-        val resultMissingRefName = createRefVCF.test("--reference-file ${TestExtension.testRefFasta} --reference-url ${TestExtension.refURL} --bed ${TestExtension.testBEDFile} -o ${TestExtension.testVCFDir}")
+        val resultMissingRefName = createRefVCF.test("--reference-file ${TestExtension.testRefFasta} --reference-url ${TestExtension.refURL} --bed ${TestExtension.testBEDFile} --db-path ${TestExtension.testTileDBURI}")
         assertEquals(resultMissingRefName.statusCode, 1)
         println("resultMissingRefName.output = \n${resultMissingRefName.output}")
         assertEquals("Usage: create-ref-vcf [<options>]\n" +
@@ -123,27 +123,25 @@ class CreateRefVcfTest {
 
         // This could also be called via:
         assertThrows<IllegalStateException> {
-            CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $genome --reference-url ${refUrl} -o $vcfDir")
+            CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $genome --reference-url ${refUrl} --db-path $vcfDir")
         }
     }
 
     @Test
     fun testBuildRefVCF() {
-        val vcfDir = tempDir
+        val tiledbURI = TestExtension.testTileDBURI
         val refName = "Ref"
         val refUrl = TestExtension.refURL
 
         val ranges = "data/test/smallseq/anchors.bed"
         val genome = "data/test/smallseq/Ref.fa"
 
-        val createRefVcf = CreateRefVcf()
+        val result = CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $genome --reference-url ${refUrl} --db-path $tiledbURI")
+        assertEquals(0, result.statusCode )
 
-        // This could also be called via:
-        //createRefVcf.createRefHvcf(ranges,genome,refName,refUrl,vcfDir)
-        val result = CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $genome --reference-url ${refUrl} -o $vcfDir")
-
-        val outFileCompressed = "${tempDir}Ref.h.vcf.gz"
-        val outFileIndexed = "${tempDir}Ref.h.vcf.gz.csi"
+        val hvcfOutputDir = "${tiledbURI}/hvcf_files/"
+        val outFileCompressed = "${hvcfOutputDir}Ref.h.vcf.gz"
+        val outFileIndexed = "${hvcfOutputDir}Ref.h.vcf.gz.csi"
         // Verify the outputFiles exist
         assertEquals(true, File(outFileCompressed).exists())
         assertEquals(true, File(outFileIndexed).exists())
