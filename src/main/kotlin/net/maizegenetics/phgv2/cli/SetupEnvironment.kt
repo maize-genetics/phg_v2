@@ -18,7 +18,7 @@ import org.apache.logging.log4j.LogManager
  * Check if this environment already exists.  If an error occurs when
  * creating it, do we assume it exists?
  */
-class SetupEnvironment : CliktCommand(help="create conda environment for PHG") {
+class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG") {
 
     private val myLogger = LogManager.getLogger(SetupEnvironment::class.java)
 

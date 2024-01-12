@@ -36,7 +36,7 @@ import java.time.LocalDate
  * YYYY-MM-DD is the date the backup was created.
  *
  */
-class AgcCompress : CliktCommand(){
+class AgcCompress : CliktCommand(help = "Create a single AGC compressed file from an input of FASTA files") {
 
     private val myLogger = LogManager.getLogger(AgcCompress::class.java)
 
