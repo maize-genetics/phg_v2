@@ -21,7 +21,7 @@ data class HVCFRecordMetadata(val sampleName: String, val refSeq : String = "", 
 data class DisplayRegion(val contig: String, val start: Int, val end: Int)
 
 
-class CreateMafVcf : CliktCommand(help = "Create gVCF and hVCF from Anchorwave MAF files") {
+class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from AnchorWave MAF files") {
 
     val bed by option(help = "BED file with entries that define the haplotype boundaries")
         .default("")

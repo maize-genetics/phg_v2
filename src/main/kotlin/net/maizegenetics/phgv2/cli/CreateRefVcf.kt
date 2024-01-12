@@ -16,7 +16,7 @@ import java.util.*
 import java.util.logging.Logger
 
 
-class CreateRefVcf : CliktCommand(help="Create haplotype vcf for the reference genome") {
+class CreateRefVcf : CliktCommand(help = "Create a haplotype VCF for the reference genome") {
 
     private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.cli.CreateRefVcf")
 
