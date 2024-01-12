@@ -1,21 +1,28 @@
 package net.maizegenetics.phgv2.pathing
 
+import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.api.SampleGamete
+import org.apache.commons.math3.distribution.BinomialDistribution
 
-class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<String>, Int>>) {
+/**
+ * Calculates the natural log (ln) of the emission probability for a pair of haplotypes.
+ */
+class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<String>, Int>>, val graph: HaplotypeGraph, val probabilityCorrect: Double) {
     private var myCurrentRange = ReferenceRange("NA", 0, 0)
+    //a map of a pair of haplotypes -> ln probability
     private var rangeLnProbabilities = mutableMapOf<Pair<String,String>, Double>()
+    //a map of SampleGamete -> haplotype for myCurrentRange
+    private var sampleToHaplotype = mapOf<SampleGamete, String>()
     private var defaultProbability = 1e-10
     private var missingHaplotypeProbability = 1e-10
 
     /**
-     * Returns the emission probability for a given state index and range index.
-     * The range index is the zero-based index into the ordered list of ranges for a HaplotypeGraph.
-     * The state index is the zero-based index into an ordered list of states, where each state is an ordered pair
-     * of HaplotypeNodes returned by the method [nodePairs]. The emission probability for a given node pair is calculated
-     * by the method [nodePairProbabilityList].
+     * Returns the natural log of the emission probability for a given state and [ReferenceRange].
+     * The emission probability is the probability of observing the read counts given that the generating sample carries
+     * the haplotypes of the SampleGametes. The state is a pair of SampleGametes.
      */
-    fun lnProbObsGivenState(state: Pair<String, String>, refrange: ReferenceRange): Double {
+    fun lnProbObsGivenState(state: Pair<SampleGamete, SampleGamete>, refrange: ReferenceRange): Double {
         if (myCurrentRange != refrange) {
             myCurrentRange = refrange
             assignRangeProbabilities()
@@ -25,6 +32,14 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
 
     private fun assignRangeProbabilities() {
         //Todo evaluate whether haplotype pair with count = 0 is the same as no haplotype
+
+        val sampleToHapidMap = createSampleToHaplotypeMap()
+
+        //This next set is needed because a sample in a reference which has no haplotype is expected to not have any reads
+        //whereas a sample with a hapid in a reference range is expected to be hit by many of the reads
+        val samplesInRefrange = sampleToHapidMap.keys
+        val haplotypesInRefrange = sampleToHapidMap.values.toSet().toList()
+
         val readCounts = readMap[myCurrentRange] ?: mapOf()
         require(readCounts.isNullOrEmpty()) {"No haplotypes in $myCurrentRange"}
 
@@ -44,6 +59,16 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
 
         //if total count = 0, assign probability of 1/n to all nodes
         // otherwise, use the method nodePairProbabilityList(...)
+        //iterate over all possible pairs of haplotypes in myCurrentRange
+        //The list of haplotypes has to come from the graph, since not all haplotypes will have reads mapped to them.
+
+        val haplotypePairProbability = mutableMapOf<UnorderedHaplotypePair, Double>()
+        for (ndx1 in haplotypesInRefrange.indices) {
+            for (ndx2 in ndx1 until haplotypesInRefrange.size) {
+
+            }
+        }
+
         if (totalCount == 0) {
             val prob = 1.0 / myNodePairs.size.toDouble()
             rangeLnProbabilities = DoubleArray(myNodePairs.size, { i -> prob })
@@ -58,6 +83,49 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
         return readCounts.entries.filter { (hapidList,_) -> hapidList.containsAll(hapids) }.sumOf { it.value }
     }
 
+    private fun createSampleToHaplotypeMap(): Map<SampleGamete, String> {
+        //converts a map of hapid -> list of SampleGametes to a map of
+        //SampleGamete -> hapid. This works because each SampleGamete has only one hapid.
+        return graph.hapIdToSampleGametes(myCurrentRange).entries
+            .flatMap{ (hapid, sampleList) -> sampleList.map { Pair(it, hapid) } }.toMap()
+    }
+
     fun getLnMissingHaplotypeProbability(): Double = missingHaplotypeProbability
 
+    private fun haplotypePairProbability(haplotypes: UnorderedHaplotypePair, readCounts: Map<Set<String>, Int>): Double {
+        //readCounts keys are a set rather than a list for faster contains method
+        val hapPair = haplotypes.haplotypePair
+        if (haplotypes.haplotypePair.first == haplotypes.haplotypePair.second) {
+            val totalCount = readCounts.values.sum()
+            val firstCount = readCounts.filter { (hapset, _) -> hapset.contains(hapPair.first) }.values.sum()
+            BinomialDistribution(totalCount, probabilityCorrect).probability(firstCount)
+        } else {
+            val firstNotSecondCount = readCounts.filter { (hapset, _) -> hapset.contains(hapPair.first) && !hapset.contains(hapPair.second)}
+                .values.sum()
+            val secondNotFirstCount = readCounts.filter { (hapset, _) -> !hapset.contains(hapPair.first) && hapset.contains(hapPair.second)}
+                .values.sum()
+            val firstAndSecondCount = readCounts.filter { (hapset, _) -> hapset.contains(hapPair.first) && hapset.contains(hapPair.second)}
+                .values.sum()
+            val neitherFirstNorSecondCount = readCounts.filter { (hapset, _) -> !hapset.contains(hapPair.first) && !hapset.contains(hapPair.second)}
+                .values.sum()
+
+            (0..firstAndSecondCount).map { multinomialProbability(intArrayOf(firstNotSecondCount + it, secondNotFirstCount + firstAndSecondCount - it, neitherFirstNorSecondCount),
+                doubleArrayOf(halfProb, halfProb, pErr))}.sum()
+        }
+
+    }
+
+    }
+
+    data class UnorderedHaplotypePair(val haplotypePair: Pair<String,String>) {
+        override fun equals(other: Any?): Boolean {
+            return if (other is UnorderedHaplotypePair) {
+                if (other.haplotypePair == haplotypePair) true
+                else if (other.haplotypePair.first == haplotypePair.second && other.haplotypePair.second == haplotypePair.first) true
+                else false
+            }
+            else false
+        }
+    }
 }
+
