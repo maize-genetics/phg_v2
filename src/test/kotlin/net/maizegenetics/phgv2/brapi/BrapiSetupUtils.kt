@@ -91,4 +91,19 @@ fun loadVcfFiles() {
     val dbPath = "${TestExtension.testTileDBURI}"
     var result = loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
     assertEquals(result.statusCode, 0)
+
+    // Copy the reference fasta and bed file to folder TestExtension.testTileDBURI/reference
+    // create the folder if it does not exist
+    val refDir = "${TestExtension.testTileDBURI}/reference"
+    File(refDir).mkdirs()
+    var origRefFile = "data/test/smallseq/Ref.fa"
+    var testRefFile = "${refDir}/Ref.fa"
+    Files.copy(File(origRefFile), File(testRefFile))
+
+    // Copy the bed file from data/test/smallseq/anchors.bed to the testTileDBURI/reference folder
+    val origBedFile = "data/test/smallseq/anchors.bed"
+    val testBedFile = "${refDir}/anchors.bed"
+    Files.copy(File(origBedFile), File(testBedFile))
+
+
 }
