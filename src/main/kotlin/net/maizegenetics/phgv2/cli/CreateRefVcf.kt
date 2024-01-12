@@ -12,6 +12,7 @@ import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeaderLine
 import htsjdk.variant.vcf.VCFHeaderVersion
 import net.maizegenetics.phgv2.utils.*
+import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
@@ -20,9 +21,10 @@ import java.util.logging.Logger
 /**
  * This class takes a reference genome and a bed file of intervals and creates a haplotype vcf for the reference genome.
  * The bed file and reference genome name are stored to the dbPath/reference folder
- * The hvcf file is stored to the dbPath/hvcf_files folder
+ * The hvcf file is stored to the dbPath/hvcf_files folder.
+ * The hvcf file is loaded to tiledb.
  */
-class CreateRefVcf : CliktCommand(help = "Create a haplotype VCF for the reference genome") {
+class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype VCF for the reference genome") {
 
     private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.cli.CreateRefVcf")
 
@@ -200,7 +202,7 @@ class CreateRefVcf : CliktCommand(help = "Create a haplotype VCF for the referen
 
             // Make a folder for the hvcf files
             // ALl hvcf files loaded to this tiledb dataset will be saved in this subfolder
-            Files.createDirectories(Paths.get(tiledbHvcfDir)) // skips folders that already exist
+            Files.createDirectories(Paths.get(tiledbHvcfDir)) // skips creating folders that already exist
             var localRefHVCFFile = tiledbHvcfDir + "/" + hvcfFileName
 
             //  This is in VariantUtils - it exports the gvcf file.
@@ -210,9 +212,13 @@ class CreateRefVcf : CliktCommand(help = "Create a haplotype VCF for the referen
             val bgzippedGVCFFileName = bgzipAndIndexGVCFfile(localRefHVCFFile)
             myLogger.info("${bgzippedGVCFFileName} created and stored to ${tiledbHvcfDir}")
 
+            // Create the tiledb datasets if they don't exist
+            File(dbPath).mkdirs()
+            Initdb().createDataSets(dbPath)
+
             // Load the Ref hvcf file to tiledb
             val loadVcf = LoadVcf()
-            loadVcf.loadVcfFiles(tiledbHvcfDir,dbPath,outputDir)
+            loadVcf.loadVcfFiles(tiledbHvcfDir,dbPath,"1") // default the threads to "1" for the ref.
 
             // Store the bed file and the reference fasta file to the dbPath/reference folder
             // Create the dbPath/reference folder if it doesn't exist

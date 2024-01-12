@@ -90,7 +90,7 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
                 // Load the gvcf files!
                 myLogger.info("No overlap between tiledb and vcf files.  Loading gvcf files.")
                 val datasetURI = "${dbPath}/gvcf_dataset"
-                loadVCFToTiledb(fileLists.first, datasetURI, threads)
+                loadVCFToTiledb(fileLists.first, dbPath,"gvcf_dataset", threads)
             }
         }
         if (fileLists.second.isNotEmpty()) {
@@ -119,8 +119,7 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
                     myLogger.warn("Tiledb will not load duplicate positions for these samples.")
                 }
                 // Load the hvcf files!
-                val datasetURI = "${dbPath}/hvcf_dataset"
-                loadVCFToTiledb(fileLists.second, datasetURI, threads)
+                loadVCFToTiledb(fileLists.second, dbPath, "hvcf_dataset", threads)
 
                 // Copy the hvcf files to the hvcf_files folder, omitting any that are duplicates
                 // of those already loaded
@@ -171,21 +170,6 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
         }
     }
 
-    fun getVcfSampleListsOrig(fileLists:List<String>):List<String> {
-        // get the sample names from the vcf files
-        val vcfSampleList = mutableListOf<String>()
-        for (file in fileLists) {
-            // use htsjdk to read the vcf file and parse the sample names
-            val vcfReader = VCFFileReader(File(file),false)
-            val vcfHeader = vcfReader.fileHeader
-            val samples = vcfHeader.sampleNamesInOrder
-            for (sample in samples) {
-                vcfSampleList.add(sample)
-            }
-        }
-        return vcfSampleList
-    }
-
     fun getVcfSampleLists(fileLists:List<String>):Map<String,String> {
         // get the sample names from the vcf files
         val vcfSampleToFileName = mutableMapOf<String,String>()
@@ -201,13 +185,18 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
         return vcfSampleToFileName
     }
 
-    fun loadVCFToTiledb(vcfList:List<String>, uri:String, threads:String) {
+    // Because this is called from both the LoadVcf class and the CreateRefVcf class,
+    // we must explicitly pass dbPath as otherwise the parameter will not be known
+    // when coming from CreateRefVcf, resulting in the error:
+    //    Cannot read from option delegate before parsing command line
+    fun loadVCFToTiledb(vcfList:List<String>, dbPath:String, dataSet:String, threads:String) {
 
         // declare tne temp folder
         // This will be used to write output files from ProcessBuilder commands
         // called elsewhere in this class.  It should have been created in the
         // verifyURI function,
         val tempDir = "${dbPath}/temp"
+        val uri = "${dbPath}/${dataSet}"
 
         // get just last part of uri string, ie just the last name in this folder
         val uriName = uri.split("/").last()

@@ -34,7 +34,7 @@ fun Route.variants() {
                 call.respond(" ${HttpStatusCode.NotFound}: Invalid page token: ${pageToken}. The page token represents a reference range id, which is 1 or greater.")
             }
 
-            val variantsAndPagination = variantService.generateVariantsListFromCache(pageToken, pageSize)
+            val variantsAndPagination = variantService.generateVariantsListFromCache(pageToken, pageSize,"all")
 
             val pagination = variantsAndPagination.first
             val variants = variantsAndPagination.second

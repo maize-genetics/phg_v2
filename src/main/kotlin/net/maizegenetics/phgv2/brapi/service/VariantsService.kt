@@ -91,7 +91,7 @@ class VariantsService {
     // next index into the ReferenceRange list.  The pageSize is the number of variants to return.
     // Currently, there is only a single group named "all".  This will be used to get the
     // reference ranges from the cache.  having the groupName parameter allows for this to change.
-    fun generateVariantsListFromCache(currentPageToken:Int, pageSize:Int, groupName:String): Pair<TokenPagination,List<Variant>> {
+    fun generateVariantsListFromCache(currentPageToken:Int, pageSize:Int, groupName:String? = "all"): Pair<TokenPagination,List<Variant>> {
         //check for cache - if it doesn't exist, create it
         // remove println when myLogger is working
         //var referenceRanges: ArrayList<ReferenceRange>? = null

@@ -380,6 +380,6 @@ fun verifyURI(dbPath:String,uri:String): Boolean {
         return true
     } else {
         myLogger.info("TileDB datasets not found in folder $dbPath. Please run InitDB to create the datasets.")
-        return false
+        throw IllegalArgumentException("TileDB datasets not found in folder $dbPath. Please run InitDB to create the datasets.")
     }
 }
