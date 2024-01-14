@@ -81,7 +81,7 @@ class FullPipelineIT {
         println(createRangesResult.output)
         //Run BuildRefVCF
         val createRefVcf = CreateRefVcf()
-        val createRefVcfResult = createRefVcf.test("--bed ${TestExtension.testBEDFile} --reference-file ${TestExtension.smallseqRefFile} --reference-name Ref -o ${TestExtension.testVCFDir}")
+        val createRefVcfResult = createRefVcf.test("--bed ${TestExtension.testBEDFile} --reference-file ${TestExtension.smallseqRefFile} --reference-name Ref --db-path ${TestExtension.testTileDBURI}")
         println(createRefVcfResult.output)
 
         //Run Anchorwave

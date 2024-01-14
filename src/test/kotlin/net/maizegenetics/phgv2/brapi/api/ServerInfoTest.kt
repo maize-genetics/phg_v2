@@ -40,7 +40,7 @@ class ServerInfoTest {
         println("serverInfo: $serverInfo")
 
         // This assert will need to change when more endpoints are supported
-        assertEquals(3, serverInfo.calls.size)
+        assertEquals(4, serverInfo.calls.size)
         val calls = serverInfo.calls
         assertEquals("/samples", calls[0].service)
     }
