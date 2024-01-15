@@ -228,6 +228,7 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
     }
 
     private suspend fun savePath(pathChannel : ReceiveChannel<Path>) {
+        //Todo add likely parent export
         for (path in pathChannel) {
             writeHvcf(path)
         }

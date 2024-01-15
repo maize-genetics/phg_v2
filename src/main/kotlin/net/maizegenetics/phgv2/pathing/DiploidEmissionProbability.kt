@@ -4,6 +4,7 @@ import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
 import org.apache.commons.math3.distribution.BinomialDistribution
+import kotlin.math.ln
 
 /**
  * Calculates the natural log (ln) of the emission probability for a pair of haplotypes.
@@ -11,71 +12,77 @@ import org.apache.commons.math3.distribution.BinomialDistribution
 class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<String>, Int>>, val graph: HaplotypeGraph, val probabilityCorrect: Double) {
     private var myCurrentRange = ReferenceRange("NA", 0, 0)
     //a map of a pair of haplotypes -> ln probability
-    private var rangeLnProbabilities = mutableMapOf<Pair<String,String>, Double>()
+    private var rangeLnProbabilities = mapOf<UnorderedHaplotypePair, Double>()
     //a map of SampleGamete -> haplotype for myCurrentRange
     private var sampleToHaplotype = mapOf<SampleGamete, String>()
     private var defaultProbability = 1e-10
     private var missingHaplotypeProbability = 1e-10
+    private val sampleGametesInGraph = graph.sampleGametesInGraph()
+    private val noReadCountProbability = 0.0
+    private var rangeHasReads = true
 
     /**
      * Returns the natural log of the emission probability for a given state and [ReferenceRange].
      * The emission probability is the probability of observing the read counts given that the generating sample carries
      * the haplotypes of the SampleGametes. The state is a pair of SampleGametes.
+     *
+     * If the range has no reads that mapped to it, then all SampleGamete pairs have the same probability. So,
+     * return noReadCountProbability when there are no reads. Since the emission probability only needs to be
+     * proportional to the probability of the observations (read counts) given the state, returning 0.0 for all pairs works fine.
      */
     fun lnProbObsGivenState(state: Pair<SampleGamete, SampleGamete>, refrange: ReferenceRange): Double {
+
         if (myCurrentRange != refrange) {
             myCurrentRange = refrange
-            assignRangeProbabilities()
+            val readsForRange = readMap[refrange]
+            rangeHasReads = if (readsForRange == null) false else readsForRange.values.sum() > 0
+            if (rangeHasReads) assignRangeProbabilities()
         }
-        return rangeLnProbabilities[state] ?: defaultProbability
+
+        if (!rangeHasReads) return noReadCountProbability
+
+        val haplotypePair = Pair(sampleToHaplotype[state.first], sampleToHaplotype[state.second])
+
+        //convert the pair of sample gametes to an UnorderedHaplotypePair
+        val unorderedHaplotypes = UnorderedHaplotypePair(haplotypePair)
+        return rangeLnProbabilities[unorderedHaplotypes] ?: defaultProbability
     }
 
     private fun assignRangeProbabilities() {
-        //Todo evaluate whether haplotype pair with count = 0 is the same as no haplotype
+        val sampleToHaplotype = createSampleToHaplotypeMap()
 
-        val sampleToHapidMap = createSampleToHaplotypeMap()
-
-        //This next set is needed because a sample in a reference which has no haplotype is expected to not have any reads
-        //whereas a sample with a hapid in a reference range is expected to be hit by many of the reads
-        val samplesInRefrange = sampleToHapidMap.keys
-        val haplotypesInRefrange = sampleToHapidMap.values.toSet().toList()
+        val haplotypesInRefrange = sampleToHaplotype.values.toSet().toList()
 
         val readCounts = readMap[myCurrentRange] ?: mapOf()
         require(readCounts.isNullOrEmpty()) {"No haplotypes in $myCurrentRange"}
+        val readSetCounts = readCounts.mapKeys { (haplist, _) -> haplist.toSet() }
 
-//        val currentNodes: List<HaplotypeNode> = rangeToNodes.get(myCurrentRange)
-//            ?: throw IllegalArgumentException("Range at chr ${myCurrentRange.chromosome().name}, pos ${myCurrentRange.start()} has no nodes.")
-
-        //get the list of read node matches for this reference range
-//        val currentReadMatches = readHapids.get(myCurrentRange)
-
-        //convert that list to counts as Long -> Int, where long is two hapids encoded
-        //create a map of hapid pair to count of reads for that pair
-
-//        val nodePairCounts: Map<Long, Int> = countsFromHapidList(currentReadMatches)
-        //get the list of node pairs
-//        val myNodePairs = nodePairs(currentNodes)
         val totalCount = readCounts.values.sum()
 
-        //if total count = 0, assign probability of 1/n to all nodes
         // otherwise, use the method nodePairProbabilityList(...)
         //iterate over all possible pairs of haplotypes in myCurrentRange
         //The list of haplotypes has to come from the graph, since not all haplotypes will have reads mapped to them.
 
-        val haplotypePairProbability = mutableMapOf<UnorderedHaplotypePair, Double>()
+        val probabilityMap = mutableMapOf<UnorderedHaplotypePair, Double>()
         for (ndx1 in haplotypesInRefrange.indices) {
             for (ndx2 in ndx1 until haplotypesInRefrange.size) {
-
+                val haplotypePair = UnorderedHaplotypePair(Pair(haplotypesInRefrange[ndx1], haplotypesInRefrange[ndx2]))
+                probabilityMap.put(haplotypePair, haplotypePairProbability(haplotypePair, readSetCounts))
             }
         }
 
-        if (totalCount == 0) {
-            val prob = 1.0 / myNodePairs.size.toDouble()
-            rangeLnProbabilities = DoubleArray(myNodePairs.size, { i -> prob })
-        } else {
-            val nodeProbList = nodePairProbabilityList(currentNodes, currentReadMatches.toList(), probabilityCorrect)
-            rangeLnProbabilities = nodeProbList.toDoubleArray()
+        //if there are any null haplotypes in this reference range add pairs for each (haplotype,null) and (null,null)
+        val anyNullHaplotypes = sampleGametesInGraph.any { sampleToHaplotype[it] == null }
+        if (anyNullHaplotypes) {
+            for (haplotype in haplotypesInRefrange) {
+                val haplotypePair = UnorderedHaplotypePair(Pair(haplotype, null))
+                probabilityMap.put(haplotypePair, haplotypePairProbability(haplotypePair, readSetCounts))
+            }
+            val haplotypePair = UnorderedHaplotypePair(Pair(null, null))
+            probabilityMap.put(haplotypePair, haplotypePairProbability(haplotypePair, readSetCounts))
         }
+
+        rangeLnProbabilities = probabilityMap
     }
 
     private fun countOfHapids(hapidPair: Pair<String,String>, readCounts: Map<List<String>, Int>): Int {
@@ -90,12 +97,14 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
             .flatMap{ (hapid, sampleList) -> sampleList.map { Pair(it, hapid) } }.toMap()
     }
 
-    fun getLnMissingHaplotypeProbability(): Double = missingHaplotypeProbability
-
     private fun haplotypePairProbability(haplotypes: UnorderedHaplotypePair, readCounts: Map<Set<String>, Int>): Double {
+        //todo deal with null haplotypes
+        val halfProb = probabilityCorrect / 2
+        val pErr = 1 - probabilityCorrect
+
         //readCounts keys are a set rather than a list for faster contains method
         val hapPair = haplotypes.haplotypePair
-        if (haplotypes.haplotypePair.first == haplotypes.haplotypePair.second) {
+        return if (haplotypes.haplotypePair.first == haplotypes.haplotypePair.second) {
             val totalCount = readCounts.values.sum()
             val firstCount = readCounts.filter { (hapset, _) -> hapset.contains(hapPair.first) }.values.sum()
             BinomialDistribution(totalCount, probabilityCorrect).probability(firstCount)
@@ -115,9 +124,46 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
 
     }
 
+    /**
+     * @param [counts] The counts of each of set of classes
+     * @param [probabilities] The probability of each class
+     * @return The probability of an array of counts of some classes given the probability of each class,
+     * The size of the counts array and the probabilities array are expected to be equal.
+     */
+    private fun multinomialProbability(counts: IntArray, probabilities: DoubleArray): Double {
+        if (counts.size != probabilities.size) throw java.lang.IllegalArgumentException("multinomialProbability error: counts and probabilities arrays do not have the same size.")
+        val N = counts.sum()
+
+        val logprod = counts.indices.map { counts[it] * Math.log(probabilities[it]) }.sum()
+        val numerator = logFactorial(N)
+        val denom = counts.map { logFactorial(it) }.sum()
+        val logprob = numerator - denom + logprod
+        return Math.pow(Math.E, logprob)
     }
 
-    data class UnorderedHaplotypePair(val haplotypePair: Pair<String,String>) {
+    /**
+     *  Calculates the log factorial of any positive integer using the exact value for 0 to 10 and
+     *  Stirlings approximation for integers greater than 10. The formula is taken from the
+     *  Wikipedia article for Stirlings approximation
+     *  @param [intval] an integer
+     *  @return   the natural log of the factorial of intval
+     */
+    private fun logFactorial(intval: Int): Double {
+        if (intval <= 10) return smallFactorials[intval] else {
+            val n = intval.toDouble()
+            return n * ln(n) + 0.5 * ln(2.0 * Math.PI * n) - n
+        }
+    }
+
+    //factorials of 0 to 10
+    private val smallFactorials: DoubleArray = doubleArrayOf(1.0, 1.0, 2.0, 6.0, 24.0, 120.0, 720.0, 5040.0, 40320.0, 362880.0, 3628800.0)
+        .map { ln(it) }.toDoubleArray()
+
+
+    data class UnorderedHaplotypePair(val haplotypePair: Pair<String?, String?>) {
+        /**
+         * Kotlin equality: null == null is true. So, equal works with null haplotypes as intended here.
+         */
         override fun equals(other: Any?): Boolean {
             return if (other is UnorderedHaplotypePair) {
                 if (other.haplotypePair == haplotypePair) true
