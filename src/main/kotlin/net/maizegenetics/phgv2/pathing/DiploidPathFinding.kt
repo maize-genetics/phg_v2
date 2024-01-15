@@ -112,6 +112,7 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
 
     override fun run() {
         val samplesToReadMappingFiles = processKeyFile()
+        processReadMappings(samplesToReadMappingFiles)
     }
 
     private fun processKeyFile(): Map<String, List<String>> {
@@ -159,6 +160,13 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
 
     private data class ReadMappingResult(val name: String, val readMappingCounts: Map<List<String>, Int>) //placeholder
     private data class Path(val name: String, val hapidList: List<List<String>>, val graph: HaplotypeGraph)
+
+    /**
+     * Takes a map of sample name -> list of read mapping files. It processes the samples in parallel.
+     * Multi-threading is across samples. The results are written to files by an additional thread.
+     * The results are a h.vcf for each sample and, if the most likely parents are used, a single file of
+     * the chosen ancestors (parents) for each sample.
+     */
     private fun processReadMappings(sampleToFiles: Map<String, List<String>>) = runBlocking {
         myLogger.info("processing read mappings.")
         val myGraph = buildHaplotypeGraph()
