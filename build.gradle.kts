@@ -74,7 +74,7 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
     implementation("io.ktor:ktor-client-websockets:$ktorVersion")
 
-    implementation("org.ehcache:ehcache:3.9.11")
+    implementation("org.ehcache:ehcache:3.10.8")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
 

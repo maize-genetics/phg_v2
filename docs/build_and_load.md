@@ -796,7 +796,7 @@ the reference hvcf and the reference hvcf are stored here for future reference.
 | `<ref_name>.h.vcf.gz`     | reference hVCF file                                       |
 
 
-In addition to creating the files able, the `create-ref-vcf` command will load the
+In addition to creating the files, the `create-ref-vcf` command will load the
 reference h.vcf file to the `hvcf_dataset` TileDB instance.
 
 #### `create-maf-vcf` inputs
