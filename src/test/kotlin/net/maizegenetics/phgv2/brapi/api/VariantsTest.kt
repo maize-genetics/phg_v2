@@ -8,9 +8,8 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
-import model.VariantsListResponse
 import net.maizegenetics.phgv2.brapi.createSmallSeqTiledb
-import net.maizegenetics.phgv2.brapi.model.SampleListResponse
+import net.maizegenetics.phgv2.brapi.model.VariantsListResponse
 import net.maizegenetics.phgv2.brapi.resetDirs
 import net.maizegenetics.phgv2.brapi.service.VariantsService
 import net.maizegenetics.phgv2.cli.TestExtension
