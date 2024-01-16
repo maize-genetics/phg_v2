@@ -35,7 +35,7 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
     val referenceUrl by option(help = "URL where the reference FASTA file can be downloaded")
         .default("")
 
-    val bed by option(help = "BED file with entries that define the haplotype boundaries")
+    val bed by option(help = "BED file with entries that define the haplotype boundaries .")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -224,7 +224,14 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
             // Create the dbPath/reference folder if it doesn't exist
             val tiledbRefDir = "${dbPath}/reference"
             Files.createDirectories(Paths.get(tiledbRefDir)) // skips folders that already exist
-            val localBedFile = tiledbRefDir + "/" + Paths.get(ranges).fileName.toString()
+            var localBedFile = tiledbRefDir + "/" + Paths.get(ranges).fileName.toString()
+
+            // If localBedFile does not have extension .bed, add it
+            // This is necessary as brAPI endpoint processing looks for the .bed extension
+            // when identifying the bed file from the reference folder
+            if (!localBedFile.endsWith(".bed")) {
+                localBedFile = localBedFile + ".bed"
+            }
 
             // The ref fasta file will be stored as <refName>.fa.  This allows methods
             // in other parts of the pipeline to know the sampleName of the reference genome as it

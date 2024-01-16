@@ -127,6 +127,33 @@ class CreateRefVcfTest {
         }
     }
 
+
+    @Test
+    fun testBedFileWithoutBedExtension() {
+        // This test verifies if the bed file does not have ".bed" as an extension,
+        // the software adds ".bed" when copying this file to the tiledbURI/reference folder
+        val tiledbURI = TestExtension.testTileDBURI
+        val refName = "Ref"
+        val refUrl = TestExtension.refURL
+
+        val ranges = "data/test/smallseq/anchors.bed"
+        val genome = "data/test/smallseq/Ref.fa"
+
+        // Copy the ranges file to a file without the .bed extension but with .txt as an extension
+        // put this file into tempdir
+        val rangesTxt = "${tempDir}/anchors.txt"
+        File(ranges).copyTo(File(rangesTxt))
+
+        val result =
+            CreateRefVcf().test("--bed $rangesTxt --reference-name $refName --reference-file $genome --reference-url ${refUrl} --db-path $tiledbURI")
+        assertEquals(0, result.statusCode)
+
+        // Verify the tiledbUri/reference folder exists and contains the ranges file
+        val referenceDir = "${tiledbURI}/reference/"
+        assertEquals(true, File(referenceDir).exists())
+        assertEquals(true, File("${referenceDir}/anchors.txt.bed").exists())
+    }
+
     @Test
     fun testBuildRefVCF() {
         val tiledbURI = TestExtension.testTileDBURI
@@ -138,6 +165,11 @@ class CreateRefVcfTest {
 
         val result = CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $genome --reference-url ${refUrl} --db-path $tiledbURI")
         assertEquals(0, result.statusCode )
+
+        // Verify the tiledbUri/reference folder exists and contains the ranges file
+        val referenceDir = "${tiledbURI}/reference/"
+        assertEquals(true, File(referenceDir).exists())
+        assertEquals(true, File("${referenceDir}/anchors.bed").exists())
 
         val hvcfOutputDir = "${tiledbURI}/hvcf_files/"
         val outFileCompressed = "${hvcfOutputDir}Ref.h.vcf.gz"

@@ -770,8 +770,8 @@ The `create-ref-vcf` command requires the following inputs:
 > FASTA file can be downloaded. This will be added to the VCF header
 > information.
 
-Once the command is complete, and you have navigated into the db-path
-directory (in my case, `tiledbDataSets/`), you will see a subfolder named hvcf_files with two files:
+Once the command is complete, and you have navigated into the `db-path`
+directory (in my case, `vcf_dbs/`), you will see a subfolder named hvcf_files with two files:
 
 
 | File                      | Description                                              |
