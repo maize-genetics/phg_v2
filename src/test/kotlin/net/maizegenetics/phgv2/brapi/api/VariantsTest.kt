@@ -55,6 +55,28 @@ class VariantsTest {
     }
 
     @Test
+    fun testVariantsNoBedFile() = testApplication {
+
+        // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
+        val client = createClient {
+            install(ContentNegotiation) {
+                json()
+            }
+        }
+
+        // Delete the bedFile created by createSmallSeqTiledb()
+        val bedFile = File("${TestExtension.testTileDBURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()[0]
+        bedFile.delete()
+
+        // Run test to verify that the server returns no data
+        val response = client.get("/brapi/v2/variants")
+        Assertions.assertEquals(HttpStatusCode.OK, response.status)
+        val variants = response.body<VariantsListResponse>().result
+        println("variants: $variants")
+        Assertions.assertEquals(0, variants.data.size)
+
+    }
+    @Test
     fun testVariantsDefaultPageSize() = testApplication {
 
         // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient

@@ -117,13 +117,30 @@ class VariantsService {
             myLogger.info("generateVariantsListFromCache - no variantCache - creating it, heapSIze before create cache:")
             println("generateVariantsListFromCache - no variantCache - creating it, heapSIze before create cache:")
             //Sizeof.printMemoryUse()
-            val bedFile = File("${tiledbURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()[0]
-            referenceRanges = createRefRangesForCache(bedFile) as ArrayList<ReferenceRange>
+            val bedFileList = File("${tiledbURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()
+            if ( bedFileList.size < 1) {
+                // The bedfile is copied to tiledbURI/references when CreateRefVcf is run.
+                // When running specific juint tests (e.g. ServerInfoTest) which do not run CreateRefVcf
+                // as a prerequisite, compilation will fail on this init because there is no bedfile.
+                // This conditional takes care of that problem.
+                // Need to think through if this is a general problem or just a testing problem.
+                myLogger.error("VariantsService:init - no bed files found in ${tiledbURI}/reference/")
+                myLogger.error("VariantsService:init - please ensure CreateRefVcf has been run and the bed file is in ${tiledbURI}/reference/")
 
-            variantCache.put(groupName, referenceRanges)
-            myLogger.info("generateVariantsListFromCache: heapSize after create variant cache:")
-            println("generateVariantsListFromCache: heapSize after create variant cache:")
-            //Sizeof.printMemoryUse()
+            } else {
+                val bedFile = bedFileList[0]
+                val referenceRanges = createRefRangesForCache(bedFile) as ArrayList<ReferenceRange>
+                if (referenceRanges != null) {
+                    // This list of reference ranges as stored with key "haplotype"
+                    variantCache.put("all",referenceRanges)
+                    val ehCacheStat = statisticsVariantsService.getCacheStatistics("variantCache");
+                    // using println until we get myLogger working
+                    println("variant (reference Range) cache size: ${ehCacheStat.getTierStatistics().get("OnHeap")?.getMappings()}")
+                    myLogger.info("variant (reference Range) cache size: ${ehCacheStat.getTierStatistics().get("OnHeap")?.getMappings()}")
+                }
+                println("VariantsService:init -  heapSize after create variants cache:")
+                //Sizeof.printMemoryUse()
+            }
         }
 
         // if no reference ranges were found, return empty list
