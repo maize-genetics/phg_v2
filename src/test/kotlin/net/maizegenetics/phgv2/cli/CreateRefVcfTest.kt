@@ -71,6 +71,7 @@ class CreateRefVcfTest {
 
     @Test
     fun testBuildRefVCF_badIntervals() {
+        println("\nLCJ - running testBuildRefVCF_badIntervals")
 
         val anchorFile = "${tempDir}/testAnchorFile.txt"
         File(anchorFile).bufferedWriter().use {
@@ -112,6 +113,7 @@ class CreateRefVcfTest {
     fun testBuildRefVCFBadChrom() {
         // This test verifies an exception is thrown when the bed file contains a chromosome not in the reference genome
         // fasta file. This is testing chr1 vs 1 as a chromosome, womething we often see.
+        println("\nLCJ - running testBuildRefVCFBadChrom")
         val vcfDir = tempDir
         val refName = "Ref"
         val refUrl = TestExtension.refURL
@@ -132,6 +134,7 @@ class CreateRefVcfTest {
     fun testBedFileWithoutBedExtension() {
         // This test verifies if the bed file does not have ".bed" as an extension,
         // the software adds ".bed" when copying this file to the tiledbURI/reference folder
+        println("\nLCJ - running testBedFileWithoutBedExtension")
         val tiledbURI = TestExtension.testTileDBURI
         val refName = "Ref"
         val refUrl = TestExtension.refURL
@@ -152,10 +155,16 @@ class CreateRefVcfTest {
         val referenceDir = "${tiledbURI}/reference/"
         assertEquals(true, File(referenceDir).exists())
         assertEquals(true, File("${referenceDir}/anchors.txt.bed").exists())
+
+        // Remove the files in the reference folder
+        // This is a problem for subsequent tests when all tests in this file are run at once.
+        File("${referenceDir}/anchors.txt.bed").delete()
+        File("${referenceDir}/Ref.fa").delete()
     }
 
     @Test
     fun testBuildRefVCF() {
+        println("\nLCJ - running testBuildRefVCF")
         val tiledbURI = TestExtension.testTileDBURI
         val refName = "Ref"
         val refUrl = TestExtension.refURL
@@ -220,5 +229,12 @@ class CreateRefVcfTest {
 
         // verify the ref allele for the first data line matches the first allele in the reference fasta, e.g. the genomeLines files
         assertEquals(genomeLines[1].get(0).toString(),vcfDataLines[0].split("\t")[3])
+
+        // Remove the files in the reference folder
+        // This is a problem for subsequent tests when all tests in this file are run at once.
+        // Sometimes this test is run before testBedFileWithoutBedExtension(), which causes
+        // an error becuase the Ref.fa file already exists when we try to write it.
+        File("${referenceDir}/anchors.bed").delete()
+        File("${referenceDir}/Ref.fa").delete()
     }
 }
