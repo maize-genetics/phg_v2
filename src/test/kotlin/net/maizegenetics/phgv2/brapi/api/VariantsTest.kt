@@ -64,8 +64,13 @@ class VariantsTest {
             }
         }
 
-        // Delete the bedFile created by createSmallSeqTiledb()
+        // copy the bedFile created by createSMallSeqTiledb() to a file named the same but with ".save" appended
+        // This will allow us to delete the bedFile and then restore it after the test
         val bedFile = File("${TestExtension.testTileDBURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()[0]
+        val bedFileSave = File("${TestExtension.testTileDBURI}/reference/${bedFile.name}.save")
+        bedFile.copyTo(bedFileSave)
+
+        // Delete the bedFile created by createSmallSeqTiledb()
         bedFile.delete()
 
         // Run test to verify that the server returns no data
@@ -74,6 +79,9 @@ class VariantsTest {
         val variants = response.body<VariantsListResponse>().result
         println("variants: $variants")
         Assertions.assertEquals(0, variants.data.size)
+
+        //Restore the bedFile
+        bedFileSave.copyTo(bedFile)
 
     }
     @Test
