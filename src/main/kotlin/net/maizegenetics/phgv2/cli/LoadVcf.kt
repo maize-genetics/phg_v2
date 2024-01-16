@@ -57,7 +57,8 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
         loadVcfFiles(vcfDir,dbPath,threads)
     }
 
-    fun loadVcfFiles(vcfDir:String,dbPath:String,threads:String) {
+    fun loadVcfFiles(vcfDir:String,dbPath:String,threads:String="1") {
+
         // Check the type of files in the vcfDir
         // anything with h.vcf.gz or hvcf.gz is a hvcf file
         // anything with g.vcf.gz or gvcf.gz is a gvcf file

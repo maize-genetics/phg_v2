@@ -17,6 +17,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
 import java.util.logging.Logger
+import kotlin.io.path.nameWithoutExtension
 
 /**
  * This class takes a reference genome and a bed file of intervals and creates a haplotype vcf for the reference genome.
@@ -35,7 +36,7 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
     val referenceUrl by option(help = "URL where the reference FASTA file can be downloaded")
         .default("")
 
-    val bed by option(help = "BED file with entries that define the haplotype boundaries .")
+    val bed by option(help = "BED file with entries that define the haplotype boundaries")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -218,20 +219,14 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
 
             // Load the Ref hvcf file to tiledb
             val loadVcf = LoadVcf()
-            loadVcf.loadVcfFiles(tiledbHvcfDir,dbPath,"1") // default the threads to "1" for the ref.
+            loadVcf.loadVcfFiles(tiledbHvcfDir,dbPath) // default the threads to "1" for the ref.
 
             // Store the bed file and the reference fasta file to the dbPath/reference folder
             // Create the dbPath/reference folder if it doesn't exist
             val tiledbRefDir = "${dbPath}/reference"
             Files.createDirectories(Paths.get(tiledbRefDir)) // skips folders that already exist
-            var localBedFile = tiledbRefDir + "/" + Paths.get(ranges).fileName.toString()
-
-            // If localBedFile does not have extension .bed, add it
-            // This is necessary as brAPI endpoint processing looks for the .bed extension
-            // when identifying the bed file from the reference folder
-            if (!localBedFile.endsWith(".bed")) {
-                localBedFile = localBedFile + ".bed"
-            }
+            val fileName = Paths.get(ranges).nameWithoutExtension
+            val localBedFile = "${tiledbRefDir}/${fileName}.bed"
 
             // The ref fasta file will be stored as <refName>.fa.  This allows methods
             // in other parts of the pipeline to know the sampleName of the reference genome as it

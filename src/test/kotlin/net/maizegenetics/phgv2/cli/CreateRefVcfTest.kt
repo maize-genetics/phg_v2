@@ -154,7 +154,7 @@ class CreateRefVcfTest {
         // Verify the tiledbUri/reference folder exists and contains the ranges file
         val referenceDir = "${tiledbURI}/reference/"
         assertEquals(true, File(referenceDir).exists())
-        assertEquals(true, File("${referenceDir}/anchors.txt.bed").exists())
+        assertEquals(true, File("${referenceDir}/anchors.bed").exists())
 
         // Remove the files in the reference folder
         // This is a problem for subsequent tests when all tests in this file are run at once.
