@@ -1,4 +1,4 @@
-package model
+package net.maizegenetics.phgv2.brapi.model
 
 import com.fasterxml.jackson.annotation.JsonValue
 import kotlinx.serialization.Serializable
