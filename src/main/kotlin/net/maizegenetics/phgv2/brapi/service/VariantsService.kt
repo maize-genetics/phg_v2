@@ -2,8 +2,8 @@ package net.maizegenetics.phgv2.brapi.service
 
 import com.typesafe.config.ConfigFactory
 import io.ktor.server.config.*
-import model.TokenPagination
-import model.Variant
+import net.maizegenetics.phgv2.brapi.model.TokenPagination
+import net.maizegenetics.phgv2.brapi.model.Variant
 import net.maizegenetics.phgv2.api.ReferenceRange
 import org.apache.logging.log4j.LogManager
 import org.ehcache.config.builders.CacheConfigurationBuilder

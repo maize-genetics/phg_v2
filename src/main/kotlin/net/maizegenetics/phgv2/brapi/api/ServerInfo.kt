@@ -9,7 +9,7 @@ import io.ktor.server.config.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import net.maizegenetics.phgv2.brapi.model.*
-import model.Metadata
+import net.maizegenetics.phgv2.brapi.model.Metadata
 
 
 private val config = HoconApplicationConfig(ConfigFactory.load())

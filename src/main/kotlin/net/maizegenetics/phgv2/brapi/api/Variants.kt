@@ -6,12 +6,9 @@ import io.ktor.server.application.*
 import io.ktor.server.config.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import model.Metadata
-import model.MetadataTokenPagination
-import model.VariantsListResponse
-import model.VariantsListResponseResult
-import net.maizegenetics.phgv2.brapi.model.SampleListResponse
-import net.maizegenetics.phgv2.brapi.model.SampleListResponseResult
+import net.maizegenetics.phgv2.brapi.model.MetadataTokenPagination
+import net.maizegenetics.phgv2.brapi.model.VariantsListResponse
+import net.maizegenetics.phgv2.brapi.model.VariantsListResponseResult
 import net.maizegenetics.phgv2.brapi.service.VariantsService
 
 private val config = HoconApplicationConfig(ConfigFactory.load())
