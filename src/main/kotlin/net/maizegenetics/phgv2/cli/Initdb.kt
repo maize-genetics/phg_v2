@@ -77,7 +77,7 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
         builder.redirectError( File(redirectError))
 
         println("begin Command to create hvcf dataset:" + builder.command().stream().collect(Collectors.joining(" ")))
-        myLogger.info("begin Command to create gvcf dataset:" + builder.command().joinToString(" "))
+        myLogger.info("begin Command to create hvcf dataset:" + builder.command().joinToString(" "))
         try {
             var process = builder.start()
             var error = process.waitFor()

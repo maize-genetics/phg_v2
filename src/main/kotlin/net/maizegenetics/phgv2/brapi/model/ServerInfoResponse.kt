@@ -1,7 +1,6 @@
 package net.maizegenetics.phgv2.brapi.model
 
 import kotlinx.serialization.Serializable
-import model.Metadata
 import java.util.*
 
 @Serializable

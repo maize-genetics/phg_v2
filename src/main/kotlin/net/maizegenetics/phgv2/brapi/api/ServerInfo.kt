@@ -1,12 +1,15 @@
 package net.maizegenetics.phgv2.brapi.api
 
+/**
+ * This file returns information containing the list of brAPI endpoints supported by this server.
+ */
 import com.typesafe.config.ConfigFactory
 import io.ktor.server.application.*
 import io.ktor.server.config.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import net.maizegenetics.phgv2.brapi.model.*
-import model.Metadata
+import net.maizegenetics.phgv2.brapi.model.Metadata
 
 
 private val config = HoconApplicationConfig(ConfigFactory.load())
@@ -58,6 +61,13 @@ fun Route.serverInfo() {
                 "/serverinfo",
                 listOf(VersionsEnum._0, VersionsEnum._1, VersionsEnum._2)
             ),
+            Service(
+                listOf(WSMIMEDataTypes.APPLICATION_JSON),
+                listOf(MethodsEnum.GET),
+                "/variants",
+                listOf(VersionsEnum._0, VersionsEnum._1, VersionsEnum._2)
+            ),
+
             
 //            Service(
 //                listOf(WSMIMEDataTypes.APPLICATION_JSON),
