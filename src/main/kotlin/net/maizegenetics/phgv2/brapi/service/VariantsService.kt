@@ -14,7 +14,6 @@ import org.ehcache.core.spi.service.StatisticsService
 import java.io.File
 import java.util.*
 import kotlin.collections.ArrayList
-import kotlin.collections.HashSet
 
 val statisticsVariantsService: StatisticsService = DefaultStatisticsService()
 private val config = HoconApplicationConfig(ConfigFactory.load())
@@ -99,14 +98,9 @@ class VariantsService {
 
     }
 
-    // This method will return a list of variants for a given page.  The page is defined by the
-    // next index into the ReferenceRange list.  The pageSize is the number of variants to return.
-    // Currently, there is only a single group named "all".  This will be used to get the
-    // reference ranges from the cache.  having the groupName parameter allows for this to change.
-    fun generateVariantsListFromCache(currentPageToken:Int, pageSize:Int, groupName:String? = "all"): Pair<TokenPagination,List<Variant>> {
-        //check for cache - if it doesn't exist, create it
-        // remove println when myLogger is working
-        //var referenceRanges: ArrayList<ReferenceRange>? = null
+    // Function to query the cache for a set of reference ranges.
+    // If the cache doesn't exist, create it.
+    fun getReferenceRanges(groupName:String): List<ReferenceRange>? {
         var referenceRanges: List<ReferenceRange>? = null
         if (variantCache.containsKey(groupName)) {
             myLogger.info("generateVariantsListFromCache - getting reference/variants from cache")
@@ -129,7 +123,7 @@ class VariantsService {
 
             } else {
                 val bedFile = bedFileList[0]
-                val referenceRanges = createRefRangesForCache(bedFile) as ArrayList<ReferenceRange>
+                referenceRanges = createRefRangesForCache(bedFile) as ArrayList<ReferenceRange>
                 if (referenceRanges != null) {
                     // This list of reference ranges as stored with key "haplotype"
                     variantCache.put("all",referenceRanges)
@@ -142,6 +136,18 @@ class VariantsService {
                 //Sizeof.printMemoryUse()
             }
         }
+        return referenceRanges
+    }
+
+    // This method will return a list of variants for a given page.  The page is defined by the
+    // next index into the ReferenceRange list.  The pageSize is the number of variants to return.
+    // Currently, there is only a single group named "all".  This will be used to get the
+    // reference ranges from the cache.  having the groupName parameter allows for this to change.
+    fun generateVariantsListFromCache(currentPageToken:Int, pageSize:Int, groupName:String = "all"): Pair<TokenPagination,List<Variant>> {
+        //check for cache - if it doesn't exist, create it
+        // remove println when myLogger is working
+        //var referenceRanges: ArrayList<ReferenceRange>? = null
+        val referenceRanges = getReferenceRanges(groupName)
 
         // if no reference ranges were found, return empty list
         if (referenceRanges == null) {
@@ -200,5 +206,53 @@ class VariantsService {
         var pagination = TokenPagination(pageSize=pageSize, nextPageToken=nextPageToken, currentPageToken=currentPageToken.toString(), totalCount=totalCount, totalPages=totalPages)
         return Pair<TokenPagination, List<Variant>>(pagination,variants)
 
+    }
+
+    // Find the data for a specific Variant (ie referenceRange)
+    fun generateVariantFromID(variantDbId:String, pageToken:Int, pageSize:Int, groupName:String = "all"):Variant? {
+        var referenceRanges = getReferenceRanges(groupName)
+
+        // if no reference ranges were found, return empty list
+        if (referenceRanges == null) {
+            //  Return a single variant, or null?
+            return null
+
+        } else {
+            val contig= variantDbId.split(":")[0]
+            val start = variantDbId.split(":")[1].split("-")[0].toInt()
+            val end = variantDbId.split(":")[1].split("-")[1].toInt()
+
+            // Filter the reference ranges to find one that matches the variantDbId
+            // if one is found, create a Variant object from it
+            // if not found, return null
+            val variant = referenceRanges.filter{it.contig == contig && it.start == start && it.end == end}.map { range ->
+                Variant(
+                    referenceName = range.contig,
+                    start = range.start,
+                    end = range.end,
+                    variantDbId = "${range.contig}:${range.start}-${range.end}",
+                    variantType = "REF_RANGE",
+                    referenceBases = "",
+                    alternateBases = emptyList(),
+                    filtersApplied = false,
+                    filtersFailed = emptyList(),
+                    filtersPassed = true,
+                    variantNames = emptyList(),
+                    variantSetDbId = emptyList(),
+                    additionalInfo = emptyMap(),
+                    ciend = emptyList(),
+                    cipos = emptyList(),
+                    created = null,
+                    svlen = range.end - range.start + 1,
+                    updated = null
+                )
+            }
+
+            if (variant.size == 0) {
+                return null
+            } else {
+                return variant[0]
+            }
+        }
     }
 }

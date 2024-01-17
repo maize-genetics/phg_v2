@@ -6,9 +6,7 @@ import io.ktor.server.application.*
 import io.ktor.server.config.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import net.maizegenetics.phgv2.brapi.model.MetadataTokenPagination
-import net.maizegenetics.phgv2.brapi.model.VariantsListResponse
-import net.maizegenetics.phgv2.brapi.model.VariantsListResponseResult
+import net.maizegenetics.phgv2.brapi.model.*
 import net.maizegenetics.phgv2.brapi.service.VariantsService
 
 private val config = HoconApplicationConfig(ConfigFactory.load())
@@ -36,6 +34,28 @@ fun Route.variants() {
             val variants = variantsAndPagination.second
             var metadata = MetadataTokenPagination(pagination = pagination)
             call.respond(VariantsListResponse(metadata, VariantsListResponseResult(variants.toTypedArray())))
+        }
+
+        //This end point will return data for a specific variant corresponding to a variantDbId.
+        //If the id is not found a 404 will be thrown.
+        get("/{variantDbId}") {
+            val pageToken = call.parameters["page"]?.toInt() ?: 1 // page token is reference range id, which starts at 1
+            val pageSize = call.parameters["pageSize"]?.toInt() ?: defaultVariantsPageSize
+
+            if(pageToken < 1) {
+                call.respond(" ${HttpStatusCode.NotFound}: The page ${pageToken} is invalid.  It must be 1 or greater.")
+            }
+
+            val variantDbId = call.parameters["variantDbId"] ?: throw IllegalStateException("Must provide variantDbId")
+            val variant = variantService.generateVariantFromID(variantDbId, pageToken, pageSize, "all")
+
+            if(variant == null) {
+                call.respond("${HttpStatusCode.NotFound}: The requested Variant object ${variantDbId} was not found in the database")
+            }
+            else {
+                // There will only be 1 page, so nextPageToken will be defaulted to null
+                call.respond(VariantSingleResponse(MetadataTokenPagination(pagination= TokenPagination(currentPageToken="1")), variant))
+            }
         }
 
     }
