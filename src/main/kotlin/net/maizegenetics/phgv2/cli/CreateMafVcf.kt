@@ -85,7 +85,6 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                 val sampleName = it.nameWithoutExtension //This will likely need to change in the future
                 val gvcfVariants = getGVCFVariantsFromMafFile(refGenomeSequence, it.absolutePath, it.nameWithoutExtension, twoGvcfs=twoGvcfs)
                 //export the gvcfRecords
-                //TODO here
                 if (gvcfVariants.size == 1){
                     println("createASMHvcfs: gvcfVariants.size == 1")
                     val sampleName = gvcfVariants.keys.first()
@@ -213,8 +212,6 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
 
             check(regionChrom in refGenomeSequence.keys) { "Chromosome $regionChrom not found in reference" }
 
-            if(regionStart > 6000000) { println(region) }
-
             //Need to subtract here as the Biokotlin NucSeq is 0 based
             val refRangeSeq = refGenomeSequence[regionChrom]!![regionStart-1..regionEnd-1]
 
@@ -226,19 +223,14 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                 //If variant is partially contained in Bed region add to temp list do not increment as we need to see if the next bed also overlaps
                 //If variant is not contained in Bed region, skip and do not increment as we need to see if the next bed overlaps
                 if(bedRegionContainedInVariant(region, currentVariant)) {
-
-                    // If bed region fully contained in deletion area, do not add it to the list at all - this haplotype is not present in this taxon
-                    if(!bedRegionContainedInDeletion(region, currentVariant)) {
-                        outputVariantMetadata.add(
-                            convertGVCFRecordsToHVCFMetaData(
-                                sampleName,
-                                region,
-                                refRangeSeq,
-                                listOf(currentVariant)
-                            )
+                    outputVariantMetadata.add(
+                        convertGVCFRecordsToHVCFMetaData(
+                            sampleName,
+                            region,
+                            refRangeSeq,
+                            listOf(currentVariant)
                         )
-                    }
-
+                    )
                     tempVariants.clear()
                     break
                 }
@@ -276,7 +268,6 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                     currentVariantIdx++
                 }
             }
-            if(regionStart > 6000000) { tempVariants.forEach{println(it)} }
 
             if(tempVariants.isNotEmpty()) {
                 val newHVCFRecord = convertGVCFRecordsToHVCFMetaData(
@@ -285,14 +276,6 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                     refRangeSeq,
                     tempVariants
                 )
-
-                if(regionStart > 6000000) {
-                    println(newHVCFRecord.sampleName)
-                    println(newHVCFRecord.refStart)
-                    println(newHVCFRecord.refEnd)
-                    newHVCFRecord.asmRegions.forEach{println(it)}
-                    readLine()
-                }
 
                 outputVariantMetadata.add(
                     newHVCFRecord
@@ -309,59 +292,51 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
 
     /**
      * Function to see if the BED region is fully contained within a VariantContext
+     * Indels are left-justified
      * Bed:       |---|
      * Var: |--------------|
      */
     fun bedRegionContainedInVariant(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
-        return variant.contig == region.first.contig && variant.start <= region.first.position && variant.end >= region.second.position
-    }
-
-    /**
-     * Function to see if the BED region is fully contained within a deletion variant
-     * Bed:       |---|
-     * Ref: |ACTGGGTCACCGGTA|
-     * Var: |ACTG--------GTA|
-     */
-    fun bedRegionContainedInDeletion(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
-        return if (variant.getAttributeAsString("ASM_Strand","+") == "+") {
-            bedRegionContainedInVariant(region, variant) &&
-                    (variant.getAttributeAsInt("ASM_Start", variant.start) + (region.first.position - variant.start) > variant.getAttributeAsInt("ASM_End", variant.end))
-        } else {
-            bedRegionContainedInVariant(region, variant) &&
-                    (variant.getAttributeAsInt("ASM_Start", variant.start) - (region.first.position - variant.start) < variant.getAttributeAsInt("ASM_End", variant.end))
-        }
+        val end = if (variant.type == VariantContext.Type.SYMBOLIC) variant.end else variant.start
+        return variant.contig == region.first.contig && variant.start <= region.first.position && end >= region.second.position
     }
 
     /**
      * Function to see if the VariantContext is fully contained within a BED region
+     * Indels are left-justified
      * Bed: |--------------|
      * Var:       |---|
      */
     fun variantFullyContained(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
-        return variant.contig == region.first.contig && variant.start >= region.first.position && variant.end <= region.second.position
+        val end = if (variant.type == VariantContext.Type.SYMBOLIC) variant.end else variant.start
+        return variant.contig == region.first.contig && variant.start >= region.first.position && end <= region.second.position
     }
 
     /**
      * Function to see if the start of the variant is partially contained in the BED region
+     * Indels are left-justified
      * Bed: |--------------|
      * Var:              |---|
      */
     fun variantPartiallyContainedStart(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
+        val end = if (variant.type == VariantContext.Type.SYMBOLIC) variant.end else variant.start
         return variant.contig == region.first.contig &&
                 variant.start >= region.first.position &&
                 variant.start <= region.second.position &&
-                variant.end > region.second.position
+                end > region.second.position
     }
 
     /**
      * Function to see if the end of the variant is partially contained in the BED region
+     * Indels are left-justified
      * Bed:      |--------------|
      * Var:    |---|
      */
     fun variantPartiallyContainedEnd(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
+        val end = if (variant.type == VariantContext.Type.SYMBOLIC) variant.end else variant.start
         return variant.contig == region.first.contig &&
-                variant.end <= region.second.position &&
-                variant.end >= region.first.position &&
+                end <= region.second.position &&
+                end >= region.first.position &&
                 variant.start < region.first.position
     }
 
@@ -394,35 +369,14 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         //Resize the first and last variantContext ASM start and end based on the regions
         var newASMStart = resizeVariantContext(firstVariant, region.first.position, firstStrand)
         if(newASMStart == -1) {
-            newASMStart = if(firstVariant.start >= region.first.position) {
-                if(firstStrand == "+") firstVariant.getAttributeAsInt("ASM_Start",region.first.position)
+            newASMStart = if(firstStrand == "+") firstVariant.getAttributeAsInt("ASM_Start",region.first.position)
                 else firstVariant.getAttributeAsInt("ASM_End",region.first.position)
-            } else { // if an indel lies between two adjacent haplotypes, we may need to split it
-                if(firstStrand == "+") {
-                    min(firstVariant.getAttributeAsInt("ASM_Start", region.first.position) + (region.first.position - firstVariant.start),
-                        firstVariant.getAttributeAsInt("ASM_End",region.second.position) + 1)
-                } else  {
-                    max(firstVariant.getAttributeAsInt("ASM_Start", region.first.position) - (region.first.position - firstVariant.start),
-                        firstVariant.getAttributeAsInt("ASM_End",region.second.position) - 1)
-                }
-            }
         }
 
         var newASMEnd = resizeVariantContext(lastVariant, region.second.position, lastStrand)
         if(newASMEnd == -1) {
-            newASMEnd = if(lastVariant.end <= region.second.position) {
-                if(lastStrand == "+") lastVariant.getAttributeAsInt("ASM_End",region.second.position)
+            newASMEnd = if(lastStrand == "+") lastVariant.getAttributeAsInt("ASM_End",region.second.position)
                 else lastVariant.getAttributeAsInt("ASM_Start",region.second.position)
-            } else { // if an indel lies between two adjacent haplotypes, we may need to split it
-                if(lastStrand == "+") {
-                    min(lastVariant.getAttributeAsInt("ASM_Start",region.first.position) + (region.second.position - lastVariant.start),
-                        lastVariant.getAttributeAsInt("ASM_End",region.second.position))
-
-                } else {
-                    max(lastVariant.getAttributeAsInt("ASM_Start",region.first.position) - (region.second.position - lastVariant.start),
-                        lastVariant.getAttributeAsInt("ASM_End",region.second.position))
-                }
-            }
         }
 
         val regions = buildNewAssemblyRegions(newASMStart,newASMEnd,variants)
@@ -448,11 +402,16 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
 
         //merge the first and last with the rest of the variants
         val mergedVariants = mutableListOf<Pair<Position,Position>>()
-        mergedVariants.add(resizedFirst) // add the first variant
-        if (variantsConverted.size > 2){ // add any variants in the middle
-            mergedVariants.addAll(variantsConverted.subList(1,variantsConverted.size-1))
+        if(variantsConverted.size == 1) {
+            val resizedFirstAndLast = resizePositionRange(resizePositionRange(variantsConverted.first(), newStart, true), newEnd, false)
+            mergedVariants.add(resizedFirstAndLast)
+        } else {
+            mergedVariants.add(resizedFirst) // add the first variant
+            if (variantsConverted.size > 2) { // add any variants in the middle
+                mergedVariants.addAll(variantsConverted.subList(1, variantsConverted.size - 1))
+            }
+            mergedVariants.add(resizedLast) // add the last variant
         }
-        mergedVariants.add(resizedLast) // add the last variant
 
         //merge the consecutive regions
         val mergedConsecutiveVariants = mergeConsecutiveRegions(mergedVariants)
@@ -595,8 +554,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * Simple function to convert the all the HVCFRecordMetadata records into VariantContext records
      */
     fun convertMetaDataToHVCFContexts(metaData: List<HVCFRecordMetadata>, asmHeaders: MutableMap<String,VCFHeaderLine>, dbPath:String): List<VariantContext> {
-        //return metaData.map { convertMetaDataRecordToHVCF(it, asmHeaders, dbPath) }
-        return listOf()
+        return metaData.map { convertMetaDataRecordToHVCF(it, asmHeaders, dbPath) }
     }
 
     /**
@@ -661,7 +619,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      */
     fun isVariantResizable(variant: VariantContext) : Boolean {
         return when {
-            variant.getReference().baseString.length == 1 && variant.end - variant.start > 0 -> true //refBlock
+            variant.getReference().baseString.length == 1 && variant.end - variant.start > 0 && variant.type == VariantContext.Type.SYMBOLIC -> true //refBlock
             variant.reference.baseString.length == variant.getAlternateAllele(0).baseString.length -> true //This covers both SNPs and multiallelic polymorphisms
             else -> false
         }
