@@ -173,7 +173,7 @@ class VariantsService {
                 referenceName = range.contig,
                 start = range.start,
                 end = range.end,
-                variantDbId = "${range.contig}:${range.start}:${range.end}",
+                variantDbId = "${range.contig}:${range.start}-${range.end}",
                 variantType = "REF_RANGE",
                 referenceBases = "",
                 alternateBases = emptyList(),

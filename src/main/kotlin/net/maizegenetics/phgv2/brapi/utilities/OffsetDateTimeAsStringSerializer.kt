@@ -1,4 +1,4 @@
-package utilities
+package net.maizegenetics.phgv2.utilities
 
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
