@@ -100,6 +100,9 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
         .default(1.0)
         .validate { require(it in 0.5..1.0) {"min-coverage must be between 0.5 and 1.0"} }
 
+    val likelyAncestorFile by option(help="If useLikelyAncestors is true, a record of the ancestors used for each sample will be written to this file.")
+        .default("")
+
     val threads by option(help = "number of threads used to find paths.").int().default(3)
 
 
@@ -159,7 +162,7 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
     }
 
     private data class ReadMappingResult(val name: String, val readMappingCounts: Map<List<String>, Int>) //placeholder
-    private data class Path(val name: String, val hapidList: List<List<String>>, val graph: HaplotypeGraph)
+    private data class Path(val name: String, val hapidList: List<List<String>>, val graph: HaplotypeGraph, val likelyParents: List<MostLikelyParents.ParentStats>)
 
     /**
      * Takes a map of sample name -> list of read mapping files. It processes the samples in parallel.
@@ -221,8 +224,8 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
 
         for (result in readMappingChannel) {
             val mappingsByRefrange = HaploidPathFinding.readMappingByRange(result.readMappingCounts, graph)
-            val hapidList = pathFinder.findBestDiploidPath(mappingsByRefrange)
-            pathChannel.send(Path(result.name, hapidList, graph))
+            val pathResult = pathFinder.findBestDiploidPath(mappingsByRefrange)
+            pathChannel.send(Path(result.name, pathResult.first, graph, pathResult.second))
         }
 
     }
@@ -271,6 +274,16 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
 
         exportVariantContext(myPath.name, variantContextList, hvcfFileName, referenceSequence, headerSet)
 
+    }
+
+    private fun appendParentStats(path: Path) {
+        val fileExists = File(likelyAncestorFile).exists()
+        getBufferedWriter(likelyAncestorFile, append = true).use { myWriter ->
+            if (!fileExists) myWriter.write("sample\tancestor\tgameteId\treads\tcoverage\n")
+            for (stats in path.likelyParents) {
+                myWriter.write("${path.name}\t${stats.parent.name}\t${stats.parent.gameteId}\t${stats.readCount}\t${stats.coverage}\n")
+            }
+        }
     }
 
     companion object {
