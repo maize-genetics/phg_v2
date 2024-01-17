@@ -1,15 +1,18 @@
 package net.maizegenetics.phgv2.brapi.api
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.kotest.matchers.shouldBe
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import io.ktor.serialization.jackson.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
-import net.maizegenetics.phgv2.brapi.createSmallSeqTiledb
+import kotlinx.serialization.json.Json
+import net.maizegenetics.phgv2.brapi.model.Variant
 import net.maizegenetics.phgv2.brapi.model.VariantsListResponse
+import net.maizegenetics.phgv2.brapi.createSmallSeqTiledb
+//import net.maizegenetics.phgv2.brapi.model.SampleListResponse
 import net.maizegenetics.phgv2.brapi.resetDirs
 import net.maizegenetics.phgv2.brapi.service.VariantsService
 import net.maizegenetics.phgv2.cli.TestExtension
@@ -18,6 +21,9 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.io.File
+import java.time.OffsetDateTime
+
+import kotlinx.serialization.encodeToString
 
 class VariantsTest {
     companion object {
@@ -38,6 +44,41 @@ class VariantsTest {
         fun teardown() {
             File(TestExtension.tempDir).deleteRecursively()
         }
+    }
+
+
+    @Test
+    fun testSettingOffsetDateTime() {
+        val dateTime = OffsetDateTime.now()
+        println("dateTime: $dateTime")
+    }
+
+    @Test
+    fun testSerialize2() {
+        val variant1 = Variant(
+            referenceName ="chr1",
+            start = 1,
+            end = 500,
+            variantDbId = "chr1:1-500",
+            variantType = "REF_RANGE",
+            referenceBases = "",
+            alternateBases = emptyList(),
+            filtersApplied = false,
+            filtersFailed = emptyList(),
+            filtersPassed = true,
+            variantNames = emptyList(),
+            variantSetDbId = emptyList(),
+            additionalInfo = emptyMap(),
+            ciend = emptyList(),
+            cipos = emptyList(),
+            created = OffsetDateTime.now(),
+            svlen = 500,
+            updated = null
+        )
+        val json = Json.encodeToString(variant1)
+        val obj = Json.decodeFromString(Variant.serializer(), json)
+        println("obj: $obj")
+        Assertions.assertEquals(variant1, obj)
     }
 
     @Test
