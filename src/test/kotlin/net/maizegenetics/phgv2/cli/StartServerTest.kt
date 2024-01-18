@@ -57,9 +57,26 @@ class StartServerTest {
         val appHome = StartServer().getClassPath().substringBefore("classes")
         assertTrue(appHome != null) // will be different based on which user is running the test
         println("appHome: $appHome")
-        val configPath = StartServer().getDbPathFromConfigFile(appHome) // this should be consistent
+
+        // copy the file to a temporary location
+        val testConfigPath = Paths.get("${TestExtension.tempDir}/resources/main/")
+        val origConfigFile = Paths.get("${appHome}/resources/main/application.conf")
+        // make the testConfigPath directory if it doesn't exist
+        testConfigPath.toFile().mkdirs()
+        // copy the origConfigFile to the testConfigPath
+        origConfigFile.toFile().copyTo(Paths.get("${testConfigPath}/application.conf").toFile())
+
+        val configPath = StartServer().getDbPathFromConfigFile(TestExtension.tempDir) // this should be consistent
         assertTrue(configPath == null) // null because we have not yet written "TILEDB_URI" line to the application.conf file
         //println("configPath: $configPath")
+
+        // cleanup
+        // Delete the temp config file
+        val configFile = Paths.get("${TestExtension.tempDir}/resources/main/application.conf")
+        configFile.toFile().delete()
+
+        // Delete the testConfigPath directory
+        testConfigPath.toFile().deleteRecursively()
     }
 
     @Test
