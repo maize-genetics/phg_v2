@@ -187,8 +187,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
     }
 
     fun convertGVCFToHVCFForChrom(dbPath: String, sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, agcArchiveName: String, variantContexts: List<VariantContext>, asmHeaders: MutableMap<String,VCFHeaderLine> ) : List<VariantContext> {
-
-
+        
         /**
          * Loop through the bed file
          * Loop through the gvcf records as well
@@ -268,16 +267,12 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
             }
 
             if(tempVariants.isNotEmpty()) {
-                val newHVCFRecord = convertGVCFRecordsToHVCFMetaData(
+                outputVariantMetadata.add(convertGVCFRecordsToHVCFMetaData(
                     sampleName,
                     region,
                     refRangeSeq,
                     tempVariants
-                )
-
-                outputVariantMetadata.add(
-                    newHVCFRecord
-                )
+                ))
                 tempVariants.clear()
             }
         }
