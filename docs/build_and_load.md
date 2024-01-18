@@ -57,7 +57,7 @@ In this document, we will discuss the steps needed to:
         --bed /path/to/bed_file.bed \
         --reference-file /my/ref.fasta \
         --reference-name B73 \
-        -o /path/to/ref_vcf.vcf
+        -db-path /path/to/dbs
   
     # MAF alignments VCF
     phg create-maf-vcf \
@@ -758,7 +758,7 @@ The `create-ref-vcf` command requires the following inputs:
   MD5 hashes of sequence information guided by reference range
   positional data from the BED file used in the `--bed` parameter.
 * `--reference-name` - The name of the reference sample
-* `-o` - Output directory for the VCF data.
+* `-db-path` - Output directory for the VCF data.
 
 > [!WARNING]
 > The directory that you specify in the output (`-o`) section must
@@ -770,8 +770,8 @@ The `create-ref-vcf` command requires the following inputs:
 > FASTA file can be downloaded. This will be added to the VCF header
 > information.
 
-Once the command is complete, and you have navigated into the output
-directory (in my case, `output/vcf_files`), you will see two files:
+Once the command is complete, and you have navigated into the `db-path`
+directory (in my case, `vcf_dbs/`), you will see a subfolder named hvcf_files with two files:
 
 
 | File                      | Description                                              |
@@ -779,12 +779,25 @@ directory (in my case, `output/vcf_files`), you will see two files:
 | `<ref_name>.h.vcf.gz`     | compressed reference haplotype VCF (hVCF) file           |
 | `<ref_name>.h.vcf.gz.csi` | coordinate sorted index (CSI) of the reference hVCF file |
 
+
 Here, `<ref_name>` is the name of the reference genome provided
 using the `--reference-name` parameter. Since I defined this
 parameter as `B73` in the above example, my two files would be:
 
 * `B73.h.vcf.gz`
 * `B73.h.vcf.gz.csi`
+
+There will also be a subfolder named "reference" with two files.  The bed file used to create
+the reference hvcf and the reference fasta are stored here for future reference.
+
+| File             | Description                                |
+|------------------|--------------------------------------------|
+| `<ref_name>.bed` | BED file used to create the reference hVCF |
+| `<ref_name>.fa`  | reference fasta file                       |
+
+
+In addition to creating the files, the `create-ref-vcf` command will load the
+reference h.vcf file to the `hvcf_dataset` TileDB instance.
 
 #### `create-maf-vcf` inputs
 The `create-maf-vcf` command requires the following inputs:

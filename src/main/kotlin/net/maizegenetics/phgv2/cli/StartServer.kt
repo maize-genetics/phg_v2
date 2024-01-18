@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.int
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import net.maizegenetics.phgv2.utils.setupDebugLogging
@@ -26,6 +27,9 @@ class StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
     val dbPath by option(help = "Full path to folder where TileDB datasets are stored.  \nThis must be run at least once before starting the server. \nIf you have already run it for this server instance you do not need to supply this again.")
         .default("")
 
+    val port by option(help = "The port on which the server will listen.  \nDefault is 8080.")
+        .int()
+        .default(8080)
 
     override fun run() {
         setupDebugLogging()
@@ -45,6 +49,8 @@ class StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
                 myLogger.error("start-server:  \nTILEDB_URI is not set in application.conf file.  \nPlease re-run start-server with a valid value for dbPath parameter.")
                 throw IllegalArgumentException("start-server:  \nTILEDB_URI is not set in application.conf file.  \nPlease re-run start-server with a valid value for dbPath parameter.")
             }
+            myLogger.info("start-server: using existing TILEDB_URI value from application.conf file: ${configPath}.")
+            tiledbPath = configPath // use the configPath already stored in the application file
         } else { // dbPath has a value
             if (configPath!=null && configPath.isNotBlank()) {
                 if (configPath != dbPath) {
@@ -52,9 +58,7 @@ class StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
                         myLogger.error("start-server:  \ndp-path does not contain a valid tiledb created hvcf_dataset.  \nPlease re-run start-server with a valid value for db-path parameter.")
                         throw IllegalArgumentException("start-server:  \nTILEDB_URI is not valid.  \nPlease re-run start-server with a valid value for dbPath parameter.")
                     }
-                    // Updating TILEDB_URI in the application.conf with value from db-path
-                    myLogger.error("start-server:  Updating TILEDB_URI in the application.conf with value from db-path: ${dbPath}")
-                    updateConfigFile(dbPath,appHome)
+                    myLogger.info("start-server:  Updating TILEDB_URI in the application.conf with value from db-path: ${dbPath}")
                 } else {
                     myLogger.info("\nstart-server:  Running server with db-path/TILEDB_URI of ${configPath}.")
                 }
@@ -63,10 +67,11 @@ class StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
                     myLogger.error("hvcf_dataset does not exist in $dbPath.  Please check your path, and/or run Initdb to create the datasets.")
                     throw IllegalArgumentException("A valid hvcf_dataset does not exist in $dbPath.")
                 }
-                myLogger.info("start-server:  dbPath = ${dbPath}, writing to application.conf file")
-                writeConfigFile(dbPath,appHome)
             }
         }
+        // Update the application.conf file with the dbPath value and port number
+        myLogger.info("start-server: updating application.conf file with dbPath = ${tiledbPath} and port = ${port}")
+        updateConfigFile(tiledbPath,port.toString(),appHome)
 
         // Checks have passed - Ready to start the server!
         // commandLineEnvironment reads the application.config file
@@ -74,38 +79,18 @@ class StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
         embeddedServer(Netty, commandLineEnvironment(emptyArray())).start(wait = true)
     }
 
-    // write the dbPath to the application.conf file using
-    // the appHome variable created above
-    fun writeConfigFile(dbPath:String,appHome:String) {
-
-        // the application file is in ${appHome}/resources
-        // NOTE for the CLASSPATH, APP_HOME does not include the "phg" resources,
-        // but it does when calculated here.
-
-        // Create a configPath using the appHome variable created above
-        val configPath = Paths.get("${appHome}/resources/main/application.conf")
-
-        myLogger.info("writeConfigFile: configPath = ${configPath}")
-        var config = Files.readString(Paths.get(configPath.toString()))
-
-        // append to the beginning of config the line "TILEDB_URI=${dbPath}"
-        config  = "TILEDB_URI=${dbPath}\n" + config
-        //write the new config file - do I have permission ???
-        configPath.toFile().writeText(config)
-    }
-
-    fun updateConfigFile(dbPath:String,appHome:String) {
+    fun updateConfigFile(dbPath:String,port:String,appHome:String) {
         val configPath = Paths.get("${appHome}/resources/main/application.conf")
         // write the existing file minus the TILEDB_URI line
         var config = ""
         Files.lines(Paths.get(configPath.toString())).forEach { line ->
-            if (!line.startsWith("TILEDB_URI")) {
+            if (!line.startsWith("TILEDB_URI") && !line.startsWith("PORT")) {
                 config += line + "\n"
             }
         }
 
         // append to the beginning of config the line "TILEDB_URI=${dbPath}"
-        config  = "TILEDB_URI=${dbPath}\n" + config
+        config  = "TILEDB_URI=${dbPath}\nPORT=${port}\n" + config
         //write the new config file - do I have permission ???
         configPath.toFile().writeText(config.toString())
     }
