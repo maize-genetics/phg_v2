@@ -788,12 +788,12 @@ parameter as `B73` in the above example, my two files would be:
 * `B73.h.vcf.gz.csi`
 
 There will also be a subfolder named "reference" with two files.  The bed file used to create
-the reference hvcf and the reference hvcf are stored here for future reference.
+the reference hvcf and the reference fasta are stored here for future reference.
 
-| File                      | Description                                              |
-|---------------------------|----------------------------------------------------------|
-| `<ref_name>.bed`          | BED file used to create the reference hVCF               |
-| `<ref_name>.h.vcf.gz`     | reference hVCF file                                       |
+| File             | Description                                |
+|------------------|--------------------------------------------|
+| `<ref_name>.bed` | BED file used to create the reference hVCF |
+| `<ref_name>.fa`  | reference fasta file                       |
 
 
 In addition to creating the files, the `create-ref-vcf` command will load the
