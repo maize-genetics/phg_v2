@@ -27,51 +27,21 @@ import kotlin.test.assertTrue
  *
  */
 class StartServerTest {
-    companion object {
+    companion object {  // static variables
 
+        val tempDir = "${System.getProperty("user.home")}/temp/phgv2Tests/tempDir/"
         @JvmStatic
         @BeforeAll
-        fun copyApplicationConfFile() {
-            // copy the application.conf file to a saved location
-            // in the same folder.
-            val appHome = StartServer().getClassPath().substringBefore("classes")
-            val configPath = Paths.get("${appHome}/resources/main/application.conf")
-
-            var config = Files.readString(Paths.get(configPath.toString()))
-
-            val configSaved = Paths.get("${appHome}/resources/main/application.conf.saved")
-            //write the new config file - do I have permission ???
-            configSaved.toFile().writeText(config.toString())
-
-            // Now, for the real file, we need to re-write it with the TILEDB_URI line removed.
-            // When CI tests are run, a script writes the TILEDB_URI line to the application.conf file.
-            // Copy the original config file with the TILEDB_URI line removed back to the original location.
-            config = ""
-            Files.lines(Paths.get(configPath.toString())).forEach { line ->
-                if (!line.startsWith("TILEDB_URI") && !line.startsWith("PORT")) {
-                    config += line + "\n"
-                }
-            }
-            //write the new config file
-            configPath.toFile().writeText(config.toString())
+        fun setup() {
+            File(TestExtension.tempDir).mkdirs()
         }
 
         @JvmStatic
         @AfterAll
-        fun returnApplicationConfFile() {
-            val appHome = StartServer().getClassPath().substringBefore("classes")
-            val savedConfigPath = Paths.get("${appHome}/resources/main/application.conf.saved")
-
-            var config = Files.readString(Paths.get(savedConfigPath.toString()))
-
-            val configOrig = Paths.get("${appHome}/resources/main/application.conf")
-            //return the original config file
-            configOrig.toFile().writeText(config.toString())
-
-            // delete the saved config file
-            savedConfigPath.toFile().delete()
-
+        fun teardown() {
+            File(TestExtension.tempDir).deleteRecursively()
         }
+
     }
 
     // We do not include a test that calls StartServer as it results in the software hanging while the
@@ -90,37 +60,35 @@ class StartServerTest {
         val configPath = StartServer().getDbPathFromConfigFile(appHome) // this should be consistent
         assertTrue(configPath == null) // null because we have not yet written "TILEDB_URI" line to the application.conf file
         //println("configPath: $configPath")
-
-
-        // cleanup - should be done in @AfterAll, but failed when we ran the full suite of tests
-        // vs running them individually
-//        val savedConfigPath = Paths.get("${appHome}/resources/main/application.conf.saved")
-//        var config = Files.readString(Paths.get(savedConfigPath.toString()))
-//
-//        val configOrig = Paths.get("${appHome}/resources/main/application.conf")
-//        //return the original config file
-//        configOrig.toFile().writeText(config.toString())
     }
 
     @Test
     fun testUpdateConfigFile() {
-        // The "beforeAll" saves the original config file, then returns it after the test
+        // Get the original config file
         val dbPath = "/Users/lcj34/temp/phgv2Tests/tempDir/testTileDBURI/"
         val port = 8090
         val appHome = StartServer().getClassPath().substringBefore("classes")
         assertTrue(appHome != null)
         println("appHome: $appHome")
 
+        // copy the file to a temporary location
+        val testConfigPath = Paths.get("${TestExtension.tempDir}/resources/main/")
+        val origConfigFile = Paths.get("${appHome}/resources/main/application.conf")
+        // make the testConfigPath directory if it doesn't exist
+        testConfigPath.toFile().mkdirs()
+        // copy the origConfigFile to the testConfigPath
+        origConfigFile.toFile().copyTo(Paths.get("${testConfigPath}/application.conf").toFile())
+
         // update the config file with dbPath and port values above
-        StartServer().updateConfigFile(dbPath,port.toString(),appHome)
+        StartServer().updateConfigFile(dbPath,port.toString(),TestExtension.tempDir)
 
         // Verify the TILEDB_URI and PORT values in the config file
-        val tiledbURI = StartServer().getDbPathFromConfigFile(appHome)
+        val tiledbURI = StartServer().getDbPathFromConfigFile(TestExtension.tempDir)
         println("tiledbURI: $tiledbURI")
         assertTrue(tiledbURI == dbPath)
 
         // check the PORT value
-        val configPath = Paths.get("${appHome}/resources/main/application.conf")
+        val configPath = Paths.get("${TestExtension.tempDir}/resources/main/application.conf")
 
         var configLines = Files.readString(Paths.get(configPath.toString()))
         // Find the line in the config file that starts with "TILEDB_URI"
@@ -131,13 +99,11 @@ class StartServerTest {
         assertTrue(portFromFile != null)
         assertEquals(port,portFromFile.toInt())
 
-        // cleanup
-//        val savedConfigPath = Paths.get("${appHome}/resources/main/application.conf.saved")
-//        var config = Files.readString(Paths.get(savedConfigPath.toString()))
-//
-//        val configOrig = Paths.get("${appHome}/resources/main/application.conf")
-//        //return the original config file
-//        configOrig.toFile().writeText(config.toString())
+        // Delete the configPath file
+        configPath.toFile().delete()
+
+        // Delete the testConfigPath directory
+        testConfigPath.toFile().deleteRecursively()
 
     }
 }
