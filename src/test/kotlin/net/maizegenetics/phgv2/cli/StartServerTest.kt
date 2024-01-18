@@ -9,6 +9,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -92,14 +93,33 @@ class StartServerTest {
     }
 
     @Test
-    fun testWriteConfigFile() {
-        val dbUri = "/Users/lcj34/temp/phgv2Tests/tempDir/testTileDBURI/"
+    fun testUpdateConfigFile() {
+        // The "beforeAll" saves the original config file, then returns it after the test
+        val dbPath = "/Users/lcj34/temp/phgv2Tests/tempDir/testTileDBURI/"
+        val port = 8090
         val appHome = StartServer().getClassPath().substringBefore("classes")
         assertTrue(appHome != null)
         println("appHome: $appHome")
-        StartServer().writeConfigFile(dbUri,appHome)
-        val configPath = StartServer().getDbPathFromConfigFile(appHome)
-        assertTrue(configPath == dbUri)
-        println("configPath: $configPath")
+
+        // update the config file with dbPath and port values above
+        StartServer().updateConfigFile(dbPath,port.toString(),appHome)
+
+        // Verify the TILEDB_URI and PORT values in the config file
+        val tiledbURI = StartServer().getDbPathFromConfigFile(appHome)
+        println("tiledbURI: $tiledbURI")
+        assertTrue(tiledbURI == dbPath)
+
+        // check the PORT value
+        val configPath = Paths.get("${appHome}/resources/main/application.conf")
+
+        var configLines = Files.readString(Paths.get(configPath.toString()))
+        // Find the line in the config file that starts with "TILEDB_URI"
+        // and extract the path
+        // This will return null if the line is not found
+        val portFromFile = configLines.lines().find { it.startsWith("PORT") }?.substringAfter("=")?.substringBefore("\n")
+
+        assertTrue(portFromFile != null)
+        assertEquals(port,portFromFile.toInt())
+
     }
 }
