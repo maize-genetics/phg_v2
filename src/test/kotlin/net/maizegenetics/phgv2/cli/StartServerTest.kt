@@ -64,10 +64,21 @@ class StartServerTest {
         // make the testConfigPath directory if it doesn't exist
         testConfigPath.toFile().mkdirs()
         // copy the origConfigFile to the testConfigPath
-        origConfigFile.toFile().copyTo(Paths.get("${testConfigPath}/application.conf").toFile())
+        // But omit any TILEDB_URI lines.
+        // junit from Intellij will not have the TILEDB_URI line in the config file
+        // But CI writes that line before it starts running tests.
+        var config = ""
+        Files.lines(Paths.get(origConfigFile.toString())).forEach { line ->
+            if (!line.startsWith("TILEDB_URI") ) {
+                config += line + "\n"
+            }
+        }
+        val testConfigFile = Paths.get("${testConfigPath}/application.conf")
+        testConfigFile.toFile().writeText(config)
 
-        val configPath = StartServer().getDbPathFromConfigFile(TestExtension.tempDir) // this should be consistent
-        assertTrue(configPath == null) // null because we have not yet written "TILEDB_URI" line to the application.conf file
+        val tileDbPath = StartServer().getDbPathFromConfigFile(TestExtension.tempDir) // this should be consistent
+
+        assertTrue(tileDbPath == null) // null because we have not yet written "TILEDB_URI" line to the application.conf file
         //println("configPath: $configPath")
 
         // cleanup
