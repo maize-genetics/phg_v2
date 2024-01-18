@@ -94,12 +94,12 @@ class StartServerTest {
 
         // cleanup - should be done in @AfterAll, but failed when we ran the full suite of tests
         // vs running them individually
-        val savedConfigPath = Paths.get("${appHome}/resources/main/application.conf.saved")
-        var config = Files.readString(Paths.get(savedConfigPath.toString()))
-
-        val configOrig = Paths.get("${appHome}/resources/main/application.conf")
-        //return the original config file
-        configOrig.toFile().writeText(config.toString())
+//        val savedConfigPath = Paths.get("${appHome}/resources/main/application.conf.saved")
+//        var config = Files.readString(Paths.get(savedConfigPath.toString()))
+//
+//        val configOrig = Paths.get("${appHome}/resources/main/application.conf")
+//        //return the original config file
+//        configOrig.toFile().writeText(config.toString())
     }
 
     @Test
@@ -132,12 +132,12 @@ class StartServerTest {
         assertEquals(port,portFromFile.toInt())
 
         // cleanup
-        val savedConfigPath = Paths.get("${appHome}/resources/main/application.conf.saved")
-        var config = Files.readString(Paths.get(savedConfigPath.toString()))
-
-        val configOrig = Paths.get("${appHome}/resources/main/application.conf")
-        //return the original config file
-        configOrig.toFile().writeText(config.toString())
+//        val savedConfigPath = Paths.get("${appHome}/resources/main/application.conf.saved")
+//        var config = Files.readString(Paths.get(savedConfigPath.toString()))
+//
+//        val configOrig = Paths.get("${appHome}/resources/main/application.conf")
+//        //return the original config file
+//        configOrig.toFile().writeText(config.toString())
 
     }
 }
