@@ -14,8 +14,6 @@ import htsjdk.variant.vcf.VCFHeaderLine
 import htsjdk.variant.vcf.VCFHeaderVersion
 import net.maizegenetics.phgv2.utils.*
 import java.io.File
-import kotlin.math.max
-import kotlin.math.min
 
 data class HVCFRecordMetadata(val sampleName: String, val refSeq : String = "", val asmSeq : String = "",
                               val refContig : String, val refStart: Int, val refEnd: Int,
