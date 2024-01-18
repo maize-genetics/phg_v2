@@ -4,7 +4,9 @@ import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.brapi.createSmallSeqTiledb
 import net.maizegenetics.phgv2.brapi.resetDirs
 import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -46,7 +48,7 @@ class StartServerTest {
             // Copy the original config file with the TILEDB_URI line removed back to the original location.
             config = ""
             Files.lines(Paths.get(configPath.toString())).forEach { line ->
-                if (!line.startsWith("TILEDB_URI")) {
+                if (!line.startsWith("TILEDB_URI") && !line.startsWith("PORT")) {
                     config += line + "\n"
                 }
             }
@@ -82,14 +84,22 @@ class StartServerTest {
         // Because of this, we need to substring appHome to remove parts of the path that
         // include the "classes" folder and those below it.
 
-        val appHome1 = StartServer().getClassPath()
-        println("appHome1 - before substring: $appHome1") // used for debugging
         val appHome = StartServer().getClassPath().substringBefore("classes")
         assertTrue(appHome != null) // will be different based on which user is running the test
         println("appHome: $appHome")
         val configPath = StartServer().getDbPathFromConfigFile(appHome) // this should be consistent
         assertTrue(configPath == null) // null because we have not yet written "TILEDB_URI" line to the application.conf file
         //println("configPath: $configPath")
+
+
+        // cleanup - should be done in @AfterAll, but failed when we ran the full suite of tests
+        // vs running them individually
+        val savedConfigPath = Paths.get("${appHome}/resources/main/application.conf.saved")
+        var config = Files.readString(Paths.get(savedConfigPath.toString()))
+
+        val configOrig = Paths.get("${appHome}/resources/main/application.conf")
+        //return the original config file
+        configOrig.toFile().writeText(config.toString())
     }
 
     @Test
@@ -120,6 +130,14 @@ class StartServerTest {
 
         assertTrue(portFromFile != null)
         assertEquals(port,portFromFile.toInt())
+
+        // cleanup
+        val savedConfigPath = Paths.get("${appHome}/resources/main/application.conf.saved")
+        var config = Files.readString(Paths.get(savedConfigPath.toString()))
+
+        val configOrig = Paths.get("${appHome}/resources/main/application.conf")
+        //return the original config file
+        configOrig.toFile().writeText(config.toString())
 
     }
 }
