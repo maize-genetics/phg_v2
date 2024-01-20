@@ -15,8 +15,8 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
     private var rangeLnProbabilities = mapOf<UnorderedHaplotypePair, Double>()
     //a map of SampleGamete -> haplotype for myCurrentRange
     private var sampleToHaplotype = mapOf<SampleGamete, String>()
-    private var defaultProbability = 1e-10
-    private var missingHaplotypeProbability = 1e-10
+    private var defaultProbability = ln(1e-10)
+    private var missingHaplotypeProbability = ln(1e-10)
     private val sampleGametesInGraph = graph.sampleGametesInGraph()
     private val noReadCountProbability = 0.0
     private var rangeHasReads = true
@@ -49,19 +49,16 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
     }
 
     private fun assignRangeProbabilities() {
-        val sampleToHaplotype = createSampleToHaplotypeMap()
+        sampleToHaplotype = createSampleToHaplotypeMap()
 
         val haplotypesInRefrange = sampleToHaplotype.values.toSet().toList()
 
         val readCounts = readMap[myCurrentRange] ?: mapOf()
-        require(readCounts.isNullOrEmpty()) {"No haplotypes in $myCurrentRange"}
+
+        require(!readCounts.isNullOrEmpty()) {"No haplotypes in $myCurrentRange"}
         val readSetCounts = readCounts.mapKeys { (haplist, _) -> haplist.toSet() }
 
-        val totalCount = readCounts.values.sum()
-
-        // otherwise, use the method nodePairProbabilityList(...)
-        //iterate over all possible pairs of haplotypes in myCurrentRange
-        //The list of haplotypes has to come from the graph, since not all haplotypes will have reads mapped to them.
+//        val totalCount = readCounts.values.sum()
 
         val probabilityMap = mutableMapOf<UnorderedHaplotypePair, Double>()
         for (ndx1 in haplotypesInRefrange.indices) {
@@ -82,7 +79,13 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
             probabilityMap.put(haplotypePair, haplotypePairProbability(haplotypePair, readSetCounts))
         }
 
-        rangeLnProbabilities = probabilityMap
+        if (myCurrentRange == ReferenceRange("1", 1, 1000)) {
+            println("emission P for $myCurrentRange")
+            for (entry in probabilityMap.entries) println("${entry.key}, ${entry.value}")
+        }
+
+        //take the natural log of the probabilities
+        rangeLnProbabilities = probabilityMap.mapValues { (_, pr) -> ln(pr) }
     }
 
     private fun countOfHapids(hapidPair: Pair<String,String>, readCounts: Map<List<String>, Int>): Int {
@@ -171,6 +174,10 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
                 else false
             }
             else false
+        }
+
+        override fun hashCode(): Int {
+            return haplotypePair.first.hashCode() + haplotypePair.second.hashCode()
         }
     }
 }

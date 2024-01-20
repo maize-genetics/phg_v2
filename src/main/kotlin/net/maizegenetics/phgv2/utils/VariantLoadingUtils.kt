@@ -303,7 +303,7 @@ fun createDiploidHVCFRecord(sampleName: String, startPosition: Position, endPosi
     //All calls (including the reference haplotype) will be alt calls because ref is always a nucleotide
     //for diploids (as compared to haploids) building the allele depth is more complicated
     val alleleList = mutableListOf(refCall)
-    alleleList.addAll(altCalls)
+    alleleList.addAll(distinctAltCalls)
     val gt = GenotypeBuilder().name(sampleName).alleles(altCalls).DP(valueDP).AD(arrayAD).make()
     val vcb = VariantContextBuilder()
         .chr(startPosition.contig)

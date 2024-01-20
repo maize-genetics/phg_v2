@@ -225,6 +225,8 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
         for (result in readMappingChannel) {
             val mappingsByRefrange = HaploidPathFinding.readMappingByRange(result.readMappingCounts, graph)
             val pathResult = pathFinder.findBestDiploidPath(mappingsByRefrange)
+            myLogger.info(pathResult.first[0])
+            myLogger.info(pathResult.first[1])
             pathChannel.send(Path(result.name, pathResult.first, graph, pathResult.second))
         }
 
@@ -245,7 +247,8 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
 
         val referenceSequence = NucSeqIO(referenceGenome).readAll()
         val altHeadersSample = mutableListOf<AltHeaderMetaData>()
-        for (hapid in myPath.hapidList.flatten()) {
+        val uniqueHapids = myPath.hapidList.flatten().toSet()
+        for (hapid in uniqueHapids) {
             val sampleAlt = myPath.graph.altHeader(hapid)
             check(sampleAlt != null) {"There is no ReferenceRange for sample haplotype $hapid."}
             altHeadersSample.add(sampleAlt)
