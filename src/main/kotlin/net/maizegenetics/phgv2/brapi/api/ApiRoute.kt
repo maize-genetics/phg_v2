@@ -34,7 +34,7 @@ fun Routing.apiRoute() {
 
         // alleleMatrix()
 
-        // variantSets()
+        variantSets()
         variants()
 
         // variantTables()
