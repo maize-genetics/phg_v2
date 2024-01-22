@@ -80,22 +80,21 @@ class PathFinderWithViterbiHMM(
             return Pair(haplotypeList, likelyParentList)
         }
 
-        fun findBestDiploidPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>): Pair<List<List<String>>, List<MostLikelyParents.ParentStats>> {
+        fun findBestDiploidPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>): Pair<List<DiploidPathNode>, List<MostLikelyParents.ParentStats>> {
             //find likely parents, if required
             val likelyParentList = if (findLikelyParents) parentFinder!!
                 .findMostLikelyParents(readMap, maxParents = maxParents, minCoverage = minCoverage)
             else listOf()
 
-            val haplotypeList = listOf(mutableListOf<String>(), mutableListOf<String>())
+            val nodeList = mutableListOf<DiploidPathNode>()
             graph.contigs.forEach { chr ->
                 val start = System.nanoTime()
                 val chrLists = diploidViterbi(chr, readMap, likelyParentList.map { it.parent })
                 myLogger.info("Elapsed time for chr $chr: ${(System.nanoTime() - start) / 1e9} sec.")
-                haplotypeList[0].addAll(chrLists[0])
-                haplotypeList[1].addAll(chrLists[1])
+                nodeList.addAll(chrLists)
             }
 
-            return Pair(haplotypeList, likelyParentList)
+            return Pair(nodeList, likelyParentList)
         }
 
         /**
@@ -287,15 +286,12 @@ class PathFinderWithViterbiHMM(
         chrom: String,
         readMap: Map<ReferenceRange, Map<List<String>, Int>>,
         parentList: List<SampleGamete>
-    ): List<List<String>> {
+    ): List<DiploidPathNode> {
         myLogger.info("Finding path for chromosome $chrom using diploidViterbi")
         val sampleGameteSet = if (findLikelyParents) parentList.toSortedSet() else graph.sampleGametesInGraph()
         val sampleGametePairs =
             sampleGameteSet.map { firstName -> sampleGameteSet.map { secondName -> Pair(firstName, secondName) } }
                 .flatten()
-
-        myLogger.info("SampleGametes: $sampleGameteSet")
-        myLogger.info("pairs: $sampleGametePairs")
 
         //diagnostic counters for discarded ranges:
         //countTooFewReads, countTooManyReadsPerKB, countReadsEqual, countDiscardedRanges
@@ -326,10 +322,6 @@ class PathFinderWithViterbiHMM(
                 }
         }
 
-        myLogger.info("Initial path for chrom $chrom")
-        for ( path in paths) {
-            for (node in path.nodeList) myLogger.info("$node : ${path.totalProbability}")
-        }
         while (rangeIterator.hasNext()) {
             //for each node in the next range find the maximum value of path probability * transition
             //actually only two to consider (1-r) * same taxon (switchProbability) and r/(n-1) * all other taxa
@@ -346,23 +338,12 @@ class PathFinderWithViterbiHMM(
             val nextPaths = sampleGametePairs
                 .map { bestPathToGametePair(it, paths, emissionProb.lnProbObsGivenState(it, nextRange), nextRange) }
 
-            //debug print paths
-            println("paths at $nextRange")
-            for (path in nextPaths) println("${path.terminalGametePair()}, ${path.totalProbability}")
             paths = nextPaths
         }
-
+        //Todo print information about ranges discarded (info in counters)
         val finalBestPath = paths.maxBy { it.totalProbability }
-        //convert SampleGametes to haplotypes
-        val hapids1 = mutableListOf<String>()
-        val hapids2 = mutableListOf<String>()
-        finalBestPath.nodeList.forEach { node ->
-            val hap1 = graph.sampleToHapId(node.refRange, node.gamete1)
-            if (hap1 != null) hapids1.add(hap1)
-            val hap2 = graph.sampleToHapId(node.refRange, node.gamete2)
-            if (hap2 != null) hapids2.add(hap2)
-        }
-        return listOf(hapids1, hapids2)
+
+        return finalBestPath.nodeList
     }
 
     private fun bestPathToGametePair(gametePair: Pair<SampleGamete, SampleGamete>,
@@ -401,8 +382,6 @@ class PathFinderWithViterbiHMM(
             }
         }
 
-        //debug print
-        println("${refRange}, $gametePair, $greatestLnTotalProbability, $emissionPr")
         return newDiploidPath(refRange, bestPreviousPath, gametePair, bestTransitionProbability + emissionPr)
     }
 

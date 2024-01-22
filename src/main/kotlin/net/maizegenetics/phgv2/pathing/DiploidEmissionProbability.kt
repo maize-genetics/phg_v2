@@ -16,7 +16,6 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
     //a map of SampleGamete -> haplotype for myCurrentRange
     private var sampleToHaplotype = mapOf<SampleGamete, String>()
     private var defaultProbability = ln(1e-10)
-    private var missingHaplotypeProbability = ln(1e-10)
     private val sampleGametesInGraph = graph.sampleGametesInGraph()
     private val noReadCountProbability = 0.0
     private var rangeHasReads = true
@@ -58,8 +57,6 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
         require(!readCounts.isNullOrEmpty()) {"No haplotypes in $myCurrentRange"}
         val readSetCounts = readCounts.mapKeys { (haplist, _) -> haplist.toSet() }
 
-//        val totalCount = readCounts.values.sum()
-
         val probabilityMap = mutableMapOf<UnorderedHaplotypePair, Double>()
         for (ndx1 in haplotypesInRefrange.indices) {
             for (ndx2 in ndx1 until haplotypesInRefrange.size) {
@@ -77,11 +74,6 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
             }
             val haplotypePair = UnorderedHaplotypePair(Pair(null, null))
             probabilityMap.put(haplotypePair, haplotypePairProbability(haplotypePair, readSetCounts))
-        }
-
-        if (myCurrentRange == ReferenceRange("1", 1, 1000)) {
-            println("emission P for $myCurrentRange")
-            for (entry in probabilityMap.entries) println("${entry.key}, ${entry.value}")
         }
 
         //take the natural log of the probabilities

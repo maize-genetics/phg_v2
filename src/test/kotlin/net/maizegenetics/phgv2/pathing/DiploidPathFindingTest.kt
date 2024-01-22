@@ -142,7 +142,9 @@ class DiploidPathFindingTest {
         VCFFileReader(Paths.get(testVcf), false).use { vcf ->
             //Chr 1: one haplotype should be all A for chr1, the other A before start=25000 and B after
             for (context in vcf) {
-                val hapids = context.alleles.map { it.displayString.substringBefore(">").substringAfter("<") }
+                //filter out the ref allele
+                val hapids = context.alternateAlleles.map { it.displayString.substringBefore(">").substringAfter("<") }
+
                 when (context.contig) {
                     "1" -> when {
                         context.start < 25000 -> assert(hapids.all { lineAHapids.contains(it) })
@@ -186,11 +188,15 @@ class DiploidPathFindingTest {
         //create a set of read mappings that are all lineA
         //then create set that is 5 ranges A, the rest B for chr 1 and 5 ranges B, the rest A for chr 2
         //then merge the two sets
+        //do not generate any reads for ranges that have no A or B haplotype
         val readMap1 = mutableMapOf<List<String>, Int>()
+
         for (range in graph.ranges()) {
             val hapids = graph.hapIdToSampleGametes(range)
-            //generate some mappings
-            repeat(3) {
+            //generate some mappings if the range has a LineA haplotype
+            val hasLineA = hapids.values.any{it.contains(SampleGamete("LineA"))}
+
+            if (hasLineA) repeat(3) {
                 val hapidList = mutableListOf<String>()
                 for ((hapid, samples) in hapids.entries) {
                     val isLineA = samples.any { it.name == "LineA" }
@@ -211,15 +217,17 @@ class DiploidPathFindingTest {
         val readMap2 = mutableMapOf<List<String>, Int>()
         for (range in graph.ranges()) {
             val hapids = graph.hapIdToSampleGametes(range)
+
             val target = when {
                 range.contig == "1" && range.start <= 25000 -> "LineA"
                 range.contig == "1" && range.start > 25000 -> "LineB"
                 range.contig == "2" && range.start <= 25000 -> "LineB"
                 else -> "LineA"
             }
+            val hasTarget = hapids.values.any{it.contains(SampleGamete(target))}
 
             //generate some mappings
-            repeat(3) {
+            if (hasTarget) repeat(3) {
                 val hapidList = mutableListOf<String>()
                 for ((hapid, samples) in hapids.entries) {
                     val isTarget = samples.any { it.name == target }

@@ -162,8 +162,8 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
     }
 
     private data class ReadMappingResult(val name: String, val readMappingCounts: Map<List<String>, Int>) //placeholder
-    private data class Path(val name: String, val hapidList: List<List<String>>, val graph: HaplotypeGraph, val likelyParents: List<MostLikelyParents.ParentStats>)
-
+//    private data class Path(val name: String, val hapidList: List<List<String>>, val graph: HaplotypeGraph, val likelyParents: List<MostLikelyParents.ParentStats>)
+    private data class Path(val name: String, val hapidList: List<PathFinderWithViterbiHMM.DiploidPathNode>, val graph: HaplotypeGraph, val likelyParents: List<MostLikelyParents.ParentStats>)
     /**
      * Takes a map of sample name -> list of read mapping files. It processes the samples in parallel.
      * Multi-threading is across samples. The results are written to files by an additional thread.
@@ -206,7 +206,7 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
         for (imputeJob in jobList) imputeJob.join()
         pathChannel.close()
 
-        //block should not finish until savePath is finished processing results
+        //block does not finish until savePath is finished processing results
     }
 
     private suspend fun imputePath(graph: HaplotypeGraph, readMappingChannel: ReceiveChannel<ReadMappingResult>, pathChannel: SendChannel<Path>) {
@@ -225,8 +225,6 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
         for (result in readMappingChannel) {
             val mappingsByRefrange = HaploidPathFinding.readMappingByRange(result.readMappingCounts, graph)
             val pathResult = pathFinder.findBestDiploidPath(mappingsByRefrange)
-            myLogger.info(pathResult.first[0])
-            myLogger.info(pathResult.first[1])
             pathChannel.send(Path(result.name, pathResult.first, graph, pathResult.second))
         }
 
@@ -247,27 +245,19 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
 
         val referenceSequence = NucSeqIO(referenceGenome).readAll()
         val altHeadersSample = mutableListOf<AltHeaderMetaData>()
-        val uniqueHapids = myPath.hapidList.flatten().toSet()
-        for (hapid in uniqueHapids) {
-            val sampleAlt = myPath.graph.altHeader(hapid)
-            check(sampleAlt != null) {"There is no ReferenceRange for sample haplotype $hapid."}
-            altHeadersSample.add(sampleAlt)
-        }
 
-        val hapidToRefRange = myPath.graph.hapIdToRefRangeMap()
         val variantContextList = mutableListOf<VariantContext>()
 
         //process the path
-        for (rangeIndex in myPath.hapidList[0].indices) {
-            val hapids = listOf(myPath.hapidList[0][rangeIndex], myPath.hapidList[1][rangeIndex])
-            val refRange = hapidToRefRange[hapids[0]]
-            check(refRange != null) {"hapid ${hapids[0]} is not in the graph"}
-            check(hapidToRefRange[hapids[0]] == refRange) {"ReferenceRange does not match for $hapids"}
+        for ( node in myPath.hapidList) {
+            val startPos = Position(node.refRange.contig, node.refRange.start)
+            val endPos = Position(node.refRange.contig, node.refRange.end)
+            val refAllele = referenceSequence[node.refRange.contig]!!.sequence[node.refRange.start - 1].name
+            val hapid1 = myPath.graph.sampleToHapId(node.refRange, node.gamete1)
+            val hapid2 = myPath.graph.sampleToHapId(node.refRange, node.gamete2)
+            val hapids = listOf(hapid1, hapid2).filterNotNull()
 
-            val startPos = Position(refRange.contig, refRange.start)
-            val endPos = Position(refRange.contig, refRange.end)
-            val refAllele = referenceSequence[refRange.contig]!!.sequence[refRange.start - 1].name
-            variantContextList.add(createDiploidHVCFRecord(myPath.name, startPos, endPos, hapids, refAllele))
+            if (hapids.isNotEmpty()) variantContextList.add(createDiploidHVCFRecord(myPath.name, startPos, endPos, hapids, refAllele))
         }
 
         //exportVariantContext()
