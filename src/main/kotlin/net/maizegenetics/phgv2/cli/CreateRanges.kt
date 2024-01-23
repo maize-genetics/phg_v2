@@ -23,7 +23,6 @@ import java.io.File
 /**
  * Data class to hold the information needed to output a BedRecord.
  */
-// TODO when we generate these objects, need to go from 1-based to 0-based indexing
 data class BedRecord(val contig: String, val start : Int, val end: Int, val name: String, val score : Int, val strand: String )
 
 /**

@@ -93,10 +93,6 @@ fun createFlankingList(geneRange:RangeMap<Position,String>, numFlanking:Int, ref
             var flankingStart = findFlankingStartPos(geneRange,data, numFlanking)
             val flankingEnd = findFlankingEndPos(geneRange,data, numFlanking, chrLen)
 
-            if(chr == "Chr01"){
-            println("${data.lowerEndpoint()} - ${data.upperEndpoint()}")
-            println("Corrected to $flankingStart - $flankingEnd")
-            }
             flankingRange.put(Range.closed( flankingStart, flankingEnd), range.value)
 
         }
