@@ -2,12 +2,12 @@ package net.maizegenetics.phgv2.pathing
 
 import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.vcf.VCFFileReader
-import junit.framework.TestCase.assertEquals
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -109,7 +109,6 @@ class DiploidPathFindingTest {
 
     @Test
     fun testDiploidPathFinding() {
-        //plan for this test:
         //use a haplotype groph built from Ref, lineA, and lineB
         val vcfDir = File(TestExtension.testVCFDir)
         val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
@@ -126,7 +125,7 @@ class DiploidPathFindingTest {
             myWriter.write("TestLine\t$readMappingFile\n")
         }
 
-        var pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+        val pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
                 "--prob-same-gamete 0.8"
 
@@ -159,6 +158,63 @@ class DiploidPathFindingTest {
         }
     }
 
+
+    @Test
+    fun testLikelyParents() {
+        //same code as testDiploidPathFinding except using likely parents
+        //use a haplotype groph built from Ref, lineA, and lineB
+        val vcfDir = File(TestExtension.testVCFDir)
+        val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
+        val myGraph = HaplotypeGraph(listOfHvcfFilenames)
+
+        //create a read mapping file
+        val readMappingFile = TestExtension.testOutputDir + "testReadMappingB.txt"
+        createReadMappings(myGraph, readMappingFile)
+
+        //create a keyfile
+        val keyFilename = TestExtension.testOutputDir + "keyfileForPathTestB.txt"
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("SampleName\tReadMappingFiles\n")
+            myWriter.write("TestLineB\t$readMappingFile\n")
+        }
+
+        val pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
+                "--prob-same-gamete 0.8 --use-likely-ancestors true --min-coverage 0.9 --likely-ancestor-file ${TestExtension.testOutputDir}likelyParents.txt"
+
+        val pathFindingResult = DiploidPathFinding().test(pathFindingTestArgs)
+
+        //examine the resulting hvcf file
+        val testVcf = "${TestExtension.testOutputDir}TestLineB.h.vcf"
+        val lineAgamete = SampleGamete("LineA")
+        val lineBgamete = SampleGamete("LineB")
+        val lineAHapids = myGraph.ranges().map { range -> myGraph.sampleToHapId(range, lineAgamete) ?: "." }.toSet()
+        val lineBHapids = myGraph.ranges().map { range -> myGraph.sampleToHapId(range, lineBgamete) ?: "." }.toSet()
+
+        VCFFileReader(Paths.get(testVcf), false).use { vcf ->
+            //Chr 1: one haplotype should be all A for chr1, the other A before start=25000 and B after
+            for (context in vcf) {
+                //filter out the ref allele
+                val hapids = context.alternateAlleles.map { it.displayString.substringBefore(">").substringAfter("<") }
+
+                when (context.contig) {
+                    "1" -> when {
+                        context.start < 25000 -> assert(hapids.all { lineAHapids.contains(it) })
+                        else -> assert(hapids.any { lineAHapids.contains(it) } && hapids.any { lineBHapids.contains(it) })
+                    }
+                    else -> when {
+                        context.start > 25000 -> assert(hapids.all { lineAHapids.contains(it) })
+                        else -> assert(hapids.any { lineAHapids.contains(it) } && hapids.any { lineBHapids.contains(it) })
+                    }
+                }
+            }
+        }
+
+        //test whether the likelyParents file was written
+        assert(File("${TestExtension.testOutputDir}likelyParents.txt").exists())
+
+    }
+
     @Test
     fun testUnorderedHaplotypePair() {
 
@@ -171,7 +227,7 @@ class DiploidPathFindingTest {
         assert(test1 != test3)
 
         val mySet = setOf(test1,test1,test2,test2,test3,test3)
-        assertEquals(2, mySet.size)
+        Assertions.assertEquals(2, mySet.size)
 
     }
 

@@ -38,6 +38,8 @@ import java.io.File
  *      b. Use Viterbi algorithm to find the best path
  *      c. Store the path (write hvcf)
  *
+ * The samples in the keyfile are processed in parallel. Each thread (co-routine) processes a sample. Within sample
+ * processing is not multithreaded.
  */
 class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using read mappings.") {
     val pathKeyfile by option(help = "tab-delimited file with first two columns: SampleName, ReadMappingFiles. ReadMappingFiles " +
@@ -118,6 +120,10 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
         processReadMappings(samplesToReadMappingFiles)
     }
 
+    /**
+     * Process the keyfile. Reads the keyfile. For each sample in the keyfile, imputes a path and writes
+     * it to a .h.vcf file and, optionally, appends the likely parents to a file.
+     */
     private fun processKeyFile(): Map<String, List<String>> {
         //processes the key file to produce a map of sample name -> list of read mapping files for that sample
         myLogger.info("Processing key file $pathKeyfile")
@@ -234,6 +240,7 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
         //Todo add likely parent export
         for (path in pathChannel) {
             writeHvcf(path)
+            if (useLikelyAncestors && likelyAncestorFile.isNotBlank()) appendParentStats(path)
         }
     }
 
@@ -255,7 +262,7 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
             val refAllele = referenceSequence[node.refRange.contig]!!.sequence[node.refRange.start - 1].name
             val hapid1 = myPath.graph.sampleToHapId(node.refRange, node.gamete1)
             val hapid2 = myPath.graph.sampleToHapId(node.refRange, node.gamete2)
-            val hapids = listOf(hapid1, hapid2).filterNotNull()
+            val hapids = listOfNotNull(hapid1, hapid2)
 
             if (hapids.isNotEmpty()) variantContextList.add(createDiploidHVCFRecord(myPath.name, startPos, endPos, hapids, refAllele))
         }
@@ -269,6 +276,9 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
 
     }
 
+    /**
+     * Appends taxa chosen by likely parents to a file along with incremental read counts and cumulative coverage.
+     */
     private fun appendParentStats(path: Path) {
         val fileExists = File(likelyAncestorFile).exists()
         getBufferedWriter(likelyAncestorFile, append = true).use { myWriter ->
@@ -292,7 +302,7 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
                     readMappingList.drop(1).forEach { readMap ->
                         for ((hapids, count) in readMap.entries) {
                             val priorCount = mergedList[hapids] ?: 0
-                            mergedList.put(hapids, priorCount + count)
+                            mergedList[hapids] = priorCount + count
                         }
                     }
                     mergedList
