@@ -23,6 +23,7 @@ import java.io.File
 /**
  * Data class to hold the information needed to output a BedRecord.
  */
+// TODO when we generate these objects, need to go from 1-based to 0-based indexing
 data class BedRecord(val contig: String, val start : Int, val end: Int, val name: String, val score : Int, val strand: String )
 
 /**
@@ -102,8 +103,8 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
             }
             else -> throw Exception("Undefined boundary")
         }.map { (first, second,third) ->
-            // GFF is 1-based.  The BED file is 0-based, so we need to subtract 1 from the start position
-            Triple(Position(first.contig,first.position-1), Position(second.contig,second.position),third)
+            // GFF is 1-based. We keep 1-based, end-inclusive notation until we make the bed record
+            Triple(Position(first.contig,first.position), Position(second.contig,second.position),third)
         }
 
         // Resolve overlaps/embedded regions
@@ -130,7 +131,8 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
         val bedRecordList = mutableListOf<BedRecord>()
         // Are these sorted?
         ranges.asMapOfRanges().forEach{ range ->
-            bedRecordList.add(BedRecord(range.key.lowerEndpoint().contig, range.key.lowerEndpoint().position, range.key.upperEndpoint().position, range.value, 0, "."))
+            // gffs were 1-based, end inclusive. Bed format is 0-based, end exclusive. So we have to subtract 1 from the lower endpoint now
+            bedRecordList.add(BedRecord(range.key.lowerEndpoint().contig, range.key.lowerEndpoint().position-1, range.key.upperEndpoint().position, range.value, 0, "."))
         }
         return bedRecordList
     }
@@ -178,16 +180,20 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
                 }
             }
             else {
-                val intergenicRecord = BedRecord(
-                    currentRecord.contig,
-                    previousRecord.end,
-                    currentRecord.start,
-                    "intergenic_${currentRecord.contig}:${previousRecord.end}-${currentRecord.start}",
-                    0,
-                    "+"
-                )
-                bedRecordsFilled.add(intergenicRecord)
+                // if previous record and current record are not directly adjacent, add an intergenic record
+                if (previousRecord.end != currentRecord.start) {
+                    val intergenicRecord = BedRecord(
+                        currentRecord.contig,
+                        previousRecord.end,
+                        currentRecord.start,
+                        "intergenic_${currentRecord.contig}:${previousRecord.end}-${currentRecord.start}",
+                        0,
+                        "+"
+                    )
+                    bedRecordsFilled.add(intergenicRecord)
+                }
             }
+            //Either way, add the current record
             bedRecordsFilled.add(currentRecord)
         }
         //Add a final intergenic if need be
