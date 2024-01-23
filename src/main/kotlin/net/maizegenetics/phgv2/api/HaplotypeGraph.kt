@@ -62,6 +62,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      */
     fun numberOfSamples() = sampleNameToIdMap.size
 
+    fun samples() = sampleNames.toList()
+
     /**
      * Returns the number of ReferenceRanges for this graph.
      */
@@ -90,7 +92,10 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         return gameteSet
     }
 
-    fun hapIdToSampleGametes(range:ReferenceRange): Map<String, List<SampleGamete>> {
+    /**
+     * Returns a map of hapid -> SampleGamete(s) for the specified ReferenceRange.
+     */
+    fun hapIdToSampleGametes(range: ReferenceRange): Map<String, List<SampleGamete>> {
         val rangeId = refRangeMap[range]
         require(rangeId != null) { "hapIdToSamples: range: $range not found" }
 
@@ -328,7 +333,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     /**
      * Creates a map of ReferenceRange -> (map of hapid -> index)
      */
-    fun refRangeToHapIdMap() : Map<ReferenceRange,Map<String,Int>>{
+    fun refRangeToHapIdMap(): Map<ReferenceRange, Map<String, Int>> {
         //This creates a map of ReferenceRangeId -> (map of hapid -> index)
         return ranges().associateWith { range ->
             hapIdToSampleGametes(range).keys.toSortedSet()
@@ -339,7 +344,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     /**
      * Returns a map of ReferenceRange -> list of all haplotype ids in that range
      */
-    fun refRangeToHapIdList() : Map<ReferenceRange, List<String>> {
+    fun refRangeToHapIdList(): Map<ReferenceRange, List<String>> {
         return ranges().associateWith { range ->
             hapIdToSampleGametes(range).keys.toList()
         }
