@@ -330,17 +330,20 @@ class PathFinderWithViterbiHMM(
             paths = checkDiploidProbability(paths)
 
             val nextRange = rangeIterator.next()
-
             if (!useRange(readMap[nextRange], counters, nextRange)) {
                 continue
             }
-
             val nextPaths = sampleGametePairs
                 .map { bestPathToGametePair(it, paths, emissionProb.lnProbObsGivenState(it, nextRange), nextRange) }
 
             paths = nextPaths
         }
-        //Todo print information about ranges discarded (info in counters)
+
+        //diagnostic counters for discarded ranges:
+        //countTooFewReads (0), countTooManyReadsPerKB (1), countReadsEqual (2), countDiscardedRanges (3)
+        if (counters[3] > 0) myLogger.info("${counters[3]} ranges out of ${myRanges.size} were discarded: " +
+                "too few reads - ${counters[0]}, too many reads per kb - ${counters[1]}, all counts equal - ${counters[2]}")
+
         val finalBestPath = paths.maxBy { it.totalProbability }
 
         return finalBestPath.nodeList

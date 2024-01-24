@@ -47,7 +47,7 @@ class DiploidPathFindingTest {
         @AfterAll
         fun tearDown() {
             //comment out the following line to inspect the test results after the tests have been run
-//            File(TestExtension.testOutputDir).deleteRecursively()
+            File(TestExtension.testOutputDir).deleteRecursively()
         }
     }
 

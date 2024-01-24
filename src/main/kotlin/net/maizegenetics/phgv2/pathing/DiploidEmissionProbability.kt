@@ -71,7 +71,6 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
         }
 
         //if there are any null haplotypes in this reference range add pairs for each (haplotype,null) and (null,null)
-        //todo revisit logic for null haplotype probabilities
         val anyNullHaplotypes = sampleGametesInGraph.any { sampleToHaplotype[it] == null }
         if (anyNullHaplotypes) {
             for (haplotype in haplotypesInRefrange) {
