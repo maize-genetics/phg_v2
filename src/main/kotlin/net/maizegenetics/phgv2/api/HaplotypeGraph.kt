@@ -62,6 +62,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      */
     fun numberOfSamples() = sampleNameToIdMap.size
 
+    /**
+     * Returns a list of samples for this graph.
+     */
     fun samples() = sampleNames.toList()
 
     /**
@@ -127,6 +130,12 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     fun altHeader(hapid: String): AltHeaderMetaData? {
         return altHeaderMap[hapid]
     }
+
+    /**
+     * Returns all the AltHeaderMetaData for this graph.
+     * Map<ID (checksum), AltHeaderMetaData>
+     */
+    fun altHeaders() = altHeaderMap
 
     private suspend fun processFiles(hvcfFiles: List<String>) {
 
