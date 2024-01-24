@@ -38,7 +38,7 @@ data class HaplotypeSequence(val id: String, val sequence: String, val refRangeI
  * Note as of now, the class only supports creating a fasta file from a hvcf file.  The TileDB functionality will be
  * added in the future.
  */
-class CreateFastaFromHvcf : CliktCommand( help = "Create a fasta file from a hvcf file/TileDB") {
+class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.vcf file or TileDB directly") {
 
     val dbPath by option(help = "Tile DB URI")
         .default("")

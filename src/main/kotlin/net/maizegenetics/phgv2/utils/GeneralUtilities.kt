@@ -6,6 +6,7 @@ import com.google.common.collect.RangeMap
 import com.google.common.collect.TreeRangeMap
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedInputStream
+import kotlin.math.ceil
 
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.GeneralUtilities")
 
@@ -91,6 +92,7 @@ fun createFlankingList(geneRange:RangeMap<Position,String>, numFlanking:Int, ref
             // Find new start/end positions with specified number of flanking, add this position to the map
             var flankingStart = findFlankingStartPos(geneRange,data, numFlanking)
             val flankingEnd = findFlankingEndPos(geneRange,data, numFlanking, chrLen)
+
             flankingRange.put(Range.closed( flankingStart, flankingEnd), range.value)
 
         }
@@ -138,7 +140,7 @@ fun findFlankingStartPos(geneRange:RangeMap<Position,String>, data:Range<Positio
         // the last overlap should be the closest in position to the current range start
         val prevEnd = overlapsStart.get(overlapsStart.size-1).key.upperEndpoint().position
         val newFlankNum = curStart-prevEnd // flanking is adjusted to be half on either side of the previous range
-        val newLowerInt = (curStart - newFlankNum/2)+1 // want start to be 1 past the end of the previous range
+        val newLowerInt = (curStart - ceil(newFlankNum / 2.0).toInt() )+1 // want start to be 1 past the end of the previous range
         newLowerPos = Position(chrom,newLowerInt)
     } else {
         val newLowerInt = if (curStart - numFlanking < 1)  1 else curStart - numFlanking

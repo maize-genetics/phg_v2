@@ -51,16 +51,16 @@ class CreateRangesTest {
         val obsIdList02 = cr.idMinMaxBounds(NucSeqIO(refGood).readAll(), genes, "cds")
 
         val obsIdList01Keys = obsIdList01.asMapOfRanges().keys
-        var key1 = Range.closed(Position("chr1",34616),Position("chr1",40204))
-        var key2 = Range.closed(Position("chr1",41213),Position("chr1",46762))
+        var key1 = Range.closed(Position("chr1",34617),Position("chr1",40204))
+        var key2 = Range.closed(Position("chr1",41214),Position("chr1",46762))
 
         assertEquals(2, obsIdList01.asMapOfRanges().keys.size)
         assertTrue(obsIdList01Keys.contains(key1))
         assertTrue(obsIdList01Keys.contains(key2))
 
         val obsIdList02Keys = obsIdList02.asMapOfRanges().keys
-        key1 = Range.closed(Position("chr1",34721),Position("chr1",38366))
-        key2 = Range.closed(Position("chr1",41526),Position("chr1",45913))
+        key1 = Range.closed(Position("chr1",34722),Position("chr1",38366))
+        key2 = Range.closed(Position("chr1",41527),Position("chr1",45913))
         assertEquals(2, obsIdList02.asMapOfRanges().keys.size)
         assertTrue(obsIdList02Keys.contains(key1))
         assertTrue(obsIdList02Keys.contains(key2))
@@ -70,8 +70,8 @@ class CreateRangesTest {
         // Run again with the good reference fasta - chrom names match those in gff
         val obsIdList03 = cr.idMinMaxBounds(NucSeqIO(refGood).readAll(),genes, "gene")
         val obsIdList03Keys = obsIdList03.asMapOfRanges().keys
-        key1 = Range.closed(Position("chr1",34616),Position("chr1",40204))
-        key2 = Range.closed(Position("chr1",41213),Position("chr1",46762))
+        key1 = Range.closed(Position("chr1",34617),Position("chr1",40204))
+        key2 = Range.closed(Position("chr1",41214),Position("chr1",46762))
         assertEquals(2, obsIdList03.asMapOfRanges().keys.size)
         assertTrue(obsIdList03Keys.contains(key1))
         assertTrue(obsIdList03Keys.contains(key2))
@@ -86,13 +86,13 @@ class CreateRangesTest {
         // Run again with the good reference fasta - chrom names match those in gff
         val obsIdList03Flanking = createFlankingList(obsIdList03, 100,NucSeqIO(refGood).readAll())
         val obsIdList03FlankingKeys = obsIdList03Flanking.asMapOfRanges().keys
-        key1 = Range.closed(Position("chr1",34516),Position("chr1",40304))
-        key2 = Range.closed(Position("chr1",41113),Position("chr1",46862))
+        key1 = Range.closed(Position("chr1",34517),Position("chr1",40304))
+        key2 = Range.closed(Position("chr1",41114),Position("chr1",46862))
         assertEquals(2, obsIdList03.asMapOfRanges().keys.size)
         assertTrue(obsIdList03FlankingKeys.contains(key1))
         assertTrue(obsIdList03FlankingKeys.contains(key2))
 
-
+        // Note: this is where we switch from 1-based indexing to 0-based indexing
         val obsBedList01 = cr.generateBedRecords(obsIdList01)
         val obsBedList02 = cr.generateBedRecords(obsIdList01)
 
@@ -164,6 +164,28 @@ class CreateRangesTest {
         val lines = File(outputFileName).bufferedReader().readLines()
         assertEquals("chr1\t34616\t40204\tZm00001eb000010\t0\t.", lines[0])
         assertEquals("chr1\t41213\t46762\tZm00001eb000020\t0\t.", lines[1])
+    }
+
+    @Test
+    fun testFileOutputWithOverlappingRegions() {
+        val testGffPath = "src/test/resources/net/maizegenetics/phgv2/cli/zm_b73v5_test.gff3.gz"
+        val ref = "src/test/resources/net/maizegenetics/phgv2/cli/RefChr.fa"
+        val command = CreateRanges()
+
+        val outputFileName = "${tempDir}test_extrapadding.bed"
+
+        val result = command.test("--gff $testGffPath --reference-file $ref --pad 600 --output $outputFileName")
+        assertEquals(result.statusCode, 0)
+        assertEquals(command.gff, testGffPath)
+        assertEquals(command.boundary, "gene")
+        assertEquals(command.pad, 600)
+        assertEquals(command.output, outputFileName)
+
+        val lines = File(outputFileName).bufferedReader().readLines()
+        assertEquals("chr1\t0\t34016\tintergenic_chr1:0-34016\t0\t+", lines[0])
+        assertEquals("chr1\t34016\t40709\tZm00001eb000010\t0\t.", lines[1])
+        assertEquals("chr1\t40709\t47362\tZm00001eb000020\t0\t.", lines[2])
+        assertEquals("chr1\t47362\t55000\tintergenic_chr1:47362-55000\t0\t+", lines[3])
     }
 
     @Test
@@ -295,7 +317,7 @@ class CreateRangesTest {
         gene = Position("chr1",922);
         geneLowerFlank = flankingGeneMap.getEntry(gene)!!.key.lowerEndpoint().position;
         geneUpperFlank = flankingGeneMap.getEntry(gene)!!.key.upperEndpoint().position;
-        assertEquals(841,geneLowerFlank);
+        assertEquals(840,geneLowerFlank);
         assertEquals(1051, geneUpperFlank);
 
         // gene4

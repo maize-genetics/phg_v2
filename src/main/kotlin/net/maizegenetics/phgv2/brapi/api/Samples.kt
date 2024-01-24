@@ -4,10 +4,10 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import model.Metadata
 import net.maizegenetics.phgv2.brapi.model.SampleListResponse
 import net.maizegenetics.phgv2.brapi.model.SampleListResponseResult
 import net.maizegenetics.phgv2.brapi.service.SamplesService
+import net.maizegenetics.phgv2.brapi.model.Metadata
 
 fun Route.samples() {
 

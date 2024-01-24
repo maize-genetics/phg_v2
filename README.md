@@ -46,7 +46,7 @@ _Long-form documentation for this section can be found [here](docs/build_and_loa
 ./phg create-ranges --reference-file Ref.fa --gff my.gff --boundary gene --pad 500 -o /path/to/bed/file.bed
 ./phg align-assemblies --gff anchors.gff --reference-file Ref.fa -a assembliesList.txt --total-threads 20 --in-parallel 4 -o /path/for/generatedFiles
 ./phg agc-compress --db-path /path/to/dbs --reference-file /my/ref.fasta --fasta-list /my/assemblyFastaList.txt 
-./phg create-ref-vcf --bed /my/bed/file.bed --reference-file /my/ref.fasta --reference-url https://url-for-ref --reference-name B73 --output-dir /path/to/vcfs
+./phg create-ref-vcf --bed /my/bed/file.bed --reference-file /my/ref.fasta --reference-url https://url-for-ref --reference-name B73 --db-path /path/to/tiled/dataset folder
 ./phg create-maf-vcf --db-path /path/to/dbs --bed /my/bed/file.bed --reference-file /my/ref.fasta --maf-dir /my/maf/files -o /path/to/vcfs
 
 ## Load data into DBs
