@@ -725,7 +725,7 @@ phg create-ref-vcf \
     --bed output/ref_ranges.bed \
     --reference-file data/Ref.fa \
     --reference-name B73 \
-    -o output/vcf_files
+    --db-path vcf_dbs
 ```
 
 2. Create hVCF and gVCF data from assembly alignments against reference
@@ -758,7 +758,7 @@ The `create-ref-vcf` command requires the following inputs:
   MD5 hashes of sequence information guided by reference range
   positional data from the BED file used in the `--bed` parameter.
 * `--reference-name` - The name of the reference sample
-* `-db-path` - Output directory for the VCF data.
+* `--db-path` - Output directory for the VCF data. The reference files will be placed in a subfolder named 'reference'
 
 > [!WARNING]
 > The directory that you specify in the output (`-o`) section must
