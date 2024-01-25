@@ -208,7 +208,8 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
 
             //  This is in VariantUtils - it exports the gvcf file.
             // Include the VCF ALT Header lines created in the loop above
-            exportVariantContext(refName, fullRefVCList, localRefHVCFFile, myRefSequence!!,altHeaderLines)
+            val header = createHeaderWithLengths(refName, myRefSequence!!,altHeaderLines)
+            exportVariantContext(header, fullRefVCList, localRefHVCFFile)
             //bgzip and csi index the file
             val bgzippedGVCFFileName = bgzipAndIndexGVCFfile(localRefHVCFFile)
             myLogger.info("${bgzippedGVCFFileName} created and stored to ${tiledbHvcfDir}")

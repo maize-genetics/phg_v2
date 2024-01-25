@@ -67,7 +67,8 @@ class VariantLoadingUtilsTest {
 
         //Export the variants to a file
         val testFile = "src/test/kotlin/net/maizegenetics/phgv2/testData/testExportVariantContext.vcf"
-        exportVariantContext("Line1", variants, testFile, refMap, setOf())
+        val header = createHeaderWithLengths("Line1", refMap, setOf())
+        exportVariantContext(header, variants, testFile)
 
         //Load the file back in and check that the variants are as expected
         val loadedVariants = VCFFileReader(File(testFile), false).iterator().asSequence().toList()

@@ -44,8 +44,7 @@ data class Position (val contig: String, val position: Int) : Comparable<Positio
 /**
  * Function to write out the Variant Contexts to a file.
  */
-fun exportVariantContext(sampleName: String, variantContexts: List<VariantContext>, outputFileName: String,
-                         refGenomeSequence: Map<String,NucSeq>, altHeaderLines:Set<VCFHeaderLine>) {
+fun exportVariantContext(header: VCFHeader, variantContexts: List<VariantContext>, outputFileName: String) {
     val writer = VariantContextWriterBuilder()
         .unsetOption(Options.INDEX_ON_THE_FLY)
         .setOutputFile(File(outputFileName))
@@ -53,14 +52,18 @@ fun exportVariantContext(sampleName: String, variantContexts: List<VariantContex
         .setOption(Options.ALLOW_MISSING_FIELDS_IN_HEADER)
         .build()
 
-    val header = createGenericHeader(listOf(sampleName),altHeaderLines)
-    addSequenceDictionary(header, refGenomeSequence)
     writer.writeHeader(header)
     for(variant in variantContexts) {
         writer.add(variant)
     }
 
     writer.close()
+}
+
+fun createHeaderWithLengths(sampleName: String, refGenomeSequence: Map<String,NucSeq>, altHeaderLines:Set<VCFHeaderLine>): VCFHeader {
+    val header = createGenericHeader(listOf(sampleName),altHeaderLines)
+    addSequenceDictionary(header, refGenomeSequence)
+    return header
 }
 
 

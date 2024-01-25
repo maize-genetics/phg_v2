@@ -88,7 +88,8 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                     val sampleName = gvcfVariants.keys.first()
                     val variants = gvcfVariants.values.first()
                     println("createASMHvcfs: processing sampleName = $sampleName")
-                    exportVariantContext(sampleName, variants, "${outputDirName}/${it.nameWithoutExtension}.g.vcf",refGenomeSequence, setOf())
+                    val gvcfHeader = createHeaderWithLengths(sampleName, refGenomeSequence, setOf())
+                    exportVariantContext(gvcfHeader, variants, "${outputDirName}/${it.nameWithoutExtension}.g.vcf")
                     bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.g.vcf")
 
                     val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
@@ -98,7 +99,8 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                     val asmHeaderSet = asmHeaderLines.values.toSet()
                     //export the hvcfRecords
                     println("createASMHvcfs: calling exportVariantContext for $sampleName")
-                    exportVariantContext(sampleName, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, asmHeaderSet)
+                    val hvcfHeader = createHeaderWithLengths(sampleName, refGenomeSequence, asmHeaderSet)
+                    exportVariantContext(hvcfHeader, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf")
                     //bgzip the files
                     bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.h.vcf")
                 } else if (gvcfVariants.size == 2) {
@@ -106,15 +108,16 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                     val gvcfOutput = "${outputDirName}/${it.nameWithoutExtension}.g.vcf"
                     val outputNames = MAFToGVCF().twoOutputFiles(gvcfOutput)
                     gvcfVariants.entries.forEachIndexed { index, (name, variants) ->
-                        val outputFile =
-                            exportVariantContext(name, variants, outputNames[index], refGenomeSequence, setOf())
+                        val gvcfHeader = createHeaderWithLengths(name, refGenomeSequence, setOf())
+                        exportVariantContext(gvcfHeader, variants, outputNames[index])
                         bgzipAndIndexGVCFfile(outputNames[index])
                         val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
                         //convert the GVCF records into hvcf records
                         val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines)
                         val asmHeaderSet = asmHeaderLines.values.toSet()
                         //export the hvcfRecords
-                        exportVariantContext(sampleName, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, asmHeaderSet)
+                        val hvcfHeader = createHeaderWithLengths(sampleName, refGenomeSequence, asmHeaderSet)
+                        exportVariantContext(hvcfHeader, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf")
                         //bgzip the files
                         bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.h.vcf")
                     }

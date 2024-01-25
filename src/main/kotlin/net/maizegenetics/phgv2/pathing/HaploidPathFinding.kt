@@ -241,8 +241,9 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
         val hvcfFileName = if (outputDir.endsWith("/")) "${outputDir}${myPath.name}.h.vcf"
         else "${outputDir}/${myPath.name}.h.vcf"
         val headerSet = altHeadersSample.map { altHeaderMetadataToVCFHeaderLine(it) }.toSet()
+        val header = createHeaderWithLengths(myPath.name, referenceSequence, headerSet)
 
-        exportVariantContext(myPath.name, variantContexts, hvcfFileName, referenceSequence, headerSet)
+        exportVariantContext(header, variantContexts, hvcfFileName)
 
     }
 
