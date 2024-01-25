@@ -9,8 +9,6 @@ import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.boolean
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
-import htsjdk.variant.vcf.VCFAltHeaderLine
-import htsjdk.variant.vcf.VCFHeaderVersion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -274,17 +272,6 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
                 mappingByRange.getOrPut(refrange) { mutableMapOf() }[haplist] = count
             }
             return mappingByRange
-        }
-        fun altHeaderMetadataToVCFHeaderLine(altHeaderData: AltHeaderMetaData): VCFAltHeaderLine {
-
-            return VCFAltHeaderLine(
-                "<ID=${altHeaderData.id}, " +
-                        "Description=\"haplotype data for line: ${altHeaderData.sampleName}\">," +
-                        "Source=\"${altHeaderData.source}\",SampleName=\"${altHeaderData.sampleName}\"," +
-                        "Regions=\"${altHeaderData.regions.joinToString(",") { "${it.first.contig}:${it.first.position}-${it.second.position}" }}\"," +
-                        "Checksum=\"Md5\",RefRange=\"${altHeaderData.refRange}\">",
-                VCFHeaderVersion.VCF4_2
-            )
         }
 
     }
