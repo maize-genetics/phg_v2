@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.utils.inputStreamProcessing
+import net.maizegenetics.phgv2.utils.verifyURI
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedInputStream
 import java.io.File
@@ -22,8 +23,11 @@ import java.util.stream.Collectors
  *  2. verify the dbpath exists and TileDB datasets exists in that folder
  *      a. if no datasets exist, create them
  *  3. load the gvcf and hvcf files
+ *  4. when loading the hvcf files, make a copy of the file in the db-path/hvcf_files folder
+ *     This will be used by the brAPI server to create the initial graph used to service
+ *     the brAPI calls.
  */
-class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datasets") {
+class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB datasets") {
 
     private val myLogger = LogManager.getLogger(LoadVcf::class.java)
 
@@ -50,6 +54,10 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
         .default("1")
 
     override fun run() {
+        loadVcfFiles(vcfDir,dbPath,threads)
+    }
+
+    fun loadVcfFiles(vcfDir:String,dbPath:String,threads:String="1") {
 
         // Check the type of files in the vcfDir
         // anything with h.vcf.gz or hvcf.gz is a hvcf file
@@ -74,7 +82,7 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
                 // verify the samples in the vcf files are not already in the tiledb dataset
                 val vcfSampleList = getVcfSampleLists(fileLists.first)
                 // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
-                val overlap = tiledbSampleList.intersect(vcfSampleList)
+                val overlap = tiledbSampleList.intersect(vcfSampleList.keys)
                 // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
                 if (overlap.isNotEmpty()) {
                     myLogger.warn("The following samples are already in the gvcf tiledb dataset: ${overlap.joinToString(",")}")
@@ -83,12 +91,12 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
                 // Load the gvcf files!
                 myLogger.info("No overlap between tiledb and vcf files.  Loading gvcf files.")
                 val datasetURI = "${dbPath}/gvcf_dataset"
-                loadVCFToTiledb(fileLists.first, datasetURI, threads)
+                loadVCFToTiledb(fileLists.first, dbPath,"gvcf_dataset", threads)
             }
         }
         if (fileLists.second.isNotEmpty()) {
-            val hvcfExists = verifyURI(dbPath,"hvcf_dataset")
-            if (hvcfExists){
+            val hvcfExists = verifyURI(dbPath, "hvcf_dataset")
+            if (hvcfExists) {
                 // look for duplicate sample names
                 // Get samples from tiledb
                 val uri = dbPath + "/hvcf_dataset"
@@ -96,23 +104,39 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
                 // verify the samples in the vcf files are not already in the tiledb dataset
                 val vcfSampleList = getVcfSampleLists(fileLists.second)
                 // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
-                val overlap = tiledbSampleList.intersect(vcfSampleList)
+                val overlap = tiledbSampleList.intersect(vcfSampleList.keys)
                 // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
                 if (overlap.isNotEmpty()) {
                     // tiledb dataset was created with the -n/--no-duplicates option.  It will not load
                     // duplicate positions, but will quietly skip them.
                     // Warning message is printed here to alert the user of the duplicate sample names.
-                    myLogger.warn("The following samples are already in the tiledb hvcf dataset: ${overlap.joinToString(",")}")
+                    myLogger.warn(
+                        "The following samples are already in the tiledb hvcf dataset: ${
+                            overlap.joinToString(
+                                ","
+                            )
+                        }"
+                    )
                     myLogger.warn("Tiledb will not load duplicate positions for these samples.")
                 }
                 // Load the hvcf files!
-                val datasetURI = "${dbPath}/hvcf_dataset"
-                loadVCFToTiledb(fileLists.second, datasetURI, threads)
+                loadVCFToTiledb(fileLists.second, dbPath, "hvcf_dataset", threads)
+
+                // Copy the hvcf files to the hvcf_files folder, omitting any that are duplicates
+                // of those already loaded
+                val tiledbHvcfDir = "${dbPath}/hvcf_files"
+                Files.createDirectories(Paths.get(tiledbHvcfDir)) // skips folders that already exist
+                for (sample in vcfSampleList.keys) {
+                    val sourceFile = vcfSampleList[sample]
+                    val destFile = "${tiledbHvcfDir}/${sourceFile?.split("/")?.last()}"
+                    if (!File(destFile).exists()) {
+                        myLogger.info("Copying ${sourceFile} to ${destFile}")
+                        File(sourceFile).copyTo(File(destFile))
+                    }
+                }
             }
         }
-
     }
-
     // This function walks the files in the vcf folder and returns a pair of lists,
     // one for gvcf files and one for hvcf files.
     fun getFileLists(vcfDir:String):Pair<List<String>,List<String>> {
@@ -147,84 +171,33 @@ class LoadVcf : CliktCommand(help="load g.vcf and h.vcf files into tiledb datase
         }
     }
 
-    fun getVcfSampleLists(fileLists:List<String>):List<String> {
+    fun getVcfSampleLists(fileLists:List<String>):Map<String,String> {
         // get the sample names from the vcf files
-        val vcfSampleList = mutableListOf<String>()
+        val vcfSampleToFileName = mutableMapOf<String,String>()
         for (file in fileLists) {
             // use htsjdk to read the vcf file and parse the sample names
             val vcfReader = VCFFileReader(File(file),false)
             val vcfHeader = vcfReader.fileHeader
             val samples = vcfHeader.sampleNamesInOrder
             for (sample in samples) {
-                vcfSampleList.add(sample)
+                vcfSampleToFileName.put(sample,file)
             }
         }
-        return vcfSampleList
+        return vcfSampleToFileName
     }
 
-    // The uri should either be gvcf_dataset or hvcf_dataset
-    // The user determines the parent folder name where these datasets live
-    // The actual tiledb dataset names are constant and are either gvcf_dataset or hvcf_dataset
-
-    // We are only verifying, not creating the datasets
-    fun verifyURI(dbPath:String,uri:String): Boolean {
-        // Check that the user supplied db folder exists
-        check(File(dbPath).exists()) { "Folder $dbPath does not exist - please send a valid path that indicates the parent folder for your tiledb datasets." }
-
-        // Check if the dataset exists
-        val dataset = "${dbPath}/${uri}"
-        val datasetPath = Paths.get(dataset)
-
-        if (File(dataset).exists() && Files.isRegularFile(datasetPath)) {
-            throw IllegalArgumentException("URI ${dataset}is a file, not a tiledb dataset folder.  The parent folder must not contain any files/folders named gvcf_dataset or hvcf_dataset that is not a tiledb created URI")
-        }
-
-        // Create tne temp folder if it doesn't exist
-        // This will be used to write output files from ProcessBuilder commands
-        // called elsewhere in this class
-        val tempDir = "${dbPath}/log"
-        Files.createDirectories(Paths.get(tempDir))
-
-        if (File(dataset).exists()  && Files.isDirectory(Paths.get(dataset))){
-            // check if is a tiledb dataset
-            var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri",dataset)
-            var redirectOutput = tempDir + "/tiledb_statURI_output.log"
-            var redirectError = tempDir + "/tiledb_statURI_error.log"
-            builder.redirectOutput( File(redirectOutput))
-            builder.redirectError( File(redirectError))
-
-            // verify if the output.log contains "Version"
-            // if not, then the URI is not a tiledbvcf URI
-            myLogger.info("begin Command:" + builder.command().joinToString(" "))
-
-            try {
-                var process = builder.start()
-                var error = process.waitFor()
-                if (error != 0) {
-                    myLogger.error("LoadTiledbH tiledb stat returned error code $error")
-                    throw IllegalArgumentException("Error: URI is not a tiledb URI folder created via the tiledb create command: ${error}")
-                }
-
-            } catch (exc: Exception) {
-                myLogger.error("Error: could not run tiledb stat on ${uri}.")
-                throw IllegalArgumentException("Error running ProcessBuilder to stat tiledb URI: ${exc}")
-            }
-
-            myLogger.info("Using existing TileDB datasets previously created in folder $dbPath.")
-            return true
-        } else {
-            myLogger.info("TileDB datasets not found in folder $dbPath. Please run InitDB to create the datasets.")
-            return false
-        }
-    }
-
-    fun loadVCFToTiledb(vcfList:List<String>, uri:String, threads:String) {
+    // Because this is called from both the LoadVcf class and the CreateRefVcf class,
+    // we must explicitly pass dbPath as otherwise the parameter will not be known
+    // when coming from CreateRefVcf, resulting in the error:
+    //    Cannot read from option delegate before parsing command line
+    fun loadVCFToTiledb(vcfList:List<String>, dbPath:String, dataSet:String, threads:String) {
 
         // declare tne temp folder
         // This will be used to write output files from ProcessBuilder commands
         // called elsewhere in this class.  It should have been created in the
         // verifyURI function,
         val tempDir = "${dbPath}/temp"
+        val uri = "${dbPath}/${dataSet}"
 
         // get just last part of uri string, ie just the last name in this folder
         val uriName = uri.split("/").last()

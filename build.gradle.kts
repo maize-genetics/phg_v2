@@ -36,10 +36,10 @@ repositories {
 }
 
 dependencies {
-    //testImplementation(kotlin("test"))
+
     val kotlinVersion = rootProject.extra["kotlinVersion"]
 
-    implementation("org.biokotlin:biokotlin:0.10")
+    implementation("org.biokotlin:biokotlin:0.11")
     implementation("com.github.ajalt.clikt:clikt:4.2.0")
 
     implementation("com.github.samtools:htsjdk:4.0.1")
@@ -74,6 +74,7 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
     implementation("io.ktor:ktor-client-websockets:$ktorVersion")
 
+    implementation("org.ehcache:ehcache:3.10.8")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
 
@@ -95,6 +96,28 @@ tasks.jar {
     from(sourceSets.main.get().output)
     from(projectDir) {
         include("version.properties")
+    }
+    exclude("application.conf")
+}
+
+tasks.distTar {
+    from("${projectDir}/src/main/resources/application.conf") {
+        into("phg/resources/main/")
+    }
+}
+
+tasks.startScripts {
+    classpath = classpath?.plus(files("resources"))
+    doLast {
+        val windowsScriptFile = windowsScript
+        val unixScriptFile = unixScript
+
+        windowsScriptFile.writeText(
+            windowsScriptFile.readText().replace("%APP_HOME%\\lib\\resources", "%APP_HOME%\\resources\\main")
+        )
+        unixScriptFile.writeText(
+            unixScriptFile.readText().replace("\$APP_HOME/lib/resources", "\$APP_HOME/resources/main")
+        )
     }
 }
 

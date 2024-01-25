@@ -51,7 +51,7 @@ import javax.management.ObjectName
  *  alignments, each using 5 threads.
  *
  */
-class AlignAssemblies : CliktCommand(help="Align assemblies using anchorwave") {
+class AlignAssemblies : CliktCommand(help = "Align assemblies using AnchorWave") {
 
     private val myLogger = LogManager.getLogger(AlignAssemblies::class.java)
 

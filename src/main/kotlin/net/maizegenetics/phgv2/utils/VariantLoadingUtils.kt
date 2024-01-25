@@ -16,6 +16,8 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder
 import htsjdk.variant.vcf.*
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import java.util.*
@@ -319,5 +321,65 @@ fun getChecksumForString(seq: String, protocol: String="Md5"): String {
     } catch (exc: NoSuchAlgorithmException) {
         myLogger.warn("getChecksumForString: problem getting checksum: " + exc.message)
         throw IllegalStateException("CheckSum: getChecksumForString: error: " + exc.message)
+    }
+}
+
+/**
+ * This function verifies the path given for the tiledb datasets is valid
+ *  If it is not, an exception is thrown and the user is directed to create
+ *  the dataset using the Initdb command.
+ *  The uri should either be gvcf_dataset or hvcf_dataset
+ *  The user determines the parent folder name where these datasets live
+ *  The actual tiledb dataset names are constant and are either gvcf_dataset or hvcf_dataset
+ */
+
+fun verifyURI(dbPath:String,uri:String): Boolean {
+    // Check that the user supplied db folder exists
+    check(File(dbPath).exists()) { "Folder $dbPath does not exist - please send a valid path that indicates the parent folder for your tiledb datasets." }
+
+    // Check if the dataset exists
+    val dataset = "${dbPath}/${uri}"
+    val datasetPath = Paths.get(dataset)
+
+    if (File(dataset).exists() && Files.isRegularFile(datasetPath)) {
+        throw IllegalArgumentException("URI ${dataset}is a file, not a tiledb dataset folder.  The parent folder must not contain any files/folders named gvcf_dataset or hvcf_dataset that is not a tiledb created URI")
+    }
+
+    // Create tne temp folder if it doesn't exist
+    // This will be used to write output files from ProcessBuilder commands
+    // called elsewhere in this class
+    val tempDir = "${dbPath}/log"
+    Files.createDirectories(Paths.get(tempDir))
+
+    if (File(dataset).exists()  && Files.isDirectory(Paths.get(dataset))){
+        // check if is a tiledb dataset
+        var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri",dataset)
+        var redirectOutput = tempDir + "/tiledb_statURI_output.log"
+        var redirectError = tempDir + "/tiledb_statURI_error.log"
+        builder.redirectOutput( File(redirectOutput))
+        builder.redirectError( File(redirectError))
+
+        // verify if the output.log contains "Version"
+        // if not, then the URI is not a tiledbvcf URI
+        myLogger.info("begin Command:" + builder.command().joinToString(" "))
+
+        try {
+            var process = builder.start()
+            var error = process.waitFor()
+            if (error != 0) {
+                myLogger.error("LoadTiledbH tiledb stat returned error code $error")
+                throw IllegalArgumentException("Error: URI is not a tiledb URI folder created via the tiledb create command: ${error}")
+            }
+
+        } catch (exc: java.lang.Exception) {
+            myLogger.error("Error: could not run tiledb stat on ${uri}.")
+            throw IllegalArgumentException("Error running ProcessBuilder to stat tiledb URI: ${exc}")
+        }
+
+        myLogger.info("Using  TileDB datasets created in folder $dbPath.")
+        return true
+    } else {
+        myLogger.info("TileDB datasets not found in folder $dbPath. Please run InitDB to create the datasets.")
+        throw IllegalArgumentException("TileDB datasets not found in folder $dbPath. Please run InitDB to create the datasets.")
     }
 }

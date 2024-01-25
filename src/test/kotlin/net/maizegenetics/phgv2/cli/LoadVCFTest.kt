@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.testing.test
 import com.google.common.io.Files
 import net.maizegenetics.phgv2.utils.bgzipAndIndexGVCFfile
+import net.maizegenetics.phgv2.utils.verifyURI
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -60,7 +61,7 @@ class LoadVCFTest {
         //Test non-existant dbPath
         assertThrows<IllegalStateException> {
             //Check that an error is thrown when the dbPath folder does not exist
-            LoadVcf().verifyURI(badPath, URI)
+            verifyURI(badPath, URI)
         }
 
         // Test tiledb URI is a file, not a tiledb array
@@ -73,7 +74,7 @@ class LoadVCFTest {
         }
         assertThrows<IllegalArgumentException> {
             //Check that an error is thrown when the dbPath is good, but the URI is a regular file, not a tiledb array
-            LoadVcf().verifyURI(goodPath, fileURI)
+            verifyURI(goodPath, fileURI)
         }
 
         // Test tiledbURI is a directory, but not a tiledb array
@@ -85,7 +86,7 @@ class LoadVCFTest {
         File(dirURI).mkdirs()
         assertThrows<IllegalArgumentException> {
             //Check that an error is thrown when the dbPath is good, but the URI is a regular directory file, not a tiledb array
-            LoadVcf().verifyURI(goodPath, fileURI)
+            verifyURI(goodPath, fileURI)
         }
     }
 
@@ -110,8 +111,8 @@ class LoadVCFTest {
         // verify the g.vcf.gz is returned in lists.first, and h.vcf.gz is returned in lists.second
         var vcfDir = TestExtension.testVCFDir
         val lists = LoadVcf().getFileLists(vcfDir)
-        assertEquals(lists.first.size, 1)
-        assertEquals(lists.second.size, 1)
+        assertEquals(1,lists.first.size)
+        assertEquals(1,lists.second.size)
         assertEquals(lists.first[0], "${TestExtension.testVCFDir}LineA.g.vcf.gz")
         assertEquals(lists.second[0], "${TestExtension.testVCFDir}Ref.h.vcf.gz")
 
@@ -119,8 +120,8 @@ class LoadVCFTest {
         // THe docs folder has no vcf files, so the lists should be empty
         vcfDir = "docs"
         val emptyLists = LoadVcf().getFileLists(vcfDir)
-        assertEquals(emptyLists.first.size, 0)
-        assertEquals(emptyLists.second.size, 0)
+        assertEquals(0, emptyLists.first.size)
+        assertEquals(0, emptyLists.second.size)
 
     }
 
@@ -134,9 +135,9 @@ class LoadVCFTest {
 
         // verify the dbPath directory exists with subdirectories hvcf_dataset and gvcf_dataset
         val dbDir = File(dbPath)
-        assertEquals(dbDir.exists(), true)
-        assertEquals(dbDir.isDirectory, true)
-        assertEquals(dbDir.listFiles().size, 3) // includes a temp dir created for log file output
+        assertEquals(true, dbDir.exists())
+        assertEquals(true, dbDir.isDirectory)
+        assertEquals(3, dbDir.listFiles().size) // includes a temp dir created for log file output
         assertTrue(dbDir.listFiles().map { it.name }.contains("hvcf_dataset"))
         assertTrue(dbDir.listFiles().map { it.name }.contains("gvcf_dataset"))
 
@@ -168,29 +169,33 @@ class LoadVCFTest {
         // This will load LineA.gvcf to the gvcf_dataset and Ref.hvcf to the hvcf_dataset
         vcfDir = TestExtension.testVCFDir
         var result = loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
-        assertEquals(result.statusCode, 0)
+        assertEquals(0,result.statusCode)
 
         // get the list of samples from tiledb gvcf_dataset
         var uri = "${dbPath}/gvcf_dataset"
         val sampleList = LoadVcf().getTileDBSampleLists(uri)
 
         // verify the samples are in the tiledb array
-        assertEquals(sampleList.size, 1)
-        assertEquals(sampleList[0], "LineA")
+        assertEquals(1,sampleList.size)
+        assertEquals("LineA", sampleList[0])
 
         // get the list of samples from the tiledb hvcf_dataset
         uri = "${dbPath}/hvcf_dataset"
         val sampleList2 = LoadVcf().getTileDBSampleLists(uri)
 
         //verify the samples are in the tiledb array
-        assertEquals(sampleList2.size, 1)
-        assertEquals(sampleList2[0], "Ref")
+        assertEquals(1,sampleList2.size)
+        assertEquals("Ref",sampleList2[0])
+
+        // Verify the hvcf file was copied to dbPath/hvcf_files folder
+        val hvcfFile = "${dbPath}/hvcf_files/Ref.h.vcf.gz"
+        assertEquals(true, File(hvcfFile).exists())
 
         // Export to hvcf and verify the number of lines in the vcf file
         val exportHvcf = ExportVcf()
         // datatype defaults to hvcf
         val exportResultHvcf = exportHvcf.test("--db-path ${dbPath} --sample-names Ref -o ${TestExtension.tempDir}")
-        assertEquals(exportResultHvcf.statusCode, 0)
+        assertEquals(0, exportResultHvcf.statusCode)
 
         // Tiledb writes the file to the output folder with a name of ${sampleName}.vcf
         // Verify the tiledb exported file has the same number of lines as does the
@@ -203,7 +208,7 @@ class LoadVCFTest {
 
         // Export the gvcf file, verify the number of lines in the exported vcf file matches the number in the original vcf file
         val exportResultGvcf = exportHvcf.test("--db-path ${dbPath} --sample-names LineA --dataset-type gvcf -o ${TestExtension.tempDir}")
-        assertEquals(exportResultGvcf.statusCode, 0)
+        assertEquals(0, exportResultGvcf.statusCode )
 
         val exportFileGvcf = "${TestExtension.tempDir}LineA.vcf"
         val origFileG = "data/test/smallseq/LineA.g.vcf"
@@ -213,7 +218,7 @@ class LoadVCFTest {
 
         // Load the same files again, verify no error message,
         result = loadVCF.test(  "--vcf-dir ${vcfDir} --db-path ${dbPath} ")
-        assertEquals(result.statusCode, 0)
+        assertEquals(0, result.statusCode )
 
         // Export the hvcf and gvcf files again, verify the line numbers
         // are still the same as the original vcf files (ie, not increased due to duplicate entries)
@@ -225,7 +230,7 @@ class LoadVCFTest {
 
         // Check the gvcf file lines
         val exportResultG2 = exportHvcf.test("--db-path ${dbPath} --sample-names LineA --dataset-type gvcf -o ${TestExtension.tempDir}")
-        assertEquals(exportResultG2.statusCode, 0)
+        assertEquals(0, exportResultG2.statusCode )
 
         val exportFileGvcf2 = "${TestExtension.tempDir}LineA.vcf"
         val exportFileLinesG2 = File(exportFileGvcf2).readLines().size

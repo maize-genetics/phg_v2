@@ -1,4 +1,4 @@
-package model
+package net.maizegenetics.phgv2.brapi.model
 
 import kotlinx.serialization.Serializable
 import java.util.*
