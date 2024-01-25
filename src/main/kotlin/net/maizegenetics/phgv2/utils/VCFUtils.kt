@@ -62,6 +62,9 @@ fun parseRegions(regions: String): List<Pair<Position, Position>> {
     }
 }
 
+/**
+ * Function to convert the ALT header metadata into a VCF header line.
+ */
 fun altHeaderMetadataToVCFHeaderLine(altHeaderData: AltHeaderMetaData): VCFAltHeaderLine {
 
     return VCFAltHeaderLine(
