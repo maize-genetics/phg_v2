@@ -8,7 +8,11 @@ import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.variantcontext.VariantContextBuilder
 import htsjdk.variant.variantcontext.writer.Options
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder
-import net.maizegenetics.phgv2.utils.createGenericHeader
+import htsjdk.variant.vcf.VCFAltHeaderLine
+import htsjdk.variant.vcf.VCFHeader
+import htsjdk.variant.vcf.VCFHeaderLine
+import net.maizegenetics.phgv2.utils.altHeaderMetadataToVCFHeaderLine
+import net.maizegenetics.phgv2.utils.createGenericHeaderLineSet
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
@@ -32,7 +36,12 @@ fun exportMultiSampleHVCF(
         .build()
         .use { writer ->
 
-            val header = createGenericHeader(graph.samples(), setOf())
+            val headerLines = graph.altHeaders().values
+                .map { altHeaderMetadataToVCFHeaderLine(it) }
+                .toMutableSet()
+            headerLines.addAll(createGenericHeaderLineSet() as Set<VCFAltHeaderLine>)
+            val header = VCFHeader(headerLines as Set<VCFHeaderLine>, graph.samples())
+
             writer.writeHeader(header)
 
             graph.ranges().forEach { range ->
@@ -58,11 +67,13 @@ private fun createVariantContext(
     val taxaToHapids = mutableMapOf<String, MutableList<String>>()
         .apply {
             hapIdToSampleGametes.forEach { (hapid, gametes) ->
-                gametes.forEach { gamete ->
-                    val hapids = getOrDefault(gamete.name, mutableListOf())
-                    hapids[gamete.gameteId - 1] = hapid
-                    put(gamete.name, hapids)
-                }
+                gametes
+                    .sorted()
+                    .forEach { gamete ->
+                        val hapids = getOrPut(gamete.name) { mutableListOf() }
+                        println("size of taxaToHapids: $size")
+                        hapids.add(hapid)
+                    }
             }
         }
 
