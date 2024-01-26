@@ -9,6 +9,10 @@ import io.ktor.server.routing.*
 import net.maizegenetics.phgv2.brapi.model.*
 import net.maizegenetics.phgv2.brapi.service.VariantsService
 
+/**
+ * This method handles the "variants" endpoint.  It is used to get a list of all the variants in the database.
+ * "variants" in the PHG tiledb database are reference ranges.
+ */
 private val config = HoconApplicationConfig(ConfigFactory.load())
 
 fun Route.variants() {
