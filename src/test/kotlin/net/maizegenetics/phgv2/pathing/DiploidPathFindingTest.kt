@@ -6,8 +6,6 @@ import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.getBufferedWriter
-import org.junit.After
-import org.junit.Before
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeAll
