@@ -67,6 +67,7 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
     val probSameGamete by option(help = "The probability of transitioning to the same gamete in the next reference range")
         .double()
         .default(0.99)
+        .validate { require(it in 0.01..1.0) {"prob-correct must be between 0.01 and 1.0"} }
 
     val minGametes by option(help = "The minimum number of gametes with a haplotype in a reference range. " +
             "Reference ranges with fewer gametes will not be imputed.")
@@ -111,11 +112,12 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
     private val myLogger = LogManager.getLogger(DiploidPathFinding::class.java)
 
     private fun buildHaplotypeGraph(): HaplotypeGraph {
-        val listOfHvcfFilenames = File(hvcfDir).listFiles().filter { it.name.endsWith(".h.vcf") }.map { it.path }
+        val listOfHvcfFilenames = File(hvcfDir).listFiles().filter { it.name.contains(".h.vcf") }.map { it.path }
         return HaplotypeGraph(listOfHvcfFilenames)
     }
 
     override fun run() {
+
         val samplesToReadMappingFiles = processKeyFile()
         processReadMappings(samplesToReadMappingFiles)
     }
@@ -179,6 +181,15 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
     private fun processReadMappings(sampleToFiles: Map<String, List<String>>) = runBlocking {
         myLogger.info("processing read mappings.")
         val myGraph = buildHaplotypeGraph()
+
+        //check onditions for useLikelyAncestor
+        if (useLikelyAncestors) {
+            if(maxAncestors >= myGraph.sampleGametesInGraph().size && minCoverage == 1.0)
+                myLogger.warn("UseLikelyAncestors is true but likelyAncestors will not be checked because minCoverage is 1.0 " +
+                        "and maxAncestors is >= the number of potential ancestors.")
+            else if (likelyAncestorFile.isBlank()) myLogger.warn("Likely ancestors will be determined for each sample " +
+                    "but information about the ancestors used will not be written to a file because no file name was provided.")
+        }
 
         //create a channel for read mappings
         val readMappingChannel = Channel<ReadMappingResult>(10)

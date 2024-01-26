@@ -6,6 +6,8 @@ import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.getBufferedWriter
+import org.junit.After
+import org.junit.Before
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeAll
@@ -125,11 +127,13 @@ class DiploidPathFindingTest {
             myWriter.write("TestLine\t$readMappingFile\n")
         }
 
+        //likely ancestors is true here to get coverage of checks, but it should not be run
         val pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
-                "--prob-same-gamete 0.8"
+                "--prob-same-gamete 0.8 --use-likely-ancestors true"
 
         val pathFindingResult = DiploidPathFinding().test(pathFindingTestArgs)
+        assert(pathFindingResult.statusCode == 0)
 
         //examine the resulting hvcf file
         val testVcf = "${TestExtension.testOutputDir}TestLine.h.vcf"
@@ -142,8 +146,7 @@ class DiploidPathFindingTest {
             //Chr 1: one haplotype should be all A for chr1, the other A before start=25000 and B after
             for (context in vcf) {
                 //filter out the ref allele
-                val hapids = context.alternateAlleles.map { it.displayString.substringBefore(">").substringAfter("<") }
-
+                val hapids = context.alternateAlleles.map { it.displayString.substringBefore(">").substringAfter("<") }.toList()
                 when (context.contig) {
                     "1" -> when {
                         context.start < 25000 -> assert(hapids.all { lineAHapids.contains(it) })
