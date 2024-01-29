@@ -91,8 +91,8 @@ private fun createVariantContext(
             if (hapids.isEmpty()) {
                 GenotypeBuilder(taxon, listOf(Allele.NO_CALL)).phased(false).make()
             } else {
-                val alleles = hapids.map { alleles[it] }
-                GenotypeBuilder(taxon, alleles).phased(true).make()
+                val allelesForHapids = hapids.map { alleles[it] }
+                GenotypeBuilder(taxon, allelesForHapids).phased(true).make()
             }
         }
         .toList()

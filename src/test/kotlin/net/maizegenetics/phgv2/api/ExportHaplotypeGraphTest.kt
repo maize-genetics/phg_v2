@@ -58,11 +58,17 @@ class ExportHaplotypeGraphTest {
             )
         )
 
-        exportMultiSampleHVCF(
-            graph,
-            "/Users/tmc46/git/phg_v2/testMultipleFilesHaplotypeGraph.vcf",
-            TestExtension.smallseqRefFile
-        )
+        val outputFile = "${outputHvcfDir}testMultipleFilesHaplotypeGraph.vcf"
+
+        exportMultiSampleHVCF(graph, outputFile, TestExtension.smallseqRefFile)
+
+        var checksum1 = getChecksum(TestExtension.exportGraphMultiSample)
+        var checksum2 = getChecksum(outputFile)
+
+        myLogger.info("testMultipleFilesHaplotypeGraph.vcf expected checksum1: $checksum1")
+        myLogger.info("testMultipleFilesHaplotypeGraph.vcf actual checksum2: $checksum2")
+
+        assertEquals(checksum1, checksum2, "testMultipleFilesHaplotypeGraph.vcf checksums do not match")
 
     }
 
