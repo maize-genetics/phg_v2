@@ -269,7 +269,7 @@ class PathFinderWithViterbiHMM(
 
 
     /**
-     * Creates a new path by appending gametePair to the previous path ana adding probability to totalProbability
+     * Creates a new path by appending gametePair to the previous path and adding probability to totalProbability
      */
     private fun newDiploidPath(
         refRange: ReferenceRange,

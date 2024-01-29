@@ -155,10 +155,9 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
      * that sample will be removed from the map and the trimmed map will be returned.
      */
     private fun checkForExistingOutput(sampleToFiles: Map<String, List<String>>): Map<String, List<String>> {
-        val existingSampleFiles = File(outputDir).listFiles()
-        val existingSamples = existingSampleFiles.map {file ->
-            file.name.substringBefore(".h.vcf", "$$$")
-        }.filter { it != "$$$" }
+
+        val existingSamples = File(outputDir).listFiles().filter { it.name.contains(".h.vcf") }
+            .map { file -> file.name.substringBefore(".h.vcf") }
 
         val newSamples = sampleToFiles.filter { (sampleName, _) -> !existingSamples.contains(sampleName) }
 
@@ -182,12 +181,12 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
         myLogger.info("processing read mappings.")
         val myGraph = buildHaplotypeGraph()
 
-        //check onditions for useLikelyAncestor
+        //check conditions for useLikelyAncestor
         if (useLikelyAncestors) {
-            if(maxAncestors >= myGraph.sampleGametesInGraph().size && minCoverage == 1.0)
-                myLogger.warn("UseLikelyAncestors is true but likelyAncestors will not be checked because minCoverage is 1.0 " +
-                        "and maxAncestors is >= the number of potential ancestors.")
-            else if (likelyAncestorFile.isBlank()) myLogger.warn("Likely ancestors will be determined for each sample " +
+            require(maxAncestors < myGraph.sampleGametesInGraph().size || minCoverage < 1.0)
+            {"UseLikelyAncestors is true but likelyAncestors will not be checked because minCoverage is 1.0 " +
+                    "and maxAncestors is >= the number of potential ancestors."}
+            if (likelyAncestorFile.isBlank()) myLogger.warn("Likely ancestors will be determined for each sample " +
                     "but information about the ancestors used will not be written to a file because no file name was provided.")
         }
 

@@ -6,10 +6,7 @@ import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.getBufferedWriter
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.*
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import java.nio.file.Paths
@@ -125,10 +122,9 @@ class DiploidPathFindingTest {
             myWriter.write("TestLine\t$readMappingFile\n")
         }
 
-        //likely ancestors is true here to get coverage of checks, but it should not be run
         val pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
-                "--prob-same-gamete 0.8 --use-likely-ancestors true"
+                "--prob-same-gamete 0.8"
 
         val pathFindingResult = DiploidPathFinding().test(pathFindingTestArgs)
         assert(pathFindingResult.statusCode == 0)
@@ -157,6 +153,14 @@ class DiploidPathFindingTest {
                 }
             }
         }
+
+        //test for exception when --use-likely-ancestors true
+        val pathFindingTestArgsLikelyAncestor = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
+                "--prob-same-gamete 0.8 --use-likely-ancestors true"
+
+        val exception = assertThrows<IllegalArgumentException> { DiploidPathFinding().test(pathFindingTestArgsLikelyAncestor) }
+        assert(exception.message!!.startsWith("UseLikelyAncestors is true but likelyAncestors will not be checked"))
     }
 
 

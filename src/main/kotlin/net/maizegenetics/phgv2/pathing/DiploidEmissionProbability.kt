@@ -53,7 +53,7 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
      * once per reference range to avoid repeating the calculations.
      */
     private fun assignRangeProbabilities() {
-        sampleToHaplotype = createSampleToHaplotypeMap()
+        sampleToHaplotype = graph.sampleGameteToHaplotypeId(myCurrentRange)
 
         val haplotypesInRefrange = sampleToHaplotype.values.toSet().toList()
 
@@ -66,7 +66,7 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
         for (ndx1 in haplotypesInRefrange.indices) {
             for (ndx2 in ndx1 until haplotypesInRefrange.size) {
                 val haplotypePair = UnorderedHaplotypePair(Pair(haplotypesInRefrange[ndx1], haplotypesInRefrange[ndx2]))
-                probabilityMap[haplotypePair] = haplotypePairProbability(haplotypePair, readSetCounts)
+                probabilityMap[haplotypePair] = ln(haplotypePairProbability(haplotypePair, readSetCounts))
             }
         }
 
@@ -75,21 +75,14 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
         if (anyNullHaplotypes) {
             for (haplotype in haplotypesInRefrange) {
                 val haplotypePair = UnorderedHaplotypePair(Pair(haplotype, null))
-                probabilityMap[haplotypePair] = haplotypePairProbability(haplotypePair, readSetCounts)
+                probabilityMap[haplotypePair] = ln(haplotypePairProbability(haplotypePair, readSetCounts))
             }
             val haplotypePair = UnorderedHaplotypePair(Pair(null, null))
-            probabilityMap[haplotypePair] = haplotypePairProbability(haplotypePair, readSetCounts)
+            probabilityMap[haplotypePair] = ln(haplotypePairProbability(haplotypePair, readSetCounts))
         }
 
         //take the natural log of the probabilities
-        rangeLnProbabilities = probabilityMap.mapValues { (_, pr) -> ln(pr) }
-    }
-
-    private fun createSampleToHaplotypeMap(): Map<SampleGamete, String> {
-        //converts a map of hapid -> list of SampleGametes to a map of
-        //SampleGamete -> hapid. This works because each SampleGamete has only one hapid.
-        return graph.hapIdToSampleGametes(myCurrentRange).entries
-            .flatMap{ (hapid, sampleList) -> sampleList.map { Pair(it, hapid) } }.toMap()
+        rangeLnProbabilities = probabilityMap
     }
 
     /**
