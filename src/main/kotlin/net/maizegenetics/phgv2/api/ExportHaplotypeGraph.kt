@@ -71,7 +71,6 @@ private fun createVariantContext(
                     .sorted()
                     .forEach { gamete ->
                         val hapids = getOrPut(gamete.name) { mutableListOf() }
-                        println("size of taxaToHapids: $size")
                         hapids.add(hapid)
                     }
             }
