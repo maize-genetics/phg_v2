@@ -33,6 +33,9 @@ class TestExtension : BeforeAllCallback {
         const val smallseqLineBHvcfFile = "${smallSeqInputDir}LineB.h.vcf"
         const val smallseqLineBHvcfFileBadAltTag = "${smallSeqInputDir}LineB_old_BadALTHeader.h.vcf"
 
+        const val exportGraphDir = "data/test/exportGraph/"
+        const val exportGraphSingleSample = "${exportGraphDir}testSingleSampleHaplotypeGraph.vcf"
+
         const val refLineName = "Ref"
         const val refFastaName = "Ref.fa"
         const val refURL = "https://s3.amazonaws.com/maizegenetics/phg/phgV2Test/Ref.fa" // this is a dummy URL
