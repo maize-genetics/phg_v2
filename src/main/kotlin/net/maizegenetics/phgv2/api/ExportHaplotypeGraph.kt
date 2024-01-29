@@ -18,6 +18,16 @@ import java.io.File
 
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.api.ExportHaplotypeGraph")
 
+/**
+ * Export a HaplotypeGraph to a multi-sample h.vcf file.
+ * The h.vcf is the format designed by the PHGv2.
+ * The alternate alleles are symbolic alleles that are check sums of the haplotype sequences.
+ *
+ * @param graph The HaplotypeGraph to export.
+ * @param filename The name of the file to export to.
+ * @param referenceGenome The filename of the reference genome to use.
+ * If null, the reference genome will not be used.
+ */
 fun exportMultiSampleHVCF(
     graph: HaplotypeGraph,
     filename: String,
