@@ -27,8 +27,8 @@ class VariantSetsService {
         // LCJ - I made up this name.  What should it be called?
         // will there be more than 1 variantset?  I named it "all"
         // as that is what we called the reference cache.  What is a better name?
-        val variantSetURI = "${tildbUri}/variantsets/allSamplesMerged.vcf.gz"
-        val availableFormats = VariantSetAvailableFormats(DataFormatEnum.VCF, fileFormat = FileFormatEnum.APPLICATION_ZIP, fileURL=variantSetURI)
+        val variantSetURI = "${tildbUri}/variantsets/allSamplesMerged.h.vcf.gz"
+        val availableFormats = VariantSetAvailableFormats(DataFormatEnum.VCF, fileFormat = FileFormatEnum.TEXT_TSV, fileURL=variantSetURI)
         if (!File(variantSetURI).exists()) {
             // TODO create and export the file using Terry's code.
             // First create the graph, then call ExportVCF
