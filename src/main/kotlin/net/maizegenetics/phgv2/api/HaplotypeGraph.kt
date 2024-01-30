@@ -113,6 +113,26 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     }
 
     /**
+     * Creates a map of each SampleGamete in range to its haplotype id.
+     * @param range   a reference range in this graph
+     *
+     * If range is not in this graph throws [IllegalArgumentException].
+     */
+    fun sampleGameteToHaplotypeId(range:ReferenceRange): Map<SampleGamete, String> {
+        val rangeId = refRangeMap[range]
+        require(rangeId != null) { "hapIdToSamples: range: $range not found" }
+
+        val result = mutableMapOf<SampleGamete, String>()
+        for (sampleId in rangeByGameteIdToHapid[rangeId].indices) {
+            for (gameteId in rangeByGameteIdToHapid[rangeId][sampleId].indices) {
+                result[SampleGamete(sampleNames[sampleId], gameteId)] = rangeByGameteIdToHapid[rangeId][sampleId][gameteId]
+            }
+        }
+        return result
+
+    }
+
+    /**
      * Returns the hapId for the sample in the specified ReferenceRange.
      */
     fun sampleToHapId(range: ReferenceRange, sample: SampleGamete): String? {
