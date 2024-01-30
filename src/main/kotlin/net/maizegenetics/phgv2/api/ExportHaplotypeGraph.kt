@@ -34,14 +34,14 @@ fun exportMultiSampleHVCF(
     referenceGenome: String? = null
 ) {
 
+    // Load the reference genome into memory if filename is supplied.
     val referenceSequence = referenceGenome?.let {
         NucSeqIO(it).readAll()
     }
 
     VariantContextWriterBuilder()
         .unsetOption(Options.INDEX_ON_THE_FLY)
-        .setOutputFile(File(filename))
-        .setOutputFileType(VariantContextWriterBuilder.OutputType.VCF)
+        .setOutputFile(File(filename))        .setOutputFileType(VariantContextWriterBuilder.OutputType.VCF)
         .setOption(Options.ALLOW_MISSING_FIELDS_IN_HEADER)
         .build()
         .use { writer ->
