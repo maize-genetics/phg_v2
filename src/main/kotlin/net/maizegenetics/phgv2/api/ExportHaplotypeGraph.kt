@@ -41,7 +41,8 @@ fun exportMultiSampleHVCF(
 
     VariantContextWriterBuilder()
         .unsetOption(Options.INDEX_ON_THE_FLY)
-        .setOutputFile(File(filename))        .setOutputFileType(VariantContextWriterBuilder.OutputType.VCF)
+        .setOutputFile(File(filename))
+        .setOutputFileType(VariantContextWriterBuilder.OutputType.VCF)
         .setOption(Options.ALLOW_MISSING_FIELDS_IN_HEADER)
         .build()
         .use { writer ->
@@ -76,7 +77,8 @@ private fun createVariantContext(
         .toMap()
 
     val taxaToHapids = mutableMapOf<String, MutableList<String>>()
-        .apply {            hapIdToSampleGametes.forEach { (hapid, gametes) ->
+        .apply {
+            hapIdToSampleGametes.forEach { (hapid, gametes) ->
                 gametes
                     .sorted()
                     .forEach { gamete ->
@@ -99,7 +101,9 @@ private fun createVariantContext(
 
     val resultAlleles = mutableListOf<Allele>()
     resultAlleles.add(alleleRef(range, referenceSequence))
-    resultAlleles.addAll(alleles.values)
+    alleles.values
+        .filter { it != Allele.NO_CALL }
+        .forEach { resultAlleles.add(it) }
 
     return VariantContextBuilder()
         .source(".")
@@ -123,5 +127,6 @@ private fun alleleRef(range: ReferenceRange, referenceSequence: Map<String, NucS
 }
 
 private fun symbolicAlleleAlt(hapid: String): Allele {
+    if (hapid.isBlank()) return Allele.NO_CALL
     return Allele.create("<${hapid}>", false)
 }
