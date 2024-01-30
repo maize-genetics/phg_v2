@@ -106,7 +106,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         for (sampleId in rangeByGameteIdToHapid[rangeId].indices) {
             for (gameteId in rangeByGameteIdToHapid[rangeId][sampleId].indices) {
                 val hapid = rangeByGameteIdToHapid[rangeId][sampleId][gameteId]
-                result.getOrPut(hapid) { mutableListOf() }.add(SampleGamete(sampleNames[sampleId], gameteId))
+                if (hapid != null && hapid.isNotEmpty()) {
+                    result.getOrPut(hapid) { mutableListOf() }.add(SampleGamete(sampleNames[sampleId], gameteId))
+                }
             }
         }
         return result
@@ -118,14 +120,15 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      *
      * If range is not in this graph throws [IllegalArgumentException].
      */
-    fun sampleGameteToHaplotypeId(range:ReferenceRange): Map<SampleGamete, String> {
+    fun sampleGameteToHaplotypeId(range: ReferenceRange): Map<SampleGamete, String> {
         val rangeId = refRangeMap[range]
         require(rangeId != null) { "hapIdToSamples: range: $range not found" }
 
         val result = mutableMapOf<SampleGamete, String>()
         for (sampleId in rangeByGameteIdToHapid[rangeId].indices) {
             for (gameteId in rangeByGameteIdToHapid[rangeId][sampleId].indices) {
-                result[SampleGamete(sampleNames[sampleId], gameteId)] = rangeByGameteIdToHapid[rangeId][sampleId][gameteId]
+                result[SampleGamete(sampleNames[sampleId], gameteId)] =
+                    rangeByGameteIdToHapid[rangeId][sampleId][gameteId]
             }
         }
         return result
