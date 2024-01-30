@@ -72,4 +72,42 @@ class ExportHaplotypeGraphTest {
 
     }
 
+    @Test
+    fun testSingleSampleRoundTripHaplotypeGraph() {
+
+        val graph = HaplotypeGraph(listOf(TestExtension.exportGraphSingleSample))
+
+        val outputFile = "${outputHvcfDir}testSingleSampleRoundTripHaplotypeGraph.vcf"
+
+        exportMultiSampleHVCF(graph, outputFile, TestExtension.smallseqRefFile)
+
+        var checksum1 = getChecksum(TestExtension.exportGraphSingleSample)
+        var checksum2 = getChecksum(outputFile)
+
+        myLogger.info("testSingleSampleRoundTripHaplotypeGraph.vcf expected checksum1: $checksum1")
+        myLogger.info("testSingleSampleRoundTripHaplotypeGraph.vcf actual checksum2: $checksum2")
+
+        assertEquals(checksum1, checksum2, "testSingleSampleRoundTripHaplotypeGraph.vcf checksums do not match")
+
+    }
+
+    @Test
+    fun testMultipleSamplesRoundTripHaplotypeGraph() {
+
+        val graph = HaplotypeGraph(listOf(TestExtension.exportGraphMultiSample))
+
+        val outputFile = "${outputHvcfDir}testMultipleSamplesRoundTripHaplotypeGraph.vcf"
+
+        exportMultiSampleHVCF(graph, outputFile, TestExtension.smallseqRefFile)
+
+        var checksum1 = getChecksum(TestExtension.exportGraphMultiSample)
+        var checksum2 = getChecksum(outputFile)
+
+        myLogger.info("testMultipleSamplesRoundTripHaplotypeGraph.vcf expected checksum1: $checksum1")
+        myLogger.info("testMultipleSamplesRoundTripHaplotypeGraph.vcf actual checksum2: $checksum2")
+
+        assertEquals(checksum1, checksum2, "testMultipleSamplesRoundTripHaplotypeGraph.vcf checksums do not match")
+
+    }
+
 }
