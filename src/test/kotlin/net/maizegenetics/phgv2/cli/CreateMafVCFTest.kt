@@ -475,6 +475,19 @@ class CreateMafVCFTest {
         assertEquals("chr1:7-15", regionStrings[0])
         assertEquals("chr1:19-23", regionStrings[1])
 
+        // test condition where one VariantContext spans the entire reference range
+
+        val oneVariantContext = listOf(createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
+            Position("chr1",60), Position("chr1",300),
+            Position("chr1",160), Position("chr1",400)))
+
+        val containedRegionStrings = createMafVcf.buildNewAssemblyRegions(180, 350, oneVariantContext)
+            .map { "${it.first.contig}:${it.first.position}-${it.second.position}" }
+
+        assertEquals(1, containedRegionStrings.size)
+        assertEquals("chr1:180-350", containedRegionStrings[0])
+
+
     }
 
     @Test
