@@ -69,14 +69,14 @@ private fun createVariantContext(
     referenceSequence: Map<String, NucSeqRecord>?
 ): VariantContext {
 
+    // alleles: Map<hapid: String, Allele>
     val alleles = hapIdToSampleGametes.keys
         .asSequence()
         .map { hapid -> Pair(hapid, symbolicAlleleAlt(hapid)) }
         .toMap()
 
     val taxaToHapids = mutableMapOf<String, MutableList<String>>()
-        .apply {
-            hapIdToSampleGametes.forEach { (hapid, gametes) ->
+        .apply {            hapIdToSampleGametes.forEach { (hapid, gametes) ->
                 gametes
                     .sorted()
                     .forEach { gamete ->
