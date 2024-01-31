@@ -1,0 +1,132 @@
+package net.maizegenetics.phgv2.api
+
+import biokotlin.seq.NucSeqRecord
+import biokotlin.seqIO.NucSeqIO
+import htsjdk.variant.variantcontext.Allele
+import htsjdk.variant.variantcontext.GenotypeBuilder
+import htsjdk.variant.variantcontext.VariantContext
+import htsjdk.variant.variantcontext.VariantContextBuilder
+import htsjdk.variant.variantcontext.writer.Options
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder
+import htsjdk.variant.vcf.VCFAltHeaderLine
+import htsjdk.variant.vcf.VCFHeader
+import htsjdk.variant.vcf.VCFHeaderLine
+import net.maizegenetics.phgv2.utils.altHeaderMetadataToVCFHeaderLine
+import net.maizegenetics.phgv2.utils.createGenericHeaderLineSet
+import org.apache.logging.log4j.LogManager
+import java.io.File
+
+private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.api.ExportHaplotypeGraph")
+
+/**
+ * Export a HaplotypeGraph to a multi-sample h.vcf file.
+ * The h.vcf is the format designed by the PHGv2.
+ * The alternate alleles are symbolic alleles that are check sums of the haplotype sequences.
+ *
+ * @param graph The HaplotypeGraph to export.
+ * @param filename The name of the file to export to.
+ * @param referenceGenome The filename of the reference genome to use.
+ * If null, the reference genome will not be used.
+ */
+fun exportMultiSampleHVCF(
+    graph: HaplotypeGraph,
+    filename: String,
+    referenceGenome: String? = null
+) {
+
+    // Load the reference genome into memory if filename is supplied.
+    val referenceSequence = referenceGenome?.let {
+        NucSeqIO(it).readAll()
+    }
+
+    VariantContextWriterBuilder()
+        .unsetOption(Options.INDEX_ON_THE_FLY)
+        .setOutputFile(File(filename))
+        .setOutputFileType(VariantContextWriterBuilder.OutputType.VCF)
+        .setOption(Options.ALLOW_MISSING_FIELDS_IN_HEADER)
+        .build()
+        .use { writer ->
+
+            val headerLines = graph.altHeaders().values
+                .map { altHeaderMetadataToVCFHeaderLine(it) }
+                .toMutableSet()
+            headerLines.addAll(createGenericHeaderLineSet() as Set<VCFAltHeaderLine>)
+            val header = VCFHeader(headerLines as Set<VCFHeaderLine>, graph.samples())
+
+            writer.writeHeader(header)
+
+            graph.ranges().forEach { range ->
+                val variantContext = createVariantContext(range, graph.hapIdToSampleGametes(range), referenceSequence)
+                writer.add(variantContext)
+            }
+
+        }
+
+}
+
+private fun createVariantContext(
+    range: ReferenceRange,
+    hapIdToSampleGametes: Map<String, List<SampleGamete>>,
+    referenceSequence: Map<String, NucSeqRecord>?
+): VariantContext {
+
+    // alleles: Map<hapid: String, Allele>
+    val alleles = hapIdToSampleGametes.keys
+        .asSequence()
+        .map { hapid -> Pair(hapid, symbolicAlleleAlt(hapid)) }
+        .toMap()
+
+    val taxaToHapids = mutableMapOf<String, MutableList<String>>()
+        .apply {
+            hapIdToSampleGametes.forEach { (hapid, gametes) ->
+                gametes
+                    .sorted()
+                    .forEach { gamete ->
+                        val hapids = getOrPut(gamete.name) { mutableListOf() }
+                        hapids.add(hapid)
+                    }
+            }
+        }
+
+    val genotypes = taxaToHapids
+        .map { (taxon, hapids) ->
+            if (hapids.isEmpty()) {
+                GenotypeBuilder(taxon, listOf(Allele.NO_CALL)).phased(false).make()
+            } else {
+                val allelesForHapids = hapids.map { alleles[it] }
+                GenotypeBuilder(taxon, allelesForHapids).phased(true).make()
+            }
+        }
+        .toList()
+
+    val resultAlleles = mutableListOf<Allele>()
+    resultAlleles.add(alleleRef(range, referenceSequence))
+    alleles.values
+        .filter { it != Allele.NO_CALL }
+        .forEach { resultAlleles.add(it) }
+
+    return VariantContextBuilder()
+        .source(".")
+        .alleles(resultAlleles)
+        .chr(range.contig)
+        .start(range.start.toLong())
+        .stop(range.end.toLong())
+        .attribute("END", range.end.toString())
+        .genotypes(genotypes)
+        .make()
+
+}
+
+private fun alleleRef(range: ReferenceRange, referenceSequence: Map<String, NucSeqRecord>?): Allele {
+    val allele = if (referenceSequence != null) {
+        referenceSequence[range.contig]!!.sequence[range.start - 1].name
+    } else {
+        "A"
+    }
+    return Allele.create(allele, true)
+}
+
+private fun symbolicAlleleAlt(hapid: String): Allele {
+    if (hapid.isBlank()) return Allele.NO_CALL
+    return Allele.create("<${hapid}>", false)
+}
