@@ -9,6 +9,7 @@ import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.boolean
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
+import htsjdk.variant.variantcontext.VariantContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -17,28 +18,28 @@ import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.maizegenetics.phgv2.api.HaplotypeGraph
-import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
 /**
- * Finds the most likely path through a HaplotypeGraph based on read mapping data. Input: a keyfile with taxa names
- * and read mapping file paths and a haplotype graph. Read mappings must be in the form of
+ * Finds the most likely pair of paths through a HaplotypeGraph based on read mapping data.
+ * Input: a keyfile with taxa names and read mapping file paths and a haplotype graph. Read mappings must be in the form of
  * haplotype list -> count of reads mapping to the haplotypes. The haplotype graph must be the one used to map reads or
  * a subset of that restricted to specific taxa and/or ReferenceRanges.
  *
  * Steps:
  * 1. Read the keyfile
- * 1. Build the HaplotypeGraph
- * 2. For each entry in the keyfile (multithreaded)
+ * 2. Build the HaplotypeGraph
+ * 3. For each entry in the keyfile (multithreaded)
  *      a. Get the read mapping data
  *      b. Use Viterbi algorithm to find the best path
  *      c. Store the path (write hvcf)
  *
- *
+ * The samples in the keyfile are processed in parallel. Each thread (co-routine) processes a sample. Within sample
+ * processing is not multithreaded.
  */
-class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
+class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using read mappings.") {
     val pathKeyfile by option(help = "tab-delimited file with first two columns: SampleName, ReadMappingFiles. ReadMappingFiles " +
             "must be the full path to a read mapping file or a comma separated list of file paths.")
         .required()
@@ -64,17 +65,23 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
     val probSameGamete by option(help = "The probability of transitioning to the same gamete in the next reference range")
         .double()
         .default(0.99)
+        .validate { require(it in 0.01..1.0) {"prob-correct must be between 0.01 and 1.0"} }
 
     val minGametes by option(help = "The minimum number of gametes with a haplotype in a reference range. " +
             "Reference ranges with fewer gametes will not be imputed.")
         .int()
-        .default(2)
+        .default(1)
         .validate { require(it > -1) {"min-gametes must be a positive integer"} }
 
     val minReads by option(help = "The minimum number of reads per ReferenceRange. Reference ranges with fewer reads will not be imputed")
         .int()
         .default(0)
         .validate { require(it > -1) {"min-reads must be a positive integer."} }
+
+    val inbreedingCoefficient by option(help = "The estimated coefficient of inbreeding for the samples being evaluated.")
+        .double()
+        .default(0.0)
+        .validate { require(it in 0.0..1.0) {"inbreeding-coefficient must be between 0.0 and 1.0"} }
 
     val maxReadsPerKb by option(help = "ReferenceRanges with more than max-reads-per-kb will not be imputed.")
         .int()
@@ -100,19 +107,24 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
     val threads by option(help = "number of threads used to find paths.").int().default(3)
 
 
-    private val myLogger = LogManager.getLogger(HaploidPathFinding::class.java)
+    private val myLogger = LogManager.getLogger(DiploidPathFinding::class.java)
 
     private fun buildHaplotypeGraph(): HaplotypeGraph {
-        val listOfHvcfFilenames = File(hvcfDir).listFiles().filter { it.name.endsWith(".h.vcf") || it.name.endsWith(".h.vcf.gz")}.map { it.path }
+        val listOfHvcfFilenames = File(hvcfDir).listFiles().filter { it.name.contains(".h.vcf") }.map { it.path }
         return HaplotypeGraph(listOfHvcfFilenames)
     }
 
     override fun run() {
-        //TODO determine how samples with no haplotype are being handled
-        processKeyFile()
+
+        val samplesToReadMappingFiles = processKeyFile()
+        processReadMappings(samplesToReadMappingFiles)
     }
 
-    private fun processKeyFile() {
+    /**
+     * Process the keyfile. Reads the keyfile. For each sample in the keyfile, imputes a path and writes
+     * it to a .h.vcf file and, optionally, appends the likely parents to a file.
+     */
+    private fun processKeyFile(): Map<String, List<String>> {
         //processes the key file to produce a map of sample name -> list of read mapping files for that sample
         myLogger.info("Processing key file $pathKeyfile")
         val keyFileLines = getBufferedReader(pathKeyfile).use { it.readLines()}
@@ -130,18 +142,51 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
         check(sampleNameSet.size == keyFileLines.size - 1) {"key file contains duplicate sample names"}
 
         //map of sampleName -> list of read mapping file names
-        //Todo check for existence of output file for each sample and skip if it exists
         val sampleToFiles = keyFileLines.drop(1).associate { Pair(it[0], it[1]) }
             .mapValues { it.value.split(",").map{filename -> filename.trim()} }
-        processReadMappings(sampleToFiles)
+
+        return checkForExistingOutput(sampleToFiles)
     }
 
-    data class ReadMappingResult(val name: String, val readMappingCounts: Map<List<String>, Int>) //placeholder
-    data class Path(val name: String, val hapidList: List<String>, val graph: HaplotypeGraph, val parentsUsed: List<MostLikelyParents.ParentStats> )
+    /**
+     * Takes a map of samples to file list as input. If the output directory contains an hvcf file for any sample,
+     * that sample will be removed from the map and the trimmed map will be returned.
+     */
+    private fun checkForExistingOutput(sampleToFiles: Map<String, List<String>>): Map<String, List<String>> {
 
+        val existingSamples = File(outputDir).listFiles().filter { it.name.contains(".h.vcf") }
+            .map { file -> file.name.substringBefore(".h.vcf") }
+
+        val newSamples = sampleToFiles.filter { (sampleName, _) -> !existingSamples.contains(sampleName) }
+
+        if (newSamples.size < sampleToFiles.size)
+            myLogger.info("The key file $pathKeyfile contains ${sampleToFiles.size}, only ${newSamples.size} will be imputed." +
+                    "The others already existing in the output directory")
+
+        return newSamples
+    }
+
+    private data class ReadMappingResult(val name: String, val readMappingCounts: Map<List<String>, Int>) //placeholder
+//    private data class Path(val name: String, val hapidList: List<List<String>>, val graph: HaplotypeGraph, val likelyParents: List<MostLikelyParents.ParentStats>)
+    private data class Path(val name: String, val hapidList: List<PathFinderWithViterbiHMM.DiploidPathNode>, val graph: HaplotypeGraph, val likelyParents: List<MostLikelyParents.ParentStats>)
+    /**
+     * Takes a map of sample name -> list of read mapping files. It processes the samples in parallel.
+     * Multi-threading is across samples. The results are written to files by an additional thread.
+     * The results are a h.vcf for each sample and, if the most likely parents are used, a single file of
+     * the chosen ancestors (parents) for each sample.
+     */
     private fun processReadMappings(sampleToFiles: Map<String, List<String>>) = runBlocking {
         myLogger.info("processing read mappings.")
         val myGraph = buildHaplotypeGraph()
+
+        //check conditions for useLikelyAncestor
+        if (useLikelyAncestors) {
+            require(maxAncestors < myGraph.sampleGametesInGraph().size || minCoverage < 1.0)
+            {"UseLikelyAncestors is true but likelyAncestors will not be checked because minCoverage is 1.0 " +
+                    "and maxAncestors is >= the number of potential ancestors."}
+            if (likelyAncestorFile.isBlank()) myLogger.warn("Likely ancestors will be determined for each sample " +
+                    "but information about the ancestors used will not be written to a file because no file name was provided.")
+        }
 
         //create a channel for read mappings
         val readMappingChannel = Channel<ReadMappingResult>(10)
@@ -164,8 +209,8 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
 
         //load read mappings for each sample into a channel
         for (sampleFileList in sampleToFiles) {
-            val listOfReadMaps = sampleFileList.value.map { filename -> AlignmentUtils.importReadMapping(filename) }
-            val readMappingsForSample = AlignmentUtils.mergeReadMappings(listOfReadMaps)
+            val listOfReadMaps = sampleFileList.value.map { filename -> importReadMapping(filename) }
+            val readMappingsForSample = mergeReadMappings(listOfReadMaps)
             myLogger.info("submitting read mapping for $sampleFileList")
             readMappingChannel.send(ReadMappingResult(sampleFileList.key, readMappingsForSample))
         }
@@ -175,10 +220,10 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
         for (imputeJob in jobList) imputeJob.join()
         pathChannel.close()
 
-        //block should not finish until savePath is finished processing results
+        //block does not finish until savePath is finished processing results
     }
 
-    private suspend fun imputePath(graph: HaplotypeGraph, readMappings: ReceiveChannel<ReadMappingResult>, resultChannel: SendChannel<Path>) {
+    private suspend fun imputePath(graph: HaplotypeGraph, readMappingChannel: ReceiveChannel<ReadMappingResult>, pathChannel: SendChannel<Path>) {
         val pathFinder = PathFinderWithViterbiHMM(graph = graph,
             probCorrect = probCorrect,
             sameGameteProbability = probSameGamete,
@@ -187,53 +232,46 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
             maxReadsPerKB =  maxReadsPerKb,
             useLikelyParents = useLikelyAncestors,
             maxParents = maxAncestors,
-            minCoverage = minCoverage
-            )
+            minCoverage = minCoverage,
+            inbreedCoef = inbreedingCoefficient
+        )
 
-        for (result in readMappings) {
-            val mappingsByRefrange = readMappingByRange(result.readMappingCounts, graph)
-            val hapidList = pathFinder.findBestHaploidPath(mappingsByRefrange)
-            resultChannel.send(Path(result.name, hapidList.first, graph, hapidList.second))
+        for (result in readMappingChannel) {
+            val mappingsByRefrange = HaploidPathFinding.readMappingByRange(result.readMappingCounts, graph)
+            val pathResult = pathFinder.findBestDiploidPath(mappingsByRefrange)
+            pathChannel.send(Path(result.name, pathResult.first, graph, pathResult.second))
         }
+
     }
 
     private suspend fun savePath(pathChannel : ReceiveChannel<Path>) {
         for (path in pathChannel) {
-            if (path.hapidList.isNullOrEmpty())
-                myLogger.error("No hVCF was written for ${path.name} because no haplotypes were imputed.")
-            else {
-                writeHvcf(path)
-                if (path.parentsUsed.size > 0) appendParentStats(path)
-            }
+            writeHvcf(path)
+            if (useLikelyAncestors && likelyAncestorFile.isNotBlank()) appendParentStats(path)
         }
     }
 
     private fun writeHvcf(myPath: Path) {
 
         //use method exportVariantContext() in VariantLoadingUtils
-        //use the alt header lines from the graph filtered to the hapids in the VariantContexts
+        //use the alt header lines from the graph for the hapids in myPath
         //create a list of VariantContexts from myPath: use method createHvcfRecord() in VariantLoadingUtils
 
-
-        //start the altHeaderList with the Reference haplotypes
         val referenceSequence = NucSeqIO(referenceGenome).readAll()
         val altHeadersSample = mutableListOf<AltHeaderMetaData>()
-        for (hapid in myPath.hapidList) {
-            val sampleAlt = myPath.graph.altHeader(hapid)
-            check(sampleAlt != null) {"There is no ReferenceRange for sample haplotype $hapid."}
-            altHeadersSample.add(sampleAlt)
-        }
 
-        val hapidToRefRange = myPath.graph.hapIdToRefRangeMap()
-        val variantContexts = altHeadersSample.map { sampleAlt ->
-            val refRange = hapidToRefRange[sampleAlt.id]!!
-            val startPos = Position(refRange.contig, refRange.start)
-            val endPos = Position(refRange.contig, refRange.end)
+        val variantContextList = mutableListOf<VariantContext>()
 
-            //the ref allele needs to b the nucleotide at start Pos, not the haplotype id (hash)
-            //Biokotlin positions are 0-based, so use refRange.start - 1
-            val refAllele = referenceSequence[refRange.contig]!!.sequence[refRange.start - 1].name
-            createHVCFRecord(myPath.name, startPos ,endPos, Pair(refAllele, sampleAlt.id))
+        //process the path
+        for ( node in myPath.hapidList) {
+            val startPos = Position(node.refRange.contig, node.refRange.start)
+            val endPos = Position(node.refRange.contig, node.refRange.end)
+            val refAllele = referenceSequence[node.refRange.contig]!!.sequence[node.refRange.start - 1].name
+            val hapid1 = myPath.graph.sampleToHapId(node.refRange, node.gamete1)
+            val hapid2 = myPath.graph.sampleToHapId(node.refRange, node.gamete2)
+            val hapids = listOfNotNull(hapid1, hapid2)
+
+            if (hapids.isNotEmpty()) variantContextList.add(createDiploidHVCFRecord(myPath.name, startPos, endPos, hapids, refAllele))
         }
 
         //exportVariantContext()
@@ -241,40 +279,44 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
         else "${outputDir}/${myPath.name}.h.vcf"
         val headerSet = altHeadersSample.map { altHeaderMetadataToVCFHeaderLine(it) }.toSet()
 
-        exportVariantContext(myPath.name, variantContexts, hvcfFileName, referenceSequence, headerSet)
+        exportVariantContext(myPath.name, variantContextList, hvcfFileName, referenceSequence, headerSet)
 
     }
 
+    /**
+     * Appends taxa chosen by likely parents to a file along with incremental read counts and cumulative coverage.
+     */
     private fun appendParentStats(path: Path) {
         val fileExists = File(likelyAncestorFile).exists()
         getBufferedWriter(likelyAncestorFile, append = true).use { myWriter ->
             if (!fileExists) myWriter.write("sample\tancestor\tgameteId\treads\tcoverage\n")
-            for (stats in path.parentsUsed) {
+            for (stats in path.likelyParents) {
                 myWriter.write("${path.name}\t${stats.parent.name}\t${stats.parent.gameteId}\t${stats.readCount}\t${stats.coverage}\n")
             }
         }
     }
 
     companion object {
-
         /**
-         * Takes read mapping counts, [readMappings], identifies the ReferenceRange for each hapid set,
-         * then outputs the result as a map of ReferenceRange to read mapping counts for that ReferenceRange.
-         * Here read mapping counts is a map of hapid set (List<String>) to a count.
+         * Merges a list of read mappings by summing counts for each hapid set to create a single map.
          */
-        fun readMappingByRange(readMappings: Map<List<String>, Int>, graph: HaplotypeGraph): Map<ReferenceRange, Map<List<String>, Int>> {
-            val hapidToRefrangeMap = graph.ranges().map { refrange ->
-                graph.hapIdToSampleGametes(refrange).keys.map { Pair(it, refrange) }
-            }.flatten().toMap()
-
-            val mappingByRange = mutableMapOf<ReferenceRange, MutableMap<List<String>, Int>>()
-            for ((haplist, count) in readMappings.entries) {
-                val refrange = hapidToRefrangeMap[haplist.first()]!!
-                mappingByRange.getOrPut(refrange) { mutableMapOf() }[haplist] = count
+        fun mergeReadMappings(readMappingList: List<Map<List<String>, Int>>): Map<List<String>, Int> {
+            return when (readMappingList.size) {
+                0 -> mapOf()
+                1 -> readMappingList[0]
+                else -> {
+                    val mergedList = readMappingList[0].toMutableMap()
+                    readMappingList.drop(1).forEach { readMap ->
+                        for ((hapids, count) in readMap.entries) {
+                            val priorCount = mergedList[hapids] ?: 0
+                            mergedList[hapids] = priorCount + count
+                        }
+                    }
+                    mergedList
+                }
             }
-            return mappingByRange
         }
 
     }
-}
 
+}

@@ -63,6 +63,11 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     fun numberOfSamples() = sampleNameToIdMap.size
 
     /**
+     * Returns a list of samples for this graph.
+     */
+    fun samples() = sampleNames.toList()
+
+    /**
      * Returns the number of ReferenceRanges for this graph.
      */
     fun numberOfRanges(): Int = refRangeMap.size
@@ -90,18 +95,44 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         return gameteSet
     }
 
-    fun hapIdToSampleGametes(range:ReferenceRange): Map<String, List<SampleGamete>> {
+    /**
+     * Returns a map of hapid -> SampleGamete(s) for the specified ReferenceRange.
+     */
+    fun hapIdToSampleGametes(range: ReferenceRange): Map<String, List<SampleGamete>> {
         val rangeId = refRangeMap[range]
-        require(rangeId != null) { "hapIdToSamples: range: $range not found" }
+        require(rangeId != null) { "hapIdToSampleGametes: range: $range not found" }
 
         val result = mutableMapOf<String, MutableList<SampleGamete>>()
         for (sampleId in rangeByGameteIdToHapid[rangeId].indices) {
             for (gameteId in rangeByGameteIdToHapid[rangeId][sampleId].indices) {
                 val hapid = rangeByGameteIdToHapid[rangeId][sampleId][gameteId]
-                result.getOrPut(hapid) { mutableListOf() }.add(SampleGamete(sampleNames[sampleId], gameteId))
+                if (hapid != null && hapid.isNotEmpty()) {
+                    result.getOrPut(hapid) { mutableListOf() }.add(SampleGamete(sampleNames[sampleId], gameteId))
+                }
             }
         }
         return result
+    }
+
+    /**
+     * Creates a map of each SampleGamete in range to its haplotype id.
+     * @param range   a reference range in this graph
+     *
+     * If range is not in this graph throws [IllegalArgumentException].
+     */
+    fun sampleGameteToHaplotypeId(range: ReferenceRange): Map<SampleGamete, String> {
+        val rangeId = refRangeMap[range]
+        require(rangeId != null) { "hapIdToSamples: range: $range not found" }
+
+        val result = mutableMapOf<SampleGamete, String>()
+        for (sampleId in rangeByGameteIdToHapid[rangeId].indices) {
+            for (gameteId in rangeByGameteIdToHapid[rangeId][sampleId].indices) {
+                result[SampleGamete(sampleNames[sampleId], gameteId)] =
+                    rangeByGameteIdToHapid[rangeId][sampleId][gameteId]
+            }
+        }
+        return result
+
     }
 
     /**
@@ -122,6 +153,12 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     fun altHeader(hapid: String): AltHeaderMetaData? {
         return altHeaderMap[hapid]
     }
+
+    /**
+     * Returns all the AltHeaderMetaData for this graph.
+     * Map<ID (checksum), AltHeaderMetaData>
+     */
+    fun altHeaders() = altHeaderMap
 
     private suspend fun processFiles(hvcfFiles: List<String>) {
 
@@ -328,7 +365,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     /**
      * Creates a map of ReferenceRange -> (map of hapid -> index)
      */
-    fun refRangeToHapIdMap() : Map<ReferenceRange,Map<String,Int>>{
+    fun refRangeToHapIdMap(): Map<ReferenceRange, Map<String, Int>> {
         //This creates a map of ReferenceRangeId -> (map of hapid -> index)
         return ranges().associateWith { range ->
             hapIdToSampleGametes(range).keys.toSortedSet()
