@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.pathing
 
+import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.testing.test
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import kotlinx.coroutines.*
@@ -8,6 +9,7 @@ import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.cli.AgcCompress
 import net.maizegenetics.phgv2.cli.TestExtension
+import net.maizegenetics.phgv2.utils.getBufferedWriter
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
@@ -20,7 +22,6 @@ import java.io.FileWriter
 import java.util.*
 import kotlin.math.min
 import kotlin.test.assertTrue
-import kotlin.test.fail
 
 @ExtendWith(TestExtension::class)
 class MapKmersTest {
@@ -90,6 +91,150 @@ class MapKmersTest {
         )
     }
 
+    @Test
+    fun testFullReadMappingPipeline() {
+        //load a graph from small seq
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqRefHvcfFile, TestExtension.smallseqLineAHvcfFile, TestExtension.smallseqLineBHvcfFile))
+        val kmerIndexFile = "${TestExtension.testOutputDir}/kmerIndex.txt"
+        val buildKmerIndex = BuildKmerIndex()
+        setupAgc()
+        val agcPath = "${TestExtension.testOutputFastaDir}/dbPath"
+
+        val kmerMapToHapids = buildKmerIndex.processGraphKmers(graph, .75, agcPath)
+        buildKmerIndex.saveKmerHashesAndHapids(graph, kmerIndexFile, kmerMapToHapids)
+
+
+        val refRangeToHapIdList = graph.refRangeToHapIdList()
+        //Open up the readMapping file and check to make sure that all the reads which are mapped are all from LineA
+        val samplesInGraph = graph.sampleGametesInGraph()
+        val hapIdsBySample = graph.refRangeToIndexMap().keys.flatMap {
+            samplesInGraph.map { sample -> Pair(sample.name, graph.sampleToHapId(it, sample)) }
+        }.groupBy { it.first }.mapValues { it.value.map { it.second }.toSet() }
+
+
+
+        //Test LineA
+        //make a keyFileRecord for LineA
+        val keyFileRecordLineA = KeyFileData("LineA_Paired", "${TestExtension.testLineASimReadsPrefix}_1.fq", "${TestExtension.testLineASimReadsPrefix}_2.fq")
+
+        AlignmentUtils.alignReadsToHaplotypes(graph, kmerIndexFile, listOf(keyFileRecordLineA), TestExtension.testOutputDir)
+
+        val lineAHapIds = hapIdsBySample["LineA"]!!
+        val readMappingLineA = AlignmentUtils.importReadMapping(TestExtension.outputReadMappingLineA)
+        //Loop through the readMappings and make sure each hapID set contains LineA ids.  We can have more, but everything should have LineA
+        //Combine the readMappings for each hapId and sort by refRange.  If the LineA is not the top hit then fail
+        val hapIdCountsLineA = readMappingLineA.flatMap { it.key.map { hapId -> Pair(hapId,it.value) } }.groupBy { it.first }.mapValues { it.value.map { it.second }.sum() }
+
+        checkReadMappingSingleLine(refRangeToHapIdList, hapIdCountsLineA, lineAHapIds)
+
+        //Test Single End Line A
+        val keyFileRecordLineASingle = KeyFileData("LineA_Single", "${TestExtension.testLineASimReadsPrefix}_2.fq", "")
+        AlignmentUtils.alignReadsToHaplotypes(graph, kmerIndexFile, listOf(keyFileRecordLineASingle), TestExtension.testOutputDir)
+
+        val readMappingLineASingle = AlignmentUtils.importReadMapping(TestExtension.outputReadMappingLineASingle)
+        val hapIdCountsLineASingle = readMappingLineASingle.flatMap { it.key.map { hapId -> Pair(hapId,it.value) } }.groupBy { it.first }.mapValues { it.value.map { it.second }.sum() }
+        checkReadMappingSingleLine(refRangeToHapIdList, hapIdCountsLineASingle, lineAHapIds)
+
+
+
+        val keyFileRecordLineB = KeyFileData("LineB_Paired", "${TestExtension.testLineBSimReadsPrefix}_1.fq", "${TestExtension.testLineBSimReadsPrefix}_2.fq")
+
+        AlignmentUtils.alignReadsToHaplotypes(graph, kmerIndexFile, listOf(keyFileRecordLineB), TestExtension.testOutputDir)
+
+        //Test LineB
+        val lineBHapIds = hapIdsBySample["LineB"]!!
+        val readMappingLineB = AlignmentUtils.importReadMapping(TestExtension.outputReadMappingLineB)
+        val hapIdCountsLineB = readMappingLineB.flatMap { it.key.map { hapId -> Pair(hapId,it.value) } }.groupBy { it.first }.mapValues { it.value.map { it.second }.sum() }
+        checkReadMappingSingleLine(refRangeToHapIdList, hapIdCountsLineB, lineBHapIds)
+    }
+
+    /**
+     * Function to check the readMapping so they have the right ids
+     */
+    private fun checkReadMappingSingleLine(
+        refRangeToHapIdList: Map<ReferenceRange, List<String>>,
+        hapIdCountsForSingleLine: Map<String, Int>,
+        lineAHapIds: Set<String?>
+    ) {
+        for ((_, hapIdList) in refRangeToHapIdList) {
+            val hapIdCounts = hapIdList.map { hapId -> hapIdCountsForSingleLine[hapId] ?: 0 }
+            val maxCount = hapIdCounts.maxOrNull() ?: 0
+            val maxIndex = hapIdCounts.indexOf(maxCount)
+            val maxHapId = hapIdList[maxIndex]
+            //It will miss the last haplotype of the chromosome as it is not in the graph due to anchorwave
+            if (maxCount != 0) {
+                println("$maxHapId ${hapIdCounts.zip(hapIdList).joinToString(",")}")
+                assertTrue(lineAHapIds.contains(maxHapId))
+            }
+        }
+    }
+
+    //Leaving this in so we can re-run the simulation if needed
+//    @Test
+    fun simulateLineABReads() {
+        //Simulate some reads from LineA and LineB and a mix of Line A and B
+        val lineAReads = simulateReads(TestExtension.smallseqLineAFile, paired = true)
+        //write out to fastq file
+        val lineAReadsFile = TestExtension.testLineASimReadsPrefix
+        writeOutFastq(lineAReadsFile, lineAReads)
+
+        val lineBReads = simulateReads(TestExtension.smallseqLineBFile, paired = true)
+        val lineBReadsFile = TestExtension.testLineBSimReadsPrefix
+        writeOutFastq(lineBReadsFile, lineBReads)
+
+        //Split the reads in half so chr1 is from lineA and chr2 is lineB
+        val lineAReadsChr1 = lineAReads.filterIndexed { index, _ -> index < lineAReads.size/2 }
+        val lineBReadsChr2 = lineBReads.filterIndexed { index, _ -> index > lineBReads.size/2 }
+        val lineABReads = lineAReadsChr1 + lineBReadsChr2
+        val lineABReadsFile = TestExtension.testLineABSimReadsPrefix
+        writeOutFastq(lineABReadsFile, lineABReads)
+
+    }
+
+    /**
+     * Function that will simply simulate reads from the assembly fastas
+     */
+    fun simulateReads(assemblyFile: String, readLength: Int = 150, paired : Boolean = false) : List<Pair<String, String?>> {
+        val assemblyNucSeq = NucSeqIO(assemblyFile).readAll()
+        //loop through each chromosome and simulate reads
+        val reads = mutableListOf<Pair<String, String?>>()
+        assemblyNucSeq.forEach { (chr, nucSeq) ->
+            val seq = nucSeq.sequence
+            val pairedOffset = if(paired) 300 else 0
+            //loop through the sequence and simulate reads
+            for(i in 0 until seq.size() - readLength - readLength - pairedOffset) {
+                val read = seq[i until i+readLength]
+                val read2 = if(paired) seq[i+readLength+pairedOffset until i + readLength + readLength + pairedOffset].reverse_complement() else null
+                reads.add(Pair(read.seq(), read2?.seq()))
+            }
+            println(reads.size)
+        }
+        return reads
+    }
+
+    /**
+     * Funciton to write out the simulated reads from the fastqs
+     */
+    fun writeOutFastq(fileName: String, reads: List<Pair<String, String?>>) {
+        //write out a fastq file
+        getBufferedWriter("${fileName}_1.fq").use { writer ->
+            val fileWriter2 = if(reads.first().second != null) getBufferedWriter("${fileName}_2.fq") else null
+            reads.forEachIndexed { index, (read1, read2) ->
+                writer.write("@read$index\n")
+                writer.write("$read1\n")
+                writer.write("+\n")
+                writer.write("I".repeat(read1.length) + "\n")
+                if(read2 != null) {
+                    fileWriter2?.write("@read$index\n")
+                    fileWriter2?.write("$read2\n")
+                    fileWriter2?.write("+\n")
+                    fileWriter2?.write("I".repeat(read2.length) + "\n")
+                }
+            }
+            fileWriter2?.close()
+        }
+    }
+
 
     @Test
     fun testImportKmerMap() {
@@ -104,7 +249,7 @@ class MapKmersTest {
         val kmerMapToHapids = buildKmerIndex.processGraphKmers(graph, .75, agcPath)
         buildKmerIndex.saveKmerHashesAndHapids(graph, kmerIndexFile, kmerMapToHapids)
 
-        val loadedKmerMapData = loadKmerMaps(kmerIndexFile, graph)
+        val loadedKmerMapData = AlignmentUtils.loadKmerMaps(kmerIndexFile, graph)
 
         //Then load it in and compare the two
         //loadKmerMaps(filename: String, graph: HaplotypeGraph): KmerMapData
@@ -121,7 +266,7 @@ class MapKmersTest {
             val kmerHashLong = kmerHash.toLong()
             assertTrue(kmerMapToHapids.containsKey(kmerHashLong))
 
-            val (refRangeId, offset) = decodeRangeIdAndOffset(encodedOffset)
+            val (refRangeId, offset) = AlignmentUtils.decodeRangeIdAndOffset(encodedOffset)
             //get the ref range so we can look up refRange -> HapId Index
             val hapIdToIndexMap = refRangeIdToHapIdMap[refRangeId]!!
 
@@ -153,7 +298,7 @@ class MapKmersTest {
         val rangeToBitSetMap = mapOf(ReferenceRange("1",100,200) to bitSet1, ReferenceRange("1",300,400) to bitset2)
         val refRangeToIndexMap = mapOf(ReferenceRange("1",100,200) to 0, ReferenceRange("1",300,400) to 1)
 
-        val refRangeToIdBitsetMap = convertRefRangeToIdBitsetMap(rangeToBitSetMap, refRangeToIndexMap)
+        val refRangeToIdBitsetMap = AlignmentUtils.convertRefRangeToIdBitsetMap(rangeToBitSetMap, refRangeToIndexMap)
         assertEquals(2, refRangeToIdBitsetMap.size)
         assertEquals(bitSet1, refRangeToIdBitsetMap[0])
         assertEquals(bitset2, refRangeToIdBitsetMap[1])
@@ -184,7 +329,7 @@ class MapKmersTest {
 
             val jobList: MutableList<Job> = mutableListOf()
             val hapidSetCounts = mutableMapOf<List<String>, Int>()
-            jobList.add(launch(Dispatchers.IO) { addListsToMap(hapidSetCounts, receiveChannel) })//do it on a single thread
+            jobList.add(launch(Dispatchers.IO) { AlignmentUtils.addListsToMap(hapidSetCounts, receiveChannel) })//do it on a single thread
 
             jobList.joinAll()
             assertEquals(3, hapidSetCounts.size)
@@ -281,16 +426,16 @@ class MapKmersTest {
         val fastqFilesPaired = Pair(TestExtension.testReads, TestExtension.testReads)
 
         //test single end mapping
-        exportReadMapping(TestExtension.testOutputReadMappingSingleEnd, hapIdMapping, sampleName, fastqFilesSingle)
+        AlignmentUtils.exportReadMapping(TestExtension.testOutputReadMappingSingleEnd, hapIdMapping, sampleName, fastqFilesSingle)
 
-        val readMappingSingleEnd = importReadMapping(TestExtension.testOutputReadMappingSingleEnd)
+        val readMappingSingleEnd = AlignmentUtils.importReadMapping(TestExtension.testOutputReadMappingSingleEnd)
         assertEquals(readMappingSingleEnd.size, 7)
         assertEquals(readMappingSingleEnd, hapIdMapping)
 
 
         //test paired end mapping
-        exportReadMapping(TestExtension.testOutputReadMappingPairedEnd, hapIdMapping, sampleName, fastqFilesPaired)
-        val readMappingPairedEnd = importReadMapping(TestExtension.testOutputReadMappingPairedEnd)
+        AlignmentUtils.exportReadMapping(TestExtension.testOutputReadMappingPairedEnd, hapIdMapping, sampleName, fastqFilesPaired)
+        val readMappingPairedEnd = AlignmentUtils.importReadMapping(TestExtension.testOutputReadMappingPairedEnd)
         assertEquals(readMappingPairedEnd.size, 7)
         assertEquals(readMappingPairedEnd, hapIdMapping)
 
@@ -357,11 +502,11 @@ class MapKmersTest {
             kmerHashOffsetMap[kmerHash] = (2.toLong() shl 32) or offset.toLong()
         }
 
-        val hapIdsSameRefRange90 = readToHapidSet(read, 1.0, .9, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        val hapIdsSameRefRange90 = AlignmentUtils.readToHapidSet(read, 1.0, .9, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
         //should be an empty set
         assertEquals(0, hapIdsSameRefRange90.size)
 
-        val hapIdsSameRefRange50 = readToHapidSet(read, 1.0, .5, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        val hapIdsSameRefRange50 = AlignmentUtils.readToHapidSet(read, 1.0, .5, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
         //Should just have hap2 in it
         //Have to set this lower as we have less than 100 kmers after we turn into a set
         assertEquals(1, hapIdsSameRefRange50.size)
@@ -374,7 +519,7 @@ class MapKmersTest {
             hashValue = BuildKmerIndex.updateKmerHashAndReverseCompliment(hashValue, simpleSeq[i])
         }
         val minHash = min(hashValue.first, hashValue.second)
-        val hapIdsSameRefRange50MissingKmer = readToHapidSet(simpleSeq, 1.0, .5, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        val hapIdsSameRefRange50MissingKmer = AlignmentUtils.readToHapidSet(simpleSeq, 1.0, .5, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
         assertEquals(0, hapIdsSameRefRange50MissingKmer.size)
 
     }
@@ -402,7 +547,7 @@ class MapKmersTest {
 
         val rangeToHapIdMap = mutableMapOf<Int,MutableList<String>>()
 
-        extractKmersFromSequence(sequence, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap, rangeToHapIdMap)
+        AlignmentUtils.extractKmersFromSequence(sequence, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap, rangeToHapIdMap)
 
         assertEquals(1, rangeToHapIdMap.size)
         assertEquals(mutableListOf("1","2"), rangeToHapIdMap[1])
@@ -447,31 +592,31 @@ class MapKmersTest {
         kmerHashOffsetMap[kmer2Hash] = (1.toLong() shl 32) or 2.toLong()
         kmerHashOffsetMap[kmer3Hash] = (1.toLong() shl 32) or 4.toLong()
 
-        val rangeHapidMap1 = rangeHapidMapFromKmerHash(kmer1Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        val rangeHapidMap1 = AlignmentUtils.rangeHapidMapFromKmerHash(kmer1Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
         assertEquals(1, rangeHapidMap1.size)
         assertEquals(mutableListOf("1"), rangeHapidMap1[1])
 
-        val rangeHapidMap2 = rangeHapidMapFromKmerHash(kmer2Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        val rangeHapidMap2 = AlignmentUtils.rangeHapidMapFromKmerHash(kmer2Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
         assertEquals(1, rangeHapidMap2.size)
         assertEquals(mutableListOf("2"), rangeHapidMap2[1])
 
-        val rangeHapidMap3 = rangeHapidMapFromKmerHash(kmer3Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        val rangeHapidMap3 = AlignmentUtils.rangeHapidMapFromKmerHash(kmer3Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
         assertEquals(1, rangeHapidMap3.size)
         assertEquals(mutableListOf("1","2"), rangeHapidMap3[1])
 
         //Try a kmer that does not exist
         val kmer4Hash = 4.toLong()
-        val rangeHapidMap4 = rangeHapidMapFromKmerHash(kmer4Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        val rangeHapidMap4 = AlignmentUtils.rangeHapidMapFromKmerHash(kmer4Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
         assertEquals(0, rangeHapidMap4.size)
 
         //Make it so the hapIdIndex is not found
         val rangeToHapidIndexMap2 = mapOf(2 to mapOf("1" to 0))
-        val rangeHapIdMapMissingRangeHapIdx = rangeHapidMapFromKmerHash(kmer3Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap2)
+        val rangeHapIdMapMissingRangeHapIdx = AlignmentUtils.rangeHapidMapFromKmerHash(kmer3Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap2)
         assertEquals(0, rangeHapIdMapMissingRangeHapIdx.size)
 
         //Make it so the hapId is not found for the bitset
         val rangeToBitSetMapMissingRange = mapOf(2 to bitSet)
-        val rangeHapIdMapMissingRange = rangeHapidMapFromKmerHash(kmer3Hash, kmerHashOffsetMap, rangeToBitSetMapMissingRange, rangeToHapidIndexMap)
+        val rangeHapIdMapMissingRange = AlignmentUtils.rangeHapidMapFromKmerHash(kmer3Hash, kmerHashOffsetMap, rangeToBitSetMapMissingRange, rangeToHapidIndexMap)
         assertEquals(0, rangeHapIdMapMissingRange.size)
 
     }
@@ -486,14 +631,14 @@ class MapKmersTest {
         val offset = 2
 
         val encoded = (rangeID.toLong() shl 32) or offset.toLong()
-        assertEquals(decodeRangeIdAndOffset(encoded), Pair(rangeID, offset))
+        assertEquals(AlignmentUtils.decodeRangeIdAndOffset(encoded), Pair(rangeID, offset))
 
 
         val rangeID100 = 100
         val offset100 = 200
 
         val encoded100 = (rangeID100.toLong() shl 32) or offset100.toLong()
-        assertEquals(decodeRangeIdAndOffset(encoded100), Pair(rangeID100, offset100))
+        assertEquals(AlignmentUtils.decodeRangeIdAndOffset(encoded100), Pair(rangeID100, offset100))
     }
 
     @Test
@@ -504,14 +649,76 @@ class MapKmersTest {
         //Create a rangeToHapIdMap
         val rangeToHapIdMap = mapOf(1 to listOf("1","2","3"), 2 to listOf("100"))
 
-        val hapIdsFor100Percent = hapidsFromOneReferenceRange(rangeToHapIdMap, 1.0)
+        val hapIdsFor100Percent = AlignmentUtils.hapidsFromOneReferenceRange(rangeToHapIdMap, 1.0)
         //should be an empty list
         assertEquals(hapIdsFor100Percent.size, 0)
 
-        val hapIdsFor50Percent = hapidsFromOneReferenceRange(rangeToHapIdMap, 0.5)
+        val hapIdsFor50Percent = AlignmentUtils.hapidsFromOneReferenceRange(rangeToHapIdMap, 0.5)
         assertEquals(hapIdsFor50Percent.size, 3)
         assertEquals(hapIdsFor50Percent, listOf("1","2","3"))
     }
+
+    @Test
+    fun testMergeReadMappings() {
+        //build some mapping counts
+        val mappingCounts1 = mapOf(listOf("1","2") to 10, listOf("3") to 20, listOf("1") to 30, listOf("1","2","3") to 40,
+            listOf("10","11","12") to 50, listOf("10","11") to 60, listOf("12") to 70)
+
+
+        val mergedMappingCounts = AlignmentUtils.mergeReadMappings(listOf(mappingCounts1, mappingCounts1))
+        assertEquals(7, mergedMappingCounts.size)
+        assertEquals(20, mergedMappingCounts[listOf("1","2")])
+        assertEquals(40, mergedMappingCounts[listOf("3")])
+        assertEquals(60, mergedMappingCounts[listOf("1")])
+        assertEquals(80, mergedMappingCounts[listOf("1","2","3")])
+        assertEquals(100, mergedMappingCounts[listOf("10","11","12")])
+        assertEquals(120, mergedMappingCounts[listOf("10","11")])
+        assertEquals(140, mergedMappingCounts[listOf("12")])
+
+
+        //Check single mapping
+        val mergedMappingCountSingle = AlignmentUtils.mergeReadMappings(listOf(mappingCounts1))
+        assertEquals(7, mergedMappingCountSingle.size)
+        assertEquals(10, mergedMappingCountSingle[listOf("1","2")])
+        assertEquals(20, mergedMappingCountSingle[listOf("3")])
+        assertEquals(30, mergedMappingCountSingle[listOf("1")])
+        assertEquals(40, mergedMappingCountSingle[listOf("1","2","3")])
+        assertEquals(50, mergedMappingCountSingle[listOf("10","11","12")])
+        assertEquals(60, mergedMappingCountSingle[listOf("10","11")])
+        assertEquals(70, mergedMappingCountSingle[listOf("12")])
+
+
+        //Check empty mapping
+        val mergedMappingCountEmpty = AlignmentUtils.mergeReadMappings(listOf())
+        assertEquals(0, mergedMappingCountEmpty.size)
+
+        //Check 3 mappings
+        val mergedMappingCount3 = AlignmentUtils.mergeReadMappings(listOf(mappingCounts1, mappingCounts1, mappingCounts1))
+        assertEquals(7, mergedMappingCount3.size)
+        assertEquals(30, mergedMappingCount3[listOf("1","2")])
+        assertEquals(60, mergedMappingCount3[listOf("3")])
+        assertEquals(90, mergedMappingCount3[listOf("1")])
+        assertEquals(120, mergedMappingCount3[listOf("1","2","3")])
+        assertEquals(150, mergedMappingCount3[listOf("10","11","12")])
+        assertEquals(180, mergedMappingCount3[listOf("10","11")])
+        assertEquals(210, mergedMappingCount3[listOf("12")])
+
+
+        //Test different hapIdSets
+        val mappingCounts2 = mapOf(listOf("1","2") to 10, listOf("3") to 20, listOf("1") to 30)
+        val mergedMappingCount4 = AlignmentUtils.mergeReadMappings(listOf(mappingCounts1, mappingCounts2))
+        assertEquals(7, mergedMappingCount4.size)
+        assertEquals(20, mergedMappingCount4[listOf("1","2")])
+        assertEquals(40, mergedMappingCount4[listOf("3")])
+        assertEquals(60, mergedMappingCount4[listOf("1")])
+        assertEquals(40, mergedMappingCount4[listOf("1","2","3")])
+        assertEquals(50, mergedMappingCount4[listOf("10","11","12")])
+        assertEquals(60, mergedMappingCount4[listOf("10","11")])
+        assertEquals(70, mergedMappingCount4[listOf("12")])
+
+
+    }
+
 
     //TODO move this to a utility
     private fun setupAgc() {
