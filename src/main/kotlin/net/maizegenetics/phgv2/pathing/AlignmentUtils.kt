@@ -135,6 +135,10 @@ class AlignmentUtils {
         }
 
 
+        /**
+         * Function to do the read mapping process for a single sample.
+         * This works with both single and paired end read files.
+         */
         fun processReadMappingForKeyFileRecord(
             keyFileRecord: KeyFileData,
             kmerIndexMap: KmerMapData,
@@ -153,18 +157,19 @@ class AlignmentUtils {
                 convertRefRangeToIdBitsetMap(kmerIndexMap.rangeToBitSetMap, graph.refRangeToIndexMap())
 
             FastqReader(bufferedReader(fastqFiles.first)).use { reader1 ->
-                //Need to do this otherwise we cannot handle single and paired end in a efficient way
+                //Need to do this otherwise we cannot handle single and paired end in an efficient way
                 val reader2 = if (fastqFiles.second.isNotEmpty()) {
                     FastqReader(bufferedReader(fastqFiles.second))
                 } else {
                     null
                 }
 
+                //Setting up the channels for the coroutines
                 val readStringChannel = Channel<Pair<String, String>>(100)
                 val sortedHapidListChannel = Channel<List<String>>(100)
                 val numberOfMappingThreads = max(1, numThreads - 2)
 
-
+                //Run the blocking coroutine to read the fastq files and process the reads
                 runBlocking {
                     launch(Dispatchers.IO) {
                         while (reader1.hasNext() && reader2?.hasNext() ?: true) {
@@ -201,16 +206,16 @@ class AlignmentUtils {
                     sortedHapidListChannel.close()
                     listJob.join()
                 }
-
-
-
+                //Need to close the reader2 if it exists
                 reader2?.close()
             }
 
             return hapidSetCount
-
         }
 
+        /**
+         * Function to convert a map of ReferenceRange to BitSet to a map of RefRangeId to BitSet
+         */
         fun convertRefRangeToIdBitsetMap(
             rangeToBitSetMap: Map<ReferenceRange, BitSet>,
             refRangeToIndexMap: Map<ReferenceRange, Int>
@@ -332,6 +337,10 @@ class AlignmentUtils {
             }
         }
 
+        /**
+         * Function to extract kmers from a sequence and add them to the [rangeToHapidMap] for the reference range
+         * This will work by doing a single pass over the read sequence and building the kmer hash and then looking up what hapIds belong to that kmer.
+         */
         fun extractKmersFromSequence(
             sequence: String,
             kmerHashOffsetMap: Long2LongOpenHashMap,
