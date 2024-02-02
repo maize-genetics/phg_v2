@@ -100,7 +100,7 @@ class MapKmersTest {
         setupAgc()
         val agcPath = "${TestExtension.testOutputFastaDir}/dbPath"
 
-        val kmerMapToHapids = buildKmerIndex.processGraphKmers(graph, .75, agcPath)
+        val kmerMapToHapids = buildKmerIndex.processGraphKmers(graph,  agcPath,.75)
         buildKmerIndex.saveKmerHashesAndHapids(graph, kmerIndexFile, kmerMapToHapids)
 
 
@@ -246,7 +246,7 @@ class MapKmersTest {
         setupAgc()
         val agcPath = "${TestExtension.testOutputFastaDir}/dbPath"
         //Long2ObjectOpenHashMap<Set<String>>
-        val kmerMapToHapids = buildKmerIndex.processGraphKmers(graph, .75, agcPath)
+        val kmerMapToHapids = buildKmerIndex.processGraphKmers(graph, agcPath, .75)
         buildKmerIndex.saveKmerHashesAndHapids(graph, kmerIndexFile, kmerMapToHapids)
 
         val loadedKmerMapData = AlignmentUtils.loadKmerMaps(kmerIndexFile, graph)

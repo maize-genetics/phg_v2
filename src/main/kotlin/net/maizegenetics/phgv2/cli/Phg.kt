@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.versionOption
 import net.maizegenetics.phgv2.agc.AnnotateFastas
+import net.maizegenetics.phgv2.pathing.BuildKmerIndex
 import net.maizegenetics.phgv2.pathing.DiploidPathFinding
 import net.maizegenetics.phgv2.pathing.HaploidPathFinding
 import net.maizegenetics.phgv2.pathing.MapKmers
@@ -38,7 +39,9 @@ class Phg : CliktCommand() {
 
 fun main(args: Array<String>) = Phg()
     .subcommands(SetupEnvironment(), Initdb(),  CreateRanges(), AnnotateFastas(), AgcCompress(), AlignAssemblies(),
-        CreateRefVcf(), CreateMafVcf(), LoadVcf(), ExportVcf(), CreateFastaFromHvcf(), StartServer(),
-        HaploidPathFinding(), DiploidPathFinding(), MapKmers()
+        CreateRefVcf(), CreateMafVcf(), LoadVcf(), ExportVcf(),
+        BuildKmerIndex(), MapKmers(), HaploidPathFinding(), DiploidPathFinding(), //Imputation
+        CreateFastaFromHvcf(), StartServer() //Utilities
+
     )
     .main(args)

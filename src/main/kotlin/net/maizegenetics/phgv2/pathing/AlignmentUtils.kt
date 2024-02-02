@@ -26,7 +26,7 @@ data class KmerMapData(val rangeToBitSetMap: Map<ReferenceRange, BitSet>, val km
 
 data class KeyFileData(val sampleName: String, val file1: String, val file2: String = "")
 
-private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.AlignmentUtils")
+private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.pathing.AlignmentUtils")
 
 class AlignmentUtils {
     companion object {
@@ -101,7 +101,7 @@ class AlignmentUtils {
                                 val myBitset = BitSet.valueOf(parsedLine.map { it.toLong() }.toLongArray())
                                 rangeToBitSetMap[refrange] = myBitset
                             } catch (e: Exception) {
-                                println("error at line $totalLineCount for input = $inputStr")
+                                myLogger.error("error at line $totalLineCount for input = $inputStr")
                                 throw java.lang.IllegalArgumentException(e)
                             }
                         }
@@ -115,7 +115,7 @@ class AlignmentUtils {
                                 val hashOffset = datapair.split("@")
 
                                 if (hashOffset.size < 2) {
-                                    println("improperly formatted datapair at line $totalLineCount")
+                                    myLogger.warn("improperly formatted datapair at line $totalLineCount")
                                 }
 
                                 val hash = hashOffset[0].toLong()

@@ -73,7 +73,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         //build the haplotypeGraph
         val graph = buildHaplotypeGraph()
-        val hashToHapidMap = processGraphKmers(graph, maxHaplotypeProportion, agcPath, hashMask, hashFilterValue)
+        val hashToHapidMap = processGraphKmers(graph, agcPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
 
         //for now, the name of the kmerIndex will be kmerIndex.txt. Later, the file path and name can be set by the user.
         val kmerIndexFilename = "${hvcfDir}kmerIndex.txt"
@@ -107,7 +107,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * This returns a HashMap of hash -> hapid list for all the kmers in the keep set.
      * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
      */
-    fun processGraphKmers(graph: HaplotypeGraph, maxHaplotypeProportion: Double, agcPath: String, hashMask: Long = 3, hashFilterValue:Long = 1) : Long2ObjectOpenHashMap<Set<String>> {
+    fun processGraphKmers(graph: HaplotypeGraph,agcPath: String, maxHaplotypeProportion: Double=.75, hashMask: Long = 3, hashFilterValue:Long = 1) : Long2ObjectOpenHashMap<Set<String>> {
         //keepMap is a map of hash -> Set of haplotype ids
         val keepMap = Long2ObjectOpenHashMap<Set<String>>()
         //discardSet is a Set of hashes
