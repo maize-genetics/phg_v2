@@ -291,20 +291,16 @@ fun createDiploidHVCFRecord(sampleName: String, startPosition: Position, endPosi
 
     //the altCallIndex will be used to populate GT
     val distinctAltCalls = altCalls.distinct()
-    //the first element of the AD array = 0, the others = 2
-    val arrayAD = IntArray(distinctAltCalls.size + 1) { if (it == 0) 0 else 2}
-    val valueDP = arrayAD.sum()
 
     check(startPosition.position <= endPosition.position) {
         "createDiploidHVCFRecord: start position greater than end for ${startPosition.contig}: ${startPosition.position} - ${endPosition.position}"
     }
 
-    //Need to add AD for Alt > 0 here so that the API will work correctly.  Otherwise, it is treated as missing as it thinks AD = 0,0.
-    //All calls (including the reference haplotype) will be alt calls because ref is always a nucleotide
-    //for diploids (as compared to haploids) building the allele depth is more complicated
+    //todo deal with missing alleles, add Allele.NO_CALL
+
     val alleleList = mutableListOf(refCall)
     alleleList.addAll(distinctAltCalls)
-    val gt = GenotypeBuilder().name(sampleName).alleles(altCalls).DP(valueDP).AD(arrayAD).make()
+    val gt = GenotypeBuilder().name(sampleName).alleles(altCalls).phased(true).make()
     val vcb = VariantContextBuilder()
         .chr(startPosition.contig)
         .start(startPosition.position.toLong())
