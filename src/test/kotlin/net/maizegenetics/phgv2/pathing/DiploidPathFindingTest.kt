@@ -310,8 +310,8 @@ class DiploidPathFindingTest {
             }
         }
 
-        val readMap = mergeReadMappings(listOf(readMap1, readMap2))
-        exportReadMapping(mappingFile, readMap, "TestLine", Pair("file1", "file2"))
+        val readMap = AlignmentUtils.mergeReadMappings(listOf(readMap1, readMap2))
+        AlignmentUtils.exportReadMapping(mappingFile, readMap, "TestLine", Pair("file1", "file2"))
 
         return intArrayOf(readsWithA, readMap.values.sum())
     }
