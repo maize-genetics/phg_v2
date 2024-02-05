@@ -172,6 +172,7 @@ More commonly used terms can be found [here](docs/terminology.md).
 1. [Installation](docs/installation.md)
 2. [Building and loading](docs/build_and_load.md)
 3. [Imputation](docs/imputation.md) (_**WIP**_) 🚧
+4. [Export data](docs/export_data.md) (_**WIP**_) 🚧
 
 ### Reference
 * [hVCF format specifications](docs/hvcf_specifications.md)
