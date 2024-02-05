@@ -226,23 +226,23 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
     }
 
     private suspend fun imputePath(graph: HaplotypeGraph, readMappingChannel: ReceiveChannel<ReadMappingResult>, pathChannel: SendChannel<Path>) {
-        val pathFinder = PathFinderWithViterbiHMM(graph = graph,
-            probCorrect = probCorrect,
-            sameGameteProbability = probSameGamete,
-            minGametesPerRange = minGametes,
-            minReadsPerRange = minReads,
-            maxReadsPerKB =  maxReadsPerKb,
-            useLikelyParents = useLikelyAncestors,
-            maxParents = maxAncestors,
-            minCoverage = minCoverage,
-            inbreedCoef = inbreedingCoefficient
-        )
-
-        for (result in readMappingChannel) {
-            val mappingsByRefrange = HaploidPathFinding.readMappingByRange(result.readMappingCounts, graph)
-            val pathResult = pathFinder.findBestDiploidPath(mappingsByRefrange)
-            pathChannel.send(Path(result.name, pathResult.first, graph, pathResult.second))
-        }
+//        val pathFinder = PathFinderWithViterbiHMM(graph = graph,
+//            probCorrect = probCorrect,
+//            sameGameteProbability = probSameGamete,
+//            minGametesPerRange = minGametes,
+//            minReadsPerRange = minReads,
+//            maxReadsPerKB =  maxReadsPerKb,
+//            useLikelyParents = useLikelyAncestors,
+//            maxParents = maxAncestors,
+//            minCoverage = minCoverage,
+//            inbreedCoef = inbreedingCoefficient
+//        )
+//
+//        for (result in readMappingChannel) {
+//            val mappingsByRefrange = HaploidPathFinding.readMappingByRange(result.readMappingCounts, graph)
+//            val pathResult = pathFinder.findBestDiploidPath(mappingsByRefrange)
+//            pathChannel.send(Path(result.name, pathResult.first, graph, pathResult.second))
+//        }
 
     }
 
@@ -269,9 +269,10 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
             val startPos = Position(node.refRange.contig, node.refRange.start)
             val endPos = Position(node.refRange.contig, node.refRange.end)
             val refAllele = referenceSequence[node.refRange.contig]!!.sequence[node.refRange.start - 1].name
-            val hapid1 = myPath.graph.sampleToHapId(node.refRange, node.gamete1)
-            val hapid2 = myPath.graph.sampleToHapId(node.refRange, node.gamete2)
-            val hapids = listOfNotNull(hapid1, hapid2)
+//            val hapid1 = myPath.graph.sampleToHapId(node.refRange, node.gamete1)
+//            val hapid2 = myPath.graph.sampleToHapId(node.refRange, node.gamete2)
+//            val hapids = listOfNotNull(hapid1, hapid2)
+            val hapids = listOf<String>()
 
             if (hapids.isNotEmpty()) variantContextList.add(createDiploidHVCFRecord(myPath.name, startPos, endPos, hapids, refAllele))
         }

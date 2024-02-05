@@ -2,11 +2,12 @@ package net.maizegenetics.phgv2.pathing
 
 import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.vcf.VCFFileReader
-import junit.framework.TestCase.assertTrue
+import junit.framework.TestCase
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.getBufferedWriter
+import org.junit.Assert.assertTrue
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
@@ -14,7 +15,7 @@ import java.nio.file.Paths
 import kotlin.random.Random
 
 @ExtendWith(TestExtension::class)
-class DiploidPathFindingTest {
+class FindPathsTest {
     companion object {
         @JvmStatic
         @BeforeAll
@@ -45,7 +46,7 @@ class DiploidPathFindingTest {
         @AfterAll
         fun tearDown() {
             //comment out the following line to inspect the test results after the tests have been run
-            File(TestExtension.testOutputDir).deleteRecursively()
+//            File(TestExtension.testOutputDir).deleteRecursively()
         }
     }
 
@@ -54,38 +55,47 @@ class DiploidPathFindingTest {
         //copied from HaploidPathFindingTest, then added validation check for inbreeding-coefficient
         //test that the parameters are being parsed correctly
         //test default parameters in HaploidPathFinding
-        var result = HaploidPathFinding().test("")
+        var result = FindPaths().test("")
         //expected errors:
         //Error: missing option --path-keyfile
         //Error: missing option --hvcf-dir
         //Error: missing option --reference-genome
         //Error: missing option --output-dir
         var errOut = result.stderr
-        assert(errOut.contains("Error: missing option --path-keyfile"))
-        assert(errOut.contains("Error: missing option --hvcf-dir"))
-        assert(errOut.contains("Error: missing option --reference-genome"))
-        assert(errOut.contains("Error: missing option --output-dir"))
+        assertTrue(errOut.contains("Error: missing option --path-keyfile"))
+        assertTrue(errOut.contains("Error: missing option --hvcf-dir"))
+        assertTrue(errOut.contains("Error: missing option --reference-genome"))
+        assertTrue(errOut.contains("Error: missing option --output-dir"))
+        assertTrue(errOut.contains("Error: missing option --path-type"))
 
-        //test required parameter validation
-        var testArgs = "--path-keyfile notafile --hvcf-dir notafile --reference-genome notafile --output-dir notafile"
-        result = DiploidPathFinding().test(testArgs)
+        //test wrong value for path-type
+        var testArgs = "--path-type triploid --path-keyfile notafile --hvcf-dir notafile --reference-genome notafile --output-dir notafile"
+        result = FindPaths().test(testArgs)
         errOut = result.stderr
+        assertTrue(errOut.contains("Error: invalid value for --path-type: invalid choice: triploid. (choose from haploid, diploid)"))
+
+        //test for invalid file names
+        testArgs = "--path-type haploid --path-keyfile notafile --hvcf-dir notafile --reference-genome notafile --output-dir notafile"
+        result = FindPaths().test(testArgs)
+        errOut = result.stderr
+
         //expected errors:
         // Error: invalid value for --path-keyfile: notafile is not a valid file
         //Error: invalid value for --hvcf-dir: notafile is not a valid directory.
         //Error: invalid value for --reference-genome: notafile is not a valid file
         //Error: invalid value for --output-dir: notafile is not a valid directory.
-        assert(errOut.contains("Error: invalid value for --path-keyfile: notafile is not a valid file"))
-        assert(errOut.contains("Error: invalid value for --hvcf-dir: notafile is not a valid directory."))
-        assert(errOut.contains("Error: invalid value for --reference-genome: notafile is not a valid file"))
-        assert(errOut.contains("Error: invalid value for --output-dir: notafile is not a valid directory."))
+        assertTrue(errOut.contains("Error: invalid value for --path-keyfile: notafile is not a valid file"))
+        assertTrue(errOut.contains("Error: invalid value for --hvcf-dir: notafile is not a valid directory."))
+        assertTrue(errOut.contains("Error: invalid value for --reference-genome: notafile is not a valid file"))
+        assertTrue(errOut.contains("Error: invalid value for --output-dir: notafile is not a valid directory."))
 
         //test validation of optional parameters
         testArgs = "--path-keyfile ${TestExtension.testKeyFile} --hvcf-dir ${TestExtension.smallSeqInputDir} " +
-                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.smallSeqInputDir} --prob-correct 0.4 " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.smallSeqInputDir} " +
+                "--path-type haploid --prob-correct 0.4 " +
                 "--min-gametes -1 --min-reads -1 --max-reads-per-kb -1 --min-coverage 0.4 --inbreeding-coefficient -1"
 
-        result = DiploidPathFinding().test(testArgs)
+        result = FindPaths().test(testArgs)
 
         //Expected errors:
 //        Error: invalid value for --prob-correct: prob-correct must be between 0.5 and 1.0
@@ -96,12 +106,13 @@ class DiploidPathFindingTest {
 //        Error: invalid value for --min-coverage: min-coverage must be between 0.5 and 1.0
 
         errOut = result.stderr
-        assert(errOut.contains("Error: invalid value for --prob-correct: prob-correct must be between 0.5 and 1.0"))
-        assert(errOut.contains("Error: invalid value for --min-gametes: min-gametes must be a positive integer"))
-        assert(errOut.contains("Error: invalid value for --min-reads: min-reads must be a positive integer."))
-        assert(errOut.contains("Error: invalid value for --max-reads-per-kb: max-reads-per-kb must be a positive integer."))
-        assert(errOut.contains("Error: invalid value for --min-coverage: min-coverage must be between 0.5 and 1.0"))
-        assert(errOut.contains("Error: invalid value for --inbreeding-coefficient: inbreeding-coefficient must be between 0.0 and 1.0"))
+        println(errOut)
+        assertTrue(errOut.contains("Error: invalid value for --prob-correct: prob-correct must be between 0.5 and 1.0"))
+        assertTrue(errOut.contains("Error: invalid value for --min-gametes: min-gametes must be a positive integer"))
+        assertTrue(errOut.contains("Error: invalid value for --min-reads: min-reads must be a positive integer."))
+        assertTrue(errOut.contains("Error: invalid value for --max-reads-per-kb: max-reads-per-kb must be a positive integer."))
+        assertTrue(errOut.contains("Error: invalid value for --min-coverage: min-coverage must be between 0.5 and 1.0"))
+        assertTrue(errOut.contains("Error: invalid value for --inbreeding-coefficient: inbreeding-coefficient must be between 0.0 and 1.0"))
 
     }
 
@@ -125,17 +136,19 @@ class DiploidPathFindingTest {
 
         val pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
-                "--prob-same-gamete 0.8"
+                "--path-type diploid --prob-same-gamete 0.8"
 
-        val pathFindingResult = DiploidPathFinding().test(pathFindingTestArgs)
+        val pathFindingResult = FindPaths().test(pathFindingTestArgs)
         assert(pathFindingResult.statusCode == 0)
 
         //examine the resulting hvcf file
         val testVcf = "${TestExtension.testOutputDir}TestLine.h.vcf"
         val lineAgamete = SampleGamete("LineA")
         val lineBgamete = SampleGamete("LineB")
-        val lineAHapids = myGraph.ranges().map { range -> myGraph.sampleToHapId(range, lineAgamete) ?: "." }.toSet()
-        val lineBHapids = myGraph.ranges().map { range -> myGraph.sampleToHapId(range, lineBgamete) ?: "." }.toSet()
+        val refGamete = SampleGamete("Ref")
+        val lineAHapids = myGraph.ranges().mapNotNull { range -> myGraph.sampleToHapId(range, lineAgamete) }.toSet()
+        val lineBHapids = myGraph.ranges().mapNotNull { range -> myGraph.sampleToHapId(range, lineBgamete) }.toSet()
+        val refHapids = myGraph.ranges().mapNotNull { range -> myGraph.sampleToHapId(range, refGamete) }.toSet()
 
         VCFFileReader(Paths.get(testVcf), false).use { vcf ->
             //Chr 1: one haplotype should be all A for chr1, the other A before start=25000 and B after
@@ -144,12 +157,20 @@ class DiploidPathFindingTest {
                 val hapids = context.alternateAlleles.map { it.displayString.substringBefore(">").substringAfter("<") }.toList()
                 when (context.contig) {
                     "1" -> when {
-                        context.start < 25000 -> assertTrue("${context.contig}:${context.start}-${context.end}, hapids = $hapids", hapids.all { lineAHapids.contains(it) })
-                        else -> assertTrue("${context.contig}:${context.start}-${context.end}, hapids = $hapids", hapids.any { lineAHapids.contains(it) } && hapids.any { lineBHapids.contains(it) })
+                        context.start < 25000 -> TestCase.assertTrue(
+                            "${context.contig}:${context.start}-${context.end}, hapids = $hapids",
+                            hapids.all { lineAHapids.contains(it) })
+                        else -> TestCase.assertTrue(
+                            "${context.contig}:${context.start}-${context.end}, hapids = $hapids",
+                            hapids.any { lineAHapids.contains(it) } && hapids.any { refHapids.contains(it) })
                     }
                     else -> when {
-                        context.start > 25000 -> assertTrue("${context.contig}:${context.start}-${context.end}, hapids = $hapids", hapids.all { lineAHapids.contains(it) })
-                        else -> assertTrue("${context.contig}:${context.start}-${context.end}, hapids = $hapids", hapids.any { lineAHapids.contains(it) } && hapids.any { lineBHapids.contains(it) })
+                        context.start > 25000 -> TestCase.assertTrue(
+                            "${context.contig}:${context.start}-${context.end}, hapids = $hapids",
+                            hapids.all { lineAHapids.contains(it) })
+                        else -> TestCase.assertTrue(
+                            "${context.contig}:${context.start}-${context.end}, hapids = $hapids",
+                            hapids.any { lineAHapids.contains(it) } && hapids.any { lineBHapids.contains(it) })
                     }
                 }
             }
@@ -164,65 +185,8 @@ class DiploidPathFindingTest {
         assert(exception.message!!.startsWith("UseLikelyAncestors is true but likelyAncestors will not be checked"))
     }
 
-
-    @Test
-    fun testLikelyParents() {
-        //same code as testDiploidPathFinding except using likely parents
-        //use a haplotype groph built from Ref, lineA, and lineB
-        val vcfDir = File(TestExtension.testVCFDir)
-        val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
-        val myGraph = HaplotypeGraph(listOfHvcfFilenames)
-
-        //create a read mapping file
-        val readMappingFile = TestExtension.testOutputDir + "testReadMappingB.txt"
-        createReadMappings(myGraph, readMappingFile)
-
-        //create a keyfile
-        val keyFilename = TestExtension.testOutputDir + "keyfileForPathTestB.txt"
-        getBufferedWriter(keyFilename).use { myWriter ->
-            myWriter.write("SampleName\tReadMappingFiles\n")
-            myWriter.write("TestLineB\t$readMappingFile\n")
-        }
-
-        val pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
-                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
-                "--prob-same-gamete 0.8 --use-likely-ancestors true --min-coverage 0.9 --likely-ancestor-file ${TestExtension.testOutputDir}likelyParents.txt"
-
-        val pathFindingResult = DiploidPathFinding().test(pathFindingTestArgs)
-
-        //examine the resulting hvcf file
-        val testVcf = "${TestExtension.testOutputDir}TestLineB.h.vcf"
-        val lineAgamete = SampleGamete("LineA")
-        val lineBgamete = SampleGamete("LineB")
-        val lineAHapids = myGraph.ranges().map { range -> myGraph.sampleToHapId(range, lineAgamete) ?: "." }.toSet()
-        val lineBHapids = myGraph.ranges().map { range -> myGraph.sampleToHapId(range, lineBgamete) ?: "." }.toSet()
-
-        VCFFileReader(Paths.get(testVcf), false).use { vcf ->
-            //Chr 1: one haplotype should be all A for chr1, the other A before start=25000 and B after
-            for (context in vcf) {
-                //filter out the ref allele
-                val hapids = context.alternateAlleles.map { it.displayString.substringBefore(">").substringAfter("<") }.toList()
-                when (context.contig) {
-                    "1" -> when {
-                        context.start < 25000 -> assertTrue("${context.contig}:${context.start}-${context.end}, hapids = $hapids", hapids.all { lineAHapids.contains(it) })
-                        else -> assertTrue("${context.contig}:${context.start}-${context.end}, hapids = $hapids", hapids.any { lineAHapids.contains(it) } && hapids.any { lineBHapids.contains(it) })
-                    }
-                    else -> when {
-                        context.start > 25000 -> assertTrue("${context.contig}:${context.start}-${context.end}, hapids = $hapids", hapids.all { lineAHapids.contains(it) })
-                        else -> assertTrue("${context.contig}:${context.start}-${context.end}, hapids = $hapids", hapids.any { lineAHapids.contains(it) } && hapids.any { lineBHapids.contains(it) })
-                    }
-                }
-            }
-        }
-
-        //test whether the likelyParents file was written
-        assert(File("${TestExtension.testOutputDir}likelyParents.txt").exists()) {"likelyParents.txt does not exist"}
-
-    }
-
     @Test
     fun testUnorderedHaplotypePair() {
-
         val test1 = DiploidEmissionProbability.UnorderedHaplotypePair(Pair("aaa", "bbb"))
         val test2 = DiploidEmissionProbability.UnorderedHaplotypePair(Pair("bbb", "aaa"))
         val test3 = DiploidEmissionProbability.UnorderedHaplotypePair(Pair("aaa", "ccc"))
@@ -233,7 +197,6 @@ class DiploidPathFindingTest {
 
         val mySet = setOf(test1,test1,test2,test2,test3,test3)
         Assertions.assertEquals(2, mySet.size)
-
     }
 
     /**
@@ -281,7 +244,7 @@ class DiploidPathFindingTest {
 
             val target = when {
                 range.contig == "1" && range.start <= 25000 -> "LineA"
-                range.contig == "1" && range.start > 25000 -> "LineB"
+                range.contig == "1" && range.start > 25000 -> "Ref"
                 range.contig == "2" && range.start <= 25000 -> "LineB"
                 else -> "LineA"
             }

@@ -189,12 +189,14 @@ class HaploidPathFinding : CliktCommand(help = "Impute haploid paths") {
             maxReadsPerKB =  maxReadsPerKb,
             useLikelyParents = useLikelyAncestors,
             maxParents = maxAncestors,
-            minCoverage = minCoverage
+            minCoverage = minCoverage,
+            isHaploidPath = true
             )
 
         for (result in readMappings) {
             val mappingsByRefrange = readMappingByRange(result.readMappingCounts, graph)
-            val hapidList = pathFinder.findBestHaploidPath(mappingsByRefrange)
+//            val hapidList = pathFinder.findBestHaploidPath(mappingsByRefrange)
+            val hapidList = Pair(listOf<String>(), listOf<MostLikelyParents.ParentStats>())
             resultChannel.send(Path(result.name, hapidList.first, graph, hapidList.second))
         }
     }
