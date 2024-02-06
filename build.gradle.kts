@@ -58,8 +58,15 @@ dependencies {
 
     implementation("com.google.guava:guava:30.1.1-jre")
 
-    implementation(files("repo/tiledb-vcf-java-0.25.2.jar"))
-    implementation(files("repo/tiledb-java-0.19.6-SNAPSHOT.jar"))
+//    implementation(files("repo/tiledb-vcf-java-0.25.2.jar"))
+//    implementation(files("repo/tiledb-java-0.19.6-SNAPSHOT.jar"))
+
+    // These should be renamed ti indicate they are MAC INTEL jars
+    // I am not yet loading the jar files, waiting until they work.
+    // Committing this change so I don't have to keep changing the file when
+    // I switch branches.
+    implementation(files("repo/tiledb-vcf-java-0.28.0.jar"))
+    implementation(files("repo/tiledb-java-0.21.0-SNAPSHOT.jar"))
 
     implementation("io.ktor:ktor-server-netty:$ktorVersion")
     implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
