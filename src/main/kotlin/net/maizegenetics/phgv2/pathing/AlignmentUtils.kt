@@ -68,7 +68,9 @@ class AlignmentUtils {
         fun loadKmerMaps(filename: String, graph: HaplotypeGraph): KmerMapData {
             //Load the contents of the file into
             //rangeHapidMap: a map of refRange to an Array<String> of the haplotype ids in the ReferenceRange
-            // and the BitSet of all hapid sets
+            //    and the BitSet of all hapid sets.  This Bitset keeps track of what haplotypes are a part of a specific
+            //    haplotype set in an efficient manner.  It is then used as a lookup for when a read hits the set for each
+            //    haplotype to get attributed to having that read.
             //kmerHashmap: a map of kmer hash to reference range and offset into its BitSet, encoded as a long
             //These data structures all the reference range and haplotype set to be looked up for a kmer has
 
@@ -183,9 +185,9 @@ class AlignmentUtils {
                         readStringChannel.close()
                     }
 
-                    val jobList: MutableList<Job> = mutableListOf()
+                    val processReadsJobList: MutableList<Job> = mutableListOf()
                     repeat(numberOfMappingThreads) {
-                        jobList.add(launch(Dispatchers.Default) {
+                        processReadsJobList.add(launch(Dispatchers.Default) {
                             processReads(
                                 readStringChannel,
                                 sortedHapidListChannel,
@@ -198,13 +200,13 @@ class AlignmentUtils {
                         })
                     }
 
-                    val listJob = launch {
+                    val addListsToMapJob = launch {
                         addListsToMap(hapidSetCount, sortedHapidListChannel)
                     }
 
-                    jobList.joinAll()
+                    processReadsJobList.joinAll()
                     sortedHapidListChannel.close()
-                    listJob.join()
+                    addListsToMapJob.join()
                 }
                 //Need to close the reader2 if it exists
                 reader2?.close()
