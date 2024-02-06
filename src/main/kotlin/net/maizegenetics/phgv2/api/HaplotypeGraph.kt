@@ -381,6 +381,21 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
             hapIdToSampleGametes(range).keys.toList()
         }
     }
+    /**
+     * Creates a map of ReferenceRangeId -> (map of hapid -> index)
+     */
+    fun refRangeIdToHapIdMap() : Map<Int,Map<String,Int>> {
+        return ranges().mapIndexed { rangeIndex, range -> rangeIndex to hapIdToSampleGametes(range).keys.toSortedSet()
+            .mapIndexed { hapIndex, hapid -> hapid to hapIndex }.toMap() }.toMap()
+    }
+    /**
+     * Creates a map of ReferenceRange -> index for this [HaplotypeGraph].
+     * Because the ranges are sorted when calling the ranges() method,
+     * a graph always returns the same map in the same order.
+     */
+    fun refRangeToIndexMap() : Map<ReferenceRange,Int> {
+        return ranges().mapIndexed { index, range -> range to index }.toMap()
+    }
 
 }
 

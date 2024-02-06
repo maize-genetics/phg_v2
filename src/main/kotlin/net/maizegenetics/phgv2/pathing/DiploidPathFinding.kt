@@ -209,7 +209,7 @@ class DiploidPathFinding: CliktCommand(help = "Impute best diploid path using re
 
         //load read mappings for each sample into a channel
         for (sampleFileList in sampleToFiles) {
-            val listOfReadMaps = sampleFileList.value.map { filename -> importReadMapping(filename) }
+            val listOfReadMaps = sampleFileList.value.map { filename -> AlignmentUtils.importReadMapping(filename) }
             val readMappingsForSample = mergeReadMappings(listOfReadMaps)
             myLogger.info("submitting read mapping for $sampleFileList")
             readMappingChannel.send(ReadMappingResult(sampleFileList.key, readMappingsForSample))

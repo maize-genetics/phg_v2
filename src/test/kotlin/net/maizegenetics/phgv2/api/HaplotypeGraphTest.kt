@@ -131,6 +131,33 @@ class HaplotypeGraphTest {
 
     }
 
+    @Test
+    fun testRefRangeToIndexMap() {
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile, TestExtension.smallseqLineBHvcfFile))
+        val refRangeToIndexMap = graph.refRangeToIndexMap()
+
+        assertEquals(38, refRangeToIndexMap.size, "refRangeToIndexMap size not 38: ${refRangeToIndexMap.size}")
+        for((index,range) in graph.ranges().withIndex()) {
+            val mappedIndex = refRangeToIndexMap[range]
+            assertEquals(index, mappedIndex, "refRangeToIndexMap does not contain correct index $index for range $range")
+        }
+    }
+
+    @Test
+    fun testRefRangeIdToHapIdMap() {
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile, TestExtension.smallseqLineBHvcfFile))
+        val refRangeIdToHapIdMap = graph.refRangeIdToHapIdMap()
+
+        assertEquals(38, refRangeIdToHapIdMap.size, "refRangeIdToHapIdMap size not 38: ${refRangeIdToHapIdMap.size}")
+        for((index, range) in graph.ranges().withIndex()) {
+            val hapIdLineA = graph.sampleToHapId(range, SampleGamete("LineA"))
+            val hapIdLineB = graph.sampleToHapId(range, SampleGamete("LineB"))
+            val hapIds = refRangeIdToHapIdMap[index]!!
+            assertTrue(hapIdLineA in hapIds, "refRangeIdToHapIdMap does not contain correct hapId $hapIdLineA for LineA")
+            assertTrue(hapIdLineB in hapIds, "refRangeIdToHapIdMap does not contain correct hapId $hapIdLineB for LineB")
+        }
+    }
+
     /**
      * Returns true if the list of ReferenceRange is sorted.
      */
