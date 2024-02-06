@@ -22,9 +22,9 @@ import java.io.File
  *
  * Created h.vcf.gz and h.vcf.gz.csi files will be written to the same folder that contains the gvcf files.
  */
-class HvcfFromPHGGvcf: CliktCommand(help = "Create  h.vcf files from existing PHG created g.vcf files")  {
+class HvcfFromPhgGvcf: CliktCommand(help = "Create  h.vcf files from existing PHG created g.vcf files")  {
 
-    private val myLogger = LogManager.getLogger(HvcfFromPHGGvcf::class.java)
+    private val myLogger = LogManager.getLogger(HvcfFromPhgGvcf::class.java)
 
     val bed by option(help = "BED file with entries that define the haplotype boundaries")
         .default("")
@@ -72,9 +72,22 @@ class HvcfFromPHGGvcf: CliktCommand(help = "Create  h.vcf files from existing PH
         myLogger.info("CreateASMHvcfs: calling buildRefGenomeSeq")
         val refGenomeSequence = CreateMafVcf().buildRefGenomeSeq(referenceFileName)
 
+        println("LCJ gvcfDirName: $gvcfDirName")
+
+        val gvcfDirFileList = File(gvcfDirName).walk().filter { !it.isHidden && !it.isDirectory }
+            .filter { it.name.endsWith("g.vcf.gz")  }.toList()
+        println("LCJ gvcfDirFileList: $gvcfDirFileList")
+
+        val gvcfEndsWIth = File(gvcfDirName).walk()
+            .filter { it.name.endsWith("g.vcf.gz")  }.toList()
+        println("LCJ gvcfEndsWIth: $gvcfEndsWIth")
+
+        val allFileList = File(gvcfDirName).walk().toList()
+        println("LCJ allFileList: $allFileList")
+
         // walk the gvcf directory process files with g.vcf.gz extension
         File(gvcfDirName).walk().filter { !it.isHidden && !it.isDirectory }
-            .filter { it.endsWith("g.vcf.gz")  }
+            .filter { it.name.endsWith("g.vcf.gz")  || it.name.endsWith("g.vcf")  }.toList()
             .forEach {
                 myLogger.info("CreateASMHvcfs: processing gvcf file: ${it.name}")
                 // Create list of VariantContext from the gvcf file
@@ -88,9 +101,13 @@ class HvcfFromPHGGvcf: CliktCommand(help = "Create  h.vcf files from existing PH
                 val asmHeaderSet = asmHeaderLines.values.toSet()
                 //export the hvcfRecords
                 myLogger.info("createASMHvcfs: calling exportVariantContext for $sampleName")
-                exportVariantContext(sampleName, hvcfVariants, "${gvcfDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, asmHeaderSet)
+                var newFileName = it.name.replace(".g.vcf.gz", "")
+                newFileName = newFileName.replace(".g.vcf", "")
+                newFileName = "${newFileName}.h.vcf"
+                println("LCJ - newFileName = $newFileName")
+                exportVariantContext(sampleName, hvcfVariants, "${gvcfDirName}/${newFileName}",refGenomeSequence, asmHeaderSet)
                 //bgzip the files
-                bgzipAndIndexGVCFfile("${gvcfDirName}/${it.nameWithoutExtension}.h.vcf")
+                bgzipAndIndexGVCFfile("${gvcfDirName}/${newFileName}")
 
             }
     }
@@ -104,7 +121,7 @@ class HvcfFromPHGGvcf: CliktCommand(help = "Create  h.vcf files from existing PH
         // User should have both the bgzipped gvcf file PLUS an index for that file.
         // The index will be required later with API processing.  Here, we set requireIndex=true
         // so we can catch early cases where the index is not present.
-        val gvcfFileReader = VCFFileReader(gvcfFile, true)
+        val gvcfFileReader = VCFFileReader(gvcfFile, false)
         var sampleNames = gvcfFileReader.fileHeader.sampleNamesInOrder
         val gvcfFileIterator = gvcfFileReader.iterator()
 
