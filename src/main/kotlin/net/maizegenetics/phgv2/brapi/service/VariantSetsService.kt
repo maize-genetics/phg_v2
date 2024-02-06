@@ -11,24 +11,20 @@ import java.io.File
  * This class is used to generate the VariantSets object that is returned by the "variantsets" endpoint.
  * It looks for a vcf file called allSamplesMerged.vcf.gz in the tiledb_uri directory.
  * If it doesn't find it , one is created using the ExportVCF plugin.
- * A URL pointing to the file is returned in the "availbleFormats" section of the VariantSets object.
+ * A URL pointing to the file is returned in the "availableFormats" section of the VariantSets object.
  */
 class VariantSetsService {
 
     private val myLogger = LogManager.getLogger(VariantSetsService::class.java)
 
-    init{
-        myLogger.info("VariantSetsService initialized.")
-        // anything to go in here?
-    }
+    fun generateVariantSets(tileDbUri: String): VariantSet {
 
-    // Should this return a VarianatSet?
-    fun generateVariantSets(tildbUri:String): VariantSet {
-        // LCJ - I made up this name.  What should it be called?
-        // will there be more than 1 variantset?  I named it "all"
-        // as that is what we called the reference cache.  What is a better name?
-        val variantSetURI = "${tildbUri}/variantsets/allSamplesMerged.h.vcf.gz"
-        val availableFormats = VariantSetAvailableFormats(DataFormatEnum.VCF, fileFormat = FileFormatEnum.TEXT_TSV, fileURL=variantSetURI)
+        val variantSetURI = "${tileDbUri}/variantsets/allSamplesMerged.h.vcf.gz"
+        val availableFormats = VariantSetAvailableFormats(
+            DataFormatEnum.VCF,
+            fileFormat = FileFormatEnum.TEXT_TSV,
+            fileURL = variantSetURI
+        )
         if (!File(variantSetURI).exists()) {
             // TODO create and export the file using Terry's code.
             // First create the graph, then call ExportVCF
@@ -40,6 +36,16 @@ class VariantSetsService {
         // What is our studDbId now?
         // Is the callSetCount the number of samples?  We can probably get that by querying the VCF file, or the
         // AGC or tiledb file.  This assumes we made the allSamplesMerged.vcf.gz file from what is currently in the db.
-        return VariantSet(callSetCount = 0, referenceSetDbId = "all", studyDbId = "all", variantCount = 0, variantSetDbId = "all", variantSetName = "all", availableFormats = listOf(availableFormats))
+        return VariantSet(
+            callSetCount = 0,
+            referenceSetDbId = "all",
+            studyDbId = "all",
+            variantCount = 0,
+            variantSetDbId = "all",
+            variantSetName = "all",
+            availableFormats = listOf(availableFormats)
+        )
+
     }
+
 }
