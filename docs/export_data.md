@@ -56,9 +56,9 @@ samples:
 * LineB
 * LineC
 
-If I want to export [hVCF](hvcf_specifications.md) files respective 
-of a given set of samples (`LineA` and `LineC`) to an output directory 
-(in my case `output/hvcf_files`), I can use the `export-vcf` command:
+If I want to export [hVCF](hvcf_specifications.md) files for a given set of samples 
+(`LineA` and `LineC`) to an output directory (in my case 
+`output/hvcf_files`), I can use the `export-vcf` command:
 
 ```shell
 phg export-vcf \
