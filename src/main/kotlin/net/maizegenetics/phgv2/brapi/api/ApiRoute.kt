@@ -1,13 +1,6 @@
 package net.maizegenetics.phgv2.brapi.api
 
-import com.typesafe.config.ConfigFactory
-import io.ktor.server.config.*
 import io.ktor.server.routing.*
-
-private val config = HoconApplicationConfig(ConfigFactory.load())
-
-val defaultCallPageSize = config.property("callsPageSize").getString().toInt()
-val defaultVariantsPageSize = config.property("variantsPageSize").getString().toInt()
 
 /**
  * Method handles all REST messages coming to the BrAPI interface.  An entry
