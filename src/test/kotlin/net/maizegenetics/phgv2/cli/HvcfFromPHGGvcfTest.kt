@@ -114,4 +114,28 @@ class HvcfFromPHGGvcfTest {
         // FIX the name of the file !! (LineA.g.vcf.h.vcf.gz is not a good name)
 
     }
+
+    @Test
+    fun compareToCreateMafVcfOutput() {
+        // This test will compare the output of HvcfFromPhgGvcf to the hvcf output of CreateMafVcf
+        // the gvcf used to create the hvcf via the new HvcfFromPhgGvcf code is the gvcf
+        // created by CreateMafVcf.
+
+        // Setup and run CreateMafVcf to get the gvcf file for testing
+        val fastaCreateFileNamesFile = "data/test/buildMAFVCF/fastaCreateFileNames.txt"
+        val dbPath = TestExtension.testTileDBURI
+        val refFasta = "data/test/buildMAFVCF/B73_Test.fa"
+
+
+        val agcCompress = AgcCompress()
+        // Create the initial compressed file
+        val agcResult = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
+        println(agcResult.output)
+
+        val createMAFVCF = CreateMafVcf()
+        val result = createMAFVCF.test("--db-path ${dbPath} --bed data/test/buildMAFVCF/B73_Test.bed --reference-file ${refFasta} --maf-dir data/test/buildMAFVCF/mafs/ -o ${TestExtension.testVCFDir}")
+        println(result.output)
+
+
+    }
 }
