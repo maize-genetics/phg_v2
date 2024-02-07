@@ -66,7 +66,7 @@ dependencies {
     // Committing this change so I don't have to keep changing the file when
     // I switch branches.
     implementation(files("repo/tiledb-vcf-java-0.28.0.jar"))
-    implementation(files("repo/tiledb-java-0.21.0-SNAPSHOT.jar"))
+    implementation(files("repo/tiledb-java-0.21.1-SNAPSHOT.jar"))
 
     implementation("io.ktor:ktor-server-netty:$ktorVersion")
     implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
