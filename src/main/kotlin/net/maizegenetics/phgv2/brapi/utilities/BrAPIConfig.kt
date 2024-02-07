@@ -2,8 +2,11 @@ package net.maizegenetics.phgv2.brapi.utilities
 
 import com.typesafe.config.ConfigFactory
 import io.ktor.server.config.*
+import org.apache.logging.log4j.LogManager
 
 object BrAPIConfig {
+
+    private val myLogger = LogManager.getLogger(BrAPIConfig::class.java)
 
     val tiledbURI: String
     val contactEmail: String
@@ -17,6 +20,7 @@ object BrAPIConfig {
     val defaultVariantsPageSize: Int
 
     init {
+
         val config = HoconApplicationConfig(ConfigFactory.load())
         tiledbURI = config.property("TILEDB_URI").getString()
         contactEmail = config.property("contactEmail").getString()
@@ -28,6 +32,18 @@ object BrAPIConfig {
         serverName = config.property("serverName").getString()
         defaultCallPageSize = config.property("callsPageSize").getString().toInt()
         defaultVariantsPageSize = config.property("variantsPageSize").getString().toInt()
+
+        myLogger.info("BrAPIConfig:  TILEDB_URI: ${tiledbURI}")
+        myLogger.info("BrAPIConfig:  contactEmail: ${contactEmail}")
+        myLogger.info("BrAPIConfig:  documentationURL: ${documentationURL}")
+        myLogger.info("BrAPIConfig:  location: ${location}")
+        myLogger.info("BrAPIConfig:  organizationName: ${organizationName}")
+        myLogger.info("BrAPIConfig:  organizationURL: ${organizationURL}")
+        myLogger.info("BrAPIConfig:  serverDescription: ${serverDescription}")
+        myLogger.info("BrAPIConfig:  serverName: ${serverName}")
+        myLogger.info("BrAPIConfig:  callsPageSize: ${defaultCallPageSize}")
+        myLogger.info("BrAPIConfig:  variantsPageSize: ${defaultVariantsPageSize}")
+
     }
 
 }
