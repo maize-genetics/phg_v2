@@ -54,7 +54,7 @@ class StartServerTest {
         // Because of this, we need to substring appHome to remove parts of the path that
         // include the "classes" folder and those below it.
 
-        val appHome = StartServer().getClassPath().substringBefore("classes")
+        val appHome = StartServer.getClassPath().substringBefore("classes")
         assertTrue(appHome != null) // will be different based on which user is running the test
         println("appHome: $appHome")
 
@@ -76,7 +76,7 @@ class StartServerTest {
         val testConfigFile = Paths.get("${testConfigPath}/application.conf")
         testConfigFile.toFile().writeText(config)
 
-        val tileDbPath = StartServer().getDbPathFromConfigFile(TestExtension.tempDir) // this should be consistent
+        val tileDbPath = StartServer.getDbPathFromConfigFile(TestExtension.tempDir) // this should be consistent
 
         assertTrue(tileDbPath == null) // null because we have not yet written "TILEDB_URI" line to the application.conf file
         //println("configPath: $configPath")
@@ -95,7 +95,7 @@ class StartServerTest {
         // Get the original config file
         val dbPath = "/Users/lcj34/temp/phgv2Tests/tempDir/testTileDBURI/"
         val port = 8090
-        val appHome = StartServer().getClassPath().substringBefore("classes")
+        val appHome = StartServer.getClassPath().substringBefore("classes")
         assertTrue(appHome != null)
         println("appHome: $appHome")
 
@@ -108,10 +108,10 @@ class StartServerTest {
         origConfigFile.toFile().copyTo(Paths.get("${testConfigPath}/application.conf").toFile())
 
         // update the config file with dbPath and port values above
-        StartServer().updateConfigFile(dbPath,port.toString(),TestExtension.tempDir)
+        StartServer.updateConfigFile(dbPath,port.toString(),TestExtension.tempDir)
 
         // Verify the TILEDB_URI and PORT values in the config file
-        val tiledbURI = StartServer().getDbPathFromConfigFile(TestExtension.tempDir)
+        val tiledbURI = StartServer.getDbPathFromConfigFile(TestExtension.tempDir)
         println("tiledbURI: $tiledbURI")
         assertTrue(tiledbURI == dbPath)
 

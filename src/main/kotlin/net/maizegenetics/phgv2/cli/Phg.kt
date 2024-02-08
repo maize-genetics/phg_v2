@@ -41,7 +41,7 @@ fun main(args: Array<String>) = Phg()
     .subcommands(SetupEnvironment(), Initdb(),  CreateRanges(), AnnotateFastas(), AgcCompress(), AlignAssemblies(),
         CreateRefVcf(), CreateMafVcf(), LoadVcf(), ExportVcf(),
         BuildKmerIndex(), MapKmers(), HaploidPathFinding(), DiploidPathFinding(), //Imputation
-        CreateFastaFromHvcf(), StartServer() //Utilities
+        CreateFastaFromHvcf(), StartServer //Utilities
 
     )
     .main(args)
