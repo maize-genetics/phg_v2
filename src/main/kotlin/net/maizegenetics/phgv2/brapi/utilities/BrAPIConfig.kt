@@ -33,16 +33,16 @@ object BrAPIConfig {
         defaultCallPageSize = config.property("callsPageSize").getString().toInt()
         defaultVariantsPageSize = config.property("variantsPageSize").getString().toInt()
 
-        myLogger.info("BrAPIConfig:  TILEDB_URI: ${tiledbURI}")
-        myLogger.info("BrAPIConfig:  contactEmail: ${contactEmail}")
-        myLogger.info("BrAPIConfig:  documentationURL: ${documentationURL}")
-        myLogger.info("BrAPIConfig:  location: ${location}")
-        myLogger.info("BrAPIConfig:  organizationName: ${organizationName}")
-        myLogger.info("BrAPIConfig:  organizationURL: ${organizationURL}")
-        myLogger.info("BrAPIConfig:  serverDescription: ${serverDescription}")
-        myLogger.info("BrAPIConfig:  serverName: ${serverName}")
-        myLogger.info("BrAPIConfig:  callsPageSize: ${defaultCallPageSize}")
-        myLogger.info("BrAPIConfig:  variantsPageSize: ${defaultVariantsPageSize}")
+        myLogger.info("BrAPIConfig:  TILEDB_URI: $tiledbURI")
+        myLogger.info("BrAPIConfig:  contactEmail: $contactEmail")
+        myLogger.info("BrAPIConfig:  documentationURL: $documentationURL")
+        myLogger.info("BrAPIConfig:  location: $location")
+        myLogger.info("BrAPIConfig:  organizationName: $organizationName")
+        myLogger.info("BrAPIConfig:  organizationURL: $organizationURL")
+        myLogger.info("BrAPIConfig:  serverDescription: $serverDescription")
+        myLogger.info("BrAPIConfig:  serverName: $serverName")
+        myLogger.info("BrAPIConfig:  callsPageSize: $defaultCallPageSize")
+        myLogger.info("BrAPIConfig:  variantsPageSize: $defaultVariantsPageSize")
 
     }
 
