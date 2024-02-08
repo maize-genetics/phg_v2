@@ -751,18 +751,15 @@ data:
 #### `create-ref-vcf` inputs
 The `create-ref-vcf` command requires the following inputs:
 
-* `--bed` - A BED file containing ordered reference ranges (_see
+* `--bed` - a BED file containing ordered reference ranges (_see
   the [**"Create reference ranges"**](#create-reference-ranges) section for further details_). This
   is used to define the positional information of the VCF.
-* `--reference-file` - Reference FASTA genome used for creating
+* `--reference-file` - reference FASTA genome used for creating
   MD5 hashes of sequence information guided by reference range
   positional data from the BED file used in the `--bed` parameter.
-* `--reference-name` - The name of the reference sample
-* `--db-path` - Output directory for the VCF data. The reference files will be placed in a subfolder named 'reference'
+* `--reference-name` - the name of the reference sample.
+* `--db-path` - path to PHG database directory for VCF storage.
 
-> [!WARNING]
-> The directory that you specify in the output (`-o`) section must
-> be an existing directory.
 
 > [!NOTE]
 > Optionally, `create-ref-vcf` can also use another parameter, 
