@@ -22,9 +22,9 @@ import java.io.File
  *
  * Created h.vcf.gz and h.vcf.gz.csi files will be written to the same folder that contains the gvcf files.
  */
-class gvcf2hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG created g.vcf files")  {
+class Gvcf2Hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG created g.vcf files")  {
 
-    private val myLogger = LogManager.getLogger(gvcf2hvcf::class.java)
+    private val myLogger = LogManager.getLogger(Gvcf2Hvcf::class.java)
 
     val bed by option(help = "BED file with entries that define the haplotype boundaries")
         .default("")

@@ -13,6 +13,7 @@ import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeaderLine
 import htsjdk.variant.vcf.VCFHeaderVersion
 import net.maizegenetics.phgv2.utils.*
+import org.apache.logging.log4j.LogManager
 import java.io.File
 
 data class HVCFRecordMetadata(val sampleName: String, val refSeq : String = "", val asmSeq : String = "",
@@ -23,6 +24,7 @@ data class DisplayRegion(val contig: String, val start: Int, val end: Int)
 
 class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from AnchorWave MAF files") {
 
+    private val myLogger = LogManager.getLogger(CreateMafVcf::class.java)
     val bed by option(help = "BED file with entries that define the haplotype boundaries")
         .default("")
         .validate {
@@ -72,37 +74,37 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         //load the bed file into some data structure
 //        val ranges = bedfileToSRangeSet(bedFileName,referenceFileName)
         val ranges = loadRanges(bedFileName)
-        println("CreateASMHvcfs: calling buildRefGenomeSeq")
+        myLogger.info("CreateASMHvcfs: calling buildRefGenomeSeq")
         val refGenomeSequence = buildRefGenomeSeq(referenceFileName)
 
         //loop through the maf files in mafDirName and getGVCFVariantsFromMafFile
         File(mafDirName).walk().filter { !it.isHidden && !it.isDirectory }
             .filter { it.extension == "maf" }
             .forEach {
-                println("CreateASMHvcfs: processing ${it.absolutePath}")
+                myLogger.info("CreateASMHvcfs: processing ${it.absolutePath}")
                 val sampleName = it.nameWithoutExtension //This will likely need to change in the future
                 val gvcfVariants = getGVCFVariantsFromMafFile(refGenomeSequence, it.absolutePath, it.nameWithoutExtension, twoGvcfs=twoGvcfs)
                 //export the gvcfRecords
                 if (gvcfVariants.size == 1){
-                    println("createASMHvcfs: gvcfVariants.size == 1")
+                    myLogger.info("createASMHvcfs: gvcfVariants.size == 1")
                     val sampleName = gvcfVariants.keys.first()
                     val variants = gvcfVariants.values.first()
-                    println("createASMHvcfs: processing sampleName = $sampleName")
+                    myLogger.info("createASMHvcfs: processing sampleName = $sampleName")
                     exportVariantContext(sampleName, variants, "${outputDirName}/${it.nameWithoutExtension}.g.vcf",refGenomeSequence, setOf())
                     bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.g.vcf")
 
                     val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
                     //convert the GVCF records into hvcf records
-                    println("createASMHvcfs: calling convertGVCFToHVCF for $sampleName")
+                    myLogger.info("createASMHvcfs: calling convertGVCFToHVCF for $sampleName")
                     val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines)
                     val asmHeaderSet = asmHeaderLines.values.toSet()
                     //export the hvcfRecords
-                    println("createASMHvcfs: calling exportVariantContext for $sampleName")
+                    myLogger.info("createASMHvcfs: calling exportVariantContext for $sampleName")
                     exportVariantContext(sampleName, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, asmHeaderSet)
                     //bgzip the files
                     bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.h.vcf")
                 } else if (gvcfVariants.size == 2) {
-                    println("createASMHvcfs: gvcfVariants.size == 2")
+                    myLogger.info("createASMHvcfs: gvcfVariants.size == 2")
                     val gvcfOutput = "${outputDirName}/${it.nameWithoutExtension}.g.vcf"
                     val outputNames = MAFToGVCF().twoOutputFiles(gvcfOutput)
                     gvcfVariants.entries.forEachIndexed { index, (name, variants) ->
@@ -179,7 +181,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         val bedRegionsByContig = bedRanges.groupBy { it.first.contig }
 
 
-        println("in convertGVCFToHVCF: sort and call converGVCFToHVCFForChrom")
+        myLogger.info("in convertGVCFToHVCF: sort and call converGVCFToHVCFForChrom")
         return gvcfVariantsByContig.keys
             .sortedWith(compareBy(SeqRangeSort.alphaThenNumberSort){ name:String -> name}) //Need to do a sort here as we need to make sure we process the chromosomes in
             .filter { bedRegionsByContig.containsKey(it) }
@@ -198,7 +200,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
          * Then extract the sequence out of the AGC archive and md5 hash it
          * Then call the createHVCFRecord with this information
          */
-        println("in convertGVCFToHVCFForChrom: bedRanges.size = ${bedRanges.size}")
+        myLogger.info("in convertGVCFToHVCFForChrom: bedRanges.size = ${bedRanges.size}")
         val outputVariantMetadata = mutableListOf<HVCFRecordMetadata>()
         var currentVariantIdx = 0
         for(region in bedRanges) {
@@ -570,7 +572,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                 VCFHeaderVersion.VCF4_2
             )
         } else {
-           println("convertMetaDataRecordToHVCF: asmHeaders already contains key ${assemblyHaplotypeHash}")
+           myLogger.info("convertMetaDataRecordToHVCF: asmHeaders already contains key ${assemblyHaplotypeHash}")
         }
 
 
