@@ -354,9 +354,6 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
 
         //val check strandedness of the variants
         val firstStrand = firstVariant.getAttributeAsString("ASM_Strand","+")
-        //LCJ - the line below should be removed?  This was the first exception from scale-testing Zack was fixing,
-        // ie it is ok if these strands are not the same -handling inversion
-        // check(strand == lastVariant.getAttributeAsString("ASM_Strand","+")) { "Strand of first and last variantContexts do not match" }
 
         val lastStrand = lastVariant.getAttributeAsString("ASM_Strand","+")
         //Resize the first and last variantContext ASM start and end based on the regions
@@ -511,7 +508,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         }
 
         val ranges = metaDataToRangeLookup.flatMap { it.second }
-        println("LCJ addSequencesToMetaData: calling retrieveAgcContigs with ranges.size = ${ranges.size}")
+
         val seqs = retrieveAgcContigs(dbPath,ranges)
 
         return metaDataToRangeLookup.map { it.first.copy(asmSeq = buildSeq(seqs,it.third,it.first)) } //This is a useful way to keep things immutable
@@ -572,6 +569,8 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                         "Checksum=\"Md5\",RefRange=\"${refSeqHash}\">",
                 VCFHeaderVersion.VCF4_2
             )
+        } else {
+           println("convertMetaDataRecordToHVCF: asmHeaders already contains key ${assemblyHaplotypeHash}")
         }
 
 

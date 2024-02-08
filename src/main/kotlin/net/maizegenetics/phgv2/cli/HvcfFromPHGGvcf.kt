@@ -72,19 +72,6 @@ class HvcfFromPhgGvcf: CliktCommand(help = "Create  h.vcf files from existing PH
         myLogger.info("CreateASMHvcfs: calling buildRefGenomeSeq")
         val refGenomeSequence = CreateMafVcf().buildRefGenomeSeq(referenceFileName)
 
-        println("LCJ gvcfDirName: $gvcfDirName")
-
-        val gvcfDirFileList = File(gvcfDirName).walk().filter { !it.isHidden && !it.isDirectory }
-            .filter { it.name.endsWith("g.vcf.gz")  }.toList()
-        println("LCJ gvcfDirFileList: $gvcfDirFileList")
-
-        val gvcfEndsWIth = File(gvcfDirName).walk()
-            .filter { it.name.endsWith("g.vcf.gz")  }.toList()
-        println("LCJ gvcfEndsWIth: $gvcfEndsWIth")
-
-        val allFileList = File(gvcfDirName).walk().toList()
-        println("LCJ allFileList: $allFileList")
-
         // walk the gvcf directory process files with g.vcf.gz extension
         File(gvcfDirName).walk().filter { !it.isHidden && !it.isDirectory }
             .filter { it.name.endsWith("g.vcf.gz")  || it.name.endsWith("g.vcf")  }.toList()
@@ -104,7 +91,7 @@ class HvcfFromPhgGvcf: CliktCommand(help = "Create  h.vcf files from existing PH
                 var newFileName = it.name.replace(".g.vcf.gz", "")
                 newFileName = newFileName.replace(".g.vcf", "")
                 newFileName = "${newFileName}.h.vcf"
-                println("LCJ - newFileName = $newFileName")
+
                 exportVariantContext(sampleName, hvcfVariants, "${gvcfDirName}/${newFileName}",refGenomeSequence, asmHeaderSet)
                 //bgzip the files
                 bgzipAndIndexGVCFfile("${gvcfDirName}/${newFileName}")
