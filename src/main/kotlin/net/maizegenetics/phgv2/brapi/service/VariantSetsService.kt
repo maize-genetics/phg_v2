@@ -1,9 +1,15 @@
 package net.maizegenetics.phgv2.brapi.service
 
+import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.exportMultiSampleHVCF
 import net.maizegenetics.phgv2.brapi.model.DataFormatEnum
 import net.maizegenetics.phgv2.brapi.model.FileFormatEnum
 import net.maizegenetics.phgv2.brapi.model.VariantSet
 import net.maizegenetics.phgv2.brapi.model.VariantSetAvailableFormats
+import net.maizegenetics.phgv2.brapi.utilities.BrAPIConfig
+import net.maizegenetics.phgv2.cli.ExportVcf
+import net.maizegenetics.phgv2.cli.StartServer
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
@@ -13,25 +19,28 @@ import java.io.File
  * If it doesn't find it , one is created using the ExportVCF plugin.
  * A URL pointing to the file is returned in the "availableFormats" section of the VariantSets object.
  */
-class VariantSetsService {
+object VariantSetsService {
 
     private val myLogger = LogManager.getLogger(VariantSetsService::class.java)
 
-    fun generateVariantSets(tileDbUri: String): VariantSet {
+    private val individualSamplesDir = "${BrAPIConfig.tiledbURI}/individualSamples/"
+    private val variantSetsDir = "${BrAPIConfig.tiledbURI}/variantsets/"
+    const val allSamplesFileName = "allSamplesMerged.h.vcf"
+    val allSamplesHvcf = "${variantSetsDir}$allSamplesFileName"
 
-        val variantSetURI = "${tileDbUri}/variantsets/allSamplesMerged.h.vcf.gz"
+    init {
+        File(individualSamplesDir).mkdirs()
+        File(variantSetsDir).mkdirs()
+    }
+
+    fun getVariantSet(): VariantSet {
+
         val availableFormats = VariantSetAvailableFormats(
             DataFormatEnum.VCF,
             fileFormat = FileFormatEnum.TEXT_TSV,
-            fileURL = variantSetURI
+            fileURL = "${StartServer.serverURL()}$allSamplesFileName"
         )
-        if (!File(variantSetURI).exists()) {
-            // TODO create and export the file using Terry's code.
-            // First create the graph, then call ExportVCF
-            // Are the hvcf files currently written to tiledb_uri/hvcf_files when they are created?
-            // Or do we need to export the hvcf files to tiledb_uri/hvcf_files and then create the graph
-            // from them?
-        }
+
         // These values may not be correct, but the availableFormat.fileURI should be correct
         // What is our studDbId now?
         // Is the callSetCount the number of samples?  We can probably get that by querying the VCF file, or the
@@ -45,6 +54,42 @@ class VariantSetsService {
             variantSetName = "all",
             availableFormats = listOf(availableFormats)
         )
+
+    }
+
+    /**
+     * This function creates a single hvcf file for each sample in the database.
+     */
+    private fun createSingleSampleHVCFs() {
+
+        val sampleNames = SamplesService.allTaxaNames().joinToString(",") { it.sampleName }
+
+        val exportVcfCommand = "--db-path ${BrAPIConfig.tiledbURI} --sample-names $sampleNames -o $individualSamplesDir"
+        myLogger.info("createSingleSampleHVCFs: ExportVcf Command: $exportVcfCommand")
+        val result = ExportVcf().test(exportVcfCommand)
+
+    }
+
+    /**
+     * This function creates a single hvcf file from all the individual hvcf files.
+     */
+    fun createAllSamplesHVCF() {
+
+        createSingleSampleHVCFs()
+
+        val inputFiles = File(individualSamplesDir)
+            .listFiles()
+            ?.filter { it.extension == "vcf" || it.extension == "vcf.gz" }
+            ?.map { it.absolutePath }
+
+        if (inputFiles.isNullOrEmpty()) {
+            myLogger.warn("createAllSamplesHVCF: No input files found in $individualSamplesDir")
+            return
+        }
+
+        val graph = HaplotypeGraph(inputFiles)
+
+        exportMultiSampleHVCF(graph, allSamplesHvcf)
 
     }
 

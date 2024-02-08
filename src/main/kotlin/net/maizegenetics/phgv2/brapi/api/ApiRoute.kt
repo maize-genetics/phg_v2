@@ -1,6 +1,9 @@
 package net.maizegenetics.phgv2.brapi.api
 
+import io.ktor.server.http.content.*
 import io.ktor.server.routing.*
+import net.maizegenetics.phgv2.brapi.service.VariantSetsService
+import java.io.File
 
 /**
  * Method handles all REST messages coming to the BrAPI interface.  An entry
@@ -31,6 +34,8 @@ fun Routing.apiRoute() {
         variants()
 
         // variantTables()
+
+        staticFiles("/${VariantSetsService.allSamplesFileName}", File(VariantSetsService.allSamplesHvcf))
 
     }
 
