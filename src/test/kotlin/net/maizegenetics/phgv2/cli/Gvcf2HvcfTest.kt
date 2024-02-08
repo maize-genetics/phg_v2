@@ -10,12 +10,11 @@ import org.junit.jupiter.api.*
 import java.io.File
 import kotlin.test.assertEquals
 
-class gvcf2hvcfTest {
+class Gvcf2HvcfTest {
     companion object {
 
         @JvmStatic
         @BeforeAll
-        //@BeforeEach
         fun setup() {
             File(TestExtension.testVCFDir).mkdirs()
             File(TestExtension.testTileDBURI).mkdirs()
@@ -23,21 +22,21 @@ class gvcf2hvcfTest {
 
         @JvmStatic
         @AfterAll
-        //@AfterEach
         fun tearDown() {
+            File(TestExtension.tempDir).deleteRecursively()
             File(TestExtension.testVCFDir).deleteRecursively()
             File(TestExtension.testTileDBURI).deleteRecursively()
-            File(TestExtension.tempDir).deleteRecursively()
+
         }
     }
 
     @Test
     fun testCliktParams() {
-        val hvcfFromPhgGvcf = gvcf2hvcf()
+        val gvcf2hvcf = Gvcf2Hvcf()
 
         // There are only 3 required parameters - test for missing each one
         val resultMissingBed =
-            hvcfFromPhgGvcf.test("--db-path ${TestExtension.testTileDBURI} --gvcf-dir ${TestExtension.testVCFDir} --reference-file ${TestExtension.testRefFasta} ")
+            gvcf2hvcf.test("--db-path ${TestExtension.testTileDBURI} --gvcf-dir ${TestExtension.testVCFDir} --reference-file ${TestExtension.testRefFasta} ")
         assertEquals(resultMissingBed.statusCode, 1)
         assertEquals(
             "Usage: gvcf2hvcf [<options>]\n" +
@@ -45,7 +44,7 @@ class gvcf2hvcfTest {
                     "Error: invalid value for --bed: --bed must not be blank\n", resultMissingBed.output
         )
         val resultMissingRef =
-            hvcfFromPhgGvcf.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} --gvcf-dir ${TestExtension.testMafDir}")
+            gvcf2hvcf.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} --gvcf-dir ${TestExtension.testMafDir}")
         assertEquals(resultMissingRef.statusCode, 1)
         assertEquals(
             "Usage: gvcf2hvcf [<options>]\n" +
@@ -55,7 +54,7 @@ class gvcf2hvcfTest {
 
 
         val resultMissingGvcfDir =
-            hvcfFromPhgGvcf.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} --reference-file ${TestExtension.testRefFasta}")
+            gvcf2hvcf.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} --reference-file ${TestExtension.testRefFasta}")
         assertEquals(resultMissingGvcfDir.statusCode, 1)
         assertEquals(
             "Usage: gvcf2hvcf [<options>]\n" +
@@ -67,6 +66,7 @@ class gvcf2hvcfTest {
 
     @Test
     fun testHvcfFromGvcf() {
+
         // Copy the gvcf files from data/test/smallseq to the testVCFDir
         val gvcfDir = TestExtension.testVCFDir
         val gvcfFile = File(TestExtension.smallSeqLineAGvcfFile)
@@ -104,9 +104,9 @@ class gvcf2hvcfTest {
         println(agcResult.output)
 
         val bedFile = TestExtension.smallseqAnchorsBedFile
-        val hvcfFromGvcf = gvcf2hvcf()
+        val gvcf2hvcf = Gvcf2Hvcf()
         val result =
-            hvcfFromGvcf.test("--db-path ${dbPath} --bed ${bedFile} --reference-file ${refFasta} --gvcf-dir ${gvcfDir} ")
+            gvcf2hvcf.test("--db-path ${dbPath} --bed ${bedFile} --reference-file ${refFasta} --gvcf-dir ${gvcfDir} ")
         println(result.output)
 
         // read the created hvcf file, which lives in the gvcfDir and has extension .h.vcf.gz
@@ -148,7 +148,7 @@ class gvcf2hvcfTest {
     }
 
     @Test
-    fun compareToCreateMafVcfOutput() {
+    fun testCompareToCreateMafVcfOutput() {
         // This test will compare the output of HvcfFromPhgGvcf to the hvcf output of CreateMafVcf
         // the gvcf used to create the hvcf via the new HvcfFromPhgGvcf code is the gvcf
         // created by CreateMafVcf.
@@ -176,12 +176,13 @@ class gvcf2hvcfTest {
         gvcfFiles.forEach { file -> file.copyTo(File(newHvcfDir, file.name)) }
 
         // Run the HvcfFromPhgGvcf code on the gvcf files in the testVCFDir
-        val hvcfFromGvcf = gvcf2hvcf()
+        val hvcfFromGvcf = Gvcf2Hvcf()
         val hvcfResult = hvcfFromGvcf.test("--db-path ${dbPath} --bed data/test/buildMAFVCF/B73_Test.bed --reference-file ${refFasta} --gvcf-dir ${newHvcfDir} ")
 
         // Verify the h.vcf.gz file created by HvcfFromPhgGvcf is identical to the hvcf file created by CreateMafVcf
         // This will be done by comparing the number of lines in the files and the first 10 lines of the files
         val hvcfFile = File(newHvcfDir).listFiles { _, name -> name.endsWith(".h.vcf.gz") }[0]
+        println("testCompareToCreateMafVcfOutput: hvcfFile: ${hvcfFile}")
         val createMafVcfHvcfFile = File(TestExtension.testVCFDir).listFiles { _, name -> name.endsWith(".h.vcf.gz") }[0]
         // Compare the contents of the two files
         val hvcfLines = hvcfFile.readLines()
@@ -203,6 +204,22 @@ class gvcf2hvcfTest {
         // There are 40 anchors in the bed file,the gvcf file has 34 variant records,
         // so there are 6 ref ranges missing from the gvcf file
         assertEquals(6,missing)
+    }
+
+    @Test
+    fun testStripASMfromGvcf() {
+        val gvcfDir = TestExtension.testVCFDir
+        val gvcfFile = File(TestExtension.smallSeqLineAGvcfFile)
+        gvcfFile.copyTo(File(gvcfDir, gvcfFile.name))
+        val copiedGvcfFile = File(gvcfDir, gvcfFile.name).toString()
+        val newGvcfFile = stripASMfromGvcf(copiedGvcfFile)
+
+        // New file should have 4 fewer ##INFO lines that does the original (the 4 ASM lines)
+        // New file should otherwise have the same number of lines as original
+        val newGvcfLines = bufferedReader(newGvcfFile).readLines()
+        val gvcfLines = bufferedReader(copiedGvcfFile).readLines()
+        assertEquals(gvcfLines.size, newGvcfLines.size + 4)
+
     }
 
     fun findMissingRefRanges(gvcfFile:File,bedFile:File):Int {
@@ -265,5 +282,53 @@ class gvcf2hvcfTest {
             println(range)
         }
         return missingRanges.size
+    }
+
+    fun stripASMfromGvcf(origGvcf:String) : String {
+        // this method converts a PHG created gvcf file that contains ASM data to a
+        // It is used for testing converting a non-PHG create gvcf file to an hvcf file.
+        // The new file is created in the same folder where the original file is located,
+        // and it is named "stripped_" + origGvcf
+        val gvcfLines = bufferedReader(origGvcf).readLines()
+        val newGvcf = origGvcf.replace(".g.vcf",".stripped.g.vcf")
+
+        File(newGvcf).bufferedWriter().use { writer ->
+            for (line in gvcfLines) {
+                if (line.startsWith("#")) {
+                    if (line.startsWith("##INFO")) {
+                        if (!line.contains("ASM")) {
+                            writer.write(line)
+                            writer.newLine()
+                        }
+                    } else {
+                        writer.write(line)
+                        writer.newLine()
+                    }
+                }
+                else {
+                    val variantSB = StringBuilder()
+                    var tIdx1 = line.indexOf("\t");
+                    var tIdx2 = line.indexOf("\t",tIdx1+1);
+
+                    // - first part of string is up to the ASM_Chr=
+                    val infoIdx = line.indexOf("ASM_Chr=")
+                    val endInfo = line.indexOf("\t",infoIdx);
+                    val firstPart = line.substring(0,infoIdx);
+                    variantSB.append(firstPart).append("\t")
+                    val lastPart = line.substring(endInfo+1); // this does NOT include the tab at end of info
+
+                    val infoTokens = line.substring(infoIdx,endInfo).split(";")
+                    for (token in infoTokens) {
+                        if (!token.startsWith("ASM_Chr=") && !token.startsWith("ASM_End=")
+                            && !token.startsWith("ASM_Start=") && !token.startsWith("ASM_Strand=")) {
+                            variantSB.append(token).append(";")
+                        }
+                    }
+                    variantSB.append("\t").append(lastPart).append("\n")
+                    writer.write(variantSB.toString())
+                }
+            }
+        }
+        return newGvcf
     }
 }
