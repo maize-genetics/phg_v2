@@ -15,22 +15,20 @@ import net.maizegenetics.phgv2.brapi.model.Metadata
  */
 fun Route.samples() {
 
-    val samplesService = SamplesService
-
     route("/samples") {
 
         get("") {
             call.respond(
                 SampleListResponse(
                     Metadata(),
-                    SampleListResponseResult(samplesService.allTaxaNames().toTypedArray())
+                    SampleListResponseResult(SamplesService.allTaxaNames().toTypedArray())
                 )
             )
         }
 
         get("/{sampleDbId}") {
             val id = call.parameters["sampleDbId"] ?: throw IllegalStateException("Must provide id")
-            val sample = samplesService.taxa(id)
+            val sample = SamplesService.taxa(id)
 
             if (sample == null) {
                 call.respond(" ${HttpStatusCode.NotFound}: The requested object $id was not found in the database")
