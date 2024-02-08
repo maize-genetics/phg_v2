@@ -285,22 +285,20 @@ fun createHVCFRecord(assemblyTaxon: String, startPosition: Position, endPosition
     return vcb.make()
 }
 
-fun createDiploidHVCFRecord(sampleName: String, startPosition: Position, endPosition: Position, calls: List<String>, refAlleleStr: String): VariantContext {
+fun createDiploidHVCFRecord(sampleName: String, startPosition: Position, endPosition: Position, calls: List<String?>, refAlleleStr: String): VariantContext {
     val refCall = Allele.create(refAlleleStr, true)
-    val altCalls = calls.map { Allele.create(symbolicAllele(it), false) }
+    val sampleAlleles = calls.map { if (it == null) Allele.NO_CALL else Allele.create(symbolicAllele(it!!), false) }
 
-    //the altCallIndex will be used to populate GT
-    val distinctAltCalls = altCalls.distinct()
+    val distinctAltCalls = sampleAlleles.filter{ !it.isNoCall }.distinct()
+
 
     check(startPosition.position <= endPosition.position) {
         "createDiploidHVCFRecord: start position greater than end for ${startPosition.contig}: ${startPosition.position} - ${endPosition.position}"
     }
 
-    //todo deal with missing alleles, add Allele.NO_CALL
-
     val alleleList = mutableListOf(refCall)
     alleleList.addAll(distinctAltCalls)
-    val gt = GenotypeBuilder().name(sampleName).alleles(altCalls).phased(true).make()
+    val gt = GenotypeBuilder().name(sampleName).alleles(sampleAlleles).phased(true).make()
     val vcb = VariantContextBuilder()
         .chr(startPosition.contig)
         .start(startPosition.position.toLong())

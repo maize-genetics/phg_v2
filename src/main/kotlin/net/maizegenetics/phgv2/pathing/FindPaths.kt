@@ -257,9 +257,9 @@ class FindPaths: CliktCommand(help = "Impute best diploid path using read mappin
             val startPos = Position(node.refRange.contig, node.refRange.start)
             val endPos = Position(node.refRange.contig, node.refRange.end)
             val refAllele = referenceSequence[node.refRange.contig]!!.sequence[node.refRange.start - 1].name
-            val hapids = node.sampleGametes.mapNotNull { myPath.graph.sampleToHapId(node.refRange, it) }
+            val hapids = node.sampleGametes.map { myPath.graph.sampleToHapId(node.refRange, it) }
 
-            if (hapids.isNotEmpty()) variantContextList.add(createDiploidHVCFRecord(myPath.name, startPos, endPos, hapids, refAllele))
+            variantContextList.add(createDiploidHVCFRecord(myPath.name, startPos, endPos, hapids, refAllele))
         }
 
         //exportVariantContext()
