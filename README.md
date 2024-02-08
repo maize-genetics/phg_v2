@@ -28,6 +28,19 @@ tools for R such as [rPHG](https://github.com/maize-genetics/rPHG) for pangenome
 
 ## Quick start
 
+### Installation
+
+Using a Linux distribution, download the latest release
+[here](https://github.com/maize-genetics/phg_v2/releases/latest) or
+use the command line:
+
+```shell
+curl -s https://api.github.com/repos/maize-genetics/phg_v2/releases/latest \
+| awk -F': ' '/browser_download_url/ && /\.tar/ {gsub(/"/, "", $(NF)); system("curl -LO " $(NF))}'
+```
+
+Untar and add the wrapper script to your `PATH` variable. Detailed
+information about these steps can be found [here](docs/installation.md).
 ### Build and load data
 
 _Long-form documentation for this section can be found [here](docs/build_and_load.md)_
@@ -97,19 +110,7 @@ _Long-form documentation for this section can be found [here](docs/build_and_loa
 ./phg export-vcf --db-path /my/db/uri --dataset-type hvcf --sample-Names LineA,LineB --output-dir /my/output/dir
 ```
 
-## Installation
 
-Using a Linux distribution, download the latest release 
-[here](https://github.com/maize-genetics/phg_v2/releases/latest) or 
-use the command line:
-
-```shell
-curl -s https://api.github.com/repos/maize-genetics/phg_v2/releases/latest \
-| awk -F': ' '/browser_download_url/ && /\.tar/ {gsub(/"/, "", $(NF)); system("curl -LO " $(NF))}'
-```
-
-Untar and add the wrapper script to your `PATH` variable. Detailed
-information about these steps can be found [here](docs/installation.md).
 
 
 ## Design and history
