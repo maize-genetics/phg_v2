@@ -67,11 +67,6 @@ class Gvcf2HvcfTest {
     @Test
     fun testHvcfFromGvcf() {
 
-        // Copy the gvcf files from data/test/smallseq to the testVCFDir
-        val gvcfDir = TestExtension.testVCFDir
-        val gvcfFile = File(TestExtension.smallSeqLineAGvcfFile)
-        gvcfFile.copyTo(File(gvcfDir, gvcfFile.name))
-
         //Need to create the agc record before we run this:
         // We will not be loading to tiledb, but we will be pulling sequence from AGC.
         // AGC lives in the same directory as the tiledb datasets.  Need all the fasta files in the agc record
@@ -103,14 +98,21 @@ class Gvcf2HvcfTest {
             agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
         println(agcResult.output)
 
+        // Copy the gvcf files from data/test/smallseq to the testVCFDir
+        val testGvcfDir = "${TestExtension.tempDir}testGvcfDir/"
+        File(testGvcfDir).mkdirs()
+        //val gvcfDir = TestExtension.testVCFDir
+        val gvcfFile = File(TestExtension.smallSeqLineAGvcfFile)
+        gvcfFile.copyTo(File(testGvcfDir, gvcfFile.name))
+
         val bedFile = TestExtension.smallseqAnchorsBedFile
         val gvcf2hvcf = Gvcf2Hvcf()
         val result =
-            gvcf2hvcf.test("--db-path ${dbPath} --bed ${bedFile} --reference-file ${refFasta} --gvcf-dir ${gvcfDir} ")
+            gvcf2hvcf.test("--db-path ${dbPath} --bed ${bedFile} --reference-file ${refFasta} --gvcf-dir ${testGvcfDir} ")
         println(result.output)
 
         // read the created hvcf file, which lives in the gvcfDir and has extension .h.vcf.gz
-        val hvcfFile = File(gvcfDir).listFiles { _, name -> name.endsWith(".h.vcf.gz") }[0].toString()
+        val hvcfFile = File(testGvcfDir).listFiles { _, name -> name.endsWith(".h.vcf.gz") }[0].toString()
         val hvcfLines = bufferedReader(hvcfFile).readLines()
         println("hvcfLines.size: ${hvcfLines.size}")
 
@@ -120,7 +122,7 @@ class Gvcf2HvcfTest {
             if (line.startsWith("#")) {
                 if (line.startsWith("##ALT")) altLines++
             } else {
-                variantLines++ // why isn't this count 33 ??
+                variantLines++
             }
         }
         println("altLines: $altLines, variantLines: $variantLines")
@@ -144,6 +146,9 @@ class Gvcf2HvcfTest {
         // In this gvcf file, there is 1 hash collision. There will only be 1 ALT line per seq hash, so the number of ALT lines
         // should be 1 less than the number of variant lines
         assertEquals(variantLines-1,altLines)
+
+        // Delete the test dir
+        File(testGvcfDir).deleteRecursively()
 
     }
 
