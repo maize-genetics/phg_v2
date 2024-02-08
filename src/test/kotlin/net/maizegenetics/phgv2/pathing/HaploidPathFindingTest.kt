@@ -309,7 +309,7 @@ class HaploidPathFindingTest {
             }
         }
 
-        exportReadMapping(mappingFile, readMap, "TestLine", Pair("file1", "file2"))
+        AlignmentUtils.exportReadMapping(mappingFile, readMap, "TestLine", Pair("file1", "file2"))
 
         val totalCount = readMap.entries.sumOf { (_, count) -> count }
         return intArrayOf(readsWithA, totalCount)
@@ -345,7 +345,7 @@ class HaploidPathFindingTest {
             }
         }
 
-        exportReadMapping(mappingFile, readMap, "TestLine", Pair("file1", "file2"))
+        AlignmentUtils.exportReadMapping(mappingFile, readMap, "TestLine", Pair("file1", "file2"))
 
     }
 }

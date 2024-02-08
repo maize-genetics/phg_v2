@@ -73,7 +73,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         //build the haplotypeGraph
         val graph = buildHaplotypeGraph()
-        val hashToHapidMap = processGraphKmers(graph)
+        val hashToHapidMap = processGraphKmers(graph, agcPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
 
         //for now, the name of the kmerIndex will be kmerIndex.txt. Later, the file path and name can be set by the user.
         val kmerIndexFilename = "${hvcfDir}kmerIndex.txt"
@@ -107,7 +107,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * This returns a HashMap of hash -> hapid list for all the kmers in the keep set.
      * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
      */
-    fun processGraphKmers(graph: HaplotypeGraph) : Long2ObjectOpenHashMap<Set<String>> {
+    fun processGraphKmers(graph: HaplotypeGraph,agcPath: String, maxHaplotypeProportion: Double=.75, hashMask: Long = 3, hashFilterValue:Long = 1) : Long2ObjectOpenHashMap<Set<String>> {
         //keepMap is a map of hash -> Set of haplotype ids
         val keepMap = Long2ObjectOpenHashMap<Set<String>>()
         //discardSet is a Set of hashes
@@ -157,7 +157,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                 hapid to seqrec.seq()
                 }.groupBy ({it.first}, {it.second})
 
-            val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidSeqMap)
+            val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidSeqMap, hashMask, hashFilterValue)
 
             for (hashCount in kmerHashCounts.entries) {
                 val hashValue = hashCount.key
@@ -191,7 +191,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * One for the hash counts and one for a hash to a list of hapIds which contain that hash.
      * The sequenceList input is a map of hapidId -> list of sequences
      */
-    private fun countKmerHashesForHaplotypeSequence(sequenceMap: Map<String, List<String>>) : Pair<Map<Long,Int>,Map<Long,Set<String>>> {
+    private fun countKmerHashesForHaplotypeSequence(sequenceMap: Map<String, List<String>>, hashMask: Long, hashFilterValue: Long) : Pair<Map<Long,Int>,Map<Long,Set<String>>> {
         //start by splitting sequence into subsequences without N's
         //mapOfHashes is a map of hash -> count of occurrences
         val mapOfHashes = Long2IntOpenHashMap()
