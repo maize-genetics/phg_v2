@@ -8,10 +8,9 @@ import com.google.common.collect.TreeRangeSet
 import net.maizegenetics.phgv2.utils.Position
 import org.junit.jupiter.api.*
 import java.io.File
-import java.nio.file.Paths
 import kotlin.test.assertEquals
 
-class HvcfFromPhgGvcfTest {
+class gvcf2hvcfTest {
     companion object {
 
         @JvmStatic
@@ -34,14 +33,14 @@ class HvcfFromPhgGvcfTest {
 
     @Test
     fun testCliktParams() {
-        val hvcfFromPhgGvcf = HvcfFromPhgGvcf()
+        val hvcfFromPhgGvcf = gvcf2hvcf()
 
         // There are only 3 required parameters - test for missing each one
         val resultMissingBed =
             hvcfFromPhgGvcf.test("--db-path ${TestExtension.testTileDBURI} --gvcf-dir ${TestExtension.testVCFDir} --reference-file ${TestExtension.testRefFasta} ")
         assertEquals(resultMissingBed.statusCode, 1)
         assertEquals(
-            "Usage: hvcf-from-phg-gvcf [<options>]\n" +
+            "Usage: gvcf2hvcf [<options>]\n" +
                     "\n" +
                     "Error: invalid value for --bed: --bed must not be blank\n", resultMissingBed.output
         )
@@ -49,7 +48,7 @@ class HvcfFromPhgGvcfTest {
             hvcfFromPhgGvcf.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} --gvcf-dir ${TestExtension.testMafDir}")
         assertEquals(resultMissingRef.statusCode, 1)
         assertEquals(
-            "Usage: hvcf-from-phg-gvcf [<options>]\n" +
+            "Usage: gvcf2hvcf [<options>]\n" +
                     "\n" +
                     "Error: invalid value for --reference-file: --reference-file must not be blank\n", resultMissingRef.output
         )
@@ -59,7 +58,7 @@ class HvcfFromPhgGvcfTest {
             hvcfFromPhgGvcf.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} --reference-file ${TestExtension.testRefFasta}")
         assertEquals(resultMissingGvcfDir.statusCode, 1)
         assertEquals(
-            "Usage: hvcf-from-phg-gvcf [<options>]\n" +
+            "Usage: gvcf2hvcf [<options>]\n" +
                     "\n" +
                     "Error: invalid value for --gvcf-dir: --gvcf-dir must not be blank\n", resultMissingGvcfDir.output
         )
@@ -105,7 +104,7 @@ class HvcfFromPhgGvcfTest {
         println(agcResult.output)
 
         val bedFile = TestExtension.smallseqAnchorsBedFile
-        val hvcfFromGvcf = HvcfFromPhgGvcf()
+        val hvcfFromGvcf = gvcf2hvcf()
         val result =
             hvcfFromGvcf.test("--db-path ${dbPath} --bed ${bedFile} --reference-file ${refFasta} --gvcf-dir ${gvcfDir} ")
         println(result.output)
@@ -177,7 +176,7 @@ class HvcfFromPhgGvcfTest {
         gvcfFiles.forEach { file -> file.copyTo(File(newHvcfDir, file.name)) }
 
         // Run the HvcfFromPhgGvcf code on the gvcf files in the testVCFDir
-        val hvcfFromGvcf = HvcfFromPhgGvcf()
+        val hvcfFromGvcf = gvcf2hvcf()
         val hvcfResult = hvcfFromGvcf.test("--db-path ${dbPath} --bed data/test/buildMAFVCF/B73_Test.bed --reference-file ${refFasta} --gvcf-dir ${newHvcfDir} ")
 
         // Verify the h.vcf.gz file created by HvcfFromPhgGvcf is identical to the hvcf file created by CreateMafVcf
