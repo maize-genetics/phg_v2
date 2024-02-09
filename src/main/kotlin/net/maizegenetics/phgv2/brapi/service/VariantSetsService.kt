@@ -72,8 +72,9 @@ object VariantSetsService {
 
     /**
      * This function creates a single hvcf file from all the individual hvcf files.
+     * Returns the name of the file created.
      */
-    fun createAllSamplesHVCF() {
+    fun createAllSamplesHVCF(): String {
 
         createSingleSampleHVCFs()
 
@@ -84,12 +85,14 @@ object VariantSetsService {
 
         if (inputFiles.isNullOrEmpty()) {
             myLogger.warn("createAllSamplesHVCF: No input files found in $individualSamplesDir")
-            return
+            return "NO INPUT FILES"
         }
 
         val graph = HaplotypeGraph(inputFiles)
 
         exportMultiSampleHVCF(graph, allSamplesHvcf)
+
+        return allSamplesHvcf
 
     }
 
