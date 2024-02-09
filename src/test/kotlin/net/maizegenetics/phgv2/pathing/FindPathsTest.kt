@@ -7,12 +7,13 @@ import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.getBufferedWriter
-import org.junit.Assert.assertTrue
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import java.nio.file.Paths
 import kotlin.random.Random
+import kotlin.test.assertEquals
 
 @ExtendWith(TestExtension::class)
 class FindPathsTest {
@@ -117,6 +118,125 @@ class FindPathsTest {
     }
 
     @Test
+    fun testHaploidPathFinding() {
+        //plan for this test:
+        //build a haplotype groph from Ref, lineA, and lineB
+        //for that need an hvcfdir with the files in it
+        //make sure the test output directory exists
+        val vcfDir = File(TestExtension.testVCFDir)
+
+        //create a read mapping file
+        val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
+        val myGraph = HaplotypeGraph(listOfHvcfFilenames)
+        val readMappingFile = TestExtension.testOutputDir + "testReadMapping.txt"
+        createReadMappings(myGraph, readMappingFile)
+
+        //create a keyfile
+        val keyFilename = TestExtension.testOutputDir + "keyfileForPathTest.txt"
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("SampleName\tReadMappingFiles\n")
+            myWriter.write("TestLine\t$readMappingFile\n")
+        }
+
+        var pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir}"
+
+        val pathFindingResult = HaploidPathFinding().test(pathFindingTestArgs)
+        assertEquals(0, pathFindingResult.statusCode, "pathFinding status code was ${pathFindingResult.statusCode}")
+
+
+        //are all the haplotypes in the path from LineA?
+        var resultHvcfName = "${TestExtension.testOutputDir}TestLine.h.vcf"
+        var vcfReader = VCFFileReader(File(resultHvcfName), false)
+
+        val sampleA = SampleGamete("LineA")
+        val haplotypesA = myGraph.ranges().map { myGraph.sampleToHapId(it, sampleA) }
+        for (record in vcfReader) {
+            val testHaplotype = record.genotypes["TestLine"].alleles[0].displayString
+                .substringAfter("<").substringBefore(">")
+            assert(haplotypesA.contains(testHaplotype)) {"$testHaplotype not a LineA haplotype"}
+        }
+        vcfReader.close()
+
+        //test minGametes, minReads, maxReadsPerKb
+        //set minReads = 10. This should generate an error message.
+        //change the sample name
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("SampleName\tReadMappingFiles\n")
+            myWriter.write("TestLineMinReads\t$readMappingFile\n")
+        }
+
+        pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
+                "--min-reads 10"
+        val minReadTestResult = HaploidPathFinding().test(pathFindingTestArgs)
+        assertEquals(0, minReadTestResult.statusCode)
+        assert(!File("${TestExtension.testOutputDir}TestLineMinReads.h.vcf").exists())
+
+        //set minReads = 1, minGametes = 4. This should generate an error message.
+        //change the sample name
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("SampleName\tReadMappingFiles\n")
+            myWriter.write("TestLineMinGametes\t$readMappingFile\n")
+        }
+        pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
+                "--min-reads 1 --min-gametes 4"
+        val minGametesTestResult = HaploidPathFinding().test(pathFindingTestArgs)
+        assertEquals(0, minGametesTestResult.statusCode)
+        assert(!File("${TestExtension.testOutputDir}TestLineMinGametes.h.vcf").exists())
+
+        //set minReads = 1. maxReadsPerKb = 4. This should filter out about half the reference ranges.
+        //change the sample name
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("SampleName\tReadMappingFiles\n")
+            myWriter.write("TestLineMaxReads\t$readMappingFile\n")
+        }
+        pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
+                "--min-reads 1 --max-reads-per-kb 4"
+        val maxReadsTestResult = HaploidPathFinding().test(pathFindingTestArgs)
+        assertEquals(0, minReadTestResult.statusCode)
+        resultHvcfName = "${TestExtension.testOutputDir}TestLineMaxReads.h.vcf"
+        vcfReader = VCFFileReader(File(resultHvcfName), false)
+        val numberOfRecords = vcfReader.count()
+        assertEquals(16, numberOfRecords)
+        vcfReader.close()
+
+
+        //run same test with recombination (path switching)
+        //create a read mapping file and a new keyfile
+        //create a keyfile
+        val switchKeyFilename = TestExtension.testOutputDir + "keyfileForPathTest.txt"
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("SampleName\tReadMappingFiles\n")
+            myWriter.write("TestLine2\t$readMappingFile\n")
+        }
+
+        createReadMappingsWithPathSwitches(myGraph, readMappingFile)
+        val switchResult = HaploidPathFinding().test(pathFindingTestArgs)
+        assertEquals(0, switchResult.statusCode, "pathFinding status code was ${pathFindingResult.statusCode}")
+
+        //are the haplotypes from the expected target line
+        //if range.start < 25000, LineA else LineB
+        resultHvcfName = "${TestExtension.testOutputDir}TestLine2.h.vcf"
+        vcfReader = VCFFileReader(File(resultHvcfName), false)
+
+        val sampleB = SampleGamete("LineB")
+        val haplotypesB = myGraph.ranges().map { myGraph.sampleToHapId(it, sampleB) }
+        for (record in vcfReader) {
+            val testHaplotype = record.genotypes["TestLine2"].alleles[0].displayString
+                .substringAfter("<").substringBefore(">")
+            if (record.start < 25000) assert(haplotypesA.contains(testHaplotype)) {"$testHaplotype for ${record.contig}:${record.start} not a LineA haplotype"}
+            else assert(haplotypesB.contains(testHaplotype)) {"$testHaplotype for ${record.contig}:${record.start} not a LineB haplotype"}
+        }
+        vcfReader.close()
+
+
+
+    }
+
+    @Test
     fun testDiploidPathFinding() {
         //use a haplotype groph built from Ref, lineA, and lineB
         val vcfDir = File(TestExtension.testVCFDir)
@@ -151,26 +271,30 @@ class FindPathsTest {
         val refHapids = myGraph.ranges().mapNotNull { range -> myGraph.sampleToHapId(range, refGamete) }.toSet()
 
         VCFFileReader(Paths.get(testVcf), false).use { vcf ->
-            //Chr 1: one haplotype should be all A for chr1, the other A before start=25000 and B after
+            //Chr 1: one haplotype should be all A for chr1, the other A before start=25000 and ref after
+            //Chr 2: one haplotype should be all A for chr1, the other B before start=25000 and A after
             for (context in vcf) {
                 //filter out the ref allele
                 val hapids = context.alternateAlleles.map { it.displayString.substringBefore(">").substringAfter("<") }.toList()
                 when (context.contig) {
                     "1" -> when {
-                        context.start < 25000 -> TestCase.assertTrue(
-                            "${context.contig}:${context.start}-${context.end}, hapids = $hapids",
-                            hapids.all { lineAHapids.contains(it) })
-                        else -> TestCase.assertTrue(
-                            "${context.contig}:${context.start}-${context.end}, hapids = $hapids",
-                            hapids.any { lineAHapids.contains(it) } && hapids.any { refHapids.contains(it) })
+                        context.start < 25000 -> assertTrue(
+                            hapids.all { lineAHapids.contains(it) },
+                            "${context.contig}:${context.start}-${context.end}, hapids = $hapids")
+                        context.start in (25000..50000) -> assertTrue(
+                            hapids.any { lineAHapids.contains(it) } && hapids.any { refHapids.contains(it) },
+                            "${context.contig}:${context.start}-${context.end}, hapids = $hapids")
+                        else -> assertTrue(
+                            hapids.all { it == null || refHapids.contains(it) },
+                            "${context.contig}:${context.start}-${context.end}, hapids = $hapids")
                     }
                     else -> when {
-                        context.start > 25000 -> TestCase.assertTrue(
-                            "${context.contig}:${context.start}-${context.end}, hapids = $hapids",
-                            hapids.all { lineAHapids.contains(it) })
-                        else -> TestCase.assertTrue(
-                            "${context.contig}:${context.start}-${context.end}, hapids = $hapids",
-                            hapids.any { lineAHapids.contains(it) } && hapids.any { lineBHapids.contains(it) })
+                        context.start > 25000 -> assertTrue(
+                            hapids.all { lineAHapids.contains(it) },
+                            "${context.contig}:${context.start}-${context.end}, hapids = $hapids")
+                        else -> assertTrue(
+                            hapids.any { lineAHapids.contains(it) } && hapids.any { lineBHapids.contains(it) },
+                            "${context.contig}:${context.start}-${context.end}, hapids = $hapids")
                     }
                 }
             }

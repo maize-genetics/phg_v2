@@ -57,46 +57,6 @@ class PathFinderWithViterbiHMM(
             parentFinder = if (findLikelyParents) MostLikelyParents(graph) else null
         }
 
-        /**
-         * For a map (list of hapids -> count of reads hitting the set), find the most likely path through the graph.
-         * If useLikelyParents = true, then a likely parents list is generated for each sample and only those parents are
-         * candiates for the path nodes for that sample.
-         *
-         * @param readMap a map of [ReferenceRange] to map(list of hapids to count of reads mapping to that list)
-         */
-//        fun findBestHaploidPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>): Pair<List<DiploidPathNode>, List<MostLikelyParents.ParentStats>> {
-//            val haplotypeList = mutableListOf<DiploidPathNode>()
-//            val likelyParentList = if (findLikelyParents) parentFinder!!
-//                .findMostLikelyParents(readMap, maxParents = maxParents, minCoverage = minCoverage)
-//            else listOf()
-//
-//            graph.contigs.forEach { chr ->
-//                if (findLikelyParents) {
-//                    haplotypeList.addAll(haploidViterbi(chr, readMap, likelyParentList.map { it.parent }.toSet()))
-//                } else {
-//                    haplotypeList.addAll(haploidViterbi(chr, readMap))
-//                }
-//
-//            }
-//            return Pair(haplotypeList, likelyParentList)
-//        }
-
-//        fun findBestDiploidPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>): Pair<List<DiploidPathNode>, List<MostLikelyParents.ParentStats>> {
-//            //find likely parents, if required
-//            val likelyParentList = if (findLikelyParents) parentFinder!!
-//                .findMostLikelyParents(readMap, maxParents = maxParents, minCoverage = minCoverage)
-//            else listOf()
-//
-//            val nodeList = mutableListOf<DiploidPathNode>()
-//            graph.contigs.forEach { chr ->
-//                val start = System.nanoTime()
-//                val chrLists = diploidViterbi(chr, readMap, likelyParentList.map { it.parent })
-//                myLogger.info("Elapsed time for chr $chr: ${(System.nanoTime() - start) / 1e9} sec.")
-//                nodeList.addAll(chrLists)
-//            }
-//
-//            return Pair(nodeList, likelyParentList)
-//        }
 
     fun findBestPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>, ): Pair<List<PathNode>, List<MostLikelyParents.ParentStats>> {
         //find likely parents, if required
@@ -263,18 +223,6 @@ class PathFinderWithViterbiHMM(
             myLogger.info("Finished processing reads for a sample: ${counters[3]} ranges discarded out of ${chrRanges.size}.")
             myLogger.info("${counters[0]} ranges had too few reads; ${counters[1]} ranges had too many reads; ${counters[2]} ranges too few samples with haplotypes")
 
-//            //terminate
-//            //back track the most likely path to get a HaplotypeNode List
-//                var currentPathnode = paths.maxByOrNull { it.totalProbability }
-//                val haplotypeList = mutableListOf<DiploidPathNode>()
-//                while (currentPathnode != null) {
-//                    val node = currentPathnode.parent
-//                    if (node != null) haplotypeList.add(DiploidPathNode(node.sample, node.refRange))
-//                    currentPathnode = node
-//                }
-//                //the resulting node list is last to first, so reverse it
-//                haplotypeList.reverse()
-//                return haplotypeList
             return paths.maxBy { it.totalProbability }
         }
 
@@ -288,27 +236,6 @@ class PathFinderWithViterbiHMM(
             return "${gametes.joinToString(",")}}, $refRange"
         }
     }
-
-//    data class DiploidPath(val nodeList: List<DiploidPathNode>, val totalProbability: Double) {
-//        fun terminatesIn(gametePair: Pair<SampleGamete, SampleGamete>) = nodeList.last().gametePair() == gametePair
-//
-//        fun terminalGametePair(): Pair<SampleGamete, SampleGamete> = nodeList.last().gametePair()
-//    }
-
-
-//    /**
-//     * Creates a new path by appending gametePair to the previous path and adding probability to totalProbability
-//     */
-//    private fun newDiploidPath(
-//        refRange: ReferenceRange,
-//        path: DiploidPath,
-//        gametePair: Pair<SampleGamete, SampleGamete>,
-//        probability: Double
-//    ): DiploidPath {
-//        val nodeList = path.nodeList.toMutableList()
-//        nodeList.add(DiploidPathNode(gametePair.first, gametePair.second, refRange))
-//        return DiploidPath(nodeList, path.totalProbability + probability)
-//    }
 
     private fun diploidViterbi(
         chrom: String,
