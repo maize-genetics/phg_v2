@@ -109,6 +109,23 @@ class Gvcf2Hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         // The index will be required later with API processing.  Here, we set requireIndex=true
         // so we can catch early cases where the index is not present.
         val gvcfFileReader = VCFFileReader(gvcfFile, false)
+
+        // validate the gvcf file by checking if the INFO lines contain ID for
+        // ASM_Chr and ASM_Start and ASM_End
+
+        val infoHeaderLines = gvcfFileReader.fileHeader.getInfoHeaderLines()
+        val asmChrFound = infoHeaderLines.any { it.id == "ASM_Chr" }
+        val asmStartFound = infoHeaderLines.any { it.id == "ASM_Start" }
+        val asmEndFound = infoHeaderLines.any { it.id == "ASM_End" }
+
+        // This dies on the first non-PHG gvcf found.  It could make a list of all the non-PHG gvcfs
+        // and just "continue" when a bad one is found.  But the exception makes it more apparent to the
+        // user, who can then check remaining files that were not processed.
+        if (!asmChrFound || !asmStartFound || !asmEndFound) {
+            myLogger.error("The gvcf file ${gvcfFile} does not contain the required INFO lines: ASM_Chr, ASM_Start, ASM_End.\nThis file will cannot be processed.")
+            throw IllegalStateException("The gvcf file does not contain the required INFO lines: ASM_Chr, ASM_Start, ASM_End")
+        }
+
         var sampleNames = gvcfFileReader.fileHeader.sampleNamesInOrder
         val gvcfFileIterator = gvcfFileReader.iterator()
 

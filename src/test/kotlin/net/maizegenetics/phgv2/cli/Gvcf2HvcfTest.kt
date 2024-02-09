@@ -212,6 +212,35 @@ class Gvcf2HvcfTest {
     }
 
     @Test
+    fun testBadGvcf() {
+
+        val dbPath = TestExtension.testTileDBURI
+        val refFasta = TestExtension.smallseqRefFile
+        println("refFasta: $refFasta")
+
+        // this test verifies behavior when the gvcf file does not contain the ASM header information.
+        // First, create the non-PHG gvcf file by stripping the ASM information from the LineA gvcf file
+        val gvcfTestDir = "${TestExtension.tempDir}gvcfTestDir2/"
+        File(gvcfTestDir).mkdirs()
+        val gvcfFile = File(TestExtension.smallSeqLineAGvcfFile)
+        gvcfFile.copyTo(File(gvcfTestDir, gvcfFile.name))
+        val copiedGvcfFile = File(gvcfTestDir, gvcfFile.name).toString()
+        val newGvcfFile = stripASMfromGvcf(copiedGvcfFile)
+        // delete the copied GvcfFile so only the bad gvcf file is in the gvcfTestDir
+        File(copiedGvcfFile).delete()
+
+        // Run the test to create the hvcf file from Gvcf2Hvcf()
+        val bedFile = TestExtension.smallseqAnchorsBedFile
+
+        val gvcf2hvcf = Gvcf2Hvcf()
+        assertThrows<IllegalStateException> {
+            // Check that an error is thrown when the gvcf file does not contain the ASM header information
+            // We will only support (at this time) PHG created gvcf files
+            gvcf2hvcf.test("--db-path ${dbPath} --bed ${bedFile} --reference-file ${refFasta} --gvcf-dir ${gvcfTestDir} ")
+        }
+
+    }
+    @Test
     fun testStripASMfromGvcf() {
         val gvcfDir = TestExtension.testVCFDir
         val gvcfFile = File(TestExtension.smallSeqLineAGvcfFile)
@@ -319,15 +348,22 @@ class Gvcf2HvcfTest {
                     val infoIdx = line.indexOf("ASM_Chr=")
                     val endInfo = line.indexOf("\t",infoIdx);
                     val firstPart = line.substring(0,infoIdx);
-                    variantSB.append(firstPart).append("\t")
+                    variantSB.append(firstPart) // tab already included in firstPart
                     val lastPart = line.substring(endInfo+1); // this does NOT include the tab at end of info
 
                     val infoTokens = line.substring(infoIdx,endInfo).split(";")
+                    val tokenSB = StringBuilder()
                     for (token in infoTokens) {
                         if (!token.startsWith("ASM_Chr=") && !token.startsWith("ASM_End=")
                             && !token.startsWith("ASM_Start=") && !token.startsWith("ASM_Strand=")) {
-                            variantSB.append(token).append(";")
+                            //variantSB.append(token).append(";")
+                            tokenSB.append(token).append(";")
                         }
+                    }
+                    if (tokenSB.isNotEmpty()) {
+                        variantSB.append(tokenSB)
+                    }else {
+                        variantSB.append(".")
                     }
                     variantSB.append("\t").append(lastPart).append("\n")
                     writer.write(variantSB.toString())
