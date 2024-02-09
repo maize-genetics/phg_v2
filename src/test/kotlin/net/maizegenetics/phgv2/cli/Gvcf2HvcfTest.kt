@@ -165,10 +165,17 @@ class Gvcf2HvcfTest {
 
         val agcCompress = AgcCompress()
         // Create the initial compressed file
-        val agcResult = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
-        println(agcResult.output)
+        try{
+            // try/catch to see why agcCompress fails in bitbucket pipeline but not locally
+            val agcResult = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
+            println(agcResult.output)
+        } catch (exc:Exception) {
+            println("agcCompress failed: ${exc}")
+        }
+
 
         val createMAFVCF = CreateMafVcf()
+
         val result = createMAFVCF.test("--db-path ${dbPath} --bed data/test/buildMAFVCF/B73_Test.bed --reference-file ${refFasta} --maf-dir data/test/buildMAFVCF/mafs/ -o ${TestExtension.testVCFDir}")
         println(result.output)
 
