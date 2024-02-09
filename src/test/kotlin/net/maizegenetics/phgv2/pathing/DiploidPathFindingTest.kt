@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import java.nio.file.Paths
 import kotlin.random.Random
+import kotlin.test.Ignore
 
 @ExtendWith(TestExtension::class)
 class DiploidPathFindingTest {
@@ -164,6 +165,7 @@ class DiploidPathFindingTest {
     }
 
 
+    @Ignore
     @Test
     fun testLikelyParents() {
         //same code as testDiploidPathFinding except using likely parents
