@@ -147,8 +147,10 @@ class Gvcf2HvcfTest {
         // should be 1 less than the number of variant lines
         assertEquals(variantLines-1,altLines)
 
-        // Delete the test dir
+        // Delete the folders dir
         File(testGvcfDir).deleteRecursively()
+        File(fastaOutputDir).deleteRecursively()
+        File(TestExtension.testTileDBURI).deleteRecursively()
 
     }
 
@@ -165,14 +167,8 @@ class Gvcf2HvcfTest {
 
         val agcCompress = AgcCompress()
         // Create the initial compressed file
-        try{
-            // try/catch to see why agcCompress fails in bitbucket pipeline but not locally
-            val agcResult = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
-            println(agcResult.output)
-        } catch (exc:Exception) {
-            println("agcCompress failed: ${exc}")
-        }
-
+        val agcResult = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
+        println(agcResult.output)
 
         val createMAFVCF = CreateMafVcf()
 
@@ -205,6 +201,13 @@ class Gvcf2HvcfTest {
         for (idx in 0..hvcfLines.size-1) {
             assertEquals(hvcfLines[idx], createMafVcfHvcfLines[idx])
         }
+
+        // Clean up the test folders.  When run through github pipelines,
+        // things are left hanging out until all tests in this file are completed.
+        File(newHvcfDir).deleteRecursively()
+        File(TestExtension.testVCFDir).deleteRecursively()
+        File(TestExtension.testTileDBURI).deleteRecursively()
+
     }
 
 
