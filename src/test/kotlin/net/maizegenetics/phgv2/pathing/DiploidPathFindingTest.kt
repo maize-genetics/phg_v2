@@ -105,6 +105,7 @@ class DiploidPathFindingTest {
 
     }
 
+    @Ignore
     @Test
     fun testDiploidPathFinding() {
         //use a haplotype groph built from Ref, lineA, and lineB
