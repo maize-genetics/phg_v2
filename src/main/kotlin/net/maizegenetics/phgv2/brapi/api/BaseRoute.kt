@@ -4,6 +4,9 @@ import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
+/**
+ * This is used for testing connection to the Brapi interface.
+ */
 fun Route.baseRoute() {
 
     get("/") {

@@ -1,13 +1,9 @@
 package net.maizegenetics.phgv2.brapi.api
 
-import com.typesafe.config.ConfigFactory
-import io.ktor.server.config.*
+import io.ktor.server.http.content.*
 import io.ktor.server.routing.*
-
-private val config = HoconApplicationConfig(ConfigFactory.load())
-
-val defaultCallPageSize = config.property("callsPageSize").getString().toInt()
-val defaultVariantsPageSize = config.property("variantsPageSize").getString().toInt()
+import net.maizegenetics.phgv2.brapi.service.VariantSetsService
+import java.io.File
 
 /**
  * Method handles all REST messages coming to the BrAPI interface.  An entry
@@ -34,10 +30,12 @@ fun Routing.apiRoute() {
 
         // alleleMatrix()
 
-        // variantSets()
+        variantSets()
         variants()
 
         // variantTables()
+
+        staticFiles("/${VariantSetsService.allSamplesFileName}", File(VariantSetsService.allSamplesHvcf))
 
     }
 
