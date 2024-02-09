@@ -35,25 +35,13 @@ object VariantSetsService {
 
     fun getVariantSet(): VariantSet {
 
-        val availableFormats = VariantSetAvailableFormats(
-            DataFormatEnum.VCF,
-            fileFormat = FileFormatEnum.TEXT_TSV,
-            fileURL = "${StartServer.serverURL()}$allSamplesFileName"
-        )
+        val availableFormats = VariantSetAvailableFormats(DataFormatEnum.VCF, fileFormat = FileFormatEnum.TEXT_TSV, fileURL = "${StartServer.serverURL()}$allSamplesFileName")
 
         // These values may not be correct, but the availableFormat.fileURI should be correct
         // What is our studDbId now?
         // Is the callSetCount the number of samples?  We can probably get that by querying the VCF file, or the
         // AGC or tiledb file.  This assumes we made the allSamplesMerged.vcf.gz file from what is currently in the db.
-        return VariantSet(
-            callSetCount = 0,
-            referenceSetDbId = "all",
-            studyDbId = "all",
-            variantCount = 0,
-            variantSetDbId = "all",
-            variantSetName = "all",
-            availableFormats = listOf(availableFormats)
-        )
+        return VariantSet(callSetCount = 0, referenceSetDbId = "all", studyDbId = "all", variantCount = 0, variantSetDbId = "all", variantSetName = "all", availableFormats = listOf(availableFormats))
 
     }
 
