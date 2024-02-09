@@ -7,7 +7,6 @@ import io.ktor.server.routing.*
 import net.maizegenetics.phgv2.brapi.model.Metadata
 import net.maizegenetics.phgv2.brapi.model.VariantSetResponse
 import net.maizegenetics.phgv2.brapi.service.VariantSetsService
-import java.io.File
 
 /**
  * This method handles the "variantsets" endpoint.  It is used to get a list of all the variant sets in the database.
@@ -21,9 +20,7 @@ fun Route.variantSets() {
         get("") {
             // No pagination needed - we are only returning a URI that points to a file,
             // not the actual file contents (and not an alleleMatrix)
-            val variantSet = VariantSetsService.getVariantSet()
-            var metadata = Metadata()
-            call.respond(VariantSetResponse(metadata, variantSet))
+            call.respond(VariantSetResponse(Metadata(), VariantSetsService.getVariantSet()))
 
         }
 
