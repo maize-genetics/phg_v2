@@ -61,11 +61,17 @@ In this document, we will discuss the steps needed to:
   
     # MAF alignments VCF
     phg create-maf-vcf \
+        --bed /path/to/bed_file.bed \
+        --reference-file /my/ref.fasta \
+        --gvcf-dir /my/gvcf/files 
+  
+    # Hvcf from PHG created Gvcf
+    phg gvcf2hvcf \
         --db-path /path/to/dbs \
         --bed /path/to/bed_file.bed \
         --reference-file /my/ref.fasta \
-        --maf-dir /my/maf/files \
-        -o /path/to/vcfs
+        --gvcf-dir /my/gvcf/files \
+        -o /path/to/hvcf
     ```
 * Load data into DBs
     ```shell
