@@ -9,9 +9,11 @@ import net.maizegenetics.phgv2.brapi.model.SampleListResponseResult
 import net.maizegenetics.phgv2.brapi.service.SamplesService
 import net.maizegenetics.phgv2.brapi.model.Metadata
 
+/**
+ * This method handles the "samples" endpoint.  It is used to get a list of all the samples in the database.
+ * Samples in the PHG tiledb database are taxa.
+ */
 fun Route.samples() {
-
-    val samplesService = SamplesService
 
     route("/samples") {
 
@@ -19,14 +21,14 @@ fun Route.samples() {
             call.respond(
                 SampleListResponse(
                     Metadata(),
-                    SampleListResponseResult(samplesService.allTaxaNames().toTypedArray())
+                    SampleListResponseResult(SamplesService.allTaxaNames().toTypedArray())
                 )
             )
         }
 
         get("/{sampleDbId}") {
             val id = call.parameters["sampleDbId"] ?: throw IllegalStateException("Must provide id")
-            val sample = samplesService.taxa(id)
+            val sample = SamplesService.taxa(id)
 
             if (sample == null) {
                 call.respond(" ${HttpStatusCode.NotFound}: The requested object $id was not found in the database")

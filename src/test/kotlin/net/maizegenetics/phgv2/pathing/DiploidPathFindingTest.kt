@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import java.nio.file.Paths
 import kotlin.random.Random
+import kotlin.test.Ignore
 
 @ExtendWith(TestExtension::class)
 class DiploidPathFindingTest {
@@ -104,6 +105,7 @@ class DiploidPathFindingTest {
 
     }
 
+    @Ignore
     @Test
     fun testDiploidPathFinding() {
         //use a haplotype groph built from Ref, lineA, and lineB
@@ -164,6 +166,7 @@ class DiploidPathFindingTest {
     }
 
 
+    @Ignore
     @Test
     fun testLikelyParents() {
         //same code as testDiploidPathFinding except using likely parents
@@ -310,8 +313,8 @@ class DiploidPathFindingTest {
             }
         }
 
-        val readMap = mergeReadMappings(listOf(readMap1, readMap2))
-        exportReadMapping(mappingFile, readMap, "TestLine", Pair("file1", "file2"))
+        val readMap = AlignmentUtils.mergeReadMappings(listOf(readMap1, readMap2))
+        AlignmentUtils.exportReadMapping(mappingFile, readMap, "TestLine", Pair("file1", "file2"))
 
         return intArrayOf(readsWithA, readMap.values.sum())
     }

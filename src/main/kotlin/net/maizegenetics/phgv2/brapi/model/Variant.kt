@@ -1,7 +1,7 @@
 package net.maizegenetics.phgv2.brapi.model
 
 import kotlinx.serialization.Serializable
-import net.maizegenetics.phgv2.utilities.OffsetDateTimeAsStringSerializer
+import net.maizegenetics.phgv2.brapi.utilities.OffsetDateTimeAsStringSerializer
 import java.time.OffsetDateTime
 
 /**

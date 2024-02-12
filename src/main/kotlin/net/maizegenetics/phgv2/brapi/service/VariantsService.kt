@@ -1,10 +1,9 @@
 package net.maizegenetics.phgv2.brapi.service
 
-import com.typesafe.config.ConfigFactory
-import io.ktor.server.config.*
+import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.brapi.model.TokenPagination
 import net.maizegenetics.phgv2.brapi.model.Variant
-import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.brapi.utilities.BrAPIConfig
 import org.apache.logging.log4j.LogManager
 import org.ehcache.config.builders.CacheConfigurationBuilder
 import org.ehcache.config.builders.CacheManagerBuilder
@@ -13,10 +12,8 @@ import org.ehcache.core.internal.statistics.DefaultStatisticsService
 import org.ehcache.core.spi.service.StatisticsService
 import java.io.File
 import java.util.*
-import kotlin.collections.ArrayList
 
 val statisticsVariantsService: StatisticsService = DefaultStatisticsService()
-private val config = HoconApplicationConfig(ConfigFactory.load())
 
 
 /**
@@ -49,15 +46,15 @@ class VariantsService {
         // Search the tiledbURI/reference directory for bed files.
         // there should only be 1.  If there are more, we will use the first one.
         // return the name of that file
-        val bedFileList = File("${tiledbURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()
+        val bedFileList = File("${BrAPIConfig.tiledbURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()
         if ( bedFileList.size < 1) {
             // The bedfile is copied to tiledbURI/references when CreateRefVcf is run.
             // When running specific juint tests (e.g. ServerInfoTest) which do not run CreateRefVcf
             // as a prerequisite, compilation will fail on this init because there is no bedfile.
             // This conditional takes care of that problem.
             // Need to think through if this is a general problem or just a testing problem.
-            myLogger.error("VariantsService:init - no bed files found in ${tiledbURI}/reference/")
-            println("VariantsService:init - no bed files found in ${tiledbURI}/reference/")
+            myLogger.error("VariantsService:init - no bed files found in ${BrAPIConfig.tiledbURI}/reference/")
+            println("VariantsService:init - no bed files found in ${BrAPIConfig.tiledbURI}/reference/")
 
         } else {
             val bedFile = bedFileList[0]
@@ -111,15 +108,15 @@ class VariantsService {
             myLogger.info("generateVariantsListFromCache - no variantCache - creating it, heapSIze before create cache:")
             println("generateVariantsListFromCache - no variantCache - creating it, heapSIze before create cache:")
             //Sizeof.printMemoryUse()
-            val bedFileList = File("${tiledbURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()
+            val bedFileList = File("${BrAPIConfig.tiledbURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()
             if ( bedFileList.size < 1) {
                 // The bedfile is copied to tiledbURI/references when CreateRefVcf is run.
                 // When running specific juint tests (e.g. ServerInfoTest) which do not run CreateRefVcf
                 // as a prerequisite, compilation will fail on this init because there is no bedfile.
                 // This conditional takes care of that problem.
                 // Need to think through if this is a general problem or just a testing problem.
-                myLogger.error("VariantsService:init - no bed files found in ${tiledbURI}/reference/")
-                myLogger.error("VariantsService:init - please ensure CreateRefVcf has been run and the bed file is in ${tiledbURI}/reference/")
+                myLogger.error("VariantsService:init - no bed files found in ${BrAPIConfig.tiledbURI}/reference/")
+                myLogger.error("VariantsService:init - please ensure CreateRefVcf has been run and the bed file is in ${BrAPIConfig.tiledbURI}/reference/")
 
             } else {
                 val bedFile = bedFileList[0]

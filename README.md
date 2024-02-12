@@ -28,6 +28,19 @@ tools for R such as [rPHG](https://github.com/maize-genetics/rPHG) for pangenome
 
 ## Quick start
 
+### Installation
+
+Using a Linux distribution, download the latest release
+[here](https://github.com/maize-genetics/phg_v2/releases/latest) or
+use the command line:
+
+```shell
+curl -s https://api.github.com/repos/maize-genetics/phg_v2/releases/latest \
+| awk -F': ' '/browser_download_url/ && /\.tar/ {gsub(/"/, "", $(NF)); system("curl -LO " $(NF))}'
+```
+
+Untar and add the wrapper script to your `PATH` variable. Detailed
+information about these steps can be found [here](docs/installation.md).
 ### Build and load data
 
 _Long-form documentation for this section can be found [here](docs/build_and_load.md)_
@@ -48,7 +61,8 @@ _Long-form documentation for this section can be found [here](docs/build_and_loa
 ./phg agc-compress --db-path /path/to/dbs --reference-file /my/ref.fasta --fasta-list /my/assemblyFastaList.txt 
 ./phg create-ref-vcf --bed /my/bed/file.bed --reference-file /my/ref.fasta --reference-url https://url-for-ref --reference-name B73 --db-path /path/to/tiled/dataset folder
 ./phg create-maf-vcf --db-path /path/to/dbs --bed /my/bed/file.bed --reference-file /my/ref.fasta --maf-dir /my/maf/files -o /path/to/vcfs
-
+## Convert GVCF to HVCF: use this if you have GVCF files created by PHG, but do not have MAF or h.vcf files
+./phg gvcf2hvcf --bed /my/bin/file.bed --gvcf-dir /my/gvcf/dir --reference-file /my/ref.fasta --reference-name B73 
 ## Load data into DBs
 ./phg load-vcf --vcf /my/vcf/dir --dbpath /path/to/dbs
 ```
@@ -97,19 +111,7 @@ _Long-form documentation for this section can be found [here](docs/build_and_loa
 ./phg export-vcf --db-path /my/db/uri --dataset-type hvcf --sample-Names LineA,LineB --output-dir /my/output/dir
 ```
 
-## Installation
 
-Using a Linux distribution, download the latest release 
-[here](https://github.com/maize-genetics/phg_v2/releases/latest) or 
-use the command line:
-
-```shell
-curl -s https://api.github.com/repos/maize-genetics/phg_v2/releases/latest \
-| awk -F': ' '/browser_download_url/ && /\.tar/ {gsub(/"/, "", $(NF)); system("curl -LO " $(NF))}'
-```
-
-Untar and add the wrapper script to your `PATH` variable. Detailed
-information about these steps can be found [here](docs/installation.md).
 
 
 ## Design and history
@@ -172,6 +174,7 @@ More commonly used terms can be found [here](docs/terminology.md).
 1. [Installation](docs/installation.md)
 2. [Building and loading](docs/build_and_load.md)
 3. [Imputation](docs/imputation.md) (_**WIP**_) 🚧
+4. [Export data](docs/export_data.md) (_**WIP**_) 🚧
 
 ### Reference
 * [hVCF format specifications](docs/hvcf_specifications.md)
