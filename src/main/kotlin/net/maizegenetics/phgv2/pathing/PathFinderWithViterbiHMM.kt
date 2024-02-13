@@ -57,7 +57,7 @@ class PathFinderWithViterbiHMM(
         parentFinder = if (findLikelyParents) MostLikelyParents(graph) else null
     }
 
-    fun findBestPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>, ): Pair<List<PathNode>, List<MostLikelyParents.ParentStats>> {
+    fun findBestPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>): Pair<List<PathNode>, List<MostLikelyParents.ParentStats>> {
         //find likely parents, if required
         val likelyParentList = if (findLikelyParents) parentFinder!!
             .findMostLikelyParents(readMap, maxParents = maxParents, minCoverage = minCoverage)

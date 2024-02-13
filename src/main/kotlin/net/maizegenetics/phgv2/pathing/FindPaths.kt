@@ -19,6 +19,7 @@ import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.File
@@ -200,7 +201,7 @@ class FindPaths: CliktCommand(help = "Impute best diploid path using read mappin
         //load read mappings for each sample into a channel
         for (sampleFileList in sampleToFiles) {
             val listOfReadMaps = sampleFileList.value.map { filename -> importReadMapping(filename) }
-            val readMappingsForSample = DiploidPathFinding.mergeReadMappings(listOfReadMaps)
+            val readMappingsForSample = mergeReadMappings(listOfReadMaps)
             myLogger.info("submitting read mapping for $sampleFileList")
             readMappingChannel.send(ReadMappingResult(sampleFileList.key, readMappingsForSample))
         }
@@ -230,7 +231,7 @@ class FindPaths: CliktCommand(help = "Impute best diploid path using read mappin
         )
 
         for (result in readMappingChannel) {
-            val mappingsByRefrange = HaploidPathFinding.readMappingByRange(result.readMappingCounts, graph)
+            val mappingsByRefrange = readMappingByRange(result.readMappingCounts, graph)
             val pathResult = pathFinder.findBestPath(mappingsByRefrange)
             pathChannel.send(Path(result.name, pathResult.first, graph, pathResult.second))
         }
@@ -271,7 +272,7 @@ class FindPaths: CliktCommand(help = "Impute best diploid path using read mappin
         //exportVariantContext()
         val hvcfFileName = if (outputDir.endsWith("/")) "${outputDir}${myPath.name}.h.vcf"
         else "${outputDir}/${myPath.name}.h.vcf"
-        val headerSet = altHeadersSample.map { DiploidPathFinding.altHeaderMetadataToVCFHeaderLine(it) }.toSet()
+        val headerSet = altHeadersSample.map { altHeaderMetadataToVCFHeaderLine(it) }.toSet()
 
         exportVariantContext(myPath.name, variantContextList, hvcfFileName, referenceSequence, headerSet)
 
@@ -288,6 +289,13 @@ class FindPaths: CliktCommand(help = "Impute best diploid path using read mappin
                 myWriter.write("${path.name}\t${stats.parent.name}\t${stats.parent.gameteId}\t${stats.readCount}\t${stats.coverage}\n")
             }
         }
+    }
+
+    private fun readMappingByRange(readCounts: Map<List<String>, Int>, graph: HaplotypeGraph): Map<ReferenceRange, Map<List<String>, Int>> {
+        val hapid2Refrange = graph.hapIdToRefRangeMap()
+        //groups readCounts for the entire genome into separate maps for each reference range
+        return readCounts.entries.groupBy { hapid2Refrange[it.key[0]]!! }
+            .mapValues { (_,mapEntries) -> mapEntries.associateBy({it.key}, {it.value}) }
     }
 
 }
