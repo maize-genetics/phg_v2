@@ -37,26 +37,25 @@ class PathFinderWithViterbiHMM(
         useLikelyParents: Boolean = false,
         val maxParents: Int = Int.MAX_VALUE,
         val minCoverage: Double = 1.0
-    ) {
+) {
 
-        private val myLogger = LogManager.getLogger(PathFinderWithViterbiHMM::class.java)
-        private val findLikelyParents: Boolean
-        private val parentFinder: MostLikelyParents?
-        private val sampleGametesInGraph = graph.sampleGametesInGraph()
-        private val rangeToHaplotypeMap = graph.refRangeToHapIdList()
+    private val myLogger = LogManager.getLogger(PathFinderWithViterbiHMM::class.java)
+    private val findLikelyParents: Boolean
+    private val parentFinder: MostLikelyParents?
+    private val sampleGametesInGraph = graph.sampleGametesInGraph()
+    private val rangeToHaplotypeMap = graph.refRangeToHapIdList()
 
-        data class PathNode(
-            val refRange: ReferenceRange,
-            val parent: PathNode?,
-            val sampleGametes: List<SampleGamete>,
-            val totalProbability: Double
-        )
+    data class PathNode(
+        val refRange: ReferenceRange,
+        val parent: PathNode?,
+        val sampleGametes: List<SampleGamete>,
+        val totalProbability: Double
+    )
 
-        init {
-            findLikelyParents = useLikelyParents && (maxParents < graph.sampleGametesInGraph().size || minCoverage < 1.0)
-            parentFinder = if (findLikelyParents) MostLikelyParents(graph) else null
-        }
-
+    init {
+        findLikelyParents = useLikelyParents && (maxParents < graph.sampleGametesInGraph().size || minCoverage < 1.0)
+        parentFinder = if (findLikelyParents) MostLikelyParents(graph) else null
+    }
 
     fun findBestPath(readMap: Map<ReferenceRange, Map<List<String>, Int>>, ): Pair<List<PathNode>, List<MostLikelyParents.ParentStats>> {
         //find likely parents, if required
@@ -66,165 +65,173 @@ class PathFinderWithViterbiHMM(
 
         val nodeList: MutableList<PathNode> = mutableListOf()
         graph.contigs.forEach { chr ->
-            val finalNode =
-                if (isHaploidPath) haploidViterbi(chr, readMap, likelyParentList.map { it.parent }.toSet()) else
-                    diploidViterbi(chr, readMap, likelyParentList.map { it.parent }.toSet())
-
-            val reverseNodeList = mutableListOf(finalNode)
-            var currentNode = finalNode
-            while (currentNode.parent != null) {
-                currentNode = currentNode.parent!!
-                reverseNodeList.add(currentNode)
+            val finalNode = when {
+                isHaploidPath && findLikelyParents -> haploidViterbi(chr, readMap, likelyParentList.map { it.parent }.toSet())
+                isHaploidPath && !findLikelyParents -> haploidViterbi(chr, readMap)
+                !isHaploidPath && findLikelyParents -> diploidViterbi(chr, readMap, likelyParentList.map { it.parent }.toSet())
+                else -> diploidViterbi(chr, readMap)
             }
-            nodeList.addAll(reverseNodeList.reversed())
 
-       }
-
+            if (finalNode != null) {
+                val reverseNodeList = mutableListOf(finalNode)
+                var currentNode = finalNode!!
+                while (currentNode.parent != null) {
+                    currentNode = currentNode.parent!!
+                    reverseNodeList.add(currentNode)
+                }
+                nodeList.addAll(reverseNodeList.reversed())
+            }
+        }
         return Pair(nodeList, likelyParentList)
 
     }
-        /**
-         * This method takes a graph and  a single chromosome and read mappings and returns a list of HaplotypeNodes that
-         * represents the most likely path through the graph for that chromosome given the read mappings. The graph must have been constructed so that
-         * there is only a single taxon for each node and all nodes have the same taxa. This condition is not checked because
-         * the same graph may be used to process multiple samples. It is the responsibility of the calling code to ensure the condition
-         * is satisfied.
-         *
-         * The input parameter [gameteSet], which defaults to all the SampleGametes in the graph, can be used
-         * to restrict the imputation to a subset of potential ancestors. Only the SampleGametes in gameteList will be
-         * used for imputation.
-         *
-         * @param chrom a chromosome name
-         * @param readMap   a map of read mappings by ReferenceRange for graph.
-         * @param gameteSet a list of the SampleGametes used for imputation
-         * @return  a list of HaplotypeNodes representing the most likely path
-         */
-        private fun haploidViterbi(
-            chrom: String,
-            readMap: Map<ReferenceRange, Map<List<String>, Int>>,
-            gameteSet: Set<SampleGamete> = sampleGametesInGraph
-        ): PathNode {
-            myLogger.info("Finding path for chromosome $chrom using haploidViterbi")
-            val switchProbability = 1 - sameGameteProbability
-            val numberOfSampleGametes = sampleGametesInGraph.size
-            val chrRanges = graph.ranges().filter { it.contig == chrom }
-            val logSwitch = log(switchProbability / (numberOfSampleGametes.toDouble() - 1.0), E)
-            val logNoSwitch = log(1.0 - switchProbability, E)
+    /**
+     * This method takes a graph and  a single chromosome and read mappings and returns a list of HaplotypeNodes that
+     * represents the most likely path through the graph for that chromosome given the read mappings. The graph must have been constructed so that
+     * there is only a single taxon for each node and all nodes have the same taxa. This condition is not checked because
+     * the same graph may be used to process multiple samples. It is the responsibility of the calling code to ensure the condition
+     * is satisfied.
+     *
+     * The input parameter [gameteSet], which defaults to all the SampleGametes in the graph, can be used
+     * to restrict the imputation to a subset of potential ancestors. Only the SampleGametes in gameteList will be
+     * used for imputation.
+     *
+     * @param chrom a chromosome name
+     * @param readMap   a map of read mappings by ReferenceRange for graph.
+     * @param gameteSet a list of the SampleGametes used for imputation
+     * @return  a list of HaplotypeNodes representing the most likely path
+     */
+    private fun haploidViterbi(
+        chrom: String,
+        readMap: Map<ReferenceRange, Map<List<String>, Int>>,
+        gameteSet: Set<SampleGamete> = sampleGametesInGraph
+    ): PathNode? {
+        myLogger.info("Finding path for chromosome $chrom using haploidViterbi")
+        val switchProbability = 1 - sameGameteProbability
+        val numberOfSampleGametes = sampleGametesInGraph.size
+        val chrRanges = graph.ranges().filter { it.contig == chrom }
+        val logSwitch = log(switchProbability / (numberOfSampleGametes.toDouble() - 1.0), E)
+        val logNoSwitch = log(1.0 - switchProbability, E)
 
-            //diagnostic counters for discarded ranges:
-            //countTooFewReads, countTooManyReadsPerKB, countOfTooFewGametes, countDiscardedRanges
-            val counters = IntArray(4) { 0 }
+        //diagnostic counters for discarded ranges:
+        //countTooFewReads, countTooManyReadsPerKB, countOfTooFewGametes, countDiscardedRanges
+        val counters = IntArray(4) { 0 }
 
-            //create emission probability
-            val emissionProb = HaplotypeEmissionProbability(rangeToHaplotypeMap, readMap, probCorrect)
+        //create emission probability
+        val emissionProb = HaplotypeEmissionProbability(rangeToHaplotypeMap, readMap, probCorrect)
 
-            var rangeIndex = 0
+//        var rangeIndex = 0
 
-            val rangeIterator = chrRanges.iterator()
-            var initialRange = rangeIterator.next()
+        val rangeIterator = chrRanges.iterator()
+        var initialRange = rangeIterator.next()
 
-            while (!useRange(
-                    readMap[initialRange],
-                    counters,
-                    initialRange
-                ) && rangeIterator.hasNext()
-            ) {
+
+        //logic for use next range
+        //get value for useRange(initialRange)
+        //if false go to next range and increment range index
+        //this way rangeIndex is the index of the selected range
+        //if useRange is false for the last range, then return null for pathNode
+        while (!useRange(readMap[initialRange],counters,initialRange)) {
+            if(rangeIterator.hasNext()) {
                 initialRange = rangeIterator.next()
-                rangeIndex++
+//                rangeIndex++
+            } else {
+                myLogger.info("Finished processing reads for a sample: ${counters[3]} ranges discarded out of ${chrRanges.size}.")
+                myLogger.info("${counters[0]} ranges had too few reads; ${counters[1]} ranges had too many reads; ${counters[2]} ranges too few samples with haplotypes")
+                return null
             }
+        }
 
-            var paths = ArrayList<PathNode>()
+        var paths = ArrayList<PathNode>()
 
-            //make the initial PathNode for each node in the first range
-            //the path nodes keep track of all the nodes on a path by holding a link to the parent node of each node
-            //first need a map of sampleGamete -> haplotype
+        //make the initial PathNode for each node in the first range
+        //the path nodes keep track of all the nodes on a path by holding a link to the parent node of each node
+        //first need a map of sampleGamete -> haplotype
 
 
-            var sampleGameteToHaplotypeMap = graph.hapIdToSampleGametes(initialRange).map { (hap, gameteList) ->
+        var sampleGameteToHaplotypeMap = graph.hapIdToSampleGametes(initialRange).map { (hap, gameteList) ->
+            gameteList.map { Pair(it, hap) }
+        }.flatten().toMap()
+
+        for (gamete in sampleGametesInGraph) {
+            val myHaplotype = sampleGameteToHaplotypeMap[gamete]
+            paths.add(PathNode(initialRange, null, listOf(gamete), emissionProb.getLnProbObsGivenState(myHaplotype, initialRange)))
+        }
+
+        //for each reference range update paths with probabilities and new nodes
+        while (rangeIterator.hasNext()) {
+            //for each node in the next range find the maximum value of path probability * transition
+            //actually only two to consider (1-r) * same taxon (switchProbability) and r/(n-1) * all other taxa
+            //where n is number of taxa. Since the transition likelihood is the same for all n of the recombinant taxa,
+            //only the most likely of those needs to be considered.
+            val nextRange = rangeIterator.next()
+
+            sampleGameteToHaplotypeMap = graph.hapIdToSampleGametes(nextRange).map { (hap, gameteList) ->
                 gameteList.map { Pair(it, hap) }
             }.flatten().toMap()
 
-            for (gamete in sampleGametesInGraph) {
-                val myHaplotype = sampleGameteToHaplotypeMap[gamete]
-                paths.add(PathNode(initialRange, null, listOf(gamete), emissionProb.getLnProbObsGivenState(myHaplotype, initialRange)))
+//            rangeIndex++
+            if (!useRange(readMap[nextRange], counters, nextRange)) {
+                continue
             }
+            val newPaths = ArrayList<PathNode>()
 
-            //for each reference range update paths with probabilities and new nodes
-            while (rangeIterator.hasNext()) {
-                //for each node in the next range find the maximum value of path probability * transition
-                //actually only two to consider (1-r) * same taxon (switchProbability) and r/(n-1) * all other taxa
-                //where n is number of taxa. Since the transition likelihood is the same for all n of the recombinant taxa,
-                //only the most likely of those needs to be considered.
-                val nextRange = rangeIterator.next()
+            //TODO revisit whether randomly picking best is a good strategy
+            //choose the most probable path from the previous range. If more than one, any one will do.
+            //the most likely path in the previous range
+            val bestPath = paths.maxByOrNull { it.totalProbability }
+            check(bestPath != null) { "no most likely path before range at ${nextRange.contig}:${nextRange.start}" }
 
-                sampleGameteToHaplotypeMap = graph.hapIdToSampleGametes(nextRange).map { (hap, gameteList) ->
-                    gameteList.map { Pair(it, hap) }
-                }.flatten().toMap()
+            //map of sampleGamete to path node for the previous range
+            val gameteToPath = paths.associateBy { it.sampleGametes[0] }
 
-                rangeIndex++
-                if (!useRange(readMap[nextRange], counters, nextRange)) {
-                    continue
-                }
-                val newPaths = ArrayList<PathNode>()
-
-                //TODO revisit whether randomly picking best is a good strategy
-                //TODO figure out how to test lines 217-222
-                //choose the most probable path from the previous range. If more than one, any one will do.
-                //the most likely path in the previous range
-                val bestPath = paths.maxByOrNull { it.totalProbability }
-                check(bestPath != null) { "no most likely path before range at ${nextRange.contig}:${nextRange.start}" }
-
-                //map of sampleGamete to path node for the previous range
-                val gameteToPath = paths.associateBy { it.sampleGametes[0] }
-
-                //iterate over gametes for the new range
-                val probSwitch = bestPath.totalProbability + logSwitch
-                gameteSet.forEach { sampleGamete ->
-                    val gameteHaplotype = sampleGameteToHaplotypeMap[sampleGamete]
-                    if (bestPath.sampleGametes[0] == sampleGamete) {
-                        //this is the best path for this node since is also the no switch path (same gamete)
-                        newPaths.add(
-                            PathNode(
-                                nextRange,
-                                bestPath,
-                                listOf(sampleGamete),
-                                bestPath.totalProbability + logNoSwitch +
-                                        emissionProb.getLnProbObsGivenState(gameteHaplotype, nextRange)
-                            )
+            //iterate over gametes for the new range
+            val probSwitch = bestPath.totalProbability + logSwitch
+            gameteSet.forEach { sampleGamete ->
+                val gameteHaplotype = sampleGameteToHaplotypeMap[sampleGamete]
+                if (bestPath.sampleGametes[0] == sampleGamete) {
+                    //this is the best path for this node since is also the no switch path (same gamete)
+                    newPaths.add(
+                        PathNode(
+                            nextRange,
+                            bestPath,
+                            listOf(sampleGamete),
+                            bestPath.totalProbability + logNoSwitch +
+                                    emissionProb.getLnProbObsGivenState(gameteHaplotype, nextRange)
                         )
-                    } else {
-                        //since the best path is a switch path (switching gametes), must compare it to the no switch path
-                        val samePath = gameteToPath[sampleGamete]
-                        val probNoSwitch = samePath!!.totalProbability + logNoSwitch
-                        if (probSwitch > probNoSwitch) newPaths.add(
-                            PathNode(
-                                nextRange,
-                                bestPath,
-                                listOf(sampleGamete),
-                                probSwitch + emissionProb.getLnProbObsGivenState(gameteHaplotype, nextRange)
-                            )
+                    )
+                } else {
+                    //since the best path is a switch path (switching gametes), must compare it to the no switch path
+                    val samePath = gameteToPath[sampleGamete]
+                    val probNoSwitch = samePath!!.totalProbability + logNoSwitch
+                    if (probSwitch > probNoSwitch) newPaths.add(
+                        PathNode(
+                            nextRange,
+                            bestPath,
+                            listOf(sampleGamete),
+                            probSwitch + emissionProb.getLnProbObsGivenState(gameteHaplotype, nextRange)
                         )
-                        else newPaths.add(
-                            PathNode(
-                                nextRange,
-                                samePath,
-                                listOf(sampleGamete),
-                                probNoSwitch + emissionProb.getLnProbObsGivenState(gameteHaplotype, nextRange)
-                            )
+                    )
+                    else newPaths.add(
+                        PathNode(
+                            nextRange,
+                            samePath,
+                            listOf(sampleGamete),
+                            probNoSwitch + emissionProb.getLnProbObsGivenState(gameteHaplotype, nextRange)
                         )
-                    }
-
-                    paths = newPaths
-
+                    )
                 }
             }
 
-            //countTooFewReads, countTooManyReadsPerKB, countOfTooFewGametes, countDiscardedRanges
-            myLogger.info("Finished processing reads for a sample: ${counters[3]} ranges discarded out of ${chrRanges.size}.")
-            myLogger.info("${counters[0]} ranges had too few reads; ${counters[1]} ranges had too many reads; ${counters[2]} ranges too few samples with haplotypes")
-
-            return paths.maxBy { it.totalProbability }
+            paths = newPaths
         }
+
+        //countTooFewReads, countTooManyReadsPerKB, countOfTooFewGametes, countDiscardedRanges
+        myLogger.info("Finished processing reads for a sample: ${counters[3]} ranges discarded out of ${chrRanges.size}.")
+        myLogger.info("${counters[0]} ranges had too few reads; ${counters[1]} ranges had too many reads; ${counters[2]} ranges too few samples with haplotypes")
+
+        return paths.maxBy { it.totalProbability }
+    }
 
 
     data class DiploidPathNode(val gametes: List<SampleGamete?>, val refRange: ReferenceRange) {
@@ -240,12 +247,11 @@ class PathFinderWithViterbiHMM(
     private fun diploidViterbi(
         chrom: String,
         readMap: Map<ReferenceRange, Map<List<String>, Int>>,
-        parentList: Set<SampleGamete>
-    ): PathNode {
+        parentList: Set<SampleGamete> = sampleGametesInGraph
+    ): PathNode? {
         myLogger.info("Finding path for chromosome $chrom using diploidViterbi")
-        val sampleGameteSet = if (findLikelyParents) parentList.toSortedSet() else graph.sampleGametesInGraph()
         val sampleGametePairs =
-            sampleGameteSet.map { firstName -> sampleGameteSet.map { secondName -> Pair(firstName, secondName) } }
+            parentList.map { firstName -> parentList.map { secondName -> Pair(firstName, secondName) } }
                 .flatten()
 
         //diagnostic counters for discarded ranges:
@@ -259,6 +265,7 @@ class PathFinderWithViterbiHMM(
         check(!myRanges.isNullOrEmpty()) { "No ranges in contig $chrom" }
         val rangeIterator = myRanges!!.iterator()
         var initialRange = rangeIterator.next()
+
         while (!useRange(
                 readMap[initialRange],
                 counters,
@@ -268,8 +275,20 @@ class PathFinderWithViterbiHMM(
             initialRange = rangeIterator.next()
         }
 
-        var currentNodes = sampleGameteSet.flatMap { gamete1 ->
-            sampleGameteSet.map { gamete2 ->
+        while (!useRange(readMap[initialRange], counters, initialRange)) {
+            if (rangeIterator.hasNext()) {
+                initialRange = rangeIterator.next()
+            } else {
+                myLogger.info(
+                    "for chromosome $chrom, ${counters[3]} ranges out of ${myRanges.size} were discarded: " +
+                            "too few reads - ${counters[0]}, too many reads per kb - ${counters[1]}, all counts equal - ${counters[2]}"
+                )
+                return null
+            }
+        }
+
+        var currentNodes = parentList.flatMap { gamete1 ->
+            parentList.map { gamete2 ->
                 val emissionP = emissionProb.lnProbObsGivenState(Pair(gamete1, gamete2), initialRange)
                 PathNode(initialRange, null, listOf(gamete1, gamete2), emissionP)
             }
@@ -287,15 +306,24 @@ class PathFinderWithViterbiHMM(
                 continue
             }
             val nextNodes = sampleGametePairs
-                .map { bestPathToGametePair(it, currentNodes, emissionProb.lnProbObsGivenState(it, nextRange), nextRange) }
+                .map {
+                    bestPathToGametePair(
+                        it,
+                        currentNodes,
+                        emissionProb.lnProbObsGivenState(it, nextRange),
+                        nextRange
+                    )
+                }
 
             currentNodes = nextNodes
         }
 
         //diagnostic counters for discarded ranges:
         //countTooFewReads (0), countTooManyReadsPerKB (1), countReadsEqual (2), countDiscardedRanges (3)
-        if (counters[3] > 0) myLogger.info("${counters[3]} ranges out of ${myRanges.size} were discarded: " +
-                "too few reads - ${counters[0]}, too many reads per kb - ${counters[1]}, all counts equal - ${counters[2]}")
+        if (counters[3] > 0) myLogger.info(
+            "for chromosome $chrom, ${counters[3]} ranges out of ${myRanges.size} were discarded: " +
+                    "too few reads - ${counters[0]}, too many reads per kb - ${counters[1]}, all counts equal - ${counters[2]}"
+        )
 
         val bestFinalNode = currentNodes.maxBy { it.totalProbability }
 
@@ -357,46 +385,46 @@ class PathFinderWithViterbiHMM(
     }
 
     /**
-         * Determines whether a range meets these conditions:
-         * The number of reads >= minReadsPerRange.
-         * The number of reads/kB <= maxReadsPerKB.
-         * If (minReadsPerRange > 0 and removeEqual is true) not all haplotypes have the same number of reads.
-         */
-        private fun useRange(
-            hapidListCounts: Map<List<String>, Int>?,
-            counters: IntArray,
-            refRange: ReferenceRange
-        ): Boolean {
-            //diagnostic counters for discarded ranges:
-            //countTooFewReads(0), countTooManyReadsPerKB(1), countOfTooFewGametes(2), countDiscardedRanges(3)
-            //
-            //data class HapIdSetCount(val hapIdSet : Set<Int>, val count : Int)
-            if (minReadsPerRange < 1) return true
+     * Determines whether a range meets these conditions:
+     * The number of reads >= minReadsPerRange.
+     * The number of reads/kB <= maxReadsPerKB.
+     * If (minReadsPerRange > 0 and removeEqual is true) not all haplotypes have the same number of reads.
+     */
+    private fun useRange(
+        hapidListCounts: Map<List<String>, Int>?,
+        counters: IntArray,
+        refRange: ReferenceRange
+    ): Boolean {
+        //diagnostic counters for discarded ranges:
+        //countTooFewReads(0), countTooManyReadsPerKB(1), countOfTooFewGametes(2), countDiscardedRanges(3)
+        //
+        //data class HapIdSetCount(val hapIdSet : Set<Int>, val count : Int)
+        if (minReadsPerRange < 1) return true
 
-            val rangeLength = refRange.end - refRange.start + 1
-            val numberOfReads = if (hapidListCounts.isNullOrEmpty()) 0 else {
-                hapidListCounts.entries.sumOf { (_, count) -> count }
-            }
-
-            if (numberOfReads < minReadsPerRange) {
-                counters[0]++
-                counters[3]++
-                return false
-            }
-            if (numberOfReads * 1000 / rangeLength > maxReadsPerKB) {
-                counters[1]++
-                counters[3]++
-                return false
-            }
-
-            val numberOfSampleGametes = graph.hapIdToSampleGametes(refRange).entries.sumOf { (_, gametes) -> gametes.size }
-            if (minGametesPerRange > numberOfSampleGametes) {
-                counters[2]++
-                counters[3]++
-                return false
-            }
-
-            return true
+        val rangeLength = refRange.end - refRange.start + 1
+        val numberOfReads = if (hapidListCounts.isNullOrEmpty()) 0 else {
+            hapidListCounts.entries.sumOf { (_, count) -> count }
         }
+
+        if (numberOfReads < minReadsPerRange) {
+            counters[0]++
+            counters[3]++
+            return false
+        }
+        if (numberOfReads * 1000 / rangeLength > maxReadsPerKB) {
+            counters[1]++
+            counters[3]++
+            return false
+        }
+
+        val numberOfSampleGametes = graph.hapIdToSampleGametes(refRange).entries.sumOf { (_, gametes) -> gametes.size }
+        if (minGametesPerRange > numberOfSampleGametes) {
+            counters[2]++
+            counters[3]++
+            return false
+        }
+
+        return true
     }
+}
 

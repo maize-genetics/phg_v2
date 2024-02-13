@@ -193,7 +193,7 @@ class FindPaths: CliktCommand(help = "Impute best diploid path using read mappin
         }
 
         //create a coroutine to store paths
-        launch(Dispatchers.IO) {
+        val saveJob = launch(Dispatchers.IO) {
             savePath(pathChannel)
         }
 
@@ -209,6 +209,8 @@ class FindPaths: CliktCommand(help = "Impute best diploid path using read mappin
         //now wait for all the impute jobs to finish, then close the pathChannel
         for (imputeJob in jobList) imputeJob.join()
         pathChannel.close()
+
+        saveJob.join()
 
         //block does not finish until savePath is finished processing results
     }
@@ -237,8 +239,12 @@ class FindPaths: CliktCommand(help = "Impute best diploid path using read mappin
 
     private suspend fun savePath(pathChannel : ReceiveChannel<Path>) {
         for (path in pathChannel) {
-            writeHvcf(path)
-            if (useLikelyAncestors && likelyAncestorFile.isNotBlank()) appendParentStats(path)
+            if (path.hapidList.isNotEmpty()) {
+                writeHvcf(path)
+                if (useLikelyAncestors && likelyAncestorFile.isNotBlank()) appendParentStats(path)
+            } else {
+                myLogger.warn("Path was not imputed for ${path.name}")
+            }
         }
     }
 

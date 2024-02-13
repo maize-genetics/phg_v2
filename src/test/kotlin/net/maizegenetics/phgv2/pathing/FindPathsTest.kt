@@ -2,10 +2,10 @@ package net.maizegenetics.phgv2.pathing
 
 import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.vcf.VCFFileReader
-import junit.framework.TestCase
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension
+import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -129,7 +129,7 @@ class FindPathsTest {
         val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
         val myGraph = HaplotypeGraph(listOfHvcfFilenames)
         val readMappingFile = TestExtension.testOutputDir + "testReadMapping.txt"
-        createReadMappings(myGraph, readMappingFile)
+        createHaploidReadMappings(myGraph, readMappingFile)
 
         //create a keyfile
         val keyFilename = TestExtension.testOutputDir + "keyfileForPathTest.txt"
@@ -138,10 +138,10 @@ class FindPathsTest {
             myWriter.write("TestLine\t$readMappingFile\n")
         }
 
-        var pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+        var pathFindingTestArgs = "--path-type haploid --path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir}"
 
-        val pathFindingResult = HaploidPathFinding().test(pathFindingTestArgs)
+        val pathFindingResult = FindPaths().test(pathFindingTestArgs)
         assertEquals(0, pathFindingResult.statusCode, "pathFinding status code was ${pathFindingResult.statusCode}")
 
 
@@ -154,22 +154,23 @@ class FindPathsTest {
         for (record in vcfReader) {
             val testHaplotype = record.genotypes["TestLine"].alleles[0].displayString
                 .substringAfter("<").substringBefore(">")
-            assert(haplotypesA.contains(testHaplotype)) {"$testHaplotype not a LineA haplotype"}
+            //this next line deals with null haplotypes, which in haplotypes A is null but is "" from VCF reader
+            if (testHaplotype.isNotBlank()) assert(haplotypesA.contains(testHaplotype)) {"$testHaplotype not a LineA haplotype"}
         }
         vcfReader.close()
 
         //test minGametes, minReads, maxReadsPerKb
-        //set minReads = 10. This should generate an error message.
+        //set minReads = 10. No file expected.
         //change the sample name
         getBufferedWriter(keyFilename).use { myWriter ->
             myWriter.write("SampleName\tReadMappingFiles\n")
             myWriter.write("TestLineMinReads\t$readMappingFile\n")
         }
 
-        pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+        pathFindingTestArgs = "--path-type haploid --path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
                 "--min-reads 10"
-        val minReadTestResult = HaploidPathFinding().test(pathFindingTestArgs)
+        val minReadTestResult = FindPaths().test(pathFindingTestArgs)
         assertEquals(0, minReadTestResult.statusCode)
         assert(!File("${TestExtension.testOutputDir}TestLineMinReads.h.vcf").exists())
 
@@ -179,10 +180,10 @@ class FindPathsTest {
             myWriter.write("SampleName\tReadMappingFiles\n")
             myWriter.write("TestLineMinGametes\t$readMappingFile\n")
         }
-        pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+        pathFindingTestArgs = "--path-type haploid --path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
                 "--min-reads 1 --min-gametes 4"
-        val minGametesTestResult = HaploidPathFinding().test(pathFindingTestArgs)
+        val minGametesTestResult = FindPaths().test(pathFindingTestArgs)
         assertEquals(0, minGametesTestResult.statusCode)
         assert(!File("${TestExtension.testOutputDir}TestLineMinGametes.h.vcf").exists())
 
@@ -192,29 +193,33 @@ class FindPathsTest {
             myWriter.write("SampleName\tReadMappingFiles\n")
             myWriter.write("TestLineMaxReads\t$readMappingFile\n")
         }
-        pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+        pathFindingTestArgs = "--path-type haploid --path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
                 "--min-reads 1 --max-reads-per-kb 4"
-        val maxReadsTestResult = HaploidPathFinding().test(pathFindingTestArgs)
-        assertEquals(0, minReadTestResult.statusCode)
+        val maxReadTestResults = FindPaths().test(pathFindingTestArgs)
+
+        assertEquals(0, maxReadTestResults.statusCode)
         resultHvcfName = "${TestExtension.testOutputDir}TestLineMaxReads.h.vcf"
         vcfReader = VCFFileReader(File(resultHvcfName), false)
         val numberOfRecords = vcfReader.count()
-        assertEquals(16, numberOfRecords)
+        assertTrue(numberOfRecords in 18..20)
         vcfReader.close()
 
 
-        //run same test with recombination (path switching)
+        //run a test with recombination (path switching)
         //create a read mapping file and a new keyfile
         //create a keyfile
         val switchKeyFilename = TestExtension.testOutputDir + "keyfileForPathTest.txt"
-        getBufferedWriter(keyFilename).use { myWriter ->
+        getBufferedWriter(switchKeyFilename).use { myWriter ->
             myWriter.write("SampleName\tReadMappingFiles\n")
             myWriter.write("TestLine2\t$readMappingFile\n")
         }
 
         createReadMappingsWithPathSwitches(myGraph, readMappingFile)
-        val switchResult = HaploidPathFinding().test(pathFindingTestArgs)
+        val switchTestArgs = "--path-type haploid --path-keyfile $switchKeyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} "
+
+        val switchResult = FindPaths().test(switchTestArgs)
         assertEquals(0, switchResult.statusCode, "pathFinding status code was ${pathFindingResult.statusCode}")
 
         //are the haplotypes from the expected target line
@@ -227,8 +232,10 @@ class FindPathsTest {
         for (record in vcfReader) {
             val testHaplotype = record.genotypes["TestLine2"].alleles[0].displayString
                 .substringAfter("<").substringBefore(">")
-            if (record.start < 25000) assert(haplotypesA.contains(testHaplotype)) {"$testHaplotype for ${record.contig}:${record.start} not a LineA haplotype"}
-            else assert(haplotypesB.contains(testHaplotype)) {"$testHaplotype for ${record.contig}:${record.start} not a LineB haplotype"}
+            if (testHaplotype.isNotBlank()) {
+                if (record.start < 25000) assert(haplotypesA.contains(testHaplotype)) { "$testHaplotype for ${record.contig}:${record.start} not a LineA haplotype" }
+                else assert(haplotypesB.contains(testHaplotype)) { "$testHaplotype for ${record.contig}:${record.start} not a LineB haplotype" }
+            }
         }
         vcfReader.close()
 
@@ -244,14 +251,15 @@ class FindPathsTest {
         val myGraph = HaplotypeGraph(listOfHvcfFilenames)
 
         //create a read mapping file
-        val readMappingFile = TestExtension.testOutputDir + "testReadMapping.txt"
-        createReadMappings(myGraph, readMappingFile)
+        val readMappingFile = TestExtension.testOutputDir + "testReadMapping_diploid.txt"
+        createDiploidReadMappings(myGraph, readMappingFile)
 
         //create a keyfile
-        val keyFilename = TestExtension.testOutputDir + "keyfileForPathTest.txt"
+        val lineName = "TestLineD"
+        val keyFilename = TestExtension.testOutputDir + "keyfileForDiploidPathTest.txt"
         getBufferedWriter(keyFilename).use { myWriter ->
             myWriter.write("SampleName\tReadMappingFiles\n")
-            myWriter.write("TestLine\t$readMappingFile\n")
+            myWriter.write("$lineName\t$readMappingFile\n")
         }
 
         val pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
@@ -262,7 +270,7 @@ class FindPathsTest {
         assert(pathFindingResult.statusCode == 0)
 
         //examine the resulting hvcf file
-        val testVcf = "${TestExtension.testOutputDir}TestLine.h.vcf"
+        val testVcf = "${TestExtension.testOutputDir}${lineName}.h.vcf"
         val lineAgamete = SampleGamete("LineA")
         val lineBgamete = SampleGamete("LineB")
         val refGamete = SampleGamete("Ref")
@@ -285,7 +293,7 @@ class FindPathsTest {
                             hapids.any { lineAHapids.contains(it) } && hapids.any { refHapids.contains(it) },
                             "${context.contig}:${context.start}-${context.end}, hapids = $hapids")
                         else -> assertTrue(
-                            hapids.all { it == null || refHapids.contains(it) },
+                            hapids.all { refHapids.contains(it) },
                             "${context.contig}:${context.start}-${context.end}, hapids = $hapids")
                     }
                     else -> when {
@@ -301,14 +309,71 @@ class FindPathsTest {
         }
 
         //test for exception when --use-likely-ancestors true
-        val pathFindingTestArgsLikelyAncestor = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+        val pathFindingTestArgsLikelyAncestor = "--path-type diploid --path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
                 "--prob-same-gamete 0.8 --use-likely-ancestors true"
 
-        val exception = assertThrows<IllegalArgumentException> { DiploidPathFinding().test(pathFindingTestArgsLikelyAncestor) }
+        val exception = assertThrows<IllegalArgumentException> { FindPaths().test(pathFindingTestArgsLikelyAncestor) }
         assert(exception.message!!.startsWith("UseLikelyAncestors is true but likelyAncestors will not be checked"))
     }
 
+    @Test
+    fun testPathFindingWithLikelyParents() {
+        //plan for this test:
+        //build a haplotype groph from Ref, lineA, and lineB
+        //for that need an hvcfdir with the files in it
+        //make sure the test output directory exists
+        val vcfDir = File(TestExtension.testVCFDir)
+
+        //create a read mapping file
+        val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
+        val myGraph = HaplotypeGraph(listOfHvcfFilenames)
+        val readMappingFile = TestExtension.testOutputDir + "testReadMapping.txt"
+        val readCounts = createHaploidReadMappings(myGraph, readMappingFile)
+        val expectedCoverage = readCounts[0].toDouble() / readCounts[1].toDouble()
+
+        //create a keyfile
+        val keyFilename = TestExtension.testOutputDir + "keyfileForPathTest.txt"
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("SampleName\tReadMappingFiles\n")
+            myWriter.write("TestLine\t$readMappingFile\n")
+        }
+
+        val likelyAncestorFile = TestExtension.testOutputDir + "testAncestors.txt"
+        File(likelyAncestorFile).delete()
+        val pathFindingTestArgs = "--path-type haploid --path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
+                "--use-likely-ancestors true --max-ancestors 2 --min-coverage 0.9 --likely-ancestor-file $likelyAncestorFile"
+
+        val pathFindingResult = FindPaths().test(pathFindingTestArgs)
+        assertEquals(0, pathFindingResult.statusCode, "pathFinding status code was ${pathFindingResult.statusCode}")
+
+        //check contents of likelyAncestorFile
+        getBufferedReader(likelyAncestorFile).use {
+            val header = it.readLine()
+            assertEquals("sample\tancestor\tgameteId\treads\tcoverage", header)
+            val parentInfo = it.readLine().split("\t")
+            assertEquals("TestLine", parentInfo[0])
+            assertEquals("LineA", parentInfo[1])
+            assertEquals("0", parentInfo[2])
+            assertEquals(expectedCoverage, parentInfo[4].toDouble())
+        }
+
+
+
+        //are all the haplotypes in the path from LineA?
+        val resultHvcfName = "${TestExtension.testOutputDir}TestLine.h.vcf"
+        val vcfReader = VCFFileReader(File(resultHvcfName), false)
+
+        val sampleA = SampleGamete("LineA")
+        val haplotypesA = myGraph.ranges().map { myGraph.sampleToHapId(it, sampleA) }
+        for (record in vcfReader) {
+            val testHaplotype = record.genotypes["TestLine"].alleles[0].displayString
+                .substringAfter("<").substringBefore(">")
+            if (testHaplotype.isNotBlank()) assert(haplotypesA.contains(testHaplotype)) {"$testHaplotype not a LineA haplotype"}
+        }
+
+    }
     @Test
     fun testUnorderedHaplotypePair() {
         val test1 = DiploidEmissionProbability.UnorderedHaplotypePair(Pair("aaa", "bbb"))
@@ -328,10 +393,11 @@ class FindPathsTest {
      * total read counts. The read mappings should be (lineA,lineA) for the first 9 reference ranges of chromosome 1 then
      * (lineA,lineB). Chromosome 2 should be (lineA, lineB) for the first 9 ranges then (lineA,lineA).
      */
-    private fun createReadMappings(graph: HaplotypeGraph, mappingFile: String): IntArray {
+    private fun createDiploidReadMappings(graph: HaplotypeGraph, mappingFile: String): IntArray {
         val probMapToTarget = 0.99
         val probMapToOther = 0.1
         var readsWithA = 0
+        val repetitions = 5
 
         //create a set of read mappings that are all lineA
         //then create set that is 5 ranges A, the rest B for chr 1 and 5 ranges B, the rest A for chr 2
@@ -344,7 +410,7 @@ class FindPathsTest {
             //generate some mappings if the range has a LineA haplotype
             val hasLineA = hapids.values.any{it.contains(SampleGamete("LineA"))}
 
-            if (hasLineA) repeat(3) {
+            if (hasLineA) repeat(repetitions) {
                 val hapidList = mutableListOf<String>()
                 for ((hapid, samples) in hapids.entries) {
                     val isLineA = samples.any { it.name == "LineA" }
@@ -375,7 +441,7 @@ class FindPathsTest {
             val hasTarget = hapids.values.any{it.contains(SampleGamete(target))}
 
             //generate some mappings
-            if (hasTarget) repeat(3) {
+            if (hasTarget) repeat(repetitions) {
                 val hapidList = mutableListOf<String>()
                 for ((hapid, samples) in hapids.entries) {
                     val isTarget = samples.any { it.name == target }
@@ -403,5 +469,73 @@ class FindPathsTest {
         return intArrayOf(readsWithA, readMap.values.sum())
     }
 
+    /**
+     * Create a set of read mappings for testing, write them to a file, and return the read counts for LineA and
+     * total read counts
+     */
+    private fun createHaploidReadMappings(graph: HaplotypeGraph, mappingFile: String): IntArray {
+        val probMapToA = 0.99
+        val probMapToOther = 0.2
+        val readMap = mutableMapOf<List<String>, Int>()
+        var readsWithA = 0
+        for (range in graph.ranges()) {
+            val hapids = graph.hapIdToSampleGametes(range)
+            //generate some mappings
+            repeat(4) {
+                val hapidList = mutableListOf<String>()
+                for ((hapid, samples) in hapids.entries) {
+                    val isLineA = samples.any { it.name == "LineA" }
+
+                    if (isLineA && Random.nextDouble() < probMapToA) {
+                        hapidList.add(hapid)
+                        readsWithA += 2  //because the code adds a 2 count for each hapid list
+                    }
+                    if (!isLineA && Random.nextDouble() < probMapToOther) hapidList.add(hapid)
+                }
+                if (hapidList.size > 0) {
+                    val reads = readMap[hapidList] ?: 0
+                    readMap[hapidList] = reads + 2
+                }
+            }
+        }
+
+        exportReadMapping(mappingFile, readMap, "TestLine", Pair("file1", "file2"))
+
+        val totalCount = readMap.entries.sumOf { (_, count) -> count }
+        return intArrayOf(readsWithA, totalCount)
+    }
+
+    private fun createReadMappingsWithPathSwitches(graph: HaplotypeGraph, mappingFile: String) {
+        //additional conditions to test: minReads, maxReads
+
+
+        val probMapToTarget = 0.99
+        val probMapToOther = 0.2
+        val readMap = mutableMapOf<List<String>, Int>()
+        for (range in graph.ranges()) {
+            val hapids = graph.hapIdToSampleGametes(range)
+            val target = if (range.start > 25000) "LineB" else "LineA"
+
+            //generate some mappings
+            repeat(4) {
+                val hapidList = mutableListOf<String>()
+                for ((hapid, samples) in hapids.entries) {
+                    val isTarget = samples.any { it.name == target }
+
+                    if (isTarget && Random.nextDouble() < probMapToTarget) {
+                        hapidList.add(hapid)
+                    }
+                    if (!isTarget && Random.nextDouble() < probMapToOther) hapidList.add(hapid)
+                }
+                if (hapidList.size > 0) {
+                    val reads = readMap[hapidList] ?: 0
+                    readMap[hapidList] = reads + 2
+                }
+            }
+        }
+
+        exportReadMapping(mappingFile, readMap, "TestLine", Pair("file1", "file2"))
+
+    }
 
 }
