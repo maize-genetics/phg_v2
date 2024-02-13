@@ -58,15 +58,15 @@ dependencies {
 
     implementation("com.google.guava:guava:30.1.1-jre")
 
-//    implementation(files("repo/tiledb-vcf-java-0.25.2.jar"))
-//    implementation(files("repo/tiledb-java-0.19.6-SNAPSHOT.jar"))
+    // Use these jar file when compiling for Linux
+    // Keep the Mac Intel and Mac ARM jar inclusions commented out
+    implementation(files("repo/tiledb-vcf-java-0.25.2.jar"))
+    implementation(files("repo/tiledb-java-0.19.6-SNAPSHOT.jar"))
 
-    // These should be renamed ti indicate they are MAC INTEL jars
-    // I am not yet loading the jar files, waiting until they work.
-    // Committing this change so I don't have to keep changing the file when
-    // I switch branches.
-    implementation(files("repo/tiledb-vcf-java-0.28.0.jar"))
-    implementation(files("repo/tiledb-java-0.21.1-SNAPSHOT.jar"))
+    // Use these jar files when compiling for Mac with Intel chip
+    // Keep the Linux and Mac ARM jar inclusions commented out
+//    implementation(files("repo/MacIntel_tiledb-vcf-java-0.28.0.jar"))
+//    implementation(files("repo/MacIntel_tiledb-java-0.21.1-SNAPSHOT.jar"))
 
     implementation("io.ktor:ktor-server-netty:$ktorVersion")
     implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
