@@ -128,7 +128,8 @@ class AnnotateFastas : CliktCommand(help = "Annotate FASTA files with sample nam
                 // if file was previously compressed, we compress the new file.
                 // Strip off the .gz extension before writing the new non-compressed file.
                 // it wil be added when we re-compress the file.
-                val justName = if (fastaFile.endsWith(".gz")) File(fastaFile).nameWithoutExtension else File(fastaFile).name
+                // The file names will either be <sampleName>.fa or <sampleName>.fa.gz
+                val justName = "${sampleName}.fa"
                 val newFilename = "${outputDir}/${justName}"
                 File(newFilename).bufferedWriter().use { writer ->
                     bufferedReader(fastaFile).forEachLine { line ->

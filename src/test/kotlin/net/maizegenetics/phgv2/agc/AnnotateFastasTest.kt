@@ -5,7 +5,9 @@ import net.maizegenetics.phgv2.cli.TestExtension
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import java.io.BufferedWriter
 import java.io.File
+import java.io.FileWriter
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -129,6 +131,68 @@ class AnnotateFastasTest {
         }
     }
 
+    @Test
+    fun testChangedFastaName() {
+        // This test verifies that the fasta file name is changed to the sample name
+        // Use for testing the fasta file in folder data/test/annotateFastaTest
+        // make a new directory as a subdirectory of TestExtension.tempdir and call it annotatedFastaTest
+        // copy the fasta files from data/test/annotateFastaTest to the new directory
+
+        val fastaOrigDir = "data/test/annotateFastaTest"
+        val fastaInputDir = "${TestExtension.tempDir}/annotatedFastaTest"
+        val fastaOutputDir = "${TestExtension.tempDir}/annotatedFastaTestOutput"
+
+        File(fastaInputDir).mkdirs()
+        File(fastaOutputDir).mkdirs()
+
+        val fastaFiles = File(fastaOrigDir).listFiles { file -> file.extension == "fa" || file.extension == "fasta" || file.extension == "gz"}
+        fastaFiles.forEach { file -> file.copyTo(File(fastaInputDir, file.name)) }
+
+        // Create the key file for this fasta files
+        val annotateKeyFile = File(fastaOutputDir, "fastaCreateFileNames.txt")
+        // The file name is first, followed by the sampleName.
+        // there is only 1 *.fa file and 1 *.fa.gz file, so
+        // writing the keyfile with known values for the sample names.
+
+        // Key file has 2 columns: the file name and the sample name
+        BufferedWriter(FileWriter(annotateKeyFile)).use { writer ->
+            for (file in fastaFiles) {
+                if (file.extension == "gz") {
+                    // THere is only 1 file compressed, that is LineB
+                    writer.write("${file.absolutePath}\tLineB\n")
+                } else  {
+                    // THere is only 1 file not compressed, that is LineA
+                    writer.write("${file.absolutePath}\tLineA\n")
+                }
+
+            }
+        }
+
+        // Run annotateFasta on the fasta files in the fastaInputDir
+        val annotateFastas = AnnotateFastas()
+        val result = annotateFastas.test( "--keyfile ${annotateKeyFile} --threads 2 --output-dir ${fastaOutputDir}")
+        assertEquals(0, result.statusCode)
+
+        // Verify the id lines of each fasta file were updated to include
+        // "sampleName=${sampleName}" where sampleName is the fasta file name minus the extension
+        // And verify the output fasta is named LineA.fa
+        //val fastaFiles = File(fastaOrigDir).listFiles { file -> file.extension == "fa" || file.extension == "fasta" || file.endsWith(".gz")}
+        val updatedFiles = File(fastaOutputDir).listFiles { file -> file.extension == "fa" || file.endsWith(".gz")  }.map { it.absolutePath }
+
+        updatedFiles.forEach { fastaFile ->
+            val sampleName = File(fastaFile).nameWithoutExtension.substringBefore(".")
+            val newFilename = "${fastaOutputDir}/${File(fastaFile).name}"
+            File(newFilename).forEachLine { line ->
+                if (line.startsWith(">")) {
+                    assertTrue(line.contains("sampleName=${sampleName}"))
+                }
+            }
+        }
+        // verify files named LineA.fa and LineB.fa.gz exist in the output directory
+        assertTrue(File(fastaOutputDir, "LineA.fa").exists())
+        assertTrue(File(fastaOutputDir, "LineB.fa.gz").exists())
+
+    }
     @Test
     fun testAnnotateGzippedFastaCommand() {
         // This test is the same as above, but with gzipped files
