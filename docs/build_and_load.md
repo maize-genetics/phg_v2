@@ -61,11 +61,17 @@ In this document, we will discuss the steps needed to:
   
     # MAF alignments VCF
     phg create-maf-vcf \
+        --bed /path/to/bed_file.bed \
+        --reference-file /my/ref.fasta \
+        --gvcf-dir /my/gvcf/files 
+  
+    # Hvcf from PHG created Gvcf
+    phg gvcf2hvcf \
         --db-path /path/to/dbs \
         --bed /path/to/bed_file.bed \
         --reference-file /my/ref.fasta \
-        --maf-dir /my/maf/files \
-        -o /path/to/vcfs
+        --gvcf-dir /my/gvcf/files \
+        -o /path/to/hvcf
     ```
 * Load data into DBs
     ```shell
@@ -725,7 +731,7 @@ phg create-ref-vcf \
     --bed output/ref_ranges.bed \
     --reference-file data/Ref.fa \
     --reference-name B73 \
-    -o output/vcf_files
+    --db-path vcf_dbs
 ```
 
 2. Create hVCF and gVCF data from assembly alignments against reference
@@ -751,18 +757,15 @@ data:
 #### `create-ref-vcf` inputs
 The `create-ref-vcf` command requires the following inputs:
 
-* `--bed` - A BED file containing ordered reference ranges (_see
+* `--bed` - a BED file containing ordered reference ranges (_see
   the [**"Create reference ranges"**](#create-reference-ranges) section for further details_). This
   is used to define the positional information of the VCF.
-* `--reference-file` - Reference FASTA genome used for creating
+* `--reference-file` - reference FASTA genome used for creating
   MD5 hashes of sequence information guided by reference range
   positional data from the BED file used in the `--bed` parameter.
-* `--reference-name` - The name of the reference sample
-* `-db-path` - Output directory for the VCF data.
+* `--reference-name` - the name of the reference sample.
+* `--db-path` - path to PHG database directory for VCF storage.
 
-> [!WARNING]
-> The directory that you specify in the output (`-o`) section must
-> be an existing directory.
 
 > [!NOTE]
 > Optionally, `create-ref-vcf` can also use another parameter, 

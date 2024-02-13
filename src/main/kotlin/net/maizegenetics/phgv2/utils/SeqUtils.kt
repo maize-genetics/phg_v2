@@ -310,7 +310,6 @@ fun queryAgc(commands:Array<String>):Map<Pair<String,String>,NucSeq> {
             if (currSeq.size() > 0) {
                 myLogger.info("queryAgc: finished chrom $currChrom")
                 val chromPlusRange = if (currRange == "") currChrom else "${currChrom}:${currRange}"
-                println("agcQuery: line 301 - currGenome: $currGenome, currChrom: $currChrom")
                 genomeChromNucSeq.put(Pair(currGenome,chromPlusRange),NucSeq(currSeq.toString()))
             }
         }

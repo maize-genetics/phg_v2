@@ -17,11 +17,15 @@ class TestExtension : BeforeAllCallback {
         val testOutputFastaDir = "${tempDir}outputFastaDir/"
         val testOutputGVCFDIr = "${tempDir}outputGVCFDir/"
 
+
         const val smallSeqInputDir = "data/test/smallseq/"
+
         const val smallseqLineAFile = "${smallSeqInputDir}LineA.fa"
         const val smallseqLineAMafFile = "${smallSeqInputDir}LineA.maf"
         const val smallSeqLineAGvcfFile = "${smallSeqInputDir}LineA.g.vcf"
+        const val smallseqLineBFile = "${smallSeqInputDir}LineB.fa"
         const val smallseqLineBMafFile = "${smallSeqInputDir}LineB.maf"
+        const val smallSeqLineBGvcfFile = "${smallSeqInputDir}LineB.g.vcf"
         const val smallseqRefFile = "${smallSeqInputDir}Ref.fa"
         const val smallseqAnchorsBedFile = "${smallSeqInputDir}anchors.bed"
         const val smallseqAnchorsGffFile = "${smallSeqInputDir}anchors.gff"
@@ -32,6 +36,10 @@ class TestExtension : BeforeAllCallback {
         const val smallseqLineAHvcfFileBadAltTag = "${smallSeqInputDir}LineA_old_BadALTHeader.h.vcf"
         const val smallseqLineBHvcfFile = "${smallSeqInputDir}LineB.h.vcf"
         const val smallseqLineBHvcfFileBadAltTag = "${smallSeqInputDir}LineB_old_BadALTHeader.h.vcf"
+
+        const val exportGraphDir = "data/test/exportGraph/"
+        const val exportGraphSingleSample = "${exportGraphDir}testSingleSampleHaplotypeGraph.vcf"
+        const val exportGraphMultiSample = "${exportGraphDir}testMultipleFilesHaplotypeGraph.vcf"
 
         const val refLineName = "Ref"
         const val refFastaName = "Ref.fa"
@@ -62,6 +70,17 @@ class TestExtension : BeforeAllCallback {
         val testKeyFile = "${readMappingDir}keyFile.txt"
         val testKeyFileNoHeader = "${readMappingDir}keyFileNoHeader.txt"
         val testKeyFileMissingFileName = "${readMappingDir}keyFileMissingFileName.txt"
+
+        val smallSeqSimReads = "data/test/kmerReadMapping/simulatedReads/"
+        val testLineASimReadsPrefix = "${smallSeqSimReads}LineA"
+        val testLineBSimReadsPrefix = "${smallSeqSimReads}LineB"
+        val testLineABSimReadsPrefix = "${smallSeqSimReads}LineA_LineB"
+
+        val outputReadMappingLineA = "${testOutputDir}LineA_1_readMapping.txt"
+        val outputReadMappingLineASingle = "${testOutputDir}LineA_2_readMapping.txt"
+        val outputReadMappingLineB = "${testOutputDir}LineB_1_readMapping.txt"
+        val outputReadMappingLineBSingle = "${testOutputDir}LineB_2_readMapping.txt"
+        val outputReadMappingLineAB = "${testOutputDir}LineAB_1_readMapping.txt"
 
 
     }
