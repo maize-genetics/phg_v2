@@ -20,6 +20,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.importReadMapping
+import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.mergeReadMappings
 import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.File
