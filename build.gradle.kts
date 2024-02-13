@@ -68,6 +68,11 @@ dependencies {
 //    implementation(files("repo/MacIntel_tiledb-vcf-java-0.28.0.jar"))
 //    implementation(files("repo/MacIntel_tiledb-java-0.21.1-SNAPSHOT.jar"))
 
+    // Use these jar files when compiling for Mac with ARM chip
+    // Keep the Linux and Mac Intel jar inclusions commented out
+//    implementation(files("repo/MacARM_tiledb-vcf-java-0.28.0.jar"))
+//    implementation(files("repo/MacARM_tiledb-java-0.21.1-SNAPSHOT.jar"))
+
     implementation("io.ktor:ktor-server-netty:$ktorVersion")
     implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
     implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
