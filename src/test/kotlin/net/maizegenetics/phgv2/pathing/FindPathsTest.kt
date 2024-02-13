@@ -5,6 +5,8 @@ import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension
+import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.exportReadMapping
+import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.mergeReadMappings
 import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import org.junit.jupiter.api.*
@@ -47,7 +49,7 @@ class FindPathsTest {
         @AfterAll
         fun tearDown() {
             //comment out the following line to inspect the test results after the tests have been run
-//            File(TestExtension.testOutputDir).deleteRecursively()
+            File(TestExtension.testOutputDir).deleteRecursively()
         }
     }
 
