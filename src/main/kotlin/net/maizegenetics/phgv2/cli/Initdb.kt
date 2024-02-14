@@ -28,7 +28,7 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
 
     private val myLogger = LogManager.getLogger(Initdb::class.java)
 
-    val dbPath by option(help = "Folder name where TileDB datasets will be created")
+    val dbPath by option(help = "Folder name under which TileDB datasets will be created. If this folder does not exist, it will be created.")
         .default("")
         .validate {
             require(it.isNotBlank()) {
