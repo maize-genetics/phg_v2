@@ -190,7 +190,8 @@ class AnnotateFastasTest {
         }
         // verify files named LineA.fa and LineB.fa.gz exist in the output directory
         assertTrue(File(fastaOutputDir, "LineA.fa").exists())
-        assertTrue(File(fastaOutputDir, "LineB.fa.gz").exists())
+        // We do not include ".fa" in the compressed file as AGC takes everything before the last period as the sample name
+        assertTrue(File(fastaOutputDir, "LineB.gz").exists())
 
     }
     @Test
