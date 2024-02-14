@@ -26,10 +26,15 @@ import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
-class FindPaths: CliktCommand(help = "Impute best diploid path using read mappings.")  {
+/**
+ * This version of FindPaths uses .h.vcf files to build the HaplotypeGraph used for path finding
+ * and writes the imputed paths as .h.vcf files to an output directory. It does not use a tiledb for anything.
+ * That is expected to change at some point.
+ */
+class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")  {
 
     val pathKeyfile by option(help = "tab-delimited file with first two columns: SampleName, ReadMappingFiles. ReadMappingFiles " +
-            "must be the full path to a read mapping file or a comma separated list of file paths.")
+            "must be the full path to a read mapping file or a comma separated list of file paths. All sample names must be unique.")
         .required()
         .validate { require(File(it).exists()) {"$it is not a valid file"} }
 
@@ -54,7 +59,7 @@ class FindPaths: CliktCommand(help = "Impute best diploid path using read mappin
         .default(0.99)
         .validate { require(it in 0.5..1.0) {"prob-correct must be between 0.5 and 1.0"} }
 
-    val probSameGamete by option(help = "The probability of transitioning to the same gamete in the next reference range")
+    val probSameGamete by option(help = "The probability of transitioning to the same gamete (sample) in the next reference range")
         .double()
         .default(0.99)
         .validate { require(it in 0.01..1.0) {"prob-correct must be between 0.01 and 1.0"} }
@@ -65,12 +70,14 @@ class FindPaths: CliktCommand(help = "Impute best diploid path using read mappin
         .default(1)
         .validate { require(it > -1) {"min-gametes must be a positive integer"} }
 
-    val minReads by option(help = "The minimum number of reads per ReferenceRange. Reference ranges with fewer reads will not be imputed")
+    val minReads by option(help = "The minimum number of reads per ReferenceRange. Reference ranges with fewer reads " +
+            "will not be imputed. If minReads = 0, all ReferenceRanges will be imputed.")
         .int()
         .default(0)
         .validate { require(it > -1) {"min-reads must be a positive integer."} }
 
-    val inbreedingCoefficient by option(help = "The estimated coefficient of inbreeding for the samples being evaluated.")
+    val inbreedingCoefficient by option(help = "The estimated coefficient of inbreeding for the samples being evaluated. " +
+            "Only used for diploid path type.")
         .double()
         .default(0.0)
         .validate { require(it in 0.0..1.0) {"inbreeding-coefficient must be between 0.0 and 1.0"} }
@@ -98,8 +105,6 @@ class FindPaths: CliktCommand(help = "Impute best diploid path using read mappin
 
 
     val threads by option(help = "number of threads used to find paths.").int().default(3)
-
-
 
     private val myLogger = LogManager.getLogger(FindPaths::class.java)
 
@@ -214,7 +219,6 @@ class FindPaths: CliktCommand(help = "Impute best diploid path using read mappin
         pathChannel.close()
 
         saveJob.join()
-
         //block does not finish until savePath is finished processing results
     }
 
