@@ -120,8 +120,6 @@ class PathFinderWithViterbiHMM(
         //create emission probability
         val emissionProb = HaplotypeEmissionProbability(rangeToHaplotypeMap, readMap, probCorrect)
 
-//        var rangeIndex = 0
-
         val rangeIterator = chrRanges.iterator()
         var initialRange = rangeIterator.next()
 
@@ -134,10 +132,9 @@ class PathFinderWithViterbiHMM(
         while (!useRange(readMap[initialRange],counters,initialRange)) {
             if(rangeIterator.hasNext()) {
                 initialRange = rangeIterator.next()
-//                rangeIndex++
             } else {
-                myLogger.info("Finished processing reads for a sample: ${counters[3]} ranges discarded out of ${chrRanges.size}.")
-                myLogger.info("${counters[0]} ranges had too few reads; ${counters[1]} ranges had too many reads; ${counters[2]} ranges too few samples with haplotypes")
+                myLogger.debug("Finished processing reads for chromosome $chrom, sample: ${counters[3]} ranges discarded out of ${chrRanges.size}.")
+                myLogger.debug("${counters[0]} ranges had too few reads; ${counters[1]} ranges had too many reads; ${counters[2]} ranges too few samples with haplotypes")
                 return null
             }
         }
@@ -170,7 +167,6 @@ class PathFinderWithViterbiHMM(
                 gameteList.map { Pair(it, hap) }
             }.flatten().toMap()
 
-//            rangeIndex++
             if (!useRange(readMap[nextRange], counters, nextRange)) {
                 continue
             }
@@ -231,17 +227,6 @@ class PathFinderWithViterbiHMM(
         myLogger.info("${counters[0]} ranges had too few reads; ${counters[1]} ranges had too many reads; ${counters[2]} ranges too few samples with haplotypes")
 
         return paths.maxBy { it.totalProbability }
-    }
-
-
-    data class DiploidPathNode(val gametes: List<SampleGamete?>, val refRange: ReferenceRange) {
-        fun gametePair() = Pair(gametes[0], gametes[1])
-
-        fun gamete() = gametes[0]
-
-        override fun toString(): String {
-            return "${gametes.joinToString(",")}}, $refRange"
-        }
     }
 
     private fun diploidViterbi(
