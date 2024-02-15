@@ -2,23 +2,42 @@ package net.maizegenetics.phgv2.rphg
 
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SampleGamete
+import javax.xml.crypto.Data
 
 class RMethods {
-    fun hapIdMatrix(g: HaplotypeGraph): MutableList<Pair<SampleGamete, String>> {
-        val allRanges = g.ranges()
+    fun getFullHapIdMatrix(g: HaplotypeGraph): StringMatrix {
 
-        val returnState = mutableListOf<Pair<SampleGamete, String>>()
+        val allRanges = g.ranges()
+        val sampleGametes = g.sampleGametesInGraph()
+        val array2D = Array(g.samples().size) { Array(allRanges.size) { "" } }
+
         allRanges.forEach { range ->
             val hapIdRange = g.sampleGameteToHaplotypeId(range)
             hapIdRange.forEach {
-                returnState.add(Pair(it.key, it.value))
+                array2D[sampleGametes.indexOf(it.key)][allRanges.indexOf(range)] = it.value
             }
         }
 
-        return returnState
+        return StringMatrix (
+            colNames = allRanges.map { "R$it" }.toTypedArray(),
+            rowNames = sampleGametes.map { "${it.name}_G${it.gameteId + 1}" }.toTypedArray(),
+            matrixData = array2D
+        )
     }
 
-
+    fun getRefRanges(g: HaplotypeGraph): DataFrame {
+        val refRanges = g.ranges()
+        return DataFrame(
+            colNames = arrayOf("seqname", "start", "end"),
+            rowNames = null,
+            matrixData = arrayOf(
+                refRanges.map { it.contig }.toTypedArray(),
+                refRanges.map { it.start }.toTypedArray(),
+                refRanges.map { it.end }.toTypedArray()
+            )
+        )
+    }
+    
     fun testStringMatrix(): StringMatrix {
         return MatrixWithNames(
             colNames = arrayOf("Col1", "Col2", "Col3"),
@@ -64,23 +83,5 @@ class RMethods {
             )
         )
     }
-
-    val x = arrayOf(
-        arrayOf(1, 2, 3),
-        arrayOf("this", "is", "category")
-    )
 }
 
-fun main() {
-    val graph = HaplotypeGraph(
-        listOf(
-            "/Users/bm646-admin/Projects/phg_v2/data/test/smallseq/LineA.h.vcf",
-            "/Users/bm646-admin/Projects/phg_v2/data/test/smallseq/LineB.h.vcf",
-            "/Users/bm646-admin/Projects/phg_v2/data/test/smallseq/Ref.h.vcf"
-        )
-    )
-
-    println(graph.numberOfRanges())
-    println(graph.samples())
-
-}
