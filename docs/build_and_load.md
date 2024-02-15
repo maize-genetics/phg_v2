@@ -176,8 +176,9 @@ error output from the PHGv2 command steps:
 In PHGv2, we leverage [TileDB](https://tiledb.com/) and 
 [TileDB-VCF](https://docs.tiledb.com/main/integrations-and-extensions/genomics/population-genomics) 
 for efficient storage and querying of VCF data. For downstream 
-pipelines, we will need to set up 2 databases for storing different
-VCF information: (1) haplotype and (2) genomic variant information.
+pipelines, we will need to initialize 2 databases for storing different
+VCF information: (1) haplotype (hVCF) and (2) genomic variant (gVCF) 
+information.
 
 Similar to setting
 up our Conda environment from the prior section, we can automate this
@@ -192,8 +193,8 @@ process using the `initdb` command:
 
 This command takes one required parameter, `--db-path` which is the path or
 subdirectory to where we want to place our databases. In this
-example project, I will set up the databases in a subdirectory called
-`vcf_dbs`.
+example project, I will initialize the hVCF and gVCF databases in a 
+subdirectory called `vcf_dbs`. 
 
 Two optional parameters, `--gvcf-anchor-gap` and `--hvcf-anchor-gap` may also 
 be set. These parameters define the distance between anchors in the two 
@@ -211,6 +212,19 @@ instances and a `temp` directory in our `vcf_dbs` subdirectory:
 | `gvcf_dataset` | Genomic variant storage                 |
 | `hvcf_dataset` | Haplotype variant storage               |
 | `temp`         | Creation output and error logging files |
+
+
+For reference, my example working directory now looks like this:
+
+```shell
+phg_v2_example/
+├── data
+├── output
+└── vcf_dbs
+    ├── gvcf_dataset # gVCF db storage
+    ├── hvcf_dataset # hVCF db storage
+    └── temp
+```
 
 ### Create reference ranges
 Next, we must define ordered sequences of genic and inter-genic 
