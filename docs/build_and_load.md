@@ -193,8 +193,8 @@ process using the `initdb` command:
 
 This command takes one required parameter, `--db-path` which is the path or
 subdirectory to where we want to place our databases. In this
-example project, I will initialize the hVCF and gVCF databases in a 
-subdirectory called `vcf_dbs`. 
+example project, I will initialize the hVCF and gVCF database 
+folders in a subdirectory called `vcf_dbs`. 
 
 Two optional parameters, `--gvcf-anchor-gap` and `--hvcf-anchor-gap` may also 
 be set. These parameters define the distance between anchors in the two 
@@ -209,8 +209,8 @@ instances and a `temp` directory in our `vcf_dbs` subdirectory:
 
 | Directory      | Purpose                                 |
 |----------------|-----------------------------------------|
-| `gvcf_dataset` | Genomic variant storage                 |
-| `hvcf_dataset` | Haplotype variant storage               |
+| `gvcf_dataset` | Genomic variant database storage        |
+| `hvcf_dataset` | Haplotype variant database storage      |
 | `temp`         | Creation output and error logging files |
 
 
