@@ -60,8 +60,8 @@ dependencies {
 
     // Use these jar file when compiling for Linux
     // Keep the Mac Intel and Mac ARM jar inclusions commented out
-    implementation(files("repo/tiledb-vcf-java-0.25.2.jar"))
-    implementation(files("repo/tiledb-java-0.19.6-SNAPSHOT.jar"))
+//    implementation(files("repo/Linux-tiledb-vcf-java-0.28.0.jar"))
+//    implementation(files("repo/Linux-tiledb-java-0.21.1-SNAPSHOT.jar"))
 
     // Use these jar files when compiling for Mac with Intel chip
     // Keep the Linux and Mac ARM jar inclusions commented out
@@ -72,6 +72,12 @@ dependencies {
     // Keep the Linux and Mac Intel jar inclusions commented out
 //    implementation(files("repo/MacARM_tiledb-vcf-java-0.28.0.jar"))
 //    implementation(files("repo/MacARM_tiledb-java-0.21.1-SNAPSHOT.jar"))
+
+    //use these jar files for testing the combined linux, mac-intel version
+//    implementation(files("repo/Combined-tiledb-java-0.21.1-SNAPSHOT.jar"))
+//    implementation(files("repo/Combined-tiledb-vcf-java-0.28.0.jar"))
+
+    implementation(files("repo/combined-tiledb.jar"))
 
     implementation("io.ktor:ktor-server-netty:$ktorVersion")
     implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
