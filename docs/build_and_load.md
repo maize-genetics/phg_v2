@@ -626,8 +626,13 @@ This command takes 3 parameters:
 > TileDB instances.
 
 > [!NOTE]
-> FASTA files can be either uncompressed or compressed. If
-> compressed, the extension should be `*.gz`.
+> FASTA files can be either uncompressed or compressed, though the reference fasta
+> should be uncompressed. 
+
+> [!NOTE]
+> If compressed, ".gz" should be the only extension.
+> For example: your file should be `LineA.gz` and not `LineA.fa.gz`. This is due to AGC taking 
+> everything before the last period as the sample name.  We do not want ".fa" included as part of the sample name.
 
 Once finished, this command will produce FASTA files with the name
 of the sample from the keyfile appended to each header line. For
