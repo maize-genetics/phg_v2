@@ -43,14 +43,6 @@ class LoadVCFTest {
         assertEquals("Usage: load-vcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --vcf-dir: --vcf-dir must not be blank\n",resultMissingVCFDir.output)
-
-        // Test missing db-path parameter
-        val resultMissingDB = loadVCF.test("--vcf-dir ${TestExtension.testVCFDir} ")
-        assertEquals(resultMissingDB.statusCode, 1)
-        assertEquals("Usage: load-vcf [<options>]\n" +
-                "\n" +
-                "Error: invalid value for --db-path: --db-path must not be blank\n",resultMissingDB.output)
-
     }
 
     @Test

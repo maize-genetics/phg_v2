@@ -64,15 +64,6 @@ class CreateMafVCFTest {
                     "Error: invalid value for --maf-dir: --maf-dir must not be blank\n", resultMissingMafDir.output
         )
 
-        val resultMissingDbPath =
-            createMAFVCF.test("--bed ${TestExtension.testBEDFile} --maf-dir ${TestExtension.testMafDir} --reference-file ${TestExtension.testRefFasta} -o ${TestExtension.testVCFDir}")
-        assertEquals(resultMissingDbPath.statusCode, 1)
-        assertEquals(
-            "Usage: create-maf-vcf [<options>]\n" +
-                    "\n" +
-                    "Error: invalid value for --db-path: --db-path must not be blank\n", resultMissingDbPath.output
-        )
-
     }
 
 
@@ -130,6 +121,8 @@ class CreateMafVCFTest {
         val dbPath = TestExtension.testTileDBURI
         val refFasta = "data/test/buildMAFVCF/B73_Test.fa"
 
+        //Create the tileDB datasets - these are verified in AgcCompress()
+        Initdb().createDataSets(TestExtension.testTileDBURI)
 
         val agcCompress = AgcCompress()
         // Create the initial compressed file

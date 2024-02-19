@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
+import net.maizegenetics.phgv2.utils.verifyURI
 import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.lang.Exception
@@ -40,13 +41,9 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
 
     private val myLogger = LogManager.getLogger(AgcCompress::class.java)
 
-    val dbPath by option(help = "Folder name where AGC compressed files will be created.  Should be the same parent folder where tiledb datasets are stored.")
+    val dbPath by option(help = "Folder name where AGC compressed files will be created.  Should be the same parent folder where tiledb datasets are stored." )
         .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--db-path must not be blank"
-            }
-        }
+
 
     val fastaList by option(help = "File containing full path name for the fasta files, one per line, to compress into a single agc file.  Fastas may be compressed or uncompressed files. Reference fasta should NOT be included.")
         .default("")
@@ -66,7 +63,16 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
 
 
     override fun run() {
-        myLogger.info("Starting AGC compression")
+        myLogger.info("Starting AGC compression: validate the URI")
+        // If the dbPath is not provided, use the current working directory
+        val dbPath = if (dbPath.isBlank()) {
+            System.getProperty("user.dir")
+        } else {
+            dbPath
+        }
+        // Verify the dbPath contains valid tiledb created datasets
+        // If it doesn't an exception will be thrown
+        val validDB = verifyURI(dbPath,"hvcf_dataset")
         // process the input
         processAGCFiles(dbPath,fastaList,referenceFile)
 

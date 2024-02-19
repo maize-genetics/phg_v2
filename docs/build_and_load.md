@@ -164,6 +164,11 @@ using the following conda command:
 conda activate phgv2-conda
 ```
 
+>[!NOTE]
+>It is imperative the conda environment you create is named phgv2-conda.
+> This is the default environment name that PHGv2 uses when executing shell commands
+> from within the software.
+
 If we look in our example project directory, you will also see two
 new logging (`.log`) files which will record all the logging and
 error output from the PHGv2 command steps:

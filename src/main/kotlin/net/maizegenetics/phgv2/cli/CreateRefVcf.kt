@@ -60,16 +60,19 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
             }
         }
 
-    val dbPath by option(help = "Folder holding TileDB datasets")
+    val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--db-path must not be blank"
-            }
-        }
 
     override fun run() {
-        myLogger.info("begin run")
+        myLogger.info("begin CreateRefVcf: validate dpPath URI")
+        val dbPath = if (dbPath.isBlank()) {
+            System.getProperty("user.dir")
+        } else {
+            dbPath
+        }
+        // Verify the dbPath is a valid tiledb URI
+        val validDB = verifyURI(dbPath,"hvcf_dataset")
+
         createRefHvcf(bed,referenceFile,referenceName,referenceUrl,dbPath)
     }
 
