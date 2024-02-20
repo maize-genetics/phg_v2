@@ -48,12 +48,6 @@ class CreateFastaFromHvcfTest {
     fun testCliktParams() {
         val createFastaFromHvcf = CreateFastaFromHvcf()
 
-        val resultMissingDB = createFastaFromHvcf.test("-o ${TestExtension.testOutputRefFasta} --fasta-type composite --hvcf-file /test_file.h.vcf")
-        assertEquals(resultMissingDB.statusCode, 1)
-        assertEquals("Usage: create-fasta-from-hvcf [<options>]\n" +
-                "\n" +
-                "Error: invalid value for --db-path: --db-path must not be blank\n",resultMissingDB.output)
-
         val resultMissingOutput = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type haplotype --hvcf-file /test_file.h.vcf")
         assertEquals(resultMissingOutput.statusCode, 1)
         assertEquals("Usage: create-fasta-from-hvcf [<options>]\n" +

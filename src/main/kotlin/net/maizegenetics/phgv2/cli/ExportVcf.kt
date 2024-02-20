@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import net.maizegenetics.phgv2.utils.verifyURI
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
@@ -14,8 +15,8 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
 
     private val myLogger = LogManager.getLogger(ExportVcf::class.java)
 
-    val dbPath by option(help = "Folder name where TileDB datasets are stored")
-        .required()
+    val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
+        .default("")
 
     val datasetType by option(help = "Type of dataset to export: choices are gvcf or hvcf, defaults to hvcf")
         .default("hvcf")
@@ -27,6 +28,15 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         .required()
 
     override fun run() {
+
+        val dbPath = if (dbPath.isBlank()) {
+            System.getProperty("user.dir")
+        } else {
+            dbPath
+        }
+
+        // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
+        val validDB = verifyURI(dbPath,"hvcf_dataset")
 
         // This is the tiledbvcf command we want to run:
         // Doing this with a ProcessBuilder and using the phg_v2 conda environment

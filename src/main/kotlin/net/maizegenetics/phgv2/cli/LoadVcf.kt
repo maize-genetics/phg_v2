@@ -41,11 +41,6 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
 
     val dbPath by option(help = "Folder holding TileDB datasets")
         .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--db-path must not be blank"
-            }
-        }
 
     // threads is not required.  Defaults to 1
     // While technically, this should be an "int", it is passed to ProcessBuilder as a string
@@ -54,6 +49,15 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
         .default("1")
 
     override fun run() {
+
+        val dbPath = if (dbPath.isBlank()) {
+            System.getProperty("user.dir")
+        } else {
+            dbPath
+        }
+        // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
+        val validDB = verifyURI(dbPath,"hvcf_dataset")
+
         loadVcfFiles(vcfDir,dbPath,threads)
     }
 
@@ -73,66 +77,60 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
 
         // verify the URI is correct,
         if (fileLists.first.isNotEmpty()) {
-            val gvcfExists = verifyURI(dbPath,"gvcf_dataset")
-            if (gvcfExists){
-                // look for duplicate sample names
-                // Get samples from tiledb
-                val uri = dbPath + "/gvcf_dataset"
-                val tiledbSampleList = getTileDBSampleLists(uri)
-                // verify the samples in the vcf files are not already in the tiledb dataset
-                val vcfSampleList = getVcfSampleLists(fileLists.first)
-                // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
-                val overlap = tiledbSampleList.intersect(vcfSampleList.keys)
-                // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
-                if (overlap.isNotEmpty()) {
-                    myLogger.warn("The following samples are already in the gvcf tiledb dataset: ${overlap.joinToString(",")}")
-                    myLogger.warn("Please remove the vcf files containing these samples and try again.")
-                }
-                // Load the gvcf files!
-                myLogger.info("No overlap between tiledb and vcf files.  Loading gvcf files.")
-                val datasetURI = "${dbPath}/gvcf_dataset"
-                loadVCFToTiledb(fileLists.first, dbPath,"gvcf_dataset", threads)
+            // look for duplicate sample names - tiledb uri was verified at start of run()
+            // Get samples from tiledb
+            val uri = dbPath + "/gvcf_dataset"
+            val tiledbSampleList = getTileDBSampleLists(uri)
+            // verify the samples in the vcf files are not already in the tiledb dataset
+            val vcfSampleList = getVcfSampleLists(fileLists.first)
+            // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
+            val overlap = tiledbSampleList.intersect(vcfSampleList.keys)
+            // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
+            if (overlap.isNotEmpty()) {
+                myLogger.warn("The following samples are already in the gvcf tiledb dataset: ${overlap.joinToString(",")}")
+                myLogger.warn("Please remove the vcf files containing these samples and try again.")
             }
+            // Load the gvcf files!
+            myLogger.info("No overlap between tiledb and vcf files.  Loading gvcf files.")
+            val datasetURI = "${dbPath}/gvcf_dataset"
+            loadVCFToTiledb(fileLists.first, dbPath,"gvcf_dataset", threads)
         }
         if (fileLists.second.isNotEmpty()) {
-            val hvcfExists = verifyURI(dbPath, "hvcf_dataset")
-            if (hvcfExists) {
-                // look for duplicate sample names
-                // Get samples from tiledb
-                val uri = dbPath + "/hvcf_dataset"
-                val tiledbSampleList = getTileDBSampleLists(uri)
-                // verify the samples in the vcf files are not already in the tiledb dataset
-                val vcfSampleList = getVcfSampleLists(fileLists.second)
-                // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
-                val overlap = tiledbSampleList.intersect(vcfSampleList.keys)
-                // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
-                if (overlap.isNotEmpty()) {
-                    // tiledb dataset was created with the -n/--no-duplicates option.  It will not load
-                    // duplicate positions, but will quietly skip them.
-                    // Warning message is printed here to alert the user of the duplicate sample names.
-                    myLogger.warn(
-                        "The following samples are already in the tiledb hvcf dataset: ${
-                            overlap.joinToString(
-                                ","
-                            )
-                        }"
-                    )
-                    myLogger.warn("Tiledb will not load duplicate positions for these samples.")
-                }
-                // Load the hvcf files!
-                loadVCFToTiledb(fileLists.second, dbPath, "hvcf_dataset", threads)
+            // look for duplicate sample names - tiledb uri was verified at start of run()
+            // Get samples from tiledb
+            val uri = dbPath + "/hvcf_dataset"
+            val tiledbSampleList = getTileDBSampleLists(uri)
+            // verify the samples in the vcf files are not already in the tiledb dataset
+            val vcfSampleList = getVcfSampleLists(fileLists.second)
+            // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
+            val overlap = tiledbSampleList.intersect(vcfSampleList.keys)
+            // verify there are no overlaps between the tiledbSampleList and the vcfSampleList
+            if (overlap.isNotEmpty()) {
+                // tiledb dataset was created with the -n/--no-duplicates option.  It will not load
+                // duplicate positions, but will quietly skip them.
+                // Warning message is printed here to alert the user of the duplicate sample names.
+                myLogger.warn(
+                    "The following samples are already in the tiledb hvcf dataset: ${
+                        overlap.joinToString(
+                            ","
+                        )
+                    }"
+                )
+                myLogger.warn("Tiledb will not load duplicate positions for these samples.")
+            }
+            // Load the hvcf files!
+            loadVCFToTiledb(fileLists.second, dbPath, "hvcf_dataset", threads)
 
-                // Copy the hvcf files to the hvcf_files folder, omitting any that are duplicates
-                // of those already loaded
-                val tiledbHvcfDir = "${dbPath}/hvcf_files"
-                Files.createDirectories(Paths.get(tiledbHvcfDir)) // skips folders that already exist
-                for (sample in vcfSampleList.keys) {
-                    val sourceFile = vcfSampleList[sample]
-                    val destFile = "${tiledbHvcfDir}/${sourceFile?.split("/")?.last()}"
-                    if (!File(destFile).exists()) {
-                        myLogger.info("Copying ${sourceFile} to ${destFile}")
-                        File(sourceFile).copyTo(File(destFile))
-                    }
+            // Copy the hvcf files to the hvcf_files folder, omitting any that are duplicates
+            // of those already loaded
+            val tiledbHvcfDir = "${dbPath}/hvcf_files"
+            Files.createDirectories(Paths.get(tiledbHvcfDir)) // skips folders that already exist
+            for (sample in vcfSampleList.keys) {
+                val sourceFile = vcfSampleList[sample]
+                val destFile = "${tiledbHvcfDir}/${sourceFile?.split("/")?.last()}"
+                if (!File(destFile).exists()) {
+                    myLogger.info("Copying ${sourceFile} to ${destFile}")
+                    File(sourceFile).copyTo(File(destFile))
                 }
             }
         }

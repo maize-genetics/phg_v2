@@ -406,7 +406,7 @@ fun verifyURI(dbPath:String,uri:String): Boolean {
         myLogger.info("Using  TileDB datasets created in folder $dbPath.")
         return true
     } else {
-        myLogger.info("TileDB datasets not found in folder $dbPath. Please run InitDB to create the datasets.")
+        myLogger.info("TileDB datasets not found in folder $dbPath. Either send a valid dbPath folder variable, or run InitDB to create the datasets in the specified folder.")
         throw IllegalArgumentException("TileDB datasets not found in folder $dbPath. Please run InitDB to create the datasets.")
     }
 }

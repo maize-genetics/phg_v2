@@ -7,10 +7,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
-import net.maizegenetics.phgv2.utils.AltHeaderMetaData
-import net.maizegenetics.phgv2.utils.Position
-import net.maizegenetics.phgv2.utils.parseALTHeader
-import net.maizegenetics.phgv2.utils.retrieveAgcContigs
+import net.maizegenetics.phgv2.utils.*
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
@@ -40,13 +37,8 @@ data class HaplotypeSequence(val id: String, val sequence: String, val refRangeI
  */
 class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.vcf file or TileDB directly") {
 
-    val dbPath by option(help = "Tile DB URI")
+    val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--db-path must not be blank"
-            }
-        }
 
     val output by option("-o", "--output", help = "Name for output Fasta file")
         .default("")
@@ -244,6 +236,17 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
     }
 
     override fun run() {
+        // Check the dbPath and set it to the current working directory if it is not provided
+        val dbPath = if (dbPath.isBlank()) {
+            System.getProperty("user.dir")
+        } else {
+            dbPath
+        }
+
+        // Verify the tiledbURI
+        // If it doesn't an exception will be thrown
+        val validDB = verifyURI(dbPath,"hvcf_dataset")
+
         buildFastaFromHVCF(dbPath, output, fastaType, hvcfDir, hvcfFile)
     }
 }

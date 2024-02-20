@@ -17,7 +17,8 @@ class AgcCompressTest {
         @JvmStatic
         @BeforeAll
         fun setup() {
-            File(TestExtension.tempDir).mkdirs()
+            File(TestExtension.testTileDBURI).mkdirs()
+            Initdb().createDataSets(TestExtension.testTileDBURI)
         }
 
         @JvmStatic
@@ -38,12 +39,6 @@ class AgcCompressTest {
                 "\n" +
                 "Error: invalid value for --fasta-list: --fasta-list must not be blank\n",resultMissingFastaList.output)
 
-        // Test missing db-path parameter
-        val resultMissingDB = agcCompress.test("--fasta-list ${TestExtension.testInputFastaDir} --reference-file ${refFasta}")
-        assertEquals(resultMissingDB.statusCode, 1)
-        assertEquals("Usage: agc-compress [<options>]\n" +
-                "\n" +
-                "Error: invalid value for --db-path: --db-path must not be blank\n",resultMissingDB.output)
 
         // Test missing refFasta parameter
         val resultRefFasta = agcCompress.test("--fasta-list ${TestExtension.testInputFastaDir} --db-path ${TestExtension.testTileDBURI}")

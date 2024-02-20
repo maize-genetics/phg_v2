@@ -57,7 +57,7 @@ In this document, we will discuss the steps needed to:
         --bed /path/to/bed_file.bed \
         --reference-file /my/ref.fasta \
         --reference-name B73 \
-        -db-path /path/to/dbs
+        --db-path /path/to/dbs
   
     # MAF alignments VCF
     phg create-maf-vcf \
@@ -164,6 +164,11 @@ using the following conda command:
 conda activate phgv2-conda
 ```
 
+>[!NOTE]
+>It is imperative the conda environment you create is named phgv2-conda.
+> This is the default environment name that PHGv2 uses when executing shell commands
+> from within the software.
+
 If we look in our example project directory, you will also see two
 new logging (`.log`) files which will record all the logging and
 error output from the PHGv2 command steps:
@@ -171,6 +176,15 @@ error output from the PHGv2 command steps:
 * `condaCreate_error.log`
 * `condaCreate_output.log`
 
+### Running phg commands
+
+>NOTE!
+
+>The db-path parameter shows up in many of the PHGv2 commands.  It is the path to the directory where the TiileDB datasets are stored.
+>This parameter is an optional parameter for all commands in which it appears.  If a folder is not
+>specified for the db-path, the software will use the current working directory.  When tiledb datasets are required for processing,
+>the db-path parameter value will be verified to ensure the required datasets are present.  If they are not
+>present in the db-path folder (or in the current working directory) the software with throw an exception.
 
 ### Initialize TileDB instances
 In PHGv2, we leverage [TileDB](https://tiledb.com/) and 
@@ -195,6 +209,7 @@ This command takes one required parameter, `--db-path` which is the path or
 subdirectory to where we want to place our databases. In this
 example project, I will initialize the hVCF and gVCF database 
 folders in a subdirectory called `vcf_dbs`. 
+
 
 Two optional parameters, `--gvcf-anchor-gap` and `--hvcf-anchor-gap` may also 
 be set. These parameters define the distance between anchors in the two 

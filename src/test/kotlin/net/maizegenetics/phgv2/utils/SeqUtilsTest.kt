@@ -4,6 +4,7 @@ import biokotlin.genome.fastaToNucSeq
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.cli.AgcCompress
 import net.maizegenetics.phgv2.cli.CreateMafVcf
+import net.maizegenetics.phgv2.cli.Initdb
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.cli.TestExtension.Companion.testOutputFastaDir
 import org.junit.jupiter.api.AfterAll
@@ -56,6 +57,7 @@ class SeqUtilsTest {
 
             val refFasta = File(fastaOutputDir, "Ref.fa").toString()
 
+            Initdb().createDataSets(TestExtension.testTileDBURI)
             // contain fastas with the sampleName, and once when it does contain the sampleName
             val agcCompress = AgcCompress()
             // Create the initial compressed file
@@ -112,7 +114,7 @@ class SeqUtilsTest {
             range2,
             range3
         )
-        kotlin.test.assertEquals(expectedCommand2.size, command.size)
+        assertEquals(expectedCommand2.size, command.size)
         for (i in 0..expectedCommand2.size - 1) {
             kotlin.test.assertEquals(expectedCommand2[i], command[i])
         }
@@ -128,6 +130,7 @@ class SeqUtilsTest {
         val dbPath = TestExtension.tempDir
         val refFasta = "data/test/smallseq/Ref.fa"
 
+        Initdb().createDataSets(TestExtension.tempDir)
         val agcCompress = AgcCompress()
         // Create the initial compressed file
         val agcCompressResult = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
