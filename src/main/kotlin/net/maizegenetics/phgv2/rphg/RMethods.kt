@@ -68,12 +68,27 @@ class RMethods {
     fun getAltHeadersFromGraph(hapGraph: HaplotypeGraph): RList {
         val altHeaders = hapGraph.altHeaders()
 
-        val positions = altHeaders.map { it.value.regions.first() }
-
-        val contigStart = positions.map { it.first.contig }
-        val contigEnd = positions.map { it.second.contig }
-        val start = positions.map { it.first.position }
-        val end = positions.map { it.second.position }
+        // Return all possible positions for each hash - returns as
+        // a list of `RList` objects (e.g. a list of dataframe-like
+        // objects when evaluated)
+        val positions = altHeaders
+            .map { it.value.regions }
+            .map { posPair ->
+                RList(
+                    colNames = arrayOf(
+                        "contig_start",
+                        "contig_end",
+                        "start",
+                        "end"
+                    ),
+                    matrixData = arrayOf(
+                        posPair.map { it.first.contig }.toTypedArray(),
+                        posPair.map { it.second.contig }.toTypedArray(),
+                        posPair.map { it.first.position }.toTypedArray(),
+                        posPair.map { it.second.position }.toTypedArray()
+                    )
+                )
+            }
 
         return RList(
             colNames = arrayOf(
@@ -82,10 +97,7 @@ class RMethods {
                 "description",
                 "source",
                 "checksum",
-                "contig_start",
-                "contig_end",
-                "start",
-                "end",
+                "positions",
                 "ref_range_hash"
             ),
             matrixData = arrayOf(
@@ -94,10 +106,7 @@ class RMethods {
                 altHeaders.map { it.value.description }.toTypedArray(),
                 altHeaders.map { it.value.source }.toTypedArray(),
                 altHeaders.map { it.value.checksum }.toTypedArray(),
-                contigStart.toTypedArray(),
-                contigEnd.toTypedArray(),
-                start.toTypedArray(),
-                end.toTypedArray(),
+                positions.toTypedArray(),
                 altHeaders.map { it.value.refRange }.toTypedArray()
             )
         )
