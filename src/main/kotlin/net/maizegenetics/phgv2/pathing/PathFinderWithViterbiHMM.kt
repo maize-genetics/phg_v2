@@ -63,6 +63,12 @@ class PathFinderWithViterbiHMM(
             .findMostLikelyParents(readMap, maxParents = maxParents, minCoverage = minCoverage)
         else listOf()
 
+        //Both the haploid and diploid Viterbi methods return the final node of the imputed path
+        // rather than a list of haplotypes. Among other fields the PathNode contains its parent node,
+        // that is the previous node in the path. So the path can be built by adding the each parent to
+        // a List of PathNodes. Because the nodes are added from final to start, the order of the node list is reversed
+        // for each chromosome before adding the chromosome nodes to the final list.
+
         val nodeList: MutableList<PathNode> = mutableListOf()
         graph.contigs.forEach { chr ->
             val finalNode = when {

@@ -50,7 +50,7 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         .required()
         .validate { require(File(it).isDirectory) {"$it is not a valid directory."} }
 
-    val pathType by option(help = "The type of path to find. Must be lower case. Haploid infers a single path through the graph. Diploid infers a pair of paths.")
+    val pathType by option(help = "The type of path to find. Must be lower case 'haploid' or 'diploid' (without quotes). 'haploid' infers a single path through the graph. 'diploid' infers a pair of paths.")
         .choice("haploid", "diploid")
         .required()
 
