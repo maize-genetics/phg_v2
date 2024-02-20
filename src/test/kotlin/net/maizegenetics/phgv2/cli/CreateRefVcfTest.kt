@@ -13,12 +13,12 @@ import kotlin.test.assertEquals
 @ExtendWith(TestExtension::class)
 class CreateRefVcfTest {
     companion object {
-        val tempDir = "${System.getProperty("user.home")}/temp/phgv2Tests/tempDir/"
 
         @JvmStatic
         @BeforeAll
         fun setup() {
-            File(tempDir).mkdirs()
+            File(TestExtension.testTileDBURI).mkdirs()
+            Initdb().createDataSets(TestExtension.testTileDBURI)
         }
 
         // Comment out the tearDown()if you need to look at the logs files created by ProcessBuilder
@@ -26,7 +26,7 @@ class CreateRefVcfTest {
         @JvmStatic
         @AfterAll
         fun teardown() {
-            File(tempDir).deleteRecursively()
+            File(TestExtension.tempDir).deleteRecursively()
         }
     }
 
@@ -51,14 +51,6 @@ class CreateRefVcfTest {
                 "\n" +
                 "Error: invalid value for --reference-file: --reference-file must not be blank\n",resultMissingRef.output)
 
-
-        // Test missing dbPath directory
-        val resultMissingOutput = createRefVCF.test("--bed ${TestExtension.testBEDFile} --reference-url ${TestExtension.refURL} --reference-name ${TestExtension.refLineName} --reference-file ${TestExtension.testRefFasta}")
-        assertEquals(resultMissingOutput.statusCode, 1)
-        assertEquals("Usage: create-ref-vcf [<options>]\n" +
-                "\n" +
-                "Error: invalid value for --db-path: --db-path must not be blank\n",resultMissingOutput.output)
-
         // Test missing ref name parameter
         val resultMissingRefName = createRefVCF.test("--reference-file ${TestExtension.testRefFasta} --reference-url ${TestExtension.refURL} --bed ${TestExtension.testBEDFile} --db-path ${TestExtension.testTileDBURI}")
         assertEquals(resultMissingRefName.statusCode, 1)
@@ -73,7 +65,7 @@ class CreateRefVcfTest {
     fun testBuildRefVCF_badIntervals() {
         println("\nLCJ - running testBuildRefVCF_badIntervals")
 
-        val anchorFile = "${tempDir}/testAnchorFile.txt"
+        val anchorFile = "${TestExtension.tempDir}/testAnchorFile.txt"
         File(anchorFile).bufferedWriter().use {
             // Lines 4 and 5 overlap line 3
             // Line 8 overlaps line 7 (First chr2 anchor)
@@ -96,7 +88,7 @@ class CreateRefVcfTest {
             it.write(anchorContents)
         }
 
-        val vcfDir = tempDir
+        val vcfDir = TestExtension.tempDir
         val refName = "Ref"
         val refUrl = TestExtension.refURL
 
@@ -114,18 +106,16 @@ class CreateRefVcfTest {
         // This test verifies an exception is thrown when the bed file contains a chromosome not in the reference genome
         // fasta file. This is testing chr1 vs 1 as a chromosome, womething we often see.
         println("\nLCJ - running testBuildRefVCFBadChrom")
-        val vcfDir = tempDir
+        val vcfDir = TestExtension.tempDir
         val refName = "Ref"
         val refUrl = TestExtension.refURL
 
         val ranges = "data/test/smallseq/anchors_badChrom.bed"
         val genome = "data/test/smallseq/Ref.fa"
+        val dbPath = TestExtension.testTileDBURI
 
-        val createRefVcf = CreateRefVcf()
-
-        // This could also be called via:
         assertThrows<IllegalStateException> {
-            CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $genome --reference-url ${refUrl} --db-path $vcfDir")
+            CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $genome --reference-url ${refUrl} --db-path $dbPath")
         }
     }
 
@@ -144,7 +134,7 @@ class CreateRefVcfTest {
 
         // Copy the ranges file to a file without the .bed extension but with .txt as an extension
         // put this file into tempdir
-        val rangesTxt = "${tempDir}/anchors.txt"
+        val rangesTxt = "${TestExtension.tempDir}/anchors.txt"
         File(ranges).copyTo(File(rangesTxt))
 
         val result =

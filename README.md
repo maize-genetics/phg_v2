@@ -49,7 +49,7 @@ _Long-form documentation for this section can be found [here](docs/build_and_loa
 ## Setup conda environment
 ./phg setup-environment
 
-## Initialize DBs
+## Initialize TileDB DataSets
 ./phg initdb --db-path /path/to/dbs
 
 ## Preprocessing data
