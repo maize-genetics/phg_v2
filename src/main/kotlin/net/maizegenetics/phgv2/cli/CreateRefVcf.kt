@@ -81,6 +81,7 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
         myLogger.info("begin createRefHvcf,  refGenome=${refGenome}")
 
 
+        val currentSeqHashs = mutableSetOf<String>()
         // Verify the bed file is good.
         // If there are overlaps, throw an error and exit.
         // Overlaps are printed to stdout.
@@ -182,18 +183,21 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
                     )
 
                     fullRefVCList.add(vc) // this is a list of ALL the VC records for all ranges - will become the hvcf file.
-
-                    // Add vcf header lines here, doing somthing like this:
-                    // headerLines.add(VCFAltHeaderLine("<ID=${intervalHash}, Description=\"${nodeDescription(node)}\">", VCFHeaderVersion.VCF4_2))
-                    altHeaderLines.add(
-                        VCFAltHeaderLine(
-                              "<ID=${intervalHash}, Description=\"haplotype data for line: ${refName}\"," +
-                                       "Source=\"${refGenome}\",SampleName=\"${refName}\",Regions=\"${chr}:${anchorStart}-${anchorEnd}\"," +
+                    
+                    // Only had to the alt header lines if the intervalHash is not already in the set
+                    // There are duplicate sequences in the reference file when splitting by gff defined genes
+                    if (!currentSeqHashs.contains(intervalHash)) {
+                        altHeaderLines.add(
+                            VCFAltHeaderLine(
+                                "<ID=${intervalHash}, Description=\"haplotype data for line: ${refName}\"," +
+                                        "Source=\"${refGenome}\",SampleName=\"${refName}\",Regions=\"${chr}:${anchorStart}-${anchorEnd}\"," +
                                         "Checksum=\"Md5\",RefRange=\"${intervalHash}\">",
-                        VCFHeaderVersion.VCF4_2
-                    )
+                                VCFHeaderVersion.VCF4_2
+                            )
+                        )
+                        currentSeqHashs.add(intervalHash)
+                    }
 
-                    )
                     line = br.readLine()
                 } // end while
                 myLogger.info("Total intervals for chrom ${prevChrom} : ${chromAnchors}")
