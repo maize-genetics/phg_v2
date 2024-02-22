@@ -36,49 +36,49 @@ along with the cumulative coverage, which is the proportion of reads mapping to 
 
 ### Required Parameters
 
-path-keyfile: the path to a keyfile that contains a list of the read mapping files. The keyfile must have two columns
+**path-keyfile**: the path to a keyfile that contains a list of the read mapping files. The keyfile must have two columns
 labeled SampleName and ReadMappingFiles. Any additional columns will be ignored. SampleName must be unique.
 Additionally if an output hvcf for a sample name already exists in the output directory, the sample will be skipped.
 If a ReadMappingFiles value is a comma-separated list of file names, the read mappings will be combined.
 The file names must include the full path to the file.
 
-hvcf-dir: The directory containing the hvcf used to build the haplotype graph used for imputation.
+**hvcf-dir**: The directory containing the hvcf used to build the haplotype graph used for imputation.
 
-reference-genome: The name and path to the reference genome fasta or fastq file.
+**reference-genome**: The name and path to the reference genome fasta or fastq file.
 
-output-dir: The output will be one .h.vcf file for each sample in the keyfile. Thes will be written to the
+**output-dir**: The directory where the output hvcfs will be written. One file will be written for each sample, and the output file name will be (sampleName).h.vcf.
 
-path-type: The type of path to be imputed. The value must be either "haploid" or "diploid" (without quotes).
+**path-type**: The type of path to be imputed. The value must be either "haploid" or "diploid" (without quotes).
 
 ### Optional Parameters
 
-prob-correct: The probability that a mapped read was mapped correctly. (Default = 0.99)
+**prob-correct**: The probability that a mapped read was mapped correctly. (Default = 0.99)
 
-prob-same-gamete: The probability of transitioning to the same gamete (sample) in the next reference range.
+**prob-same-gamete**: The probability of transitioning to the same gamete (sample) in the next reference range.
 This should be equal to 1 - (probability of a recombination). Probability of a recombination can be estimated as the
 total number of expected recombinations in a sample divided by the number of reference ranges (Default = 0.99)
 
-min-gametes: The minimum number of gametes with a haplotype in a reference range. Reference ranges with fewer gametes will not be imputed. (Default = 1)
+**min-gametes**: The minimum number of gametes with a haplotype in a reference range. Reference ranges with fewer gametes will not be imputed. (Default = 1)
 
-min-reads: The minimum number of reads per ReferenceRange. Reference ranges with fewer reads will not be imputed.
+**min-reads**: The minimum number of reads per ReferenceRange. Reference ranges with fewer reads will not be imputed.
 If minReads = 0, all ReferenceRanges will be imputed. (Default = 0)
 
-inbreeding-coefficient: The estimated coefficient of inbreeding for the samples being evaluated. Only used for diploid path type. The value must be between 0.0 and 1.0 (Default = 0.0)
+**inbreeding-coefficient**: The estimated coefficient of inbreeding for the samples being evaluated. Only used for diploid path type. The value must be between 0.0 and 1.0 (Default = 0.0)
 
-max-reads-per-kb: ReferenceRanges with more than max-reads-per-kb will not be imputed. (Default = 1000)
+**max-reads-per-kb**: ReferenceRanges with more than max-reads-per-kb will not be imputed. (Default = 1000)
 
-use-likely-ancestors: The value must be "true" or "false" (no parentheses). This indicates whether the most
+**use-likely-ancestors**: The value must be "true" or "false" (no parentheses). This indicates whether the most
 likely ancestors of each sample will be used for path finding. (Default = false)
 
-max-ancestors: If use-likely-ancestors = true, use at most max-ancestors. (Default = Integer.MAX_VALUE)
+**max-ancestors**: If use-likely-ancestors = true, use at most max-ancestors. (Default = Integer.MAX_VALUE)
 
-min-coverage: If use-likely-ancestors = true, use the fewest number of ancestors that together have this proportion
+**min-coverage**: If use-likely-ancestors = true, use the fewest number of ancestors that together have this proportion
 of mappable reads. The values must be between 0.5 and 1.0 (Default = 1.0)
 
-likely-ancestor-file: If useLikelyAncestors is true, a record of the ancestors used for each sample will be written
+**likely-ancestor-file**: If useLikelyAncestors is true, a record of the ancestors used for each sample will be written
 to this file, if a filename is provided. (Default = "")
 
-threads: number of threads used to find paths. (Default = 3)
+**threads**: number of threads used to find paths. (Default = 3)
 
 
 The command
@@ -90,49 +90,25 @@ Usage: find-paths [\<options>]
 
 Impute best path(s) using read mappings.
 
-Options:  
---path-keyfile = (text) tab-delimited file with first two columns:
-SampleName, ReadMappingFiles. ReadMappingFiles
-must be the full path to a read mapping file
-or a comma separated list of file paths. All
-sample names must be unique.  
---hvcf-dir = (text) The directory containing the hvcf files used
-to build a HaplotypeGraph for path finding.  
---reference-genome = (text) path to reference genome (fasta or fastq  
---output-dir=(text)            The directory where the output hvcfs will be
-written. The output file names will be
-(sampleName).h.vcf.  
---path-type= (haploid|diploid)  The type of path to find. Must be lower case
-'haploid' or 'diploid' (without quotes).
-'haploid' infers a single path through the
-graph. 'diploid' infers a pair of paths.  
---prob-correct = (float)         The probability that a mapped read was mapped
-correctly  
---prob-same-gamete = (float)     The probability of transitioning to the same
-gamete (sample) in the next reference range  
---min-gametes = (int)            The minimum number of gametes with a haplotype
-in a reference range. Reference ranges with
-fewer gametes will not be imputed.  
---min-reads = (int)              The minimum number of reads per
-ReferenceRange. Reference ranges with fewer
-reads will not be imputed. If minReads = 0,
-all ReferenceRanges will be imputed.  
---inbreeding-coefficient = (float)
-The estimated coefficient of inbreeding for
-the samples being evaluated. Only used for
-diploid path type.  
---max-reads-per-kb = (int)       ReferenceRanges with more than
-max-reads-per-kb will not be imputed.  
---use-likely-ancestors=true|false
-Use only the most likely ancestors of each
-sample for path finding.  
---max-ancestors = (int)          If use-likely-ancestors = true, use at most
-max-ancestors.  
---min-coverage = (float)         If use-likely-ancestors = true, use the fewest
-number of ancestors that together have this
-proportion of mappable reads.  
---likely-ancestor-file = (text)  If useLikelyAncestors is true, a record of the
-ancestors used for each sample will be written
-to this file.  
---threads = (int)                number of threads used to find paths.  
--h, --help                     Show this message and exit
+Options:
+--path-keyfile=\<text>          tab-delimited file with first two columns: SampleName, ReadMappingFiles. 
+ReadMappingFiles must be the full path to a read mapping file or a comma separated list of file paths. 
+All sample names must be unique. Required parameter.  
+--hvcf-dir=\<text>              The directory containing the hvcf files used to build a HaplotypeGraph for path finding. Required parameter.  
+--reference-genome=\<text>      path to reference genome (fasta or fastq). Required parameter.  
+--output-dir=\<text>            The directory where the output hvcfs will be written. The output file names will be<sampleName>.h.vcf. Required parameter.  
+--path-type=(haploid|diploid)  The type of path to find. Must be lower case 'haploid' or 'diploid' (without quotes). 
+'haploid' infers a single path through the graph. 'diploid' infers a pair of paths. Required parameter.  
+--prob-correct=\<float>         The probability that a mapped read was mapped correctly. Default = 0.99  
+--prob-same-gamete=\<float>     The probability of transitioning to the same gamete (sample) in the next reference range. Default = 0.99  
+--min-gametes=\<int>            The minimum number of gametes with a haplotype in a reference range. Reference ranges with fewer gametes will not be imputed. Default = 1  
+--min-reads=\<int>              The minimum number of reads per ReferenceRange. Reference ranges with fewer reads will not be imputed. 
+If minReads = 0, all ReferenceRanges will be imputed. Default = 0  
+--inbreeding-coefficient=\<float>The estimated coefficient of inbreeding for the samples being evaluated. Only used for diploid path type. Default = 0.0  
+--max-reads-per-kb=\<int>       ReferenceRanges with more than max-reads-per-kb will not be imputed. Default = 1000.  
+--use-likely-ancestors=true|false  Use only the most likely ancestors of each sample for path finding. Default = false  
+--max-ancestors=\<int>          If use-likely-ancestors = true, use at most max-ancestors. Default = Int.MAX_VALUE.  
+--min-coverage=\<float>         If use-likely-ancestors = true, use the fewest number of ancestors that together have this proportion of mappable reads. Default = 1.0  
+--likely-ancestor-file=\<text>  If useLikelyAncestors is true, a record of the ancestors used for each sample will be written to this file. Default = ''  
+--threads=\<int>                number of threads used to find paths. Default = 3.  
+-h, --help                     Show this message and exit  
