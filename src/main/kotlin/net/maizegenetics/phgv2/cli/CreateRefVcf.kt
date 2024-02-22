@@ -184,7 +184,7 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
 
                     fullRefVCList.add(vc) // this is a list of ALL the VC records for all ranges - will become the hvcf file.
                     
-                    // Only had to the alt header lines if the intervalHash is not already in the set
+                    // Only add to the alt header lines if the intervalHash is not already in the set.
                     // There are duplicate sequences in the reference file when splitting by gff defined genes
                     if (!currentSeqHashs.contains(intervalHash)) {
                         altHeaderLines.add(
