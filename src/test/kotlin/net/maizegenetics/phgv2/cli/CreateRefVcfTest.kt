@@ -153,6 +153,88 @@ class CreateRefVcfTest {
     }
 
     @Test
+    fun testBuildRefVCF_dupSequence() {
+
+        val tiledbURI = TestExtension.testTileDBURI
+        val refName = "Ref"
+        val refUrl = TestExtension.refURL
+
+        val ranges = "data/test/smallseq/anchors.bed"
+        val genome = "data/test/alteredFiles/RefDupSeq.fa"
+
+        val result = CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $genome --reference-url ${refUrl} --db-path $tiledbURI")
+        assertEquals(0, result.statusCode )
+
+        // Verify the tiledbUri/reference folder exists and contains the ranges file
+        val referenceDir = "${tiledbURI}/reference/"
+        assertEquals(true, File(referenceDir).exists())
+        assertEquals(true, File("${referenceDir}/anchors.bed").exists())
+
+        val hvcfOutputDir = "${tiledbURI}/hvcf_files/"
+        val outFileCompressed = "${hvcfOutputDir}Ref.h.vcf.gz"
+        val outFileIndexed = "${hvcfOutputDir}Ref.h.vcf.gz.csi"
+        // Verify the outputFiles exist
+        assertEquals(true, File(outFileCompressed).exists())
+        assertEquals(true, File(outFileIndexed).exists())
+
+        // verify the ALT headers lines in the file
+        // This is the reference HVCF, so each vcf data line is a single haplotype,
+        // and these haplotypes match 1-1 with the entries in the bed file.
+        // IE, there is a single hvcf entry for each bed entry.
+
+        // ALT lines, on the other hand, should only appear once for each unique ALT allele
+        // Because the chr1 and chr2 sequence in this test file are identical, and the bed
+        // file splits the chromosomes at the same places in both, there will only be 1 set
+        // of ALT lines.
+
+
+
+        // Verify the number of hvcf "##ALT" lines match the number of bed file lines
+        val numberOfLinesInBed = bufferedReader(ranges).readLines().size
+        val numberOfAltLinesInHvcf = bufferedReader(outFileCompressed).readLines().filter { it.startsWith("##ALT") }.size
+        assertEquals(numberOfLinesInBed/2, numberOfAltLinesInHvcf)
+
+        // Verify the number of hvcf "data" lines match the number of bed file lines
+        val numberOfDataLinesInHvcf = bufferedReader(outFileCompressed).readLines().filter { !it.startsWith("#") }.size
+        assertEquals(numberOfLinesInBed, numberOfDataLinesInHvcf)
+
+        // Verify the reference header was added
+        val numberOfReferenceLines = bufferedReader(outFileCompressed).readLines().filter { it.startsWith("##reference") }.size
+        assertEquals(1, numberOfReferenceLines)
+
+        // Verify the RefAllele for the first haplotype for each chromosome is correct
+        val genomeLines = bufferedReader(genome).readLines()
+        // Verify the chromosome names match the first column of the bed file, minus comments
+        // The comments here are "sampleName=..."
+        val firstChrom = genomeLines.filter { it.startsWith(">") }[0].removePrefix(">").substringBefore(" ")
+        val secondChrom = genomeLines.filter { it.startsWith(">") }[1].removePrefix(">").substringBefore(" ")
+
+        // get the vcf data lines
+        val vcfDataLines = bufferedReader(outFileCompressed).readLines().filter { !it.startsWith("#") }
+
+        // verify the first dataline is the first chrom
+        assertEquals(firstChrom,vcfDataLines[0].split("\t")[0])
+
+        // verify the 21th dataline is the second chrom
+        assertEquals(secondChrom,vcfDataLines[20].split("\t")[0])
+
+        // verify there are 20 data lines for the first chrom (10 genes, 10 intergenic regions)
+        assertEquals(20,vcfDataLines.filter { it.split("\t")[0] == firstChrom }.size)
+
+        //verify there are 20 data lines for the second chrom(10 genes, 10 intergenic regions)
+        assertEquals(20,vcfDataLines.filter { it.split("\t")[0] == secondChrom }.size)
+
+        // verify the ref allele for the first data line matches the first allele in the reference fasta, e.g. the genomeLines files
+        assertEquals(genomeLines[1].get(0).toString(),vcfDataLines[0].split("\t")[3])
+
+        // Remove the files in the reference folder
+        // This is a problem for subsequent tests when all tests in this file are run at once.
+        // Sometimes this test is run before testBedFileWithoutBedExtension(), which causes
+        // an error becuase the Ref.fa file already exists when we try to write it.
+        File("${referenceDir}/anchors.bed").delete()
+        File("${referenceDir}/Ref.fa").delete()
+    }
+    @Test
     fun testBuildRefVCF() {
         println("\nLCJ - running testBuildRefVCF")
         val tiledbURI = TestExtension.testTileDBURI
