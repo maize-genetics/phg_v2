@@ -57,7 +57,7 @@ In this document, we will discuss the steps needed to:
         --bed /path/to/bed_file.bed \
         --reference-file /my/ref.fasta \
         --reference-name B73 \
-        -db-path /path/to/dbs
+        --db-path /path/to/dbs
   
     # MAF alignments VCF
     phg create-maf-vcf \
@@ -164,6 +164,11 @@ using the following conda command:
 conda activate phgv2-conda
 ```
 
+>[!NOTE]
+>It is imperative the conda environment you create is named phgv2-conda.
+> This is the default environment name that PHGv2 uses when executing shell commands
+> from within the software.
+
 If we look in our example project directory, you will also see two
 new logging (`.log`) files which will record all the logging and
 error output from the PHGv2 command steps:
@@ -171,13 +176,23 @@ error output from the PHGv2 command steps:
 * `condaCreate_error.log`
 * `condaCreate_output.log`
 
+### Running phg commands
+
+>NOTE!
+
+>The db-path parameter shows up in many of the PHGv2 commands.  It is the path to the directory where the TiileDB datasets are stored.
+>This parameter is an optional parameter for all commands in which it appears.  If a folder is not
+>specified for the db-path, the software will use the current working directory.  When tiledb datasets are required for processing,
+>the db-path parameter value will be verified to ensure the required datasets are present.  If they are not
+>present in the db-path folder (or in the current working directory) the software with throw an exception.
 
 ### Initialize TileDB instances
 In PHGv2, we leverage [TileDB](https://tiledb.com/) and 
 [TileDB-VCF](https://docs.tiledb.com/main/integrations-and-extensions/genomics/population-genomics) 
 for efficient storage and querying of VCF data. For downstream 
-pipelines, we will need to set up 2 databases for storing different
-VCF information: (1) haplotype and (2) genomic variant information.
+pipelines, we will need to initialize 2 databases for storing different
+VCF information: (1) haplotype (hVCF) and (2) genomic variant (gVCF) 
+information.
 
 Similar to setting
 up our Conda environment from the prior section, we can automate this
@@ -192,8 +207,9 @@ process using the `initdb` command:
 
 This command takes one required parameter, `--db-path` which is the path or
 subdirectory to where we want to place our databases. In this
-example project, I will set up the databases in a subdirectory called
-`vcf_dbs`.
+example project, I will initialize the hVCF and gVCF database 
+folders in a subdirectory called `vcf_dbs`. 
+
 
 Two optional parameters, `--gvcf-anchor-gap` and `--hvcf-anchor-gap` may also 
 be set. These parameters define the distance between anchors in the two 
@@ -208,9 +224,22 @@ instances and a `temp` directory in our `vcf_dbs` subdirectory:
 
 | Directory      | Purpose                                 |
 |----------------|-----------------------------------------|
-| `gvcf_dataset` | Genomic variant storage                 |
-| `hvcf_dataset` | Haplotype variant storage               |
+| `gvcf_dataset` | Genomic variant database storage        |
+| `hvcf_dataset` | Haplotype variant database storage      |
 | `temp`         | Creation output and error logging files |
+
+
+For reference, my example working directory now looks like this:
+
+```shell
+phg_v2_example/
+├── data
+├── output
+└── vcf_dbs
+    ├── gvcf_dataset # gVCF db storage
+    ├── hvcf_dataset # hVCF db storage
+    └── temp
+```
 
 ### Create reference ranges
 Next, we must define ordered sequences of genic and inter-genic 
@@ -626,8 +655,13 @@ This command takes 3 parameters:
 > TileDB instances.
 
 > [!NOTE]
-> FASTA files can be either uncompressed or compressed. If
-> compressed, the extension should be `*.gz`.
+> FASTA files can be either uncompressed or compressed, though the reference fasta
+> should be uncompressed. 
+
+> [!NOTE]
+> If compressed, ".gz" should be the only extension.
+> For example: your file should be `LineA.gz` and not `LineA.fa.gz`. This is due to AGC taking 
+> everything before the last period as the sample name.  We do not want ".fa" included as part of the sample name.
 
 Once finished, this command will produce FASTA files with the name
 of the sample from the keyfile appended to each header line. For

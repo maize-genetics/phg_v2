@@ -45,6 +45,10 @@ object StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
     override fun run() {
 
         setupDebugLogging()
+        // Do not default dbPath to the current working folder.  User may have previously started
+        // the server, which will set the TILEDB_URI in the application.conf file.
+        // We want to use that if no dbPath is specified.
+        // If one is specified, it may be that the user wants to start the server with a different tiledb folder of datasets.
         var tiledbPath = dbPath
 
         val appHome = getClassPath()

@@ -81,18 +81,6 @@ class ExportVcfTest {
     @Test
     fun testCliktParams() {
 
-        // Test missing db-path parameter
-        val resultMissingDbpath = ExportVcf().test(
-            "--sample-names Ref -o $outputHvcfDir"
-        )
-        assertEquals(resultMissingDbpath.statusCode, 1)
-        assertEquals(
-            "Usage: export-vcf [<options>]\n" +
-                    "\n" +
-                    "Error: missing option --db-path\n",
-            resultMissingDbpath.output
-        )
-
         // Test missing sample-names parameter
         val resultMissingSampleNames = ExportVcf().test(
             "--db-path $dbPath -o $outputHvcfDir"

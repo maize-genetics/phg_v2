@@ -57,13 +57,8 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
             }
         }
 
-    val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored")
+    val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--db-path must not be blank"
-            }
-        }
 
     /**
      * Function to create the ASM hVCF and gVCF.
@@ -620,6 +615,16 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
     }
 
     override fun run() {
+        val dbPath = if (dbPath.isBlank()) {
+            System.getProperty("user.dir")
+        } else {
+            dbPath
+        }
+
+        // Verify the tiledbURI
+        // If it doesn't an exception will be thrown
+        val validDB = verifyURI(dbPath,"hvcf_dataset")
+
         createASMHvcfs(dbPath, bed, referenceFile, mafDir, outputDir)
     }
 
