@@ -33,7 +33,7 @@ import java.io.File
  */
 class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")  {
 
-    val pathKeyfile by option(help = "tab-delimited file with first two columns: SampleName, ReadMappingFiles. ReadMappingFiles " +
+    val pathKeyfile by option(help = "tab-delimited file with first two columns: sampleName, readMappingFiles. readMappingFiles " +
             "must be the full path to a read mapping file or a comma separated list of file paths. All sample names must be unique. Required parameter.")
         .required()
         .validate { require(File(it).exists()) {"$it is not a valid file"} }
@@ -129,10 +129,10 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
             .filter { it.size > 1 }
         val headerList = keyFileLines[0]
 
-        val sampleNameIsFirstColumn = headerList[0].equals("SampleName", true)
-        val readMappingIsSecondColumn =  headerList[1].equals("ReadMappingFiles", true)
+        val sampleNameIsFirstColumn = headerList[0].equals("sampleName", true)
+        val readMappingIsSecondColumn =  headerList[1].equals("readMappingFiles", true)
         require(sampleNameIsFirstColumn && readMappingIsSecondColumn) {"The first column heading of the keyfile " +
-                "must be SampleName and the second column heading must be ReadMappingFiles."}
+                "must be sampleName and the second column heading must be readMappingFiles."}
 
         //check for duplicate sample names (not allowed)
         val sampleNameSet = keyFileLines.drop(1).map { it[0] }.toSet()
@@ -272,6 +272,9 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
             val hapids = node.sampleGametes.map { myPath.graph.sampleToHapId(node.refRange, it) }
 
             variantContextList.add(createDiploidHVCFRecord(myPath.name, startPos, endPos, hapids, refAllele))
+
+            //add alt headers for the unique hapids
+            hapids.filterNotNull().distinct().mapNotNull { myPath.graph.altHeader(it) }.forEach { altHeadersSample.add(it) }
         }
 
         //exportVariantContext()
