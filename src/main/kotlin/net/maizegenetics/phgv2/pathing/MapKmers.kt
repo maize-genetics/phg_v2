@@ -91,7 +91,7 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
         myLogger.info("Begin mapping reads to the pangenome kmer index.")
         //loop through all files in hvcfDir and create a list of hvcf files
         val hvcfFiles = File(hvcfDir).walkTopDown().filter { it.isFile }
-            .filter { it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz") }.map { "${it.path}/${it.name}" }
+            .filter { it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz") }.map { "${hvcfDir}/${it.name}" }
             .toList()
 
         //create a HaplotypeGraph from the list of hvcf files
