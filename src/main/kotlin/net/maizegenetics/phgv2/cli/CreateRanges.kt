@@ -2,7 +2,6 @@ package net.maizegenetics.phgv2.cli
 
 import biokotlin.featureTree.Feature
 import biokotlin.featureTree.Genome
-import biokotlin.featureTree.Strand
 import biokotlin.seq.NucSeq
 import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.core.CliktCommand
@@ -28,7 +27,15 @@ data class BedRecord(val contig: String, val start : Int, val end: Int, val name
 /**
  * A [CliktCommand] class for generating reference ranges
  *
- * Reference ranges are parsed from an input GFF file and converted to a BED file
+ * Reference ranges are parsed from an input GFF file and converted to a BED file.
+ * Required parameters are the gff file and the reference file.  The reference file is used to fill in intergenic regions.
+ * Overlapping genes/CDS regions are merged, embedded regions dropped.
+ *
+ * Optional parameters include the boundary type (gene or cds), the number of base pairs to flank the regions, and the output file name.
+ * Additionally, users may specify a minimun range size.  Any regions falling shorter than the minimum size will be joined
+ * with the previous region.  If the user specifies the `makeOnlyGenic` flag, the output will only include genic and CDS regions
+ * and minimum range size will be ignored.
+ *
  */
 class CreateRanges: CliktCommand(help="Create a BED file of reference ranges from a GFF file") {
     val gff by option(help = "GFF file")
@@ -38,7 +45,7 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
                 "--gff must not be blank"
             }
         }
-    val boundary by option(help = "Reference range boundaries")
+    val boundary by option(help = "Reference range boundaries: either gene or cds")
         .choice("gene", "cds")
         .default("gene")
     val pad by option(help = "Number of base pairs to flank regions")
@@ -57,6 +64,9 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
             }
         }
 
+    val rangeMinSize by option(help = "Minimum size of a range to be included in the output BED file")
+        .int()
+        .default(0)
 
     /**
      * Identifies minimum and maximum positions for a list of genes
@@ -115,6 +125,49 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
             addRange(geneRange,boundRange,bound.third)
         }
         return geneRange
+    }
+
+    fun mergeShortRanges(bedRecords: List<BedRecord>) : List<BedRecord> {
+        val bedRecordsMerged = mutableListOf<BedRecord>()
+
+        //make an initial BED record for the first region
+        val firstRecord = bedRecords[0]
+        bedRecordsMerged.add(firstRecord)
+
+        //loop through the rest of the records and fill in the intergenic regions
+        for(idx in 1 until bedRecords.size) {
+            val currentRecord = bedRecords[idx]
+            val previousRecord = bedRecords[idx-1]
+            if(currentRecord.contig != previousRecord.contig) {
+                //add in new beginning of next chrom
+                bedRecordsMerged.add(currentRecord)
+            }
+            else {
+                // check size of current record.  If it is less than rangeMinSize, merge it with the previous record
+                // by changing the end of the previous record to the end of the current record
+                // Drop the previous record from the list, and add the merged record to the list
+                if(currentRecord.end - currentRecord.start < rangeMinSize) {
+                    // The "name" field should be the previous record's name field with the current record's name field appended
+                    val nameToAdd = "${previousRecord.name},${currentRecord.name}"
+                    val mergedRecord = BedRecord(
+                        currentRecord.contig,
+                        previousRecord.start,
+                        currentRecord.end,
+                        nameToAdd,
+                        0,
+                        "+"
+                    )
+                    // Drop the previous record from the list
+                    bedRecordsMerged.removeAt(bedRecordsMerged.size-1)
+                    bedRecordsMerged.add(mergedRecord)
+                } else {
+                    // add the current record unchanged to the list
+                    bedRecordsMerged.add(currentRecord)
+                }
+            }
+        }
+
+        return bedRecordsMerged
     }
 
 
@@ -223,7 +276,10 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
 
         val filledInBedRecords = if(makeOnlyGenic) bedRecords else fillIntergenicRegions(bedRecords, refSeq)
 
-        val bedLinesToPrint = convertBedRecordsIntoOutputStrings(filledInBedRecords)
+        // Merge ranges that are not rangeMinSize in length
+        val bedRecordsMerged = if (!makeOnlyGenic && rangeMinSize > 0) mergeShortRanges(filledInBedRecords) else filledInBedRecords
+
+        val bedLinesToPrint = convertBedRecordsIntoOutputStrings(bedRecordsMerged)
 
         if(output!= null) {
             File(output).bufferedWriter().use { output ->
