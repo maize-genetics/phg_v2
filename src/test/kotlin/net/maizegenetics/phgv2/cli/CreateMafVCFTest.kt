@@ -26,6 +26,14 @@ class CreateMafVCFTest {
     }
 
     @Test
+    fun testChangeGlobalValues() {
+        val createMafVcf = CreateMafVcf()
+        createMafVcf.changeGlobalValues()
+        println("\nGlobal values changed, are now:")
+        println("bpsDropped: ${createMafVcf.bpsDropped},rangesDropped: ${createMafVcf.rangesDropped}\n")
+    }
+
+    @Test
     fun testCliktParams() {
         val createMAFVCF = CreateMafVcf()
 

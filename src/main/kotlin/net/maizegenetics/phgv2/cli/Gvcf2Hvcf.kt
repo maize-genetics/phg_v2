@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.types.int
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeaderLine
@@ -53,6 +54,16 @@ class Gvcf2Hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
 
+    // Default to using minHaplotypeSize over minHaplotypePercent.  If minHaplotypeSize is not set, then use minHaplotypePercent
+    // Our default minHapltoypePercent will be 5, but can be reset for testing.
+    val minHaplotypeSize by option(help= "Minimum size of haplotype to be included in hvcf")
+        .int()
+        .default(-1)
+
+    val minHaplotypePercent by option(help= "Minimum percent of haplotype to be included in hvcf")
+        .int()
+        .default(0)
+
     override fun run() {
         // Check the dbPath and set it to the current working directory if it is not provided
         val dbPath = if (dbPath.isBlank()) {
@@ -72,6 +83,11 @@ class Gvcf2Hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         myLogger.info("CreateASMHvcfs: calling buildRefGenomeSeq")
         val refGenomeSequence = CreateMafVcf().buildRefGenomeSeq(referenceFileName)
 
+        // create values for minHapSize and minHapPercent
+        val minHapSize = 31
+        val minHapPercent = 5
+        // create an instance of CreateMafVcf() providing the minHapSize and minHapPercent
+        //val createMafVcf = CreateMafVcf(minHaplotypeSize=minHapSize, minHapPercent=minHapPercent)
         // walk the gvcf directory process files with g.vcf.gz extension
         File(gvcfDirName).walk().filter { !it.isHidden && !it.isDirectory }
             .filter { it.name.endsWith("g.vcf.gz")  || it.name.endsWith("g.vcf")  }.toList()
@@ -79,13 +95,19 @@ class Gvcf2Hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
                 myLogger.info("CreateASMHvcfs: processing gvcf file: ${it.name}")
                 // Create list of VariantContext from the gvcf file
                 val vcfSampleAndVCs = createVCList(it)
-                val asmHeaderLines = mutableMapOf<String, VCFHeaderLine>()
+                val asmHeaderLines = mutableMapOf<String, MutableList<VCFHeaderLine>>()
                 val sampleName = vcfSampleAndVCs.first
                 val variants = vcfSampleAndVCs.second
                 //convert the GVCF records into hvcf records
                 myLogger.info("createASMHvcfs: calling convertGVCFToHVCF for $sampleName")
-                val hvcfVariants = CreateMafVcf().convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines)
-                val asmHeaderSet = asmHeaderLines.values.toSet()
+                val createMafVcf = CreateMafVcf() // get an instance so I can access the global variables for printing
+
+                val hvcfVariants = createMafVcf.convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence,
+                    dbPath, asmHeaderLines, minHaplotypeSize, minHaplotypePercent)
+                // take the first entry in each asmHeader value list and create a set of VCFHeaderLines
+                val asmHeaderSet = asmHeaderLines.values.map { it.first() }.toSet()
+
+                //val asmHeaderSet = asmHeaderLines.values.toSet()
                 //export the hvcfRecords
                 myLogger.info("createASMHvcfs: calling exportVariantContext for $sampleName")
                 var newFileName = it.name.replace(".g.vcf.gz", "")
