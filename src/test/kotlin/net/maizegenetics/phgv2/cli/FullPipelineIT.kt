@@ -3,11 +3,15 @@ package net.maizegenetics.phgv2.cli
 import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.cli.TestExtension.Companion.asmList
+import net.maizegenetics.phgv2.pathing.BuildKmerIndex
+import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.getChecksumForString
+import net.maizegenetics.phgv2.utils.retrieveAgcGenomes
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -140,6 +144,19 @@ class FullPipelineIT {
             assertTrue(asmDiff < 0.00001, "${asmName} Fasta is not the same as input")
         }
 
+        //build a kmer index
+        val buildKmerIndexArgs = "--agc-path ${TestExtension.testTileDBURI} --hvcf-dir ${TestExtension.testVCFDir}"
+        val indexResult = BuildKmerIndex().test(buildKmerIndexArgs)
+        assertEquals(0, indexResult.statusCode, "Kmer Indexing failed")
+        println(indexResult.output)
+
+        //create some reads with fairly high coverage to make sure mapping results are consistent so that they can be tested.
+
+        //map reads
+
+        //impute paths
+
+        //check paths
 
     }
 
@@ -175,6 +192,61 @@ class FullPipelineIT {
         }
 
         return diffCount.toDouble()/length.toDouble()
+    }
+
+    private fun createHaploidReadsLineA(): List<String> {
+        val coverage = 0.2
+        val readLength = 100
+
+        //create reads from lineA
+        val readList = mutableListOf<String>()
+        val seqMap = retrieveAgcGenomes(TestExtension.testTileDBURI, listOf("LineA"))
+        seqMap.entries.forEach { (nameChr, seq) ->
+            val chrlen = seq.size()
+            val numberOfReads = (coverage * chrlen).toInt()
+            repeat(numberOfReads) {
+                val start = Random.nextInt(chrlen)
+                val end = start + readLength
+                readList.add(seq[start, end].seq())
+            }
+        }
+        return readList
+    }
+
+    private fun createHaploidReads(): List<String> {
+        val coverage = 0.2
+        val readLength = 100
+        val split = 27500
+
+        //create reads from lineA for chr1:1 - split, lineB chr1: split - end; lineA: 1-split, Ref: split - end
+        val readList = mutableListOf<String>()
+
+        return readList
+    }
+
+    private fun createDiploidReads(): List<String> {
+        val split = 27500
+
+        //create reads from lineA for chr1:1 - split, lineA + lineB chr1: split - end; lineA: 1-split, lineA + Ref: split - end
+        val readList = mutableListOf<String>()
+
+        return readList
+
+    }
+
+    private fun writeFastq(filename: String, reads: List<String>) {
+        getBufferedWriter(filename).use { myWriter ->
+            var readCount = 1
+            for (read in reads) {
+                myWriter.write("@read$readCount\n")
+                myWriter.write(read)
+                myWriter.write("\n")
+                myWriter.write("+\n")
+                myWriter.write("x".repeat(read.length))
+                myWriter.write("\n")
+                readCount++
+            }
+        }
     }
 
 }
