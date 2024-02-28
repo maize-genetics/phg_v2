@@ -4,6 +4,8 @@ import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.cli.TestExtension.Companion.asmList
 import net.maizegenetics.phgv2.pathing.BuildKmerIndex
+import net.maizegenetics.phgv2.pathing.FindPaths
+import net.maizegenetics.phgv2.pathing.MapKmers
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.getChecksumForString
 import net.maizegenetics.phgv2.utils.retrieveAgcGenomes
@@ -48,7 +50,7 @@ class FullPipelineIT {
             File(TestExtension.testOutputFastaDir).deleteRecursively()
             File(TestExtension.testOutputGVCFDIr).deleteRecursively()
             File(TestExtension.testTileDBURI).deleteRecursively()
-
+//            File(TestExtension.testOutputDir).deleteRecursively()
 
 
             File(TestExtension.tempDir).mkdirs()
@@ -59,6 +61,7 @@ class FullPipelineIT {
             File(TestExtension.testOutputFastaDir).mkdirs()
             File(TestExtension.testOutputGVCFDIr).mkdirs()
             File(TestExtension.testTileDBURI).mkdirs()
+            File(TestExtension.testOutputDir).mkdirs()
         }
     }
     @Test
@@ -129,7 +132,6 @@ class FullPipelineIT {
 
 
         //build a composite genome from the HVCFs
-
         createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDIr}/Ref.vcf -o ${TestExtension.testOutputFastaDir}/Ref_composite.fa")
         createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDIr}/LineA.vcf -o ${TestExtension.testOutputFastaDir}/LineA_composite.fa")
         createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDIr}/LineB.vcf -o ${TestExtension.testOutputFastaDir}/LineB_composite.fa")
@@ -151,12 +153,32 @@ class FullPipelineIT {
         println(indexResult.output)
 
         //create some reads with fairly high coverage to make sure mapping results are consistent so that they can be tested.
+        val lineAFastqFilename = TestExtension.testInputFastaDir + "readsLineA.fastq"
+        writeFastq(lineAFastqFilename, createHaploidReadsLineA())
 
         //map reads
+        val mappingArgs = "--hvcf-dir ${TestExtension.testVCFDir} --kmer-index ${TestExtension.testVCFDir}kmerIndex.txt $ --read-files $lineAFastqFilename"
+        val mapResult = MapKmers().test(mappingArgs)
+        assertEquals(0, indexResult.statusCode, "Kmer Indexing failed")
+        println(indexResult.output)
+
+        //write a keyfile for FindPaths
+        val pathKeyfile = "${TestExtension.testOutputDir}path_keyfile.txt"
+        getBufferedWriter(pathKeyfile).use {myWriter ->
+            myWriter.write("sampleName\treadMappingFiles\n")
+            myWriter.write("TestSample\t$lineAFastqFilename\n")
+        }
 
         //impute paths
+        val pathArgs = "--path-keyfile $pathKeyfile --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
+                "--path-type haploid --prob-same-gamete 0.95"
+        val pathResult = FindPaths().test(pathArgs)
+        assertEquals(0, indexResult.statusCode, "Kmer Indexing failed")
+        println(indexResult.output)
 
         //check paths
+
 
     }
 
@@ -211,27 +233,6 @@ class FullPipelineIT {
             }
         }
         return readList
-    }
-
-    private fun createHaploidReads(): List<String> {
-        val coverage = 0.2
-        val readLength = 100
-        val split = 27500
-
-        //create reads from lineA for chr1:1 - split, lineB chr1: split - end; lineA: 1-split, Ref: split - end
-        val readList = mutableListOf<String>()
-
-        return readList
-    }
-
-    private fun createDiploidReads(): List<String> {
-        val split = 27500
-
-        //create reads from lineA for chr1:1 - split, lineA + lineB chr1: split - end; lineA: 1-split, lineA + Ref: split - end
-        val readList = mutableListOf<String>()
-
-        return readList
-
     }
 
     private fun writeFastq(filename: String, reads: List<String>) {
