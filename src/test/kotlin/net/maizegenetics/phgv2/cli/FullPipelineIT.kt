@@ -2,10 +2,14 @@ package net.maizegenetics.phgv2.cli
 
 import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.testing.test
+import htsjdk.variant.vcf.VCFFileReader
+import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension.Companion.asmList
 import net.maizegenetics.phgv2.pathing.BuildKmerIndex
 import net.maizegenetics.phgv2.pathing.FindPaths
 import net.maizegenetics.phgv2.pathing.MapKmers
+import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.getChecksumForString
 import net.maizegenetics.phgv2.utils.retrieveAgcGenomes
@@ -13,6 +17,7 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
+import java.nio.file.Paths
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -50,7 +55,7 @@ class FullPipelineIT {
             File(TestExtension.testOutputFastaDir).deleteRecursively()
             File(TestExtension.testOutputGVCFDIr).deleteRecursively()
             File(TestExtension.testTileDBURI).deleteRecursively()
-//            File(TestExtension.testOutputDir).deleteRecursively()
+            File(TestExtension.testOutputDir).deleteRecursively()
 
 
             File(TestExtension.tempDir).mkdirs()
@@ -147,40 +152,46 @@ class FullPipelineIT {
         }
 
         //build a kmer index
+        println("building kmer index")
         val buildKmerIndexArgs = "--agc-path ${TestExtension.testTileDBURI} --hvcf-dir ${TestExtension.testVCFDir}"
         val indexResult = BuildKmerIndex().test(buildKmerIndexArgs)
         assertEquals(0, indexResult.statusCode, "Kmer Indexing failed")
         println(indexResult.output)
+
 
         //create some reads with fairly high coverage to make sure mapping results are consistent so that they can be tested.
         val lineAFastqFilename = TestExtension.testInputFastaDir + "readsLineA.fastq"
         writeFastq(lineAFastqFilename, createHaploidReadsLineA())
 
         //map reads
-        val mappingArgs = "--hvcf-dir ${TestExtension.testVCFDir} --kmer-index ${TestExtension.testVCFDir}kmerIndex.txt $ --read-files $lineAFastqFilename"
+        val mappingArgs = "--hvcf-dir ${TestExtension.testVCFDir} --kmer-index ${TestExtension.testVCFDir}kmerIndex.txt " +
+                "--read-files $lineAFastqFilename --output-dir ${TestExtension.testOutputDir}"
         val mapResult = MapKmers().test(mappingArgs)
-        assertEquals(0, indexResult.statusCode, "Kmer Indexing failed")
-        println(indexResult.output)
+        assertEquals(0, mapResult.statusCode, "Kmer Indexing failed")
+        println(mapResult.output)
 
         //write a keyfile for FindPaths
         val pathKeyfile = "${TestExtension.testOutputDir}path_keyfile.txt"
+        val readMappingFilename = TestExtension.testOutputDir + "readsLineA_readMapping.txt"
         getBufferedWriter(pathKeyfile).use {myWriter ->
             myWriter.write("sampleName\treadMappingFiles\n")
-            myWriter.write("TestSample\t$lineAFastqFilename\n")
+            myWriter.write("TestSample\t$readMappingFilename\n")
         }
 
         //impute paths
+        println("imputing paths")
         val pathArgs = "--path-keyfile $pathKeyfile --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
-                "--path-type haploid --prob-same-gamete 0.95"
+                "--path-type haploid" // --prob-same-gamete 0.95"
         val pathResult = FindPaths().test(pathArgs)
-        assertEquals(0, indexResult.statusCode, "Kmer Indexing failed")
-        println(indexResult.output)
+        assertEquals(0, pathResult.statusCode, "Kmer Indexing failed")
+        println(pathResult.output)
 
         //check paths
-
+        checkExpectedHvcf()
 
     }
+
 
     /**
      * Function to compare between two fasta sequences.
@@ -217,17 +228,17 @@ class FullPipelineIT {
     }
 
     private fun createHaploidReadsLineA(): List<String> {
-        val coverage = 0.2
+        val coverage = 0.5
         val readLength = 100
 
         //create reads from lineA
         val readList = mutableListOf<String>()
         val seqMap = retrieveAgcGenomes(TestExtension.testTileDBURI, listOf("LineA"))
-        seqMap.entries.forEach { (nameChr, seq) ->
+        seqMap.entries.forEach { (_, seq) ->
             val chrlen = seq.size()
-            val numberOfReads = (coverage * chrlen).toInt()
+            val numberOfReads = (coverage * chrlen / readLength).toInt()
             repeat(numberOfReads) {
-                val start = Random.nextInt(chrlen)
+                val start = Random.nextInt(chrlen - readLength)
                 val end = start + readLength
                 readList.add(seq[start, end].seq())
             }
@@ -250,4 +261,15 @@ class FullPipelineIT {
         }
     }
 
+    fun checkExpectedHvcf() {
+        val listOfHvcfFilenames = File(TestExtension.testVCFDir).listFiles()
+            .filter {  it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz")  }.map { it.path }.toMutableList()
+        listOfHvcfFilenames.add("${TestExtension.testOutputDir}TestSample.h.vcf")
+        val graph = HaplotypeGraph(listOfHvcfFilenames)
+        val sgA = SampleGamete("LineA")
+        val sgTestSample = SampleGamete("TestSample")
+        graph.ranges().forEach { range ->
+            assertEquals(graph.sampleToHapId(range, sgA), graph.sampleToHapId(range, sgTestSample), "TestSample hapid does not equal line A in $range")
+        }
+    }
 }
