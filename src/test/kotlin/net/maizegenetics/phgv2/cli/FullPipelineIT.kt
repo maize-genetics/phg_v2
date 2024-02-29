@@ -178,16 +178,26 @@ class FullPipelineIT {
             myWriter.write("TestSample\t$readMappingFilename\n")
         }
 
-        //impute paths
+        //impute haploid paths
         println("imputing paths")
-        val pathArgs = "--path-keyfile $pathKeyfile --hvcf-dir ${TestExtension.testVCFDir} " +
+        var pathArgs = "--path-keyfile $pathKeyfile --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
                 "--path-type haploid" // --prob-same-gamete 0.95"
         val pathResult = FindPaths().test(pathArgs)
-        assertEquals(0, pathResult.statusCode, "Kmer Indexing failed")
+        assertEquals(0, pathResult.statusCode, "haploid FindPaths failed")
         println(pathResult.output)
 
         //check paths
+        checkExpectedHvcf()
+
+        //impute diploid paths
+        File("${TestExtension.testOutputDir}TestSample.h.vcf").delete()
+        pathArgs = "--path-keyfile $pathKeyfile --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
+                "--path-type diploid"
+        val diploidResult = FindPaths().test(pathArgs)
+        assertEquals(0, diploidResult.statusCode, "diploid FindPaths failed")
+        println(diploidResult.output)
         checkExpectedHvcf()
 
     }
