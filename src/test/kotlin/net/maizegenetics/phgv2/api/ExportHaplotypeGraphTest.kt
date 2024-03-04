@@ -110,4 +110,23 @@ class ExportHaplotypeGraphTest {
 
     }
 
+    @Test
+    fun testSingleSampleHaplotypeGraphRangeSampleGamete() {
+
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqRefHvcfFile))
+
+        val outputFile = "${outputHvcfDir}testSingleSampleHaplotypeGraphRangeSampleGamete.vcf"
+
+        exportMultiSampleHVCF(graph, outputFile, TestExtension.smallseqRefFile, SymbolicAllele.RANGE_SAMPLE_GAMETE)
+
+        var checksum1 = getChecksum(TestExtension.exportGraphSingleSampleRangeSampleGamete)
+        var checksum2 = getChecksum(outputFile)
+
+        myLogger.info("testSingleSampleHaplotypeGraphRangeSampleGamete.vcf expected checksum1: $checksum1")
+        myLogger.info("testSingleSampleHaplotypeGraphRangeSampleGamete.vcf actual checksum2: $checksum2")
+
+        assertEquals(checksum1, checksum2, "testSingleSampleHaplotypeGraphRangeSampleGamete.vcf checksums do not match")
+
+    }
+
 }

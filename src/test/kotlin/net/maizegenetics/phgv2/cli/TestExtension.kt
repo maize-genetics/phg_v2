@@ -40,6 +40,7 @@ class TestExtension : BeforeAllCallback {
         const val exportGraphDir = "data/test/exportGraph/"
         const val exportGraphSingleSample = "${exportGraphDir}testSingleSampleHaplotypeGraph.vcf"
         const val exportGraphMultiSample = "${exportGraphDir}testMultipleFilesHaplotypeGraph.vcf"
+        const val exportGraphSingleSampleRangeSampleGamete = "${exportGraphDir}testSingleSampleHaplotypeGraphRangeSampleGamete.vcf"
 
         const val refLineName = "Ref"
         const val refFastaName = "Ref.fa"
