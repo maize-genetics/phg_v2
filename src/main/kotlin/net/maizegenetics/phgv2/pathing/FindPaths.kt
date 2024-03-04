@@ -113,7 +113,9 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
     }
 
     private fun buildHaplotypeGraph(): HaplotypeGraph {
-        val listOfHvcfFilenames = File(hvcfDir).listFiles().filter { it.name.contains(".h.vcf") }.map { it.path }
+        val listOfHvcfFilenames = File(hvcfDir).listFiles()
+            .filter {  it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz")  }.map { it.path }
+
         return HaplotypeGraph(listOfHvcfFilenames)
     }
 
