@@ -10,6 +10,7 @@ import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.mergeReadMapping
 import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
@@ -153,12 +154,22 @@ class FindPathsTest {
 
         val sampleA = SampleGamete("LineA")
         val haplotypesA = myGraph.ranges().map { myGraph.sampleToHapId(it, sampleA) }
+        var numberOfHapids = 0
         for (record in vcfReader) {
             val testHaplotype = record.genotypes["TestLine"].alleles[0].displayString
                 .substringAfter("<").substringBefore(">")
             //this next line deals with null haplotypes, which in haplotypes A is null but is "" from VCF reader
-            if (testHaplotype.isNotBlank()) assert(haplotypesA.contains(testHaplotype)) {"$testHaplotype not a LineA haplotype"}
+            if (testHaplotype.isNotBlank()) {
+                assert(haplotypesA.contains(testHaplotype)) {"$testHaplotype not a LineA haplotype"}
+                numberOfHapids++
+            }
         }
+
+        //test for existence of alt headers, there should be numberOfHapids alt headers
+        val hvcfHeader = vcfReader.header
+        val numberOfAltHeaders = hvcfHeader.metaDataInInputOrder.filter { it.key == "ALT" }.count()
+        assertEquals(numberOfHapids, numberOfAltHeaders)
+
         vcfReader.close()
 
         //test minGametes, minReads, maxReadsPerKb
