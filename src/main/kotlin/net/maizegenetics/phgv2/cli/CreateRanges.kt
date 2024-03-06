@@ -141,9 +141,6 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
 
             if(currentRecord.contig != previousRecord.contig) {
                 //add in new beginning of next chrom
-                if (currentRecord.contig.equals("chr2")) {
-                    println("starting chr2")
-                }
                 bedRecordsMerged.add(currentRecord)
                 previousRecord = currentRecord
             }
