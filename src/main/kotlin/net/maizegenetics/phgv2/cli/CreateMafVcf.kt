@@ -8,17 +8,13 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
-import com.github.ajalt.clikt.parameters.types.int
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeaderLine
 import htsjdk.variant.vcf.VCFHeaderVersion
 import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
-import java.io.BufferedWriter
 import java.io.File
-import java.io.FileWriter
-import kotlin.math.abs
 
 data class HVCFRecordMetadata(val sampleName: String, val refSeq : String = "", val asmSeq : String = "",
                               val refContig : String, val refStart: Int, val refEnd: Int,
@@ -64,33 +60,6 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
 
-    // Default to using minHaplotypeSize over minHaplotypePercent.  If minHaplotypeSize is not set, then use minHaplotypePercent
-    // Our default minHapltoypePercent will be 5, but can be reset for testing.
-    val minHaplotypeSize by option(help= "Minimum size of haplotype to be included in hvcf")
-        .int()
-        .default(-1)
-
-    val minHaplotypePercent by option(help= "Minimum percent of haplotype to be included in hvcf")
-        .int()
-        .default(0)
-
-    var rangesDropped = 0
-    var bpsDropped = 0
-    val droppedRangesList = mutableListOf<Pair<DisplayRegion,Int>>()
-    var dupAsmKey = 0
-
-    fun changeGlobalValues() {
-        // LCJ _ this is just a test to verify these values are accessible to
-        // outside methods that created an instance of this class
-        for (idx in 0 until 10) {
-            rangesDropped++
-            bpsDropped += 100
-            val droppedRegion = Pair(DisplayRegion("chr1", idx, idx+10), 100)
-            droppedRangesList.add(droppedRegion)
-        }
-
-    }
-
     /**
      * Function to create the ASM hVCF and gVCF.
      * It will first use Biokotlin to build the gVCF and then will use the BED file to extract out the hVCF information.
@@ -119,43 +88,11 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                     exportVariantContext(sampleName, variants, "${outputDirName}/${it.nameWithoutExtension}.g.vcf",refGenomeSequence, setOf())
                     bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.g.vcf")
 
-                    //val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
-                    val asmHeaderLines = mutableMapOf<String,MutableList<VCFHeaderLine>>()
+                    val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
                     //convert the GVCF records into hvcf records
                     myLogger.info("createASMHvcfs: calling convertGVCFToHVCF for $sampleName")
-                    val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines,minHaplotypeSize, minHaplotypePercent)
-
-                    // ok LCJ - this could be a challenge - values are now a List of MutableList
-                    // we want to take only the first element of each list and add that to the set
-                    // before creating the asmHeaderSet, write the asmHeaderLines to a file
-                    val fileDetails = "minSize${minHaplotypeSize}_minPercent${minHaplotypePercent}"
-                    val outputFile = File("${outputDirName}/${sampleName}.asmHeaderSet.${fileDetails}.txt")
-                    BufferedWriter(FileWriter(outputFile)).use { output ->
-                        output.write("Number of hashes with more than one value: ${asmHeaderLines.keys.size}\n")
-                        asmHeaderLines.forEach { (key, value) ->
-                            if (value.size > 1) {
-                                output.write("$key\n")
-                                value.forEach { line ->
-                                    output.write("$line\n")
-                                }
-                            }
-                        }
-                    }
-
-                    val outFile2 = File("${outputDirName}/${sampleName}.droppedRegions.${fileDetails}.txt")
-                    BufferedWriter(FileWriter(outFile2)).use { output ->
-                        output.write("Sample: $sampleName, rangesDropped: ${rangesDropped}, bpsDropped: ${bpsDropped}, asmSeqHashDups: ${dupAsmKey}\n")
-                        output.write("contig\tstart\tend\trefSize\tasmSize\n")
-                        droppedRangesList.forEach { region ->
-                            val refRegion = region.first
-                            val refSize = refRegion.end - refRegion.start
-                            output.write("${refRegion.contig}\t${refRegion.start}\t${refRegion.end}\t${refSize}\t${region.second}\n")
-                        }
-                    }
-
-
-                    val asmHeaderSet = asmHeaderLines.values.map { it.first() }.toSet()
-                    //val asmHeaderSet = asmHeaderLines.values.toSet()
+                    val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines)
+                    val asmHeaderSet = asmHeaderLines.values.toSet()
                     //export the hvcfRecords
                     myLogger.info("createASMHvcfs: calling exportVariantContext for $sampleName")
                     exportVariantContext(sampleName, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, asmHeaderSet)
@@ -169,15 +106,10 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                         val outputFile =
                             exportVariantContext(name, variants, outputNames[index], refGenomeSequence, setOf())
                         bgzipAndIndexGVCFfile(outputNames[index])
-                        val asmHeaderLines = mutableMapOf<String,MutableList<VCFHeaderLine>>()
-                        //val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
+                        val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
                         //convert the GVCF records into hvcf records
-                        val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines,
-                            minHaplotypeSize, minHaplotypePercent)
-
-                        // Take the first element of the list and add it to the set
-                        val asmHeaderSet = asmHeaderLines.values.map { it.first() }.toSet()
-                        //val asmHeaderSet = asmHeaderLines.values.toSet()
+                        val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines)
+                        val asmHeaderSet = asmHeaderLines.values.toSet()
                         //export the hvcfRecords
                         exportVariantContext(sampleName, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, asmHeaderSet)
                         //bgzip the files
@@ -237,8 +169,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * Function to convert a GVCF file into an HCVF file
      */
     fun convertGVCFToHVCF(dbPath: String,sampleName: String, bedRanges : List<Pair<Position,Position>>, gvcfVariants: List<VariantContext>,
-                          refGenomeSequence : Map<String, NucSeq>, agcArchiveName: String, asmHeaders: MutableMap<String,MutableList<VCFHeaderLine>>,
-                          minHaplotypeSize:Int, minHaplotypePercent:Int) : List<VariantContext> {
+                          refGenomeSequence : Map<String, NucSeq>, agcArchiveName: String, asmHeaders: MutableMap<String,VCFHeaderLine>) : List<VariantContext> {
         // group the gvcfVariants by contig
         val gvcfVariantsByContig = gvcfVariants.groupBy { it.contig }
 
@@ -249,13 +180,10 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         return gvcfVariantsByContig.keys
             .sortedWith(compareBy(SeqRangeSort.alphaThenNumberSort){ name:String -> name}) //Need to do a sort here as we need to make sure we process the chromosomes in
             .filter { bedRegionsByContig.containsKey(it) }
-            .flatMap { convertGVCFToHVCFForChrom(dbPath, sampleName, bedRegionsByContig[it]!!, refGenomeSequence, agcArchiveName,
-                gvcfVariantsByContig[it]!!, asmHeaders, minHaplotypeSize, minHaplotypePercent) }
+            .flatMap { convertGVCFToHVCFForChrom(dbPath, sampleName, bedRegionsByContig[it]!!, refGenomeSequence, agcArchiveName, gvcfVariantsByContig[it]!!, asmHeaders) }
     }
 
-    fun convertGVCFToHVCFForChrom(dbPath: String, sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>,
-                                  agcArchiveName: String, variantContexts: List<VariantContext>, asmHeaders: MutableMap<String,MutableList<VCFHeaderLine>>,
-                                  minHaplotypeSize:Int, minHaplotypePercent:Int) : List<VariantContext> {
+    fun convertGVCFToHVCFForChrom(dbPath: String, sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, agcArchiveName: String, variantContexts: List<VariantContext>, asmHeaders: MutableMap<String,VCFHeaderLine> ) : List<VariantContext> {
         
         /**
          * Loop through the bed file
@@ -289,18 +217,14 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                 //If variant is partially contained in Bed region add to temp list do not increment as we need to see if the next bed also overlaps
                 //If variant is not contained in Bed region, skip and do not increment as we need to see if the next bed overlaps
                 if(bedRegionContainedInVariant(region, currentVariant)) {
-                    val hvcfMetaData = convertGVCFRecordsToHVCFMetaData(
-                        sampleName,
-                        region,
-                        refRangeSeq,
-                        listOf(currentVariant),
-                        minHaplotypeSize,
-                        minHaplotypePercent
+                    outputVariantMetadata.add(
+                        convertGVCFRecordsToHVCFMetaData(
+                            sampleName,
+                            region,
+                            refRangeSeq,
+                            listOf(currentVariant)
+                        )
                     )
-                    if (hvcfMetaData.asmRegions.isNotEmpty()) {
-                        outputVariantMetadata.add(hvcfMetaData)
-                    }
-
                     tempVariants.clear()
                     break
                 }
@@ -320,17 +244,14 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                 else if(variantAfterRegion(region, currentVariant)) {
                     //write out what is in tempVariants
                     if(tempVariants.isNotEmpty()) {
-                        val hvcfMetaData = convertGVCFRecordsToHVCFMetaData(
-                            sampleName,
-                            region,
-                            refRangeSeq,
-                            tempVariants,
-                            minHaplotypeSize,
-                            minHaplotypePercent
+                        outputVariantMetadata.add(
+                            convertGVCFRecordsToHVCFMetaData(sampleName,
+                                region,
+                                refRangeSeq,
+                                tempVariants
+                            )
                         )
-                        if (hvcfMetaData.asmRegions.isNotEmpty()) {
-                            outputVariantMetadata.add(hvcfMetaData)
-                        }
+
                         tempVariants.clear()
                     }
                     //move up Bed region
@@ -343,17 +264,12 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
             }
 
             if(tempVariants.isNotEmpty()) {
-                val hvcfMetaData = convertGVCFRecordsToHVCFMetaData(
+                outputVariantMetadata.add(convertGVCFRecordsToHVCFMetaData(
                     sampleName,
                     region,
                     refRangeSeq,
-                    tempVariants,
-                    minHaplotypeSize,
-                    minHaplotypePercent
-                )
-                if (hvcfMetaData.asmRegions.isNotEmpty()) {
-                    outputVariantMetadata.add(hvcfMetaData)
-                }
+                    tempVariants
+                ))
                 tempVariants.clear()
             }
         }
@@ -428,8 +344,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * Function to extract all the needed information out of the ASM gVCF record and put them into HVCFRecordMetadata objects
      * This will first try to resize the positions based on the ref start position and then will extract out all the other information.
      */
-    fun convertGVCFRecordsToHVCFMetaData(sampleName: String, region: Pair<Position,Position>, refRangeSeq: NucSeq, variants: List<VariantContext>,
-                                         minHaplotypeSize:Int, minHaplotypePercent:Int) : HVCFRecordMetadata {
+    fun convertGVCFRecordsToHVCFMetaData(sampleName: String, region: Pair<Position,Position>, refRangeSeq: NucSeq, variants: List<VariantContext> ) : HVCFRecordMetadata {
         //Take the first and the last variantContext
         val firstVariant = variants.first()
         val lastVariant = variants.last()
@@ -451,51 +366,9 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                 else lastVariant.getAttributeAsInt("ASM_Start",region.second.position)
         }
 
-        // Check if asm region size is >= 5% of reference region size
-        // if not, then skip this region.  This prevents creating haplotypes that are too small,
-        // e.g. a 1bp haplotype matched to a region with 3000bp length.
-        // The regions list is empty in this case - calling method should check that result.
-
-        val refRegionSize = region.second.position - region.first.position // these are always positive
-        val asmRegionSize = abs(newASMEnd - newASMStart) + 1 // because VariantContexts are inclusive/inclusive, unlike the bed file
-        // If the minhaplotype size is > then refRegionSize, then we use refRegionSize
-
-        // I want to drop the range if the asmRegionSize is less than minHaplotypeSize
-        // or if the ref region is smaller than the minHaplotypeSize AND the asmRegionSize is less than minHaplotypePercent * refRegionSize/100
-        // Otherwise, I want to keep it.
-        if (minHaplotypeSize > 0 && asmRegionSize < minHaplotypeSize) {
-            var dropRegion = true
-            if (refRegionSize < minHaplotypeSize) {
-                // check if asmRegion is less than minHaplotypePercent * refRegionSize/100
-                if (asmRegionSize >= refRegionSize * minHaplotypePercent / 100) {
-                    dropRegion = false
-                }
-            }
-            // increment the counter for dropped regions and bp
-            // these will be printed out later
-            if (dropRegion) {
-                bpsDropped += asmRegionSize
-                rangesDropped++
-                val droppedRegion = Pair(DisplayRegion(region.first.contig, region.first.position, region.second.position),asmRegionSize)
-                droppedRangesList.add(droppedRegion)
-                return HVCFRecordMetadata(sampleName=sampleName, refSeq = refRangeSeq.toString(), asmSeq = "",
-                    refContig = region.first.contig, refStart = region.first.position, refEnd = region.second.position,
-                    listOf())
-            }
-
-        } else if (minHaplotypeSize < 0 && asmRegionSize < refRegionSize * minHaplotypePercent / 100) {
-            // increment the counter for dropped regions and bp
-            // these will be printed out later
-            bpsDropped += asmRegionSize
-            rangesDropped++
-            val droppedRegion = Pair(DisplayRegion(region.first.contig, region.first.position, region.second.position),asmRegionSize)
-            droppedRangesList.add(droppedRegion)
-            return HVCFRecordMetadata(sampleName=sampleName, refSeq = refRangeSeq.toString(), asmSeq = "",
-                refContig = region.first.contig, refStart = region.first.position, refEnd = region.second.position,
-                listOf())
-        }
-
         val regions = buildNewAssemblyRegions(newASMStart,newASMEnd,variants)
+
+
         return HVCFRecordMetadata(sampleName=sampleName, refSeq = refRangeSeq.toString(), asmSeq = "",
             refContig = region.first.contig, refStart = region.first.position, refEnd = region.second.position,
             regions)
@@ -667,7 +540,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
     /**
      * Simple function to convert the all the HVCFRecordMetadata records into VariantContext records
      */
-    fun convertMetaDataToHVCFContexts(metaData: List<HVCFRecordMetadata>, asmHeaders: MutableMap<String,MutableList<VCFHeaderLine>>, dbPath:String): List<VariantContext> {
+    fun convertMetaDataToHVCFContexts(metaData: List<HVCFRecordMetadata>, asmHeaders: MutableMap<String,VCFHeaderLine>, dbPath:String): List<VariantContext> {
         return metaData.map { convertMetaDataRecordToHVCF(it, asmHeaders, dbPath) }
     }
 
@@ -675,7 +548,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * Simple function to convert a single metadata record into a VariantContext.
      * This will also create the ALT tag and add it to the asmHeaders object for use during export.
      */
-    fun convertMetaDataRecordToHVCF(metaDataRecord: HVCFRecordMetadata, asmHeaders: MutableMap<String,MutableList<VCFHeaderLine>>, dbPath: String): VariantContext {
+    fun convertMetaDataRecordToHVCF(metaDataRecord: HVCFRecordMetadata, asmHeaders: MutableMap<String, VCFHeaderLine>, dbPath: String): VariantContext {
         val assemblyHaplotypeSeq:String = metaDataRecord.asmSeq
         //md5 hash the assembly sequence
         val assemblyHaplotypeHash = getChecksumForString(assemblyHaplotypeSeq)
@@ -684,29 +557,8 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         val refSeqHash = getChecksumForString(metaDataRecord.refSeq)
 
         //create the asmHeader lines
-//        if(!asmHeaders.containsKey(assemblyHaplotypeHash)) {
-//            asmHeaders[assemblyHaplotypeHash] =
-//            VCFAltHeaderLine(
-//                "<ID=${assemblyHaplotypeHash}, Description=\"haplotype data for line: ${metaDataRecord.sampleName}\">," +
-//                        "Source=\"${dbPath}/assemblies.agc\",SampleName=\"${metaDataRecord.sampleName}\"," +
-//                        "Regions=\"${metaDataRecord.asmRegions.map { "${it.first.contig}:${it.first.position}-${it.second.position}" }.joinToString(",")}\"," +
-//                        "Checksum=\"Md5\",RefRange=\"${refSeqHash}\">",
-//                VCFHeaderVersion.VCF4_2
-//            )
-//        } else {
-//           myLogger.info("convertMetaDataRecordToHVCF: asmHeaders already contains key ${assemblyHaplotypeHash}")
-//        }
-        var vcfHeaderList = asmHeaders[assemblyHaplotypeHash]
-        if (vcfHeaderList == null || vcfHeaderList.size == 0) {
-            vcfHeaderList = mutableListOf<VCFHeaderLine>()
-            asmHeaders[assemblyHaplotypeHash] = vcfHeaderList
-        } else {
-            dupAsmKey++
-            println("convertMetaDataRecordToHVCF: asmHeaders already contains key ${assemblyHaplotypeHash}, old size= ${vcfHeaderList.size}")
-            myLogger.info("convertMetaDataRecordToHVCF: asmHeaders already contains key ${assemblyHaplotypeHash}, old size= ${vcfHeaderList.size}")
-            // add the new VCFAltHeaderLine to the existing list for this assemblyHaplotypeHash
-        }
-        vcfHeaderList.add(
+        if(!asmHeaders.containsKey(assemblyHaplotypeHash)) {
+            asmHeaders[assemblyHaplotypeHash] =
             VCFAltHeaderLine(
                 "<ID=${assemblyHaplotypeHash}, Description=\"haplotype data for line: ${metaDataRecord.sampleName}\">," +
                         "Source=\"${dbPath}/assemblies.agc\",SampleName=\"${metaDataRecord.sampleName}\"," +
@@ -714,7 +566,10 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                         "Checksum=\"Md5\",RefRange=\"${refSeqHash}\">",
                 VCFHeaderVersion.VCF4_2
             )
-        )
+        } else {
+           myLogger.info("convertMetaDataRecordToHVCF: asmHeaders already contains key ${assemblyHaplotypeHash}")
+        }
+
 
         //build a variant context of the HVCF with the hashes
         return createHVCFRecord(metaDataRecord.sampleName, Position(metaDataRecord.refContig,metaDataRecord.refStart),
