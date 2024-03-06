@@ -21,6 +21,7 @@ import java.io.File
 
 /**
  * Data class to hold the information needed to output a BedRecord.
+ * This will be used as records for a BED file, so the start and end are 0-based, with start-inclusive, end-exclusive.
  */
 data class BedRecord(val contig: String, val start : Int, val end: Int, val name: String, val score : Int, val strand: String )
 
@@ -64,9 +65,9 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
             }
         }
 
-    val rangeMinSize by option(help = "Minimum size of a range to be included in the output BED file")
+    val rangeMinSize by option(help = "Minimum size of a range to be included in the output BED file,  If not specified, a default of 500 bps will be used.")
         .int()
-        .default(0)
+        .default(500)
 
     /**
      * Identifies minimum and maximum positions for a list of genes
@@ -127,26 +128,32 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
         return geneRange
     }
 
-    fun mergeShortRanges(bedRecords: List<BedRecord>) : List<BedRecord> {
+    fun mergeShortRanges(bedRecords: List<BedRecord>, minSize:Int) : List<BedRecord> {
         val bedRecordsMerged = mutableListOf<BedRecord>()
 
-        //make an initial BED record for the first region
         val firstRecord = bedRecords[0]
         bedRecordsMerged.add(firstRecord)
 
-        //loop through the rest of the records and fill in the intergenic regions
+        var previousRecord = bedRecords[0]
+        //loop through the rest of the records, checking for short ranges to merge
         for(idx in 1 until bedRecords.size) {
             val currentRecord = bedRecords[idx]
-            val previousRecord = bedRecords[idx-1]
+
             if(currentRecord.contig != previousRecord.contig) {
                 //add in new beginning of next chrom
+                if (currentRecord.contig.equals("chr2")) {
+                    println("starting chr2")
+                }
                 bedRecordsMerged.add(currentRecord)
+                previousRecord = currentRecord
             }
             else {
                 // check size of current record.  If it is less than rangeMinSize, merge it with the previous record
-                // by changing the end of the previous record to the end of the current record
+                // by changing the end of the previous record to the end of the current record.
                 // Drop the previous record from the list, and add the merged record to the list
-                if(currentRecord.end - currentRecord.start < rangeMinSize) {
+                // We also check the previous record size.  This takes care of an edge case where the
+                // first region in a contig is shorter than minSize.  This will also merge the first and second records.
+                if((currentRecord.end - currentRecord.start < minSize) || (previousRecord.end - previousRecord.start < minSize)) {
                     // The "name" field should be the previous record's name field with the current record's name field appended
                     val nameToAdd = "${previousRecord.name},${currentRecord.name}"
                     val mergedRecord = BedRecord(
@@ -160,9 +167,11 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
                     // Drop the previous record from the list
                     bedRecordsMerged.removeAt(bedRecordsMerged.size-1)
                     bedRecordsMerged.add(mergedRecord)
+                    previousRecord = mergedRecord
                 } else {
                     // add the current record unchanged to the list
                     bedRecordsMerged.add(currentRecord)
+                    previousRecord = currentRecord
                 }
             }
         }
@@ -201,6 +210,9 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
     /**
      * Function to fill in regions between the genic bed records with intergenic regions.
      * This will also make a region for the start and end of each chromosome.
+     * The trick is when the first record of a contig is too short.  It gets put on
+     * the list automatically and we don't start checking size of regions until we process
+     * the second region in the chromosome.
      */
     fun fillIntergenicRegions(bedRecords: List<BedRecord>, refSeq: Map<String, NucSeq>) : List<BedRecord> {
         val bedRecordsFilled = mutableListOf<BedRecord>()
@@ -277,7 +289,7 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
         val filledInBedRecords = if(makeOnlyGenic) bedRecords else fillIntergenicRegions(bedRecords, refSeq)
 
         // Merge ranges that are not rangeMinSize in length
-        val bedRecordsMerged = if (!makeOnlyGenic && rangeMinSize > 0) mergeShortRanges(filledInBedRecords) else filledInBedRecords
+        val bedRecordsMerged = if (!makeOnlyGenic && rangeMinSize > 0) mergeShortRanges(filledInBedRecords,rangeMinSize) else filledInBedRecords
 
         val bedLinesToPrint = convertBedRecordsIntoOutputStrings(bedRecordsMerged)
 

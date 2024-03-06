@@ -119,6 +119,7 @@ class CreateRangesTest {
         assertEquals(command.gff, testGffPath)
         assertEquals(command.boundary, "gene")
         assertEquals(command.pad, 0)
+        assertEquals(command.rangeMinSize, 500)
     }
 
     @Test
@@ -375,6 +376,61 @@ class CreateRangesTest {
 
         println("\nFinished testCreateFlankingList!\n");
 
+
+    }
+
+    @Test
+    fun testMergeShortRanges() {
+        // This test verifies the functionality of the mergeShortRanges() function
+        // create a bed file with 16 ranges, some entries are less than 10 bps long
+        // The function should merge the short ranges into the previous range.
+        // Verify if the first region is less than 10 bps, it is merged with the next region
+
+        // create a list of BedRecord based on the beeFile coordinates below
+        // ARe the BedRecord values 0-based or 1-based?  And inclusive or exclusive on the ends?
+        val origBedList = mutableListOf<BedRecord>()
+        origBedList.add(BedRecord("chr1", 0,10,"gene1",0,"+"))
+        origBedList.add(BedRecord("chr1", 10,20,"gene2",0,"+"))
+        origBedList.add(BedRecord("chr1", 20,30,"gene3",0,"+"))
+        origBedList.add(BedRecord("chr1", 30,35,"gene4",0,"+")) // less than 10
+        origBedList.add(BedRecord("chr1", 40,50,"gene5",0,"+"))
+        origBedList.add(BedRecord("chr1", 50,60,"gene6",0,"+"))
+        origBedList.add(BedRecord("chr1", 60,66,"gene7",0,"+")) // less than 10
+        origBedList.add(BedRecord("chr1", 70,80,"gene8",0,"+"))
+        origBedList.add(BedRecord("chr1", 80,90,"gene9",0,"+"))
+        origBedList.add(BedRecord("chr1", 90,100,"gene10",0,"+"))
+        origBedList.add(BedRecord("chr2", 0,3,"gene6",0,"+")) // less than 10
+        origBedList.add(BedRecord("chr2", 30,60,"gene7",0,"+"))
+        origBedList.add(BedRecord("chr2", 60,66,"gene8",0,"+")) // less than 10
+        origBedList.add(BedRecord("chr2", 80,90,"gene9",0,"+"))
+        origBedList.add(BedRecord("chr2", 90,100,"gene10",0,"+"))
+        origBedList.add(BedRecord("chr2", 100,105,"gene11",0,"+")) // less than 10
+
+
+        // create bed file, write to temp file
+
+        val createRanges = CreateRanges()
+        // needs a bedRecords: List<BedRecord>), which is also what it will return
+        val newBedLines = createRanges.mergeShortRanges(origBedList,10)
+
+        println("newBedLines size: " + newBedLines.size)
+        for (line in newBedLines) {
+            println( line.toString())
+        }
+
+        // 5 records are smaller than 10 bps so they should be merged into the previous record.
+        // This includes the first record of chr2, which is only 3 bps long.  It should be merged
+        // with the succeeding record.
+        assertEquals(11, newBedLines.size)
+        // Verify the 4th record (chr1:30-35) is merged with the 3rd, which is now chr1:20-35
+        assertEquals(BedRecord("chr1", 20,35,"gene3,gene4",0,"+"), newBedLines[2])
+        // Verify the 6th record(chr1:60-66) is merged with the 5th, which is now chr1:50-66
+        assertEquals(BedRecord("chr1", 50,66,"gene6,gene7",0,"+"), newBedLines[4])
+        // For chrom 2, the first and 3rd entries are both short, resulting in the first 3 entries being merged.
+        // This means the 9th record of the new bed file is chr2:0-66
+        assertEquals(BedRecord("chr2", 0,66,"gene6,gene7,gene8",0,"+"), newBedLines[8])
+        // verify the last record in the new bedfile is a merge of the last 2 records of the original bed file
+        assertEquals(BedRecord("chr2", 90,105,"gene10,gene11",0,"+"), newBedLines[10])
 
     }
 
