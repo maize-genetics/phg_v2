@@ -34,7 +34,7 @@ data class BedRecord(val contig: String, val start : Int, val end: Int, val name
  *
  * Optional parameters include the boundary type (gene or cds), the number of base pairs to flank the regions, and the output file name.
  * Additionally, users may specify a minimun range size.  Any regions falling shorter than the minimum size will be joined
- * with the previous region.  If the user specifies the `makeOnlyGenic` flag, the output will only include genic and CDS regions
+ * with the shortest adjacent range.   If the user specifies the `makeOnlyGenic` flag, the output will only include genic and CDS regions
  * and minimum range size will be ignored.
  *
  */
