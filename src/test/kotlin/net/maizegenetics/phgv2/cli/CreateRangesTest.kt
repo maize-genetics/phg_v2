@@ -379,11 +379,13 @@ class CreateRangesTest {
 
     }
 
+
     @Test
-    fun testMergeShortRanges() {
-        // This test verifies the functionality of the mergeShortRanges() function
-        // create a bed file with 16 ranges, some entries are less than 10 bps long
-        // The function should merge the short ranges into the previous range.
+    fun testMergeShortRangesUsuallyLeft() {
+        // This test verifies the functionality of the mergeShortRanges() function.
+        // Create a bed file with 16 ranges, some entries are less than 10 bps long
+        // The function should merge the short ranges to the adjacent range which is
+        //  shortest in length.  Merges "left" is adjacent ranges have equal length.
         // Verify if the first region is less than 10 bps, it is merged with the next region
 
         // create a list of BedRecord based on the beeFile coordinates below
@@ -401,13 +403,10 @@ class CreateRangesTest {
         origBedList.add(BedRecord("chr1", 90,100,"gene10",0,"+"))
         origBedList.add(BedRecord("chr2", 0,3,"gene6",0,"+")) // less than 10
         origBedList.add(BedRecord("chr2", 30,60,"gene7",0,"+"))
-        origBedList.add(BedRecord("chr2", 60,66,"gene8",0,"+")) // less than 10
+        origBedList.add(BedRecord("chr2", 60,66,"gene8",0,"+")) // less than 10, but will merge right
         origBedList.add(BedRecord("chr2", 80,90,"gene9",0,"+"))
         origBedList.add(BedRecord("chr2", 90,100,"gene10",0,"+"))
         origBedList.add(BedRecord("chr2", 100,105,"gene11",0,"+")) // less than 10
-
-
-        // create bed file, write to temp file
 
         val createRanges = CreateRanges()
         // needs a bedRecords: List<BedRecord>), which is also what it will return
@@ -428,10 +427,113 @@ class CreateRangesTest {
         assertEquals(BedRecord("chr1", 50,66,"gene6,gene7",0,"+"), newBedLines[4])
         // For chrom 2, the first and 3rd entries are both short, resulting in the first 3 entries being merged.
         // This means the 9th record of the new bed file is chr2:0-66
-        assertEquals(BedRecord("chr2", 0,66,"gene6,gene7,gene8",0,"+"), newBedLines[8])
+        assertEquals(BedRecord("chr2", 0,60,"gene6,gene7",0,"+"), newBedLines[8])
+        // Because the first 2 regions in chr2 were merged, the original region 3, which is also shorter than 10bps,
+        // will merge with original region 4.  Merging "right" vs "left" because the "left" region now has size of 66
+        // which is larger than the "right" region which has size of 10.
+        assertEquals(BedRecord("chr2", 60,90,"gene8,gene9",0,"+"), newBedLines[9])
         // verify the last record in the new bedfile is a merge of the last 2 records of the original bed file
         assertEquals(BedRecord("chr2", 90,105,"gene10,gene11",0,"+"), newBedLines[10])
 
+    }
+
+    @Test
+    fun testMergeConsecutiveShortRanges() {
+        // Test many short ranges in successions.  First on chr2 is short
+        // and must be merged with the next region.
+
+        val origBedList = mutableListOf<BedRecord>()
+        origBedList.add(BedRecord("chr1", 0,150,"gene1",0,"+"))
+        origBedList.add(BedRecord("chr1", 150,250,"gene2",0,"+"))
+        origBedList.add(BedRecord("chr1", 250,255,"gene3",0,"+"))
+        origBedList.add(BedRecord("chr1", 255,260,"gene4",0,"+"))
+        origBedList.add(BedRecord("chr1", 260,265,"gene5",0,"+"))
+        origBedList.add(BedRecord("chr1", 365, 465,"gene6",0,"+"))
+        origBedList.add(BedRecord("chr1", 465,660,"gene7",0,"+"))
+        origBedList.add(BedRecord("chr2", 0,3,"gene6",0,"+"))
+        origBedList.add(BedRecord("chr2", 30,60,"gene7",0,"+"))
+        origBedList.add(BedRecord("chr2", 60,66,"gene8",0,"+"))
+        origBedList.add(BedRecord("chr2", 80,90,"gene9",0,"+"))
+        origBedList.add(BedRecord("chr2", 90,100,"gene10",0,"+"))
+        origBedList.add(BedRecord("chr2", 100,105,"gene11",0,"+"))
+
+        val createRanges = CreateRanges()
+        // needs a bedRecords: List<BedRecord>), which is also what it will return
+        val newBedLines = createRanges.mergeShortRanges(origBedList,50)
+
+        println("newBedLines size: " + newBedLines.size)
+        for (line in newBedLines) {
+            println( line.toString())
+        }
+        // verify the new bed file has 6 records
+        assertEquals(6, newBedLines.size)
+        // verify the first record of the newBedLines is the same as the first record of the original bed file
+        assertEquals(BedRecord("chr1", 0,150,"gene1",0,"+"), newBedLines[0])
+        // verify the first bedrecord for chr2 is merged with the second record
+        assertEquals(BedRecord("chr2", 0,60,"gene6,gene7",0,"+"), newBedLines[4])
+        // verify the last 4 records of the original bed file are merged into 1 record
+        assertEquals(BedRecord("chr2", 60,105,"gene8,gene9,gene10,gene11",0,"+"), newBedLines[5])
+
+
+    }
+
+    @Test
+    fun testMergeRightThenLeft() {
+        val origBedList = mutableListOf<BedRecord>()
+        // For chr3, the 3rd=5th regions are small and shoudl be merged together. The resulting region is
+        // still small and should be merged with the second region as it is smaller than the 6th region
+        // with the previous record as that is smaller than the
+        origBedList.add(BedRecord("chr3", 0,150,"gene1",0,"+"))
+        origBedList.add(BedRecord("chr3", 150,250,"gene2",0,"+"))
+        origBedList.add(BedRecord("chr3", 250,255,"gene3",0,"+"))
+        origBedList.add(BedRecord("chr3", 255,260,"gene4",0,"+"))
+        origBedList.add(BedRecord("chr3", 260,265,"gene5",0,"+"))
+        origBedList.add(BedRecord("chr3", 365, 665,"gene6",0,"+"))
+        origBedList.add(BedRecord("chr3", 665,750,"gene7",0,"+"))
+
+        val createRanges = CreateRanges()
+        // needs a bedRecords: List<BedRecord>), which is also what it will return
+        val newBedLines = createRanges.mergeShortRanges(origBedList,50)
+
+        println("newBedLines size: " + newBedLines.size)
+        for (line in newBedLines) {
+            println( line.toString())
+        }
+        // verify the new bed file has 4 records
+        assertEquals(4, newBedLines.size)
+        // verify the 2nd, 3rd, 4th and 5th records are merged into 1 record
+        assertEquals(BedRecord("chr3", 150,265,"gene2,gene3,gene4,gene5",0,"+"), newBedLines[1])
+        // verify the first record of the newBedLines is the same as the first record of the original bed file
+        assertEquals(BedRecord("chr3", 0,150,"gene1",0,"+"), newBedLines[0])
+        // verify the last 2 records in the newBedLines are equal to the last 2 records in the original bed file
+        assertEquals(BedRecord("chr3", 365, 665,"gene6",0,"+"), newBedLines[2])
+        // verify the last record in the new bedfile is a merge of the last 2 records of the original bed file
+        assertEquals(BedRecord("chr3", 665,750,"gene7",0,"+"), newBedLines[3])
+    }
+
+    @Test
+    fun testLastRegionIsShort() {
+        val origBedList = mutableListOf<BedRecord>()
+        // For chr3, the 3rd=5th regions are small and shoudl be merged together. The resulting region is
+        // still small and should be merged with the second region as it is smaller than the 6th region
+        // with the previous record as that is smaller than the
+        origBedList.add(BedRecord("chr3", 0,150,"gene1",0,"+"))
+        origBedList.add(BedRecord("chr3", 150,250,"gene2",0,"+"))
+        origBedList.add(BedRecord("chr3", 250,365,"gene3",0,"+"))
+        origBedList.add(BedRecord("chr3", 365, 370,"gene6",0,"+"))
+
+        val createRanges = CreateRanges()
+        // needs a bedRecords: List<BedRecord>), which is also what it will return
+        val newBedLines = createRanges.mergeShortRanges(origBedList,50)
+
+        println("newBedLines size: " + newBedLines.size)
+        for (line in newBedLines) {
+            println( line.toString())
+        }
+        // verify the last record in the new bedfile is a merge of the last 2 records of the original bed file
+        assertEquals(BedRecord("chr3", 250,370,"gene3,gene6",0,"+"), newBedLines[2])
+        // verify newBedLines has 3 records
+        assertEquals(3, newBedLines.size)
     }
 
 }
