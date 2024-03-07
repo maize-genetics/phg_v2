@@ -61,19 +61,23 @@ class BuildKmerIndexTest {
     @Test
     fun testCliktParams() {
         //parameters:
-        //tiledbPath - defaults to ""
-        //agcPath - required
+        //db-path - required
         //maxHaplotypeProportion - defaults to 0.75
         //hashMask - default to 3L
         //hashFilterValue - defauls to 1L
-        //hvcfDir - defaults to ""
+        //hvcfDir - required for now
 
         val testBuild = BuildKmerIndex()
-        val noargResult = testBuild.test("")
+        val noargResult = testBuild.test("--db-path ${TestExtension.testOutputFastaDir}/dbPath")
         assertEquals(1, noargResult.statusCode)
         assertEquals("Usage: build-kmer-index [<options>]\n\n" +
-                "Error: missing option --agc-path\n", noargResult.stderr)
+                "Error: missing option --hvcf-dir\n", noargResult.stderr)
 
+
+        val noDbPathResult = testBuild.test("--hvcf-dir ${TestExtension.smallseqLineAHvcfFile}")
+        assertEquals(1, noDbPathResult.statusCode)
+        assertEquals("Usage: build-kmer-index [<options>]\n\n" +
+                "Error: missing option --db-path\n", noDbPathResult.stderr)
     }
 
 
@@ -86,7 +90,7 @@ class BuildKmerIndexTest {
         //set up temporary file names
         val tempTestDir = "${TestExtension.tempDir}kmerTest/"
         val tempHvcfDir = "${tempTestDir}hvcfDir/"
-        val tempAGCDir = "${TestExtension.testOutputFastaDir}/dbPath"
+        val tempDBPathDir = "${TestExtension.testOutputFastaDir}/dbPath"
 
         //copy hvcf files to temp directory,
         // include the ref hvcf to test what happens when samples have no haplotype in some ref range
@@ -99,13 +103,15 @@ class BuildKmerIndexTest {
         }
 
         //create a HaplotypeGraph from the hvcf files
-        val buildIndexResult = BuildKmerIndex().test("--agc-path $tempAGCDir --hvcf-dir $tempHvcfDir")
+        val buildIndexResult = BuildKmerIndex().test("--db-path $tempDBPathDir --hvcf-dir $tempHvcfDir")
 
         //Was the index created?
         assertEquals(0, buildIndexResult.statusCode)
         assert(File("${tempHvcfDir}/kmerIndex.txt").exists())
     }
 
+    //Ignore for now as we are requiring both db-path and hvcf-dir currently.
+    @Ignore
     @Test
     fun testTiledb() {
         //Setting the tiledb path but not the hvcf should generate a not implemented error
@@ -114,17 +120,12 @@ class BuildKmerIndexTest {
 
         //try to build a graph from a (non-existent) tiledb database
         val exception = assertThrows<NotImplementedError> {
-            BuildKmerIndex().test("--agc-path $tempAGCDir --tiledb-path ${TestExtension.testTileDBURI}")
+            BuildKmerIndex().test("--db-path $tempAGCDir --tiledb-path ${TestExtension.testTileDBURI}")
         }
         assertEquals("An operation is not implemented: TileDB VCF Reader Not implemented yet.  Please run with --hvcf-dir", exception.message)
 
     }
 
-    @Ignore
-    @Test
-    fun testExtractKmersAndExportIndexForRefRange() {
-        fail("Implement this test")
-    }
     @Test
     fun testGetRefRangeToKmerSetMap() {
         //fun getRefRangeToKmerSetMap(

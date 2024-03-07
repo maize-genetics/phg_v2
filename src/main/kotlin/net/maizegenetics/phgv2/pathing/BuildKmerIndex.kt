@@ -43,11 +43,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
     private val myLogger = LogManager.getLogger(BuildKmerIndex::class.java)
 
-    val tiledbPath by option(help = "Tile DB URI")
-        .default("")
-
-    val agcPath by option(help = "AGC fasta DB URI")
-        .required()
+    val dbPath by option(help = "Tile DB URI")
+        .required() //Needs to be required now due to the agc archive
 
     val maxHaplotypeProportion by option("-p", "--maxHapProportion", help = "only kmers mapping to less than or " +
             "equal to maxHapProportion of haplotypes in a reference range will be retained.")
@@ -65,7 +62,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         .default(1)
 
     val hvcfDir by option("--hvcf-dir", help = "Path to directory holding hVCF files. Data will be pulled directly from these files instead of querying TileDB")
-        .default("")
+        .required()//Todo: make this optional by adding .default("")
+
+
 
     override fun run() {
         //either tiledbPath or agcPath must be provided
@@ -73,7 +72,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         //build the haplotypeGraph
         val graph = buildHaplotypeGraph()
-        val hashToHapidMap = processGraphKmers(graph, agcPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
+        val hashToHapidMap = processGraphKmers(graph, "${dbPath}", maxHaplotypeProportion,  hashMask, hashFilterValue)
 
         //for now, the name of the kmerIndex will be kmerIndex.txt. Later, the file path and name can be set by the user.
         val kmerIndexFilename = "${hvcfDir}kmerIndex.txt"
@@ -83,7 +82,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
     }
 
     private fun buildHaplotypeGraph(): HaplotypeGraph {
-        require(hvcfDir.isNotBlank() or tiledbPath.isNotBlank()) {"Either of --tiledb-path or --hvcf-dir must be provided."}
         val timedValue = measureTimedValue {
             if(hvcfDir != "") {
                 val pathList = File(hvcfDir).listFiles { file -> file.name.endsWith(".h.vcf") || file.name.endsWith(".h.vcf.gz") }.map { it.path }
@@ -107,7 +105,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * This returns a HashMap of hash -> hapid list for all the kmers in the keep set.
      * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
      */
-    fun processGraphKmers(graph: HaplotypeGraph,agcPath: String, maxHaplotypeProportion: Double=.75, hashMask: Long = 3, hashFilterValue:Long = 1) : Long2ObjectOpenHashMap<Set<String>> {
+    fun processGraphKmers(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75, hashMask: Long = 3, hashFilterValue:Long = 1) : Long2ObjectOpenHashMap<Set<String>> {
         //keepMap is a map of hash -> Set of haplotype ids
         val keepMap = Long2ObjectOpenHashMap<Set<String>>()
         //discardSet is a Set of hashes
@@ -149,7 +147,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
             }
 
-            val agcdataMap = retrieveAgcContigs(agcPath, agcRangeList)
+            val agcdataMap = retrieveAgcContigs(dbPath, agcRangeList)
             //retrieveAgcContigs returns a Map<Pair<String,String>,NucSeq> where Pair is
             // sampleName, contig:start-end and NucSeq is the sequence
             val hapidSeqMap = agcdataMap.entries.map { (sample, seqrec) ->
