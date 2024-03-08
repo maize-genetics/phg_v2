@@ -26,6 +26,7 @@ In this document, we will discuss the steps needed to:
         --gff my.gff \
         --boundary gene \
         --pad 500 \
+        --range-min-size 500 \
         -o /path/to/bed_file.bed
     ```
 * Align assemblies:
@@ -260,6 +261,7 @@ data using the `create-ranges` command:
     --reference-file data/Ref.fa \
     --boundary gene \
     --pad 500 \
+    --range-min-size 500 \
     -o output/ref_ranges.bed
 ```
 
@@ -294,6 +296,8 @@ This command uses several parameters:
     we would extend the region 500 base pairs upstream and downstream
     of the defined boundary (in this case, `gene`).
 
+  
+
 > [!NOTE]
 > There is a possibility that overlaps of regions will occur. If
 > this does happen, `create-ranges` will identify any overlapping
@@ -304,7 +308,14 @@ This command uses several parameters:
 > ====================================
 > [---------Merged overlap-----------]
 >  ```
-  
+
+* `--range-min-size` - The minimum size for each range in the bedfile. This parameter is
+  optional with a default of 500 bps. For example, if we were to set the `--range-min-size` parameter
+  to `500`, any region that is less than 500 base pairs in length will be
+  merged with the previous region on that contig.  If the first region of a contig is less than the specified minimum size
+  it will be merged with the next region on that contig.  This merging is done in create-ranges after the gene or CDS region has been created and padding has been applied.
+
+
 * `-o` - Name for the output BED file.
 
 In the above example, I am using test data from the 
