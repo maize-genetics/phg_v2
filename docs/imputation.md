@@ -5,6 +5,60 @@ PHG.
 
 _WIP_
 
+## hVCF export
+
+>[!NOTE]
+> This currently is needed, but will be removed in the future as we can do direct connections to the hVCF TileDB instance.
+
+First we need to export the hVCF data from the TileDB instance. This is done using the `export-vcf` command.
+
+```shell
+./phg export-vcf --db-path /my/db/uri --dataset-type hvcf --sample-names LineA,LineB --output-dir /my/hvcf/dir
+```
+This command takes in 4 parameters:
+* `--db-path` - path to directory storing the TileDB instances. The
+  AGC compressed genomes will be placed here on completion.
+* `--dataset-type` - the type of dataset to export. In this case, we
+  are exporting the hVCF data.
+* `--sample-names` - a comma-separated list of sample names to export.
+* `--output-dir` - the directory to place the exported hVCF files.
+
+## Kmer Indexing
+
+Once we have the hVCF data exported, we need to index the kmers. This is done using the `build-kmer-index` command.
+
+```shell
+./phg build-kmer-index --db-path /my/db/uri --hvcf-dir /my/hvcf/dir 
+```
+
+This command has 2 required parameters:
+* `--db-path` - path to directory storing the TileDB instances. The
+  AGC compressed genomes are also stored here as well under db-path/assemblies.agc.
+* `--hvcf-dir` - the directory containing the hVCF files. This is the
+  output directory from the `export-vcf` command.  Right now this is required, but will be optional in the future.
+
+This will store the kmer index as kmerIndex.txt in the --hvcf-dir directory. 
+
+## Read Mapping
+
+Now that we have the index we can align short reads against the PHG using the `map-kmers` command.
+
+```shell  
+./phg map-kmers --hvcf-dir /my/hvcf/dir --kmer-index /my/hvcf/dir/kmerIndex.txt --read-files /path/to/reads/LineA_R1.fq /path/to/reads/LineA_R2.fq --output-dir /my/mapping/dir
+```
+
+This command has the following parameters:
+* `--hvcf-dir` - the directory containing the hVCF files.
+* `--kmer-index` - the kmer index file created by the `build-kmer-index` command.
+* `--read-files` - a comma separated list of fastq files for a single sample.  Either 1(for single end) or 2(for paired end) files can be input at a time this way.  Any more and an error will be thrown.
+* `--output-dir` - the directory to place the read mapping files.
+
+Instead of using `--read-files`, you can use `--key-file` to specify a key file that contains a list of the read mapping files. 
+Columns for samplename and filename are required.  If using paired end fastqs, a filename2 column can be included
+
+
+
+
 ## Find Paths
 
 FindPaths is the command used to impute paths through a HaplotypeGraph based on a set of read mappings.
