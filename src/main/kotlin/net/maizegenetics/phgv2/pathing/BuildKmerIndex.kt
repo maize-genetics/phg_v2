@@ -72,7 +72,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         //build the haplotypeGraph
         val graph = buildHaplotypeGraph()
-        val hashToHapidMap = processGraphKmers(graph, "${dbPath}", maxHaplotypeProportion,  hashMask, hashFilterValue)
+        val hashToHapidMap = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
 
         //for now, the name of the kmerIndex will be kmerIndex.txt. Later, the file path and name can be set by the user.
         val kmerIndexFilename = "${hvcfDir}kmerIndex.txt"

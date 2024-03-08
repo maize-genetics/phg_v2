@@ -13,14 +13,14 @@ _WIP_
 First we need to export the hVCF data from the TileDB instance. This is done using the `export-vcf` command.
 
 ```shell
-./phg export-vcf --db-path /my/db/uri --dataset-type hvcf --sample-Names LineA,LineB --output-dir /my/hvcf/dir
+./phg export-vcf --db-path /my/db/uri --dataset-type hvcf --sample-names LineA,LineB --output-dir /my/hvcf/dir
 ```
 This command takes in 4 parameters:
 * `--db-path` - path to directory storing the TileDB instances. The
   AGC compressed genomes will be placed here on completion.
 * `--dataset-type` - the type of dataset to export. In this case, we
   are exporting the hVCF data.
-* `--sample-Names` - a comma-separated list of sample names to export.
+* `--sample-names` - a comma-separated list of sample names to export.
 * `--output-dir` - the directory to place the exported hVCF files.
 
 ## Kmer Indexing
@@ -37,7 +37,7 @@ This command has 2 required parameters:
 * `--hvcf-dir` - the directory containing the hVCF files. This is the
   output directory from the `export-vcf` command.  Right now this is required, but will be optional in the future.
 
-This will store the kmer index in the --hvcf-dir directory named kmerIndex.txt. 
+This will store the kmer index as kmerIndex.txt in the --hvcf-dir directory. 
 
 ## Read Mapping
 
