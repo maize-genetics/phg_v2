@@ -635,7 +635,7 @@ append sample information to the headers of each FASTA file called
 phg annotate-fastas \
     --keyfile data/annotation_keyfile.txt \
     --threads 10 \
-    --o output/annotated_assemblies
+    --output-dir output/annotated_assemblies
 ```
 
 This command takes 3 parameters:
