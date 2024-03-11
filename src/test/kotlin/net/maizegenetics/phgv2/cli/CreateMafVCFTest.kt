@@ -4,10 +4,7 @@ import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
-import net.maizegenetics.phgv2.utils.Position
-import net.maizegenetics.phgv2.utils.createRefRangeVC
-import net.maizegenetics.phgv2.utils.createSNPVC
-import net.maizegenetics.phgv2.utils.getChecksumForString
+import net.maizegenetics.phgv2.utils.*
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -71,8 +68,7 @@ class CreateMafVCFTest {
     fun testLoadingBEDFile() {
         val bedFile = "data/test/buildMAFVCF/B73_Test.bed"
 
-        val createMAFVCF = CreateMafVcf()
-        val ranges = createMAFVCF.loadRanges(bedFile)
+        val ranges = loadRanges(bedFile)
 
         assertEquals(4, ranges.size)
 

@@ -3,7 +3,6 @@ package net.maizegenetics.phgv2.cli
 import biokotlin.genome.*
 import biokotlin.seq.NucSeq
 import biokotlin.seqIO.NucSeqIO
-import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
@@ -120,22 +119,6 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
 
             }
 
-    }
-
-    /**
-     * Simple function to load a BED file in.  This will be replaced by a lightweight Biokotlin ranges class eventually.
-     *
-     * This will sort in alphabetical order first then will check if there are numbers in the chromosome name and will
-     * sort those numerically. This means that chr10 will come after chr2.
-     */
-    fun loadRanges(bedFileName: String) : List<Pair<Position, Position>> {
-        return bufferedReader(bedFileName).readLines().map { line ->
-            val lineSplit = line.split("\t")
-            val chrom = lineSplit[0]
-            val start = lineSplit[1].toInt()+1
-            val end = lineSplit[2].toInt()
-            Pair(Position(chrom,start),Position(chrom,end))
-        }.sortedWith(compareBy(SeqRangeSort.alphaThenNumberSort) { positionRange:Pair<Position,Position> -> positionRange.first.contig})
     }
 
     //Function to load in the reference using Biokotlin
