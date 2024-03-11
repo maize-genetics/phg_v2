@@ -11,11 +11,13 @@ data from a PHG database.
 ## Quickstart
 
 * Export hVCF files from database
+* NOTE: --sample-names can be replaced with --sample-file <fileName.txt> where fileName.txt is a file containing the sample names, one per line
+
 ```shell
 phg export-vcf \
   --db-path /path/to/dbs \
   --dataset-type hvcf \ # can also be 'gvcf'
-  --sample-names LineA,LineB \
+  --sample-names LineA,LineB \ # comma separated list of sample names
   -o /path/to/output/directory
 ```
 
@@ -82,6 +84,16 @@ This command uses several parameters:
 > Make sure there is no whitespace between sample IDs. For example:
 > * `SampleA,SampleB` ✅
 > * `SampleA , SampleB` ❌
+
+Users may instead use the `--sample-file` parameter to specify a file that contains the sample names, one per line.
+
+```shell
+phg export-vcf \
+  --db-path vcf_dbs \
+  --dataset-type hvcf \
+  --sample-file sample_names.txt \
+  -o output/hvcf_files
+```
 
 ### Create FASTA data
 While haplotype sequences are abstracted to MD5 hashes in hVCF
