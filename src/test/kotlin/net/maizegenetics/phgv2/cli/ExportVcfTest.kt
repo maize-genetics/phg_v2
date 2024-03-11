@@ -7,6 +7,7 @@ import net.maizegenetics.phgv2.brapi.resetDirs
 import net.maizegenetics.phgv2.utils.bgzipAndIndexGVCFfile
 import net.maizegenetics.phgv2.utils.getChecksum
 import org.apache.logging.log4j.LogManager
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -40,6 +41,12 @@ class ExportVcfTest {
             File(outputHvcfDir).mkdirs()
             File(inputHvcfDir).mkdirs()
 
+        }
+
+        @AfterAll
+        @JvmStatic
+        fun teardown() {
+            File(TestExtension.tempDir).deleteRecursively()
         }
 
     }
