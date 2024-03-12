@@ -29,6 +29,41 @@ import java.nio.file.Files
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.listDirectoryEntries
 
+sealed class PathInputFile {
+    abstract fun getReadFiles() : List<KeyFileData>
+    data class KeyFile(val keyFile: String): ReadInputFile() {
+        @Override
+        override fun getReadFiles(): List<KeyFileData> {
+            check(File(keyFile).exists()) { "Key file $keyFile does not exist." }
+            val linesWithHeader = File(keyFile).bufferedReader().readLines()
+            val header = linesWithHeader.first().split("\t")
+            //convert the header into a map of column name to column index
+            val headerMap = header.mapIndexed { index, s -> s to index }.toMap()
+            check(headerMap.containsKey("sampleName")) { "Key file $keyFile must have a column named sampleName." }
+            check(headerMap.containsKey("filename")) { "Key file $keyFile must have a column named filename." }
+            return linesWithHeader.drop(1).map{lines -> lines.split("\t")}.map { linesSplit ->
+                KeyFileData(linesSplit[headerMap["sampleName"]!!], linesSplit[headerMap["filename"]!!], if(headerMap.containsKey("filename2") && linesSplit.indices.contains(headerMap["filename2"]!!)) linesSplit[headerMap["filename2"]!!] else "")
+            }
+        }
+    }
+    data class ReadFiles(val readFiles: String): ReadInputFile() {
+        @Override
+        override fun getReadFiles(): List<KeyFileData> {
+            check(readFiles.isNotEmpty()) { "--read-files must have at least one file." }
+            val isReadMapping = readFiles.contains("_readMapping.txt")
+            return if (isReadMapping) {
+                val fileNames = readFiles.split(",")
+                check(fileNames.size <= 2) { "--read-files must have 1 or 2 files separated by commas.  You provided: ${fileNames.size}" }
+                listOf(KeyFileData("noSample",fileNames.first(), if(fileNames.size==1) "" else fileNames.last()))
+            } else {
+                listOf(KeyFileData("noSample", readFiles, ""))
+            }
+        }
+
+    }
+}
+
+
 /**
  * This version of FindPaths uses .h.vcf files to build the HaplotypeGraph used for path finding
  * and writes the imputed paths as .h.vcf files to an output directory. It does not use a tiledb for anything.
@@ -39,7 +74,12 @@ import kotlin.io.path.listDirectoryEntries
  */
 class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")  {
 
-    val pathKeyfile by option(help = "Name of tab-delimited key file.  Columns for samplename and filename are required.  Files must be either read mapping files (ending in _readMapping.txt) or fastq files. If using paired end fastqs, a filename2 column can be included.")
+    val pathKeyfile by option(help = "Name of tab-delimited key file. Columns for samplename and filename are required. Files must be either read mapping files (ending in _readMapping.txt) or fastq files. If using paired end fastqs, a filename2 column can be included.")
+
+    val readInputFiles: ReadInputFile by mutuallyExclusiveOptions<ReadInputFile>(
+        option("--key-file", help = "Name of tab-delimited key file.  Columns for samplename and filename are required. Files must be either read mapping files (ending in _readMapping.txt) or fastq files.If using paired end fastqs, a filename2 column can be included. A value must be entered for either --key-file or --read-files.").convert{ ReadInputFile.KeyFile(it) },
+        option("--read-files", help = "Comma separated list of fastq files for a single sample.  Either 1(for single end) or 2(for paired end) files can be input at a time this way.  Any more and an error will be thrown. If listing files from read mapping, they must end in _readMapping.txt.").convert{ ReadInputFile.ReadFiles(it) }
+    ).single().required()
 
     val hvcfDir by option(help = "The directory containing the hvcf files used to build a HaplotypeGraph for path finding. Required parameter.")
         .required()
