@@ -417,7 +417,7 @@ ATGCGTACGCGCACCG
 ATGCGTTCGCCTTCCG
 ```
 
-While we can either manually modify the header lines of our FASTA
+While we can manually modify the header lines of our FASTA
 file, this can become tedious and prone to a new set of downstream
 errors. To automate this, PHGv2 provides an optional command to
 append sample information to the headers of each FASTA file called
