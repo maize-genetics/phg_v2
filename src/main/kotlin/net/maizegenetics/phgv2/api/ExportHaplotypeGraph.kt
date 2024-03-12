@@ -11,9 +11,10 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder
 import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeader
 import htsjdk.variant.vcf.VCFHeaderLine
-import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.AltHeaderMetaData
 import net.maizegenetics.phgv2.utils.altHeaderMetadataToVCFHeaderLine
 import net.maizegenetics.phgv2.utils.createGenericHeaderLineSet
+import net.maizegenetics.phgv2.utils.loadRanges
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
@@ -37,7 +38,8 @@ fun exportMultiSampleHVCF(
     graph: HaplotypeGraph,
     filename: String,
     referenceGenome: String? = null,
-    symbolicAllele: SymbolicAllele = SymbolicAllele.CHECKSUM
+    symbolicAllele: SymbolicAllele = SymbolicAllele.CHECKSUM,
+    rangeBedfile: String? = null
 ) {
 
     // Load the reference genome into memory if filename is supplied.
@@ -53,7 +55,17 @@ fun exportMultiSampleHVCF(
         .build()
         .use { writer ->
 
-            val rangeStrToIndex = graph.refRangeStrToIndexMap()
+            val rangeStrToIndex = if (symbolicAllele == SymbolicAllele.CHECKSUM) {
+                emptyMap()
+            } else if (rangeBedfile != null) {
+                loadRanges(rangeBedfile)
+                    .mapIndexed { index, range ->
+                        "${range.first.contig}:${range.first.position}-${range.second.position}" to index
+                    }.toMap()
+            } else {
+                graph.refRangeStrToIndexMap()
+            }
+
             val checksumToId = mutableMapOf<String, String>()
 
             val headerLines = graph.altHeaders().values
@@ -68,7 +80,7 @@ fun exportMultiSampleHVCF(
                             altHeaderMetadataToVCFHeaderLine(
                                 it,
                                 symbolicAlleleRangeSampleGameteStr(
-                                    rangeStrToIndex[it.refRange] ?: rangeStrToIndex[regionsToRefRangeStr(it.regions)]!!,
+                                    rangeStrToIndex[it.refRange] ?: rangeStrToIndex[refRangeStr(it)]!!,
                                     it.sampleName(),
                                     it.gamete()
                                 )
@@ -189,8 +201,11 @@ private fun symbolicAlleleRangeSampleGameteStr(rangeIndex: Int, sample: String, 
     return "R${rangeStr}_${sample}_G${gamete}"
 }
 
-// "Regions=\"${altHeaderData.regions.joinToString(",") { "${it.first.contig}:${it.first.position}-${it.second.position}" }}\"," +
-private fun regionsToRefRangeStr(regions: List<Pair<Position, Position>>): String {
-    val firstRegion = regions.first()
+// RefRange="${contig}:${start}-${end}"
+// Regions=\"${altHeaderData.regions.joinToString(",") { "${it.first.contig}:${it.first.position}-${it.second.position}" }}\"," +
+private fun refRangeStr(header: AltHeaderMetaData): String {
+    val refRange = header.refRange
+    if (refRange.contains(":") && refRange.contains("-")) return refRange
+    val firstRegion = header.regions.first()
     return "${firstRegion.first.contig}:${firstRegion.first.position}-${firstRegion.second.position}"
 }
