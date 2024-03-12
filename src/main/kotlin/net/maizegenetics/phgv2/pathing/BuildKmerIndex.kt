@@ -139,9 +139,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
                 for (range in alt.regions) {
                     if (range.first.position <= range.second.position) {
-                        agcRangeList.add("${range.first.contig}@${alt.sampleName}:${range.first.position - 1}-${range.second.position - 1}")
+                        agcRangeList.add("${range.first.contig}@${alt.sampleName()}:${range.first.position - 1}-${range.second.position - 1}")
                     } else {
-                        agcRangeList.add("${range.first.contig}@${alt.sampleName}:${range.second.position - 1}-${range.first.position - 1}")
+                        agcRangeList.add("${range.first.contig}@${alt.sampleName()}:${range.second.position - 1}-${range.first.position - 1}")
                     }
                 }
 
