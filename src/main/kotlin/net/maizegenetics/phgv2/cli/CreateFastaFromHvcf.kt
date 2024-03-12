@@ -126,7 +126,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
             val hapId = it.getGenotype(sampleName).getAllele(0).displayString.replace("<","").replace(">","")
             check(altHeaders.containsKey(hapId)) { "Haplotype ID $hapId not found in ALT Header" }
             val altMetaData = altHeaders[hapId]
-            val hapSampleName = altMetaData!!.sampleName
+            val hapSampleName = altMetaData!!.sampleName()
             //Need to subtract 1 from start as it uses 0 based format
             val regions =  altMetaData!!.regions
             val queryRanges = mutableListOf<String>()
