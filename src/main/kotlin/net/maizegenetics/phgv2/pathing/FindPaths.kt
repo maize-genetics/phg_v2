@@ -2,10 +2,10 @@ package net.maizegenetics.phgv2.pathing
 
 import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.options.default
-import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.required
-import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
+import com.github.ajalt.clikt.parameters.groups.required
+import com.github.ajalt.clikt.parameters.groups.single
+import com.github.ajalt.clikt.parameters.options.*
 import com.github.ajalt.clikt.parameters.types.boolean
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.double
@@ -25,18 +25,21 @@ import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.mergeReadMapping
 import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.nio.file.Files
+import kotlin.io.path.absolutePathString
+import kotlin.io.path.listDirectoryEntries
 
 /**
  * This version of FindPaths uses .h.vcf files to build the HaplotypeGraph used for path finding
  * and writes the imputed paths as .h.vcf files to an output directory. It does not use a tiledb for anything.
  * That is expected to change at some point.
+ *
+ * The keyfile can list read mapping files or fastq files and can take comma separated lists of files to
+ * combine for path finding. For paired-end reads filename and filename2 can also be comma separated lists.
  */
 class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")  {
 
-    val pathKeyfile by option(help = "tab-delimited file with first two columns: sampleName, readMappingFiles. readMappingFiles " +
-            "must be the full path to a read mapping file or a comma separated list of file paths. All sample names must be unique. Required parameter.")
-        .required()
-        .validate { require(File(it).exists()) {"$it is not a valid file"} }
+    val pathKeyfile by option(help = "Name of tab-delimited key file.  Columns for samplename and filename are required.  Files must be either read mapping files (ending in _readMapping.txt) or fastq files. If using paired end fastqs, a filename2 column can be included.")
 
     val hvcfDir by option(help = "The directory containing the hvcf files used to build a HaplotypeGraph for path finding. Required parameter.")
         .required()
@@ -53,6 +56,9 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
     val pathType by option(help = "The type of path to find. Must be lower case 'haploid' or 'diploid' (without quotes). 'haploid' infers a single path through the graph. 'diploid' infers a pair of paths. Required parameter.")
         .choice("haploid", "diploid")
         .required()
+
+    val kmerIndex by option(help = "The name and path to the kmerIndex. Default = <hvcfDir>/kmerIndex.txt")
+        .default("")
 
     val probCorrect by option(help = "The probability that a mapped read was mapped correctly. Default = 0.99")
         .double()
@@ -108,8 +114,76 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
     private val myLogger = LogManager.getLogger(FindPaths::class.java)
 
     override fun run() {
-        val samplesToReadMappingFiles = processKeyFile()
+        val keyFileLines = readKeyfile()
+        val samplesToReadMappingFiles = when (getKeyFileType(keyFileLines)) {
+            KeyfileType.FASTQ ->
+                keyFileLines.associate { Pair(it.sampleName, it.file1.split(",")) }
+
+            KeyfileType.READ -> mapReads(keyFileLines)
+        }
+
         processReadMappings(samplesToReadMappingFiles)
+    }
+
+    private fun readKeyfile(): List<KeyFileData> {
+        check(File(pathKeyfile).exists()) { "Key file $pathKeyfile does not exist." }
+        val linesWithHeader = getBufferedReader(pathKeyfile!!).readLines()
+        val header = linesWithHeader.first().split("\t")
+
+        //convert the header into a map of column name to column index
+        val headerMap = header.mapIndexed { index, s -> s to index }.toMap()
+        check(headerMap.containsKey("sampleName")) { "Key file $pathKeyfile must have a column named sampleName." }
+        check(headerMap.containsKey("filename")) { "Key file $pathKeyfile must have a column named filename." }
+        return linesWithHeader.drop(1).map{lines -> lines.split("\t")}.map { linesSplit ->
+            KeyFileData(linesSplit[headerMap["sampleName"]!!], linesSplit[headerMap["filename"]!!], if(headerMap.containsKey("filename2") && linesSplit.indices.contains(headerMap["filename2"]!!)) linesSplit[headerMap["filename2"]!!] else "")
+        }
+    }
+
+    private enum class KeyfileType {FASTQ, READ}
+    private fun getKeyFileType(keyfileLines: List<KeyFileData>): KeyfileType {
+        val fastqEndings = listOf(".fastq", "fastq.gz", ".fq", ".fq.gz")
+        val readMappingEndings = listOf("_readMapping.txt", "_readMapping.txt.gz")
+        val firstFilename = keyfileLines.first().file1.split(",")[0]
+        return when {
+            fastqEndings.any { firstFilename.endsWith(it) } -> KeyfileType.FASTQ
+            readMappingEndings.any { firstFilename.endsWith(it) } -> KeyfileType.READ
+            else -> throw IllegalArgumentException("Key filenames must be either fastq or readMapping.")
+        }
+    }
+
+    private fun mapReads(keyfileLines: List<KeyFileData>): Map<String, List<String>> {
+
+        val outputDirPath = Files.createTempDirectory("readMapping")
+
+        //write a key file to outputDirPath
+        val readKeyfile = outputDirPath.resolve("readKeyFile.txt").absolutePathString()
+        getBufferedWriter(readKeyfile).use { myWriter ->
+            myWriter.write("sampleName, filename, filename2\n")
+            for (keyLine in keyfileLines) {
+                val filenames = keyLine.file1.split(",")
+                val filenames2 = keyLine.file2.split(",")
+                require(filenames2[0] == "" || filenames.size == filenames2.size) {"Keyfile problem: The number of filenames " +
+                        "in filename2 and filename are different for sampleName = ${keyLine.sampleName}"}
+                if (filenames2[0] == "") {
+                    for (ndx in filenames.indices) myWriter.write("${keyLine.sampleName}_$ndx\t${filenames[ndx]}\t\n")
+                } else {
+                    for (ndx in filenames.indices) myWriter.write("${keyLine.sampleName}_$ndx\t${filenames[ndx]}\t${filenames2[ndx]}\n")
+                }
+            }
+        }
+
+        val argList = mutableListOf("--hvcf-dir", hvcfDir, "--key-file", readKeyfile,
+            "--output-dir", outputDirPath.absolutePathString())
+        if (kmerIndex.isNotBlank()) {
+            argList.add("--kmer-index")
+            argList.add(kmerIndex)
+        }
+
+        MapKmers().main(argList)
+        val readMappingFilenames = outputDirPath.listDirectoryEntries("*_readMapping.txt").map { it.fileName.toString() }
+
+        return readMappingFilenames.groupBy { it.substringBeforeLast("_").substringBeforeLast("_")}
+
     }
 
     private fun buildHaplotypeGraph(): HaplotypeGraph {
@@ -123,29 +197,43 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
      * Process the keyfile. Reads the keyfile. For each sample in the keyfile, imputes a path and writes
      * it to a .h.vcf file and, optionally, appends the likely parents to a file.
      */
-    private fun processKeyFile(): Map<String, List<String>> {
-        //processes the key file to produce a map of sample name -> list of read mapping files for that sample
-        myLogger.info("Processing key file $pathKeyfile")
-        val keyFileLines = getBufferedReader(pathKeyfile).use { it.readLines()}
-            .map { it.split("\t") }
-            .filter { it.size > 1 }
-        val headerList = keyFileLines[0]
+//    private fun processKeyFile(pathKeyfile: String): Map<String, List<String>> {
+//        //processes the key file to produce a map of sample name -> list of read mapping files for that sample
+//        myLogger.info("Processing key file $pathKeyfile")
+//        val keyFileLines = getBufferedReader(pathKeyfile).use { it.readLines()}
+//            .map { it.split("\t") }
+//            .filter { it.size > 1 }
+//        val headerList = keyFileLines[0]
+//
+//        val sampleNameIsFirstColumn = headerList[0].equals("sampleName", true)
+//        val readMappingIsSecondColumn =  headerList[1].equals("readMappingFiles", true)
+//        require(sampleNameIsFirstColumn && readMappingIsSecondColumn) {"The first column heading of the keyfile " +
+//                "must be sampleName and the second column heading must be readMappingFiles."}
+//
+//        //check for duplicate sample names (not allowed)
+//        val sampleNameSet = keyFileLines.drop(1).map { it[0] }.toSet()
+//        check(sampleNameSet.size == keyFileLines.size - 1) {"key file contains duplicate sample names"}
+//
+//        //map of sampleName -> list of read mapping file names
+//        val sampleToFiles = keyFileLines.drop(1).associate { Pair(it[0], it[1]) }
+//            .mapValues { it.value.split(",").map{filename -> filename.trim()} }
+//
+//        return checkForExistingOutput(sampleToFiles)
+//    }
 
-        val sampleNameIsFirstColumn = headerList[0].equals("sampleName", true)
-        val readMappingIsSecondColumn =  headerList[1].equals("readMappingFiles", true)
-        require(sampleNameIsFirstColumn && readMappingIsSecondColumn) {"The first column heading of the keyfile " +
-                "must be sampleName and the second column heading must be readMappingFiles."}
-
-        //check for duplicate sample names (not allowed)
-        val sampleNameSet = keyFileLines.drop(1).map { it[0] }.toSet()
-        check(sampleNameSet.size == keyFileLines.size - 1) {"key file contains duplicate sample names"}
-
-        //map of sampleName -> list of read mapping file names
-        val sampleToFiles = keyFileLines.drop(1).associate { Pair(it[0], it[1]) }
-            .mapValues { it.value.split(",").map{filename -> filename.trim()} }
-
-        return checkForExistingOutput(sampleToFiles)
-    }
+//    private fun mapReads(readKeyfile: String): Map<String, List<String>> {
+//        val outputDirPath = Files.createTempDirectory("readMapping")
+//        val argList = mutableListOf("--hvcf-dir", hvcfDir, "--key-file", readKeyfile,
+//            "--output-dir", outputDirPath.absolutePathString())
+//        if (kmerIndex.isNotBlank()) {
+//            argList.add("--kmer-index")
+//            argList.add(kmerIndex)
+//        }
+//        MapKmers().main(argList)
+//        val readMappingPaths = outputDirPath.listDirectoryEntries("*_readMapping.txt")
+//        return readMappingPaths.associate { path -> Pair(path.fileName.toString().substringBefore("_readMapping"),
+//            listOf(path.toString())) }
+//    }
 
     /**
      * Takes a map of samples to file list as input. If the output directory contains an hvcf file for any sample,
@@ -157,6 +245,7 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
             .map { file -> file.name.substringBefore(".h.vcf") }
 
         val newSamples = sampleToFiles.filter { (sampleName, _) -> !existingSamples.contains(sampleName) }
+
 
         if (newSamples.size < sampleToFiles.size)
             myLogger.info("The key file $pathKeyfile contains ${sampleToFiles.size}, only ${newSamples.size} will be imputed." +
