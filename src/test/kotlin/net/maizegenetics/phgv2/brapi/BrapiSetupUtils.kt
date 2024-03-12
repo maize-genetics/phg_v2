@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
  * This is needed for testing various brapi endpoint.
  * It will also create the AGC compressed files from the smallSeq fastas.
  */
-fun createSmallSeqTiledb() {
+fun createSmallSeqTiledb(tiledbURI:String = TestExtension.testTileDBURI) {
     val setupEnv = SetupEnvironment()
     println("createSmallSeqTiledb: calling setupEnv")
     setupEnv.test("--output-dir ${TestExtension.tempDir}")
@@ -20,18 +20,17 @@ fun createSmallSeqTiledb() {
     //Run InitDB
     println("createSmallSeqTiledb - calling Initdb")
     val initdb = Initdb()
-    initdb.test("--db-path ${TestExtension.testTileDBURI}")
+    initdb.test("--db-path ${tiledbURI}")
 
     //Create the agc file:
     println("createSmallSeqTiledb - calling AgcCompress")
     val agcCompress = AgcCompress()
-    var agcResult = agcCompress.test("--fasta-list ${TestExtension.smallseqAssembliesListFile} --db-path ${TestExtension.testTileDBURI} --reference-file ${TestExtension.smallseqRefFile}")
+    var agcResult = agcCompress.test("--fasta-list ${TestExtension.smallseqAssembliesListFile} --db-path ${tiledbURI} --reference-file ${TestExtension.smallseqRefFile}")
     println(agcResult.output)
 
     // Run CreateRefVcf
     println("createSmallSeqTiledb - calling CreateRefVcf")
     val createRefVcf = CreateRefVcf()
-    val tiledbURI = TestExtension.testTileDBURI
     val refName = "Ref"
     val refUrl = TestExtension.refURL
 
@@ -43,7 +42,7 @@ fun createSmallSeqTiledb() {
 
     //Load All HVCFs into Tile DB
     println("createSmallSeqTiledb - calling LoadVcf")
-    loadVcfFiles()
+    loadVcfFiles(tiledbURI)
 
 }
 
@@ -69,7 +68,7 @@ fun resetDirs() {
     File(TestExtension.testTileDBURI).mkdirs()
 }
 
-fun loadVcfFiles() {
+fun loadVcfFiles(tiledbURI:String = TestExtension.testTileDBURI) {
     // copy the files from data/test/smallseq to the tempDir
     // call bgzip to get the files we need for the test
 
@@ -101,8 +100,7 @@ fun loadVcfFiles() {
     println("loadVcfFiles - loading to tiledb")
     val loadVCF = LoadVcf()
     val vcfDir = TestExtension.testVCFDir
-    val dbPath = "${TestExtension.testTileDBURI}"
-    var result = loadVCF.test("--vcf-dir ${vcfDir} --db-path ${dbPath} ")
+    var result = loadVCF.test("--vcf-dir ${vcfDir} --db-path ${tiledbURI} ")
     assertEquals(result.statusCode, 0)
 
     // Copy the reference fasta and bed file to folder TestExtension.testTileDBURI/reference

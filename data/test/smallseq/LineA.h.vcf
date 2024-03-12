@@ -1,4 +1,5 @@
 ##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
 ##ALT=<ID=0eb9029f3896313aebc69c8489923141,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName="LineA",Regions=2:49501-50300,Checksum=Md5,RefRange=39f96726321b329964435865b3694fd2>
 ##ALT=<ID=12f0cec9102e84a161866e37072443b7,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName="LineA",Regions=1:1-1000,Checksum=Md5,RefRange=546d1839623a5b0ea98bbff9a8a320e2>
 ##ALT=<ID=13417ecbb38b9a159e3ca8c9dade7088,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName="LineA",Regions=2:1-1000,Checksum=Md5,RefRange=5812acb1aff74866003656316c4539a6>
