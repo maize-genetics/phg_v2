@@ -342,6 +342,8 @@ file contains 6 columns of information:
 ### Annotate Fastas
 The annotate-fasta command has two goals.  The first is to copy the fastas to a new file
 whose name is changed to be <sampleName>.fa.  The second is to add a sampleName to the id lines of the fasta file.
+**These annotated fasta files should be used as input to both the agc-compress step and the align-assemblies step.**
+This ensures consistent sample names across the pipeline.
 
 For the first goal, a file originally named Zm-CML52-NAM-1.0.fa would be copied to a new file named CML52.fa, based
 on the user supplying a keyfile with "CML52" as the sample name for this fasta.  The reason
@@ -513,7 +515,7 @@ to install this manually.
 
 > [!NOTE]
 > For best results with imputation and rare allele calling pipelines, 
-> **please use high quality assemblies**!
+> **please use high quality assemblies**! that have been run through the annotate-fastas command.
 
 To run the aligner step, we can call the `align-assemblies` command:
 
@@ -547,6 +549,8 @@ This command uses several parameters:
   Here, I am planning on aligning two genomes called `LineA` and 
   `LineB`. Since these are located in a subdirectory called `data`
   relative to my working directory, I will also add that to the path.
+
+  The input assemblies should be the assemblies updated/renamed via the `annotate-fastas` command.
 
 * `-o` - The name of the directory for the alignment outputs.
 
@@ -748,7 +752,7 @@ This command takes in 3 parameters:
 > initialize the TileDB instances in the database initialization 
 > (`initdb`) step.
 
-* `--fasta-list` - List of assembly FASTA genomes to compress.
+* `--fasta-list` - List of assembly FASTA genomes to compress.  The fastas on this list should be the fastas that have been updated/renamed via the `annotate-fastas` command.
 
 > [!NOTE]
 > The list specified in `--fasta-list` _can_ be the same list used
