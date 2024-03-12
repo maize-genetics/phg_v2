@@ -29,10 +29,15 @@ enum class SymbolicAllele {
  * The h.vcf is the format designed by the PHGv2.
  * The alternate alleles are symbolic alleles that are check sums of the haplotype sequences.
  *
+ * The rangeBedfile is a bedfile that contains the master list of reference ranges.
+ * If no rangeBedfile is supplied, it will use the reference ranges from the graph.
+ *
  * @param graph The HaplotypeGraph to export.
  * @param filename The name of the file to export to.
  * @param referenceGenome The filename of the reference genome to use.
  * If null, the reference genome will not be used.
+ * @param symbolicAllele The type of symbolic allele to use.
+ * @param rangeBedfile The filename of the bedfile to use for the ranges.
  */
 fun exportMultiSampleHVCF(
     graph: HaplotypeGraph,
