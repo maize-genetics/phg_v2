@@ -9,6 +9,7 @@ import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeaderLine
 import net.maizegenetics.phgv2.utils.bgzipAndIndexGVCFfile
 import net.maizegenetics.phgv2.utils.exportVariantContext
+import net.maizegenetics.phgv2.utils.loadRanges
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
@@ -68,7 +69,7 @@ class Gvcf2Hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
     // are created are written to the same folder that contains the gvcf files.
     fun createASMHvcfs(dbPath: String, bedFileName: String, referenceFileName: String, gvcfDirName: String) {
         //load the bed file into a data structure
-        val ranges = CreateMafVcf().loadRanges(bedFileName)
+        val ranges = loadRanges(bedFileName)
         myLogger.info("CreateASMHvcfs: calling buildRefGenomeSeq")
         val refGenomeSequence = CreateMafVcf().buildRefGenomeSeq(referenceFileName)
 

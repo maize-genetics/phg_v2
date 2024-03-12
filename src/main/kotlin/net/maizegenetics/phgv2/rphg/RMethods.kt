@@ -102,7 +102,7 @@ class RMethods {
             ),
             matrixData = arrayOf(
                 altHeaders.map { it.value.id }.toTypedArray(),
-                altHeaders.map { it.value.sampleName }.toTypedArray(),
+                altHeaders.map { it.value.sampleName() }.toTypedArray(),
                 altHeaders.map { it.value.description }.toTypedArray(),
                 altHeaders.map { it.value.source }.toTypedArray(),
                 altHeaders.map { it.value.checksum }.toTypedArray(),
