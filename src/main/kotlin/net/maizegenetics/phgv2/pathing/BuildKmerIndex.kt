@@ -131,12 +131,12 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
             hapidToSampleMap.keys.forEach { hapid ->
                 val alt = graph.altHeader(hapid) ?: throw IllegalStateException("No alt header for $hapid")
-                //mapping source name to hapid assumes there is only one hapid per source in a reference range
+                //mapping sample name to hapid assumes there is only one hapid per alt.sampleName in a reference range
                 //this seems safe, but it is being checked here just in case
-                //alt.source is not the agc sample name, but is serving as a place holder until the correct name is available
-                //not sure what alt.property will be the one to use
-                check(!sourceHapidMap.contains(alt.sampleName)) {"Two hapids from ${alt.sampleName} at ${alt.regions[0].first.contig}:${alt.regions[0].first.position}\n$sourceHapidMap"}
-                sourceHapidMap[alt.sampleName] = hapid
+                val existingHapid = sourceHapidMap[alt.sampleName]
+                if (existingHapid == null) sourceHapidMap[alt.sampleName] = hapid
+                else check(hapid == existingHapid) {"${alt.sampleName} has more than one hapid in the reference range $refrange"}
+
                 for (range in alt.regions) {
                     if (range.first.position <= range.second.position) {
                         agcRangeList.add("${range.first.contig}@${alt.sampleName}:${range.first.position - 1}-${range.second.position - 1}")
