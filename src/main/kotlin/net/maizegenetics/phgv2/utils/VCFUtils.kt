@@ -11,9 +11,18 @@ import org.apache.logging.log4j.LogManager
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.VCFUtils")
 
 // Making Number a string as VCF allows for '.'
+// id is the ID of the ALT header (i.e. sequence checksum or other unique identifier)
+// description is a description of the ALT header
+// source is the source of the sequence
+// sampleGamete is the sample name and gamete number
+// regions is a list of regions that the sequence is found in
+// checksum is the checksum of the sequence
+// refRange is the range of the reference sequence that the sequence is found in
+// refChecksum is the checksum of the reference sequence
 data class AltHeaderMetaData(
     val id: String, val description: String, val source: String, val sampleGamete: SampleGamete,
-    val regions: List<Pair<Position, Position>>, val checksum: String, val refRange: String
+    val regions: List<Pair<Position, Position>>, val checksum: String, val refRange: String,
+    val refChecksum: String = ""
 ) {
     fun sampleName() = sampleGamete.name
     fun gamete() = sampleGamete.gameteId
@@ -49,7 +58,8 @@ fun parseALTHeader(header: VCFHeader): Map<String, AltHeaderMetaData> {
                 SampleGamete(it.value["SampleName"]!!, it.value["Gamete"]?.toInt() ?: 0),
                 parseRegions(it.value["Regions"]!!),
                 it.value["Checksum"]!!,
-                it.value["RefRange"]!!
+                it.value["RefRange"]!!,
+                it.value["RefChecksum"] ?: ""
             )
         }.toList()
         .toMap()
