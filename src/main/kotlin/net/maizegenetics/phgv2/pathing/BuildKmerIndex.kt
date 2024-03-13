@@ -133,9 +133,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                 val alt = graph.altHeader(hapid) ?: throw IllegalStateException("No alt header for $hapid")
                 //mapping sample name to hapid assumes there is only one hapid per alt.sampleName in a reference range
                 //this seems safe, but it is being checked here just in case
-                val existingHapid = sourceHapidMap[alt.sampleName]
-                if (existingHapid == null) sourceHapidMap[alt.sampleName] = hapid
-                else check(hapid == existingHapid) {"${alt.sampleName} has more than one hapid in the reference range $refrange"}
+                val existingHapid = sourceHapidMap[alt.sampleName()]
+                if (existingHapid == null) sourceHapidMap[alt.sampleName()] = hapid
+                else check(hapid == existingHapid) {"${alt.sampleName()} has more than one hapid in the reference range $refrange"}
 
                 for (range in alt.regions) {
                     if (range.first.position <= range.second.position) {

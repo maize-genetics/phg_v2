@@ -16,7 +16,6 @@ import java.io.FileWriter
 import java.util.*
 import kotlin.test.Ignore
 import kotlin.test.assertEquals
-import kotlin.test.fail
 
 @ExtendWith(TestExtension::class)
 class BuildKmerIndexTest {
@@ -108,6 +107,35 @@ class BuildKmerIndexTest {
         //Was the index created?
         assertEquals(0, buildIndexResult.statusCode)
         assert(File("${tempHvcfDir}/kmerIndex.txt").exists())
+
+        //duplicate the lineB hvcf and change it to LineC, keeping the LineB haplotypes
+        //rerun the index to make sure it handles the same hapids in ranges
+        val lineCHvcf = File("${tempHvcfDir}LineC.h.vcf")
+        lineCHvcf.delete() //just in case it already exists
+        val lineBHvcf = File("${tempHvcfDir}LineB.h.vcf")
+        getBufferedReader(lineBHvcf).use { myReader ->
+            getBufferedWriter(lineCHvcf).use { myWriter ->
+                myReader.lineSequence().forEach {
+                    if (it.startsWith("#CHROM\tPOS")) {
+                        myWriter.write(it.replace("LineB", "LineC"))
+                        myWriter.write("\n")
+                    }
+                    else {
+                        myWriter.write(it)
+                        myWriter.write("\n")
+                    }
+                }
+            }
+        }
+
+        //create a HaplotypeGraph from the hvcf files
+        File("${tempHvcfDir}/kmerIndex.txt").delete()
+        val buildIndexResult2 = BuildKmerIndex().test("--db-path $tempDBPathDir --hvcf-dir $tempHvcfDir")
+
+        //Was the index created?
+        assertEquals(0, buildIndexResult2.statusCode)
+        assert(File("${tempHvcfDir}/kmerIndex.txt").exists())
+
     }
 
     //Ignore for now as we are requiring both db-path and hvcf-dir currently.
