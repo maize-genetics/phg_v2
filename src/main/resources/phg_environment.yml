@@ -11,4 +11,3 @@ dependencies:
   - bcftools
   - samtools
   - agc
-  - minimap2
