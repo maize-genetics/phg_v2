@@ -2,9 +2,12 @@ package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
 import com.google.common.io.Files
+import net.maizegenetics.phgv2.brapi.createSmallSeqTiledb
+import net.maizegenetics.phgv2.brapi.resetDirs
 import net.maizegenetics.phgv2.utils.bgzipAndIndexGVCFfile
 import net.maizegenetics.phgv2.utils.getChecksum
 import org.apache.logging.log4j.LogManager
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -27,30 +30,23 @@ class ExportVcfTest {
         @BeforeAll
         @JvmStatic
         fun setup() {
+            // delete, reset the directories
+            resetDirs()
+
+            // create the tiledb datasets, load them from the vcf files
+            // This will also create the AGC compressed file
+            createSmallSeqTiledb(dbPath)
 
             File(exportHvcfDir).mkdirs()
             File(outputHvcfDir).mkdirs()
             File(inputHvcfDir).mkdirs()
 
-            Initdb().createDataSets(dbPath)
+        }
 
-            Files.copy(File(TestExtension.smallseqRefHvcfFile), File(testHvcfFile))
-
-            bgzipAndIndexGVCFfile(testHvcfFile)
-
-            // Load the vcf file into the tiledb database, so that the export has
-            // something to export. This is the cli version, but using
-            // programmatic way here.
-            // phg load-vcf --vcf-dir /Users/tmc46/phg_v2/ --db-path tiledb/ --temp-dir tiledb/temp/
-
-            val result = LoadVcf().test(
-                "--vcf-dir $inputHvcfDir --db-path $dbPath "
-            )
-
-            println("setup: load vcf output: ${result.output}")
-
-            assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
-
+        @AfterAll
+        @JvmStatic
+        fun teardown() {
+            File(TestExtension.tempDir).deleteRecursively()
         }
 
     }
@@ -77,6 +73,62 @@ class ExportVcfTest {
         assertEquals(checksum1, checksum2, "Ref.h.vcf checksums do not match")
 
     }
+    @Test
+    fun testMultipleSamplesFromList() {
+        val result = ExportVcf().test(
+            "--db-path $dbPath --sample-names Ref,LineA -o $outputHvcfDir"
+        )
+
+        println("testRunningExportHvcf: result output: ${result.output}")
+
+        assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
+
+        // Verify Ref.vcf checksum
+        var checksum1 = getChecksum(TestExtension.smallseqRefHvcfFile)
+        var checksum2 = getChecksum("$outputHvcfDir/Ref.vcf")
+
+        println("Ref.h.vcf expected checksum1: $checksum1")
+        println("Ref.vcf actual checksum2: $checksum2")
+
+        assertEquals(checksum1, checksum2, "Ref.h.vcf checksums do not match")
+
+        // Get checksum for LineA
+        checksum1 = getChecksum(TestExtension.smallseqLineAHvcfFile)
+        checksum2 = getChecksum("$outputHvcfDir/LineA.vcf")
+        // verify checksums match
+        assertEquals(checksum1, checksum2, "LineA.h.vcf checksums do not match")
+    }
+
+    @Test
+    fun testMultipleSamplesFromFile() {
+        // write a test file that has 2 sample names in it: Ref and LineA, each on a separate line
+        val sampleFile = File("$exportHvcfDir/sample-names.txt")
+        sampleFile.writeText("Ref\nLineA")
+
+
+        val result = ExportVcf().test(
+            "--db-path $dbPath --sample-file ${sampleFile.toString()} -o $outputHvcfDir"
+        )
+
+        println("testRunningExportHvcf: result output: ${result.output}")
+
+        assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
+
+        // Verify ref vcf
+        var checksum1 = getChecksum(TestExtension.smallseqRefHvcfFile)
+        var checksum2 = getChecksum("$outputHvcfDir/Ref.vcf")
+
+        println("Ref.h.vcf expected checksum1: $checksum1")
+        println("Ref.vcf actual checksum2: $checksum2")
+
+        assertEquals(checksum1, checksum2, "Ref.h.vcf checksums do not match")
+
+        // Get checksum for LineA
+        checksum1 = getChecksum(TestExtension.smallseqLineAHvcfFile)
+        checksum2 = getChecksum("$outputHvcfDir/LineA.vcf")
+        // verify checksums match
+        assertEquals(checksum1, checksum2, "LineA.h.vcf checksums do not match")
+    }
 
     @Test
     fun testCliktParams() {
@@ -89,7 +141,7 @@ class ExportVcfTest {
         assertEquals(
             "Usage: export-vcf [<options>]\n" +
                     "\n" +
-                    "Error: missing option --sample-names\n",
+                    "Error: must provide one of --sample-names, --sample-file\n",
             resultMissingSampleNames.output
         )
 

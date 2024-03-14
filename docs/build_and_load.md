@@ -26,6 +26,7 @@ In this document, we will discuss the steps needed to:
         --gff my.gff \
         --boundary gene \
         --pad 500 \
+        --range-min-size 500 \
         -o /path/to/bed_file.bed
     ```
 * Align assemblies:
@@ -260,6 +261,7 @@ data using the `create-ranges` command:
     --reference-file data/Ref.fa \
     --boundary gene \
     --pad 500 \
+    --range-min-size 500 \
     -o output/ref_ranges.bed
 ```
 
@@ -294,6 +296,8 @@ This command uses several parameters:
     we would extend the region 500 base pairs upstream and downstream
     of the defined boundary (in this case, `gene`).
 
+  
+
 > [!NOTE]
 > There is a possibility that overlaps of regions will occur. If
 > this does happen, `create-ranges` will identify any overlapping
@@ -304,7 +308,14 @@ This command uses several parameters:
 > ====================================
 > [---------Merged overlap-----------]
 >  ```
-  
+
+* `--range-min-size` - The minimum size for each range in the bedfile. This parameter is
+  optional with a default of 500 bps. For example, if we were to set the `--range-min-size` parameter
+  to `500`, any region that is less than 500 base pairs in length will be
+  merged with the previous region on that contig.  If the first region of a contig is less than the specified minimum size
+  it will be merged with the next region on that contig.  This merging is done in create-ranges after the gene or CDS region has been created and padding has been applied.
+
+
 * `-o` - Name for the output BED file.
 
 In the above example, I am using test data from the 
@@ -328,6 +339,166 @@ file contains 6 columns of information:
 > separated string of all the genes/CDS features included in this BED 
 > region.
 
+### Annotate Fastas
+The annotate-fasta command has two goals.  The first is to copy the fastas to a new file
+whose name is changed to be <sampleName>.fa.  The second is to add a sampleName to the id lines of the fasta file.
+**These annotated fasta files should be used as input to both the agc-compress step and the align-assemblies step.**
+This ensures consistent sample names across the pipeline.
+
+For the first goal, a file originally named Zm-CML52-NAM-1.0.fa would be copied to a new file named CML52.fa, based
+on the user supplying a keyfile with "CML52" as the sample name for this fasta.  The reason
+for this change is the AGC compression tool stores the file name (minus extension) as the sample name
+when creating the compressed file.  This keeps the AGC sample name consistent with sample
+names that are stored in the VCF files.  With consistent sample names, sequence and variants may be associated.
+
+For the second goal:  As of the current date of this document, the return methods of
+AGC will not keep track of sample IDs when returning
+sequence information from the compressed file **unless you explicitly
+state the sample information in the header lines of the FASTA files
+you wish to compress for the PHGv2 databases**. To explain this
+further, let's imagine that we have two FASTA files: `LineA.fa` and
+`LineB.fa`. These files contain information for only chromosome 1 and
+have a simple header that denotes this sequence name (e.g. `chr1`):
+
+```
+$ head LineA.fa
+>chr1
+ATGCGTACGCGCACCG
+
+$ head LineB.fa
+>chr1
+ATGCGTTCGCCTTCCG
+```
+
+After we compress this information using the `agc-compress` command,
+we will have a file called `assemblies.agc`. PHGv2 leverages this
+compressed sequence file when creating VCF data (_see
+the [**"Create VCF files"**](#create-vcf-files) section for further
+details_). The issue arrives when we query the compressed data using
+[AGC's `getctg`](https://github.com/refresh-bio/agc#extract-contigs-from-the-archive)
+command. When we query this hypothetical archive, we will get the
+following information:
+
+```
+$ agc getctg assemblies.agc chr1@LineA chr1@LineB > queries.fa
+
+$ head queries.fa
+>chr1
+ATGCGTACGCGCACCG
+>chr1
+ATGCGTTCGCCTTCCG
+```
+
+As you can see from the above hypothetical output, we now have no
+means to efficiently track where each sequence is coming from due
+to the lack of header information from our prior FASTA files. We
+can remedy this by adding sample information to the headers:
+
+```
+$ head LineA.fa
+>chr1 sampleName=LineA
+ATGCGTACGCGCACCG
+
+$ head LineB.fa
+>chr1 sampleName=LineB
+ATGCGTTCGCCTTCCG
+```
+
+Now, when we compress and query using AGC, we get enhanced sample ID
+tracking:
+
+```
+$ ./agc getctg assemblies_new_headers.agc chr1@LineA chr1@LineB > queries.fa
+
+$ head queries.fa
+>chr1 sampleName=LineA
+ATGCGTACGCGCACCG
+>chr1 sampleName=LineB
+ATGCGTTCGCCTTCCG
+```
+
+While we can manually modify the header lines of our FASTA
+file, this can become tedious and prone to a new set of downstream
+errors. To automate this, PHGv2 provides an optional command to
+append sample information to the headers of each FASTA file called
+`annotate-fastas`:
+
+```shell
+phg annotate-fastas \
+    --keyfile data/annotation_keyfile.txt \
+    --threads 10 \
+    --output-dir output/annotated_assemblies
+```
+
+This command takes 3 parameters:
+
+* `--keyfile` - A [tab-delimited](https://en.wikipedia.org/wiki/Tab-separated_values)
+  keyfile containing two columns:
+
+| Column | Value                                                                                                                                                                                                                      |
+|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1      | Path to FASTA file you would like annotated (this is similar to the text files used to point to the FASTA file paths in the [`agc-compress`](#compress-fasta-files) and [`align-assemblies`](#align-assemblies) commands). |
+| 2      | Name of the sample that will be appended to each header line                                                                                                                                                               |
+
++ My example `annotation_keyfile.txt` file would look like this:
+
+  ```
+  data/LineA.fa   LineA
+  data/LineB.fa   LineB
+  ```
+* `--threads` - Optional number of threads to annotate multiple
+  FASTA files in parallel. _Defaults to `1`_.
+* `-o` - Output directory for the newly annotated FASTA files
+
+> [!WARNING]
+> This step must be performed before the `agc-compress` step.
+
+> [!WARNING]
+> Sample IDs in the keyfile must match with what is found in the
+> TileDB instances.
+
+> [!NOTE]
+> FASTA files can be either uncompressed or compressed, though the reference fasta
+> should be uncompressed.
+
+> [!NOTE]
+> If compressed, ".gz" should be the only extension.
+> For example: your file should be `LineA.gz` and not `LineA.fa.gz`. This is due to AGC taking
+> everything before the last period as the sample name.  We do not want ".fa" included as part of the sample name.
+
+Once finished, this command will produce FASTA files with the name
+of the sample from the keyfile appended to each header line. For
+example, in our hypothetical FASTA files, our headers go from this:
+
+```
+$ head LineA.fa
+>chr1
+ATGCGTACGCGCACCG
+```
+
+to this:
+
+```
+$ head LineA.fa
+>chr1 sampleName=LineA
+ATGCGTACGCGCACCG
+```
+
+>[!NOTE]
+>This command will just append the name of a file to the end of the
+>FASTA headers. For example, if we had a more detailed header:
+>
+>```
+>chr1 pos=1:16
+>ATGCGTACGCGCACCG
+>```
+>
+>...the header would become:
+>
+>```
+>chr1 pos=1:16 sampleName=LineA
+>ATGCGTACGCGCACCG
+>```
 
 
 ### Align assemblies
@@ -344,7 +515,7 @@ to install this manually.
 
 > [!NOTE]
 > For best results with imputation and rare allele calling pipelines, 
-> **please use high quality assemblies**!
+> **please use high quality assemblies**! that have been run through the annotate-fastas command.
 
 To run the aligner step, we can call the `align-assemblies` command:
 
@@ -378,6 +549,8 @@ This command uses several parameters:
   Here, I am planning on aligning two genomes called `LineA` and 
   `LineB`. Since these are located in a subdirectory called `data`
   relative to my working directory, I will also add that to the path.
+
+  The input assemblies should be the assemblies updated/renamed via the `annotate-fastas` command.
 
 * `-o` - The name of the directory for the alignment outputs.
 
@@ -547,158 +720,6 @@ align and system capacities, when determining the anchorwave setup.
 
 [//]: # (| ARM       | 34.2             | 18:08:57  |)
 
-### Annotate Fastas
-As of the current date of this document, the return methods of
-AGC will not keep track of sample IDs when returning
-sequence information from the compressed file **unless you explicitly
-state the sample information in the header lines of the FASTA files
-you wish to compress for the PHGv2 databases**. To explain this
-further, let's imagine that we have two FASTA files: `LineA.fa` and
-`LineB.fa`. These files contain information for only chromosome 1 and
-have a simple header that denotes this sequence name (e.g. `chr1`):
-
-```
-$ head LineA.fa
->chr1
-ATGCGTACGCGCACCG
-
-$ head LineB.fa
->chr1
-ATGCGTTCGCCTTCCG
-```
-
-After we compress this information using the `agc-compress` command,
-we will have a file called `assemblies.agc`. PHGv2 leverages this
-compressed sequence file when creating VCF data (_see
-the [**"Create VCF files"**](#create-vcf-files) section for further
-details_). The issue arrives when we query the compressed data using
-[AGC's `getctg`](https://github.com/refresh-bio/agc#extract-contigs-from-the-archive)
-command. When we query this hypothetical archive, we will get the
-following information:
-
-```
-$ agc getctg assemblies.agc chr1@LineA chr1@LineB > queries.fa
-
-$ head queries.fa
->chr1
-ATGCGTACGCGCACCG
->chr1
-ATGCGTTCGCCTTCCG
-```
-
-As you can see from the above hypothetical output, we now have no
-means to efficiently track where each sequence is coming from due
-to the lack of header information from our prior FASTA files. We
-can remedy this by adding sample information to the headers:
-
-```
-$ head LineA.fa
->chr1 sampleName=LineA
-ATGCGTACGCGCACCG
-
-$ head LineB.fa
->chr1 sampleName=LineB
-ATGCGTTCGCCTTCCG
-```
-
-Now, when we compress and query using AGC, we get enhanced sample ID
-tracking:
-
-```
-$ ./agc getctg assemblies_new_headers.agc chr1@LineA chr1@LineB > queries.fa
-
-$ head queries.fa
->chr1 sampleName=LineA
-ATGCGTACGCGCACCG
->chr1 sampleName=LineB
-ATGCGTTCGCCTTCCG
-```
-
-While we can either manually modify the header lines of our FASTA
-file, this can become tedious and prone to a new set of downstream
-errors. To automate this, PHGv2 provides an optional command to
-append sample information to the headers of each FASTA file called
-`annotate-fastas`:
-
-```shell
-phg annotate-fastas \
-    --keyfile data/annotation_keyfile.txt \
-    --threads 10 \
-    --o output/annotated_assemblies
-```
-
-This command takes 3 parameters:
-
-* `--keyfile` - A [tab-delimited](https://en.wikipedia.org/wiki/Tab-separated_values)
-  keyfile containing two columns:
-
-| Column | Value                                                                                                                                                                                                                      |
-|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1      | Path to FASTA file you would like annotated (this is similar to the text files used to point to the FASTA file paths in the [`agc-compress`](#compress-fasta-files) and [`align-assemblies`](#align-assemblies) commands). |
-| 2      | Name of the sample that will be appended to each header line                                                                                                                                                               |
-
-  + My example `annotation_keyfile.txt` file would look like this:
-
-  ```
-  data/LineA.fa   LineA
-  data/LineB.fa   LineB
-  ```
-* `--threads` - Optional number of threads to annotate multiple
-  FASTA files in parallel. _Defaults to `1`_.
-* `-o` - Output directory for the newly annotated FASTA files
-
-> [!WARNING]
-> This step must be performed before the `agc-compress` step.
-
-> [!WARNING]
-> Sample IDs in the keyfile must match with what is found in the
-> TileDB instances.
-
-> [!NOTE]
-> FASTA files can be either uncompressed or compressed, though the reference fasta
-> should be uncompressed. 
-
-> [!NOTE]
-> If compressed, ".gz" should be the only extension.
-> For example: your file should be `LineA.gz` and not `LineA.fa.gz`. This is due to AGC taking 
-> everything before the last period as the sample name.  We do not want ".fa" included as part of the sample name.
-
-Once finished, this command will produce FASTA files with the name
-of the sample from the keyfile appended to each header line. For
-example, in our hypothetical FASTA files, our headers go from this:
-
-```
-$ head LineA.fa
->chr1
-ATGCGTACGCGCACCG
-```
-
-to this:
-
-```
-$ head LineA.fa
->chr1 sampleName=LineA
-ATGCGTACGCGCACCG
-```
-
->[!NOTE]
->This command will just append the name of a file to the end of the
->FASTA headers. For example, if we had a more detailed header:
->
->```
->chr1 pos=1:16
->ATGCGTACGCGCACCG
->```
->
->...the header would become:
->
->```
->chr1 pos=1:16 sampleName=LineA
->ATGCGTACGCGCACCG
->```
-
-
-
 
 
 ### Compress FASTA files
@@ -731,7 +752,7 @@ This command takes in 3 parameters:
 > initialize the TileDB instances in the database initialization 
 > (`initdb`) step.
 
-* `--fasta-list` - List of assembly FASTA genomes to compress.
+* `--fasta-list` - List of assembly FASTA genomes to compress.  The fastas on this list should be the fastas that have been updated/renamed via the `annotate-fastas` command.
 
 > [!NOTE]
 > The list specified in `--fasta-list` _can_ be the same list used

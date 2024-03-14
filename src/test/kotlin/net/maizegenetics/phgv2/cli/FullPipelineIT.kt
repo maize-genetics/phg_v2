@@ -153,7 +153,7 @@ class FullPipelineIT {
 
         //build a kmer index
         println("building kmer index")
-        val buildKmerIndexArgs = "--agc-path ${TestExtension.testTileDBURI} --hvcf-dir ${TestExtension.testVCFDir}"
+        val buildKmerIndexArgs = "--db-path ${TestExtension.testTileDBURI} --hvcf-dir ${TestExtension.testVCFDir}"
         val indexResult = BuildKmerIndex().test(buildKmerIndexArgs)
         assertEquals(0, indexResult.statusCode, "Kmer Indexing failed")
         println(indexResult.output)

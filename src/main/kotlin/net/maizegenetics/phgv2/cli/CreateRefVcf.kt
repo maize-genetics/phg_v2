@@ -191,7 +191,7 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
                             VCFAltHeaderLine(
                                 "<ID=${intervalHash}, Description=\"haplotype data for line: ${refName}\"," +
                                         "Source=\"${refGenome}\",SampleName=\"${refName}\",Regions=\"${chr}:${anchorStart}-${anchorEnd}\"," +
-                                        "Checksum=\"Md5\",RefRange=\"${intervalHash}\">",
+                                        "Checksum=\"${intervalHash}\",RefChecksum=\"${intervalHash}\",RefRange=\"${chr}:${anchorStart}-${anchorEnd}\">",
                                 VCFHeaderVersion.VCF4_2
                             )
                         )
