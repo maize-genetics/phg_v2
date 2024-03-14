@@ -124,36 +124,37 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             //create a map of hash -> count of occurrences for all the haplotypes in this reference range
             //retrieveAgcContigs needs a list of contig@genome:start-end, for all of the regions in the haplotype alt headers
             //subtract 1 from altHeader positions because AGC positions are 0-based.
-            //also need a map of source -> hapid in order to associate sequence from agc to the hapid that it came from
+            //Also need a map of Pair(sampleName, region) -> hapid in order to associate sequence from agc to the originating hapid.
+            //The region has to match the region as requested from agc.
             val agcRangeList = mutableListOf<String>()
-            val sourceHapidMap = mutableMapOf<String, String>()
-
+            val hapidSampleRangeList = mutableListOf<Array<String>>()
 
             hapidToSampleMap.keys.forEach { hapid ->
                 val alt = graph.altHeader(hapid) ?: throw IllegalStateException("No alt header for $hapid")
-                //mapping source name to hapid assumes there is only one hapid per source in a reference range
-                //this seems safe, but it is being checked here just in case
-                //alt.source is not the agc sample name, but is serving as a placeholder until the correct name is available
-                //not sure what alt.property will be the one to use
-                check(!sourceHapidMap.contains(alt.sampleName())) {"Two hapids from ${alt.sampleName()} at ${alt.regions[0].first.contig}:${alt.regions[0].first.position}\n$sourceHapidMap"}
-                sourceHapidMap[alt.sampleName()] = hapid
+
                 for (range in alt.regions) {
                     if (range.first.position <= range.second.position) {
                         agcRangeList.add("${range.first.contig}@${alt.sampleName()}:${range.first.position - 1}-${range.second.position - 1}")
+                        hapidSampleRangeList.add(arrayOf(hapid, alt.sampleName(), "${range.first.contig}:${range.first.position - 1}-${range.second.position - 1}"))
                     } else {
                         agcRangeList.add("${range.first.contig}@${alt.sampleName()}:${range.second.position - 1}-${range.first.position - 1}")
+                        hapidSampleRangeList.add(arrayOf(hapid, alt.sampleName(), "${range.first.contig}:${range.second.position - 1}-${range.first.position - 1}"))
                     }
                 }
 
             }
 
+            val sampleRegionToHapidMap = hapidSampleRangeList.groupBy({Pair(it[1], it[2])},{it[0]})
+
             val agcdataMap = retrieveAgcContigs(dbPath, agcRangeList)
             //retrieveAgcContigs returns a Map<Pair<String,String>,NucSeq> where Pair is
             // sampleName, contig:start-end and NucSeq is the sequence
-            val hapidSeqMap = agcdataMap.entries.map { (sample, seqrec) ->
-                val hapid = sourceHapidMap[sample.first] ?: throw IllegalStateException("No hapid for ${sample.first}")
-                hapid to seqrec.seq()
-                }.groupBy ({it.first}, {it.second})
+            // The following gets the hapid that was used to generate each agc entry and creates a map of hapid -> list of sequences
+            // from that hapid.
+            val hapidSeqMap = agcdataMap.entries.mapNotNull { (sample, seqrec) ->
+                val hapidList = sampleRegionToHapidMap[sample]
+                hapidList?.map { Pair(it, seqrec) }
+            }.flatten().groupBy ({it.first}, {it.second.seq()})
 
             val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidSeqMap, hashMask, hashFilterValue)
 
