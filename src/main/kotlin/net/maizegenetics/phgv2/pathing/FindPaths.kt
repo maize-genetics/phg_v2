@@ -168,13 +168,14 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         val keyFileLines = readInputFiles.getReadFiles()
         require(keyFileLines.isNotEmpty()) {"Must provide either --key-file or --read-files."}
 
-        val samplesToReadMappingFiles = when (getKeyFileType(keyFileLines)) {
+        var samplesToReadMappingFiles = when (getKeyFileType(keyFileLines)) {
             KeyfileType.READ ->
                 keyFileLines.associate { Pair(it.sampleName, it.file1.split(",")) }
 
             KeyfileType.FASTQ -> mapReads(keyFileLines)
         }
-        println("samplesToReadMappingFiles: $samplesToReadMappingFiles")
+        samplesToReadMappingFiles = checkForExistingOutput(samplesToReadMappingFiles)
+
         processReadMappings(samplesToReadMappingFiles)
     }
 
@@ -236,12 +237,12 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
     }
 
     /**
-     * Takes a map of samples to file list as input. If the output directory contains an hvcf file for any sample,
+     * Takes a map of sample -> file list as input. If the output directory contains an hvcf file for any sample,
      * that sample will be removed from the map and the trimmed map will be returned.
      */
     private fun checkForExistingOutput(sampleToFiles: Map<String, List<String>>): Map<String, List<String>> {
 
-        val existingSamples = File(outputDir).listFiles().filter { it.name.contains(".h.vcf") }
+        val existingSamples = File(outputDir).listFiles().filter { it.name.endsWith(".h.vcf") || it.name.endsWith(".h.vcf.gz") }
             .map { file -> file.name.substringBefore(".h.vcf") }
 
         val newSamples = sampleToFiles.filter { (sampleName, _) -> !existingSamples.contains(sampleName) }
