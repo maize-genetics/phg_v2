@@ -133,6 +133,7 @@ class AlignAssemblies : CliktCommand(help = "Align assemblies using AnchorWave")
         createCDSfromRefData(referenceFile, gff, cdsFasta, outputDir)
 
         // create list of assemblies to align from the assemblies file
+        // exclude blank lines
         val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
 
         // run minimap2 for ref to refcds
@@ -418,8 +419,9 @@ class AlignAssemblies : CliktCommand(help = "Align assemblies using AnchorWave")
                 assemblies.forEach { asmFile ->
 
                     // Column names were checked for validity above
+                    // used ".trim()" to remove trailing whitespace from the file name
                     myLogger.info("Adding: $asmFile for processing")
-                    inputChannel.send(InputChannelData(refFasta, asmFile, outputDir, gffFile, refSamOutFile, runsAndThreads.first, runsAndThreads.second))
+                    inputChannel.send(InputChannelData(refFasta, asmFile.trim(), outputDir, gffFile, refSamOutFile, runsAndThreads.first, runsAndThreads.second))
                 }
                 myLogger.info("Done Adding data to the inputChannel:")
                 inputChannel.close() // Need to close this here to show the workers that it is done adding more data
