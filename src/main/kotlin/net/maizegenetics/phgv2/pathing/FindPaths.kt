@@ -53,11 +53,13 @@ sealed class PathInputFile {
             check(readFiles.isNotEmpty()) { "--read-files must have at least one file." }
             val isReadMapping = readFiles.contains("_readMapping.txt")
             return if (isReadMapping) {
+                val sampleName = File(readFiles.split(",")[0]).name.removeSuffix("_readMapping.txt")
+                listOf(KeyFileData(sampleName, readFiles, ""))
+            } else {
                 val fileNames = readFiles.split(",")
                 check(fileNames.size <= 2) { "--read-files must have 1 or 2 files separated by commas.  You provided: ${fileNames.size}" }
-                listOf(KeyFileData("noSample",fileNames.first(), if(fileNames.size==1) "" else fileNames.last()))
-            } else {
-                listOf(KeyFileData("noSample", readFiles, ""))
+                val sampleName = File(fileNames[0]).name.removeSuffix(".gz").removeSuffix(".fq").removeSuffix(".fastq")
+                listOf(KeyFileData(sampleName,fileNames.first(), if(fileNames.size==1) "" else fileNames.last()))
             }
         }
 
@@ -79,15 +81,22 @@ sealed class PathInputFile {
 class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")  {
 
     val readInputFiles: PathInputFile by mutuallyExclusiveOptions<PathInputFile>(
-        option("--key-file", help = "Name of tab-delimited key file.  Columns for samplename and filename are required. Files must be either read mapping files (ending in _readMapping.txt) or fastq files.If using paired end fastqs, a filename2 column can be included. A value must be entered for either --key-file or --read-files.").convert{ PathInputFile.KeyFile(it) },
-        option("--read-files", help = "Comma separated list of fastq files for a single sample.  Either 1(for single end) or 2(for paired end) files can be input at a time this way.  Any more and an error will be thrown. If listing files from read mapping, they must end in _readMapping.txt.").convert{ PathInputFile.ReadFiles(it) }
+        option("--key-file", help = "Name of tab-delimited key file.  Columns for samplename and filename" +
+                " are required. Files must be either read mapping files (ending in _readMapping.txt) or fastq files. " +
+                "If using paired end fastqs, a filename2 column can be included. A value must be entered for " +
+                "either --key-file or --read-files.")
+            .convert{ PathInputFile.KeyFile(it) },
+        option("--read-files", help = "Comma separated list of fastq files for a single sample. " +
+                "Either 1(for single end) or 2(for paired end) files can be input at a time this way.  Any more and " +
+                "an error will be thrown. If listing files from read mapping, they must end in _readMapping.txt.")
+            .convert{ PathInputFile.ReadFiles(it) }
     ).single().required()
 
     val hvcfDir by option(help = "The directory containing the hvcf files used to build a HaplotypeGraph for path finding. Required parameter.")
         .required()
         .validate { require(File(it).isDirectory) {"$it is not a valid directory. Required parameter."} }
 
-    val referenceGenome by option(help = "path to reference genome (fasta or fastq).  Required parameter.")
+    val referenceGenome by option(help = "path to reference genome (fasta or fastq). Required parameter.")
         .required()
         .validate { require(File(it).exists()) {"$it is not a valid file"} }
 
@@ -157,13 +166,15 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
 
     override fun run() {
         val keyFileLines = readInputFiles.getReadFiles()
+        require(keyFileLines.isNotEmpty()) {"Must provide either --key-file or --read-files."}
+
         val samplesToReadMappingFiles = when (getKeyFileType(keyFileLines)) {
-            KeyfileType.FASTQ ->
+            KeyfileType.READ ->
                 keyFileLines.associate { Pair(it.sampleName, it.file1.split(",")) }
 
-            KeyfileType.READ -> mapReads(keyFileLines)
+            KeyfileType.FASTQ -> mapReads(keyFileLines)
         }
-
+        println("samplesToReadMappingFiles: $samplesToReadMappingFiles")
         processReadMappings(samplesToReadMappingFiles)
     }
 
@@ -188,7 +199,7 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         //write a key file to outputDirPath
         val readKeyfile = outputDirPath.resolve("readKeyFile.txt").absolutePathString()
         getBufferedWriter(readKeyfile).use { myWriter ->
-            myWriter.write("sampleName, filename, filename2\n")
+            myWriter.write("sampleName\tfilename\tfilename2\n")
             for (keyLine in keyfileLines) {
                 val filenames = keyLine.file1.split(",")
                 val filenames2 = keyLine.file2.split(",")
@@ -210,9 +221,10 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         }
 
         MapKmers().main(argList)
-        val readMappingFilenames = outputDirPath.listDirectoryEntries("*_readMapping.txt").map { it.fileName.toString() }
 
-        return readMappingFilenames.groupBy { it.substringBeforeLast("_").substringBeforeLast("_")}
+        //return a map of sampleName -> a file named <sampleName>_readMapping.txt in the outputDir
+        return keyfileLines.associate { Pair(it.sampleName,
+            listOf(outputDirPath.resolve("${it.sampleName}_readMapping.txt").absolutePathString())) }
 
     }
 
@@ -222,21 +234,6 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
 
         return HaplotypeGraph(listOfHvcfFilenames)
     }
-
-
-//    private fun mapReads(readKeyfile: String): Map<String, List<String>> {
-//        val outputDirPath = Files.createTempDirectory("readMapping")
-//        val argList = mutableListOf("--hvcf-dir", hvcfDir, "--key-file", readKeyfile,
-//            "--output-dir", outputDirPath.absolutePathString())
-//        if (kmerIndex.isNotBlank()) {
-//            argList.add("--kmer-index")
-//            argList.add(kmerIndex)
-//        }
-//        MapKmers().main(argList)
-//        val readMappingPaths = outputDirPath.listDirectoryEntries("*_readMapping.txt")
-//        return readMappingPaths.associate { path -> Pair(path.fileName.toString().substringBefore("_readMapping"),
-//            listOf(path.toString())) }
-//    }
 
     /**
      * Takes a map of samples to file list as input. If the output directory contains an hvcf file for any sample,

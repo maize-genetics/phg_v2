@@ -36,7 +36,9 @@ sealed class ReadInputFile {
             check(readFiles.isNotEmpty()) { "--read-files must have at least one file." }
             val fileNames = readFiles.split(",")
             check(fileNames.size <= 2) { "--read-files must have 1 or 2 files separated by commas.  You provided: ${fileNames.size}" }
-            return listOf(KeyFileData("noSample",fileNames.first(), if(fileNames.size==1) "" else fileNames.last()))
+            val fileBase = File(fileNames[0]).name.removeSuffix(".gz").removeSuffix(".fq").removeSuffix(".fastq")
+
+            return listOf(KeyFileData(fileBase,fileNames.first(), if(fileNames.size==1) "" else fileNames.last()))
         }
 
     }

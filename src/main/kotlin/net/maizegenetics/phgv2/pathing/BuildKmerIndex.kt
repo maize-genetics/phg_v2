@@ -126,7 +126,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             //create a map of hash -> count of occurrences for all the haplotypes in this reference range
             //retrieveAgcContigs needs a list of contig@genome:start-end, for all of the regions in the haplotype alt headers
             //subtract 1 from altHeader positions because AGC positions are 0-based.
-            //also need a map of source -> hapid in order to associate sequence from agc to the hapid that it came from
+            //Also need a map of Pair(sampleName, region) -> hapid in order to associate sequence from agc to the originating hapid.
+            //The region has to match the region as requested from agc.
             val agcRangeList = mutableListOf<String>()
             val hapidSampleRangeList = mutableListOf<Array<String>>()
 
