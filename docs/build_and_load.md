@@ -912,13 +912,13 @@ and gVCF files into their respective TileDB directories:
 
 ```shell
 ./phg load-vcf \
-    --vcf output/vcf_files \
+    --vcf-dir output/vcf_files \
     --db-path vcf_dbs \
     --threads 10
 ```
 
 This command takes three parameters:
-* `--vcf` - Directory containing `h.vcf.gz` and/or `g.vcf.gz` 
+* `--vcf-dir` - Directory containing `h.vcf.gz` and/or `g.vcf.gz` 
   files made from the `create-ref-vcf` and `create-maf-vcf` commands
   (_See the [**"Create VCF files"**](#create-vcf-files) section for 
   further details_). In my example case this is a subdirectory
