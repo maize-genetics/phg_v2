@@ -24,8 +24,9 @@ import java.io.File
  * The output directory is the directory where the updated fasta files will be written.
  *
  * THis class will take the fasta files, read them into memory, update the idlines with "sampleName=<sampleName>"
- * The updated fasta files are written to the output directory with <sampleName>.fa as the file name.  If the original
- * file was compressed, gzip compression will be performed on the new file.
+ * The updated fasta files are written to the output directory with <sampleName>.fa as the file name.  Bgzip is no
+ * longer performed on any of the files as this step precedes the align-assemblies step, and anchorwave does not
+ * support compressed files.  The user can compress the files after this step if desired.
  *
  * "threads" is an optional parameter.  This value determines how many fasta files will be processed concurrently.
  * When determining the number of threads to use, keep in mind the memory capacity of the machine,
@@ -125,14 +126,10 @@ class AnnotateFastas : CliktCommand(help = "Annotate FASTA files with sample nam
                 // written to the outputDir
                 // if  the line starts with >, append " sampleName=${sampleName}" to the line
 
-                // if file was previously compressed, we compress the new file.
-                // Strip off the .gz extension before writing the new non-compressed file.
-                // it wil be added when we re-compress the file.
-                // The file names will either be <sampleName>.fa or <sampleName>.gz
-                // When the file is compressed, we only add .gz as an extension as AGC
-                // takes everything before the last period as the sample name and we
-                // want the sample name to look like "B73" or "CML247" and not "B73.fa" or "CML247.fa"
-                val justName = if (fastaFile.endsWith(".gz")) sampleName else "${sampleName}.fa"
+                // Previously if the original file was previously compressed, we compressed the new file.
+                // We no longer do this, as the align-assemblies step requires uncompressed fasta files.
+                // The file names will  be <sampleName>.fa
+                val justName =  "${sampleName}.fa"
                 val newFilename = "${outputDir}/${justName}"
                 File(newFilename).bufferedWriter().use { writer ->
                     bufferedReader(fastaFile).forEachLine { line ->
@@ -146,10 +143,10 @@ class AnnotateFastas : CliktCommand(help = "Annotate FASTA files with sample nam
                             writer.write("${line}\n")
                         }
                     }
-                    if (entry.compressed) {
-                        // If the input file was compressed, then the new output file will be compressed
-                        gzipFasta(newFilename)
-                    }
+//                    if (entry.compressed) {
+//                        // If the input file was compressed, then the new output file will be compressed
+//                        gzipFasta(newFilename)
+//                    }
                 }
             }
         }
