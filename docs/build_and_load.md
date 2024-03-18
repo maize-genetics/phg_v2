@@ -451,20 +451,16 @@ This command takes 3 parameters:
 * `-o` - Output directory for the newly annotated FASTA files
 
 > [!WARNING]
-> This step must be performed before the `agc-compress` step.
+> This step must be performed before the `agc-compress` step and the `align-assemblies` step.
 
 > [!WARNING]
 > Sample IDs in the keyfile must match with what is found in the
 > TileDB instances.
 
 > [!NOTE]
-> FASTA files can be either uncompressed or compressed, though the reference fasta
-> should be uncompressed.
-
-> [!NOTE]
-> If compressed, ".gz" should be the only extension.
-> For example: your file should be `LineA.gz` and not `LineA.fa.gz`. This is due to AGC taking
-> everything before the last period as the sample name.  We do not want ".fa" included as part of the sample name.
+> FASTA input files can be either uncompressed or compressed.  The output from the annotate-fastas command will be new 
+> fasta files that are uncompressed.  While AGC accepts compressed fasta files, the align-assemblies command uses anchorwave
+> which requires uncompressed fasta files.
 
 Once finished, this command will produce FASTA files with the name
 of the sample from the keyfile appended to each header line. For
@@ -536,7 +532,7 @@ This command uses several parameters:
   [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format.
 * `--assemblies` - A text file containing a list of assembly genomes.
   The contents of this file should be either full or relative paths
-  to each assembly you would like to align. For example, since I am
+  to each uncompressed assembly you would like to align. For example, since I am
   using the example data found on the 
   [PHGv2 GitHub repository](https://github.com/maize-genetics/phg_v2/tree/main/data/test/smallseq),
   I can create a text file called `assemblies_list.txt` and populate
