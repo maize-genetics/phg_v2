@@ -204,8 +204,7 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
             for (keyLine in keyfileLines) {
                 val filenames = keyLine.file1.split(",")
                 val filenames2 = keyLine.file2.split(",")
-                require(filenames2[0] == "" || filenames.size == filenames2.size) {"Keyfile problem: The number of filenames " +
-                        "in filename2 and filename are different for sampleName = ${keyLine.sampleName}"}
+                require(filenames2[0] == "" || filenames.size == filenames2.size) {"Keyfile problem: The number of filenames in filename2 and filename are different for sampleName = ${keyLine.sampleName}"}
                 if (filenames2[0] == "") {
                     for (ndx in filenames.indices) myWriter.write("${keyLine.sampleName}_$ndx\t${filenames[ndx]}\t\n")
                 } else {

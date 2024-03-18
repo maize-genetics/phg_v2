@@ -277,6 +277,31 @@ class FindPathsTest {
         val pathFile = TestExtension.testOutputDir + "test.h.vcf"
         assertTrue(File(pathFile).exists()) {"The path file was not written using --read-files."}
 
+        //do the same but specify the kmer index explicitly
+        pathFindingTestArgs = "--path-type haploid --read-files $readMappingFile --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--kmer-index ${TestExtension.testVCFDir}kmerIndex.txt " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir}"
+        val pathFindingResult2 = FindPaths().test(pathFindingTestArgs)
+        assertEquals(0, pathFindingResult2.statusCode, "pathFinding status code was ${pathFindingResult2.statusCode}")
+
+    }
+
+    @Test
+    fun testNotGoodFileType() {
+        //create a keyfile
+        val keyFilename = TestExtension.testOutputDir + "keyfileWithBadFile.txt"
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("sampleName\tfilename\n")
+            myWriter.write("TestLine\t${TestExtension.tempDir}notfastq.txt\n")
+        }
+
+        var pathFindingTestArgs = "--path-type haploid --key-file $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir}"
+
+        val exception = assertThrows<IllegalArgumentException> {
+            FindPaths().test(pathFindingTestArgs)
+        }
+        assertTrue(exception.toString().contains("Key filenames must be either fastq or readMapping."))
     }
 
     @Test
