@@ -51,7 +51,7 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
         .default("")
 
 
-    val fastaList by option(help = "File containing full path name for the annotated fasta files, one per line, to compress into a single agc file.  Fastas may be compressed or uncompressed files. Reference fasta should NOT be included.\nAll fastas (including reference) must be fastas created via the phg annotate-fastas command")
+    val fastaList by option(help = "File containing full path name for the annotated fasta files, one per line, to compress into a single agc file.  Fastas may be compressed or uncompressed files. Reference fasta should NOT be included.\nAll fastas must be fastas created via the phg annotate-fastas command")
         .default("")
         .validate {
             require(it.isNotBlank()) {
