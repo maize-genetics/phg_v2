@@ -143,31 +143,8 @@ class AnnotateFastas : CliktCommand(help = "Annotate FASTA files with sample nam
                             writer.write("${line}\n")
                         }
                     }
-//                    if (entry.compressed) {
-//                        // If the input file was compressed, then the new output file will be compressed
-//                        gzipFasta(newFilename)
-//                    }
                 }
             }
         }
-    fun gzipFasta (file:String) {
-        try {
 
-            // gzip the file
-            // use the -f option to overwrite any existing file
-            myLogger.info("gzipping  file ${file}")
-            var builder = ProcessBuilder("conda","run","-n","phgv2-conda",
-                "gzip", "-f", file)
-
-            var process = builder.start()
-            var error: Int = process.waitFor()
-            if (error != 0) {
-                myLogger.warn("\nERROR $error creating gzipped  version of file: $file")
-                throw IllegalStateException("bgzipAndIndexGVCFfile: error trying to gzip file ${file}: ${error}")
-            }
-
-        } catch (exc:Exception) {
-            throw IllegalStateException("gzipFasta: error gzipping file ${file}")
-        }
-    }
 }
