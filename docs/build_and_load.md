@@ -543,11 +543,11 @@ This command uses several parameters:
   it with the following lines:
 
   ```
-  data/LineA.fa
-  data/LineB.fa
+  output/annotated/LineA.fa
+  output/annotated/LineB.fa
   ```
   Here, I am planning on aligning two genomes called `LineA` and 
-  `LineB`. Since these are located in a subdirectory called `data`
+  `LineB`. Since these are located in a subdirectory called `output/annotated/`
   relative to my working directory, I will also add that to the path.
 
   The input assemblies should be the assemblies updated/renamed via the `annotate-fastas` command.
@@ -731,9 +731,9 @@ which is a wrapper for the
 (AGC). AGC provides performant and efficient compression ratios for 
 our assembly genomes. Like AnchorWave, AGC is also installed during
 the Conda environment setup phase, so there is no need to install 
-this manually.
+this manually.  
 
-To run the compression step, we can call the `align-assemblies` 
+To run the compression step, we can call the `agc-compress` 
 command:
 
 ```shell
@@ -755,11 +755,11 @@ This command takes in 3 parameters:
 * `--fasta-list` - List of assembly FASTA genomes to compress.  The fastas on this list should be the fastas that have been updated/renamed via the `annotate-fastas` command.
 
 > [!NOTE]
-> The list specified in `--fasta-list` _can_ be the same list used
-> in the alignment (`align-assemblies`) step, but make sure header
-> information in each FASTA contains sample IDs. See the 
+> The list specified in `--fasta-list` should be the list of fasta files output
+> from the `annotate-fastas` command.  
+> See the 
 > [**"Important information regarding `agc` compression"**](#warning-important-information-regarding-agc-compression-warning)
-> section for further information and how to remedy this.
+> section on why this is important.
 
 * `--reference-file` - Reference FASTA genome.
 
@@ -769,6 +769,13 @@ subdirectory, `vcf_dbs`. Here, you will see a new file created:
 `assemblies.agc`. This is the compressed AGC file containing our 
 assemblies. This file will be used later to query for haplotype
 sequence regions and composite genome creation.
+
+When running the `agc-compress` command, the software will 
+determine if the "create" or "append" AGC command should be used. If the assemblies.agc
+file is not present in the db-path directory, the software will use the "create" command to compress and
+load the fastas.  If the assemblies.agc file is present in the db-path directory, the software will use the "append" command to compress and
+load the fastas to the existing assemblies.agc file.   It skips fasta files whose
+"name" portion (file name without extension) is already represented as a sample name in the assemblies.agc file, adding only the new fastas to this file.
 
 
 
@@ -905,13 +912,13 @@ and gVCF files into their respective TileDB directories:
 
 ```shell
 ./phg load-vcf \
-    --vcf output/vcf_files \
+    --vcf-dir output/vcf_files \
     --db-path vcf_dbs \
     --threads 10
 ```
 
 This command takes three parameters:
-* `--vcf` - Directory containing `h.vcf.gz` and/or `g.vcf.gz` 
+* `--vcf-dir` - Directory containing `h.vcf.gz` and/or `g.vcf.gz` 
   files made from the `create-ref-vcf` and `create-maf-vcf` commands
   (_See the [**"Create VCF files"**](#create-vcf-files) section for 
   further details_). In my example case this is a subdirectory
