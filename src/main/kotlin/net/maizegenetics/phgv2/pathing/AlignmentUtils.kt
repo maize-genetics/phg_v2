@@ -49,6 +49,7 @@ class AlignmentUtils {
                 //export the read mapping to disk
                 //Use the first file name as the readmapping output name
                 val inputFile1 = File(keyFileRecord.file1)
+                //Todo does this need to work with .fastq.gz files?
                 val outputFileName = "${outputDir}/${inputFile1.nameWithoutExtension}_readMapping.txt"
 
 

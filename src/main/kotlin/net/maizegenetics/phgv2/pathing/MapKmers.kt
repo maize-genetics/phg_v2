@@ -36,7 +36,9 @@ sealed class ReadInputFile {
             check(readFiles.isNotEmpty()) { "--read-files must have at least one file." }
             val fileNames = readFiles.split(",")
             check(fileNames.size <= 2) { "--read-files must have 1 or 2 files separated by commas.  You provided: ${fileNames.size}" }
-            return listOf(KeyFileData("noSample",fileNames.first(), if(fileNames.size==1) "" else fileNames.last()))
+            val fileBase = File(fileNames[0]).name.removeSuffix(".gz").removeSuffix(".fq").removeSuffix(".fastq")
+
+            return listOf(KeyFileData(fileBase,fileNames.first(), if(fileNames.size==1) "" else fileNames.last()))
         }
 
     }
@@ -53,7 +55,7 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
     //    --output read_count_out.map \ // could we pipe this into impute method? // thousands of outputs
     //    // consider batch interface here ^^
 
-    val hvcfDir by option(help = "Directory containing hvcf files used to build the HaplotypeGraph.")
+    val hvcfDir by option(help = "Directory containing hvcf files used to build the HaplotypeGraph. (Required)")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -61,23 +63,16 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
             }
         }
 
-    val kmerIndex by option(help = "Kmer index file created by build-kmer-index.")
+    val kmerIndex by option(help = "Kmer index file created by build-kmer-index. Default is <hvcfDir>/kmerIndex.txt.")
         .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--kmer-index must not be blank"
-            }
-        }
-
-
 
     val readInputFiles: ReadInputFile by mutuallyExclusiveOptions<ReadInputFile>(
-        option("--key-file", help = "Name of tab-delimited key file.  Columns for samplename and filename are required.  If using paired end fastqs, a filename2 column can be included").convert{ ReadInputFile.KeyFile(it) },
+        option("--key-file", help = "Name of tab-delimited key file.  Columns for samplename and filename are required.  If using paired end fastqs, a filename2 column can be included. A value must be entered for either --key-file or --read-files.").convert{ ReadInputFile.KeyFile(it) },
         option("--read-files", help = "Comma separated list of fastq files for a single sample.  Either 1(for single end) or 2(for paired end) files can be input at a time this way.  Any more and an error will be thrown.").convert{ ReadInputFile.ReadFiles(it) }
     ).single().required()
 
 
-    val outputDir by option("-o", "--output-dir", help = "Name for output ReadMapping file Directory")
+    val outputDir by option("-o", "--output-dir", help = "Name for output ReadMapping file Directory (Required)")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -94,8 +89,11 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
             .filter { it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz") }.map { "${hvcfDir}/${it.name}" }
             .toList()
 
+        //set the kmerIndex file name
+        val kmerIndexFilename = kmerIndex.ifBlank { "${hvcfDir}/kmerIndex.txt" }
+
         //create a HaplotypeGraph from the list of hvcf files
         val graph = HaplotypeGraph(hvcfFiles)
-        AlignmentUtils.alignReadsToHaplotypes(graph, kmerIndex, readInputFiles.getReadFiles(), outputDir)
+        AlignmentUtils.alignReadsToHaplotypes(graph, kmerIndexFilename, readInputFiles.getReadFiles(), outputDir)
     }
 }

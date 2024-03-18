@@ -66,7 +66,6 @@ class FindPathsTest {
         //Error: missing option --reference-genome
         //Error: missing option --output-dir
         var errOut = result.stderr
-        assertTrue(errOut.contains("Error: missing option --path-keyfile"))
         assertTrue(errOut.contains("Error: missing option --hvcf-dir"))
         assertTrue(errOut.contains("Error: missing option --reference-genome"))
         assertTrue(errOut.contains("Error: missing option --output-dir"))
@@ -79,22 +78,19 @@ class FindPathsTest {
         assertTrue(errOut.contains("Error: invalid value for --path-type: invalid choice: triploid. (choose from haploid, diploid)"))
 
         //test for invalid file names
-        testArgs = "--path-type haploid --path-keyfile notafile --hvcf-dir notafile --reference-genome notafile --output-dir notafile"
+        testArgs = "--path-type haploid --key-file notafile --hvcf-dir notafile --reference-genome notafile --output-dir notafile"
         result = FindPaths().test(testArgs)
         errOut = result.stderr
-
         //expected errors:
-        // Error: invalid value for --path-keyfile: notafile is not a valid file
-        //Error: invalid value for --hvcf-dir: notafile is not a valid directory.
-        //Error: invalid value for --reference-genome: notafile is not a valid file
-        //Error: invalid value for --output-dir: notafile is not a valid directory.
-        assertTrue(errOut.contains("Error: invalid value for --path-keyfile: notafile is not a valid file"))
-        assertTrue(errOut.contains("Error: invalid value for --hvcf-dir: notafile is not a valid directory."))
+//        Error: invalid value for --hvcf-dir: notafile is not a valid directory. Required parameter.
+//        Error: invalid value for --reference-genome: notafile is not a valid file
+//        Error: invalid value for --output-dir: notafile is not a valid directory.
+        assertTrue(errOut.contains("Error: invalid value for --hvcf-dir: notafile is not a valid directory. Required parameter."))
         assertTrue(errOut.contains("Error: invalid value for --reference-genome: notafile is not a valid file"))
         assertTrue(errOut.contains("Error: invalid value for --output-dir: notafile is not a valid directory."))
 
         //test validation of optional parameters
-        testArgs = "--path-keyfile ${TestExtension.testKeyFile} --hvcf-dir ${TestExtension.smallSeqInputDir} " +
+        testArgs = "--key-file ${TestExtension.testKeyFile} --hvcf-dir ${TestExtension.smallSeqInputDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.smallSeqInputDir} " +
                 "--path-type haploid --prob-correct 0.4 " +
                 "--min-gametes -1 --min-reads -1 --max-reads-per-kb -1 --min-coverage 0.4 --inbreeding-coefficient -1"
@@ -110,7 +106,6 @@ class FindPathsTest {
 //        Error: invalid value for --min-coverage: min-coverage must be between 0.5 and 1.0
 
         errOut = result.stderr
-        println(errOut)
         assertTrue(errOut.contains("Error: invalid value for --prob-correct: prob-correct must be between 0.5 and 1.0"))
         assertTrue(errOut.contains("Error: invalid value for --min-gametes: min-gametes must be a positive integer"))
         assertTrue(errOut.contains("Error: invalid value for --min-reads: min-reads must be a positive integer."))
@@ -118,6 +113,13 @@ class FindPathsTest {
         assertTrue(errOut.contains("Error: invalid value for --min-coverage: min-coverage must be between 0.5 and 1.0"))
         assertTrue(errOut.contains("Error: invalid value for --inbreeding-coefficient: inbreeding-coefficient must be between 0.0 and 1.0"))
 
+        //test providing both --key-file and --read-files
+        testArgs = "--key-file ${TestExtension.testKeyFile} --read-files ${TestExtension.testKeyFile} --path-type haploid" +
+                " --hvcf-dir ${TestExtension.smallSeqInputDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.smallSeqInputDir} "
+
+        result = FindPaths().test(testArgs)
+        assertTrue(result.stderr.contains("Error: option --key-file cannot be used with --read-files"))
     }
 
     @Test
@@ -131,17 +133,17 @@ class FindPathsTest {
         //create a read mapping file
         val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
         val myGraph = HaplotypeGraph(listOfHvcfFilenames)
-        val readMappingFile = TestExtension.testOutputDir + "testReadMapping.txt"
+        val readMappingFile = TestExtension.testOutputDir + "test_readMapping.txt"
         createHaploidReadMappings(myGraph, readMappingFile)
 
         //create a keyfile
         val keyFilename = TestExtension.testOutputDir + "keyfileForPathTest.txt"
         getBufferedWriter(keyFilename).use { myWriter ->
-            myWriter.write("SampleName\tReadMappingFiles\n")
+            myWriter.write("sampleName\tfilename\n")
             myWriter.write("TestLine\t$readMappingFile\n")
         }
 
-        var pathFindingTestArgs = "--path-type haploid --path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+        var pathFindingTestArgs = "--path-type haploid --key-file $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir}"
 
         val pathFindingResult = FindPaths().test(pathFindingTestArgs)
@@ -176,11 +178,11 @@ class FindPathsTest {
         //set minReads = 10. No file expected.
         //change the sample name
         getBufferedWriter(keyFilename).use { myWriter ->
-            myWriter.write("SampleName\tReadMappingFiles\n")
+            myWriter.write("sampleName\tfilename\n")
             myWriter.write("TestLineMinReads\t$readMappingFile\n")
         }
 
-        pathFindingTestArgs = "--path-type haploid --path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+        pathFindingTestArgs = "--path-type haploid --key-file $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
                 "--min-reads 10"
         val minReadTestResult = FindPaths().test(pathFindingTestArgs)
@@ -190,10 +192,10 @@ class FindPathsTest {
         //set minReads = 1, minGametes = 4. This should generate an error message.
         //change the sample name
         getBufferedWriter(keyFilename).use { myWriter ->
-            myWriter.write("SampleName\tReadMappingFiles\n")
+            myWriter.write("sampleName\tfilename\n")
             myWriter.write("TestLineMinGametes\t$readMappingFile\n")
         }
-        pathFindingTestArgs = "--path-type haploid --path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+        pathFindingTestArgs = "--path-type haploid --key-file $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
                 "--min-reads 1 --min-gametes 4"
         val minGametesTestResult = FindPaths().test(pathFindingTestArgs)
@@ -203,10 +205,10 @@ class FindPathsTest {
         //set minReads = 1. maxReadsPerKb = 4. This should filter out about half the reference ranges.
         //change the sample name
         getBufferedWriter(keyFilename).use { myWriter ->
-            myWriter.write("SampleName\tReadMappingFiles\n")
+            myWriter.write("sampleName\tfilename\n")
             myWriter.write("TestLineMaxReads\t$readMappingFile\n")
         }
-        pathFindingTestArgs = "--path-type haploid --path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+        pathFindingTestArgs = "--path-type haploid --key-file $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
                 "--min-reads 1 --max-reads-per-kb 4"
         val maxReadTestResults = FindPaths().test(pathFindingTestArgs)
@@ -224,12 +226,12 @@ class FindPathsTest {
         //create a keyfile
         val switchKeyFilename = TestExtension.testOutputDir + "keyfileForPathTest.txt"
         getBufferedWriter(switchKeyFilename).use { myWriter ->
-            myWriter.write("SampleName\tReadMappingFiles\n")
+            myWriter.write("sampleName\tfilename\n")
             myWriter.write("TestLine2\t$readMappingFile\n")
         }
 
         createReadMappingsWithPathSwitches(myGraph, readMappingFile)
-        val switchTestArgs = "--path-type haploid --path-keyfile $switchKeyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+        val switchTestArgs = "--path-type haploid --key-file $switchKeyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} "
 
         val switchResult = FindPaths().test(switchTestArgs)
@@ -257,6 +259,52 @@ class FindPathsTest {
     }
 
     @Test
+    fun testReadFiles() {
+        val vcfDir = File(TestExtension.testVCFDir)
+
+        //create a read mapping file
+        val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
+        val myGraph = HaplotypeGraph(listOfHvcfFilenames)
+        val readMappingFile = TestExtension.testOutputDir + "test_readMapping.txt"
+        createHaploidReadMappings(myGraph, readMappingFile)
+
+
+        var pathFindingTestArgs = "--path-type haploid --read-files $readMappingFile --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir}"
+
+        val pathFindingResult = FindPaths().test(pathFindingTestArgs)
+        assertEquals(0, pathFindingResult.statusCode, "pathFinding status code was ${pathFindingResult.statusCode}")
+        val pathFile = TestExtension.testOutputDir + "test.h.vcf"
+        assertTrue(File(pathFile).exists()) {"The path file was not written using --read-files."}
+
+        //do the same but specify the kmer index explicitly
+        pathFindingTestArgs = "--path-type haploid --read-files $readMappingFile --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--kmer-index ${TestExtension.testVCFDir}kmerIndex.txt " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir}"
+        val pathFindingResult2 = FindPaths().test(pathFindingTestArgs)
+        assertEquals(0, pathFindingResult2.statusCode, "pathFinding status code was ${pathFindingResult2.statusCode}")
+
+    }
+
+    @Test
+    fun testNotGoodFileType() {
+        //create a keyfile
+        val keyFilename = TestExtension.testOutputDir + "keyfileWithBadFile.txt"
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("sampleName\tfilename\n")
+            myWriter.write("TestLine\t${TestExtension.tempDir}notfastq.txt\n")
+        }
+
+        var pathFindingTestArgs = "--path-type haploid --key-file $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir}"
+
+        val exception = assertThrows<IllegalArgumentException> {
+            FindPaths().test(pathFindingTestArgs)
+        }
+        assertTrue(exception.toString().contains("Key filenames must be either fastq or readMapping."))
+    }
+
+    @Test
     fun testDiploidPathFinding() {
         //use a haplotype groph built from Ref, lineA, and lineB
         val vcfDir = File(TestExtension.testVCFDir)
@@ -264,18 +312,18 @@ class FindPathsTest {
         val myGraph = HaplotypeGraph(listOfHvcfFilenames)
 
         //create a read mapping file
-        val readMappingFile = TestExtension.testOutputDir + "testReadMapping_diploid.txt"
+        val readMappingFile = TestExtension.testOutputDir + "testDiploid_readMapping.txt"
         createDiploidReadMappings(myGraph, readMappingFile)
 
         //create a keyfile
         val lineName = "TestLineD"
         val keyFilename = TestExtension.testOutputDir + "keyfileForDiploidPathTest.txt"
         getBufferedWriter(keyFilename).use { myWriter ->
-            myWriter.write("SampleName\tReadMappingFiles\n")
+            myWriter.write("sampleName\tfilename\n")
             myWriter.write("$lineName\t$readMappingFile\n")
         }
 
-        val pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+        val pathFindingTestArgs = "--key-file $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
                 "--path-type diploid --prob-same-gamete 0.8"
 
@@ -322,7 +370,7 @@ class FindPathsTest {
         }
 
         //test for exception when --use-likely-ancestors true
-        val pathFindingTestArgsLikelyAncestor = "--path-type diploid --path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+        val pathFindingTestArgsLikelyAncestor = "--path-type diploid --key-file $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
                 "--prob-same-gamete 0.8 --use-likely-ancestors true"
 
@@ -341,20 +389,20 @@ class FindPathsTest {
         //create a read mapping file
         val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
         val myGraph = HaplotypeGraph(listOfHvcfFilenames)
-        val readMappingFile = TestExtension.testOutputDir + "testReadMapping.txt"
+        val readMappingFile = TestExtension.testOutputDir + "test_readMapping.txt"
         val readCounts = createHaploidReadMappings(myGraph, readMappingFile)
         val expectedCoverage = readCounts[0].toDouble() / readCounts[1].toDouble()
 
         //create a keyfile
         val keyFilename = TestExtension.testOutputDir + "keyfileForPathTest.txt"
         getBufferedWriter(keyFilename).use { myWriter ->
-            myWriter.write("SampleName\tReadMappingFiles\n")
+            myWriter.write("sampleName\tfilename\n")
             myWriter.write("TestLine\t$readMappingFile\n")
         }
 
         val likelyAncestorFile = TestExtension.testOutputDir + "testAncestors.txt"
         File(likelyAncestorFile).delete()
-        val pathFindingTestArgs = "--path-type haploid --path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
+        val pathFindingTestArgs = "--path-type haploid --key-file $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
                 "--use-likely-ancestors true --max-ancestors 2 --min-coverage 0.9 --likely-ancestor-file $likelyAncestorFile"
 
