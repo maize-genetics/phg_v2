@@ -48,7 +48,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         .required() //Needs to be required now due to the agc archive
 
     val maxHaplotypeProportion by option("-p", "--maxHapProportion", help = "only kmers mapping to less than or " +
-            "equal to maxHapProportion of haplotypes in a reference range will be retained.Defualt = 0.75")
+            "equal to maxHapProportion of haplotypes in a reference range will be retained.Default = 0.75")
         .double()
         .default(0.75)
 
