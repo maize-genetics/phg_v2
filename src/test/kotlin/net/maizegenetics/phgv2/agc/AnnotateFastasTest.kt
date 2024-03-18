@@ -188,10 +188,11 @@ class AnnotateFastasTest {
                 }
             }
         }
-        // verify files named LineA.fa and LineB.fa.gz exist in the output directory
+        // verify files named LineA.fa and LineB.fa exist in the output directory
+        // We no longer compress the fasta files, so the output files are named LineA.fa and LineB.fa
+        // This test verifies the created annotated file for LineB is uncompressed though the original file was compressed.
         assertTrue(File(fastaOutputDir, "LineA.fa").exists())
-        // We do not include ".fa" in the compressed file as AGC takes everything before the last period as the sample name
-        assertTrue(File(fastaOutputDir, "LineB.gz").exists())
+        assertTrue(File(fastaOutputDir, "LineB.fa").exists())
 
     }
     @Test
