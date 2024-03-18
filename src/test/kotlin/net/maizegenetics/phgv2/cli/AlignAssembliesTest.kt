@@ -132,6 +132,36 @@ class AlignAssembliesTest {
     }
 
     @Test
+    fun testAssembliesWithTrailingSpaces() {
+        // This test verifies the code handles an assembly list that
+        // has blank spaces following the assembly name on the line.
+        // ".trim()" was added when reading the assembly list to handle
+        // this case.  This test is to verify that the code works.
+        val assemblyList = TestExtension.smallseqAssembliesListFile
+        val assemblyListWithSpaces = "${TestExtension.tempDir}assembliesListWithSpaces.txt"
+        // create a new list by taking assembliList values and adding a space to the end of each line,
+        // writing the new list to assemblyListWithSpaces
+        File(assemblyList).forEachLine {
+            File(assemblyListWithSpaces).appendText("$it \n")
+        }
+
+        // run assemblies, verify we have a failure
+        val alignAssemblies = AlignAssemblies()
+
+        val result = alignAssemblies.test(
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                    "-a $assemblyListWithSpaces -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1"
+        )
+
+        val lineAMAF = TestExtension.tempDir + "LineA.maf"
+        assertTrue(File(lineAMAF).exists(), "File $lineAMAF does not exist")
+
+        val lineBMAF = TestExtension.tempDir + "LineB.maf"
+        assertTrue(File(lineBMAF).exists(), "File $lineBMAF does not exist")
+
+    }
+
+    @Test
     fun testRunningAlignAssemblies() {
 
         // phg align-assemblies --gff /workdir/tmc46/AlignAssemblies/smallSeq_data/anchors.gff
