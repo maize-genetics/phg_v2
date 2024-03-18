@@ -40,6 +40,17 @@ sealed class ReadInputFile {
         }
 
     }
+
+    private fun keyFileDataFromLine(keyfileLine: String, headerMap: Map<String, Int>):KeyFileData {
+        //possible headers are sampleName, filename, and filename2
+
+        val splitLine = keyfileLine.split("\t")
+        val file1 = splitLine[headerMap["filename"]!!]
+        check(file1.endsWith(".fq") || file1.endsWith(".fq.gz") || file1.endsWith(".fastq") || file1.endsWith(".fastq.gz")) {"filename for ${splitLine[headerMap["sampleName"]!!]} does not end in one of .fq, .fq.gz, .fastq, or .fastq.gz"}
+        val file2 = if (headerMap.contains("filename2") && splitLine.size >= headerMap["filename2"]!!) splitLine[headerMap["filename2"]!!] else ""
+        if (file2.isBlank()) check(file2.endsWith(".fq") || file2.endsWith(".fq.gz") || file2.endsWith(".fastq") || file2.endsWith(".fastq.gz")) {"filename2 for ${splitLine[headerMap["sampleName"]!!]} does not end in one of .fq, .fq.gz, .fastq, or .fastq.gz"}
+        return KeyFileData(splitLine[headerMap["sampleName"]!!], file1, file2)
+    }
 }
 
 class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
