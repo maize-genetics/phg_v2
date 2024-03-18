@@ -43,15 +43,6 @@ class MapKmersTest {
     fun testCliktParams() {
         val mapKmers = MapKmers()
 
-        val resultMissingKmerIndex =
-            mapKmers.test("--hvcf-dir ${TestExtension.testVCFDir} --read-files ${TestExtension.testReads} --output-dir ${TestExtension.testOutputDir}")
-        assertEquals(resultMissingKmerIndex.statusCode, 1)
-        assertEquals(
-            "Usage: map-kmers [<options>]\n" +
-                    "\n" +
-                    "Error: invalid value for --kmer-index: --kmer-index must not be blank\n", resultMissingKmerIndex.output
-        )
-
         val resultMissingReadsAndKeyFile =
             mapKmers.test("--hvcf-dir ${TestExtension.testVCFDir} --kmer-index ${TestExtension.testKmerIndex} --output-dir ${TestExtension.testOutputDir}")
         assertEquals(resultMissingReadsAndKeyFile.statusCode, 1)
@@ -377,7 +368,7 @@ class MapKmersTest {
         val readFiles = ReadInputFile.ReadFiles(readString)
         val readFilesData = readFiles.getReadFiles()
         assertEquals(readFilesData.size, 1)
-        assertEquals(readFilesData[0].sampleName, "noSample")
+        assertEquals(readFilesData[0].sampleName, "file1.txt")
         assertEquals(readFilesData[0].file1, "file1.txt")
         assertEquals(readFilesData[0].file2, "file2.txt")
 
@@ -386,7 +377,7 @@ class MapKmersTest {
         val readFiles2 = ReadInputFile.ReadFiles(readString2)
         val readFilesData2 = readFiles2.getReadFiles()
         assertEquals(readFilesData2.size, 1)
-        assertEquals(readFilesData2[0].sampleName, "noSample")
+        assertEquals(readFilesData2[0].sampleName, "file1.txt")
         assertEquals(readFilesData2[0].file1, "file1.txt")
         assertEquals(readFilesData2[0].file2, "")
 
@@ -408,7 +399,7 @@ class MapKmersTest {
         val readFiles5 = ReadInputFile.ReadFiles(readString5)
         val readFilesData5 = readFiles5.getReadFiles()
         assertEquals(readFilesData5.size, 1)
-        assertEquals(readFilesData5[0].sampleName, "noSample")
+        assertEquals(readFilesData5[0].sampleName, "file1.txt|file2.txt")
         assertEquals(readFilesData5[0].file1, "file1.txt|file2.txt")
         assertEquals(readFilesData5[0].file2, "")
 

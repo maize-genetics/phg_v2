@@ -39,7 +39,8 @@ import kotlin.time.measureTimedValue
  *
  * To use this class, ...
  */
-class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGraph") {
+class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGraph. By default the file will be written " +
+        "to <hvcfDir>/kmerIndex.txt") {
 
     private val myLogger = LogManager.getLogger(BuildKmerIndex::class.java)
 
@@ -47,17 +48,18 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         .required() //Needs to be required now due to the agc archive
 
     val maxHaplotypeProportion by option("-p", "--maxHapProportion", help = "only kmers mapping to less than or " +
-            "equal to maxHapProportion of haplotypes in a reference range will be retained.")
+            "equal to maxHapProportion of haplotypes in a reference range will be retained.Default = 0.75")
         .double()
         .default(0.75)
 
     val hashMask by option("-m", "--hashMask", help = "with hashFilter, used to mask kmers for filtering. " +
-            "Default uses only the last kmer nucleotide. Only change this if you know what you are doing.")
+            "Default uses only the last kmer nucleotide. Only change this if you know what you are doing. Default = 3")
         .long()
         .default(3)
 
     val hashFilterValue by option("-f", "--hashFilter", help = "Only hashes that pass the filter" +
-            " ((hashValue and hashMask) == hashFilter) will be considered")
+            " ((hashValue and hashMask) == hashFilter) will be considered. Do not change this value unless you know " +
+            "what you are doing. Default = 1")
         .long()
         .default(1)
 
@@ -75,7 +77,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         val hashToHapidMap = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
 
         //for now, the name of the kmerIndex will be kmerIndex.txt. Later, the file path and name can be set by the user.
-        val kmerIndexFilename = "${hvcfDir}kmerIndex.txt"
+        val kmerIndexFilename = "${hvcfDir}/kmerIndex.txt"
 
         //save the kmerIndex
         saveKmerHashesAndHapids(graph, kmerIndexFilename, hashToHapidMap)
