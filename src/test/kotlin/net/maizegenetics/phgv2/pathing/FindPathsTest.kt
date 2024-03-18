@@ -274,7 +274,7 @@ class FindPathsTest {
 
         val pathFindingResult = FindPaths().test(pathFindingTestArgs)
         assertEquals(0, pathFindingResult.statusCode, "pathFinding status code was ${pathFindingResult.statusCode}")
-        val pathFile = TestExtension.testOutputDir + "noSample.h.vcf"
+        val pathFile = TestExtension.testOutputDir + "test.h.vcf"
         assertTrue(File(pathFile).exists()) {"The path file was not written using --read-files."}
 
     }
