@@ -126,9 +126,10 @@ class AnnotateFastas : CliktCommand(help = "Annotate FASTA files with sample nam
                 // written to the outputDir
                 // if  the line starts with >, append " sampleName=${sampleName}" to the line
 
-                // Previously if the original file was previously compressed, we compressed the new file.
+                // Previously if the original file was compressed, we compressed the new file.
                 // We no longer do this, as the align-assemblies step requires uncompressed fasta files.
-                // The file names will  be <sampleName>.fa
+                // This function will only create un-compressed files.
+                // The file names will be <sampleName>.fa
                 val justName =  "${sampleName}.fa"
                 val newFilename = "${outputDir}/${justName}"
                 File(newFilename).bufferedWriter().use { writer ->
