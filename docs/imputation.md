@@ -54,7 +54,10 @@ This command has the following parameters:
 * `--output-dir` - the directory to place the read mapping files.
 
 Instead of using `--read-files`, you can use `--key-file` to specify a key file that contains a list of the read mapping files. 
-Columns for samplename and filename are required.  If using paired end fastqs, a filename2 column can be included
+Columns for samplename and filename are required.  If using paired end fastqs, a filename2 column can be included.
+
+The value of `--kmer-index` defaults to `--hvcf-dir`/kmerIndex.txt, the default value used by BuildKmerIndex. 
+If a non-default value was used for the kmerIndex file in BuildKmerIndex, that same value needs to be set here using this parameter.
 
 
 

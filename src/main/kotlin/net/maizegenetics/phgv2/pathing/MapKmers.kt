@@ -66,8 +66,6 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
     val kmerIndex by option(help = "Kmer index file created by build-kmer-index. Default is <hvcfDir>/kmerIndex.txt.")
         .default("")
 
-
-
     val readInputFiles: ReadInputFile by mutuallyExclusiveOptions<ReadInputFile>(
         option("--key-file", help = "Name of tab-delimited key file.  Columns for samplename and filename are required.  If using paired end fastqs, a filename2 column can be included. A value must be entered for either --key-file or --read-files.").convert{ ReadInputFile.KeyFile(it) },
         option("--read-files", help = "Comma separated list of fastq files for a single sample.  Either 1(for single end) or 2(for paired end) files can be input at a time this way.  Any more and an error will be thrown.").convert{ ReadInputFile.ReadFiles(it) }
