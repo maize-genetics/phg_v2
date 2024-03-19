@@ -175,7 +175,7 @@ class AgcCompressTest {
 
         Initdb().createDataSets(TestExtension.tempDir)
         val agcCompress = AgcCompress()
-        assertThrows<IllegalArgumentException> {
+        assertThrows<IllegalStateException> {
             // Create the initial compressed file
             val agcCompressResult = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
         }

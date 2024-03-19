@@ -154,7 +154,7 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
                 if (line.startsWith(">")) {
                     if (!line.contains("sampleName=")) {
                         myLogger.error("Fasta file ${it} is not annotated.  Please use the phg annotate-fastas command to annotate the fasta files.")
-                        throw IllegalArgumentException("Fasta file ${it} is not annotated.  Please use the phg annotate-fastas command to annotate the fasta files.")
+                        throw IllegalStateException("Fasta file ${it} is not annotated.  Please use the phg annotate-fastas command to annotate the fasta files.")
                     }
                     else {
                         // go to next fasta file

@@ -375,7 +375,7 @@ class SeqUtilsTest {
     fun testVerifySampleNameBad() {
         // first file has good annotations, second file is missing "sampleName="
         val fastaList = listOf("data/test/smallSeq/LineA.fa", "data/test/agcTestBad/LineA_noSN.fa")
-        assertThrows<IllegalArgumentException> {
+        assertThrows<IllegalStateException> {
             //Check that an exception is thrown when the idline does not contain "sampleName="
             // the first file is fine, the second file is missing "sampleName="
             // Manually verified that both files were read, and the code went to the second file
