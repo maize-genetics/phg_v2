@@ -387,8 +387,8 @@ class SeqUtilsTest {
     @Test
     fun testVerifySampleNameGood() {
         // 2 files, both are properly annotated.
-        val fastaList = listOf("data/test/smallSeq/LineA.fa", "data/test/smallSeq/LineC.fa")
-        val verifiedResults = AgcCompress().verifyFileAnnotation(fastaList)
+        val badFastaList = listOf("data/test/smallSeq/LineA.fa", "data/test/smallSeq/LineC.fa")
+        val verifiedResults = AgcCompress().verifyFileAnnotation(badFastaList)
         assertEquals(true, verifiedResults)
     }
 }
