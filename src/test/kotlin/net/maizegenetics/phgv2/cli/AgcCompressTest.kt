@@ -164,7 +164,7 @@ class AgcCompressTest {
     }
 
     @Test
-    fun testRetrieveAgcContigsNoSampleName() {
+    fun testAgcCompressNoSampleName() {
         //This test is to verify queryAgc() throws an exception when there is no "sampleName=" in the idline
 
         val dbPath = TestExtension.tempDir
