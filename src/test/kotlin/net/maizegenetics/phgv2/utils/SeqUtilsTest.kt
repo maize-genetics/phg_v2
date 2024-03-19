@@ -370,4 +370,25 @@ class SeqUtilsTest {
         assertTrue(agcResult.contains("LineB:1 sampleName=LineB,2 sampleName=LineB"))
 
     }
+
+    @Test
+    fun testVerifySampleNameBad() {
+        // first file has good annotations, second file is missing "sampleName="
+        val fastaList = listOf("data/test/smallSeq/LineA.fa", "data/test/agcTestBad/LineA_noSN.fa")
+        assertThrows<IllegalArgumentException> {
+            //Check that an exception is thrown when the idline does not contain "sampleName="
+            // the first file is fine, the second file is missing "sampleName="
+            // Manually verified that both files were read, and the code went to the second file
+            // after the first line of the first file was verified as good.
+            val verifiedResults = AgcCompress().verifyFileAnnotation(fastaList)
+        }
+    }
+
+    @Test
+    fun testVerifySampleNameGood() {
+        // 2 files, both are properly annotated.
+        val fastaList = listOf("data/test/smallSeq/LineA.fa", "data/test/smallSeq/LineC.fa")
+        val verifiedResults = AgcCompress().verifyFileAnnotation(fastaList)
+        assertEquals(true, verifiedResults)
+    }
 }
