@@ -29,6 +29,15 @@ In this document, we will discuss the steps needed to:
         --range-min-size 500 \
         -o /path/to/bed_file.bed
     ```
+
+* Update FASTA headers with sample information:
+    ```shell
+    phg annotate-fastas \
+        --keyfile /path/to/keyfile \
+        --output-dir /path/to/annotated/fastas \
+        --threads 10
+    ```
+
 * Align assemblies:
     ```shell
     phg align-assemblies \
@@ -37,13 +46,7 @@ In this document, we will discuss the steps needed to:
         --assemblies assemblies_list.txt \
         -o /path/for/generated_files
     ```
-* Update FASTA headers with sample information:
-    ```shell
-    phg annotate-fastas \
-        --keyfile /path/to/keyfile \
-        --output-dir /path/to/annotated/fastas \
-        --threads 10
-    ```
+
 * Compress FASTA files
     ```shell
     phg agc-compress \
