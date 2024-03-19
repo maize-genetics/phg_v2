@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.testing.test
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -160,5 +161,24 @@ class AgcCompressTest {
          // "badOption" is not valid option, should return false
         val success = agcCompress.loadAGCFiles(fastaList, "badOption",dbPath,refFasta, tempDir)
         assertEquals(false, success)
+    }
+
+    @Test
+    fun testRetrieveAgcContigsNoSampleName() {
+        //This test is to verify queryAgc() throws an exception when there is no "sampleName=" in the idline
+
+        val dbPath = TestExtension.tempDir
+        val refFasta = "data/test/smallseq/Ref.fa"
+
+        val fastaCreateFileNamesFile = File(dbPath, "fastaBadNames.txt")
+        fastaCreateFileNamesFile.writeText("data/test/agcTestBad/LineA_noSN.fa\n")
+
+        Initdb().createDataSets(TestExtension.tempDir)
+        val agcCompress = AgcCompress()
+        assertThrows<IllegalArgumentException> {
+            // Create the initial compressed file
+            val agcCompressResult = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
+        }
+
     }
 }

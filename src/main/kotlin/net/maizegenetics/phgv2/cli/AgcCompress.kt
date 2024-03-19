@@ -108,6 +108,8 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
             fileToLoad.writeText(listToLoad.joinToString("\n"))
 
             if (listToLoad.isNotEmpty()) {
+                // verify that the fasta files are annotated
+                verifyFileAnnotation(listToLoad) // this with throw an exception if the files are not annotated
                 // Call method to load AGC files with the list of fasta files and load option
                 val success = loadAGCFiles(fileToLoad.toString(), "append", dbPath, refFasta,tempDir)
             } else {
@@ -115,9 +117,35 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
             }
         } else {
             // call method to load AGC files with the list of fasta files and load option
+            // verify that the fasta files are annotated
+            verifyFileAnnotation(fastaFiles) // this with throw an exception if the files are not annotated
             val success = loadAGCFiles(fastaList, "create",dbPath,refFasta, tempDir)
         }
 
+    }
+
+    // This function will verify that the fasta files are annotated
+    // It looks for the first line of each fasta file that begins with ">"
+    // and checks if that line contains "sampleName="
+    // If it does, we assume the file is annotated
+    // if it doesn't, we assume the file is not annotated
+    // we are only checking the first idline of the fasta file, assuming all or none are annotated.
+    // The code throws an exception on the first fasta file that is not annotated.
+    fun verifyFileAnnotation(fastaFiles:List<String>): Boolean {
+        // This function will verify that the fasta files are annotated
+        // This is done by finding the first line of each fasta file that begins with ">"
+        // and checking if that line contains "sampleName="
+        // If it does not, the file is not annotated and an exception is thrown
+          fastaFiles.forEach {
+              // find the first line that begins with ">"
+                val firstLine = File(it).readLines().first { it.startsWith(">") }
+                if (!firstLine.contains("sampleName=")) {
+                    myLogger.error("Fasta file ${it} is not annotated.  Please use the phg annotate-fastas command to annotate the fasta files.")
+                    throw IllegalArgumentException("Fasta file ${it} is not annotated.  Please use the phg annotate-fastas command to annotate the fasta files.")
+                }
+            }
+
+        return true
     }
 
     fun loadAGCFiles(fastaFiles: String, loadOption: String, dbPath:String, refFasta:String, tempDir:String): Boolean {

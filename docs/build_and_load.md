@@ -530,7 +530,7 @@ This command uses several parameters:
   identify full-length coding sequences to use as anchors
 * `--reference-file` - The reference genome in 
   [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format.
-* `--assemblies` - A text file containing a list of assembly genomes.
+* `--assemblies` - A text file containing a list of annotated assembly genomes.
   The contents of this file should be either full or relative paths
   to each uncompressed assembly you would like to align. For example, since I am
   using the example data found on the 
