@@ -34,5 +34,6 @@ class Phg : CliktCommand() {
 }
 
 fun main(args: Array<String>) = Phg()
-    .subcommands(SetupEnvironment(), Initdb(),  CreateRanges(), AnnotateFastas(), AgcCompress(), AlignAssemblies(), CreateRefVcf(), CreateMafVcf(), LoadVcf(), ExportVcf(), CreateFastaFromHvcf(), StartServer())
+    .subcommands(SetupEnvironment(), Initdb(),  CreateRanges(), AnnotateFastas(), AgcCompress(), AlignAssemblies(),
+        CreateRefVcf(), CreateMafVcf(), LoadVcf(), ExportVcf(), CreateFastaFromHvcf(), StartServer(), CalcVcfMetrics())
     .main(args)
