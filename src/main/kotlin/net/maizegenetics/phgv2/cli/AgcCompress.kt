@@ -149,25 +149,29 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
 
         fastaFiles.forEach {
             // find the first line that begins with ">"
-            var line:String? = bufferedReader(it).readLine()
-            while (line != null) {
-                if (line.startsWith(">")) {
-                    if (!line.contains("sampleName=")) {
-                        myLogger.error("Fasta file ${it} is not annotated.  Please use the phg annotate-fastas command to annotate the fasta files.")
-                        throw IllegalStateException("Fasta file ${it} is not annotated.  Please use the phg annotate-fastas command to annotate the fasta files.")
+            bufferedReader(it).use { reader ->
+                val line = reader.readLine()
+                while (line != null) {
+                    if (line.startsWith(">")) {
+                        if (!line.contains("sampleName=")) {
+                            myLogger.error("Fasta file ${it} is not annotated.  Please use the phg annotate-fastas command to annotate the fasta files.")
+                            throw IllegalStateException("Fasta file ${it} is not annotated.  Please use the phg annotate-fastas command to annotate the fasta files.")
+                        }
+                        else {
+                            // go to next fasta file
+                            break
+                        }
+                    } else {
+                        // read next line
+                        reader.readLine()
                     }
-                    else {
-                        // go to next fasta file
-                        break
-                    }
-                } else {
-                    line = bufferedReader(it).readLine()
                 }
             }
         }
 
         return true
     }
+
 
     fun loadAGCFiles(fastaFiles: String, loadOption: String, dbPath:String, refFasta:String, tempDir:String): Boolean {
 
