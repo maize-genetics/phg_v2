@@ -25,8 +25,8 @@ sealed class ReadInputFile {
             val headerMap = header.mapIndexed { index, s -> s to index }.toMap()
             check(headerMap.containsKey("sampleName")) { "Key file $keyFile must have a column named sampleName." }
             check(headerMap.containsKey("filename")) { "Key file $keyFile must have a column named filename." }
-            return linesWithHeader.drop(1).map{lines -> lines.split("\t")}.map { linesSplit ->
-                KeyFileData(linesSplit[headerMap["sampleName"]!!], linesSplit[headerMap["filename"]!!], if(headerMap.containsKey("filename2") && linesSplit.indices.contains(headerMap["filename2"]!!)) linesSplit[headerMap["filename2"]!!] else "")
+            return linesWithHeader.drop(1).map{
+                keyFileDataFromLine(it, headerMap)
             }
         }
     }
@@ -36,6 +36,7 @@ sealed class ReadInputFile {
             check(readFiles.isNotEmpty()) { "--read-files must have at least one file." }
             val fileNames = readFiles.split(",")
             check(fileNames.size <= 2) { "--read-files must have 1 or 2 files separated by commas.  You provided: ${fileNames.size}" }
+            check(fileNames[0].endsWith(".fq") || fileNames[0].endsWith(".fq.gz") || fileNames[0].endsWith(".fastq") || fileNames[0].endsWith(".fastq.gz")) {"file ${fileNames[0]} does not end in one of .fq, .fq.gz, .fastq, or .fastq.gz"}
             val fileBase = File(fileNames[0]).name.removeSuffix(".gz").removeSuffix(".fq").removeSuffix(".fastq")
 
             return listOf(KeyFileData(fileBase,fileNames.first(), if(fileNames.size==1) "" else fileNames.last()))
@@ -43,14 +44,15 @@ sealed class ReadInputFile {
 
     }
 
-    private fun keyFileDataFromLine(keyfileLine: String, headerMap: Map<String, Int>):KeyFileData {
+    fun keyFileDataFromLine(keyfileLine: String, headerMap: Map<String, Int>):KeyFileData {
         //possible headers are sampleName, filename, and filename2
+        //check that filename has a fastq type extension
+        //if it does assume filename2 does as well
 
         val splitLine = keyfileLine.split("\t")
         val file1 = splitLine[headerMap["filename"]!!]
         check(file1.endsWith(".fq") || file1.endsWith(".fq.gz") || file1.endsWith(".fastq") || file1.endsWith(".fastq.gz")) {"filename for ${splitLine[headerMap["sampleName"]!!]} does not end in one of .fq, .fq.gz, .fastq, or .fastq.gz"}
-        val file2 = if (headerMap.contains("filename2") && splitLine.size >= headerMap["filename2"]!!) splitLine[headerMap["filename2"]!!] else ""
-        if (file2.isBlank()) check(file2.endsWith(".fq") || file2.endsWith(".fq.gz") || file2.endsWith(".fastq") || file2.endsWith(".fastq.gz")) {"filename2 for ${splitLine[headerMap["sampleName"]!!]} does not end in one of .fq, .fq.gz, .fastq, or .fastq.gz"}
+        val file2 = if (headerMap.contains("filename2") && splitLine.size >= headerMap["filename2"]!! + 1) splitLine[headerMap["filename2"]!!] else ""
         return KeyFileData(splitLine[headerMap["sampleName"]!!], file1, file2)
     }
 }

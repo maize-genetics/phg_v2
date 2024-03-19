@@ -71,6 +71,7 @@ class TestExtension : BeforeAllCallback {
         val testKeyFile = "${readMappingDir}keyFile.txt"
         val testKeyFileNoHeader = "${readMappingDir}keyFileNoHeader.txt"
         val testKeyFileMissingFileName = "${readMappingDir}keyFileMissingFileName.txt"
+        val testKeyFileNotFq = "${readMappingDir}keyFileNotFq.txt"
 
         val smallSeqSimReads = "data/test/kmerReadMapping/simulatedReads/"
         val testLineASimReadsPrefix = "${smallSeqSimReads}LineA"
