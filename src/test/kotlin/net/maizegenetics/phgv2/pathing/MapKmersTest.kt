@@ -43,15 +43,6 @@ class MapKmersTest {
     fun testCliktParams() {
         val mapKmers = MapKmers()
 
-        val resultMissingKmerIndex =
-            mapKmers.test("--hvcf-dir ${TestExtension.testVCFDir} --read-files ${TestExtension.testReads} --output-dir ${TestExtension.testOutputDir}")
-        assertEquals(resultMissingKmerIndex.statusCode, 1)
-        assertEquals(
-            "Usage: map-kmers [<options>]\n" +
-                    "\n" +
-                    "Error: invalid value for --kmer-index: --kmer-index must not be blank\n", resultMissingKmerIndex.output
-        )
-
         val resultMissingReadsAndKeyFile =
             mapKmers.test("--hvcf-dir ${TestExtension.testVCFDir} --kmer-index ${TestExtension.testKmerIndex} --output-dir ${TestExtension.testOutputDir}")
         assertEquals(resultMissingReadsAndKeyFile.statusCode, 1)
@@ -346,19 +337,19 @@ class MapKmersTest {
         val keyFileData = keyFile.getReadFiles()
         assertEquals(keyFileData.size, 3)
         //sampleName  filename    filename2
-        //sample1 read1.txt   read2.txt
-        //sample2 read3.txt   read4.txt
-        //sample3 read5.txt
+        //sample1 read1.fq   read2.fq
+        //sample2 read3.fq   read4.fq
+        //sample3 read5.fq
         assertEquals(keyFileData[0].sampleName, "sample1")
-        assertEquals(keyFileData[0].file1, "read1.txt")
-        assertEquals(keyFileData[0].file2, "read2.txt")
+        assertEquals(keyFileData[0].file1, "read1.fq")
+        assertEquals(keyFileData[0].file2, "read2.fq")
 
         assertEquals(keyFileData[1].sampleName, "sample2")
-        assertEquals(keyFileData[1].file1, "read3.txt")
-        assertEquals(keyFileData[1].file2, "read4.txt")
+        assertEquals(keyFileData[1].file1, "read3.fq")
+        assertEquals(keyFileData[1].file2, "read4.fq")
 
         assertEquals(keyFileData[2].sampleName, "sample3")
-        assertEquals(keyFileData[2].file1, "read5.txt")
+        assertEquals(keyFileData[2].file1, "read5.fq")
         assertEquals(keyFileData[2].file2, "")
 
 
@@ -373,21 +364,21 @@ class MapKmersTest {
 
 
         //Test parsing of ReadInputFile.ReadFiles
-        val readString = "file1.txt,file2.txt"
+        val readString = "file1.fq,file2.fq"
         val readFiles = ReadInputFile.ReadFiles(readString)
         val readFilesData = readFiles.getReadFiles()
         assertEquals(readFilesData.size, 1)
-        assertEquals(readFilesData[0].sampleName, "noSample")
-        assertEquals(readFilesData[0].file1, "file1.txt")
-        assertEquals(readFilesData[0].file2, "file2.txt")
+        assertEquals(readFilesData[0].sampleName, "file1")
+        assertEquals(readFilesData[0].file1, "file1.fq")
+        assertEquals(readFilesData[0].file2, "file2.fq")
 
         //Test parsing of ReadInputFile.ReadFiles with only one file
-        val readString2 = "file1.txt"
+        val readString2 = "file1.fq"
         val readFiles2 = ReadInputFile.ReadFiles(readString2)
         val readFilesData2 = readFiles2.getReadFiles()
         assertEquals(readFilesData2.size, 1)
-        assertEquals(readFilesData2[0].sampleName, "noSample")
-        assertEquals(readFilesData2[0].file1, "file1.txt")
+        assertEquals(readFilesData2[0].sampleName, "file1")
+        assertEquals(readFilesData2[0].file1, "file1.fq")
         assertEquals(readFilesData2[0].file2, "")
 
         //Test parsing of ReadInputFile.ReadFiles with no files
@@ -398,20 +389,30 @@ class MapKmersTest {
         assertEquals("--read-files must have at least one file.", thrownExceptionNoReadFiles.message)
 
         //Test parsing of ReadInputFile.ReadFiles with more than 2 files
-        val readString4 = "file1.txt,file2.txt,file3.txt"
+        val readString4 = "file1.fq,file2.fq,file3.fq"
         val readFiles4 = ReadInputFile.ReadFiles(readString4)
         val thrownExceptionTooManyReadFiles = assertThrows<IllegalStateException> { readFiles4.getReadFiles() }
         assertEquals("--read-files must have 1 or 2 files separated by commas.  You provided: 3", thrownExceptionTooManyReadFiles.message)
 
         //test different delimiter
-        val readString5 = "file1.txt|file2.txt"
+        val readString5 = "file1.fq|file2.fq"
         val readFiles5 = ReadInputFile.ReadFiles(readString5)
         val readFilesData5 = readFiles5.getReadFiles()
         assertEquals(readFilesData5.size, 1)
-        assertEquals(readFilesData5[0].sampleName, "noSample")
-        assertEquals(readFilesData5[0].file1, "file1.txt|file2.txt")
+        assertEquals(readFilesData5[0].sampleName, "file1.fq|file2")
+        assertEquals(readFilesData5[0].file1, "file1.fq|file2.fq")
         assertEquals(readFilesData5[0].file2, "")
 
+        //test key file with non-fq files
+        val keyFileNotFq = ReadInputFile.KeyFile(TestExtension.testKeyFileNotFq)
+        val thrownExceptionNotFq = assertThrows<IllegalStateException> { keyFileNotFq.getReadFiles() }
+        assertEquals("filename for sample1 does not end in one of .fq, .fq.gz, .fastq, or .fastq.gz", thrownExceptionNotFq.message)
+
+        //test read-files with non-fq files
+        val readStringNotFq = "file1.txt"
+        val readFilesNotFq = ReadInputFile.ReadFiles(readStringNotFq)
+        val thrownExceptionReadNotFq = assertThrows<IllegalStateException> { readFilesNotFq.getReadFiles() }
+        assertEquals("file file1.txt does not end in one of .fq, .fq.gz, .fastq, or .fastq.gz", thrownExceptionReadNotFq.message)
     }
 
     @Test

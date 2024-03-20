@@ -174,7 +174,7 @@ class FullPipelineIT {
         val pathKeyfile = "${TestExtension.testOutputDir}path_keyfile.txt"
         val readMappingFilename = TestExtension.testOutputDir + "readsLineA_readMapping.txt"
         getBufferedWriter(pathKeyfile).use {myWriter ->
-            myWriter.write("sampleName\treadMappingFiles\n")
+            myWriter.write("sampleName\tfilename\n")
             myWriter.write("TestSample\t$readMappingFilename\n")
         }
 
@@ -188,7 +188,15 @@ class FullPipelineIT {
         println(pathResult.output)
 
         //check paths
-        checkExpectedHvcf()
+        checkExpectedHvcf("TestSample")
+
+        //impute haploid paths from reads
+        pathArgs = "--read-files $lineAFastqFilename  --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
+                "--path-type haploid"
+        val pathResultFromReads = FindPaths().test(pathArgs)
+        assertEquals(0, pathResultFromReads.statusCode, "haploid FindPaths failed")
+        checkExpectedHvcf("readsLineA")
 
         //impute diploid paths
         File("${TestExtension.testOutputDir}TestSample.h.vcf").delete()
@@ -198,7 +206,7 @@ class FullPipelineIT {
         val diploidResult = FindPaths().test(pathArgs)
         assertEquals(0, diploidResult.statusCode, "diploid FindPaths failed")
         println(diploidResult.output)
-        checkExpectedHvcf()
+        checkExpectedHvcf("TestSample")
 
     }
 
@@ -271,15 +279,16 @@ class FullPipelineIT {
         }
     }
 
-    fun checkExpectedHvcf() {
+    fun checkExpectedHvcf(testSampleName: String) {
         val listOfHvcfFilenames = File(TestExtension.testVCFDir).listFiles()
             .filter {  it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz")  }.map { it.path }.toMutableList()
-        listOfHvcfFilenames.add("${TestExtension.testOutputDir}TestSample.h.vcf")
+        listOfHvcfFilenames.add("${TestExtension.testOutputDir}${testSampleName}.h.vcf")
         val graph = HaplotypeGraph(listOfHvcfFilenames)
         val sgA = SampleGamete("LineA")
-        val sgTestSample = SampleGamete("TestSample")
+        val sgTestSample = SampleGamete(testSampleName)
         graph.ranges().forEach { range ->
             assertEquals(graph.sampleToHapId(range, sgA), graph.sampleToHapId(range, sgTestSample), "TestSample hapid does not equal line A in $range")
         }
     }
+
 }

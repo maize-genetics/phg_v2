@@ -123,12 +123,16 @@ class SeqUtilsTest {
 
     @Test
     fun testRetrieveAgcContigsNoSampleName() {
-        //This test is to verify queryAgc() throws an exception when there is no "sampleName=" in the idline
-        // AgcCompress() will take the file, but we will have problems processing queries related to
-        // that assembly in phg_v2
-        val fastaCreateFileNamesFile = "data/test/agcTestBad/fastaCreateFileNames.txt"
+        //This test is to verify queryAgc() throws an exception when an idLine is missing "sampleName="
+        // The first idLine in the file has "sampleName", so AgcCompress() will take the file.
+        // But we will have problems processing queries related to the contig with the idLine that does not contain "sampleName="
+        // I don't expect this to happen in practice, but it is a possibility so adding this test to show an exception
+        // is thrown.
+
         val dbPath = TestExtension.tempDir
         val refFasta = "data/test/smallseq/Ref.fa"
+        val fastaCreateFileNamesFile = File(dbPath, "fastaBadNames.txt")
+        fastaCreateFileNamesFile.writeText("data/test/agcTestBad/LineD_someSNMissing.fa\n")
 
         Initdb().createDataSets(TestExtension.tempDir)
         val agcCompress = AgcCompress()
@@ -139,13 +143,12 @@ class SeqUtilsTest {
         assertEquals(0, agcCompressResult.statusCode)
 
         val rangeList = mutableListOf<String>()
-        val range1 = "1@LineA_noSN:0-19" // AGC queries are 0-based !!
+        // contig 2 idline does not contain "sampleName="
+        val range1 = "2@LineD_someSNMissing:0-19" // AGC queries are 0-based !!
         rangeList.add(range1)
-        // Verify an exception is thrown when the idline does not contain "sampleName="
 
         assertThrows<IllegalStateException> {
-            //Check that an error is thrown when the idline does not contain "sampleName="
-            // THis is thrown when we process the data returned from the agc command
+            //Check that an exception is thrown when the idline does not contain "sampleName="
             var agcResult = retrieveAgcContigs(dbPath, rangeList)
         }
 
@@ -366,5 +369,28 @@ class SeqUtilsTest {
         // Verify agcResult contains the entry"LineB:1 sampleName=LineB,2 sampleName=LineB"
         assertTrue(agcResult.contains("LineB:1 sampleName=LineB,2 sampleName=LineB"))
 
+    }
+
+    @Test
+    fun testVerifySampleNameBad() {
+        // first file has good annotations, second file is missing "sampleName="
+        val fastaList = listOf("data/test/smallseq/LineA.fa", "data/test/agcTestBad/LineA_noSN.fa")
+        assertThrows<IllegalStateException> {
+            //Check that an exception is thrown when the idline does not contain "sampleName="
+            // the first file is fine, the second file is missing "sampleName="
+            // Manually verified that both files were read, and the code went to the second file
+            // after the first line of the first file was verified as good.
+            val verifiedResults = AgcCompress().verifyFileAnnotation(fastaList)
+        }
+    }
+
+    @Test
+    fun testVerifySampleNameGood() {
+        // 2 files, both are properly annotated.
+        // Pull from the files we copied to the testOutputFastaDir directory in the setup() function
+        val badFastaList = listOf("${testOutputFastaDir}/LineC.fa", "${testOutputFastaDir}/Ref.fa")
+        val goodResults = AgcCompress().verifyFileAnnotation(badFastaList)
+        println("verifiedResults = $goodResults")
+        assertEquals(true, goodResults)
     }
 }
