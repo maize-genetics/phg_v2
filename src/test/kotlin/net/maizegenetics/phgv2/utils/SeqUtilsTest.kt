@@ -387,7 +387,8 @@ class SeqUtilsTest {
     @Test
     fun testVerifySampleNameGood() {
         // 2 files, both are properly annotated.
-        val badFastaList = listOf("data/test/smallSeq/LineC.fa", "data/test/smallSeq/Ref.fa")
+        // Pull from the files we copied to the testOutputFastaDir directory in the setup() function
+        val badFastaList = listOf("${testOutputFastaDir}/LineC.fa", "${testOutputFastaDir}/Ref.fa")
         val goodResults = AgcCompress().verifyFileAnnotation(badFastaList)
         println("verifiedResults = $goodResults")
         assertEquals(true, goodResults)
