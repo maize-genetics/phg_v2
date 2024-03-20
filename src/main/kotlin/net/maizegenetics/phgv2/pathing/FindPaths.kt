@@ -81,7 +81,7 @@ sealed class PathInputFile {
 class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")  {
 
     val readInputFiles: PathInputFile by mutuallyExclusiveOptions<PathInputFile>(
-        option("--key-file", help = "Name of tab-delimited key file.  Columns for samplename and filename" +
+        option("--path-keyfile", help = "Name of tab-delimited key file.  Columns for samplename and filename" +
                 " are required. Files must be either read mapping files (ending in _readMapping.txt) or fastq files. " +
                 "If using paired end fastqs, a filename2 column can be included. A value must be entered for " +
                 "either --key-file or --read-files.")

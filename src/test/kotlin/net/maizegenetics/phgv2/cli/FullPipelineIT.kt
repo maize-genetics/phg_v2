@@ -180,7 +180,7 @@ class FullPipelineIT {
 
         //impute haploid paths
         println("imputing paths")
-        var pathArgs = "--key-file $pathKeyfile --hvcf-dir ${TestExtension.testVCFDir} " +
+        var pathArgs = "--path-keyfile $pathKeyfile --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
                 "--path-type haploid" // --prob-same-gamete 0.95"
         val pathResult = FindPaths().test(pathArgs)
@@ -200,7 +200,7 @@ class FullPipelineIT {
 
         //impute diploid paths
         File("${TestExtension.testOutputDir}TestSample.h.vcf").delete()
-        pathArgs = "--key-file $pathKeyfile --hvcf-dir ${TestExtension.testVCFDir} " +
+        pathArgs = "--path-keyfile $pathKeyfile --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
                 "--path-type diploid"
         val diploidResult = FindPaths().test(pathArgs)
