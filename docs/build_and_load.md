@@ -29,6 +29,15 @@ In this document, we will discuss the steps needed to:
         --range-min-size 500 \
         -o /path/to/bed_file.bed
     ```
+
+* Update FASTA headers with sample information:
+    ```shell
+    phg annotate-fastas \
+        --keyfile /path/to/keyfile \
+        --output-dir /path/to/annotated/fastas \
+        --threads 10
+    ```
+
 * Align assemblies:
     ```shell
     phg align-assemblies \
@@ -37,13 +46,7 @@ In this document, we will discuss the steps needed to:
         --assemblies assemblies_list.txt \
         -o /path/for/generated_files
     ```
-* Update FASTA headers with sample information:
-    ```shell
-    phg annotate-fastas \
-        --keyfile /path/to/keyfile \
-        --output-dir /path/to/annotated/fastas \
-        --threads 10
-    ```
+
 * Compress FASTA files
     ```shell
     phg agc-compress \
@@ -106,6 +109,8 @@ This documentation will also assume that the PHGv2 application is
 placed in your system's `PATH` variable (_see installation 
 documentation for further details_).
 
+
+
 ### Set up Conda environment
 Once you have downloaded the latest release of PHGv2 and have Conda 
 installed (_see installation documentation_), you will first need to set up a 
@@ -165,10 +170,10 @@ using the following conda command:
 conda activate phgv2-conda
 ```
 
->[!NOTE]
->It is imperative the conda environment you create is named phgv2-conda.
-> This is the default environment name that PHGv2 uses when executing shell commands
-> from within the software.
+> [!NOTE]
+> It is imperative the conda environment you create is named 
+> `phgv2-conda`. This is the default environment name that PHGv2 uses 
+> when executing shell commands from within the software.
 
 If we look in our example project directory, you will also see two
 new logging (`.log`) files which will record all the logging and
@@ -177,15 +182,22 @@ error output from the PHGv2 command steps:
 * `condaCreate_error.log`
 * `condaCreate_output.log`
 
+
+
 ### Running phg commands
 
->NOTE!
+> [!NOTE]
+> The `db-path` parameter shows up in many of the PHGv2 commands. It 
+> is the path to the directory where the TileDB datasets are stored.
+> This parameter is an optional parameter for all commands in which it 
+> appears.  If a folder is not specified for the `db-path`, the 
+> software will use the current working directory. When TileDB 
+> datasets are required for processing, the `db-path` parameter value 
+> will be verified to ensure the required datasets are present. If 
+> they are not present in the `db-path` folder (or in the current 
+> working directory) the software with throw an exception.
 
->The db-path parameter shows up in many of the PHGv2 commands.  It is the path to the directory where the TiileDB datasets are stored.
->This parameter is an optional parameter for all commands in which it appears.  If a folder is not
->specified for the db-path, the software will use the current working directory.  When tiledb datasets are required for processing,
->the db-path parameter value will be verified to ensure the required datasets are present.  If they are not
->present in the db-path folder (or in the current working directory) the software with throw an exception.
+
 
 ### Initialize TileDB instances
 In PHGv2, we leverage [TileDB](https://tiledb.com/) and 
@@ -206,19 +218,19 @@ process using the `initdb` command:
     --hvcf-anchor-gap 1000
 ```
 
-This command takes one required parameter, `--db-path` which is the path or
-subdirectory to where we want to place our databases. In this
+This command takes one required parameter, `--db-path` which is the 
+path or subdirectory to where we want to place our databases. In this
 example project, I will initialize the hVCF and gVCF database 
-folders in a subdirectory called `vcf_dbs`. 
+folders in a subdirectory called `vcf_dbs`.
 
-
-Two optional parameters, `--gvcf-anchor-gap` and `--hvcf-anchor-gap` may also 
-be set. These parameters define the distance between anchors in the two 
-TileDB-VCF sparse arrays. Smaller values enable faster data retrieval. However, 
-if there are non-symbolic variants that span many anchors (for example, 
-very large deletions), then the `load-vcf` command will require a large amount 
-of RAM to process variant information for each assembly. More information can be 
-found in the [TileDB-VCF docs.](https://tiledb-inc.github.io/TileDB-VCF/documentation/the-solution.html)
+Two optional parameters, `--gvcf-anchor-gap` and `--hvcf-anchor-gap` 
+may also be set. These parameters define the distance between anchors 
+in the two TileDB-VCF sparse arrays. Smaller values enable faster 
+data retrieval. However, if there are non-symbolic variants that span 
+many anchors (for example, very large deletions), then the `load-vcf` 
+command will require a large amount of RAM to process variant 
+information for each assembly. More information can be found in the 
+[TileDB-VCF docs.](https://tiledb-inc.github.io/TileDB-VCF/documentation/the-solution.html)
 
 After initialization is complete, we will have two empty TileDB-VCF
 instances and a `temp` directory in our `vcf_dbs` subdirectory:
@@ -241,6 +253,8 @@ phg_v2_example/
     ├── hvcf_dataset # hVCF db storage
     └── temp
 ```
+
+
 
 ### Create reference ranges
 Next, we must define ordered sequences of genic and inter-genic 
@@ -309,13 +323,15 @@ This command uses several parameters:
 > [---------Merged overlap-----------]
 >  ```
 
-* `--range-min-size` - The minimum size for each range in the bedfile. This parameter is
-  optional with a default of 500 bps. For example, if we were to set the `--range-min-size` parameter
-  to `500`, any region that is less than 500 base pairs in length will be
-  merged with the previous region on that contig.  If the first region of a contig is less than the specified minimum size
-  it will be merged with the next region on that contig.  This merging is done in create-ranges after the gene or CDS region has been created and padding has been applied.
-
-
+* `--range-min-size` - The minimum size for each range in the BED 
+  file. This parameter is optional with a default of 500 base pairs. 
+  For example, if we were to set the `--range-min-size` parameter to 
+  `500`, any region that is less than 500 base pairs in length will 
+  be merged with the previous region on that contig.  If the first 
+  region of a contig is less than the specified minimum size, it will 
+  be merged with the next region on that contig.  This merging is 
+  done in `create-ranges` after the gene or CDS region has been 
+  created and padding has been applied.
 * `-o` - Name for the output BED file.
 
 In the above example, I am using test data from the 
@@ -339,20 +355,37 @@ file contains 6 columns of information:
 > separated string of all the genes/CDS features included in this BED 
 > region.
 
-### Annotate Fastas
-The annotate-fasta command has two goals.  The first is to copy the fastas to a new file
-whose name is changed to be <sampleName>.fa.  The second is to add a sampleName to the id lines of the fasta file.
-**These annotated fasta files should be used as input to both the agc-compress step and the align-assemblies step.**
-This ensures consistent sample names across the pipeline.
 
-For the first goal, a file originally named Zm-CML52-NAM-1.0.fa would be copied to a new file named CML52.fa, based
-on the user supplying a keyfile with "CML52" as the sample name for this fasta.  The reason
-for this change is the AGC compression tool stores the file name (minus extension) as the sample name
-when creating the compressed file.  This keeps the AGC sample name consistent with sample
-names that are stored in the VCF files.  With consistent sample names, sequence and variants may be associated.
 
-For the second goal:  As of the current date of this document, the return methods of
-AGC will not keep track of sample IDs when returning
+### Annotate FASTA files
+The `annotate-fastas` command has two goals:
+
+1. Copy the FASTAs to a new file whose name is changed to be 
+   `<sample name>.fa`.
+2. Add a sample name tag (e.g., `sampleName=`) to the id lines of the 
+   FASTA file. **These 
+   annotated FASTA files should be used as input to both the 
+   `agc-compress` step and the `align-assemblies` step.** This ensures 
+   consistent sample names across the pipeline.
+
+To better explain the first goal, let's use an example. A file named 
+`Zm-CML52-NAM-1.0.fa` would be copied to a new one named `CML52.fa`. 
+This action is based on a keyfile (_which we will discuss later in the 
+parameters section_) provided by the user. The keyfile would list 
+"CML52" as the sample name for this FASTA shown below:
+
+```shell
+Zm-CML52-NAM-1.0.fa CML52
+```
+
+The reason for this change is the AGC compression tool stores the 
+file name (minus extension) as the sample name when creating the 
+compressed file.  This keeps the AGC sample name consistent with 
+sample names that are stored in the VCF files. With consistent sample 
+names, sequence and variants may be associated.
+
+For the second goal: As of the current date of this document, the 
+return methods of AGC will not keep track of sample IDs when returning
 sequence information from the compressed file **unless you explicitly
 state the sample information in the header lines of the FASTA files
 you wish to compress for the PHGv2 databases**. To explain this
@@ -376,20 +409,20 @@ compressed sequence file when creating VCF data (_see
 the [**"Create VCF files"**](#create-vcf-files) section for further
 details_). The issue arrives when we query the compressed data using
 [AGC's `getctg`](https://github.com/refresh-bio/agc#extract-contigs-from-the-archive)
-command. When we query this hypothetical archive, we will get the
+command. When we query this example archive, we will get the
 following information:
 
 ```
 $ agc getctg assemblies.agc chr1@LineA chr1@LineB > queries.fa
 
-$ head queries.fa
+$ cat queries.fa
 >chr1
 ATGCGTACGCGCACCG
 >chr1
 ATGCGTTCGCCTTCCG
 ```
 
-As you can see from the above hypothetical output, we now have no
+As you can see from the above example output, we now have no
 means to efficiently track where each sequence is coming from due
 to the lack of header information from our prior FASTA files. We
 can remedy this by adding sample information to the headers:
@@ -419,8 +452,8 @@ ATGCGTTCGCCTTCCG
 
 While we can manually modify the header lines of our FASTA
 file, this can become tedious and prone to a new set of downstream
-errors. To automate this, PHGv2 provides an optional command to
-append sample information to the headers of each FASTA file called
+errors. To automate this, PHGv2 provides a command to append sample 
+information to the headers of each FASTA file called
 `annotate-fastas`:
 
 ```shell
@@ -437,30 +470,34 @@ This command takes 3 parameters:
 
 | Column | Value                                                                                                                                                                                                                      |
 |--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1      | Path to FASTA file you would like annotated (this is similar to the text files used to point to the FASTA file paths in the [`agc-compress`](#compress-fasta-files) and [`align-assemblies`](#align-assemblies) commands). |
-| 2      | Name of the sample that will be appended to each header line                                                                                                                                                               |
+| `1`    | Path to FASTA file you would like annotated (this is similar to the text files used to point to the FASTA file paths in the [`agc-compress`](#compress-fasta-files) and [`align-assemblies`](#align-assemblies) commands). |
+| `2`    | Name of the sample that will be (1) appended to each header line and (2) the name of the newly generated FASTA file.                                                                                                       |
 
-+ My example `annotation_keyfile.txt` file would look like this:
+  + My example `annotation_keyfile.txt` file would look like this:
 
-  ```
-  data/LineA.fa   LineA
-  data/LineB.fa   LineB
-  ```
+    ```
+    data/LineA.fa   LineA
+    data/LineB.fa   LineB
+    ```
 * `--threads` - Optional number of threads to annotate multiple
   FASTA files in parallel. _Defaults to `1`_.
 * `-o` - Output directory for the newly annotated FASTA files
 
 > [!WARNING]
-> This step must be performed before the `agc-compress` step and the `align-assemblies` step.
+> This step must be performed before the `agc-compress` step and the 
+> `align-assemblies` step.
 
 > [!WARNING]
 > Sample IDs in the keyfile must match with what is found in the
 > TileDB instances.
 
 > [!NOTE]
-> FASTA input files can be either uncompressed or compressed.  The output from the annotate-fastas command will be new 
-> fasta files that are uncompressed.  While AGC accepts compressed fasta files, the align-assemblies command uses anchorwave
-> which requires uncompressed fasta files.
+> FASTA input files can be either uncompressed or compressed. The 
+> output from the `annotate-fastas` command will be new FASTA files 
+> that are **uncompressed**.  While AGC accepts compressed FASTA 
+> files, the `align-assemblies` command uses 
+> [AnchorWave](https://github.com/baoxingsong/AnchorWave) which 
+> requires uncompressed FASTA files.
 
 Once finished, this command will produce FASTA files with the name
 of the sample from the keyfile appended to each header line. For
@@ -497,6 +534,7 @@ ATGCGTACGCGCACCG
 >```
 
 
+
 ### Align assemblies
 Next, we must align our collection of genome assemblies against a
 single reference genome in order to have a common coordinate system
@@ -511,7 +549,8 @@ to install this manually.
 
 > [!NOTE]
 > For best results with imputation and rare allele calling pipelines, 
-> **please use high quality assemblies**! that have been run through the annotate-fastas command.
+> **please use high quality assemblies** that have been run through 
+> the `annotate-fastas` command.
 
 To run the aligner step, we can call the `align-assemblies` command:
 
@@ -530,7 +569,10 @@ This command uses several parameters:
   identify full-length coding sequences to use as anchors
 * `--reference-file` - The reference genome in 
   [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format.
-* `--assemblies` - A text file containing a list of annotated assembly genomes.
+* `--assemblies` - A text file containing a list of **annotated** 
+  assembly genomes (_see the 
+  [**"Annotate FASTA files"**](#annotate-fasta-files) section for 
+  further details_).
   The contents of this file should be either full or relative paths
   to each uncompressed assembly you would like to align. For example, since I am
   using the example data found on the 
@@ -543,10 +585,10 @@ This command uses several parameters:
   output/annotated/LineB.fa
   ```
   Here, I am planning on aligning two genomes called `LineA` and 
-  `LineB`. Since these are located in a subdirectory called `output/annotated/`
-  relative to my working directory, I will also add that to the path.
-
-  The input assemblies should be the assemblies updated/renamed via the `annotate-fastas` command.
+  `LineB`. Since these are created with the `annotate-fastas` command 
+  and the output is located in a subdirectory called 
+  `output/annotated/` relative to my working directory, I will also 
+  add that to the path.
 
 * `-o` - The name of the directory for the alignment outputs.
 
@@ -562,7 +604,6 @@ default values are calculated by the software based on the system processor and 
   More information about this step and the `--total-threads` step can
   be found in the following **Details - threads and parallelization** 
   section.
-
 
 > [!WARNING]
 > The directory that you specify in the output (`-o`) section must
@@ -637,10 +678,12 @@ or review the following code blocks:
 
 
 #### Details - threads and parallelization
-Aligning with anchorwave is memory intensive and can be slow.  Processing speed may be increased by
-using multiple threads for each alignment, and/or by running multiple alignments in parallel.  The amount of memory
-each thread takes is dependent on the processor type.  The table below shows the memory usage for a single
-alignment based on processor type:
+Aligning with AnchorWave is memory intensive and can be slow. 
+Processing speed may be increased by using multiple threads for each 
+alignment, and/or by running multiple alignments in parallel. The 
+amount of memory each thread takes is dependent on the processor 
+type. The table below shows the memory usage for a single alignment 
+based on processor type:
 
 | Processor | peak memory (GB) | wall time |
 |-----------|------------------|-----------|
@@ -650,18 +693,24 @@ alignment based on processor type:
 | AVX512    | 20.1             | 18:31:39  |
 | ARM       | 34.2             | 18:08:57  |
 
-The `--total-threads` parameter indicates the total number of threads available for system use.  The `--in-parallel`
-parameter controls the number of alignments run in parallel.  When these values are not specified, the software will
-compute the optimal values based on the system processor and memory configuration. 
+The `--total-threads` parameter indicates the total number of threads 
+available for system use. The `--in-parallel` parameter controls the 
+number of alignments run in parallel.  When these values are not 
+specified, the software will compute the optimal values based on the 
+system processor and memory configuration. 
 
-The number of threads that may be run in parallel is limited by the amount of memory available.  The
-system is queried for memory and processor information.  The number of threads that may be run in parallel
-is determined by "system memory" / "peak memory" from the table above.  To generalize the calculation, we divide
-memory available (GiB) by 21 and round down to the nearest integer.
+The number of threads that may be run in parallel is limited by the 
+amount of memory available. The system is queried for memory and 
+processor information. The number of threads that may be run in 
+parallel is determined by "system memory" / "peak memory" from the 
+table above. To generalize the calculation, we divide memory 
+available (GiB) by 21 and round down to the nearest integer.
 
-For example, if the system has 512 GB of memory, 80 processors and 5 assemblies that need aligning,
-the maximum number of threads that could be run in parallel is 24 (512/21).  The number of potential parallel
-alignments with the threads allocated for each is shown in the table below
+For example, if the system has 512 GB of memory, 80 processors and 5 
+assemblies that need aligning, the maximum number of threads that
+could be run in parallel is 24 (512/21). The number of potential 
+parallel alignments with the threads allocated for each is shown in 
+the table below
 
 
 | Alignments in parallel | Threads per alignment |
@@ -672,49 +721,16 @@ alignments with the threads allocated for each is shown in the table below
 | 2                      | 12                    |
 | 1                      | 24                    |
 
-The software will select a pairing that maximizes the number of alignments run in parallel while utilizing multiple threads, 
-opting for a value in the middle.  In the case above with 5 assemblies and a possibility of 24 concurrent threads,
-the system will choose to run 3 alignments in parallel with 8 threads each.  The total number of threads used
-will be 24 (3 * 8).
+The software will select a pairing that maximizes the number of 
+alignments run in parallel while utilizing multiple threads, opting 
+for a value in the middle. In the case above with 5 assemblies and a 
+possibility of 24 concurrent threads, the system will choose to run 3 
+alignments in parallel with 8 threads each.  The total number of 
+threads used will be 24 (3 * 8).
 
-User defined values for in-parallel and total-threads are considered along with the number of assemblies to
-align and system capacities, when determining the anchorwave setup.
-
-
-
-
-[//]: # ()
-[//]: # (***WIP*** - revisit once we can agree on naming and parameter conventions)
-
-[//]: # ()
-[//]: # (<img src="img/build_and_load/align_assemblies_01.svg" width="300" alt=""/>)
-
-[//]: # ()
-[//]: # (***WIP*** - revisit once we can agree on naming and parameter conventions)
-
-[//]: # ()
-[//]: # (<img src="img/build_and_load/align_assemblies_02.svg" width="300" alt=""/>)
-
-[//]: # ()
-[//]: # ()
-[//]: # (The table below shows the memory usage for a single assembly alignment)
-
-[//]: # (based on processor type:)
-
-[//]: # ()
-[//]: # (| Processor | peak memory &#40;Gb&#41; | wall time |)
-
-[//]: # (|-----------|------------------|-----------|)
-
-[//]: # (| SSE2      | 20.1             | 26:47:17  | )
-
-[//]: # (| SSE4.1    | 20.6             | 24:05:07  |)
-
-[//]: # (| AVX2      | 20.1             | 21:40:00  |)
-
-[//]: # (| AVX512    | 20.1             | 18:31:39  |)
-
-[//]: # (| ARM       | 34.2             | 18:08:57  |)
+User defined values for in-parallel and total-threads are considered 
+along with the number of assemblies to align and system capacities, 
+when determining the AnchorWave setup.
 
 
 
@@ -748,14 +764,14 @@ This command takes in 3 parameters:
 > initialize the TileDB instances in the database initialization 
 > (`initdb`) step.
 
-* `--fasta-list` - List of assembly FASTA genomes to compress.  The fastas on this list should be the fastas that have been updated/renamed via the `annotate-fastas` command.
+* `--fasta-list` - List of annotated assembly FASTA genomes to 
+  compress.
 
 > [!NOTE]
-> The list specified in `--fasta-list` should be the list of fasta files output
-> from the `annotate-fastas` command.  
-> See the 
-> [**"Important information regarding `agc` compression"**](#warning-important-information-regarding-agc-compression-warning)
-> section on why this is important.
+> The list specified in `--fasta-list` should be the list of FASTA 
+> files output from the `annotate-fastas` command (_see the 
+> [**"Annotate FASTA files"**](#annotate-fasta-files) section for 
+> further details_).
 
 * `--reference-file` - Reference FASTA genome.
 
@@ -767,11 +783,15 @@ assemblies. This file will be used later to query for haplotype
 sequence regions and composite genome creation.
 
 When running the `agc-compress` command, the software will 
-determine if the "create" or "append" AGC command should be used. If the assemblies.agc
-file is not present in the db-path directory, the software will use the "create" command to compress and
-load the fastas.  If the assemblies.agc file is present in the db-path directory, the software will use the "append" command to compress and
-load the fastas to the existing assemblies.agc file.   It skips fasta files whose
-"name" portion (file name without extension) is already represented as a sample name in the assemblies.agc file, adding only the new fastas to this file.
+determine if the "create" or "append" AGC command should be used. 
+If the `assemblies.agc` file is not present in the db-path directory, 
+the software will use the "create" command to compress and load the 
+FASTAs. If the assemblies.agc file is present in the db-path 
+directory, the software will use the "append" command to compress and
+load the FASTAs to the existing assemblies.agc file. It skips FASTA 
+files whose "name" portion (file name without extension) is already 
+represented as a sample name in the assemblies.agc file, adding only 
+the new FASTAs to this file.
 
 
 
@@ -810,14 +830,15 @@ phg create-maf-vcf \
 
 VCF creation is split up into two separate commands since the
 reference genome and aligned assemblies require different sets of
-data:
+input data:
 
 #### `create-ref-vcf` inputs
 The `create-ref-vcf` command requires the following inputs:
 
 * `--bed` - a BED file containing ordered reference ranges (_see
-  the [**"Create reference ranges"**](#create-reference-ranges) section for further details_). This
-  is used to define the positional information of the VCF.
+  the [**"Create reference ranges"**](#create-reference-ranges) section for further 
+  details_). This is used to define the positional information of the 
+  VCF.
 * `--reference-file` - reference FASTA genome used for creating
   MD5 hashes of sequence information guided by reference range
   positional data from the BED file used in the `--bed` parameter.
@@ -831,15 +852,14 @@ The `create-ref-vcf` command requires the following inputs:
 > FASTA file can be downloaded. This will be added to the VCF header
 > information.
 
-Once the command is complete, and you have navigated into the `db-path`
-directory (in my case, `vcf_dbs/`), you will see a subfolder named hvcf_files with two files:
-
+Once the command is complete, and you have navigated into the 
+`--db-path` parameter directory (in my case, `vcf_dbs/`), you will 
+see a subfolder named `hvcf_files` with two files:
 
 | File                      | Description                                              |
 |---------------------------|----------------------------------------------------------|
 | `<ref_name>.h.vcf.gz`     | compressed reference haplotype VCF (hVCF) file           |
 | `<ref_name>.h.vcf.gz.csi` | coordinate sorted index (CSI) of the reference hVCF file |
-
 
 Here, `<ref_name>` is the name of the reference genome provided
 using the `--reference-name` parameter. Since I defined this
@@ -849,12 +869,12 @@ parameter as `B73` in the above example, my two files would be:
 * `B73.h.vcf.gz.csi`
 
 There will also be a subfolder named "reference" with two files.  The bed file used to create
-the reference hvcf and the reference fasta are stored here for future reference.
+the reference hvcf and the reference FASTA are stored here for future reference.
 
 | File             | Description                                |
 |------------------|--------------------------------------------|
 | `<ref_name>.bed` | BED file used to create the reference hVCF |
-| `<ref_name>.fa`  | reference fasta file                       |
+| `<ref_name>.fa`  | reference FASTA file                       |
 
 
 In addition to creating the files, the `create-ref-vcf` command will load the
@@ -868,17 +888,18 @@ The `create-maf-vcf` command requires the following inputs:
   genome information found in the `assemblies.agc` file (_see the 
   [**"Compress FASTA files"**](#compress-fasta-files) section for further details_).
 * `--bed` - A BED file containing ordered reference ranges (_see
-  the [**"Create reference ranges"**](#create-reference-ranges) section for further details_). This
-  is used to define the positional information of the VCF in relation
-  to the reference genome.
+  the [**"Create reference ranges"**](#create-reference-ranges) section for further 
+  details_). This is used to define the positional information of the 
+  VCF in relation to the reference genome.
 * `--reference-file` - Reference FASTA genome used for creating
   MD5 hashes of sequence information guided by reference range
   positional data from the BED file used in the `--bed` parameter.
   hashed sequence data will place in the `##ALT` tag's `RefRange`
   key.
 * `--maf-dir` - Directory containing the MAF files generated using
-  the `align-assemblies` command (_see the [**"Align assemblies"**](#align-assemblies) 
-  section for further details_).
+  the `align-assemblies` command (_see the 
+  [**"Align assemblies"**](#align-assemblies) section for further 
+  details_).
 * `-o` - Output directory for the VCF data.
 
 > [!WARNING]
@@ -900,6 +921,8 @@ of different file types for each sample:
 Here, `<sample_name>` would be the name of each sample that was
 aligned to the reference genome.
 
+
+
 ### Load VCF data into DBs
 After VCF files are created, we can finally load the information
 into our empty TileDB instances. Instead of manually performing this
@@ -914,6 +937,7 @@ and gVCF files into their respective TileDB directories:
 ```
 
 This command takes three parameters:
+
 * `--vcf-dir` - Directory containing `h.vcf.gz` and/or `g.vcf.gz` 
   files made from the `create-ref-vcf` and `create-maf-vcf` commands
   (_See the [**"Create VCF files"**](#create-vcf-files) section for 
@@ -922,4 +946,3 @@ This command takes three parameters:
 * `--db-path` - Path to the directory containing the TileDB instances.
 * `--threads` - Number of threads for use by the TileDB loading
   procedure.
-
