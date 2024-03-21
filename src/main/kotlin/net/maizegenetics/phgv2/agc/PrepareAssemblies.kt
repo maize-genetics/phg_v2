@@ -33,8 +33,8 @@ import java.io.File
  * to a new file of the same name in the user specified output directory.
  *
  */
-class AnnotateFastas : CliktCommand(help = "Annotate FASTA files with sample names, write new FASTAs with name <sampleName>.fa") {
-    private val myLogger = LogManager.getLogger(AnnotateFastas::class.java)
+class PrepareAssemblies : CliktCommand(help = "Annotate FASTA file Id lines with sample names, write new FASTAs with name <sampleName>.fa") {
+    private val myLogger = LogManager.getLogger(PrepareAssemblies::class.java)
 
     val keyfile by option(help = "Tab-delimited file containing 2 columns name Fasta and SampleName.  Fasta column contains full path name for the fasta files.  SampleName contains the sample name for that assembly, e.g. B73 or CML247. ")
         .default("")
