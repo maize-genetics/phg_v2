@@ -73,7 +73,7 @@ class FullPipelineIT {
     fun testFullPipeline() {
         //Run the full pipeline
         //Create environment
-
+        val startTime = System.nanoTime()
         val setupEnv = SetupEnvironment()
         setupEnv.test("--output-dir ${TestExtension.tempDir}")
 
@@ -208,6 +208,7 @@ class FullPipelineIT {
         println(diploidResult.output)
         checkExpectedHvcf("TestSample")
 
+        println("FullPipelineIt finished after ${(System.nanoTime() - startTime) / 1e9} sec")
     }
 
 

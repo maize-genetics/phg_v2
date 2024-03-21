@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.pathing
 
+import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
@@ -11,6 +12,8 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.retrieveAgcContigForSamples
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedWriter
@@ -107,7 +110,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * This returns a HashMap of hash -> hapid list for all the kmers in the keep set.
      * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
      */
-    fun processGraphKmers(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75, hashMask: Long = 3, hashFilterValue:Long = 1) : Long2ObjectOpenHashMap<Set<String>> {
+    fun processGraphKmersSlower(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75, hashMask: Long = 3, hashFilterValue:Long = 1) : Long2ObjectOpenHashMap<Set<String>> {
         //keepMap is a map of hash -> Set of haplotype ids
         val keepMap = Long2ObjectOpenHashMap<Set<String>>()
         //discardSet is a Set of hashes
@@ -185,6 +188,124 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         myLogger.debug("Finished building kmer keep set, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
         return keepMap
     }
+
+    /**
+     * Finds the set of kmers meeting the conditions set by [maxHaplotypeProportion], the maximum proportion of
+     * haplotypes in a reference range, and [hashMask] and [hashFilterValue], which determine which nucleotide(s)
+     * are required to be in the final postion(s) of a kmer.
+     *
+     * This returns a HashMap of hash -> hapid list for all the kmers in the keep set.
+     * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
+     */
+    fun processGraphKmers(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75,
+                                        hashMask: Long = 3, hashFilterValue:Long = 1) : Long2ObjectOpenHashMap<Set<String>> {
+        //keepMap is a map of hash -> Set of haplotype ids
+        val keepMap = Long2ObjectOpenHashMap<Set<String>>()
+        //discardSet is a Set of hashes
+        val discardSet = LongOpenHashSet()
+        val startTime = System.nanoTime()
+        val sampleGametes = graph.sampleGametesInGraph()
+
+        val sampleNames = sampleGametes.map { it.name }
+        println("sampleNames = $sampleNames")
+
+        val contigRangesMap = graph.rangesByContig()
+        for (chr in contigRangesMap.keys) {
+            //get all sequence for this chromosome
+            val agcChromSequence = retrieveAgcContigForSamples(dbPath, sampleNames, chr)
+
+            println("at chr $chr: agcChromSequence size = ${agcChromSequence.size}")
+
+            // go through ref ranges and make a list of any sequence needed from other chroms then request that from agc
+            val otherRegions = mutableListOf<String>()
+            for (refrange in contigRangesMap[chr]!!) {
+                val hapidToSampleMap = graph.hapIdToSampleGametes(refrange)
+                for (hapid in hapidToSampleMap.keys) {
+                    val altheader = graph.altHeader(hapid)
+                    check(altheader != null) {"altheader null for $hapid in $refrange"}
+                    val regions = altheader.regions.filter { it.first.contig != chr }
+                        .map { regionToAgcRange(altheader.sampleName(), it) }
+                    otherRegions.addAll(regions)
+                }
+            }
+
+            val agcOtherRegionSequence: Map<Pair<String,String>, NucSeq> = if (otherRegions.isNotEmpty()) retrieveAgcContigs(dbPath, otherRegions)
+            else emptyMap()
+
+            //iterate through refranges, generate kmers from the sequence
+            for (refrange in contigRangesMap[chr]!!) {
+                val hapidToSampleMap = graph.hapIdToSampleGametes(refrange)
+                val maxHaplotypes = ceil(hapidToSampleMap.size * maxHaplotypeProportion)
+                //map haplotype ids to the sequence for that hapid
+                val hapidToSequencMap = mutableMapOf<String, List<String>>()
+                for (hapid in hapidToSampleMap.keys) {
+                    //checked for altHeader existence already
+                    val altHeader = graph.altHeader(hapid)!!
+                    val sequenceList = altHeader.regions.map { region ->
+                        println("region = $region")
+                        val inThisChrom = region.first.contig == chr
+                        if (inThisChrom) {
+                            println("alt sampleName = ${altHeader.sampleName()}, region = ${regionToString(region)}")
+                            //translate from 1-based Position to 0-based nucseq coordinates
+                            val seqRange = if (region.first.position <= region.second.position) (region.first.position - 1..region.second.position - 1)
+                            else (region.second.position - 1..region.first.position - 1)
+                            agcChromSequence[Pair(altHeader.sampleName(), chr)]?.get(seqRange)?.seq() ?:""
+                        } else {
+                            agcOtherRegionSequence[Pair(altHeader.sampleName(), regionToString(region))]?.seq() ?:""
+                        }
+                    }
+                    hapidToSequencMap[hapid] = sequenceList
+                    println("sequenceLengths = ${sequenceList.map{it.length}.joinToString(",")}")
+                }
+
+                val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidToSequencMap, hashMask, hashFilterValue)
+
+                for (hashCount in kmerHashCounts.entries) {
+                    val hashValue = hashCount.key
+
+                    //if the hash is in the discard set skip it
+                    if (discardSet.contains(hashValue)) continue
+
+                    when {
+                        //if hash count >= numberOfHaplotype add it to the discard set
+                        hashCount.value >= maxHaplotypes -> discardSet.add(hashValue)
+                        //if the hash is already in the keepSet, it has been seen in a previous reference range
+                        // so, remove it from the keep set and add it to the discard set
+                        keepMap.containsKey(hashValue) -> {
+                            keepMap.remove(hashValue)
+                            discardSet.add(hashValue)
+                        }
+                        else -> {
+                            keepMap[hashValue] = longToHapIdMap[hashValue]
+                        }
+                    }
+                }
+
+            }
+
+        }
+        myLogger.debug("Finished building kmer keep set, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
+
+        return keepMap
+    }
+
+    private fun regionToAgcRange(sampleName: String, region: Pair<Position,Position>): String {
+        return if (region.first.position <= region.second.position) {
+            "${region.first.contig}@${sampleName}}:${region.first.position - 1}-${region.second.position - 1}"
+        } else {
+            "${region.first.contig}@${sampleName}:${region.second.position - 1}-${region.first.position - 1}"
+        }
+    }
+
+    private fun regionToString(region: Pair<Position,Position>): String {
+        return if (region.first.position <= region.second.position) {
+            "${region.first.contig}:${region.first.position - 1}-${region.second.position - 1}"
+        } else {
+            "${region.first.contig}:${region.second.position - 1}-${region.first.position - 1}"
+        }
+    }
+
+
 
     /**
      * Function to count the kmerHashes for a single reference range's haplotype nodes.
