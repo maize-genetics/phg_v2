@@ -53,7 +53,7 @@ _Long-form documentation for this section can be found [here](docs/build_and_loa
 ./phg initdb --db-path /path/to/dbs
 
 ## Preprocessing data
-./phg annotate-fastas --keyfile /path/to/keyfile --output-dir /path/to/annotated/fastas --threads numberThreadstoRun
+./phg prepare-assemblies --keyfile /path/to/keyfile --output-dir /path/to/updated/fastas --threads numberThreadstoRun
 
 ## Build VCF data
 ./phg create-ranges --reference-file Ref.fa --gff my.gff --boundary gene --pad 500 --range-min-size 500 -o /path/to/bed/file.bed

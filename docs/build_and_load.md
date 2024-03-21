@@ -32,9 +32,9 @@ In this document, we will discuss the steps needed to:
 
 * Update FASTA headers with sample information:
     ```shell
-    phg annotate-fastas \
+    phg prepare-assemblies \
         --keyfile /path/to/keyfile \
-        --output-dir /path/to/annotated/fastas \
+        --output-dir /path/to/updated/fastas \
         --threads 10
     ```
 
@@ -357,14 +357,14 @@ file contains 6 columns of information:
 
 
 
-### Annotate FASTA files
-The `annotate-fastas` command has two goals:
+### Prepare Assembly FASTA files
+The `prepare-assemblies` command has two goals:
 
 1. Copy the FASTAs to a new file whose name is changed to be 
    `<sample name>.fa`.
 2. Add a sample name tag (e.g., `sampleName=`) to the id lines of the 
    FASTA file. **These 
-   annotated FASTA files should be used as input to both the 
+   updated assembly FASTA files should be used as input to both the 
    `agc-compress` step and the `align-assemblies` step.** This ensures 
    consistent sample names across the pipeline.
 
@@ -454,13 +454,13 @@ While we can manually modify the header lines of our FASTA
 file, this can become tedious and prone to a new set of downstream
 errors. To automate this, PHGv2 provides a command to append sample 
 information to the headers of each FASTA file called
-`annotate-fastas`:
+`prepare-assemblies`:
 
 ```shell
-phg annotate-fastas \
+phg prepare-assemblies \
     --keyfile data/annotation_keyfile.txt \
     --threads 10 \
-    --output-dir output/annotated_assemblies
+    --output-dir output/updated_assemblies
 ```
 
 This command takes 3 parameters:
@@ -479,9 +479,9 @@ This command takes 3 parameters:
     data/LineA.fa   LineA
     data/LineB.fa   LineB
     ```
-* `--threads` - Optional number of threads to annotate multiple
+* `--threads` - Optional number of threads to update multiple
   FASTA files in parallel. _Defaults to `1`_.
-* `-o` - Output directory for the newly annotated FASTA files
+* `-o` - Output directory for the newly updated FASTA files
 
 > [!WARNING]
 > This step must be performed before the `agc-compress` step and the 
@@ -493,7 +493,7 @@ This command takes 3 parameters:
 
 > [!NOTE]
 > FASTA input files can be either uncompressed or compressed. The 
-> output from the `annotate-fastas` command will be new FASTA files 
+> output from the `prepare-assemblies` command will be new FASTA files 
 > that are **uncompressed**.  While AGC accepts compressed FASTA 
 > files, the `align-assemblies` command uses 
 > [AnchorWave](https://github.com/baoxingsong/AnchorWave) which 
@@ -550,7 +550,7 @@ to install this manually.
 > [!NOTE]
 > For best results with imputation and rare allele calling pipelines, 
 > **please use high quality assemblies** that have been run through 
-> the `annotate-fastas` command.
+> the `prepare-assemblies` command.
 
 To run the aligner step, we can call the `align-assemblies` command:
 
@@ -571,7 +571,7 @@ This command uses several parameters:
   [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format.
 * `--assemblies` - A text file containing a list of **annotated** 
   assembly genomes (_see the 
-  [**"Annotate FASTA files"**](#annotate-fasta-files) section for 
+  [**"Prepare Assembly FASTA files"**](#prepare-assembly-fasta-files) section for 
   further details_).
   The contents of this file should be either full or relative paths
   to each uncompressed assembly you would like to align. For example, since I am
@@ -581,13 +581,13 @@ This command uses several parameters:
   it with the following lines:
 
   ```
-  output/annotated/LineA.fa
-  output/annotated/LineB.fa
+  output/updated/LineA.fa
+  output/updated/LineB.fa
   ```
   Here, I am planning on aligning two genomes called `LineA` and 
-  `LineB`. Since these are created with the `annotate-fastas` command 
+  `LineB`. Since these are created with the `prepare-assemblies` command 
   and the output is located in a subdirectory called 
-  `output/annotated/` relative to my working directory, I will also 
+  `output/updated/` relative to my working directory, I will also 
   add that to the path.
 
 * `-o` - The name of the directory for the alignment outputs.
@@ -769,8 +769,8 @@ This command takes in 3 parameters:
 
 > [!NOTE]
 > The list specified in `--fasta-list` should be the list of FASTA 
-> files output from the `annotate-fastas` command (_see the 
-> [**"Annotate FASTA files"**](#annotate-fasta-files) section for 
+> files output from the `prepare-assemblies` command (_see the 
+> [**"Prepare Assembly FASTA files"**](#prepare-assembly-fasta-files) section for 
 > further details_).
 
 * `--reference-file` - Reference FASTA genome.
