@@ -40,6 +40,7 @@ class TestExtension : BeforeAllCallback {
         const val exportGraphDir = "data/test/exportGraph/"
         const val exportGraphSingleSample = "${exportGraphDir}testSingleSampleHaplotypeGraph.vcf"
         const val exportGraphMultiSample = "${exportGraphDir}testMultipleFilesHaplotypeGraph.vcf"
+        const val exportGraphSingleSampleRangeSampleGamete = "${exportGraphDir}testSingleSampleHaplotypeGraphRangeSampleGamete.vcf"
 
         const val refLineName = "Ref"
         const val refFastaName = "Ref.fa"
@@ -70,6 +71,7 @@ class TestExtension : BeforeAllCallback {
         val testKeyFile = "${readMappingDir}keyFile.txt"
         val testKeyFileNoHeader = "${readMappingDir}keyFileNoHeader.txt"
         val testKeyFileMissingFileName = "${readMappingDir}keyFileMissingFileName.txt"
+        val testKeyFileNotFq = "${readMappingDir}keyFileNotFq.txt"
 
         val smallSeqSimReads = "data/test/kmerReadMapping/simulatedReads/"
         val testLineASimReadsPrefix = "${smallSeqSimReads}LineA"

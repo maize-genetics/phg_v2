@@ -2,12 +2,23 @@ package net.maizegenetics.phgv2.cli
 
 import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.testing.test
+import htsjdk.variant.vcf.VCFFileReader
+import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension.Companion.asmList
+import net.maizegenetics.phgv2.pathing.BuildKmerIndex
+import net.maizegenetics.phgv2.pathing.FindPaths
+import net.maizegenetics.phgv2.pathing.MapKmers
+import net.maizegenetics.phgv2.utils.getBufferedReader
+import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.getChecksumForString
+import net.maizegenetics.phgv2.utils.retrieveAgcGenomes
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
+import java.nio.file.Paths
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -44,7 +55,7 @@ class FullPipelineIT {
             File(TestExtension.testOutputFastaDir).deleteRecursively()
             File(TestExtension.testOutputGVCFDIr).deleteRecursively()
             File(TestExtension.testTileDBURI).deleteRecursively()
-
+            File(TestExtension.testOutputDir).deleteRecursively()
 
 
             File(TestExtension.tempDir).mkdirs()
@@ -55,6 +66,7 @@ class FullPipelineIT {
             File(TestExtension.testOutputFastaDir).mkdirs()
             File(TestExtension.testOutputGVCFDIr).mkdirs()
             File(TestExtension.testTileDBURI).mkdirs()
+            File(TestExtension.testOutputDir).mkdirs()
         }
     }
     @Test
@@ -125,7 +137,6 @@ class FullPipelineIT {
 
 
         //build a composite genome from the HVCFs
-
         createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDIr}/Ref.vcf -o ${TestExtension.testOutputFastaDir}/Ref_composite.fa")
         createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDIr}/LineA.vcf -o ${TestExtension.testOutputFastaDir}/LineA_composite.fa")
         createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDIr}/LineB.vcf -o ${TestExtension.testOutputFastaDir}/LineB_composite.fa")
@@ -140,8 +151,65 @@ class FullPipelineIT {
             assertTrue(asmDiff < 0.00001, "${asmName} Fasta is not the same as input")
         }
 
+        //build a kmer index
+        println("building kmer index")
+        val buildKmerIndexArgs = "--db-path ${TestExtension.testTileDBURI} --hvcf-dir ${TestExtension.testVCFDir}"
+        val indexResult = BuildKmerIndex().test(buildKmerIndexArgs)
+        assertEquals(0, indexResult.statusCode, "Kmer Indexing failed")
+        println(indexResult.output)
+
+
+        //create some reads with fairly high coverage to make sure mapping results are consistent so that they can be tested.
+        val lineAFastqFilename = TestExtension.testInputFastaDir + "readsLineA.fastq"
+        writeFastq(lineAFastqFilename, createHaploidReadsLineA())
+
+        //map reads
+        val mappingArgs = "--hvcf-dir ${TestExtension.testVCFDir} --kmer-index ${TestExtension.testVCFDir}kmerIndex.txt " +
+                "--read-files $lineAFastqFilename --output-dir ${TestExtension.testOutputDir}"
+        val mapResult = MapKmers().test(mappingArgs)
+        assertEquals(0, mapResult.statusCode, "Kmer Indexing failed")
+        println(mapResult.output)
+
+        //write a keyfile for FindPaths
+        val pathKeyfile = "${TestExtension.testOutputDir}path_keyfile.txt"
+        val readMappingFilename = TestExtension.testOutputDir + "readsLineA_readMapping.txt"
+        getBufferedWriter(pathKeyfile).use {myWriter ->
+            myWriter.write("sampleName\tfilename\n")
+            myWriter.write("TestSample\t$readMappingFilename\n")
+        }
+
+        //impute haploid paths
+        println("imputing paths")
+        var pathArgs = "--path-keyfile $pathKeyfile --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
+                "--path-type haploid" // --prob-same-gamete 0.95"
+        val pathResult = FindPaths().test(pathArgs)
+        assertEquals(0, pathResult.statusCode, "haploid FindPaths failed")
+        println(pathResult.output)
+
+        //check paths
+        checkExpectedHvcf("TestSample")
+
+        //impute haploid paths from reads
+        pathArgs = "--read-files $lineAFastqFilename  --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
+                "--path-type haploid"
+        val pathResultFromReads = FindPaths().test(pathArgs)
+        assertEquals(0, pathResultFromReads.statusCode, "haploid FindPaths failed")
+        checkExpectedHvcf("readsLineA")
+
+        //impute diploid paths
+        File("${TestExtension.testOutputDir}TestSample.h.vcf").delete()
+        pathArgs = "--path-keyfile $pathKeyfile --hvcf-dir ${TestExtension.testVCFDir} " +
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
+                "--path-type diploid"
+        val diploidResult = FindPaths().test(pathArgs)
+        assertEquals(0, diploidResult.statusCode, "diploid FindPaths failed")
+        println(diploidResult.output)
+        checkExpectedHvcf("TestSample")
 
     }
+
 
     /**
      * Function to compare between two fasta sequences.
@@ -175,6 +243,52 @@ class FullPipelineIT {
         }
 
         return diffCount.toDouble()/length.toDouble()
+    }
+
+    private fun createHaploidReadsLineA(): List<String> {
+        val coverage = 0.5
+        val readLength = 100
+
+        //create reads from lineA
+        val readList = mutableListOf<String>()
+        val seqMap = retrieveAgcGenomes(TestExtension.testTileDBURI, listOf("LineA"))
+        seqMap.entries.forEach { (_, seq) ->
+            val chrlen = seq.size()
+            val numberOfReads = (coverage * chrlen / readLength).toInt()
+            repeat(numberOfReads) {
+                val start = Random.nextInt(chrlen - readLength)
+                val end = start + readLength
+                readList.add(seq[start, end].seq())
+            }
+        }
+        return readList
+    }
+
+    private fun writeFastq(filename: String, reads: List<String>) {
+        getBufferedWriter(filename).use { myWriter ->
+            var readCount = 1
+            for (read in reads) {
+                myWriter.write("@read$readCount\n")
+                myWriter.write(read)
+                myWriter.write("\n")
+                myWriter.write("+\n")
+                myWriter.write("x".repeat(read.length))
+                myWriter.write("\n")
+                readCount++
+            }
+        }
+    }
+
+    fun checkExpectedHvcf(testSampleName: String) {
+        val listOfHvcfFilenames = File(TestExtension.testVCFDir).listFiles()
+            .filter {  it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz")  }.map { it.path }.toMutableList()
+        listOfHvcfFilenames.add("${TestExtension.testOutputDir}${testSampleName}.h.vcf")
+        val graph = HaplotypeGraph(listOfHvcfFilenames)
+        val sgA = SampleGamete("LineA")
+        val sgTestSample = SampleGamete(testSampleName)
+        graph.ranges().forEach { range ->
+            assertEquals(graph.sampleToHapId(range, sgA), graph.sampleToHapId(range, sgTestSample), "TestSample hapid does not equal line A in $range")
+        }
     }
 
 }

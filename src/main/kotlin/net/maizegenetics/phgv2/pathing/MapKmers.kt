@@ -25,8 +25,8 @@ sealed class ReadInputFile {
             val headerMap = header.mapIndexed { index, s -> s to index }.toMap()
             check(headerMap.containsKey("sampleName")) { "Key file $keyFile must have a column named sampleName." }
             check(headerMap.containsKey("filename")) { "Key file $keyFile must have a column named filename." }
-            return linesWithHeader.drop(1).map{lines -> lines.split("\t")}.map { linesSplit ->
-                KeyFileData(linesSplit[headerMap["sampleName"]!!], linesSplit[headerMap["filename"]!!], if(headerMap.containsKey("filename2") && linesSplit.indices.contains(headerMap["filename2"]!!)) linesSplit[headerMap["filename2"]!!] else "")
+            return linesWithHeader.drop(1).map{
+                keyFileDataFromLine(it, headerMap)
             }
         }
     }
@@ -36,9 +36,24 @@ sealed class ReadInputFile {
             check(readFiles.isNotEmpty()) { "--read-files must have at least one file." }
             val fileNames = readFiles.split(",")
             check(fileNames.size <= 2) { "--read-files must have 1 or 2 files separated by commas.  You provided: ${fileNames.size}" }
-            return listOf(KeyFileData("noSample",fileNames.first(), if(fileNames.size==1) "" else fileNames.last()))
+            check(fileNames[0].endsWith(".fq") || fileNames[0].endsWith(".fq.gz") || fileNames[0].endsWith(".fastq") || fileNames[0].endsWith(".fastq.gz")) {"file ${fileNames[0]} does not end in one of .fq, .fq.gz, .fastq, or .fastq.gz"}
+            val fileBase = File(fileNames[0]).name.removeSuffix(".gz").removeSuffix(".fq").removeSuffix(".fastq")
+
+            return listOf(KeyFileData(fileBase,fileNames.first(), if(fileNames.size==1) "" else fileNames.last()))
         }
 
+    }
+
+    fun keyFileDataFromLine(keyfileLine: String, headerMap: Map<String, Int>):KeyFileData {
+        //possible headers are sampleName, filename, and filename2
+        //check that filename has a fastq type extension
+        //if it does assume filename2 does as well
+
+        val splitLine = keyfileLine.split("\t")
+        val file1 = splitLine[headerMap["filename"]!!]
+        check(file1.endsWith(".fq") || file1.endsWith(".fq.gz") || file1.endsWith(".fastq") || file1.endsWith(".fastq.gz")) {"filename for ${splitLine[headerMap["sampleName"]!!]} does not end in one of .fq, .fq.gz, .fastq, or .fastq.gz"}
+        val file2 = if (headerMap.contains("filename2") && splitLine.size >= headerMap["filename2"]!! + 1) splitLine[headerMap["filename2"]!!] else ""
+        return KeyFileData(splitLine[headerMap["sampleName"]!!], file1, file2)
     }
 }
 
@@ -53,7 +68,7 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
     //    --output read_count_out.map \ // could we pipe this into impute method? // thousands of outputs
     //    // consider batch interface here ^^
 
-    val hvcfDir by option(help = "Directory containing hvcf files used to build the HaplotypeGraph.")
+    val hvcfDir by option(help = "Directory containing hvcf files used to build the HaplotypeGraph. (Required)")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -61,23 +76,16 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
             }
         }
 
-    val kmerIndex by option(help = "Kmer index file created by build-kmer-index.")
+    val kmerIndex by option(help = "Kmer index file created by build-kmer-index. Default is <hvcfDir>/kmerIndex.txt.")
         .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--kmer-index must not be blank"
-            }
-        }
-
-
 
     val readInputFiles: ReadInputFile by mutuallyExclusiveOptions<ReadInputFile>(
-        option("--key-file", help = "Name of tab-delimited key file.  Columns for samplename and filename are required.  If using paired end fastqs, a filename2 column can be included").convert{ ReadInputFile.KeyFile(it) },
+        option("--key-file", help = "Name of tab-delimited key file.  Columns for samplename and filename are required.  If using paired end fastqs, a filename2 column can be included. A value must be entered for either --key-file or --read-files.").convert{ ReadInputFile.KeyFile(it) },
         option("--read-files", help = "Comma separated list of fastq files for a single sample.  Either 1(for single end) or 2(for paired end) files can be input at a time this way.  Any more and an error will be thrown.").convert{ ReadInputFile.ReadFiles(it) }
     ).single().required()
 
 
-    val outputDir by option("-o", "--output-dir", help = "Name for output ReadMapping file Directory")
+    val outputDir by option("-o", "--output-dir", help = "Name for output ReadMapping file Directory (Required)")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -91,11 +99,14 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
         myLogger.info("Begin mapping reads to the pangenome kmer index.")
         //loop through all files in hvcfDir and create a list of hvcf files
         val hvcfFiles = File(hvcfDir).walkTopDown().filter { it.isFile }
-            .filter { it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz") }.map { "${it.path}/${it.name}" }
+            .filter { it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz") }.map { "${hvcfDir}/${it.name}" }
             .toList()
+
+        //set the kmerIndex file name
+        val kmerIndexFilename = kmerIndex.ifBlank { "${hvcfDir}/kmerIndex.txt" }
 
         //create a HaplotypeGraph from the list of hvcf files
         val graph = HaplotypeGraph(hvcfFiles)
-        AlignmentUtils.alignReadsToHaplotypes(graph, kmerIndex, readInputFiles.getReadFiles(), outputDir)
+        AlignmentUtils.alignReadsToHaplotypes(graph, kmerIndexFilename, readInputFiles.getReadFiles(), outputDir)
     }
 }

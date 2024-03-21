@@ -30,7 +30,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     // Map<ReferenceRange, refRangeId>
     private lateinit var refRangeMap: SortedMap<ReferenceRange, Int>
 
-    //A list of contigs in this graph
+    // A list of contigs in this graph
     val contigs: List<String>
 
     // Map<ID (checksum), AltHeaderMetaData>
@@ -116,7 +116,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
     /**
      * Creates a map of each SampleGamete in range to its haplotype id.
-     * @param range   a reference range in this graph
+     * @param range a reference range in this graph
      *
      * If range is not in this graph throws [IllegalArgumentException].
      */
@@ -173,8 +173,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
             val reader = VCFFileReader(File(hvcfFile), false)
             readers.add(reader)
-            //sampleNames are being added to both a Set and List so that they can be compared to detect and report
-            //  duplicate sample names
+            // sampleNames are being added to both a Set and List so that they can be compared to detect and report
+            // duplicate sample names
             sampleNamesSet.addAll(reader.header.sampleNamesInOrder)
             sampleNamesList.addAll(reader.header.sampleNamesInOrder)
 
@@ -285,7 +285,6 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         // rangeIdToSampleToChecksum[refRangeId][sampleId][gameteId] -> Checksum / hapid
         val rangeIdToSampleToChecksum = mutableListOf<Array<MutableList<String?>>>()
-//        val hapidByrangeBySampleGamete = mutableListOf<>()
 
         val rangeMap = mutableMapOf<ReferenceRange, Int>()
 
@@ -307,7 +306,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         refRangeMap = rangeMap.toSortedMap()
 
-        //rangeByGameteIdToHapid = rangeIdToSampleToChecksum.toTypedArray()
+        // rangeByGameteIdToHapid[refRangeId][sampleId][gameteID] -> checksum / hapid
         rangeByGameteIdToHapid = rangeIdToSampleToChecksum.map { sampleGameteHapid ->
             sampleGameteHapid.map { gameteHapid ->
                 gameteHapid.map { it ?: "" }.toTypedArray()
@@ -381,20 +380,28 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
             hapIdToSampleGametes(range).keys.toList()
         }
     }
+
     /**
      * Creates a map of ReferenceRangeId -> (map of hapid -> index)
      */
-    fun refRangeIdToHapIdMap() : Map<Int,Map<String,Int>> {
-        return ranges().mapIndexed { rangeIndex, range -> rangeIndex to hapIdToSampleGametes(range).keys.toSortedSet()
-            .mapIndexed { hapIndex, hapid -> hapid to hapIndex }.toMap() }.toMap()
+    fun refRangeIdToHapIdMap(): Map<Int, Map<String, Int>> {
+        return ranges().mapIndexed { rangeIndex, range ->
+            rangeIndex to hapIdToSampleGametes(range).keys.toSortedSet()
+                .mapIndexed { hapIndex, hapid -> hapid to hapIndex }.toMap()
+        }.toMap()
     }
+
     /**
      * Creates a map of ReferenceRange -> index for this [HaplotypeGraph].
      * Because the ranges are sorted when calling the ranges() method,
      * a graph always returns the same map in the same order.
      */
-    fun refRangeToIndexMap() : Map<ReferenceRange,Int> {
+    fun refRangeToIndexMap(): Map<ReferenceRange, Int> {
         return ranges().mapIndexed { index, range -> range to index }.toMap()
+    }
+
+    fun refRangeStrToIndexMap(): Map<String, Int> {
+        return ranges().mapIndexed { index, range -> range.toString() to index }.toMap()
     }
 
 }

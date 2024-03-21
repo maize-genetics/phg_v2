@@ -75,7 +75,7 @@ class ExportHaplotypeGraphTest {
     @Test
     fun testSingleSampleRoundTripHaplotypeGraph() {
 
-        val graph = HaplotypeGraph(listOf(TestExtension.exportGraphSingleSample))
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqRefHvcfFile))
 
         val outputFile = "${outputHvcfDir}testSingleSampleRoundTripHaplotypeGraph.vcf"
 
@@ -107,6 +107,50 @@ class ExportHaplotypeGraphTest {
         myLogger.info("testMultipleSamplesRoundTripHaplotypeGraph.vcf actual checksum2: $checksum2")
 
         assertEquals(checksum1, checksum2, "testMultipleSamplesRoundTripHaplotypeGraph.vcf checksums do not match")
+
+    }
+
+    @Test
+    fun testSingleSampleHaplotypeGraphRangeSampleGamete() {
+
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqRefHvcfFile))
+
+        val outputFile = "${outputHvcfDir}testSingleSampleHaplotypeGraphRangeSampleGamete.vcf"
+
+        exportMultiSampleHVCF(graph, outputFile, TestExtension.smallseqRefFile, SymbolicAllele.RANGE_SAMPLE_GAMETE)
+
+        var checksum1 = getChecksum(TestExtension.exportGraphSingleSampleRangeSampleGamete)
+        var checksum2 = getChecksum(outputFile)
+
+        myLogger.info("testSingleSampleHaplotypeGraphRangeSampleGamete.vcf expected checksum1: $checksum1")
+        myLogger.info("testSingleSampleHaplotypeGraphRangeSampleGamete.vcf actual checksum2: $checksum2")
+
+        assertEquals(checksum1, checksum2, "testSingleSampleHaplotypeGraphRangeSampleGamete.vcf checksums do not match")
+
+    }
+
+    @Test
+    fun testSingleSampleRoundTripHaplotypeGraphWithBedfile() {
+
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqRefHvcfFile))
+
+        val outputFile = "${outputHvcfDir}testSingleSampleRoundTripHaplotypeGraphWithBedfile.vcf"
+
+        exportMultiSampleHVCF(
+            graph,
+            outputFile,
+            TestExtension.smallseqRefFile,
+            SymbolicAllele.RANGE_SAMPLE_GAMETE,
+            rangeBedfile = TestExtension.smallseqAnchorsBedFile
+        )
+
+        var checksum1 = getChecksum(TestExtension.exportGraphSingleSampleRangeSampleGamete)
+        var checksum2 = getChecksum(outputFile)
+
+        myLogger.info("testSingleSampleRoundTripHaplotypeGraphWithBedfile.vcf expected checksum1: $checksum1")
+        myLogger.info("testSingleSampleRoundTripHaplotypeGraphWithBedfile.vcf actual checksum2: $checksum2")
+
+        assertEquals(checksum1, checksum2, "testSingleSampleRoundTripHaplotypeGraph.vcf checksums do not match")
 
     }
 
