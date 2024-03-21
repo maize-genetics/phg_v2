@@ -61,42 +61,38 @@ _Long-form documentation for this section can be found [here](docs/build_and_loa
 ./phg agc-compress --db-path /path/to/dbs --reference-file /my/ref.fasta --fasta-list /my/assemblyFastaList.txt 
 ./phg create-ref-vcf --bed /my/bed/file.bed --reference-file /my/ref.fasta --reference-url https://url-for-ref --reference-name B73 --db-path /path/to/tiled/dataset folder
 ./phg create-maf-vcf --db-path /path/to/dbs --bed /my/bed/file.bed --reference-file /my/ref.fasta --maf-dir /my/maf/files -o /path/to/vcfs
+
 ## Convert GVCF to HVCF: use this if you have GVCF files created by PHG, but do not have MAF or h.vcf files
-./phg gvcf2hvcf --bed /my/bin/file.bed --gvcf-dir /my/gvcf/dir --reference-file /my/ref.fasta --reference-name B73 
+./phg gvcf2hvcf --bed /my/bin/file.bed --gvcf-dir /my/gvcf/dir --reference-file /my/ref.fasta --reference-name B73
+ 
 ## Load data into DBs
 ./phg load-vcf --vcf /my/vcf/dir --dbpath /path/to/dbs
 ```
 
 ### Imputation
 
+_Long-form documentation for this section can be found [here](docs/imputation.md)_
+
+
 > [!NOTE]
 > This section is currently in progress and command input may be
-> subject to change. The following pseudocode is a possible
-> representation of the imputation workflow:
+> subject to change.
 
 ```shell
+## Export
+./phg export-vcf --db-path /my/db/uri --dataset-type hvcf --sample-names LineA,LineB --output-dir /my/hvcf/dir
+
 ## Index
-./phg index-kmers --ancestor founder.h.vcf -o kmer_index.map // we need this
+./phg build-kmer-index --db-path /my/db/uri --hvcf-dir /my/hvcf/dir
 
 ## Map
-./phg map-kmers \
-    --kmer-index kmer_index.map \
-    --reads my_reads.fastq \ // possibly thousands of samples being inputted
-    --output read_count_out.map \ // could we pipe this into impute method? // thousands of outputs
-    // consider batch interface here ^^
+./phg map-kmers --hvcf-dir /my/hvcf/dir --kmer-index /my/hvcf/dir/kmerIndex.txt --key-file /my/path/keyfile --output-dir /my/mapping/dir
 
-## Impute
-./phg impute \
-    --hap-counts read_count_out.map \ // will users understand the di
-    --diploid false \
-    --ancestor founder.h.vcf \
-    --max-anc-hap-num 20 \
-    --max-anc-hap-prop 0.95 \
-    --output-parent best_parents.txt \
-    -o my_impute.h.vcf
+## Find paths (impute)
+./phg find-paths --path-keyfile /my/path/keyfile --hvcf-dir /my/hvcf/dir --reference-genome /my/ref/genome --path-type haploid --output-dir /my/imputed/hvcfs
 
-## Load
-./phg load-vcf --vcf my_impute.vcf --dbpath /my/db/uri
+## Load in DB
+./phg load-vcf --vcf /my/imputed/hvcfs --dbpath /my/db/uri
 ```
 
 ### Data retrieval
