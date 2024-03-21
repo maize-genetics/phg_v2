@@ -60,7 +60,7 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
             }
         }
 
-    val referenceFile by option(help = "Full path to the reference fasta file to be added with other fastas to the agc compressed file. Reference fasta should NOT be compressed and must be the annotated fasta from the prepare-fastas command.")
+    val referenceFile by option(help = "Full path to the reference fasta file to be added with other fastas to the agc compressed file. Reference fasta should NOT be compressed and must be the updated fasta from the prepare-fastas command.")
         .default("")
         .validate {
             require(it.isNotBlank()) {
