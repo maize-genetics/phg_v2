@@ -71,6 +71,9 @@ _Long-form documentation for this section can be found [here](docs/build_and_loa
 
 ### Imputation
 
+_Long-form documentation for this section can be found [here](docs/imputation.md)_
+
+
 > [!NOTE]
 > This section is currently in progress and command input may be
 > subject to change.
@@ -83,7 +86,7 @@ _Long-form documentation for this section can be found [here](docs/build_and_loa
 ./phg build-kmer-index --db-path /my/db/uri --hvcf-dir /my/hvcf/dir
 
 ## Map
-./phg map-kmers --hvcf-dir /my/hvcf/dir --kmer-index /my/hvcf/dir/kmerIndex.txt --read-files /path/to/reads/LineA_R1.fq /path/to/reads/LineA_R2.fq --output-dir /my/mapping/dir
+./phg map-kmers --hvcf-dir /my/hvcf/dir --kmer-index /my/hvcf/dir/kmerIndex.txt --key-file /my/path/keyfile --output-dir /my/mapping/dir
 
 ## Find paths (impute)
 ./phg find-paths --path-keyfile /my/path/keyfile --hvcf-dir /my/hvcf/dir --reference-genome /my/ref/genome --path-type haploid --output-dir /my/imputed/hvcfs
