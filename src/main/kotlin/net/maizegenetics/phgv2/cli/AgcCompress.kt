@@ -25,7 +25,7 @@ import java.time.LocalDate
  * The input fasta files should be the files created from the PrepareAssemblies command.
  * AGC does not keep track of the sample names when it pulls sequence from multiple fasta files.
  * For the phg software to identify the sample from which a sequence came, we annotated the fasta
- * id line with the sample name.  This is done in the AnnotateFasta command.  This AgcCompress
+ * id line with the sample name.  This is done in the PrepareAssemblies command.  This AgcCompress
  * command requires the fasta files to be annotated.
  *
  * The sample name for each fasta is determined by the file name, minus extension.  Users
@@ -52,7 +52,7 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
         .default("")
 
 
-    val fastaList by option(help = "File containing full path name for the annotated fasta files, one per line, to compress into a single agc file.  Fastas may be compressed or uncompressed files. Reference fasta should NOT be included.\nAll fastas must be fastas created via the phg prepare-fastas command")
+    val fastaList by option(help = "File containing full path name for the prepared fasta files, one per line, to compress into a single agc file.  Fastas may be compressed or uncompressed files. Reference fasta should NOT be included.\nAll fastas must be fastas created via the phg prepare-fastas command")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -145,7 +145,7 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
         // This is done by finding the first line of each fasta file that begins with ">"
         // and checking if that line contains "sampleName="
         // If it does not, the file is not annotated and an exception is thrown
-        myLogger.info("Verifying fasta files are annotated")
+        myLogger.info("Verifying fasta files id lines are annotated")
 
         fastaFiles.forEach {
             // find the first line that begins with ">"
