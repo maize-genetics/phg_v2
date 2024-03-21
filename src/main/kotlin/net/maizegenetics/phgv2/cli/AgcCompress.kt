@@ -22,7 +22,7 @@ import java.time.LocalDate
  * This program will create a single compressed file from the input fasta files.
  * It is expected to live in the same parent folder as the TileDB datasets.
  *
- * The input fasta files should be the files created from the AnnotateFasta command.
+ * The input fasta files should be the files created from the PrepareAssemblies command.
  * AGC does not keep track of the sample names when it pulls sequence from multiple fasta files.
  * For the phg software to identify the sample from which a sequence came, we annotated the fasta
  * id line with the sample name.  This is done in the AnnotateFasta command.  This AgcCompress
@@ -44,7 +44,7 @@ import java.time.LocalDate
  * YYYY-MM-DD is the date the backup was created.
  *
  */
-class AgcCompress : CliktCommand(help = "Create a single AGC compressed file from an input of FASTA files created with the phg annotate-fasta command") {
+class AgcCompress : CliktCommand(help = "Create a single AGC compressed file from an input of FASTA files created with the phg prepare-assemblies command") {
 
     private val myLogger = LogManager.getLogger(AgcCompress::class.java)
 
@@ -52,7 +52,7 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
         .default("")
 
 
-    val fastaList by option(help = "File containing full path name for the annotated fasta files, one per line, to compress into a single agc file.  Fastas may be compressed or uncompressed files. Reference fasta should NOT be included.\nAll fastas must be fastas created via the phg annotate-fastas command")
+    val fastaList by option(help = "File containing full path name for the annotated fasta files, one per line, to compress into a single agc file.  Fastas may be compressed or uncompressed files. Reference fasta should NOT be included.\nAll fastas must be fastas created via the phg prepare-fastas command")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -60,7 +60,7 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
             }
         }
 
-    val referenceFile by option(help = "Full path to the reference fasta file to be added with other fastas to the agc compressed file. Reference fasta should NOT be compressed and must be the annotated fasta from the annotate-fastas command.")
+    val referenceFile by option(help = "Full path to the reference fasta file to be added with other fastas to the agc compressed file. Reference fasta should NOT be compressed and must be the annotated fasta from the prepare-fastas command.")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -154,8 +154,8 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
                 while (line != null) {
                     if (line.startsWith(">")) {
                         if (!line.contains("sampleName=")) {
-                            myLogger.error("Fasta file ${it} is not annotated.  Please use the phg annotate-fastas command to annotate the fasta files.")
-                            throw IllegalStateException("Fasta file ${it} is not annotated.  Please use the phg annotate-fastas command to annotate the fasta files.")
+                            myLogger.error("Fasta file ${it} id lines are not updated with sampleName.  Please use the phg prepare-assemblies command to update the fasta files.")
+                            throw IllegalStateException("Fasta file ${it} id lines are not updated with sampleName.  Please use the phg prepare-assemblies command to update the fasta files.")
                         }
                         else {
                             // go to next fasta file

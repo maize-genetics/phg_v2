@@ -74,7 +74,7 @@ class AlignAssemblies : CliktCommand(help = "Align annotated assembly fasta file
     val assemblies by option(
         "-a",
         "--assemblies",
-        help = "File containing list of assemblies to align, 1 per line, full path to annotated file created via the phg annotate-fastas command."
+        help = "File containing list of assemblies to align, 1 per line, full path to updated file created via the phg prepare-assemblies command."
     )
         .default("")
         .validate {
