@@ -328,8 +328,8 @@ fun queryAgc(commands:Array<String>):Map<Pair<String,String>,NucSeq> {
                         // This is an error as we need the sampleName to map the genome to the
                         // samplename/genome in the VCF files.
                         myLogger.error("queryAgc: Error:  No sampleName= found in idline: returned from AGC query.")
-                        myLogger.error("Please run the AnnotateFastas command to add sampleName to your fasta files.")
-                        myLogger.error("Then delete the assemblies.agc file from you tiledb folder and recreate the agc compressed file via the agc-compress command using the new annotated fastas.")
+                        myLogger.error("Please run the prepare-assemblies command to add sampleName to your fasta files.")
+                        myLogger.error("Then delete the assemblies.agc file from you tiledb folder and recreate the agc compressed file via the agc-compress command using the new prepared fastas.")
                         myLogger.error("This is necessary to associate the VCF samples with the AGC compressed genomes.")
                         throw IllegalStateException("Error:  No sampleName found in idline: $line")
                     }
