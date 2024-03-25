@@ -581,8 +581,8 @@ This command uses several parameters:
   it with the following lines:
 
   ```
-  output/updated/LineA.fa
-  output/updated/LineB.fa
+  output/updated_assemblies/LineA.fa
+  output/updated_assemblies/LineB.fa
   ```
   Here, I am planning on aligning two genomes called `LineA` and 
   `LineB`. Since these are created with the `prepare-assemblies` command 
