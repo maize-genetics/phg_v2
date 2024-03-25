@@ -11,7 +11,7 @@ import java.io.FileWriter
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class AnnotateFastasTest {
+class PrepareAssembliesTest {
     companion object {
 
         val tempDir = "${System.getProperty("user.home")}/temp/phgv2Tests/tempDir/"
@@ -38,26 +38,26 @@ class AnnotateFastasTest {
 
     @Test
     fun testCliktParams() {
-        val annotateFastas = AnnotateFastas()
+        val prepareAssemblies = PrepareAssemblies()
 
         // Test missing fasta-list parameter
-        val resultMissingKeyfile = annotateFastas.test(" --output-dir ${TestExtension.testOutputFastaDir}")
+        val resultMissingKeyfile = prepareAssemblies.test(" --output-dir ${TestExtension.testOutputFastaDir}")
         assertEquals(resultMissingKeyfile.statusCode, 1)
-        assertEquals("Usage: annotate-fastas [<options>]\n" +
+        assertEquals("Usage: prepare-assemblies [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --keyfile: --keyfile must not be blank\n",resultMissingKeyfile.output)
 
         // Test missing output-dir parameter
-        val resultMissingOutDir = annotateFastas.test("--keyfile ${TestExtension.testInputFastaDir} ")
+        val resultMissingOutDir = prepareAssemblies.test("--keyfile ${TestExtension.testInputFastaDir} ")
         assertEquals(resultMissingOutDir.statusCode, 1)
-        assertEquals("Usage: annotate-fastas [<options>]\n" +
+        assertEquals("Usage: prepare-assemblies [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --output-dir: --output-dir must not be blank\n",resultMissingOutDir.output)
 
     }
 
     @Test
-    fun testAnnotateFastaCommand() {
+    fun testPrepareAssembliesCommand() {
         val fastaInputDir = TestExtension.testInputFastaDir
         val fastaOutputDir = TestExtension.testOutputFastaDir
 
@@ -73,8 +73,8 @@ class AnnotateFastasTest {
         filesToUpdate.writeText(fileList.joinToString("\n") { "${it}\t${File(it).nameWithoutExtension}" })
 
         // Test the AnnotateFasta class
-        val annotateFastas = AnnotateFastas()
-        val result = annotateFastas.test( "--keyfile ${filesToUpdate} --threads 2 --output-dir ${TestExtension.testOutputFastaDir}")
+        val prepareAssemblies = PrepareAssemblies()
+        val result = prepareAssemblies.test( "--keyfile ${filesToUpdate} --threads 2 --output-dir ${TestExtension.testOutputFastaDir}")
         assertEquals(0, result.statusCode )
 
         // get a list of fasta files created in the fastaOutputDir, as a List<String>
@@ -101,7 +101,7 @@ class AnnotateFastasTest {
         // in the outputDir
         val secondOutputDir = "${TestExtension.testOutputFastaDir}/secondOutputDir"
         File(secondOutputDir).mkdirs()
-        val result2 = annotateFastas.test( "--keyfile ${filesToUpdate2} --output-dir ${secondOutputDir}")
+        val result2 = prepareAssemblies.test( "--keyfile ${filesToUpdate2} --output-dir ${secondOutputDir}")
 
         // Get list of fastas files in the newOutputDir
         val updatedFiles2 = File(secondOutputDir).listFiles().filter { it.extension == "fa" || it.extension == "fasta" }.map { it.absolutePath }
@@ -169,8 +169,8 @@ class AnnotateFastasTest {
         }
 
         // Run annotateFasta on the fasta files in the fastaInputDir
-        val annotateFastas = AnnotateFastas()
-        val result = annotateFastas.test( "--keyfile ${annotateKeyFile} --threads 2 --output-dir ${fastaOutputDir}")
+        val prepareAssemblies = PrepareAssemblies()
+        val result = prepareAssemblies.test( "--keyfile ${annotateKeyFile} --threads 2 --output-dir ${fastaOutputDir}")
         assertEquals(0, result.statusCode)
 
         // Verify the id lines of each fasta file were updated to include
@@ -227,8 +227,8 @@ class AnnotateFastasTest {
         println("write keyfile to ${filesToUpdate.absolutePath}")
 
         // Test the AnnotateFasta class
-        val annotateFastas = AnnotateFastas()
-        val result = annotateFastas.test( "--keyfile ${filesToUpdate} --threads 2 --output-dir ${TestExtension.testOutputFastaDir}")
+        val prepareAssemblies = PrepareAssemblies()
+        val result = prepareAssemblies.test( "--keyfile ${filesToUpdate} --threads 2 --output-dir ${TestExtension.testOutputFastaDir}")
         assertEquals(0,result.statusCode)
 
         // get a list of fasta files created in the fastaOutputDir, as a List<String> in variable named updatedFiles
@@ -259,7 +259,7 @@ class AnnotateFastasTest {
         val secondOutputDir = "${TestExtension.testOutputFastaDir}/secondOutputDir"
         // create the new outputDir
         File(secondOutputDir).mkdirs()
-        val result2 = annotateFastas.test( "--keyfile ${filesToUpdate2} --output-dir ${secondOutputDir}")
+        val result2 = prepareAssemblies.test( "--keyfile ${filesToUpdate2} --output-dir ${secondOutputDir}")
 
         // Get list of fastas files in the newOutputDir
         val updatedFiles2 = File(secondOutputDir).listFiles().filter { it.extension == ".gz" }.map { it.absolutePath }
