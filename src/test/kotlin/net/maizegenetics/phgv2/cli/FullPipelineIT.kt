@@ -182,13 +182,13 @@ class FullPipelineIT {
         println("imputing paths")
         var pathArgs = "--path-keyfile $pathKeyfile --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
-                "--path-type haploid" // --prob-same-gamete 0.95"
+                "--path-type haploid --min-reads 1" // --prob-same-gamete 0.95"
         val pathResult = FindPaths().test(pathArgs)
         assertEquals(0, pathResult.statusCode, "haploid FindPaths failed")
         println(pathResult.output)
 
-        //check paths
-        checkExpectedHvcf("TestSample")
+        //check paths, do not test last range because there are no reads for it and --min-reads = 1
+        checkExpectedHvcf("TestSample", true)
 
         //impute haploid paths from reads
         pathArgs = "--read-files $lineAFastqFilename  --hvcf-dir ${TestExtension.testVCFDir} " +
@@ -280,7 +280,7 @@ class FullPipelineIT {
         }
     }
 
-    fun checkExpectedHvcf(testSampleName: String) {
+    fun checkExpectedHvcf(testSampleName: String, doNotTestLastRange:Boolean = false) {
         val listOfHvcfFilenames = File(TestExtension.testVCFDir).listFiles()
             .filter {  it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz")  }.map { it.path }.toMutableList()
         listOfHvcfFilenames.add("${TestExtension.testOutputDir}${testSampleName}.h.vcf")
@@ -288,6 +288,7 @@ class FullPipelineIT {
         val sgA = SampleGamete("LineA")
         val sgTestSample = SampleGamete(testSampleName)
         graph.ranges().forEach { range ->
+            if (doNotTestLastRange && range.start < 50500)
             assertEquals(graph.sampleToHapId(range, sgA), graph.sampleToHapId(range, sgTestSample), "TestSample hapid does not equal line A in $range")
         }
     }

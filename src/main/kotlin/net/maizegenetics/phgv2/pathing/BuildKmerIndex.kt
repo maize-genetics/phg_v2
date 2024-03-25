@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.double
+import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
@@ -50,6 +51,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
     val dbPath by option(help = "Tile DB URI")
         .required() //Needs to be required now due to the agc archive
 
+    val indexFile by option("The full path of the kmer index file. Default = <hvcf-dir>/kmerIndex.txt")
+        .default("")
+
     val maxHaplotypeProportion by option("-p", "--maxHapProportion", help = "only kmers mapping to less than or " +
             "equal to maxHapProportion of haplotypes in a reference range will be retained.Default = 0.75")
         .double()
@@ -69,18 +73,17 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
     val hvcfDir by option("--hvcf-dir", help = "Path to directory holding hVCF files. Data will be pulled directly from these files instead of querying TileDB")
         .required()//Todo: make this optional by adding .default("")
 
-
+    val maxArgLength by option(help="The maximum argument length for a call to agc. This defaults to 200000. " +
+            "If you get an error caused by a call to agc being too long try reducing this value.")
+        .int()
+        .default(200000)
 
     override fun run() {
-        //either tiledbPath or agcPath must be provided
-
-
         //build the haplotypeGraph
         val graph = buildHaplotypeGraph()
         val hashToHapidMap = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
 
-        //for now, the name of the kmerIndex will be kmerIndex.txt. Later, the file path and name can be set by the user.
-        val kmerIndexFilename = "${hvcfDir}/kmerIndex.txt"
+        val kmerIndexFilename = if (indexFile == "") "${hvcfDir}/kmerIndex.txt" else indexFile
 
         //save the kmerIndex
         saveKmerHashesAndHapids(graph, kmerIndexFilename, hashToHapidMap)
@@ -110,93 +113,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * This returns a HashMap of hash -> hapid list for all the kmers in the keep set.
      * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
      */
-    fun processGraphKmersSlower(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75, hashMask: Long = 3, hashFilterValue:Long = 1) : Long2ObjectOpenHashMap<Set<String>> {
-        //keepMap is a map of hash -> Set of haplotype ids
-        val keepMap = Long2ObjectOpenHashMap<Set<String>>()
-        //discardSet is a Set of hashes
-        val discardSet = LongOpenHashSet()
-        var rangeCount = 0
-        val startTime = System.nanoTime()
-
-        for (refrange in graph.ranges()) {
-            if (rangeCount++ % 5000 == 0) {
-                myLogger.debug("Processing range $rangeCount, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
-            }
-
-            val hapidToSampleMap = graph.hapIdToSampleGametes(refrange)
-            val maxHaplotypes = ceil(hapidToSampleMap.size * maxHaplotypeProportion)
-
-            //create a map of hash -> count of occurrences for all the haplotypes in this reference range
-            //retrieveAgcContigs needs a list of contig@genome:start-end, for all of the regions in the haplotype alt headers
-            //subtract 1 from altHeader positions because AGC positions are 0-based.
-            //Also need a map of Pair(sampleName, region) -> hapid in order to associate sequence from agc to the originating hapid.
-            //The region has to match the region as requested from agc.
-            val agcRangeList = mutableListOf<String>()
-            val hapidSampleRangeList = mutableListOf<Array<String>>()
-
-            hapidToSampleMap.keys.forEach { hapid ->
-                val alt = graph.altHeader(hapid) ?: throw IllegalStateException("No alt header for $hapid")
-
-                for (range in alt.regions) {
-                    if (range.first.position <= range.second.position) {
-                        agcRangeList.add("${range.first.contig}@${alt.sampleName()}:${range.first.position - 1}-${range.second.position - 1}")
-                        hapidSampleRangeList.add(arrayOf(hapid, alt.sampleName(), "${range.first.contig}:${range.first.position - 1}-${range.second.position - 1}"))
-                    } else {
-                        agcRangeList.add("${range.first.contig}@${alt.sampleName()}:${range.second.position - 1}-${range.first.position - 1}")
-                        hapidSampleRangeList.add(arrayOf(hapid, alt.sampleName(), "${range.first.contig}:${range.second.position - 1}-${range.first.position - 1}"))
-                    }
-                }
-
-            }
-
-            val sampleRegionToHapidMap = hapidSampleRangeList.groupBy({Pair(it[1], it[2])},{it[0]})
-
-            val agcdataMap = retrieveAgcContigs(dbPath, agcRangeList)
-            //retrieveAgcContigs returns a Map<Pair<String,String>,NucSeq> where Pair is
-            // sampleName, contig:start-end and NucSeq is the sequence
-            // The following gets the hapid that was used to generate each agc entry and creates a map of hapid -> list of sequences
-            // from that hapid.
-            val hapidSeqMap = agcdataMap.entries.mapNotNull { (sample, seqrec) ->
-                val hapidList = sampleRegionToHapidMap[sample]
-                hapidList?.map { Pair(it, seqrec) }
-            }.flatten().groupBy ({it.first}, {it.second.seq()})
-
-            val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidSeqMap, hashMask, hashFilterValue)
-
-            for (hashCount in kmerHashCounts.entries) {
-                val hashValue = hashCount.key
-
-                //if the hash is in the discard set skip it
-                if (discardSet.contains(hashValue)) continue
-
-                when {
-                    //if hash count >= numberOfHaplotype add it to the discard set
-                    hashCount.value >= maxHaplotypes -> discardSet.add(hashValue)
-                    //if the hash is already in the keepSet, it has been seen in a previous reference range
-                    // so, remove it from the keep set and add it to the discard set
-                    keepMap.containsKey(hashValue) -> {
-                        keepMap.remove(hashValue)
-                        discardSet.add(hashValue)
-                    }
-                    else -> {
-                        keepMap[hashValue] = longToHapIdMap[hashValue]
-                    }
-                }
-            }
-
-        }
-        myLogger.debug("Finished building kmer keep set, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
-        return keepMap
-    }
-
-    /**
-     * Finds the set of kmers meeting the conditions set by [maxHaplotypeProportion], the maximum proportion of
-     * haplotypes in a reference range, and [hashMask] and [hashFilterValue], which determine which nucleotide(s)
-     * are required to be in the final postion(s) of a kmer.
-     *
-     * This returns a HashMap of hash -> hapid list for all the kmers in the keep set.
-     * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
-     */
     fun processGraphKmers(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75,
                                         hashMask: Long = 3, hashFilterValue:Long = 1) : Long2ObjectOpenHashMap<Set<String>> {
         //keepMap is a map of hash -> Set of haplotype ids
@@ -207,14 +123,11 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         val sampleGametes = graph.sampleGametesInGraph()
 
         val sampleNames = sampleGametes.map { it.name }
-        println("sampleNames = $sampleNames")
 
         val contigRangesMap = graph.rangesByContig()
         for (chr in contigRangesMap.keys) {
             //get all sequence for this chromosome
             val agcChromSequence = retrieveAgcContigForSamples(dbPath, sampleNames, chr)
-
-            println("at chr $chr: agcChromSequence size = ${agcChromSequence.size}")
 
             // go through ref ranges and make a list of any sequence needed from other chroms then request that from agc
             val otherRegions = mutableListOf<String>()
@@ -229,7 +142,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                 }
             }
 
-            val agcOtherRegionSequence: Map<Pair<String,String>, NucSeq> = if (otherRegions.isNotEmpty()) retrieveAgcContigs(dbPath, otherRegions)
+            val agcOtherRegionSequence: Map<Pair<String,String>, NucSeq> = if (otherRegions.isNotEmpty()) getAgcSequenceForRanges(otherRegions)
             else emptyMap()
 
             //iterate through refranges, generate kmers from the sequence
@@ -242,10 +155,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                     //checked for altHeader existence already
                     val altHeader = graph.altHeader(hapid)!!
                     val sequenceList = altHeader.regions.map { region ->
-                        println("region = $region")
                         val inThisChrom = region.first.contig == chr
                         if (inThisChrom) {
-                            println("alt sampleName = ${altHeader.sampleName()}, region = ${regionToString(region)}")
                             //translate from 1-based Position to 0-based nucseq coordinates
                             val seqRange = if (region.first.position <= region.second.position) (region.first.position - 1..region.second.position - 1)
                             else (region.second.position - 1..region.first.position - 1)
@@ -255,7 +166,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                         }
                     }
                     hapidToSequencMap[hapid] = sequenceList
-                    println("sequenceLengths = ${sequenceList.map{it.length}.joinToString(",")}")
                 }
 
                 val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidToSequencMap, hashMask, hashFilterValue)
@@ -291,7 +201,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
     private fun regionToAgcRange(sampleName: String, region: Pair<Position,Position>): String {
         return if (region.first.position <= region.second.position) {
-            "${region.first.contig}@${sampleName}}:${region.first.position - 1}-${region.second.position - 1}"
+            "${region.first.contig}@${sampleName}:${region.first.position - 1}-${region.second.position - 1}"
         } else {
             "${region.first.contig}@${sampleName}:${region.second.position - 1}-${region.first.position - 1}"
         }
@@ -305,7 +215,16 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         }
     }
 
-
+    private fun getAgcSequenceForRanges(ranges: List<String>): Map<Pair<String,String>, NucSeq> {
+        val argLength = ranges.sumOf { it.length } / ranges.size + 1
+        val maxArgs = maxArgLength / argLength
+        val sequenceMap = mutableMapOf<Pair<String,String>, NucSeq>()
+        ranges.windowed(maxArgs, maxArgs, true).forEach {
+            myLogger.debug("getting sequence for $it")
+            sequenceMap.putAll(retrieveAgcContigs(dbPath, it))
+        }
+        return sequenceMap
+    }
 
     /**
      * Function to count the kmerHashes for a single reference range's haplotype nodes.
@@ -375,21 +294,16 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         //refRangeToKmerSetMap is a map of refRange -> Set of kmer hashes
         val refRangeToKmerSetMap = getRefRangeToKmerSetMap(kmerMapToHapIds, hapIdToRefRangeMap)
 
-        // graph persistence not needed for now, will write index to hvcfDir
-        //TODO add sufficient information to be able to reproduce the graph from the index file
-        //   for example a list of the hvcf files or tiledb sample names
-
         val startTime = System.nanoTime()
 
         getBufferedWriter(filePath).use { myWriter ->
-            //do NOT start with haplistid header
 
             for((rangeCount, refrange) in refRangeToKmerSetMap.keys.withIndex()) {
 
                 if(rangeCount % 1000 == 0) {
                     myLogger.info("Time Spent Processing output: ${(System.nanoTime() - startTime)/1e9} seconds.  Processed $rangeCount Ranges.")
                 }
-                //Do extract out the kmers for the refRange and export to file
+                //extract out the kmers for the refRange and export to file
                 extractKmersAndExportIndexForRefRange(refRangeToKmerSetMap, refrange, kmerMapToHapIds, refRangeToHapIndexMap, myWriter)
             }
         }

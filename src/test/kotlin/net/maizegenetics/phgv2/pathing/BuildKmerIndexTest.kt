@@ -7,6 +7,8 @@ import net.maizegenetics.phgv2.cli.AgcCompress
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
@@ -20,6 +22,32 @@ import kotlin.test.fail
 
 @ExtendWith(TestExtension::class)
 class BuildKmerIndexTest {
+    companion object {
+        //Setup/download  files
+        //Resetting on both setup and teardown just to be safe.
+        @JvmStatic
+        @BeforeAll
+        fun setup() {
+            resetDirs()
+        }
+
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+            resetDirs()
+        }
+
+        fun resetDirs() {
+            File(TestExtension.tempDir).deleteRecursively()
+            File(TestExtension.testOutputFastaDir).deleteRecursively()
+            File(TestExtension.testOutputDir).deleteRecursively()
+
+
+            File(TestExtension.tempDir).mkdirs()
+            File(TestExtension.testOutputFastaDir).mkdirs()
+            File(TestExtension.testOutputDir).mkdirs()
+        }
+    }
 
     @Test
     fun testKmerUpdating() {
@@ -108,6 +136,40 @@ class BuildKmerIndexTest {
         //Was the index created?
         assertEquals(0, buildIndexResult.statusCode)
         assert(File("${tempHvcfDir}/kmerIndex.txt").exists())
+    }
+
+    @Test
+    fun testSourceFromOtherChr() {
+
+        //populate the AGC database
+        setupAgc()
+
+        //set up temporary file names
+        val tempTestDir = "${TestExtension.tempDir}kmerTest/"
+        val tempHvcfDir = "${tempTestDir}hvcfDir/"
+        val tempDBPathDir = "${TestExtension.testOutputFastaDir}dbPath/"
+
+        //copy hvcf files to temp directory,
+        // include the ref hvcf to test what happens when samples have no haplotype in some ref range
+        File("${tempHvcfDir}LineB.h.vcf").delete()
+        listOf(TestExtension.smallseqLineAHvcfFile, "${TestExtension.smallSeqInputDir}LineB_kmer_index_test.h.vcf", TestExtension.smallseqRefHvcfFile)
+            .forEach { hvcfFile ->
+                val dst = File("$tempHvcfDir${File(hvcfFile).name}")
+                if (!dst.exists()) {
+                    File(hvcfFile).copyTo(dst)
+                }
+            }
+
+        //create a HaplotypeGraph from the hvcf files
+        val buildIndexResult = BuildKmerIndex().test("--db-path $tempDBPathDir --hvcf-dir $tempHvcfDir " +
+                "--max-arg-length 150 --index-file ${tempHvcfDir}kmerIndexOther.txt")
+
+        //Was the index created?
+        assertEquals(0, buildIndexResult.statusCode)
+        assert(File("${tempHvcfDir}/kmerIndexOther.txt").exists())
+
+        //delete this alternate B to make sure it does not interfere with other tests
+        File("${tempHvcfDir}LineB_kmer_index_test.h.vcf").delete()
     }
 
     //Ignore for now as we are requiring both db-path and hvcf-dir currently.
