@@ -51,7 +51,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
     val dbPath by option(help = "Tile DB URI")
         .required() //Needs to be required now due to the agc archive
 
-    val indexFile by option("The full path of the kmer index file. Default = <hvcf-dir>/kmerIndex.txt")
+    val indexFile by option(help = "The full path of the kmer index file. Default = <hvcf-dir>/kmerIndex.txt")
         .default("")
 
     val maxHaplotypeProportion by option("-p", "--maxHapProportion", help = "only kmers mapping to less than or " +
