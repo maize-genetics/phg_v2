@@ -606,6 +606,10 @@ default values are calculated by the software based on the system processor and 
   section.
 
 > [!WARNING]
+> Make sure there are no trailing spaces in the text file containing 
+> the list of assembly genomes (`--assemblies`).
+
+> [!WARNING]
 > The directory that you specify in the output (`-o`) section must
 > be an existing directory.
 
