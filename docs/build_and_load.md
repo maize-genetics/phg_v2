@@ -74,8 +74,7 @@ In this document, we will discuss the steps needed to:
         --db-path /path/to/dbs \
         --bed /path/to/bed_file.bed \
         --reference-file /my/ref.fasta \
-        --gvcf-dir /my/gvcf/files \
-        -o /path/to/hvcf
+        --gvcf-dir /my/gvcf/files 
     ```
 * Load data into DBs
     ```shell
@@ -823,14 +822,22 @@ phg create-maf-vcf \
     --maf-dir output/alignment_files \
     -o output/vcf_files
 ```
-
+3, Create hVCF from existing PHG created gVCF files
+```shell
+phg gvcf2hvcf \
+    --db-path vcf_dbs \
+    --bed output/ref_ranges.bed \
+    --reference-file data/Ref.fa \
+    --gvcf-dir output/gvcf_files 
+```
 > [!TIP]
 > For more information about the haplotype VCF (hVCF) specification,
 > please refer to the hVCF specification documentation.
 
 VCF creation is split up into two separate commands since the
 reference genome and aligned assemblies require different sets of
-input data:
+input data. An additional optional command is available to convert
+existing PHG created gVCF files to hVCF files. :
 
 #### `create-ref-vcf` inputs
 The `create-ref-vcf` command requires the following inputs:
@@ -921,7 +928,24 @@ of different file types for each sample:
 Here, `<sample_name>` would be the name of each sample that was
 aligned to the reference genome.
 
+#### `gvcf2hvcf` inputs
+The `gvcf2hvcf` command requires the following inputs:
 
+* `--db-path` - Path to the directory containing the TileDB
+  instances. This is needed to access the AGC compressed assembly
+  genome information found in the `assemblies.agc` file (_see the
+  [**"Compress FASTA files"**](#compress-fasta-files) section for further details_).
+* `--bed` - A BED file containing ordered reference ranges (_see
+  the [**"Create reference ranges"**](#create-reference-ranges) section for further
+  details_). This is used to define the positional information of the
+  VCF in relation to the reference genome.
+* `--reference-file` - Reference FASTA genome used for creating
+  MD5 hashes of sequence information guided by reference range
+  positional data from the BED file used in the `--bed` parameter.
+  hashed sequence data will place in the `##ALT` tag's `RefRange`
+  key.
+* `--gvcf-dir` - Directory containing gvcf files generated from either
+  a PHGv1 "MAFToGVCFPlugin"  command or a BioKotlin MAFToGVCF.createGVCFfromMAF() command.
 
 ### Load VCF data into DBs
 After VCF files are created, we can finally load the information
