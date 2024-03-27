@@ -62,7 +62,7 @@ _Long-form documentation for this section can be found [here](docs/build_and_loa
 ./phg create-ref-vcf --bed /my/bed/file.bed --reference-file /my/ref.fasta --reference-url https://url-for-ref --reference-name B73 --db-path /path/to/tiled/dataset folder
 ./phg create-maf-vcf --db-path /path/to/dbs --bed /my/bed/file.bed --reference-file /my/ref.fasta --maf-dir /my/maf/files -o /path/to/vcfs
 
-## Convert GVCF to HVCF: use this if you have GVCF files created by PHG, but do not have MAF or h.vcf files
+## OPTIONAL: Convert GVCF to HVCF: use this instead of create-maf-vcf if you have GVCF files created by PHG, but do not have MAF or h.vcf files
 ./phg gvcf2hvcf --bed /my/bin/file.bed --gvcf-dir /my/gvcf/dir --reference-file /my/ref.fasta --db-path /path/to/dbs
  
 ## Load data into DBs

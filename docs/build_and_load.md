@@ -822,7 +822,7 @@ phg create-maf-vcf \
     --maf-dir output/alignment_files \
     -o output/vcf_files
 ```
-3, Create hVCF from existing PHG created gVCF files
+2 (Optional) Create hVCF from existing PHG created gVCF files. Use instead of create-maf-vcf if you have previously created gVCF files from PHG and want to create hVCF files.
 ```shell
 phg gvcf2hvcf \
     --db-path vcf_dbs \
