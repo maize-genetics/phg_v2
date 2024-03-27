@@ -3,7 +3,7 @@ package net.maizegenetics.phgv2.rphg
 /**
  * General data class for storing simple data collections for
  * quick evaluation on the R side for rPHG2. Can be further modified
- * by specifying the type (<T>) (see type alias block).
+ * by specifying the type (`<T>`) (see type alias block).
  *
  * The three main R data collection objects are:
  *   * matrices - 2d array of one data type (e.g. character, numeric,
