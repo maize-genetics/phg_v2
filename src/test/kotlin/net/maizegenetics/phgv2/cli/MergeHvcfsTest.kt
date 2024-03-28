@@ -84,4 +84,27 @@ class MergeHvcfsTest {
 
     }
 
+    @Test
+    fun testSingleSampleRoundTripMergeHvcfs() {
+
+        val outputFile = "${outputHvcfDir}testSingleSampleRoundTripMergeHvcfs.vcf"
+
+        val result = MergeHvcfs().test(
+            "--input-dir $singleInputDir --id-format CHECKSUM --reference-file ${TestExtension.smallseqRefFile} --output-file $outputFile"
+        )
+
+        myLogger.info("testSingleSampleRoundTripMergeHvcfs: result output: ${result.output}")
+
+        assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
+
+        var checksum1 = getChecksum(TestExtension.exportGraphSingleSample)
+        var checksum2 = getChecksum(outputFile)
+
+        myLogger.info("testSingleSampleRoundTripMergeHvcfs.vcf expected checksum1: $checksum1")
+        myLogger.info("testSingleSampleRoundTripMergeHvcfs.vcf actual checksum2: $checksum2")
+
+        assertEquals(checksum1, checksum2, "testSingleSampleRoundTripMergeHvcfs.vcf checksums do not match")
+
+    }
+
 }
