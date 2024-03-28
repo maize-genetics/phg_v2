@@ -60,5 +60,28 @@ class MergeHvcfsTest {
         assertEquals(checksum1, checksum2, "testSingleSampleHaplotypeGraph.vcf checksums do not match")
 
     }
-    
+
+    @Test
+    fun testMultipleFilesMergeHvcfs() {
+
+        val outputFile = "${outputHvcfDir}testMultipleFilesHaplotypeGraph.vcf"
+
+        val result = MergeHvcfs().test(
+            "--input-dir $multiInputDir --id-format CHECKSUM --reference-file ${TestExtension.smallseqRefFile} --output-file $outputFile"
+        )
+
+        myLogger.info("testMultipleFilesMergeHvcfs: result output: ${result.output}")
+
+        assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
+
+        var checksum1 = getChecksum(TestExtension.exportGraphMultiSample)
+        var checksum2 = getChecksum(outputFile)
+
+        myLogger.info("testMultipleFilesHaplotypeGraph.vcf expected checksum1: $checksum1")
+        myLogger.info("testMultipleFilesHaplotypeGraph.vcf actual checksum2: $checksum2")
+
+        assertEquals(checksum1, checksum2, "testMultipleFilesHaplotypeGraph.vcf checksums do not match")
+
+    }
+
 }
