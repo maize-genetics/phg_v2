@@ -177,7 +177,6 @@ class BuildKmerIndexTest {
     @Test
     fun testTiledb() {
         //Setting the tiledb path but not the hvcf should generate a not implemented error
-        val tempTestDir = "${TestExtension.tempDir}kmerTest/"
         val tempAGCDir = "${TestExtension.testOutputFastaDir}/dbPath"
 
         //try to build a graph from a (non-existent) tiledb database
