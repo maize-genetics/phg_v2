@@ -32,6 +32,8 @@ class MergeHvcfs : CliktCommand(help = "Merge multiple HVCF files into a single 
     val outputFile by option(help = "Full path to output HVCF file")
         .required()
 
+    val rangeBedfile by option(help = "Full path to range bedfile")
+
     override fun run() {
 
         val inputFiles = File(inputDir)
@@ -42,7 +44,7 @@ class MergeHvcfs : CliktCommand(help = "Merge multiple HVCF files into a single 
 
         val graph = HaplotypeGraph(inputFiles)
 
-        exportMultiSampleHVCF(graph, outputFile, referenceFile, idFormat)
+        exportMultiSampleHVCF(graph, outputFile, referenceFile, idFormat, rangeBedfile)
 
     }
 
