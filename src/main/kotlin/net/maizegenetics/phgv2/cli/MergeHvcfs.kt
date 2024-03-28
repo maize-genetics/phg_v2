@@ -11,6 +11,11 @@ import net.maizegenetics.phgv2.api.exportMultiSampleHVCF
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
+/**
+ * Merge multiple HVCF files into a single HVCF file.
+ * Uses HaplotypeGraph to merge the HVCF files.
+ * And exports the merged HVCF file using ExportHaplotypeGraph.exportMultiSampleHVCF().
+ */
 class MergeHvcfs : CliktCommand(help = "Merge multiple HVCF files into a single HVCF file.") {
 
     private val myLogger = LogManager.getLogger(MergeHvcfs::class.java)
