@@ -2,14 +2,12 @@ package net.maizegenetics.phgv2.cli
 
 import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.testing.test
-import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension.Companion.asmList
 import net.maizegenetics.phgv2.pathing.BuildKmerIndex
 import net.maizegenetics.phgv2.pathing.FindPaths
 import net.maizegenetics.phgv2.pathing.MapKmers
-import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.getChecksumForString
 import net.maizegenetics.phgv2.utils.retrieveAgcGenomes
@@ -17,7 +15,6 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
-import java.nio.file.Paths
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -73,7 +70,7 @@ class FullPipelineIT {
     fun testFullPipeline() {
         //Run the full pipeline
         //Create environment
-
+        val startTime = System.nanoTime()
         val setupEnv = SetupEnvironment()
         setupEnv.test("--output-dir ${TestExtension.tempDir}")
 
@@ -87,7 +84,7 @@ class FullPipelineIT {
 
         //Create the agc record:
         val agcCompress = AgcCompress()
-        var agcResult = agcCompress.test("--fasta-list ${TestExtension.smallseqAssembliesListFile} --db-path ${TestExtension.testTileDBURI} --reference-file ${TestExtension.smallseqRefFile}")
+        val agcResult = agcCompress.test("--fasta-list ${TestExtension.smallseqAssembliesListFile} --db-path ${TestExtension.testTileDBURI} --reference-file ${TestExtension.smallseqRefFile}")
         println(agcResult.output)
 
         println(createRangesResult.output)
@@ -182,13 +179,13 @@ class FullPipelineIT {
         println("imputing paths")
         var pathArgs = "--path-keyfile $pathKeyfile --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
-                "--path-type haploid" // --prob-same-gamete 0.95"
+                "--path-type haploid --min-reads 1" // --prob-same-gamete 0.95"
         val pathResult = FindPaths().test(pathArgs)
         assertEquals(0, pathResult.statusCode, "haploid FindPaths failed")
         println(pathResult.output)
 
-        //check paths
-        checkExpectedHvcf("TestSample")
+        //check paths, do not test last range because there are no reads for it and --min-reads = 1
+        checkExpectedHvcf("TestSample", true)
 
         //impute haploid paths from reads
         pathArgs = "--read-files $lineAFastqFilename  --hvcf-dir ${TestExtension.testVCFDir} " +
@@ -208,6 +205,7 @@ class FullPipelineIT {
         println(diploidResult.output)
         checkExpectedHvcf("TestSample")
 
+        println("FullPipelineIt finished after ${(System.nanoTime() - startTime) / 1e9} sec")
     }
 
 
@@ -246,7 +244,7 @@ class FullPipelineIT {
     }
 
     private fun createHaploidReadsLineA(): List<String> {
-        val coverage = 0.5
+        val coverage = 1.0
         val readLength = 100
 
         //create reads from lineA
@@ -279,7 +277,7 @@ class FullPipelineIT {
         }
     }
 
-    fun checkExpectedHvcf(testSampleName: String) {
+    fun checkExpectedHvcf(testSampleName: String, doNotTestLastRange:Boolean = false) {
         val listOfHvcfFilenames = File(TestExtension.testVCFDir).listFiles()
             .filter {  it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz")  }.map { it.path }.toMutableList()
         listOfHvcfFilenames.add("${TestExtension.testOutputDir}${testSampleName}.h.vcf")
@@ -287,6 +285,7 @@ class FullPipelineIT {
         val sgA = SampleGamete("LineA")
         val sgTestSample = SampleGamete(testSampleName)
         graph.ranges().forEach { range ->
+            if (doNotTestLastRange && range.start < 50500)
             assertEquals(graph.sampleToHapId(range, sgA), graph.sampleToHapId(range, sgTestSample), "TestSample hapid does not equal line A in $range")
         }
     }

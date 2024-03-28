@@ -84,7 +84,7 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         option("--path-keyfile", help = "Name of tab-delimited key file.  Columns for samplename and filename" +
                 " are required. Files must be either read mapping files (ending in _readMapping.txt) or fastq files. " +
                 "If using paired end fastqs, a filename2 column can be included. A value must be entered for " +
-                "either --key-file or --read-files.")
+                "either --path-keyfile or --read-files.")
             .convert{ PathInputFile.KeyFile(it) },
         option("--read-files", help = "Comma separated list of fastq files for a single sample. " +
                 "Either 1(for single end) or 2(for paired end) files can be input at a time this way.  Any more and " +
@@ -166,7 +166,7 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
 
     override fun run() {
         val keyFileLines = readInputFiles.getReadFiles()
-        require(keyFileLines.isNotEmpty()) {"Must provide either --key-file or --read-files."}
+        require(keyFileLines.isNotEmpty()) {"Must provide either --path-keyfile or --read-files."}
 
         var samplesToReadMappingFiles = when (getKeyFileType(keyFileLines)) {
             KeyfileType.READ ->
