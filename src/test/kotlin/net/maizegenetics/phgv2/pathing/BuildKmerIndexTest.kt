@@ -18,7 +18,6 @@ import java.io.FileWriter
 import java.util.*
 import kotlin.test.Ignore
 import kotlin.test.assertEquals
-import kotlin.test.fail
 
 @ExtendWith(TestExtension::class)
 class BuildKmerIndexTest {
@@ -38,14 +37,21 @@ class BuildKmerIndexTest {
         }
 
         fun resetDirs() {
+            val tempTestDir = "${TestExtension.tempDir}kmerTest/"
+            val tempHvcfDir = "${tempTestDir}hvcfDir/"
+            val tempDBPathDir = "${TestExtension.testOutputFastaDir}dbPath/"
+
             File(TestExtension.tempDir).deleteRecursively()
             File(TestExtension.testOutputFastaDir).deleteRecursively()
             File(TestExtension.testOutputDir).deleteRecursively()
 
-
             File(TestExtension.tempDir).mkdirs()
             File(TestExtension.testOutputFastaDir).mkdirs()
             File(TestExtension.testOutputDir).mkdirs()
+            File(tempTestDir).mkdirs()
+            File(tempDBPathDir).mkdirs()
+            File(tempHvcfDir).mkdirs()
+
         }
     }
 
@@ -66,10 +72,10 @@ class BuildKmerIndexTest {
         // G  C  A  A  T  G  G  C  A  G  T  C  A  G  T  G  T  T  G  G  C  C  A  A  T  G  T  G  C  A  C  A
         // 01 10 11 11 00 01 01 10 11 01 00 10 11 01 00 01 00 00 01 01 10 10 11 11 00 01 00 01 10 11 10 11
 
-        val expected: Long = 0b0001000110111011000001011010111110111000011110000110101100000110.toLong()
+        val expected = 0b0001000110111011000001011010111110111000011110000110101100000110.toLong()
         assertEquals(expected, hashValues.first, "Discrepancy in Kmer hash")
 
-        val expectedRC: Long = 0b0110111100010110110100101101000100000101101011110001000110111011.toLong()
+        val expectedRC = 0b0110111100010110110100101101000100000101101011110001000110111011.toLong()
         assertEquals(expectedRC, hashValues.second, "Discrepancy in reverse compliment Kmer hash")
 
         //test trying to convert an invalid character
