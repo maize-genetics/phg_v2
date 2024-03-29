@@ -324,7 +324,6 @@ class CreateFastaFromHvcfTest {
     fun testMissingAltHeaders() {
         // This file has a samplename of "LineImputeMissingAH".
         // All of the haplotypes for chrom1 are from LineA, all of the haplotypes for chrom2 are from LineB
-        // In addition, there are 2 missing chrom1 haplotypes in the file
         // This is a copy of the LineImpute.h.vcf file with the 4th haplotype having a bad hapid, and
         // not represented in the ALT Headers
         val refHVCFFile = File("data/test/smallseq/LineImputeMissingAH.h.vcf")
