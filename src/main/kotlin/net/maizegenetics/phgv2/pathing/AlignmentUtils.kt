@@ -385,11 +385,11 @@ class AlignmentUtils {
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>
         ): Map<Int, MutableList<String>> {
             //get the encoded refrangeId, offset from the kmerMap
-            val encodedOffset = kmerHashOffsetMap[kmerHash]
+            val encodedOffset = kmerHashOffsetMap.getOrDefault(kmerHash, -1L)     //[kmerHash]
 
             //a Long2LongOpenHashSet returns 0L rather than null when the kmerHash is not in the map.
             //so if encodedOffset = 0, the kmerhash does not map to any haplotypes. Return an empty map.
-            if (encodedOffset == 0L) return mapOf()
+            if (encodedOffset == -1L) return mapOf()
 
             val (rangeId, offset) = decodeRangeIdAndOffset(encodedOffset)
 
