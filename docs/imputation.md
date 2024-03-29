@@ -37,16 +37,16 @@ This command has 2 required parameters:
 * `--hvcf-dir` - the directory containing the hVCF files. This is the
   output directory from the `export-vcf` command.  Right now this is required, but will be optional in the future.
 
-This will store the kmer index as kmerIndex.txt in the --hvcf-dir directory.
+This will store the kmer index as kmerIndex.txt in the `--hvcf-dir` directory.
 
 In addition, this command can take optional parameters:  
-* `--index-file` - The full path of the kmer index file. Default = <hvcf-dir>/kmerIndex.txt.  
-* `--maxHapProportion` or `-p` - only kmers mapping to less than or equal to maxHapProportion of haplotypes in a reference range will be retained. Default = 0.75.  
-* `--max-arg-length` - The maximum argument length for a call to agc. Default = 200000. If you get an error caused by a call to agc being too long try reducing this value."
+* `--index-file` - The full path of the kmer index file. Default = <hvcf-dir>/`kmerIndex.txt`.  
+* `--maxHapProportion` or `-p` - only kmers mapping to less than or equal to maxHapProportion of haplotypes in a reference range will be retained. Default = `0.75`.  
+* `--max-arg-length` - The maximum argument length for a call to AGC. Default = `200000`. If you get an error caused by a call to agc being too long try reducing this value."
 
 The following optional parameters affect how kmers are pre-filtered to determine which are used for indexing. They would only need to be adjusted if the number of kmers in the index is too low or too high.
-* `--hashMask` or `-m` - with hashFilter, used to mask kmers for filtering. Default uses only the last kmer nucleotide. Only change this if you know what you are doing. Default = 3.
-* `--hashFilter` or `-f` - Only hashes that pass the filter ((hashValue and hashMask) == hashFilter) will be considered. Do not change this value unless you know what you are doing. Default = 1
+* `--hashMask` or `-m` - with hashFilter, used to mask kmers for filtering. Default uses only the last kmer nucleotide. Only change this if you know what you are doing. Default = `3`.
+* `--hashFilter` or `-f` - Only hashes that pass the filter ((hashValue and hashMask) == hashFilter) will be considered. Do not change this value unless you know what you are doing. Default = `1`.
 
 
 ## Read Mapping
