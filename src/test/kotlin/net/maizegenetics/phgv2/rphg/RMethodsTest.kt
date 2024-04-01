@@ -192,6 +192,44 @@ class RMethodsTest {
     }
 
     @Test
+    fun testGraphAltHeaderPosRetrieval() {
+        val graph = HaplotypeGraph(
+            listOf(
+                TestExtension.smallseqLineAHvcfFile,
+                TestExtension.smallseqLineBHvcfFile,
+                TestExtension.smallseqRefHvcfFile
+            )
+        )
+
+        val rMethods = RMethods()
+        val testAltPosHeader = rMethods.getAltHeaderPositionsFromGraph(graph)
+
+        assertEquals(
+            listOf(
+                "hap_id",
+                "contig_start",
+                "contig_end",
+                "start",
+                "end"
+            ),
+            testAltPosHeader.colNames?.toList()
+        )
+
+        assertEquals("phgv2_r_list", testAltPosHeader.toString())
+        assertEquals(116, testAltPosHeader.matrixData!![0].size)
+        assertEquals(5, testAltPosHeader.matrixData!!.size)
+        assert(testAltPosHeader.rowNames.isNullOrEmpty())
+
+        (0..2).forEach {
+            assert(testAltPosHeader.matrixData!![it].isArrayOf<String>())
+        }
+
+        (3..4).forEach {
+            assert(testAltPosHeader.matrixData!![it].isArrayOf<Int>())
+        }
+    }
+
+    @Test
     fun testGraphHapIdRetrieval() {
         val graph = HaplotypeGraph(
             listOf(
