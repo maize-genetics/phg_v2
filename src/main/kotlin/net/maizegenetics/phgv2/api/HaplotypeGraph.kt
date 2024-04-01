@@ -404,5 +404,19 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         return ranges().mapIndexed { index, range -> range.toString() to index }.toMap()
     }
 
+    /**
+     * Returns an array of haplotype IDs for every reference range
+     * based on a given sample
+     */
+    fun sampleGameteToHaplotypeId(sample: SampleGamete): Array<String> {
+        val result = Array(numberOfRanges()) { "" }
+
+        ranges().forEachIndexed { index, referenceRange ->
+            result[index] = sampleToHapId(referenceRange, sample).toString()
+        }
+
+        return result
+    }
+
 }
 
