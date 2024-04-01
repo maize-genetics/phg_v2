@@ -122,8 +122,15 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
     fun createHaplotypeSequences(dbPath:String, sampleName: String, haplotypeVariants: List<VariantContext>, altHeaders: Map<String, AltHeaderMetaData>): List<HaplotypeSequence> {
         val chromToAltEntryData = mutableMapOf<String, MutableList<Triple<MutableList<String>,MutableList<String>,HaplotypeSequence>>>()
         val hapSeqList = mutableListOf<HaplotypeSequence>()
-        haplotypeVariants.filter { it.hasGenotype(sampleName) }.map {
+        // Filter out the haplotype variants that do not have the sampleName
+        // Also filter out the haplotype variants that have a blank haplotype ID
+        // FindPaths includes missing haplotypes in the h.vcf file.  These are represented via "." in the h.vcf file and appear
+        // as empty string in the variable "hapId" below.  This is not an error
+        haplotypeVariants.filter { it.hasGenotype(sampleName) }
+            .filter{it.getGenotype(sampleName).getAllele(0).displayString.replace("<","").replace(">","") != ""}
+            .map {
             val hapId = it.getGenotype(sampleName).getAllele(0).displayString.replace("<","").replace(">","")
+            // If the hapId from the variants is a non-blank value that is not in the ALT header, throw an exception
             check(altHeaders.containsKey(hapId)) { "Haplotype ID $hapId not found in ALT Header" }
             val altMetaData = altHeaders[hapId]
             val hapSampleName = altMetaData!!.sampleName()
