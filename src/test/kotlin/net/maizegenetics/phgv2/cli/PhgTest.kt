@@ -31,6 +31,7 @@ class PhgTest {
         myLogger.info("testPhgVersionCommand: result output: ${result.output}")
 
         assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
+        assert(result.output.startsWith("phg version 2")) { "version not found in output" }
     }
 
 }
