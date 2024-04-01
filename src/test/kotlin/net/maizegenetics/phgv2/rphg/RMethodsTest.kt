@@ -175,7 +175,6 @@ class RMethodsTest {
                 "description",
                 "source",
                 "checksum",
-                "positions",
                 "ref_range_hash"
             ),
             testAltHeader.colNames?.toList()
@@ -183,12 +182,49 @@ class RMethodsTest {
 
         assertEquals("phgv2_r_list", testAltHeader.toString())
         assertEquals(116, testAltHeader.matrixData!![0].size)
-        assertEquals(7, testAltHeader.matrixData!!.size)
+        assertEquals(6, testAltHeader.matrixData!!.size)
         assert(testAltHeader.rowNames.isNullOrEmpty())
-        assert(testAltHeader.matrixData!![0].isArrayOf<String>())
-        assert(testAltHeader.matrixData!![1].isArrayOf<String>())
-        assert(testAltHeader.matrixData!![2].isArrayOf<String>())
-        assert(testAltHeader.matrixData!![5].isArrayOf<RList>())
+        (0..5).forEach {
+            assert(testAltHeader.matrixData!![it].isArrayOf<String>())
+        }
+    }
+
+    @Test
+    fun testGraphAltHeaderPosRetrieval() {
+        val graph = HaplotypeGraph(
+            listOf(
+                TestExtension.smallseqLineAHvcfFile,
+                TestExtension.smallseqLineBHvcfFile,
+                TestExtension.smallseqRefHvcfFile
+            )
+        )
+
+        val rMethods = RMethods()
+        val testAltPosHeader = rMethods.getAltHeaderPositionsFromGraph(graph)
+
+        assertEquals(
+            listOf(
+                "hap_id",
+                "contig_start",
+                "contig_end",
+                "start",
+                "end"
+            ),
+            testAltPosHeader.colNames?.toList()
+        )
+
+        assertEquals("phgv2_r_list", testAltPosHeader.toString())
+        assertEquals(116, testAltPosHeader.matrixData!![0].size)
+        assertEquals(5, testAltPosHeader.matrixData!!.size)
+        assert(testAltPosHeader.rowNames.isNullOrEmpty())
+
+        (0..2).forEach {
+            assert(testAltPosHeader.matrixData!![it].isArrayOf<String>())
+        }
+
+        (3..4).forEach {
+            assert(testAltPosHeader.matrixData!![it].isArrayOf<Int>())
+        }
     }
 
     @Test
@@ -211,7 +247,7 @@ class RMethodsTest {
         assertEquals("phgv2_string_matrix", testHapId.toString())
         assertEquals(40, testHapId.matrixData!![0].size)
         assertEquals(3, testHapId.matrixData!!.size)
-        assertEquals("", testHapId?.matrixData!![0][39])
+        assertEquals("null", testHapId?.matrixData!![0][39])
         assert(testHapId?.matrixData!![0].isArrayOf<String>())
     }
 }
