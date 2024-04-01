@@ -21,6 +21,8 @@ class Phg : CliktCommand() {
         var patchVersion = 0
         var buildNumber = 0
 
+        // Try to get the version.properties file from the jar file
+        // If that fails, try to get it from the current working directory
         val reader = try {
             Phg::class.java.getResourceAsStream("/version.properties").bufferedReader()
         } catch (e: Exception) {
