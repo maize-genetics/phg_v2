@@ -175,7 +175,6 @@ class RMethodsTest {
                 "description",
                 "source",
                 "checksum",
-                "positions",
                 "ref_range_hash"
             ),
             testAltHeader.colNames?.toList()
@@ -183,12 +182,11 @@ class RMethodsTest {
 
         assertEquals("phgv2_r_list", testAltHeader.toString())
         assertEquals(116, testAltHeader.matrixData!![0].size)
-        assertEquals(7, testAltHeader.matrixData!!.size)
+        assertEquals(6, testAltHeader.matrixData!!.size)
         assert(testAltHeader.rowNames.isNullOrEmpty())
-        assert(testAltHeader.matrixData!![0].isArrayOf<String>())
-        assert(testAltHeader.matrixData!![1].isArrayOf<String>())
-        assert(testAltHeader.matrixData!![2].isArrayOf<String>())
-        assert(testAltHeader.matrixData!![5].isArrayOf<RList>())
+        (0..5).forEach {
+            assert(testAltHeader.matrixData!![it].isArrayOf<String>())
+        }
     }
 
     @Test
