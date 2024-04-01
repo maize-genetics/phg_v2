@@ -8,6 +8,7 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import htsjdk.variant.variantcontext.VariantContext
+import htsjdk.variant.variantcontext.VariantContextComparator
 import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeaderLine
 import htsjdk.variant.vcf.VCFHeaderVersion
@@ -71,6 +72,12 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         myLogger.info("CreateASMHvcfs: calling buildRefGenomeSeq")
         val refGenomeSequence = buildRefGenomeSeq(referenceFileName)
 
+        // ContigList is needed for sorting the variants.
+        // In Biokotlin, these are sorted by the method that calls
+        // getVariantContextsfromMAF() in MAFToGVCF.kt. We call MAFTOgVCF.getVariantContextsfromMAF()
+        // directly, so must sort the contigs here.
+        val contigList = refGenomeSequence.keys.toList().sorted()
+
         //loop through the maf files in mafDirName and getGVCFVariantsFromMafFile
         File(mafDirName).walk().filter { !it.isHidden && !it.isDirectory }
             .filter { it.extension == "maf" }
@@ -82,7 +89,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                 if (gvcfVariants.size == 1){
                     myLogger.info("createASMHvcfs: gvcfVariants.size == 1")
                     val sampleName = gvcfVariants.keys.first()
-                    val variants = gvcfVariants.values.first()
+                    val variants = gvcfVariants.values.first().sortedWith(VariantContextComparator(contigList))
                     myLogger.info("createASMHvcfs: processing sampleName = $sampleName")
                     exportVariantContext(sampleName, variants, "${outputDirName}/${it.nameWithoutExtension}.g.vcf",refGenomeSequence, setOf())
                     bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.g.vcf")
@@ -102,12 +109,13 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                     val gvcfOutput = "${outputDirName}/${it.nameWithoutExtension}.g.vcf"
                     val outputNames = MAFToGVCF().twoOutputFiles(gvcfOutput)
                     gvcfVariants.entries.forEachIndexed { index, (name, variants) ->
+                        val sortedVariants = variants.sortedWith(VariantContextComparator(contigList))
                         val outputFile =
-                            exportVariantContext(name, variants, outputNames[index], refGenomeSequence, setOf())
+                            exportVariantContext(name, sortedVariants, outputNames[index], refGenomeSequence, setOf())
                         bgzipAndIndexGVCFfile(outputNames[index])
                         val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
                         //convert the GVCF records into hvcf records
-                        val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines)
+                        val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, sortedVariants, refGenomeSequence, dbPath, asmHeaderLines)
                         val asmHeaderSet = asmHeaderLines.values.toSet()
                         //export the hvcfRecords
                         exportVariantContext(sampleName, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, asmHeaderSet)
