@@ -25,7 +25,7 @@ class Phg : CliktCommand() {
             Phg::class.java.getResourceAsStream("/version.properties").bufferedReader()
         } catch (e: Exception) {
             val path = System.getProperty("user.dir")
-            println("Current working directory: $path")
+            println("Getting version from: ${path}/version.properties")
             getBufferedReader("${path}/version.properties")
         }
 
