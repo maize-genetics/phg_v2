@@ -15,7 +15,7 @@ group = "net.maizegenetics"
 This build script is need to use the early access
  */
 buildscript {
-    val kotlinVersion by extra("1.9.10")
+    val kotlinVersion by extra("1.9.22")
 
     repositories {
         mavenCentral()
@@ -39,6 +39,11 @@ dependencies {
 
     val kotlinVersion = rootProject.extra["kotlinVersion"]
 
+    implementation("org.jetbrains.kotlinx:dataframe:0.13.1")
+    implementation("org.jetbrains.lets-plot:lets-plot-kotlin:4.7.0")
+
+    implementation("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.7.0")
+    implementation("org.jetbrains.lets-plot:lets-plot-image-export:4.3.0")
     implementation("org.biokotlin:biokotlin:0.14")
     implementation("com.github.ajalt.clikt:clikt:4.2.0")
 

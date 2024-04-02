@@ -2,16 +2,49 @@ package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.utils.getChecksum
+import net.maizegenetics.phgv2.utils.plotDot
 import net.maizegenetics.phgv2.utils.testMergingMAF
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.print
+import org.jetbrains.kotlinx.dataframe.io.readDelim
+import org.jetbrains.kotlinx.dataframe.io.writeCSV
+import org.jetbrains.letsPlot.export.ggsave
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
+
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @ExtendWith(TestExtension::class)
 class AlignAssembliesTest {
 
+    @Test
+    fun testDataFrame() {
+        val origFile = File("/Users/lcj34/git/rPHG/inst/extdata/dummy_anchors_small.anchorspro")
+        // Filter out lines that start with '#' and join the rest with newline characters
+        val cleanContent = origFile.useLines { lines ->
+            lines.filterNot { it.startsWith("#") }
+                .joinToString("\n")
+        }
+
+        val dfAnchorWave = DataFrame.readDelim(cleanContent.reader())
+        dfAnchorWave.print()
+        val outputFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/stats/testFile_kotlinDF_Out.txt"
+        dfAnchorWave.writeCSV(outputFile)
+
+        println("DataFrame written to $outputFile")
+        println("Try to plot it with plotDot!")
+        // Now try letsplot!
+        val plot = plotDot(dfAnchorWave)
+        //println("plotDot was successful!  try to show it")
+        //plot.show()
+
+        println("plot was shown, try to save to a file")
+       // val pathSVG = ggsave(plot, "alignmentDotPlot.png") // this fails!
+        //HTML(File(pathSVG).readText()) // from an example notebook, doesn' work here.
+
+    }
     @Test
     fun testSystemMemory() {
         val availMemory = AlignAssemblies().getSystemMemory()
