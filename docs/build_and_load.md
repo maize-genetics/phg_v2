@@ -94,6 +94,9 @@ looks like the following
 ```shell
 phg_v2_example/
 ├── data
+│   └── Ref-v5.fa
+│   └── LineA-final-01.fa
+│   └── LineB-final-04.fa
 └── output
 ```
 
@@ -246,6 +249,9 @@ For reference, my example working directory now looks like this:
 ```shell
 phg_v2_example/
 ├── data
+│   └── Ref-v5.fa
+│   └── LineA-final-01.fa
+│   └── LineB-final-04.fa
 ├── output
 └── vcf_dbs
     ├── gvcf_dataset # gVCF db storage
@@ -479,9 +485,9 @@ This command takes 3 parameters:
 
   + My example `annotation_keyfile.txt` would look like this:
       ```shell
-      data/Ref.fa Ref
-      data/LineA.fa   LineA
-      data/LineB.fa   LineB
+      data/Ref-v5.fa Ref
+      data/LineA-final-01.fa   LineA
+      data/LineB-final-04.fa   LineB
       ```
   + > ⚠️ **Warning**  
     **All** sample assemblies (**including your reference assembly**) 
@@ -539,6 +545,30 @@ ATGCGTACGCGCACCG
 >chr1 pos=1:16 sampleName=LineA
 >ATGCGTACGCGCACCG
 >```
+
+Now that we are finished preparing samples, my example working
+directory looks like the following with a newly formed subdirectory 
+called `updated_assemblies` under the `output` directory:
+
+```
+phg_v2_example/
+├── data
+│   └── Ref-v5.fa
+│   └── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   └── updated_assemblies
+│       └── Ref.fa
+│       └── LineA.fa
+│       └── LineB.fa
+└── vcf_dbs
+    ├── gvcf_dataset # gVCF db storage
+    ├── hvcf_dataset # hVCF db storage
+    └── temp
+```
+
+For further steps, we will be using the updated assemblies from the
+`output/updated_assemblies` directory path.
 
 
 
