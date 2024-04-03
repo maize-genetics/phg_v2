@@ -477,19 +477,15 @@ This command takes 3 parameters:
   | `1`    | Path to FASTA file you would like annotated (this is similar to the text files used to point to the FASTA file paths in the [`agc-compress`](#compress-fasta-files) and [`align-assemblies`](#align-assemblies) commands). |
   | `2`    | Name of the sample that will be (1) appended to each header line and (2) the name of the newly generated FASTA file.                                                                                                       |
 
-  * My example `annotation_keyfile.txt` would look like this:
+  + My example `annotation_keyfile.txt` would look like this:
       ```shell
       data/Ref.fa Ref
       data/LineA.fa   LineA
       data/LineB.fa   LineB
       ```
-  * > ⚠️ **Warning**  
+  + > ⚠️ **Warning**  
     **All** sample assemblies (**including your reference assembly**) 
     that you would want processed need to be included in this keyfile.
-  
-
-
-
 * `--threads` - Optional number of threads to update multiple
   FASTA files in parallel. _Defaults to `1`_.
 * `-o` - Output directory for the newly updated FASTA files
@@ -568,7 +564,7 @@ To run the aligner step, we can call the `align-assemblies` command:
 ```shell
 ./phg align-assemblies \
     --gff data/anchors.gff \
-    --reference-file data/Ref.fa \
+    --reference-file output/updated_assemblies/Ref.fa \
     --assemblies data/assemblies_list.txt \
     --total-threads 20 \
     --in-parallel 2 \
@@ -580,6 +576,9 @@ This command uses several parameters:
   identify full-length coding sequences to use as anchors
 * `--reference-file` - The reference genome in 
   [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format.
+  + > ℹ️ **Note**  
+    The path to the reference genome should be the **updated version**
+    that was created during the `prepare-assemblies` command.
 * `--assemblies` - A text file containing a list of **annotated** 
   assembly genomes (_see the 
   [**"Prepare Assembly FASTA files"**](#prepare-assembly-fasta-files) section for 
@@ -600,6 +599,10 @@ This command uses several parameters:
   and the output is located in a subdirectory called 
   `output/updated/` relative to my working directory, I will also 
   add that to the path.
+  + > ⚠️ **Warning**  
+    This text list **should not** contain the path to the reference
+    genome since this is recognized in the `--reference-file` flag.
+    
 
 * `-o` - The name of the directory for the alignment outputs.
 
