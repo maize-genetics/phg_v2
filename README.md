@@ -28,6 +28,19 @@ tools for R such as [rPHG](https://github.com/maize-genetics/rPHG) for pangenome
 
 ## Quick start
 
+### Installation
+
+Using a Linux distribution, download the latest release
+[here](https://github.com/maize-genetics/phg_v2/releases/latest) or
+use the command line:
+
+```shell
+curl -s https://api.github.com/repos/maize-genetics/phg_v2/releases/latest \
+| awk -F': ' '/browser_download_url/ && /\.tar/ {gsub(/"/, "", $(NF)); system("curl -LO " $(NF))}'
+```
+
+Untar and add the wrapper script to your `PATH` variable. Detailed
+information about these steps can be found [here](docs/installation.md).
 ### Build and load data
 
 _Long-form documentation for this section can be found [here](docs/build_and_load.md)_
@@ -36,53 +49,50 @@ _Long-form documentation for this section can be found [here](docs/build_and_loa
 ## Setup conda environment
 ./phg setup-environment
 
-## Initialize DBs
+## Initialize TileDB DataSets
 ./phg initdb --db-path /path/to/dbs
 
 ## Preprocessing data
-./phg annotate-fastas --keyfile /path/to/keyfile --output-dir /path/to/annotated/fastas --threads numberThreadstoRun
+./phg prepare-assemblies --keyfile /path/to/keyfile --output-dir /path/to/updated/fastas --threads numberThreadstoRun
 
 ## Build VCF data
-./phg create-ranges --reference-file Ref.fa --gff my.gff --boundary gene --pad 500 -o /path/to/bed/file.bed
+./phg create-ranges --reference-file Ref.fa --gff my.gff --boundary gene --pad 500 --range-min-size 500 -o /path/to/bed/file.bed
 ./phg align-assemblies --gff anchors.gff --reference-file Ref.fa -a assembliesList.txt --total-threads 20 --in-parallel 4 -o /path/for/generatedFiles
 ./phg agc-compress --db-path /path/to/dbs --reference-file /my/ref.fasta --fasta-list /my/assemblyFastaList.txt 
 ./phg create-ref-vcf --bed /my/bed/file.bed --reference-file /my/ref.fasta --reference-url https://url-for-ref --reference-name B73 --db-path /path/to/tiled/dataset folder
 ./phg create-maf-vcf --db-path /path/to/dbs --bed /my/bed/file.bed --reference-file /my/ref.fasta --maf-dir /my/maf/files -o /path/to/vcfs
 
+## OPTIONAL: Convert GVCF to HVCF: use this instead of create-maf-vcf if you have GVCF files created by PHG, but do not have MAF or h.vcf files
+./phg gvcf2hvcf --bed /my/bin/file.bed --gvcf-dir /my/gvcf/dir --reference-file /my/ref.fasta --db-path /path/to/dbs
+ 
 ## Load data into DBs
 ./phg load-vcf --vcf /my/vcf/dir --dbpath /path/to/dbs
 ```
 
 ### Imputation
 
+_Long-form documentation for this section can be found [here](docs/imputation.md)_
+
+
 > [!NOTE]
 > This section is currently in progress and command input may be
-> subject to change. The following pseudocode is a possible
-> representation of the imputation workflow:
+> subject to change.
 
 ```shell
+## Export
+./phg export-vcf --db-path /my/db/uri --dataset-type hvcf --sample-names LineA,LineB --output-dir /my/hvcf/dir
+
 ## Index
-./phg index-kmers --ancestor founder.h.vcf -o kmer_index.map // we need this
+./phg build-kmer-index --db-path /my/db/uri --hvcf-dir /my/hvcf/dir
 
 ## Map
-./phg map-kmers \
-    --kmer-index kmer_index.map \
-    --reads my_reads.fastq \ // possibly thousands of samples being inputted
-    --output read_count_out.map \ // could we pipe this into impute method? // thousands of outputs
-    // consider batch interface here ^^
+./phg map-kmers --hvcf-dir /my/hvcf/dir --kmer-index /my/hvcf/dir/kmerIndex.txt --key-file /my/path/keyfile --output-dir /my/mapping/dir
 
-## Impute
-./phg impute \
-    --hap-counts read_count_out.map \ // will users understand the di
-    --diploid false \
-    --ancestor founder.h.vcf \
-    --max-anc-hap-num 20 \
-    --max-anc-hap-prop 0.95 \
-    --output-parent best_parents.txt \
-    -o my_impute.h.vcf
+## Find paths (impute)
+./phg find-paths --path-keyfile /my/path/keyfile --hvcf-dir /my/hvcf/dir --reference-genome /my/ref/genome --path-type haploid --output-dir /my/imputed/hvcfs
 
-## Load
-./phg load-vcf --vcf my_impute.vcf --dbpath /my/db/uri
+## Load in DB
+./phg load-vcf --vcf /my/imputed/hvcfs --dbpath /my/db/uri
 ```
 
 ### Data retrieval
@@ -97,19 +107,7 @@ _Long-form documentation for this section can be found [here](docs/build_and_loa
 ./phg export-vcf --db-path /my/db/uri --dataset-type hvcf --sample-Names LineA,LineB --output-dir /my/output/dir
 ```
 
-## Installation
 
-Using a Linux distribution, download the latest release 
-[here](https://github.com/maize-genetics/phg_v2/releases/latest) or 
-use the command line:
-
-```shell
-curl -s https://api.github.com/repos/maize-genetics/phg_v2/releases/latest \
-| awk -F': ' '/browser_download_url/ && /\.tar/ {gsub(/"/, "", $(NF)); system("curl -LO " $(NF))}'
-```
-
-Untar and add the wrapper script to your `PATH` variable. Detailed
-information about these steps can be found [here](docs/installation.md).
 
 
 ## Design and history
@@ -172,6 +170,7 @@ More commonly used terms can be found [here](docs/terminology.md).
 1. [Installation](docs/installation.md)
 2. [Building and loading](docs/build_and_load.md)
 3. [Imputation](docs/imputation.md) (_**WIP**_) 🚧
+4. [Export data](docs/export_data.md) (_**WIP**_) 🚧
 
 ### Reference
 * [hVCF format specifications](docs/hvcf_specifications.md)

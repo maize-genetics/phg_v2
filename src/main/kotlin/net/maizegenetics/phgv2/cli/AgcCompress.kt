@@ -1,9 +1,11 @@
 package net.maizegenetics.phgv2.cli
 
+import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
+import net.maizegenetics.phgv2.utils.verifyURI
 import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.lang.Exception
@@ -19,6 +21,12 @@ import java.time.LocalDate
  *
  * This program will create a single compressed file from the input fasta files.
  * It is expected to live in the same parent folder as the TileDB datasets.
+ *
+ * The input fasta files should be the files created from the PrepareAssemblies command.
+ * AGC does not keep track of the sample names when it pulls sequence from multiple fasta files.
+ * For the phg software to identify the sample from which a sequence came, we annotated the fasta
+ * id line with the sample name.  This is done in the PrepareAssemblies command.  This AgcCompress
+ * command requires the fasta files to be annotated.
  *
  * The sample name for each fasta is determined by the file name, minus extension.  Users
  * should consider this when naming their fasta files.
@@ -36,19 +44,15 @@ import java.time.LocalDate
  * YYYY-MM-DD is the date the backup was created.
  *
  */
-class AgcCompress : CliktCommand(help = "Create a single AGC compressed file from an input of FASTA files") {
+class AgcCompress : CliktCommand(help = "Create a single AGC compressed file from an input of FASTA files created with the phg prepare-assemblies command") {
 
     private val myLogger = LogManager.getLogger(AgcCompress::class.java)
 
-    val dbPath by option(help = "Folder name where AGC compressed files will be created.  Should be the same parent folder where tiledb datasets are stored.")
+    val dbPath by option(help = "Folder name where AGC compressed files will be created.  Should be the same parent folder where tiledb datasets are stored." )
         .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--db-path must not be blank"
-            }
-        }
 
-    val fastaList by option(help = "File containing full path name for the fasta files, one per line, to compress into a single agc file.  Fastas may be compressed or uncompressed files. Reference fasta should NOT be included.")
+
+    val fastaList by option(help = "File containing full path name for the prepared fasta files, one per line, to compress into a single agc file.  Fastas may be compressed or uncompressed files. Reference fasta should NOT be included.\nAll fastas must be fastas created via the phg prepare-fastas command")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -56,7 +60,7 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
             }
         }
 
-    val referenceFile by option(help = "Full path to the reference fasta file to be added with other fastas to the agc compressed file. Reference fasta should NOT be compressed.")
+    val referenceFile by option(help = "Full path to the reference fasta file to be added with other fastas to the agc compressed file. Reference fasta should NOT be compressed and must be the updated fasta from the prepare-fastas command.")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -66,9 +70,18 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
 
 
     override fun run() {
-        myLogger.info("Starting AGC compression")
+        myLogger.info("Starting AGC compression: validate the URI")
+        // If the dbPath is not provided, use the current working directory
+        val tiledbFolder = if (dbPath.isBlank()) {
+            System.getProperty("user.dir")
+        } else {
+            dbPath
+        }
+        // Verify the dbPath contains valid tiledb created datasets
+        // If it doesn't an exception will be thrown
+        val validDB = verifyURI(tiledbFolder,"hvcf_dataset")
         // process the input
-        processAGCFiles(dbPath,fastaList,referenceFile)
+        processAGCFiles(tiledbFolder,fastaList,referenceFile)
 
     }
 
@@ -96,17 +109,69 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
             fileToLoad.writeText(listToLoad.joinToString("\n"))
 
             if (listToLoad.isNotEmpty()) {
+                // verify that the fasta files are annotated
+                val startTime = System.nanoTime()
+                verifyFileAnnotation(listToLoad) // this with throw an exception if the files are not annotated
+                // print out time it took to verify the fasta files in seconds
+                myLogger.info("VerifyFileAnnotation: time: " + (System.nanoTime() - startTime).toDouble() / 1_000_000_000.0 + " secs.")
                 // Call method to load AGC files with the list of fasta files and load option
+                myLogger.info("calling loadAGCFiles")
                 val success = loadAGCFiles(fileToLoad.toString(), "append", dbPath, refFasta,tempDir)
             } else {
                 myLogger.info("No new fasta files to load -returning")
             }
         } else {
             // call method to load AGC files with the list of fasta files and load option
+            // verify that the fasta files are annotated
+            val startTime = System.nanoTime()
+            verifyFileAnnotation(fastaFiles) // this with throw an exception if the files are not annotated
+            // print out time it took to verify the fasta files in seconds
+            myLogger.info("VerifyFileAnnotation: time: " + (System.nanoTime() - startTime).toDouble() / 1_000_000_000.0 + " secs.")
+            myLogger.info("calling loadAGCFiles")
             val success = loadAGCFiles(fastaList, "create",dbPath,refFasta, tempDir)
         }
 
     }
+
+    // This function will verify that the fasta files are annotated
+    // It looks for the first line of each fasta file that begins with ">"
+    // and checks if that line contains "sampleName="
+    // If it does, we assume the file is annotated
+    // if it doesn't, we assume the file is not annotated
+    // we are only checking the first idline of the fasta file, assuming all or none are annotated.
+    // The code throws an exception on the first fasta file that is not annotated.
+    fun verifyFileAnnotation(fastaFiles:List<String>): Boolean {
+        // This function will verify that the fasta files are annotated
+        // This is done by finding the first line of each fasta file that begins with ">"
+        // and checking if that line contains "sampleName="
+        // If it does not, the file is not annotated and an exception is thrown
+        myLogger.info("Verifying fasta files id lines are annotated")
+
+        fastaFiles.forEach {
+            // find the first line that begins with ">"
+            bufferedReader(it).use { reader ->
+                val line = reader.readLine()
+                while (line != null) {
+                    if (line.startsWith(">")) {
+                        if (!line.contains("sampleName=")) {
+                            myLogger.error("Fasta file ${it} id lines are not updated with sampleName.  Please use the phg prepare-assemblies command to update the fasta files.")
+                            throw IllegalStateException("Fasta file ${it} id lines are not updated with sampleName.  Please use the phg prepare-assemblies command to update the fasta files.")
+                        }
+                        else {
+                            // go to next fasta file
+                            break
+                        }
+                    } else {
+                        // read next line
+                        reader.readLine()
+                    }
+                }
+            }
+        }
+
+        return true
+    }
+
 
     fun loadAGCFiles(fastaFiles: String, loadOption: String, dbPath:String, refFasta:String, tempDir:String): Boolean {
 

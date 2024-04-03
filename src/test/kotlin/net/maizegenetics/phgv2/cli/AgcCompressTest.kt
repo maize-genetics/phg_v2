@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.testing.test
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -17,7 +18,8 @@ class AgcCompressTest {
         @JvmStatic
         @BeforeAll
         fun setup() {
-            File(TestExtension.tempDir).mkdirs()
+            File(TestExtension.testTileDBURI).mkdirs()
+            Initdb().createDataSets(TestExtension.testTileDBURI)
         }
 
         @JvmStatic
@@ -38,12 +40,6 @@ class AgcCompressTest {
                 "\n" +
                 "Error: invalid value for --fasta-list: --fasta-list must not be blank\n",resultMissingFastaList.output)
 
-        // Test missing db-path parameter
-        val resultMissingDB = agcCompress.test("--fasta-list ${TestExtension.testInputFastaDir} --reference-file ${refFasta}")
-        assertEquals(resultMissingDB.statusCode, 1)
-        assertEquals("Usage: agc-compress [<options>]\n" +
-                "\n" +
-                "Error: invalid value for --db-path: --db-path must not be blank\n",resultMissingDB.output)
 
         // Test missing refFasta parameter
         val resultRefFasta = agcCompress.test("--fasta-list ${TestExtension.testInputFastaDir} --db-path ${TestExtension.testTileDBURI}")
@@ -165,5 +161,24 @@ class AgcCompressTest {
          // "badOption" is not valid option, should return false
         val success = agcCompress.loadAGCFiles(fastaList, "badOption",dbPath,refFasta, tempDir)
         assertEquals(false, success)
+    }
+
+    @Test
+    fun testAgcCompressNoSampleName() {
+        //This test is to verify queryAgc() throws an exception when there is no "sampleName=" in the idline
+
+        val dbPath = TestExtension.tempDir
+        val refFasta = "data/test/smallseq/Ref.fa"
+
+        val fastaCreateFileNamesFile = File(dbPath, "fastaBadNames.txt")
+        fastaCreateFileNamesFile.writeText("data/test/agcTestBad/LineA_noSN.fa\n")
+
+        Initdb().createDataSets(TestExtension.tempDir)
+        val agcCompress = AgcCompress()
+        assertThrows<IllegalStateException> {
+            // Create the initial compressed file
+            val agcCompressResult = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
+        }
+
     }
 }

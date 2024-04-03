@@ -61,6 +61,10 @@ enum class FileFormatEnum(private val value: String) {
  * @param fileFormat Format of the file(csv, excel, txt)
  * @param fileURL URL of this file.  Can be the endpoint or file url.
  *
-*/
+ */
 @Serializable
-data class VariantSetAvailableFormats (val dataFormat : DataFormatEnum, val fileFormat : FileFormatEnum, val fileURL : String)
+data class VariantSetAvailableFormats(
+    val dataFormat: DataFormatEnum,
+    val fileFormat: FileFormatEnum,
+    val fileURL: String
+)

@@ -131,6 +131,51 @@ class HaplotypeGraphTest {
 
     }
 
+    @Test
+    fun testRefRangeToIndexMap() {
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile, TestExtension.smallseqLineBHvcfFile))
+        val refRangeToIndexMap = graph.refRangeToIndexMap()
+
+        assertEquals(38, refRangeToIndexMap.size, "refRangeToIndexMap size not 38: ${refRangeToIndexMap.size}")
+        for((index,range) in graph.ranges().withIndex()) {
+            val mappedIndex = refRangeToIndexMap[range]
+            assertEquals(index, mappedIndex, "refRangeToIndexMap does not contain correct index $index for range $range")
+        }
+    }
+
+    @Test
+    fun testRefRangeIdToHapIdMap() {
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile, TestExtension.smallseqLineBHvcfFile))
+        val refRangeIdToHapIdMap = graph.refRangeIdToHapIdMap()
+
+        assertEquals(38, refRangeIdToHapIdMap.size, "refRangeIdToHapIdMap size not 38: ${refRangeIdToHapIdMap.size}")
+        for((index, range) in graph.ranges().withIndex()) {
+            val hapIdLineA = graph.sampleToHapId(range, SampleGamete("LineA"))
+            val hapIdLineB = graph.sampleToHapId(range, SampleGamete("LineB"))
+            val hapIds = refRangeIdToHapIdMap[index]!!
+            assertTrue(hapIdLineA in hapIds, "refRangeIdToHapIdMap does not contain correct hapId $hapIdLineA for LineA")
+            assertTrue(hapIdLineB in hapIds, "refRangeIdToHapIdMap does not contain correct hapId $hapIdLineB for LineB")
+        }
+    }
+
+    @Test
+    fun testSampleGameteToHaplotypeId() {
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile, TestExtension.smallseqLineBHvcfFile))
+        val sampleGametes = graph.sampleGametesInGraph()
+
+        val expectedHapIds = listOf(
+            "12f0cec9102e84a161866e37072443b7",
+            "4fc7b8af32ddd74e07cb49d147ef1938"
+        )
+
+        sampleGametes.forEachIndexed { index, sampleGamete ->
+            val testHapIds = graph.sampleGameteToHaplotypeId(sampleGamete)
+            assertEquals(38, testHapIds.size)
+            assertTrue { testHapIds[0] is String }
+            assertEquals(expectedHapIds[index], testHapIds[0])
+        }
+    }
+
     /**
      * Returns true if the list of ReferenceRange is sorted.
      */

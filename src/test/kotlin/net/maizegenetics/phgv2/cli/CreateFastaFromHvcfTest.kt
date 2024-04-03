@@ -8,9 +8,11 @@ import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeader
 import htsjdk.variant.vcf.VCFHeaderVersion
+import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.utils.*
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.BufferedWriter
 import java.io.File
@@ -47,12 +49,6 @@ class CreateFastaFromHvcfTest {
     @Test
     fun testCliktParams() {
         val createFastaFromHvcf = CreateFastaFromHvcf()
-
-        val resultMissingDB = createFastaFromHvcf.test("-o ${TestExtension.testOutputRefFasta} --fasta-type composite --hvcf-file /test_file.h.vcf")
-        assertEquals(resultMissingDB.statusCode, 1)
-        assertEquals("Usage: create-fasta-from-hvcf [<options>]\n" +
-                "\n" +
-                "Error: invalid value for --db-path: --db-path must not be blank\n",resultMissingDB.output)
 
         val resultMissingOutput = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type haplotype --hvcf-file /test_file.h.vcf")
         assertEquals(resultMissingOutput.statusCode, 1)
@@ -300,6 +296,50 @@ class CreateFastaFromHvcfTest {
     }
 
     @Test
+    fun testHaplotypeSequenceMissingHaps() {
+        // This file has a samplename of "LineImputeMissingHaps".
+        // All of the haplotypes for chrom1 are from LineA, all of the haplotypes for chrom2 are from LineB
+        // In addition, there are 2 missing chrom1 haplotypes in the file
+        // This is a copy of the LineImpute.h.vcf file with the 2nd and 3rd haplotypes marked as missing
+        val refHVCFFile = File("data/test/smallseq/LineImputeMissingHaps.h.vcf")
+        val vcfReader = VCFFileReader(refHVCFFile, false)
+        val createFastaFromHvcf = CreateFastaFromHvcf()
+        val altHeaders= parseALTHeader(vcfReader.header)
+
+        val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
+
+        val hapSequence = createFastaFromHvcf.createHaplotypeSequences(dbPath, "LineImputeMissingHaps", vcfReader.iterator().asSequence().toList(), altHeaders)
+
+        // There are 37 haplotypes in the file, but 2 are missing, so we should only get 35 haplotypes
+        assertEquals(35, hapSequence.size)
+        val truthHashes = altHeaders.values.map { it.id }.toSet()
+
+        //This verifies that we do indeed extract out the correct sequences
+        hapSequence.forEach{
+            assertTrue(truthHashes.contains(it.id))
+        }
+    }
+
+    @Test
+    fun testMissingAltHeaders() {
+        // This file has a samplename of "LineImputeMissingAH".
+        // All of the haplotypes for chrom1 are from LineA, all of the haplotypes for chrom2 are from LineB
+        // This is a copy of the LineImpute.h.vcf file with the 4th haplotype having a bad hapid, and
+        // not represented in the ALT Headers
+        val refHVCFFile = File("data/test/smallseq/LineImputeMissingAH.h.vcf")
+        val vcfReader = VCFFileReader(refHVCFFile, false)
+        val createFastaFromHvcf = CreateFastaFromHvcf()
+        val altHeaders= parseALTHeader(vcfReader.header)
+
+        val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
+
+        assertThrows<IllegalStateException> {
+            //Check that an error is thrown when the variants contain a hapId that is not in the ALT Headers
+            createFastaFromHvcf.createHaplotypeSequences(dbPath, "LineImputeMissingAH", vcfReader.iterator().asSequence().toList(), altHeaders)
+
+        }
+    }
+    @Test
     fun testBuildFastaFromHVCF() {
         //buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfFile : String)
         val refHVCFFileName = "data/test/smallseq/Ref.h.vcf"
@@ -334,21 +374,21 @@ class CreateFastaFromHvcfTest {
     @Test
     fun testExtractInversions() {
         val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
-        val sampleName = "Ref"
+        val sample = SampleGamete("Ref")
         val seqs = NucSeqIO("data/test/smallseq/Ref.fa").readAll()
 
         //create a list of a single haplotype variant with inverted regions
         val hvcfRecord = createHVCFRecord("Ref", Position("1",1),Position("1",100),  Pair("A","2b4590f722ef9229c15d29e0b4e51a0e"))
         val variantList = listOf<VariantContext>(hvcfRecord)
         //create a map of altHeaders
-        val altHeader = AltHeaderMetaData("2b4590f722ef9229c15d29e0b4e51a0e","\"haplotype data for line: Ref\"","\"data/test/smallseq/Ref.fa\"",sampleName,
+        val altHeader = AltHeaderMetaData("2b4590f722ef9229c15d29e0b4e51a0e","\"haplotype data for line: Ref\"","\"data/test/smallseq/Ref.fa\"",sample,
             listOf(Pair(Position("1",1), Position("1",50)), Pair(Position("1",60), Position("1", 100))), "Md5", "2b4590f722ef9229c15d29e0b4e51a0e")
 
         val altHeaders = mapOf<String, AltHeaderMetaData>("2b4590f722ef9229c15d29e0b4e51a0e" to altHeader)
 
         val createFastaFromHvcf = CreateFastaFromHvcf()
 
-        val sequences = createFastaFromHvcf.createHaplotypeSequences(dbPath, sampleName, variantList, altHeaders)
+        val sequences = createFastaFromHvcf.createHaplotypeSequences(dbPath, sample.name, variantList, altHeaders)
 
         val firstSeq = sequences.first()
         assertEquals(2, firstSeq.asmRegions.size)
@@ -365,12 +405,12 @@ class CreateFastaFromHvcfTest {
         val hvcfRecord2 = createHVCFRecord("Ref", Position("1",1),Position("1",100),  Pair("A","db22dfc14799b1aa666eb7d571cf04ec"))
         val variantList2 = listOf<VariantContext>(hvcfRecord2)
         //create a map of altHeaders
-        val altHeader2 =AltHeaderMetaData("db22dfc14799b1aa666eb7d571cf04ec","\"haplotype data for line: Ref\"","\"data/test/smallseq/Ref.fa\"",sampleName,
+        val altHeader2 =AltHeaderMetaData("db22dfc14799b1aa666eb7d571cf04ec","\"haplotype data for line: Ref\"","\"data/test/smallseq/Ref.fa\"",sample,
             listOf(Pair(Position("1",50), Position("1",1)), Pair(Position("1",100), Position("1", 60))), "Md5", "db22dfc14799b1aa666eb7d571cf04ec")
 
         val altHeaders2 = mapOf<String, AltHeaderMetaData>("db22dfc14799b1aa666eb7d571cf04ec" to altHeader2)
 
-        val sequences2 = createFastaFromHvcf.createHaplotypeSequences(dbPath, sampleName, variantList2, altHeaders2)
+        val sequences2 = createFastaFromHvcf.createHaplotypeSequences(dbPath, sample.name, variantList2, altHeaders2)
 
         val firstSeq2 = sequences2.first()
         assertEquals(2, firstSeq2.asmRegions.size)
@@ -388,12 +428,12 @@ class CreateFastaFromHvcfTest {
         val variantList3 = listOf<VariantContext>(hvcfRecord3)
         //create a map of altHeaders
 
-        val altHeader3 =AltHeaderMetaData("5812acb1aff74866003656316c4539a6","\"haplotype data for line: Ref\"","\"data/test/smallseq/Ref.fa\"",sampleName,
+        val altHeader3 =AltHeaderMetaData("5812acb1aff74866003656316c4539a6","\"haplotype data for line: Ref\"","\"data/test/smallseq/Ref.fa\"",sample,
             listOf(Pair(Position("1",1), Position("1",50)), Pair(Position("1",100), Position("1", 60))), "Md5", "5812acb1aff74866003656316c4539a6")
 
         val altHeaders3 = mapOf<String, AltHeaderMetaData>("5812acb1aff74866003656316c4539a6" to altHeader3)
 
-        val sequences3 = createFastaFromHvcf.createHaplotypeSequences(dbPath, sampleName, variantList3, altHeaders3)
+        val sequences3 = createFastaFromHvcf.createHaplotypeSequences(dbPath, sample.name, variantList3, altHeaders3)
 
         val firstSeq3 = sequences3.first()
         assertEquals(2, firstSeq3.asmRegions.size)

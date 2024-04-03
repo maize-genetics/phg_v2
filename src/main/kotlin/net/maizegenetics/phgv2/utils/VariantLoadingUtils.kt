@@ -21,6 +21,7 @@ import java.nio.file.Paths
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import java.util.*
+import kotlin.collections.LinkedHashSet
 
 
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.VariantLoadingUtils")
@@ -287,6 +288,32 @@ fun createHVCFRecord(assemblyTaxon: String, startPosition: Position, endPosition
     return vcb.make()
 }
 
+fun createDiploidHVCFRecord(sampleName: String, startPosition: Position, endPosition: Position, calls: List<String?>, refAlleleStr: String): VariantContext {
+    val refCall = Allele.create(refAlleleStr, true)
+    val sampleAlleles = calls.map { if (it == null) Allele.NO_CALL else Allele.create(symbolicAllele(it!!), false) }
+
+    val distinctAltCalls = sampleAlleles.filter{ !it.isNoCall }.distinct()
+
+
+    check(startPosition.position <= endPosition.position) {
+        "createDiploidHVCFRecord: start position greater than end for ${startPosition.contig}: ${startPosition.position} - ${endPosition.position}"
+    }
+
+    val alleleList = mutableListOf(refCall)
+    alleleList.addAll(distinctAltCalls)
+    val gt = GenotypeBuilder().name(sampleName).alleles(sampleAlleles).phased(true).make()
+    val vcb = VariantContextBuilder()
+        .chr(startPosition.contig)
+        .start(startPosition.position.toLong())
+        .stop(endPosition.position.toLong())
+        .attribute("END", endPosition.position)
+        .alleles(alleleList)
+        .genotypes(gt)
+
+
+    return vcb.make()
+}
+
 // Symbolic alleles for VariantContext records must be surrounded
 // by <> characters.  This method adds them.
 fun symbolicAllele(allele: String): String {
@@ -382,7 +409,7 @@ fun verifyURI(dbPath:String,uri:String): Boolean {
         myLogger.info("Using  TileDB datasets created in folder $dbPath.")
         return true
     } else {
-        myLogger.info("TileDB datasets not found in folder $dbPath. Please run InitDB to create the datasets.")
+        myLogger.info("TileDB datasets not found in folder $dbPath. Either send a valid dbPath folder variable, or run InitDB to create the datasets in the specified folder.")
         throw IllegalArgumentException("TileDB datasets not found in folder $dbPath. Please run InitDB to create the datasets.")
     }
 }

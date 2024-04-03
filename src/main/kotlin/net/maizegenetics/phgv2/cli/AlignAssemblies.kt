@@ -51,7 +51,7 @@ import javax.management.ObjectName
  *  alignments, each using 5 threads.
  *
  */
-class AlignAssemblies : CliktCommand(help = "Align assemblies using AnchorWave") {
+class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files using AnchorWave. ") {
 
     private val myLogger = LogManager.getLogger(AlignAssemblies::class.java)
 
@@ -74,7 +74,7 @@ class AlignAssemblies : CliktCommand(help = "Align assemblies using AnchorWave")
     val assemblies by option(
         "-a",
         "--assemblies",
-        help = "File containing list of assemblies to align, 1 per line, full path to file"
+        help = "File containing list of assemblies to align, 1 per line, full path to updated file created via the phg prepare-assemblies command."
     )
         .default("")
         .validate {
@@ -133,6 +133,7 @@ class AlignAssemblies : CliktCommand(help = "Align assemblies using AnchorWave")
         createCDSfromRefData(referenceFile, gff, cdsFasta, outputDir)
 
         // create list of assemblies to align from the assemblies file
+        // exclude blank lines
         val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
 
         // run minimap2 for ref to refcds
@@ -418,8 +419,9 @@ class AlignAssemblies : CliktCommand(help = "Align assemblies using AnchorWave")
                 assemblies.forEach { asmFile ->
 
                     // Column names were checked for validity above
+                    // used ".trim()" to remove trailing whitespace from the file name
                     myLogger.info("Adding: $asmFile for processing")
-                    inputChannel.send(InputChannelData(refFasta, asmFile, outputDir, gffFile, refSamOutFile, runsAndThreads.first, runsAndThreads.second))
+                    inputChannel.send(InputChannelData(refFasta, asmFile.trim(), outputDir, gffFile, refSamOutFile, runsAndThreads.first, runsAndThreads.second))
                 }
                 myLogger.info("Done Adding data to the inputChannel:")
                 inputChannel.close() // Need to close this here to show the workers that it is done adding more data

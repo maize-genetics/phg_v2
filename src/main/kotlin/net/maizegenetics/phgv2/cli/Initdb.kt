@@ -28,13 +28,8 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
 
     private val myLogger = LogManager.getLogger(Initdb::class.java)
 
-    val dbPath by option(help = "Folder name where TileDB datasets will be created")
+    val dbPath by option(help = "Folder name under which TileDB datasets will be created. If this folder does not exist, it will be created.")
         .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--db-path must not be blank"
-            }
-        }
 
     val gvcfAnchorGap by option("-g", "--gvcf-anchor-gap", help = "tiledbvcf --anchor-gap for gvcf database (default: 1000000)")
         .int()
@@ -115,6 +110,15 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
         }
     }
     override fun run() {
+
+        // Set the dbPath to the current working directory if it is not provided
+        // no validation is done here as the createDataSets method will check for the existence of the folder
+        // and create it if doesn't exist.
+        val dbPath = if (dbPath.isBlank()) {
+            System.getProperty("user.dir")
+        } else {
+            dbPath
+        }
 
         // call method to create the environment
         createDataSets(dbPath, gvcfAnchorGap, hvcfAnchorGap)

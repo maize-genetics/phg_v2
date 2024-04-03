@@ -1,4 +1,4 @@
 sampleName	filename	filename2
-sample1	read1.txt	read2.txt
-sample2	read3.txt	read4.txt
-sample3	read5.txt
+sample1	read1.fq	read2.fq
+sample2	read3.fq	read4.fq
+sample3	read5.fq

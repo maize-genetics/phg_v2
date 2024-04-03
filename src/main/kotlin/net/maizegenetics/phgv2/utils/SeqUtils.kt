@@ -16,7 +16,7 @@ private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.SeqUt
  * THis means the user only need remember a single directory, and that is sent to
  * most of the phg_v2 commands
  *
- * The user-callable commands in this file are:
+ * The user-callable commands in this file are: (Note: in the following genome = sample name)
  * 1. retrieveAgcContigs: called to pull data using the "agc getctg" command.
  *    Expected user input:  dbPath:String, ranges:List<String>
  *    The user range list should have entries that look like one of the following:
@@ -24,12 +24,14 @@ private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.SeqUt
  *     contig@genome
  *     contig:start-end (this will error if there are more than 1 genome with "contig")
  *     contig1 (this will error if there are more than 2 genome with "contig1" )
- *    Returns: Map<String, NucSeq> where the key is the contig and the value is a Biokotlin NucSeq
+ *    Returns: Map<Pair<String,String>, NucSeq> where the key is Pair(genome, contig:start-end) or Pair(genome, contig)
+ *    and the value is a Biokotlin NucSeq
  *
  * 2. retrieveAgcGenomes: called to pull data using the "agc getset" command.
  *   Expected user input:  dbPath:String, genomes:List<String>
  *   The user genome list should have sample names that are in the AGC file.
- *   Returns: Map<String, NucSeq> where the key is the genome and the value is a Biokotlin NucSeq
+ *   Returns: Map<Pair<String,String>, NucSeq> where the key is Pair(genome, contig)
+ *   and the value is a Biokotlin NucSeq
  *
  * 3. retrieveAgcData: called to pull data using    the "agc listset" or "agc listctg" command.
  *   Expected user input:  dbPath:String, agcCmdList:List<String>
@@ -47,10 +49,47 @@ private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.SeqUt
  *
  */
 
+/**
+ * Retrieves sequence from an agc data store.
+ * @param dbPath    the folder containing assemblies.agc
+ * @param sampleName the name of a sample in the data store
+ * @param ranges    a list of pairs of Positions describing the ranges to be returned
+ * @return a map of Pair<sampleName, range> to a Biokotlin NucSeq containing the sequence
+ *
+ *
+ */
 fun retrieveAgcContigs(dbPath: String, sampleName: String, ranges: List<Pair<Position,Position>>) : Map<Pair<String,String>,NucSeq> {
     val rangesString = buildRangesString(sampleName, ranges)
     return retrieveAgcContigs(dbPath,rangesString)
+
 }
+
+/**
+ * Retrieves sequence from an agc data store.
+ * @param dbPath    the folder containing assemblies.agc
+ * @param sampleNameList    a list of sample names
+ * @param contig    the name of a contig (e.g. chromosome)
+ * @return  a Map of Pair(sample name, contig) -> NucSeq containing the sequence
+ */
+fun retrieveAgcContigForSamples(dbPath: String, sampleNameList: List<String>, contig: String) : Map<Pair<String,String>,NucSeq> {
+    val rangeList = sampleNameList.map { sample ->  "${contig}@$sample"}
+    return retrieveAgcContigs(dbPath,rangeList)
+}
+
+/**
+ * Retrieves sequence from an agc data store.
+ * @param dbPath    the folder containing assemblies.agc
+ * @param sampleName the name of a sample in the data store
+ * @param ranges    a list of ranges to return
+ * @return a map of Pair<sampleName, chrom:start-end> (or Pair<sampleName, chrom>) to a Biokotlin NucSeq containing the sequence
+ *
+ *    The user range list should have entries that look like one of the following:
+ *     contig@genome:start-end
+ *     contig@genome
+ *     contig:start-end (this will error if there are more than 1 genome with "contig")
+ *     contig1 (this will error if there are more than 2 genome with "contig1" )
+ *
+ */
 fun retrieveAgcContigs(dbPath:String,ranges:List<String>):Map<Pair<String,String>,NucSeq> {
 
     val commands = buildAgcCommandFromList(dbPath, "getctg",ranges)
@@ -289,7 +328,8 @@ fun queryAgc(commands:Array<String>):Map<Pair<String,String>,NucSeq> {
                         // This is an error as we need the sampleName to map the genome to the
                         // samplename/genome in the VCF files.
                         myLogger.error("queryAgc: Error:  No sampleName= found in idline: returned from AGC query.")
-                        myLogger.error("Please run the AnnotateFastas command to add sampleName to your fasta files.")
+                        myLogger.error("Please run the prepare-assemblies command to add sampleName to your fasta files.")
+                        myLogger.error("Then delete the assemblies.agc file from you tiledb folder and recreate the agc compressed file via the agc-compress command using the new prepared fastas.")
                         myLogger.error("This is necessary to associate the VCF samples with the AGC compressed genomes.")
                         throw IllegalStateException("Error:  No sampleName found in idline: $line")
                     }
@@ -310,7 +350,6 @@ fun queryAgc(commands:Array<String>):Map<Pair<String,String>,NucSeq> {
             if (currSeq.size() > 0) {
                 myLogger.info("queryAgc: finished chrom $currChrom")
                 val chromPlusRange = if (currRange == "") currChrom else "${currChrom}:${currRange}"
-                println("agcQuery: line 301 - currGenome: $currGenome, currChrom: $currChrom")
                 genomeChromNucSeq.put(Pair(currGenome,chromPlusRange),NucSeq(currSeq.toString()))
             }
         }
