@@ -344,7 +344,7 @@ file contains 6 columns of information:
 | `1`    | Sequence name       |
 | `2`    | Start position (bp) |
 | `3`    | End position (bp)   |
-| `4`    | Range id            |
+| `4`    | Range ID            |
 | `5`    | Score (always `0`)  |
 | `6`    | Strand information  |
 
@@ -373,8 +373,11 @@ This action is based on a keyfile (_which we will discuss later in the
 parameters section_) provided by the user. The keyfile would list 
 "CML52" as the sample name for this FASTA shown below:
 
-```shell
-Zm-CML52-NAM-1.0.fa CML52
+```
+## A keyfile example (disregard '#' comments for your actual keyfile):
+
+# file name           # new name
+Zm-CML52-NAM-1.0.fa   CML52
 ```
 
 The reason for this change is the AGC compression tool stores the 
@@ -387,7 +390,9 @@ For the second goal: As of the current date of this document, the
 return methods of AGC will not keep track of sample IDs when returning
 sequence information from the compressed file **unless you explicitly
 state the sample information in the header lines of the FASTA files
-you wish to compress for the PHGv2 databases**. To explain this
+you wish to compress for the PHGv2 databases**. 
+
+To explain this
 further, let's imagine that we have two FASTA files: `LineA.fa` and
 `LineB.fa`. These files contain information for only chromosome 1 and
 have a simple header that denotes this sequence name (e.g. `chr1`):
@@ -467,17 +472,24 @@ This command takes 3 parameters:
 * `--keyfile` - A [tab-delimited](https://en.wikipedia.org/wiki/Tab-separated_values)
   keyfile containing two columns:
 
-| Column | Value                                                                                                                                                                                                                      |
-|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `1`    | Path to FASTA file you would like annotated (this is similar to the text files used to point to the FASTA file paths in the [`agc-compress`](#compress-fasta-files) and [`align-assemblies`](#align-assemblies) commands). |
-| `2`    | Name of the sample that will be (1) appended to each header line and (2) the name of the newly generated FASTA file.                                                                                                       |
+  | Column | Value                                                                                                                                                                                                                      |
+  |--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+  | `1`    | Path to FASTA file you would like annotated (this is similar to the text files used to point to the FASTA file paths in the [`agc-compress`](#compress-fasta-files) and [`align-assemblies`](#align-assemblies) commands). |
+  | `2`    | Name of the sample that will be (1) appended to each header line and (2) the name of the newly generated FASTA file.                                                                                                       |
 
-  + My example `annotation_keyfile.txt` file would look like this:
+  * My example `annotation_keyfile.txt` would look like this:
+      ```shell
+      data/Ref.fa Ref
+      data/LineA.fa   LineA
+      data/LineB.fa   LineB
+      ```
+    >   [!WARNING]  
+      _**All**_ sample assemblies (including your reference assembly) that 
+      you would want processed need to be included in this keyfile.
+  
 
-    ```
-    data/LineA.fa   LineA
-    data/LineB.fa   LineB
-    ```
+
+
 * `--threads` - Optional number of threads to update multiple
   FASTA files in parallel. _Defaults to `1`_.
 * `-o` - Output directory for the newly updated FASTA files
