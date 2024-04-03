@@ -24,12 +24,15 @@ fun plotDot(
     val filteredData = data.filter {
         (querySeqId == null || it["queryChr"] in querySeqId) &&
                 (refSeqId == null || it["refChr"] in refSeqId)
-    }
+    } // chatGPT filtered based on Brandon's code. Might be ok ....
 
     val toMb = { x: Number -> x.toDouble() / 1e6 }
     //val toMbLabel: (Double) -> String = { value -> "${toMb(value)}" }
     val toMbLabel:  (Double) -> String = { value -> "${toMb(value)}" }
-    val p = letsPlot(filteredData.toMap()) {
+    val plotData = filteredData.toMap()
+    val p = letsPlot(plotData ) { // this was from chatGpt based on Brandon's R code.
+    //val p = letsPlot(data.toMap()){
+    //val p = letsPlot(filteredData.toMap()) { // this was from chatGpt based on Brandon's R code.
         x = "queryStart"; y = "referenceStart"
         color = when (colorId) {
             "score" -> "score"
@@ -41,13 +44,14 @@ fun plotDot(
             //scaleYContinuous(labels = { listOf(toMb(it)) }) +
             //scaleXContinuous(labels = { it.map { value -> "${toMb(value)} Mbp" } }) +
             //scaleYContinuous(labels = { it.map { value -> "${toMb(value)} Mbp" } }) +
-            // Below compiels, but at runtime gives the error "The scale 'labels' parameter should be specified with a list or dictionary."
+            // Below compiles, but at runtime gives the error "The scale 'labels' parameter should be specified with a list or dictionary."
             //scaleXContinuous(labels = toMbLabel) +
             //scaleYContinuous(labels = toMbLabel) +
             scaleXContinuous(labels = listOf(toMbLabel.toString())) +
             scaleYContinuous(labels = listOf(toMbLabel.toString())) +
-            // facetGrid(facets = "refChr ~ queryChr", scales = "free", space = "free") +
-            facetGrid(x = "Reference (Mbp)", y= "Query (Mbp_", scales = "free") +
+            facetGrid(x="queryChr", y="refChr") +
+            //facetGrid(facets = "refChr ~ queryChr", scales = "free", space = "free") +
+            //facetGrid(x = "Reference (Mbp)", y= "Query (Mbp)", scales = "free") +
             labs(x = "$queryLab (Mbp)", y = "$refLab (Mbp)") +
             when (colorId) {
                 "score" -> scaleColorViridis()
