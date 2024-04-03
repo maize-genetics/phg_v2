@@ -483,9 +483,9 @@ This command takes 3 parameters:
       data/LineA.fa   LineA
       data/LineB.fa   LineB
       ```
-  >   [!WARNING]  
-  > _**All**_ sample assemblies (including your reference assembly) 
-  > that you would want processed need to be included in this keyfile.
+  * > ⚠️ **Warning**  
+    **All** sample assemblies (**including your reference assembly**) 
+    that you would want processed need to be included in this keyfile.
   
 
 
