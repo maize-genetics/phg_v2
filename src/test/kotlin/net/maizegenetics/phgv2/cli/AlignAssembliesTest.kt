@@ -15,6 +15,7 @@ import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+
 @ExtendWith(TestExtension::class)
 class AlignAssembliesTest {
 
@@ -220,7 +221,8 @@ class AlignAssembliesTest {
 
         assertEquals(checksum1, checksum2, "LineB.maf checksums do not match")
 
-        // Test the dot plot files exist
+        // Test the dot plot files exist.  It is difficult to verify the pictures
+        // look good from a junit test.  That has been done manually.
         val plotFileLineB = "${TestExtension.tempDir}/LineB_dotplot.png"
         assertTrue(File(plotFileLineB).exists(), "File $plotFileLineB does not exist")
         val plotFileLineA = "${TestExtension.tempDir}/LineA_dotplot.png"
@@ -306,8 +308,7 @@ class AlignAssembliesTest {
 
     @Test
     fun testAnchorsproDotPlot() {
-        // val origFile = File("/Users/lcj34/notes_files/phg_v2/newFeatures/stats/dummy_anchors_small.anchorspro.txt")
-        //val origFile = File("/Users/lcj34/git/rPHG/inst/extdata/dummy_anchors_small.anchorspro")
+
         val origFile = File("data/test/smallseq/dummy_anchors_small.anchorspro")
         // Filter out lines that start with '#', change tabs to comma, and join the rest with newline characters
         // we change tabs to commas as the Kotlin DataFrame reader appears to be expecting CSV format,
@@ -330,7 +331,7 @@ class AlignAssembliesTest {
         // Three, two, one, plot!
         val plot = AlignAssemblies().plotDot(dfAnchorWave)
 
-        println("plot was created, try to save to a file")
+        println("plot was created, save to a file")
         val pathSVG = ggsave(plot, "${TestExtension.tempDir}/dotPlotFromAlignAssemblies.png")
         // hard to verify the plot looks good - that must be done manually.  This verifies the file
         // was successfully written.

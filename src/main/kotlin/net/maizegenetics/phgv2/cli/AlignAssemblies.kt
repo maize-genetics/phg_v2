@@ -35,7 +35,9 @@ import kotlin.test.assertEquals
  * This will align assemblies to a reference genome.
  * Uses anchorwave's proali to align, which handles
  * genome alignment with relocation variation,
- * chromosome fusion or whole genome duplication.
+ * chromosome fusion or whole genome duplication.  After
+ * aligning, a dot plot is created showing the alignment,
+ * with the file stored in PNG format to the output directory.
  *
  * This function allows for multiple assembly alignments to be run
  * in parallel.  Users may specify number of alignments to run in parallel
@@ -597,8 +599,10 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
             myLogger.error("Error: could not execute anchorwave command. Run anchorwave manually and retry.")
         }
 
+        // Create a dot plot of the anchorwave data stored in the anchorspro file for this assembly.
         val origFile = File(anchorsproFile)
-        // Filter out lines that start with '#', cahnge tabs to commas, and join the rest with newline characters
+        // Filter out lines that start with '#', change tabs to commas, and join the rest with newline characters
+        // Kotline dataframe readDelim() does not handle tabs well, so we need to change them to commas.
         val cleanContent = origFile.useLines { lines ->
             lines.filterNot { it.startsWith("#") }
                 .map { it.replace("\t", ",") }
@@ -616,7 +620,7 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
 
     /**
      * This function will plot the anchorwave data in a dot plot.  It has 1 required parameter,
-     * which is "data", a DataFrame containing datae from the anchorwave anchorspro file.
+     * which is "data", a DataFrame containing data from the anchorwave generated anchorspro file.
      *
      * This is a default plot that is run when AlignAssemblies is run.  It is a dot plot
      * showing basic alignment data in scatter plot form with the x-axis being the query
@@ -624,7 +628,7 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
      * the color of the data points based on the strand (red=forward, blue=reverse).
      * The plot is faceted by the query and reference chromosomes.
      *
-     * For detailed plots on specific reference or query ids, users can use the plotDot function
+     * For  plots based on specific reference or query ids, users can use the plotDot function
      * from rPHG.
      *
      */
