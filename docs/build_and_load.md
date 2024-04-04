@@ -1109,8 +1109,50 @@ The `gvcf2hvcf` command requires the following inputs:
   positional data from the BED file used in the `--bed` parameter.
   hashed sequence data will place in the `##ALT` tag's `RefRange`
   key.
-* `--gvcf-dir` - Directory containing gvcf files generated from either
-  a PHGv1 "MAFToGVCFPlugin"  command or a BioKotlin MAFToGVCF.createGVCFfromMAF() command.
+* `--gvcf-dir` - Directory containing gVCF files generated from either
+  a PHGv1 `MAFToGVCFPlugin`  command or a BioKotlin 
+  `MAFToGVCF.createGVCFfromMAF()` command.
+
+Now that we have created our hVCF and gVCF files using the 
+`create-ref-vcf` and `create-maf-vcf` commands, our directory 
+structure now looks like the following:
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   ├── alignment_files/
+│   ├── ref_ranges.bed
+│   ├── updated_assemblies
+│   │   ├── Ref.fa
+│   │   ├── LineA.fa
+│   │   └── LineB.fa
+│   └── vcf_files
+│       ├── LineA.h.vcf.gz
+│       ├── LineA.h.vcf.gz.csi
+│       ├── LineA.g.vcf.gz
+│       ├── LineA.g.vcf.gz.csi
+│       ├── LineB.h.vcf.gz
+│       ├── LineB.h.vcf.gz.csi
+│       ├── LineB.g.vcf.gz
+│       └── LineB.g.vcf.gz.csi
+└── vcf_dbs
+    ├── assemblies.agc
+    ├── gvcf_dataset # gVCF db storage
+    ├── hvcf_dataset # hVCF db storage
+    ├── hvcf_files
+    │   ├── Ref.h.vcf.gz
+    │   └── Ref.h.vcf.gz.csi
+    ├── reference
+    │   ├── Ref.bed
+    │   └── Ref.sam
+    └── temp
+```
+
 
 ### Load VCF data into DBs
 After VCF files are created, we can finally load the information
