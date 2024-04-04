@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 val ktorVersion = "2.3.7"
 
 plugins {
-    kotlin("jvm") version "1.9.10"
+    kotlin("jvm") version "1.9.23"
     application
     id("org.jetbrains.kotlinx.kover") version "0.7.3"
     kotlin("plugin.serialization") version "1.6.21"
@@ -15,7 +15,7 @@ group = "net.maizegenetics"
 This build script is need to use the early access
  */
 buildscript {
-    val kotlinVersion by extra("1.9.22")
+    val kotlinVersion by extra("1.9.23")
 
     repositories {
         mavenCentral()
@@ -44,6 +44,7 @@ dependencies {
 
     implementation("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.7.0")
     implementation("org.jetbrains.lets-plot:lets-plot-image-export:4.3.0")
+    implementation("org.jetbrains.lets-plot:lets-plot-batik:4.3.0")
     implementation("org.biokotlin:biokotlin:0.14")
     implementation("com.github.ajalt.clikt:clikt:4.2.0")
 

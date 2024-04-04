@@ -9,6 +9,7 @@ import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
@@ -16,7 +17,6 @@ import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
 import java.util.*
-import kotlin.test.Ignore
 import kotlin.test.assertEquals
 
 @ExtendWith(TestExtension::class)
@@ -179,7 +179,7 @@ class BuildKmerIndexTest {
     }
 
     //Ignore for now as we are requiring both db-path and hvcf-dir currently.
-    @Ignore
+    @Disabled
     @Test
     fun testTiledb() {
         //Setting the tiledb path but not the hvcf should generate a not implemented error
@@ -187,7 +187,7 @@ class BuildKmerIndexTest {
 
         //try to build a graph from a (non-existent) tiledb database
         val exception = assertThrows<NotImplementedError> {
-            BuildKmerIndex().test("--db-path $tempAGCDir --tiledb-path ${TestExtension.testTileDBURI}")
+            BuildKmerIndex().test("--db-path $tempAGCDir --db-path ${TestExtension.testTileDBURI}")
         }
         assertEquals("An operation is not implemented: TileDB VCF Reader Not implemented yet.  Please run with --hvcf-dir", exception.message)
 

@@ -11,6 +11,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.apache.logging.log4j.LogManager
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.filter
+import org.jetbrains.kotlinx.dataframe.api.toMap
+import org.jetbrains.kotlinx.dataframe.io.readDelim
+import org.jetbrains.letsPlot.facet.facetGrid
+import org.jetbrains.letsPlot.geom.geomPoint
+import org.jetbrains.letsPlot.intern.Plot
+import org.jetbrains.letsPlot.label.labs
+import org.jetbrains.letsPlot.letsPlot
+import org.jetbrains.letsPlot.scale.scaleColorManual
+import org.jetbrains.letsPlot.scale.scaleColorViridis
+import org.jetbrains.letsPlot.scale.scaleXContinuous
+import org.jetbrains.letsPlot.scale.scaleYContinuous
 import java.io.File
 import java.lang.management.ManagementFactory
 import javax.management.MBeanServer
@@ -581,6 +594,46 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         } catch (e: Exception) {
             myLogger.error("Error: could not execute anchorwave command. Run anchorwave manually and retry.")
         }
+
+        // Plot the data, write output
+        val dfAnchorWave = DataFrame.readDelim(File(anchorsproFile).reader())
+
+    }
+
+    /**
+     * This function will plot the anchorwave data in a dot plot.  It has 1 required parameter,
+     * which is "data", a DataFrame containing datae from the anchorwave anchorspro file.
+     *
+     * This is a default plot that is run when AlignAssemblies is run.  It is a dot plot
+     * showing basic alignment data in scatter plot form with the x-axis being the query
+     * sequence start position, the y-axis being the reference sequence start position, and
+     * the color of the data points based on the strand (red=forward, blue=reverse).
+     * The plot is faceted by the query and reference chromosomes.
+     *
+     * For detailed plots on specific reference or query ids, users can use the plotDot function
+     * from rPHG.
+     *
+     */
+    fun plotDot(
+        data: DataFrame<*>,
+    ): Plot {
+        val toMb = { x: Number -> x.toDouble() / 1e6 }
+        val toMbLabel:  (Double) -> String = { value -> "${toMb(value)}" }
+        val plotData = data.toMap()
+        val plot = letsPlot(plotData ) { // this was from chatGpt based on Brandon's R code.
+            x = "queryStart"; y = "referenceStart"
+            color = "strand"
+        } +
+                geomPoint(size = 1.5) +
+                // Several attempts to get the labels to work  - this one results in what we wanted,
+                // which is turning the labels from bytes to Mbp
+                scaleXContinuous(labels = listOf(toMbLabel.toString())) +
+                scaleYContinuous(labels = listOf(toMbLabel.toString())) +
+                facetGrid(x="queryChr", y="refChr", scales="fixed") +
+                labs(x = "Query (Mbp)", y = "Reference (Mbp)") +
+                scaleColorManual(values = mapOf("+" to "#DA897C", "-" to "#0D6A82")) // color values match rPHG plot colors
+
+        return plot
     }
 
 }

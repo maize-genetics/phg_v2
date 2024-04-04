@@ -12,7 +12,7 @@ import java.io.File
 import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
 import kotlin.test.assertEquals
-import kotlin.test.Ignore
+
 
 class VariantLoadingUtilsTest {
     companion object {

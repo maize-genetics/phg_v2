@@ -2,7 +2,6 @@ package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.utils.getChecksum
-import net.maizegenetics.phgv2.utils.plotDot
 import net.maizegenetics.phgv2.utils.testMergingMAF
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.print
@@ -19,32 +18,6 @@ import kotlin.test.assertTrue
 @ExtendWith(TestExtension::class)
 class AlignAssembliesTest {
 
-    @Test
-    fun testDataFrame() {
-        val origFile = File("/Users/lcj34/git/rPHG/inst/extdata/dummy_anchors_small.anchorspro")
-        // Filter out lines that start with '#' and join the rest with newline characters
-        val cleanContent = origFile.useLines { lines ->
-            lines.filterNot { it.startsWith("#") }
-                .joinToString("\n")
-        }
-
-        val dfAnchorWave = DataFrame.readDelim(cleanContent.reader())
-        dfAnchorWave.print()
-        val outputFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/stats/testFile_kotlinDF_Out.txt"
-        dfAnchorWave.writeCSV(outputFile)
-
-        println("DataFrame written to $outputFile")
-        println("Try to plot it with plotDot!")
-        // Now try letsplot!
-        val plot = plotDot(dfAnchorWave)
-        //println("plotDot was successful!  try to show it")
-        //plot.show()
-
-        println("plot was shown, try to save to a file")
-       // val pathSVG = ggsave(plot, "alignmentDotPlot.png") // this fails!
-        //HTML(File(pathSVG).readText()) // from an example notebook, doesn' work here.
-
-    }
     @Test
     fun testSystemMemory() {
         val availMemory = AlignAssemblies().getSystemMemory()
@@ -322,6 +295,39 @@ class AlignAssembliesTest {
         val lineBMAF = TestExtension.tempDir + "LineB.maf"
         assertTrue(File(lineBMAF).exists(), "File $lineBMAF does not exist")
 
+    }
+
+    @Test
+    fun testAnchorsproDotPlot() {
+        // val origFile = File("/Users/lcj34/notes_files/phg_v2/newFeatures/stats/dummy_anchors_small.anchorspro.txt")
+        //val origFile = File("/Users/lcj34/git/rPHG/inst/extdata/dummy_anchors_small.anchorspro")
+        val origFile = File("data/test/smallseq/dummy_anchors_small.anchorspro")
+        // Filter out lines that start with '#', change tabs to comma, and join the rest with newline characters
+        // we change tabs to commas as the Kotlin DataFrame reader appears to be expecting CSV format,
+        // tabs were not working as a delimiter.
+        val cleanContent = origFile.useLines { lines ->
+            lines.filterNot { it.startsWith("#") }
+                .map { it.replace("\t", ",") }
+                .joinToString("\n")
+        }
+
+        val dfAnchorWave = DataFrame.readDelim(cleanContent.reader())
+        dfAnchorWave.print()
+        val outputFile = "${TestExtension.tempDir}/testFile_kotlinDF_OutCSV.txt"
+        dfAnchorWave.writeCSV(outputFile)
+        assertEquals(true, File(outputFile).exists())
+
+        println("DataFrame written to $outputFile")
+        println("plot it with plotDot!")
+
+        // Three, two, one, plot!
+        val plot = AlignAssemblies().plotDot(dfAnchorWave)
+
+        println("plot was created, try to save to a file")
+        val pathSVG = ggsave(plot, "${TestExtension.tempDir}/dotPlotFromAlignAssemblies.png")
+        // hard to verify the plot looks good - that must be done manually.  This verifies the file
+        // was successfully written.
+        assertEquals(true, File(pathSVG).exists())
     }
 
 }
