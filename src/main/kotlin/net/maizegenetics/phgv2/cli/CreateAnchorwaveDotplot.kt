@@ -13,7 +13,7 @@ import java.io.File
 /**
  * This class provides a means of testing just the dotplot creation functionality of the AlignAssemblies class.
  * Or of running it independently of the AlignAssemblies class when users have an anchorspro file created from
- * anchowave outside of PHG
+ * anchowave outside of PHGv2
  */
 class CreateAnchorwaveDotplot: CliktCommand(help = "create a dot plot stored in PNG file from anchowave anchorspro file") {
 
