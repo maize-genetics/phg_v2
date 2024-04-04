@@ -595,8 +595,17 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
             myLogger.error("Error: could not execute anchorwave command. Run anchorwave manually and retry.")
         }
 
+        val origFile = File(anchorsproFile)
+        // Filter out lines that start with '#', cahnge tabs to commas, and join the rest with newline characters
+        val cleanContent = origFile.useLines { lines ->
+            lines.filterNot { it.startsWith("#") }
+                .map { it.replace("\t", ",") }
+                .joinToString("\n")
+        }
+
+        val dfAnchorWave = DataFrame.readDelim(cleanContent.reader())
         // Plot the data, write output
-        val dfAnchorWave = DataFrame.readDelim(File(anchorsproFile).reader())
+        val plot = plotDot(dfAnchorWave)
 
     }
 
