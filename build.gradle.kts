@@ -52,7 +52,7 @@ dependencies {
 
     implementation("it.unimi.dsi:fastutil:8.5.12")
 
-    implementation("org.jetbrains.kotlin:kotlin-test:1.9.10")
+    implementation("org.jetbrains.kotlin:kotlin-test:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-script-runtime:${kotlinVersion}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")
