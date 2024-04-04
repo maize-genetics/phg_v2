@@ -15,6 +15,7 @@ import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.filter
 import org.jetbrains.kotlinx.dataframe.api.toMap
 import org.jetbrains.kotlinx.dataframe.io.readDelim
+import org.jetbrains.letsPlot.export.ggsave
 import org.jetbrains.letsPlot.facet.facetGrid
 import org.jetbrains.letsPlot.geom.geomPoint
 import org.jetbrains.letsPlot.intern.Plot
@@ -28,6 +29,7 @@ import java.io.File
 import java.lang.management.ManagementFactory
 import javax.management.MBeanServer
 import javax.management.ObjectName
+import kotlin.test.assertEquals
 
 /**
  * This will align assemblies to a reference genome.
@@ -604,8 +606,11 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         }
 
         val dfAnchorWave = DataFrame.readDelim(cleanContent.reader())
-        // Plot the data, write output
+        // Plot the data, write to png file
         val plot = plotDot(dfAnchorWave)
+        val plotFile = "${outputDir}/${justNameAsm}_dotplot.png"
+        val pathSVG = ggsave(plot, plotFile)
+        myLogger.info("Dot plot for ${justNameAsm} saved to: $pathSVG")
 
     }
 

@@ -165,6 +165,8 @@ class AlignAssembliesTest {
         val lineBMAF = TestExtension.tempDir + "LineB.maf"
         assertTrue(File(lineBMAF).exists(), "File $lineBMAF does not exist")
 
+
+
     }
 
     @Test
@@ -218,6 +220,11 @@ class AlignAssembliesTest {
 
         assertEquals(checksum1, checksum2, "LineB.maf checksums do not match")
 
+        // Test the dot plot files exist
+        val plotFileLineB = "${TestExtension.tempDir}/LineB_dotplot.png"
+        assertTrue(File(plotFileLineB).exists(), "File $plotFileLineB does not exist")
+        val plotFileLineA = "${TestExtension.tempDir}/LineA_dotplot.png"
+        assertTrue(File(plotFileLineA).exists(), "File $plotFileLineA does not exist")
     }
 
     @Test
