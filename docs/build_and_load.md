@@ -91,21 +91,41 @@ For the following steps, I will first make an example directory to
 house our toy input data. The overall structure of the directory
 looks like the following
 
-```shell
+```
 phg_v2_example/
 ├── data
-│   └── Ref-v5.fa
-│   └── LineA-final-01.fa
-│   └── LineB-final-04.fa
 └── output
 ```
 
 For the following steps, I will be using example small sequence
 data from [PHGv2 GitHub repository](https://github.com/maize-genetics/phg_v2/tree/main/data/test/smallseq).
-This is a collection of small raw sequence and alignment files that
+This is a collection of small raw sequence files that
 we use for pipeline testing. These will be placed in the `data`
 subdirectory while files created by this pipeline will be placed in
-the `output` subdirectory.
+the `output` subdirectory. Here, I have downloaded a FASTA files:
+
+* `Ref.fa`
+* `LineA.fa`
+* `LineB.fa`
+
+...and have renamed and placed them (which is needed to highlight the 
+functionality of the [Prepare Assembly FASTA Files](#prepare-assembly-fasta-files)
+section later) in the `data` directory. 
+
+Additionally, I have also downloaded a GFF file called `anchors.gff` 
+which will be used for the [Create Reference Ranges](#create-reference-ranges)
+and [Align Assemblies](#align-assemblies) steps. Overall, my example
+working directory now looks like the following:
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+└── output
+```
 
 This documentation will also assume that the PHGv2 application is 
 placed in your system's `PATH` variable (_see installation 
@@ -237,25 +257,26 @@ information for each assembly. More information can be found in the
 After initialization is complete, we will have two empty TileDB-VCF
 instances and a `temp` directory in our `vcf_dbs` subdirectory:
 
-| Directory      | Purpose                                 |
-|----------------|-----------------------------------------|
-| `gvcf_dataset` | Genomic variant database storage        |
-| `hvcf_dataset` | Haplotype variant database storage      |
-| `temp`         | Creation output and error logging files |
+| Directory      | Purpose                                   |
+|----------------|-------------------------------------------|
+| `gvcf_dataset` | Genomic variant (gVCF) database storage   |
+| `hvcf_dataset` | Haplotype variant (hVCF) database storage |
+| `temp`         | Creation output and error logging files   |
 
 
 For reference, my example working directory now looks like this:
 
-```shell
+```
 phg_v2_example/
 ├── data
-│   └── Ref-v5.fa
-│   └── LineA-final-01.fa
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
 │   └── LineB-final-04.fa
 ├── output
 └── vcf_dbs
-    ├── gvcf_dataset # gVCF db storage
-    ├── hvcf_dataset # hVCF db storage
+    ├── gvcf_dataset
+    ├── hvcf_dataset
     └── temp
 ```
 
@@ -277,7 +298,7 @@ data using the `create-ranges` command:
 ```shell
 ./phg create-ranges \
     --gff data/anchors.gff \
-    --reference-file data/Ref.fa \
+    --reference-file data/Ref-v5.fa \
     --boundary gene \
     --pad 500 \
     --range-min-size 500 \
@@ -360,6 +381,23 @@ file contains 6 columns of information:
 > separated string of all the genes/CDS features included in this BED 
 > region.
 
+Now that we have a BED file, our example working directory now
+looks like the following:
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   └── ref_ranges.bed
+└── vcf_dbs
+    ├── gvcf_dataset
+    ├── hvcf_dataset
+    └── temp
+```
 
 
 ### Prepare Assembly FASTA files
@@ -553,14 +591,16 @@ called `updated_assemblies` under the `output` directory:
 ```
 phg_v2_example/
 ├── data
-│   └── Ref-v5.fa
-│   └── LineA-final-01.fa
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
 │   └── LineB-final-04.fa
 ├── output
-│   └── updated_assemblies
-│       └── Ref.fa
-│       └── LineA.fa
-│       └── LineB.fa
+│   ├── ref_ranges.bed
+│   ├── updated_assemblies
+│   │   ├── Ref.fa
+│   │   ├── LineA.fa
+│   │   └── LineB.fa
 └── vcf_dbs
     ├── gvcf_dataset # gVCF db storage
     ├── hvcf_dataset # hVCF db storage
@@ -665,7 +705,49 @@ that each assembly will have a collection of different file types:
 | `.maf`         | [multiple alignment format](https://genome.ucsc.edu/FAQ/FAQformat.html#format5) (MAF) file |
 | `.anchorspro`  | alignment blocks between reference and assembly genomes (used for dot plot generation)     |
 
-The MAF files from this output will be used in the VCF creation step.
+The MAF files from this output will be used in the VCF creation step. Now
+that alignment is completed our example working directory looks as
+follows (**NOTE**: I will collapse `alignment_files` for future steps):
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   ├── alignment_files
+│   │   ├── anchorwave_gff2seq_error.log
+│   │   ├── anchorwave_gff2seq_output.log
+│   │   ├── LineA.maf
+│   │   ├── LineA.sam
+│   │   ├── LineA_Ref.anchorspro
+│   │   ├── LineB.maf
+│   │   ├── LineB.sam
+│   │   ├── LineB_Ref.anchorspro
+│   │   ├── minimap2_LineA_error.log
+│   │   ├── minimap2_LineA_output.log
+│   │   ├── minimap2_LineB_error.log
+│   │   ├── minimap2_LineB_output.log
+│   │   ├── minimap2_Ref_error.log
+│   │   ├── minimap2_Ref_output.log
+│   │   ├── proali_LineA_outputAndError.log
+│   │   ├── proali_LineB_outputAndError.log
+│   │   ├── ref.cds.fasta
+│   │   └── Ref.sam
+│   ├── ref_ranges.bed
+│   └── updated_assemblies
+│       ├── Ref.fa
+│       ├── LineA.fa
+│       └── LineB.fa
+└── vcf_dbs
+    ├── gvcf_dataset # gVCF db storage
+    ├── hvcf_dataset # hVCF db storage
+    └── temp
+```
+
+
 
 #### Internal AnchorWave and minimap2 commands
 While PHGv2 is flexible in terms of how data is processed, we have
@@ -796,7 +878,7 @@ command:
 ./phg agc-compress \
     --db-path vcf_dbs \
     --fasta-list data/assemblies_list.txt \
-    --reference-file data/Ref.fa
+    --reference-file output/updated_assemblies/Ref.fa
 ```
 
 This command takes in 3 parameters:
@@ -817,14 +899,37 @@ This command takes in 3 parameters:
 > [**"Prepare Assembly FASTA files"**](#prepare-assembly-fasta-files) section for 
 > further details_).
 
-* `--reference-file` - Reference FASTA genome.
+* `--reference-file` - Reference FASTA genome processed with
+  the `prepare-assemblies` command.
 
 After compression is finished, we can navigate to the directory
 containing the TileDB instances. In my case, this would be the
 subdirectory, `vcf_dbs`. Here, you will see a new file created:
 `assemblies.agc`. This is the compressed AGC file containing our 
 assemblies. This file will be used later to query for haplotype
-sequence regions and composite genome creation.
+sequence regions and composite genome creation. Our example
+working directory now looks like this:
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   ├── alignment_files/
+│   ├── ref_ranges.bed
+│   └── updated_assemblies
+│       ├── Ref.fa
+│       ├── LineA.fa
+│       └── LineB.fa
+└── vcf_dbs
+    ├── assemblies.agc
+    ├── gvcf_dataset # gVCF db storage
+    ├── hvcf_dataset # hVCF db storage
+    └── temp
+```
 
 When running the `agc-compress` command, the software will 
 determine if the "create" or "append" AGC command should be used. 
@@ -851,8 +956,8 @@ commands:
 ```shell
 phg create-ref-vcf \
     --bed output/ref_ranges.bed \
-    --reference-file data/Ref.fa \
-    --reference-name B73 \
+    --reference-file output/updated_assemblies/Ref.fa \
+    --reference-name Ref \
     --db-path vcf_dbs
 ```
 
@@ -863,18 +968,23 @@ phg create-ref-vcf \
 phg create-maf-vcf \
     --db-path vcf_dbs \
     --bed output/ref_ranges.bed \
-    --reference-file data/Ref.fa \
+    --reference-file output/updated_assemblies/Ref.fa \
     --maf-dir output/alignment_files \
     -o output/vcf_files
 ```
-2 (Optional) Create hVCF from existing PHG created gVCF files. Use instead of create-maf-vcf if you have previously created gVCF files from PHG and want to create hVCF files.
+
+3. (_**Optional**_) Create hVCF from existing PHG created gVCF files. 
+   Use instead of create-maf-vcf if you have previously created gVCF files 
+   from PHG and want to create hVCF files:
+
 ```shell
 phg gvcf2hvcf \
     --db-path vcf_dbs \
     --bed output/ref_ranges.bed \
-    --reference-file data/Ref.fa \
+    --reference-file output/updated_assemblies/Ref.fa \
     --gvcf-dir output/gvcf_files 
 ```
+
 > [!TIP]
 > For more information about the haplotype VCF (hVCF) specification,
 > please refer to the hVCF specification documentation.
@@ -891,10 +1001,15 @@ The `create-ref-vcf` command requires the following inputs:
   the [**"Create reference ranges"**](#create-reference-ranges) section for further 
   details_). This is used to define the positional information of the 
   VCF.
-* `--reference-file` - reference FASTA genome used for creating
-  MD5 hashes of sequence information guided by reference range
-  positional data from the BED file used in the `--bed` parameter.
-* `--reference-name` - the name of the reference sample.
+* `--reference-file` - processed reference FASTA genome (from 
+  `prepare-assemblies` used for creating MD5 hashes of sequence 
+  information guided by reference range positional data from the 
+  BED file used in the `--bed` parameter.
+* `--reference-name` - the name of the reference sample. 
+  + > ℹ️ **Note**  
+    The name given here should be the same name given in the
+    keyfile during the [Prepare Assembly FASTA Files](#prepare-assembly-fasta-files)
+    step.
 * `--db-path` - path to PHG database directory for VCF storage.
 
 
@@ -915,13 +1030,14 @@ see a subfolder named `hvcf_files` with two files:
 
 Here, `<ref_name>` is the name of the reference genome provided
 using the `--reference-name` parameter. Since I defined this
-parameter as `B73` in the above example, my two files would be:
+parameter as `Ref` in the above example, my two files would be:
 
-* `B73.h.vcf.gz`
-* `B73.h.vcf.gz.csi`
+* `Ref.h.vcf.gz`
+* `Ref.h.vcf.gz.csi`
 
-There will also be a subfolder named "reference" with two files.  The bed file used to create
-the reference hvcf and the reference FASTA are stored here for future reference.
+There will also be a subdirectory named `reference` with two files. 
+The bed file used to create the reference hVCF and the reference 
+FASTA are stored here for future reference.
 
 | File             | Description                                |
 |------------------|--------------------------------------------|
@@ -930,7 +1046,7 @@ the reference hvcf and the reference FASTA are stored here for future reference.
 
 
 In addition to creating the files, the `create-ref-vcf` command will load the
-reference h.vcf file to the `hvcf_dataset` TileDB instance.
+reference hVCF file to the `hvcf_dataset` TileDB instance.
 
 #### `create-maf-vcf` inputs
 The `create-maf-vcf` command requires the following inputs:
@@ -948,6 +1064,10 @@ The `create-maf-vcf` command requires the following inputs:
   positional data from the BED file used in the `--bed` parameter.
   hashed sequence data will place in the `##ALT` tag's `RefRange`
   key.
+  + > ℹ️ **Note**  
+    This should be the processed reference assembly generated from
+    the [Prepare Assembly FASTA Files](#prepare-assembly-fasta-files)
+    step.
 * `--maf-dir` - Directory containing the MAF files generated using
   the `align-assemblies` command (_see the 
   [**"Align assemblies"**](#align-assemblies) section for further 
@@ -973,7 +1093,7 @@ of different file types for each sample:
 Here, `<sample_name>` would be the name of each sample that was
 aligned to the reference genome.
 
-#### `gvcf2hvcf` inputs
+#### `gvcf2hvcf` inputs (_optional_)
 The `gvcf2hvcf` command requires the following inputs:
 
 * `--db-path` - Path to the directory containing the TileDB
