@@ -85,7 +85,7 @@ data class BaseCounter(
  */
 class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.vcf files") {
 
-    private val myLogger = LogManager.getLogger(LoadVcf::class.java)
+    private val myLogger = LogManager.getLogger(CalcVcfMetrics::class.java)
 
     val vcfDir by option("--vcf-dir", help = "Full path to VCF file directory")
         .default("")

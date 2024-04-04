@@ -1,12 +1,13 @@
 package net.maizegenetics.phgv2.cli
 
-import htsjdk.variant.vcf.VCFHeader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.setupDebugLogging
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import kotlin.test.assertEquals
 
+@ExtendWith(TestExtension::class)
 class CalcVcfMetricsTest {
 
     @Test
