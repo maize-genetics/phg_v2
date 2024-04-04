@@ -125,7 +125,7 @@ class CalcVcfMetricsTest {
     }
 
     companion object {
-        val testingDir = System.getProperty("user.home") + "/temp/VCFMetricsTests/"
+        val testingDir = TestExtension.tempDir + "/VCFMetricsTests/"
         val gvcfDir = testingDir + "/gvcfs/"
         val gvcfFile = "sampleName.gvcf"
         val refGvcfFile = "Ref.g.vcf"
@@ -148,6 +148,7 @@ class CalcVcfMetricsTest {
         @JvmStatic
         @AfterAll
         fun teardown() {
+            File(testingDir).deleteRecursively()
         }
 
         /**

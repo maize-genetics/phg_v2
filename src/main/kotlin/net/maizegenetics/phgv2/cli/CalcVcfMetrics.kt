@@ -45,11 +45,14 @@ data class GVCFStats(
 
 }
 
+//hvcf stats that are specific to each reference range
 data class HVCFStatsByRange(
     val sampleID: String,
     val sampleLength: Int,
     val identicalToRef: Boolean
 )
+
+// hvcf stats that are on a chromosome- or genome-wide scale
 data class HVCFStats(
     val sample: String,
     val chrom: String,
@@ -57,6 +60,7 @@ data class HVCFStats(
     val hapsIdenticalToRef: Int
 )
 
+// info about reference ranges for comparison to haplotypes
 data class RefRangeInfo (
     val id: String,
     val chrom: String,
@@ -64,6 +68,7 @@ data class RefRangeInfo (
     val end: Int
         )
 
+// keeps a running count of bases that are missing, reference, snp, insertion, or deletion
 data class BaseCounter(
     val rangesMapped: TreeRangeSet<Int>, // ranges covered by some gvcf record, including missing
     val ins: MutableList<Int>, // sizes of insertions
@@ -76,7 +81,7 @@ data class BaseCounter(
 
 
 /**
- * A [CliktCommand] class for calculating metrics on g.vcf files to be used in quality control
+ * A [CliktCommand] class for calculating metrics on g.vcf and h.vcf files to be used in quality control
  */
 class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.vcf files") {
 
@@ -90,64 +95,63 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
             }
         }
 
-    val gvcfOutFile by option( "--gvcf-output", help = "Name for the GVCF output .tsv file. If blank, stats will not be calculated for g.vcf files.")
+    val outFile by option( "-o", "--output", help = "Path to the output .tsv file")
         .default("")
+        .validate {
+            require(it.isNotBlank()) {
+                "--output must not be blank"
+            }
+        }
 
     override fun run() {
-        calculateVcfMetrics(vcfDir, gvcfOutFile)
+        calculateVcfMetrics(vcfDir, outFile)
     }
 
-
-    fun calculateVcfMetrics(vcfDir: String, gvcfOutFile: String = "") {
+    /**
+     * Main function for this class.
+     */
+    fun calculateVcfMetrics(vcfDir: String, gvcfOutFile: String) {
         // get vcf files from directory
         val fileList = File(vcfDir).listFiles()
-        val gvcfFileList = fileList.filter{it.isFile && (it.name.endsWith("g.vcf.gz") || it.name.endsWith(".gvcf.gz"))}
-        val hvcfFileList = fileList.filter{it.isFile && (it.name.endsWith("h.vcf.gz") || it.name.endsWith(".hvcf.gz"))}
+        val gvcfFileList = fileList.filter{it.isFile && (it.name.endsWith("g.vcf.gz") || it.name.endsWith(".gvcf.gz") || it.name.endsWith(".gvcf") || it.name.endsWith(".g.vcf"))}
+        val hvcfFileList = fileList.filter{it.isFile && (it.name.endsWith("h.vcf.gz") || it.name.endsWith(".hvcf.gz") || it.name.endsWith(".hvcf") || it.name.endsWith(".h.vcf"))}
 
         // map file name to gvcf stats
-        val gvcfStats = if(gvcfOutFile != "") {
-            if(gvcfFileList.isEmpty()) {
-                myLogger.warn("No files ending in g.vcf.gz found in $vcfDir.  " +
-                        "Note that both the bgzipped and indexed files must exist in the specified folder. \n" +
-                        "Please check the folder and try again.")
-                throw IllegalArgumentException("CalcVcfMetrics: No files ending in g.vcf.gz found in $vcfDir.  " +
-                        "Note that both the bgzipped and indexed files must exist in the specified folder. \n" +
+        val gvcfStats = if(gvcfFileList.isEmpty()) {
+                throw IllegalArgumentException("CalcVcfMetrics: No GVCF files found in $vcfDir.  " +
+                        "Note that files must end in .g.vcf, .g.vcf.gz, .gvcf, or .gvcf.gz. \n" +
                         "Please check the folder and try again.")
             } else {
-                gvcfFileList.associate{Pair(it.name.removeSuffix(".gvcf.gz").removeSuffix(".g.vcf.gz"), getGVCFStats(it))}
+                gvcfFileList.associate{Pair(it.name.removeSuffix(".gz").removeSuffix(".gvcf").removeSuffix(".g.vcf"), getGVCFStats(it))}
             }
-        } else { null }
 
-        // map file name to hvcf stats, both types
+        // map file name to hvcf stats
+        // if no hvcf files are present, a warning will be printed and only GVCF metrics will be calculated
         val hvcfStatsByChrom =  if(hvcfFileList.isEmpty()) {
-            myLogger.warn("No files ending in h.vcf.gz found in $vcfDir.  " +
-                        "Note that both the bgzipped and indexed files must exist in the specified folder. \n" +
-                        "Please check the folder and try again.")
+            myLogger.warn("No HVCF files found in $vcfDir.  " +
+                        "Note that files must end in .h.vcf, .h.vcf.gz, .hvcf, or .hvcf.gz. \n" +
+                        "HVCF stats will not be calculated.")
             mutableMapOf()
         } else {
-
             hvcfFileList.associate{
-                val fileName = it.name.removeSuffix(".hvcf.gz").removeSuffix(".h.vcf.gz")
-
+                val fileName = it.name.removeSuffix(".gz").removeSuffix(".hvcf").removeSuffix(".h.vcf")
                 val statsByRange = getHVCFStatsByRange(it)
                 Pair(fileName, getHVCFStats(statsByRange.first, statsByRange.second))
 
             }
         }
 
-
-        if(gvcfStats != null) {
-            writeGVCFFile(gvcfOutFile, gvcfStats, hvcfStatsByChrom)
-        }
-
+        writeGVCFFile(gvcfOutFile, gvcfStats, hvcfStatsByChrom)
 
     }
 
     /**
-     * Takes a list of
+     * Given lists of statistics, write them to the output tsv file
+     * hvcfStatsMap may be empty.
      */
     fun writeGVCFFile(outFileName: String, gvcfStatsMap: Map<String, List<GVCFStats>?>, hvcfStatsMap: Map<String, List<HVCFStats>>) {
 
+        // if hvcfStatsMap is empty, we omit the corresponding columns from the tsv
         val includeHVCFStats = hvcfStatsMap.size > 0
 
         File(outFileName).bufferedWriter().use {writer ->
@@ -164,6 +168,8 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
 
             samples.forEach {sample ->
 
+                // assume that if there is a gvcf there is a corresponding hvcf
+                // but if there isn't for some reason, the hvcf columns will be left blank for this sample
                 val gvcfStats = gvcfStatsMap[sample]!!
                 val hvcfStats = hvcfStatsMap[sample]
 
@@ -182,18 +188,15 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
     }
 
 
+    /**
+     * Takes a single-sample gvcf file as input.
+     * Returns a list of GVCFStats objects: one per reference contig/chromosome and one for the assembly as a whole.
+     */
     fun getGVCFStats(vcfFile: File): List<GVCFStats>? {
 
         VCFFileReader(vcfFile, false).use { reader ->
                 val header = reader.fileHeader
                 val records = reader.toList()
-
-            return getGVCFStats(header, records)
-        }
-    }
-
-    fun getGVCFStats(header: VCFHeader, records: List<VariantContext>): List<GVCFStats>? {
-
             // gvcf files should be single-sample
             if(header.genotypeSamples.size != 1) {
                 myLogger.warn("${header.genotypeSamples.size} samples detected. GVCF must be single sample.")
@@ -293,9 +296,7 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
 
                     // finally, for SNPs and indels add the number of Ns in the sample allele to the count
                     baseCounterMap[refChrom]!!.ns += allele.baseString.count{it == 'N'}
-
                 }
-
             }
 
             // build GVCFStats objects
@@ -352,9 +353,12 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
             ))
 
             return stats
-
+        }
     }
 
+    /**
+     * Collects reference range-wise statistics into chromosome- and assembly-wide summaries
+     */
     fun getHVCFStats(sample: String, rangeMap: Map<RefRangeInfo, HVCFStatsByRange>): List<HVCFStats> {
         val chromSet = rangeMap.keys.map { it.chrom }.toSet()
 
@@ -381,67 +385,67 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
 
     }
 
+    /**
+     * Collects information about a single-sample HVCF file on a range-by-range scale
+     */
     fun getHVCFStatsByRange(vcfFile: File): Pair<String, Map<RefRangeInfo, HVCFStatsByRange>> {
 
+        // read file
         VCFFileReader(vcfFile, false).use { reader ->
+            // get header and records
             val header = reader.fileHeader
             val records = reader.toList()
 
-            return getHVCFStatsByRange(header, records)
-        }
-    }
+            val sample = header.genotypeSamples[0]
 
-    fun getHVCFStatsByRange(header: VCFHeader, records: List<VariantContext>): Pair<String, Map<RefRangeInfo, HVCFStatsByRange>> {
+            val altHeaderLines = header.idHeaderLines.associate{ line ->
+                try { Pair(line.id , line as VCFAltHeaderLine)
+                } catch(exe: Exception) { Pair(line.id, null) }
+            }.filterNot{ it.value == null }
 
-        val sample = header.genotypeSamples[0]
+            // set up a stats block for each reference range
+            val refRangeMap = mutableMapOf<RefRangeInfo, HVCFStatsByRange>()
+            val iterator = records.iterator()
 
-        val altHeaderLines = header.idHeaderLines.associate{ line ->
-            try { Pair(line.id , line as VCFAltHeaderLine)
-            } catch(exe: Exception) { Pair(line.id, null) }
-        }.filterNot{ it.value == null }
+            // for each record, we associate with the corresponding reference range
+            // and identify if this haplotype is identical to reference
+            while(iterator.hasNext()) {
+                val record = iterator.next()
 
-        val refRangeMap = mutableMapOf<RefRangeInfo, HVCFStatsByRange>()
-        val iterator = records.iterator()
+                val haplotypeID = record.genotypes[0].getAllele(0).displayString.removeSurrounding("<", ">")
 
-        while(iterator.hasNext()) {
-            val record = iterator.next()
+                if(!altHeaderLines.containsKey(haplotypeID)) {
+                    myLogger.warn("Haplotype $haplotypeID is not present in header.")
+                    continue
+                }
 
-            val haplotypeID = record.genotypes[0].getAllele(0).displayString.removeSurrounding("<", ">")
+                val headerLineFields = altHeaderLines[haplotypeID]!!.genericFields
 
-            if(!altHeaderLines.containsKey(haplotypeID)) {
-                myLogger.warn("Haplotype $haplotypeID is not present in header.")
-                continue
+                if(!headerLineFields.containsKey("Regions") || !headerLineFields.containsKey("RefRange")) {
+                    myLogger.warn("Header $haplotypeID is missing information.")
+                    continue
+                }
+
+                val ref = RefRangeInfo(headerLineFields["RefRange"]!!, record.contig, record.start, record.end)
+
+                // from the regions, we can get the total length of the haplotype
+                val sampleLength = headerLineFields["Regions"]!!.split(",").map{regionString ->
+                    val bounds = regionString.split(":")[1].split("-").map{it.toInt()}
+                    bounds[1] - bounds[0] + 1
+                }.sum()
+
+                val stats = HVCFStatsByRange(
+                    haplotypeID,
+                    sampleLength,
+                    haplotypeID == ref.id
+                )
+
+                refRangeMap[ref] = stats
             }
 
-            val headerLineFields = altHeaderLines[haplotypeID]!!.genericFields
-
-            if(!headerLineFields.containsKey("Regions") || !headerLineFields.containsKey("RefRange")) {
-                myLogger.warn("Header $haplotypeID is missing information.")
-                continue
-            }
-
-            val ref = RefRangeInfo(headerLineFields["RefRange"]!!, record.contig, record.start, record.end)
-
-            // from the regions, we can get the total length of the haplotype
-            val sampleLength = headerLineFields["Regions"]!!.split(",").map{regionString ->
-                val bounds = regionString.split(":")[1].split("-").map{it.toInt()}
-                bounds[1] - bounds[0] + 1
-            }.sum()
-
-            val stats = HVCFStatsByRange(
-                haplotypeID,
-                sampleLength,
-                haplotypeID == ref.id
-            )
-
-            refRangeMap[ref] = stats
-
+            return Pair(sample, refRangeMap)
         }
-
-        return Pair(sample, refRangeMap)
-
     }
-
 
     /**
      * Standardizes the format of the ranges: closed on lower edge, open on top
