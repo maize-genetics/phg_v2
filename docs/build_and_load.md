@@ -69,7 +69,7 @@ In this document, we will discuss the steps needed to:
         --reference-file /my/ref.fasta \
         --gvcf-dir /my/gvcf/files 
   
-    # Hvcf from PHG created Gvcf
+    # Hvcf from PHG created gVCF
     phg gvcf2hvcf \
         --db-path /path/to/dbs \
         --bed /path/to/bed_file.bed \
@@ -705,9 +705,12 @@ that each assembly will have a collection of different file types:
 | `.maf`         | [multiple alignment format](https://genome.ucsc.edu/FAQ/FAQformat.html#format5) (MAF) file |
 | `.anchorspro`  | alignment blocks between reference and assembly genomes (used for dot plot generation)     |
 
-The MAF files from this output will be used in the VCF creation step. Now
-that alignment is completed our example working directory looks as
-follows (**NOTE**: I will collapse `alignment_files` for future steps):
+The MAF files from this output will be used in the VCF creation step. 
+Additionally, [dot plots](https://en.wikipedia.org/wiki/Dot_plot_(bioinformatics)) 
+will be generated for each sample/reference alignment as `.svg` 
+files. Now that alignment is completed, our example working directory 
+looks as follows (**NOTE**: I will collapse `alignment_files` for 
+future steps):
 
 ```
 phg_v2_example/
@@ -722,9 +725,11 @@ phg_v2_example/
 │   │   ├── anchorwave_gff2seq_output.log
 │   │   ├── LineA.maf
 │   │   ├── LineA.sam
+│   │   ├── LineA.svg
 │   │   ├── LineA_Ref.anchorspro
 │   │   ├── LineB.maf
 │   │   ├── LineB.sam
+│   │   ├── LineB.svg
 │   │   ├── LineB_Ref.anchorspro
 │   │   ├── minimap2_LineA_error.log
 │   │   ├── minimap2_LineA_output.log
@@ -746,6 +751,8 @@ phg_v2_example/
     ├── hvcf_dataset # hVCF db storage
     └── temp
 ```
+
+Additonally, 
 
 
 
@@ -777,7 +784,7 @@ or review the following code blocks:
       -N 20 \
       <'--reference-file' parameter OR sample in '--assemblies' parameter> \
       ref.cds.fasta \      # from prior 'gff2seq' step
-      -o <sample_name>.sam # drected to '-o' path
+      -o <sample_name>.sam # directed to '-o' path
   ```
 * Run AnchorWave's `proali` command:
   ```shell
@@ -953,13 +960,13 @@ commands:
 
 1. Create hVCF data from reference genome:
 
-```shell
-phg create-ref-vcf \
-    --bed output/ref_ranges.bed \
-    --reference-file output/updated_assemblies/Ref.fa \
-    --reference-name Ref \
-    --db-path vcf_dbs
-```
+  ```shell
+  phg create-ref-vcf \
+      --bed output/ref_ranges.bed \
+      --reference-file output/updated_assemblies/Ref.fa \
+      --reference-name Ref \
+      --db-path vcf_dbs
+  ```
 
 2. Create hVCF and gVCF data from assembly alignments against reference
    genome:
@@ -992,7 +999,7 @@ phg gvcf2hvcf \
 VCF creation is split up into two separate commands since the
 reference genome and aligned assemblies require different sets of
 input data. An additional optional command is available to convert
-existing PHG created gVCF files to hVCF files. :
+existing PHG created gVCF files to hVCF files:
 
 #### `create-ref-vcf` inputs
 The `create-ref-vcf` command requires the following inputs:
@@ -1002,7 +1009,7 @@ The `create-ref-vcf` command requires the following inputs:
   details_). This is used to define the positional information of the 
   VCF.
 * `--reference-file` - processed reference FASTA genome (from 
-  `prepare-assemblies` used for creating MD5 hashes of sequence 
+  `prepare-assemblies`) used for creating MD5 hashes of sequence 
   information guided by reference range positional data from the 
   BED file used in the `--bed` parameter.
 * `--reference-name` - the name of the reference sample. 
