@@ -608,9 +608,11 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         }
 
         val dfAnchorWave = DataFrame.readDelim(cleanContent.reader())
-        // Plot the data, write to png file
+        // Plot the data, write to svg file. We default to svg as png files
+        // did not always render correctly, particularly when the assembly
+        // was not at a chromosomal level.
         val plot = plotDot(dfAnchorWave)
-        val plotFile = "${outputDir}/${justNameAsm}_dotplot.png"
+        val plotFile = "${outputDir}/${justNameAsm}_dotplot.svg"
         val pathSVG = ggsave(plot, plotFile)
         myLogger.info("Dot plot for ${justNameAsm} saved to: $pathSVG")
 

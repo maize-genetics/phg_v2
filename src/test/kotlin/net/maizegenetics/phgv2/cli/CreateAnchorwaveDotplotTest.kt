@@ -13,9 +13,11 @@ class CreateAnchorwaveDotplotTest {
         // Here we just test that the class can be called and that it runs without error
         // when invoked from CreateAnchorwaveDotplot
 
-        // TODO _ lcj, finishe this!
-
-
+        val createAWdp = CreateAnchorwaveDotplot()
+        val inputFile = "data/test/smallseq/dummy_anchors_small.anchorspro"
+        val outputFile = "${TestExtension.tempDir}/dummy_anchors_small.svg"
+        val result = createAWdp.test("--input-file ${inputFile} --output-file ${outputFile}")
+        assertEquals(result.statusCode, 0)
     }
 
     @Test

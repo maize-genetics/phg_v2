@@ -11,9 +11,13 @@ import org.jetbrains.letsPlot.export.ggsave
 import java.io.File
 
 /**
- * This class provides a means of testing just the dotplot creation functionality of the AlignAssemblies class.
- * Or of running it independently of the AlignAssemblies class when users have an anchorspro file created from
- * anchowave outside of PHGv2
+ * This class provides a means of testing  the dotplot creation functionality of the AlignAssemblies class.
+ * It provides for creating the dotplot independently of the AlignAssemblies class.  This is useful
+ * when users have an anchorspro file created from anchorwave outside of phgv2 pipeline.
+ *
+ * It is recommended the output file ends with .svg.  While .png will work, for some assemblies
+ * png does not render well.  This has been the case when the assembly is not at a chromosomal level.
+ * SVG files have been more reliable in these cases.
  */
 class CreateAnchorwaveDotplot: CliktCommand(help = "create a dot plot stored in PNG file from anchowave anchorspro file") {
 
@@ -25,7 +29,7 @@ class CreateAnchorwaveDotplot: CliktCommand(help = "create a dot plot stored in 
                 "--input-file must not be blank"
             }
         }
-    val outputFile by option(help = "Full path to the PNG file where the dotplot data will be stored - must end with .png .")
+    val outputFile by option(help = "Full path to the SVG file where the dotplot data will be stored - should end with .svg")
         .default("")
         .validate {
             require(it.isNotBlank()) {
