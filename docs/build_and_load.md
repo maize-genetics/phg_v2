@@ -752,8 +752,6 @@ phg_v2_example/
     └── temp
 ```
 
-Additonally, 
-
 
 
 #### Internal AnchorWave and minimap2 commands
@@ -960,13 +958,13 @@ commands:
 
 1. Create hVCF data from reference genome:
 
-  ```shell
-  phg create-ref-vcf \
-      --bed output/ref_ranges.bed \
-      --reference-file output/updated_assemblies/Ref.fa \
-      --reference-name Ref \
-      --db-path vcf_dbs
-  ```
+```shell
+phg create-ref-vcf \
+    --bed output/ref_ranges.bed \
+    --reference-file output/updated_assemblies/Ref.fa \
+    --reference-name Ref \
+    --db-path vcf_dbs
+```
 
 2. Create hVCF and gVCF data from assembly alignments against reference
    genome:
