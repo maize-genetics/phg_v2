@@ -7,6 +7,9 @@ import net.maizegenetics.phgv2.cli.AgcCompress
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
@@ -14,12 +17,43 @@ import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
 import java.util.*
-import kotlin.test.Ignore
 import kotlin.test.assertEquals
-import kotlin.test.fail
 
 @ExtendWith(TestExtension::class)
 class BuildKmerIndexTest {
+    companion object {
+        //Setup/download  files
+        //Resetting on both setup and teardown just to be safe.
+        @JvmStatic
+        @BeforeAll
+        fun setup() {
+            resetDirs()
+        }
+
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+            resetDirs()
+        }
+
+        fun resetDirs() {
+            val tempTestDir = "${TestExtension.tempDir}kmerTest/"
+            val tempHvcfDir = "${tempTestDir}hvcfDir/"
+            val tempDBPathDir = "${TestExtension.testOutputFastaDir}dbPath/"
+
+            File(TestExtension.tempDir).deleteRecursively()
+            File(TestExtension.testOutputFastaDir).deleteRecursively()
+            File(TestExtension.testOutputDir).deleteRecursively()
+
+            File(TestExtension.tempDir).mkdirs()
+            File(TestExtension.testOutputFastaDir).mkdirs()
+            File(TestExtension.testOutputDir).mkdirs()
+            File(tempTestDir).mkdirs()
+            File(tempDBPathDir).mkdirs()
+            File(tempHvcfDir).mkdirs()
+
+        }
+    }
 
     @Test
     fun testKmerUpdating() {
@@ -38,10 +72,10 @@ class BuildKmerIndexTest {
         // G  C  A  A  T  G  G  C  A  G  T  C  A  G  T  G  T  T  G  G  C  C  A  A  T  G  T  G  C  A  C  A
         // 01 10 11 11 00 01 01 10 11 01 00 10 11 01 00 01 00 00 01 01 10 10 11 11 00 01 00 01 10 11 10 11
 
-        val expected: Long = 0b0001000110111011000001011010111110111000011110000110101100000110.toLong()
+        val expected = 0b0001000110111011000001011010111110111000011110000110101100000110.toLong()
         assertEquals(expected, hashValues.first, "Discrepancy in Kmer hash")
 
-        val expectedRC: Long = 0b0110111100010110110100101101000100000101101011110001000110111011.toLong()
+        val expectedRC = 0b0110111100010110110100101101000100000101101011110001000110111011.toLong()
         assertEquals(expectedRC, hashValues.second, "Discrepancy in reverse compliment Kmer hash")
 
         //test trying to convert an invalid character
@@ -110,17 +144,50 @@ class BuildKmerIndexTest {
         assert(File("${tempHvcfDir}/kmerIndex.txt").exists())
     }
 
+    @Test
+    fun testSourceFromOtherChr() {
+
+        //populate the AGC database
+        setupAgc()
+
+        //set up temporary file names
+        val tempTestDir = "${TestExtension.tempDir}kmerTest/"
+        val tempHvcfDir = "${tempTestDir}hvcfDir/"
+        val tempDBPathDir = "${TestExtension.testOutputFastaDir}dbPath/"
+
+        //copy hvcf files to temp directory,
+        // include the ref hvcf to test what happens when samples have no haplotype in some ref range
+        File("${tempHvcfDir}LineB.h.vcf").delete()
+        listOf(TestExtension.smallseqLineAHvcfFile, "${TestExtension.smallSeqInputDir}LineB_kmer_index_test.h.vcf", TestExtension.smallseqRefHvcfFile)
+            .forEach { hvcfFile ->
+                val dst = File("$tempHvcfDir${File(hvcfFile).name}")
+                if (!dst.exists()) {
+                    File(hvcfFile).copyTo(dst)
+                }
+            }
+
+        //create a HaplotypeGraph from the hvcf files
+        val buildIndexResult = BuildKmerIndex().test("--db-path $tempDBPathDir --hvcf-dir $tempHvcfDir " +
+                "--max-arg-length 150 --index-file ${tempHvcfDir}kmerIndexOther.txt")
+
+        //Was the index created?
+        assertEquals(0, buildIndexResult.statusCode)
+        assert(File("${tempHvcfDir}/kmerIndexOther.txt").exists())
+
+        //delete this alternate B to make sure it does not interfere with other tests
+        File("${tempHvcfDir}LineB_kmer_index_test.h.vcf").delete()
+    }
+
     //Ignore for now as we are requiring both db-path and hvcf-dir currently.
-    @Ignore
+    @Disabled
     @Test
     fun testTiledb() {
         //Setting the tiledb path but not the hvcf should generate a not implemented error
-        val tempTestDir = "${TestExtension.tempDir}kmerTest/"
         val tempAGCDir = "${TestExtension.testOutputFastaDir}/dbPath"
 
         //try to build a graph from a (non-existent) tiledb database
         val exception = assertThrows<NotImplementedError> {
-            BuildKmerIndex().test("--db-path $tempAGCDir --tiledb-path ${TestExtension.testTileDBURI}")
+            BuildKmerIndex().test("--db-path $tempAGCDir --db-path ${TestExtension.testTileDBURI}")
         }
         assertEquals("An operation is not implemented: TileDB VCF Reader Not implemented yet.  Please run with --hvcf-dir", exception.message)
 

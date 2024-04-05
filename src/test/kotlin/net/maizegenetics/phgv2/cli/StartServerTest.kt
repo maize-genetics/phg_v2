@@ -10,7 +10,7 @@ import org.junit.jupiter.api.BeforeEach
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
-import kotlin.test.Test
+import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 

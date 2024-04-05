@@ -3,11 +3,18 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.utils.getChecksum
 import net.maizegenetics.phgv2.utils.testMergingMAF
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.print
+import org.jetbrains.kotlinx.dataframe.io.readDelim
+import org.jetbrains.kotlinx.dataframe.io.writeCSV
+import org.jetbrains.letsPlot.export.ggsave
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
+
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+
 
 @ExtendWith(TestExtension::class)
 class AlignAssembliesTest {
@@ -159,6 +166,8 @@ class AlignAssembliesTest {
         val lineBMAF = TestExtension.tempDir + "LineB.maf"
         assertTrue(File(lineBMAF).exists(), "File $lineBMAF does not exist")
 
+
+
     }
 
     @Test
@@ -212,6 +221,12 @@ class AlignAssembliesTest {
 
         assertEquals(checksum1, checksum2, "LineB.maf checksums do not match")
 
+        // Test the dot plot files exist.  It is difficult to verify the pictures
+        // look good from a junit test.  That has been done manually.
+        val plotFileLineB = "${TestExtension.tempDir}/LineB_dotplot.svg"
+        assertTrue(File(plotFileLineB).exists(), "File $plotFileLineB does not exist")
+        val plotFileLineA = "${TestExtension.tempDir}/LineA_dotplot.svg"
+        assertTrue(File(plotFileLineA).exists(), "File $plotFileLineA does not exist")
     }
 
     @Test
@@ -289,6 +304,38 @@ class AlignAssembliesTest {
         val lineBMAF = TestExtension.tempDir + "LineB.maf"
         assertTrue(File(lineBMAF).exists(), "File $lineBMAF does not exist")
 
+    }
+
+    @Test
+    fun testAnchorsproDotPlot() {
+
+        val origFile = File("data/test/smallseq/dummy_anchors_small.anchorspro")
+        // Filter out lines that start with '#', change tabs to comma, and join the rest with newline characters
+        // we change tabs to commas as the Kotlin DataFrame reader appears to be expecting CSV format,
+        // tabs were not working as a delimiter.
+        val cleanContent = origFile.useLines { lines ->
+            lines.filterNot { it.startsWith("#") }
+                .map { it.replace("\t", ",") }
+                .joinToString("\n")
+        }
+
+        val dfAnchorWave = DataFrame.readDelim(cleanContent.reader())
+        dfAnchorWave.print()
+        val outputFile = "${TestExtension.tempDir}/testFile_kotlinDF_OutCSV.txt"
+        dfAnchorWave.writeCSV(outputFile)
+        assertEquals(true, File(outputFile).exists())
+
+        println("DataFrame written to $outputFile")
+        println("plot it with plotDot!")
+
+        // Three, two, one, plot!
+        val plot = AlignAssemblies().plotDot(dfAnchorWave)
+
+        println("plot was created, save to a file")
+        val pathSVG = ggsave(plot, "${TestExtension.tempDir}/dotPlotFromAlignAssemblies.svg")
+        // hard to verify the plot looks good - that must be done manually.  This verifies the file
+        // was successfully written.
+        assertEquals(true, File(pathSVG).exists())
     }
 
 }

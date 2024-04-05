@@ -3,10 +3,11 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.versionOption
-import net.maizegenetics.phgv2.agc.AnnotateFastas
+import net.maizegenetics.phgv2.agc.PrepareAssemblies
 import net.maizegenetics.phgv2.pathing.BuildKmerIndex
 import net.maizegenetics.phgv2.pathing.FindPaths
 import net.maizegenetics.phgv2.pathing.MapKmers
+import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.setupDebugLogging
 
 class Phg : CliktCommand() {
@@ -19,7 +20,18 @@ class Phg : CliktCommand() {
         var minorVersion = 0
         var patchVersion = 0
         var buildNumber = 0
-        Phg::class.java.getResourceAsStream("/version.properties").bufferedReader().readLines().forEach {
+
+        // Try to get the version.properties file from the jar file
+        // If that fails, try to get it from the current working directory
+        val reader = try {
+            Phg::class.java.getResourceAsStream("/version.properties").bufferedReader()
+        } catch (e: Exception) {
+            val path = System.getProperty("user.dir")
+            println("Getting version from: ${path}/version.properties")
+            getBufferedReader("${path}/version.properties")
+        }
+
+        reader.readLines().forEach {
             val (key, value) = it.split("=")
             when (key) {
                 "majorVersion" -> majorVersion = value.toInt()
@@ -37,9 +49,10 @@ class Phg : CliktCommand() {
 }
 
 fun main(args: Array<String>) = Phg()
-    .subcommands(SetupEnvironment(), Initdb(),  CreateRanges(), AnnotateFastas(), AgcCompress(), AlignAssemblies(),
-        CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), LoadVcf(), ExportVcf(),
-        BuildKmerIndex(), MapKmers(), FindPaths(), //Imputation
-        CreateFastaFromHvcf(), StartServer //Utilities
+    .subcommands(
+        SetupEnvironment(), Initdb(), CreateRanges(), PrepareAssemblies(), AgcCompress(), AlignAssemblies(),
+        CreateAnchorwaveDotplot(), CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), LoadVcf(), ExportVcf(),
+        BuildKmerIndex(), MapKmers(), FindPaths(), // Imputation
+        CreateFastaFromHvcf(), MergeHvcfs(), StartServer // Utilities
     )
     .main(args)

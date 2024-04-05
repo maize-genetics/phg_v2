@@ -12,6 +12,7 @@ import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.utils.*
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.BufferedWriter
 import java.io.File
@@ -294,6 +295,50 @@ class CreateFastaFromHvcfTest {
         }
     }
 
+    @Test
+    fun testHaplotypeSequenceMissingHaps() {
+        // This file has a samplename of "LineImputeMissingHaps".
+        // All of the haplotypes for chrom1 are from LineA, all of the haplotypes for chrom2 are from LineB
+        // In addition, there are 2 missing chrom1 haplotypes in the file
+        // This is a copy of the LineImpute.h.vcf file with the 2nd and 3rd haplotypes marked as missing
+        val refHVCFFile = File("data/test/smallseq/LineImputeMissingHaps.h.vcf")
+        val vcfReader = VCFFileReader(refHVCFFile, false)
+        val createFastaFromHvcf = CreateFastaFromHvcf()
+        val altHeaders= parseALTHeader(vcfReader.header)
+
+        val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
+
+        val hapSequence = createFastaFromHvcf.createHaplotypeSequences(dbPath, "LineImputeMissingHaps", vcfReader.iterator().asSequence().toList(), altHeaders)
+
+        // There are 37 haplotypes in the file, but 2 are missing, so we should only get 35 haplotypes
+        assertEquals(35, hapSequence.size)
+        val truthHashes = altHeaders.values.map { it.id }.toSet()
+
+        //This verifies that we do indeed extract out the correct sequences
+        hapSequence.forEach{
+            assertTrue(truthHashes.contains(it.id))
+        }
+    }
+
+    @Test
+    fun testMissingAltHeaders() {
+        // This file has a samplename of "LineImputeMissingAH".
+        // All of the haplotypes for chrom1 are from LineA, all of the haplotypes for chrom2 are from LineB
+        // This is a copy of the LineImpute.h.vcf file with the 4th haplotype having a bad hapid, and
+        // not represented in the ALT Headers
+        val refHVCFFile = File("data/test/smallseq/LineImputeMissingAH.h.vcf")
+        val vcfReader = VCFFileReader(refHVCFFile, false)
+        val createFastaFromHvcf = CreateFastaFromHvcf()
+        val altHeaders= parseALTHeader(vcfReader.header)
+
+        val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
+
+        assertThrows<IllegalStateException> {
+            //Check that an error is thrown when the variants contain a hapId that is not in the ALT Headers
+            createFastaFromHvcf.createHaplotypeSequences(dbPath, "LineImputeMissingAH", vcfReader.iterator().asSequence().toList(), altHeaders)
+
+        }
+    }
     @Test
     fun testBuildFastaFromHVCF() {
         //buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfFile : String)

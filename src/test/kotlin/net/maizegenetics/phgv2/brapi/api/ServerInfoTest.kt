@@ -8,7 +8,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
 
-import kotlin.test.*
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertEquals
 
 /**

@@ -5,7 +5,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.junit.jupiter.api.Assertions
-import kotlin.test.Test
+import org.junit.jupiter.api.Test
 
 /**
  * This class is the initial test for the Brapi server.

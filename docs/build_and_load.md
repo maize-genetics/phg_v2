@@ -32,9 +32,9 @@ In this document, we will discuss the steps needed to:
 
 * Update FASTA headers with sample information:
     ```shell
-    phg annotate-fastas \
+    phg prepare-assemblies \
         --keyfile /path/to/keyfile \
-        --output-dir /path/to/annotated/fastas \
+        --output-dir /path/to/updated/fastas \
         --threads 10
     ```
 
@@ -69,13 +69,12 @@ In this document, we will discuss the steps needed to:
         --reference-file /my/ref.fasta \
         --gvcf-dir /my/gvcf/files 
   
-    # Hvcf from PHG created Gvcf
+    # Hvcf from PHG created gVCF
     phg gvcf2hvcf \
         --db-path /path/to/dbs \
         --bed /path/to/bed_file.bed \
         --reference-file /my/ref.fasta \
-        --gvcf-dir /my/gvcf/files \
-        -o /path/to/hvcf
+        --gvcf-dir /my/gvcf/files 
     ```
 * Load data into DBs
     ```shell
@@ -92,7 +91,7 @@ For the following steps, I will first make an example directory to
 house our toy input data. The overall structure of the directory
 looks like the following
 
-```shell
+```
 phg_v2_example/
 ├── data
 └── output
@@ -100,10 +99,33 @@ phg_v2_example/
 
 For the following steps, I will be using example small sequence
 data from [PHGv2 GitHub repository](https://github.com/maize-genetics/phg_v2/tree/main/data/test/smallseq).
-This is a collection of small raw sequence and alignment files that
+This is a collection of small raw sequence files that
 we use for pipeline testing. These will be placed in the `data`
 subdirectory while files created by this pipeline will be placed in
-the `output` subdirectory.
+the `output` subdirectory. Here, I have downloaded a FASTA files:
+
+* `Ref.fa`
+* `LineA.fa`
+* `LineB.fa`
+
+...and have renamed and placed them (which is needed to highlight the 
+functionality of the [Prepare Assembly FASTA Files](#prepare-assembly-fasta-files)
+section later) in the `data` directory. 
+
+Additionally, I have also downloaded a GFF file called `anchors.gff` 
+which will be used for the [Create Reference Ranges](#create-reference-ranges)
+and [Align Assemblies](#align-assemblies) steps. Overall, my example
+working directory now looks like the following:
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+└── output
+```
 
 This documentation will also assume that the PHGv2 application is 
 placed in your system's `PATH` variable (_see installation 
@@ -235,22 +257,26 @@ information for each assembly. More information can be found in the
 After initialization is complete, we will have two empty TileDB-VCF
 instances and a `temp` directory in our `vcf_dbs` subdirectory:
 
-| Directory      | Purpose                                 |
-|----------------|-----------------------------------------|
-| `gvcf_dataset` | Genomic variant database storage        |
-| `hvcf_dataset` | Haplotype variant database storage      |
-| `temp`         | Creation output and error logging files |
+| Directory      | Purpose                                   |
+|----------------|-------------------------------------------|
+| `gvcf_dataset` | Genomic variant (gVCF) database storage   |
+| `hvcf_dataset` | Haplotype variant (hVCF) database storage |
+| `temp`         | Creation output and error logging files   |
 
 
 For reference, my example working directory now looks like this:
 
-```shell
+```
 phg_v2_example/
 ├── data
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
 ├── output
 └── vcf_dbs
-    ├── gvcf_dataset # gVCF db storage
-    ├── hvcf_dataset # hVCF db storage
+    ├── gvcf_dataset
+    ├── hvcf_dataset
     └── temp
 ```
 
@@ -272,7 +298,7 @@ data using the `create-ranges` command:
 ```shell
 ./phg create-ranges \
     --gff data/anchors.gff \
-    --reference-file data/Ref.fa \
+    --reference-file data/Ref-v5.fa \
     --boundary gene \
     --pad 500 \
     --range-min-size 500 \
@@ -345,7 +371,7 @@ file contains 6 columns of information:
 | `1`    | Sequence name       |
 | `2`    | Start position (bp) |
 | `3`    | End position (bp)   |
-| `4`    | Range id            |
+| `4`    | Range ID            |
 | `5`    | Score (always `0`)  |
 | `6`    | Strand information  |
 
@@ -355,16 +381,33 @@ file contains 6 columns of information:
 > separated string of all the genes/CDS features included in this BED 
 > region.
 
+Now that we have a BED file, our example working directory now
+looks like the following:
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   └── ref_ranges.bed
+└── vcf_dbs
+    ├── gvcf_dataset
+    ├── hvcf_dataset
+    └── temp
+```
 
 
-### Annotate FASTA files
-The `annotate-fastas` command has two goals:
+### Prepare Assembly FASTA files
+The `prepare-assemblies` command has two goals:
 
 1. Copy the FASTAs to a new file whose name is changed to be 
    `<sample name>.fa`.
 2. Add a sample name tag (e.g., `sampleName=`) to the id lines of the 
    FASTA file. **These 
-   annotated FASTA files should be used as input to both the 
+   updated assembly FASTA files should be used as input to both the 
    `agc-compress` step and the `align-assemblies` step.** This ensures 
    consistent sample names across the pipeline.
 
@@ -374,8 +417,11 @@ This action is based on a keyfile (_which we will discuss later in the
 parameters section_) provided by the user. The keyfile would list 
 "CML52" as the sample name for this FASTA shown below:
 
-```shell
-Zm-CML52-NAM-1.0.fa CML52
+```
+## A keyfile example (disregard '#' comments for your actual keyfile):
+
+# file name           # new name
+Zm-CML52-NAM-1.0.fa   CML52
 ```
 
 The reason for this change is the AGC compression tool stores the 
@@ -388,7 +434,9 @@ For the second goal: As of the current date of this document, the
 return methods of AGC will not keep track of sample IDs when returning
 sequence information from the compressed file **unless you explicitly
 state the sample information in the header lines of the FASTA files
-you wish to compress for the PHGv2 databases**. To explain this
+you wish to compress for the PHGv2 databases**. 
+
+To explain this
 further, let's imagine that we have two FASTA files: `LineA.fa` and
 `LineB.fa`. These files contain information for only chromosome 1 and
 have a simple header that denotes this sequence name (e.g. `chr1`):
@@ -454,13 +502,13 @@ While we can manually modify the header lines of our FASTA
 file, this can become tedious and prone to a new set of downstream
 errors. To automate this, PHGv2 provides a command to append sample 
 information to the headers of each FASTA file called
-`annotate-fastas`:
+`prepare-assemblies`:
 
 ```shell
-phg annotate-fastas \
+phg prepare-assemblies \
     --keyfile data/annotation_keyfile.txt \
     --threads 10 \
-    --output-dir output/annotated_assemblies
+    --output-dir output/updated_assemblies
 ```
 
 This command takes 3 parameters:
@@ -468,20 +516,23 @@ This command takes 3 parameters:
 * `--keyfile` - A [tab-delimited](https://en.wikipedia.org/wiki/Tab-separated_values)
   keyfile containing two columns:
 
-| Column | Value                                                                                                                                                                                                                      |
-|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `1`    | Path to FASTA file you would like annotated (this is similar to the text files used to point to the FASTA file paths in the [`agc-compress`](#compress-fasta-files) and [`align-assemblies`](#align-assemblies) commands). |
-| `2`    | Name of the sample that will be (1) appended to each header line and (2) the name of the newly generated FASTA file.                                                                                                       |
+  | Column | Value                                                                                                                                                                                                                      |
+  |--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+  | `1`    | Path to FASTA file you would like annotated (this is similar to the text files used to point to the FASTA file paths in the [`agc-compress`](#compress-fasta-files) and [`align-assemblies`](#align-assemblies) commands). |
+  | `2`    | Name of the sample that will be (1) appended to each header line and (2) the name of the newly generated FASTA file.                                                                                                       |
 
-  + My example `annotation_keyfile.txt` file would look like this:
-
-    ```
-    data/LineA.fa   LineA
-    data/LineB.fa   LineB
-    ```
-* `--threads` - Optional number of threads to annotate multiple
+  + My example `annotation_keyfile.txt` would look like this:
+      ```shell
+      data/Ref-v5.fa Ref
+      data/LineA-final-01.fa   LineA
+      data/LineB-final-04.fa   LineB
+      ```
+  + > ⚠️ **Warning**  
+    **All** sample assemblies (**including your reference assembly**) 
+    that you would want processed need to be included in this keyfile.
+* `--threads` - Optional number of threads to update multiple
   FASTA files in parallel. _Defaults to `1`_.
-* `-o` - Output directory for the newly annotated FASTA files
+* `-o` - Output directory for the newly updated FASTA files
 
 > [!WARNING]
 > This step must be performed before the `agc-compress` step and the 
@@ -493,7 +544,7 @@ This command takes 3 parameters:
 
 > [!NOTE]
 > FASTA input files can be either uncompressed or compressed. The 
-> output from the `annotate-fastas` command will be new FASTA files 
+> output from the `prepare-assemblies` command will be new FASTA files 
 > that are **uncompressed**.  While AGC accepts compressed FASTA 
 > files, the `align-assemblies` command uses 
 > [AnchorWave](https://github.com/baoxingsong/AnchorWave) which 
@@ -533,6 +584,32 @@ ATGCGTACGCGCACCG
 >ATGCGTACGCGCACCG
 >```
 
+Now that we are finished preparing samples, my example working
+directory looks like the following with a newly formed subdirectory 
+called `updated_assemblies` under the `output` directory:
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   ├── ref_ranges.bed
+│   ├── updated_assemblies
+│   │   ├── Ref.fa
+│   │   ├── LineA.fa
+│   │   └── LineB.fa
+└── vcf_dbs
+    ├── gvcf_dataset # gVCF db storage
+    ├── hvcf_dataset # hVCF db storage
+    └── temp
+```
+
+For further steps, we will be using the updated assemblies from the
+`output/updated_assemblies` directory path.
+
 
 
 ### Align assemblies
@@ -550,14 +627,14 @@ to install this manually.
 > [!NOTE]
 > For best results with imputation and rare allele calling pipelines, 
 > **please use high quality assemblies** that have been run through 
-> the `annotate-fastas` command.
+> the `prepare-assemblies` command.
 
 To run the aligner step, we can call the `align-assemblies` command:
 
 ```shell
 ./phg align-assemblies \
     --gff data/anchors.gff \
-    --reference-file data/Ref.fa \
+    --reference-file output/updated_assemblies/Ref.fa \
     --assemblies data/assemblies_list.txt \
     --total-threads 20 \
     --in-parallel 2 \
@@ -569,9 +646,12 @@ This command uses several parameters:
   identify full-length coding sequences to use as anchors
 * `--reference-file` - The reference genome in 
   [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format.
+  + > ℹ️ **Note**  
+    The path to the reference genome should be the **updated version**
+    that was created during the `prepare-assemblies` command.
 * `--assemblies` - A text file containing a list of **annotated** 
   assembly genomes (_see the 
-  [**"Annotate FASTA files"**](#annotate-fasta-files) section for 
+  [**"Prepare Assembly FASTA files"**](#prepare-assembly-fasta-files) section for 
   further details_).
   The contents of this file should be either full or relative paths
   to each uncompressed assembly you would like to align. For example, since I am
@@ -581,14 +661,18 @@ This command uses several parameters:
   it with the following lines:
 
   ```
-  output/annotated/LineA.fa
-  output/annotated/LineB.fa
+  output/updated_assemblies/LineA.fa
+  output/updated_assemblies/LineB.fa
   ```
   Here, I am planning on aligning two genomes called `LineA` and 
-  `LineB`. Since these are created with the `annotate-fastas` command 
+  `LineB`. Since these are created with the `prepare-assemblies` command 
   and the output is located in a subdirectory called 
-  `output/annotated/` relative to my working directory, I will also 
+  `output/updated/` relative to my working directory, I will also 
   add that to the path.
+  + > ⚠️ **Warning**  
+    This text list **should not** contain the path to the reference
+    genome since this is recognized in the `--reference-file` flag.
+    
 
 * `-o` - The name of the directory for the alignment outputs.
 
@@ -621,7 +705,54 @@ that each assembly will have a collection of different file types:
 | `.maf`         | [multiple alignment format](https://genome.ucsc.edu/FAQ/FAQformat.html#format5) (MAF) file |
 | `.anchorspro`  | alignment blocks between reference and assembly genomes (used for dot plot generation)     |
 
-The MAF files from this output will be used in the VCF creation step.
+The MAF files from this output will be used in the VCF creation step. 
+Additionally, [dot plots](https://en.wikipedia.org/wiki/Dot_plot_(bioinformatics)) 
+will be generated for each sample/reference alignment as `.svg` 
+files. Now that alignment is completed, our example working directory 
+looks as follows (**NOTE**: I will collapse `alignment_files` for 
+future steps):
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   ├── alignment_files
+│   │   ├── anchorwave_gff2seq_error.log
+│   │   ├── anchorwave_gff2seq_output.log
+│   │   ├── LineA.maf
+│   │   ├── LineA.sam
+│   │   ├── LineA.svg
+│   │   ├── LineA_Ref.anchorspro
+│   │   ├── LineB.maf
+│   │   ├── LineB.sam
+│   │   ├── LineB.svg
+│   │   ├── LineB_Ref.anchorspro
+│   │   ├── minimap2_LineA_error.log
+│   │   ├── minimap2_LineA_output.log
+│   │   ├── minimap2_LineB_error.log
+│   │   ├── minimap2_LineB_output.log
+│   │   ├── minimap2_Ref_error.log
+│   │   ├── minimap2_Ref_output.log
+│   │   ├── proali_LineA_outputAndError.log
+│   │   ├── proali_LineB_outputAndError.log
+│   │   ├── ref.cds.fasta
+│   │   └── Ref.sam
+│   ├── ref_ranges.bed
+│   └── updated_assemblies
+│       ├── Ref.fa
+│       ├── LineA.fa
+│       └── LineB.fa
+└── vcf_dbs
+    ├── gvcf_dataset # gVCF db storage
+    ├── hvcf_dataset # hVCF db storage
+    └── temp
+```
+
+
 
 #### Internal AnchorWave and minimap2 commands
 While PHGv2 is flexible in terms of how data is processed, we have
@@ -651,7 +782,7 @@ or review the following code blocks:
       -N 20 \
       <'--reference-file' parameter OR sample in '--assemblies' parameter> \
       ref.cds.fasta \      # from prior 'gff2seq' step
-      -o <sample_name>.sam # drected to '-o' path
+      -o <sample_name>.sam # directed to '-o' path
   ```
 * Run AnchorWave's `proali` command:
   ```shell
@@ -752,7 +883,7 @@ command:
 ./phg agc-compress \
     --db-path vcf_dbs \
     --fasta-list data/assemblies_list.txt \
-    --reference-file data/Ref.fa
+    --reference-file output/updated_assemblies/Ref.fa
 ```
 
 This command takes in 3 parameters:
@@ -769,18 +900,41 @@ This command takes in 3 parameters:
 
 > [!NOTE]
 > The list specified in `--fasta-list` should be the list of FASTA 
-> files output from the `annotate-fastas` command (_see the 
-> [**"Annotate FASTA files"**](#annotate-fasta-files) section for 
+> files output from the `prepare-assemblies` command (_see the 
+> [**"Prepare Assembly FASTA files"**](#prepare-assembly-fasta-files) section for 
 > further details_).
 
-* `--reference-file` - Reference FASTA genome.
+* `--reference-file` - Reference FASTA genome processed with
+  the `prepare-assemblies` command.
 
 After compression is finished, we can navigate to the directory
 containing the TileDB instances. In my case, this would be the
 subdirectory, `vcf_dbs`. Here, you will see a new file created:
 `assemblies.agc`. This is the compressed AGC file containing our 
 assemblies. This file will be used later to query for haplotype
-sequence regions and composite genome creation.
+sequence regions and composite genome creation. Our example
+working directory now looks like this:
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   ├── alignment_files/
+│   ├── ref_ranges.bed
+│   └── updated_assemblies
+│       ├── Ref.fa
+│       ├── LineA.fa
+│       └── LineB.fa
+└── vcf_dbs
+    ├── assemblies.agc
+    ├── gvcf_dataset # gVCF db storage
+    ├── hvcf_dataset # hVCF db storage
+    └── temp
+```
 
 When running the `agc-compress` command, the software will 
 determine if the "create" or "append" AGC command should be used. 
@@ -807,8 +961,8 @@ commands:
 ```shell
 phg create-ref-vcf \
     --bed output/ref_ranges.bed \
-    --reference-file data/Ref.fa \
-    --reference-name B73 \
+    --reference-file output/updated_assemblies/Ref.fa \
+    --reference-name Ref \
     --db-path vcf_dbs
 ```
 
@@ -819,9 +973,21 @@ phg create-ref-vcf \
 phg create-maf-vcf \
     --db-path vcf_dbs \
     --bed output/ref_ranges.bed \
-    --reference-file data/Ref.fa \
+    --reference-file output/updated_assemblies/Ref.fa \
     --maf-dir output/alignment_files \
     -o output/vcf_files
+```
+
+3. (_**Optional**_) Create hVCF from existing PHG created gVCF files. 
+   Use instead of create-maf-vcf if you have previously created gVCF files 
+   from PHG and want to create hVCF files:
+
+```shell
+phg gvcf2hvcf \
+    --db-path vcf_dbs \
+    --bed output/ref_ranges.bed \
+    --reference-file output/updated_assemblies/Ref.fa \
+    --gvcf-dir output/gvcf_files 
 ```
 
 > [!TIP]
@@ -830,7 +996,8 @@ phg create-maf-vcf \
 
 VCF creation is split up into two separate commands since the
 reference genome and aligned assemblies require different sets of
-input data:
+input data. An additional optional command is available to convert
+existing PHG created gVCF files to hVCF files:
 
 #### `create-ref-vcf` inputs
 The `create-ref-vcf` command requires the following inputs:
@@ -839,10 +1006,15 @@ The `create-ref-vcf` command requires the following inputs:
   the [**"Create reference ranges"**](#create-reference-ranges) section for further 
   details_). This is used to define the positional information of the 
   VCF.
-* `--reference-file` - reference FASTA genome used for creating
-  MD5 hashes of sequence information guided by reference range
-  positional data from the BED file used in the `--bed` parameter.
-* `--reference-name` - the name of the reference sample.
+* `--reference-file` - processed reference FASTA genome (from 
+  `prepare-assemblies`) used for creating MD5 hashes of sequence 
+  information guided by reference range positional data from the 
+  BED file used in the `--bed` parameter.
+* `--reference-name` - the name of the reference sample. 
+  + > ℹ️ **Note**  
+    The name given here should be the same name given in the
+    keyfile during the [Prepare Assembly FASTA Files](#prepare-assembly-fasta-files)
+    step.
 * `--db-path` - path to PHG database directory for VCF storage.
 
 
@@ -863,13 +1035,14 @@ see a subfolder named `hvcf_files` with two files:
 
 Here, `<ref_name>` is the name of the reference genome provided
 using the `--reference-name` parameter. Since I defined this
-parameter as `B73` in the above example, my two files would be:
+parameter as `Ref` in the above example, my two files would be:
 
-* `B73.h.vcf.gz`
-* `B73.h.vcf.gz.csi`
+* `Ref.h.vcf.gz`
+* `Ref.h.vcf.gz.csi`
 
-There will also be a subfolder named "reference" with two files.  The bed file used to create
-the reference hvcf and the reference FASTA are stored here for future reference.
+There will also be a subdirectory named `reference` with two files. 
+The bed file used to create the reference hVCF and the reference 
+FASTA are stored here for future reference.
 
 | File             | Description                                |
 |------------------|--------------------------------------------|
@@ -878,7 +1051,7 @@ the reference hvcf and the reference FASTA are stored here for future reference.
 
 
 In addition to creating the files, the `create-ref-vcf` command will load the
-reference h.vcf file to the `hvcf_dataset` TileDB instance.
+reference hVCF file to the `hvcf_dataset` TileDB instance.
 
 #### `create-maf-vcf` inputs
 The `create-maf-vcf` command requires the following inputs:
@@ -896,6 +1069,10 @@ The `create-maf-vcf` command requires the following inputs:
   positional data from the BED file used in the `--bed` parameter.
   hashed sequence data will place in the `##ALT` tag's `RefRange`
   key.
+  + > ℹ️ **Note**  
+    This should be the processed reference assembly generated from
+    the [Prepare Assembly FASTA Files](#prepare-assembly-fasta-files)
+    step.
 * `--maf-dir` - Directory containing the MAF files generated using
   the `align-assemblies` command (_see the 
   [**"Align assemblies"**](#align-assemblies) section for further 
@@ -921,6 +1098,65 @@ of different file types for each sample:
 Here, `<sample_name>` would be the name of each sample that was
 aligned to the reference genome.
 
+#### `gvcf2hvcf` inputs (_optional_)
+The `gvcf2hvcf` command requires the following inputs:
+
+* `--db-path` - Path to the directory containing the TileDB
+  instances. This is needed to access the AGC compressed assembly
+  genome information found in the `assemblies.agc` file (_see the
+  [**"Compress FASTA files"**](#compress-fasta-files) section for further details_).
+* `--bed` - A BED file containing ordered reference ranges (_see
+  the [**"Create reference ranges"**](#create-reference-ranges) section for further
+  details_). This is used to define the positional information of the
+  VCF in relation to the reference genome.
+* `--reference-file` - Reference FASTA genome used for creating
+  MD5 hashes of sequence information guided by reference range
+  positional data from the BED file used in the `--bed` parameter.
+  hashed sequence data will place in the `##ALT` tag's `RefRange`
+  key.
+* `--gvcf-dir` - Directory containing gVCF files generated from either
+  a PHGv1 `MAFToGVCFPlugin`  command or a BioKotlin 
+  `MAFToGVCF.createGVCFfromMAF()` command.
+
+Now that we have created our hVCF and gVCF files using the 
+`create-ref-vcf` and `create-maf-vcf` commands, our directory 
+structure now looks like the following:
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   ├── alignment_files/
+│   ├── ref_ranges.bed
+│   ├── updated_assemblies
+│   │   ├── Ref.fa
+│   │   ├── LineA.fa
+│   │   └── LineB.fa
+│   └── vcf_files
+│       ├── LineA.h.vcf.gz
+│       ├── LineA.h.vcf.gz.csi
+│       ├── LineA.g.vcf.gz
+│       ├── LineA.g.vcf.gz.csi
+│       ├── LineB.h.vcf.gz
+│       ├── LineB.h.vcf.gz.csi
+│       ├── LineB.g.vcf.gz
+│       └── LineB.g.vcf.gz.csi
+└── vcf_dbs
+    ├── assemblies.agc
+    ├── gvcf_dataset # gVCF db storage
+    ├── hvcf_dataset # hVCF db storage
+    ├── hvcf_files
+    │   ├── Ref.h.vcf.gz
+    │   └── Ref.h.vcf.gz.csi
+    ├── reference
+    │   ├── Ref.bed
+    │   └── Ref.sam
+    └── temp
+```
 
 
 ### Load VCF data into DBs

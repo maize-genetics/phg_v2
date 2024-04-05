@@ -158,6 +158,24 @@ class HaplotypeGraphTest {
         }
     }
 
+    @Test
+    fun testSampleGameteToHaplotypeId() {
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile, TestExtension.smallseqLineBHvcfFile))
+        val sampleGametes = graph.sampleGametesInGraph()
+
+        val expectedHapIds = listOf(
+            "12f0cec9102e84a161866e37072443b7",
+            "4fc7b8af32ddd74e07cb49d147ef1938"
+        )
+
+        sampleGametes.forEachIndexed { index, sampleGamete ->
+            val testHapIds = graph.sampleGameteToHaplotypeId(sampleGamete)
+            assertEquals(38, testHapIds.size)
+            assertTrue { testHapIds[0] is String }
+            assertEquals(expectedHapIds[index], testHapIds[0])
+        }
+    }
+
     /**
      * Returns true if the list of ReferenceRange is sorted.
      */
