@@ -3,7 +3,9 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.testing.test
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @ExtendWith(TestExtension::class)
 class CreateAnchorwaveDotplotTest {
@@ -18,13 +20,14 @@ class CreateAnchorwaveDotplotTest {
         val outputFile = "${TestExtension.tempDir}/dummy_anchors_small.svg"
         val result = createAWdp.test("--input-file ${inputFile} --output-file ${outputFile}")
         assertEquals(result.statusCode, 0)
+        assertTrue(File(outputFile).exists(),"Output file not created")
     }
 
     @Test
     fun testCliktParams() {
         val createAWdp = CreateAnchorwaveDotplot()
         val inputFile = "data/test/smallseq/dummy_anchors_small.anchorspro"
-        val outputFile = "${TestExtension.tempDir}/dummy_anchors_small.png"
+        val outputFile = "${TestExtension.tempDir}/dummy_anchors_small.svg"
 
         // Test missing output file
         val resultMissingOutput =
