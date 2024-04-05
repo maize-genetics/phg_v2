@@ -196,18 +196,6 @@ class CalcVcfMetricsTest {
                             "2\t30001\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=2822;ASM_Start=1;ASM_Strand=+;END=32822\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n"
                 )
             }
-
-//            val builder = ProcessBuilder("bgzip", "$outputFile")
-//            val process = builder.start()
-//            var error = process.waitFor()
-//
-//            val builder2 = ProcessBuilder("tabix", "$outputFile.gz")
-//            val process2 = builder2.start()
-//            error += process2.waitFor()
-//
-//            if (error != 0) {
-//                println("Something went wrong creating the reference gvcf. Check that bgzip and tabix are installed on this machine.")
-//            }
         }
 
 
@@ -512,19 +500,6 @@ class CalcVcfMetricsTest {
                         "2\t32256\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=4342;ASM_Start=3777;ASM_Strand=+;END=32821\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n"  +
                         "2\t32822\t.\tA\tGTAGTTCGCTCTCAGGCACCGGGCGCGCTATCGTGGCCTGTAGAGGCTGCGGCGGTTACGAATTGCTGG,<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=5983;ASM_Start=5916;ASM_Strand=+\tGT:AD:DP:PL\t1:0,30,0:30:90,0,90\n")
             }
-
-
-//            val builder = ProcessBuilder("bgzip", "$outputFile")
-//            val process = builder.start()
-//            var error = process.waitFor()
-//
-//            val builder2 = ProcessBuilder("tabix", "$outputFile.gz")
-//            val process2 = builder2.start()
-//            error += process2.waitFor()
-//
-//            if (error != 0) {
-//                println("Something went wrong creating the testing gvcf. Check that bgzip and tabix are installed on this machine.")
-//            }
         }
 
         /**
