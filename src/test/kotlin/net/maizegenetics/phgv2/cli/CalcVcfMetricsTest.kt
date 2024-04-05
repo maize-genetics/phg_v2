@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.cli
 
+import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.setupDebugLogging
 import org.junit.jupiter.api.*
@@ -9,6 +10,31 @@ import kotlin.test.assertEquals
 
 @ExtendWith(TestExtension::class)
 class CalcVcfMetricsTest {
+
+    @Test
+    fun testCliktParams() {
+        val calcVcfMetrics = CalcVcfMetrics()
+
+        val resultMissingOut =
+            calcVcfMetrics.test("--vcf-dir $gvcfDir")
+        assertEquals(resultMissingOut.statusCode, 1)
+        assertEquals(
+            "Usage: calc-vcf-metrics [<options>]\n" +
+                    "\n" +
+                    "Error: invalid value for --output: --output must not be blank\n", resultMissingOut.output
+        )
+
+        val resultMissingDir =
+            calcVcfMetrics.test("--output $testingDir/gvcf_metrics.tsv")
+        assertEquals(resultMissingDir.statusCode, 1)
+        assertEquals(
+            "Usage: calc-vcf-metrics [<options>]\n" +
+                    "\n" +
+                    "Error: invalid value for --vcf-dir: --vcf-dir must not be blank\n", resultMissingDir.output
+        )
+
+
+    }
 
     @Test
     fun testSingleGVCFFromFile() {
