@@ -11,6 +11,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.apache.logging.log4j.LogManager
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.toMap
+import org.jetbrains.kotlinx.dataframe.io.readDelim
+import org.jetbrains.letsPlot.export.ggsave
+import org.jetbrains.letsPlot.facet.facetGrid
+import org.jetbrains.letsPlot.geom.geomPoint
+import org.jetbrains.letsPlot.intern.Plot
+import org.jetbrains.letsPlot.label.labs
+import org.jetbrains.letsPlot.letsPlot
+import org.jetbrains.letsPlot.scale.scaleColorManual
+import org.jetbrains.letsPlot.scale.scaleColorViridis
+import org.jetbrains.letsPlot.scale.scaleXContinuous
+import org.jetbrains.letsPlot.scale.scaleYContinuous
 import java.io.File
 import java.lang.management.ManagementFactory
 import javax.management.MBeanServer
@@ -20,7 +33,9 @@ import javax.management.ObjectName
  * This will align assemblies to a reference genome.
  * Uses anchorwave's proali to align, which handles
  * genome alignment with relocation variation,
- * chromosome fusion or whole genome duplication.
+ * chromosome fusion or whole genome duplication.  After
+ * aligning, a dot plot is created showing the alignment,
+ * with the file stored in PNG format to the output directory.
  *
  * This function allows for multiple assembly alignments to be run
  * in parallel.  Users may specify number of alignments to run in parallel
@@ -581,6 +596,62 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         } catch (e: Exception) {
             myLogger.error("Error: could not execute anchorwave command. Run anchorwave manually and retry.")
         }
+
+        // Create a dot plot of the anchorwave data stored in the anchorspro file for this assembly.
+        val origFile = File(anchorsproFile)
+        // Filter out lines that start with '#', change tabs to commas, and join the rest with newline characters
+        // Kotline dataframe readDelim() does not handle tabs well, so we need to change them to commas.
+        val cleanContent = origFile.useLines { lines ->
+            lines.filterNot { it.startsWith("#") }
+                .map { it.replace("\t", ",") }
+                .joinToString("\n")
+        }
+
+        val dfAnchorWave = DataFrame.readDelim(cleanContent.reader())
+        // Plot the data, write to svg file. We default to svg as png files
+        // did not always render correctly, particularly when the assembly
+        // was not at a chromosomal level.
+        val plot = plotDot(dfAnchorWave)
+        val plotFile = "${outputDir}/${justNameAsm}_dotplot.svg"
+        val pathSVG = ggsave(plot, plotFile)
+        myLogger.info("Dot plot for ${justNameAsm} saved to: $pathSVG")
+
+    }
+
+    /**
+     * This function will plot the anchorwave data in a dot plot.  It has 1 required parameter,
+     * which is "data", a DataFrame containing data from the anchorwave generated anchorspro file.
+     *
+     * This is a default plot that is run when AlignAssemblies is run.  It is a dot plot
+     * showing basic alignment data in scatter plot form with the x-axis being the query
+     * sequence start position, the y-axis being the reference sequence start position, and
+     * the color of the data points based on the strand (red=forward, blue=reverse).
+     * The plot is faceted by the query and reference chromosomes.
+     *
+     * For  plots based on specific reference or query ids, users can use the plotDot function
+     * from rPHG.
+     *
+     */
+    fun plotDot(
+        data: DataFrame<*>,
+    ): Plot {
+        val toMb = { x: Number -> x.toDouble() / 1e6 }
+        val toMbLabel:  (Double) -> String = { value -> "${toMb(value)}" }
+        val plotData = data.toMap()
+        val plot = letsPlot(plotData ) { // this was from chatGpt based on Brandon's R code.
+            x = "queryStart"; y = "referenceStart"
+            color = "strand"
+        } +
+                geomPoint(size = 1.5) +
+                // Several attempts to get the labels to work  - this one results in what we wanted,
+                // which is turning the labels from bytes to Mbp
+                scaleXContinuous(labels = listOf(toMbLabel.toString())) +
+                scaleYContinuous(labels = listOf(toMbLabel.toString())) +
+                facetGrid(x="queryChr", y="refChr", scales="fixed") +
+                labs(x = "Query (Mbp)", y = "Reference (Mbp)") +
+                scaleColorManual(values = mapOf("+" to "#DA897C", "-" to "#0D6A82")) // color values match rPHG plot colors
+
+        return plot
     }
 
 }

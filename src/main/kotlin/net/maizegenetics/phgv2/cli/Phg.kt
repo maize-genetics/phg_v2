@@ -51,7 +51,7 @@ class Phg : CliktCommand() {
 fun main(args: Array<String>) = Phg()
     .subcommands(
         SetupEnvironment(), Initdb(), CreateRanges(), PrepareAssemblies(), AgcCompress(), AlignAssemblies(),
-        CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), LoadVcf(), ExportVcf(),
+        CreateAnchorwaveDotplot(), CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), LoadVcf(), ExportVcf(),
         BuildKmerIndex(), MapKmers(), FindPaths(), // Imputation
         CreateFastaFromHvcf(), MergeHvcfs(), StartServer // Utilities
     )

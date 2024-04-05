@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 val ktorVersion = "2.3.7"
 
 plugins {
-    kotlin("jvm") version "1.9.10"
+    kotlin("jvm") version "1.9.23"
     application
     id("org.jetbrains.kotlinx.kover") version "0.7.3"
     kotlin("plugin.serialization") version "1.6.21"
@@ -15,7 +15,7 @@ group = "net.maizegenetics"
 This build script is need to use the early access
  */
 buildscript {
-    val kotlinVersion by extra("1.9.10")
+    val kotlinVersion by extra("1.9.23")
 
     repositories {
         mavenCentral()
@@ -39,6 +39,12 @@ dependencies {
 
     val kotlinVersion = rootProject.extra["kotlinVersion"]
 
+    implementation("org.jetbrains.kotlinx:dataframe:0.13.1")
+    implementation("org.jetbrains.lets-plot:lets-plot-kotlin:4.7.0")
+
+    implementation("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.7.0")
+    implementation("org.jetbrains.lets-plot:lets-plot-image-export:4.3.0")
+    implementation("org.jetbrains.lets-plot:lets-plot-batik:4.3.0")
     implementation("org.biokotlin:biokotlin:0.14")
     implementation("com.github.ajalt.clikt:clikt:4.2.0")
 
@@ -46,7 +52,7 @@ dependencies {
 
     implementation("it.unimi.dsi:fastutil:8.5.12")
 
-    implementation("org.jetbrains.kotlin:kotlin-test:1.9.10")
+    implementation("org.jetbrains.kotlin:kotlin-test:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-script-runtime:${kotlinVersion}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")

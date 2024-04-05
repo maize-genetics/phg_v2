@@ -15,7 +15,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.assertThrows
 import java.io.File
 import kotlin.test.assertEquals
-import kotlin.test.Test
+import org.junit.jupiter.api.Test
 import kotlin.test.assertFails
 
 class CreateRangesTest {
