@@ -131,6 +131,9 @@ class CreateMafVCFTest {
         //compare the contents of the output gVCF files to the expected output
         compareTwoGVCFFiles("data/test/buildMAFVCF/truthGVCFs/B97_truth.g.vcf", "${TestExtension.testVCFDir}/B97_ASM_Test.g.vcf.gz")
 
+        //test that metrics file was created
+        assertTrue(File("${TestExtension.testVCFDir}/VCFMetrics.tsv").exists())
+
         //Now we need to compare the hVCF's sequence with the sequence coming from the MAF files to make sure things match correctly as well as the boundaries
         val outputHVCF = "${TestExtension.testVCFDir}/B97_ASM_Test.h.vcf.gz"
         val outputHVCFReader = VCFFileReader(File(outputHVCF),false)

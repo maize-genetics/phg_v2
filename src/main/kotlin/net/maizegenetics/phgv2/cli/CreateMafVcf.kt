@@ -6,6 +6,7 @@ import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.switch
 import com.github.ajalt.clikt.parameters.options.validate
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.variantcontext.VariantContextComparator
@@ -60,12 +61,21 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
 
+    val metricsFile by option("--metrics-file", help = "Path where the vcf metrics file will be written. By default writes to output-dir/VCFMetrics.tsv")
+        .default("")
+
+    val skipMetrics by option("--skip-metrics", help = "If this flag is set, do not calculate vcf metrics.")
+        .switch(
+            "--skip-metrics" to true
+        ).default(false)
+
     /**
      * Function to create the ASM hVCF and gVCF.
      * It will first use Biokotlin to build the gVCF and then will use the BED file to extract out the hVCF information.
      * if [twoGvcfs] is true, then the output will be split into two gvcf files, one for each gamete.
      */
-    fun createASMHvcfs(dbPath: String, bedFileName: String, referenceFileName: String, mafDirName: String, outputDirName: String, twoGvcfs:Boolean=false) {
+    fun createASMHvcfs(dbPath: String, bedFileName: String, referenceFileName: String, mafDirName: String,
+                       outputDirName: String, metricsFile: String, skipMetrics: Boolean = false, twoGvcfs:Boolean=false) {
         //load the bed file into some data structure
 //        val ranges = bedfileToSRangeSet(bedFileName,referenceFileName)
         val ranges = loadRanges(bedFileName)
@@ -126,6 +136,10 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                 }
 
             }
+        // calculate vcf metrics, unless skipMetrics flag has been set
+        if(!skipMetrics) {
+            CalcVcfMetrics().calculateVcfMetrics(outputDir, metricsFile)
+        }
 
     }
 
@@ -615,8 +629,12 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         // Verify the tiledbURI
         // If it doesn't an exception will be thrown
         val validDB = verifyURI(dbPath,"hvcf_dataset")
+        if(metricsFile != "") {
+            createASMHvcfs(dbPath, bed, referenceFile, mafDir, outputDir, metricsFile, skipMetrics)
+        } else {
+            createASMHvcfs(dbPath, bed, referenceFile, mafDir, outputDir, "$outputDir/VCFMetrics.tsv", skipMetrics)
+        }
 
-        createASMHvcfs(dbPath, bed, referenceFile, mafDir, outputDir)
     }
 
 }
