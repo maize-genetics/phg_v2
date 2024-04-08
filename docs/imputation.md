@@ -1,23 +1,77 @@
 # PHGv2 - Imputation
 
-In this document, we will discuss imputation strategies using the
-PHG.
+In this document, we will discuss the steps needed to perform
+imputation using the PHG:
+
+1. Indexing k-mers
+2. Mapping short reads
+3. Finding paths
+
+> [!NOTE]
+> The steps detailed in this document build on the materials from
+> the "[Building and Loading](build_and_load.md)" documentation. 
+> Please review this if you have not worked with the PHG before!
 
 ## hVCF export
 
->[!NOTE]
-> This currently is needed, but will be removed in the future as we 
-> can do direct connections to the hVCF TileDB instance.
+> [!NOTE]
+> This step is currently needed, but will be removed in the future as 
+> we can do direct connections to the hVCF TileDB instance.
 
-First we need to export the hVCF data from the TileDB instance. This 
-is done using the `export-vcf` command.
+Where we last left off in the "[Build and Load](build_and_load.md)"
+steps, we had an example directory that looks similar to the
+following:
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   ├── alignment_files/
+│   ├── ref_ranges.bed
+│   ├── updated_assemblies
+│   │   ├── Ref.fa
+│   │   ├── LineA.fa
+│   │   └── LineB.fa
+│   └── vcf_files/
+└── vcf_dbs
+    ├── assemblies.agc
+    ├── gvcf_dataset # gVCF db storage
+    ├── hvcf_dataset # hVCF db storage
+    ├── hvcf_files
+    │   ├── Ref.h.vcf.gz
+    │   └── Ref.h.vcf.gz.csi
+    ├── reference
+    │   ├── Ref.bed
+    │   └── Ref.sam
+    └── temp/
+```
+
+> [!NOTE]
+> The following steps in the rest of this document will assume we are 
+> in the top level of our `phg_v2_example` working directory.
+
+
+For this example imputation pipeline, we will be using haplotypes 
+generated from two samples in our database:
+
+* `LineA`
+* `LineB`
+
+If you do not have hVCF files for samples you wish to impute against 
+already generated, we will first need to export this haplotype data 
+in the form of [hVCF](hvcf_specifications.md) data from the TileDB 
+instance. This is done using the `export-vcf` command:
 
 ```shell
 ./phg export-vcf \
-    --db-path /my/db/uri \
+    --db-path vcf_dbs \
     --dataset-type hvcf \
     --sample-names LineA,LineB \
-    --output-dir /my/hvcf/dir
+    --output-dir output/vcf_files
 ```
 This command takes in 4 parameters:
 * `--db-path` - path to directory storing the TileDB instances. The
@@ -26,6 +80,24 @@ This command takes in 4 parameters:
   are exporting the hVCF data.
 * `--sample-names` - a comma-separated list of sample names to export.
 * `--output-dir` - the directory to place the exported hVCF files.
+
+In our above example, we can use the `--sample-names` parameter, but
+for certain scenarios this may become inefficient (e.g., exporting
+hundreds of samples). To remedy this, we can bypass the 
+`--sample-names` parameter and replace it with the `--sample-file`
+parameter. This can take in a file that contains a list of samples
+you would like to export from the database. For example, if we would
+want to export the sample samples from above but in file form, the
+file would look like the following:
+
+```
+$ cat sample_names.txt
+
+LineA
+LineB
+```
+
+When we 
 
 ## K-mer Indexing
 
