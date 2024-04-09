@@ -387,8 +387,8 @@ class AlignmentUtils {
             //get the encoded refrangeId, offset from the kmerMap
             val encodedOffset = kmerHashOffsetMap.getOrDefault(kmerHash, -1L)     //[kmerHash]
 
-            //a Long2LongOpenHashSet returns 0L rather than null when the kmerHash is not in the map.
-            //so if encodedOffset = 0, the kmerhash does not map to any haplotypes. Return an empty map.
+            //kmerHashOffsetMap.getOrDefault(kmerHash, -1L) returns -1L rather than null when the kmerHash is not in the map.
+            //so if encodedOffset = -1L, the kmerhash does not map to any haplotypes. Return an empty map.
             if (encodedOffset == -1L) return mapOf()
 
             val (rangeId, offset) = decodeRangeIdAndOffset(encodedOffset)

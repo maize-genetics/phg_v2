@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.pathing
 import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.double
@@ -78,6 +79,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         .int()
         .default(200000)
 
+    val noDiagnostic by option("-n", "--no-diagnostics", help = "Flag that will suppress writing of diagnostics.").flag()
+
     override fun run() {
         //build the haplotypeGraph
         val graph = buildHaplotypeGraph()
@@ -87,6 +90,11 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         //save the kmerIndex
         saveKmerHashesAndHapids(graph, kmerIndexFilename, hashToHapidMap)
+
+        if (noDiagnostic) myLogger.info("BuildKmerIndex: Diagnostic output will not be written because the --no-diagnostic flag was set.")
+        else {
+            //Todo: write diagnostics
+        }
     }
 
     private fun buildHaplotypeGraph(): HaplotypeGraph {
@@ -125,6 +133,12 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         val sampleNames = sampleGametes.map { it.name }
 
         val contigRangesMap = graph.rangesByContig()
+
+        //needed for diagnostics
+        val refRangeToIndexMap = graph.refRangeToIndexMap()
+        val hapidToRefrangeMap = graph.hapIdToRefRangeMap()
+        val refrangeToAdjacentHashCount = mutableMapOf<ReferenceRange, Int>()
+
         for (chr in contigRangesMap.keys) {
             //get all sequence for this chromosome
             val agcChromSequence = retrieveAgcContigForSamples(dbPath, sampleNames, chr)
@@ -169,7 +183,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                 }
 
                 val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidToSequencMap, hashMask, hashFilterValue)
-
+                var hashInPreviousRangeCount = 0
                 for (hashCount in kmerHashCounts.entries) {
                     val hashValue = hashCount.key
 
@@ -180,9 +194,17 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                         //if hash count >= numberOfHaplotype add it to the discard set
                         hashCount.value >= maxHaplotypes -> discardSet.add(hashValue)
                         //if the hash is already in the keepSet, it has been seen in a previous reference range
+                        //was this hash seen in the range immediately preceeding this one?
                         // so, remove it from the keep set and add it to the discard set
                         keepMap.containsKey(hashValue) -> {
-                            keepMap.remove(hashValue)
+                            val hapidSet = keepMap.remove(hashValue)
+                            if (!noDiagnostic) {
+                                val hapidRefrange = hapidToRefrangeMap[hapidSet.first()]
+                                val wasPreviousRange = refRangeToIndexMap[refrange] == (refRangeToIndexMap[hapidRefrange] ?: -2) + 1
+                                if (wasPreviousRange) {
+                                    val oldCount = refrangeToAdjacentHashCount[]
+                                }
+                            }
                             discardSet.add(hashValue)
                         }
                         else -> {
