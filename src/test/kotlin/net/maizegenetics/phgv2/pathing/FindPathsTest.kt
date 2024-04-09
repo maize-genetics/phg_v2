@@ -24,6 +24,7 @@ class FindPathsTest {
         @JvmStatic
         @BeforeAll
         fun setup() {
+            File(TestExtension.testOutputDir).deleteRecursively()
             File(TestExtension.testOutputDir).mkdirs()
 
             //erase any hvcf files in testVCFDir (which is created by TestExtension, if it does not already exist)
@@ -574,6 +575,8 @@ class FindPathsTest {
         val probMapToOther = 0.2
         val readMap = mutableMapOf<List<String>, Int>()
         for (range in graph.ranges()) {
+            //since LineA and LineB have no haplotypes in ranges beginning with 50501, do not generate reads
+            if (range.start == 50501) continue
             val hapids = graph.hapIdToSampleGametes(range)
             val target = if (range.start > 25000) "LineB" else "LineA"
 
