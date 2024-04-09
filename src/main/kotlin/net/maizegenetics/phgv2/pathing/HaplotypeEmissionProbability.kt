@@ -23,7 +23,7 @@ class HaplotypeEmissionProbability(val refRangeToHapListMap : Map<ReferenceRange
                                    val pCorrect : Double) {
     private var currentRefRange = ReferenceRange("none",0,0)
     private var currentEmissionProbabilities = mapOf<String, Double>()
-    private var nullProbability : Double = 1e-6
+    private var nullProbability : Double = -10.0
 
     /**
      * Returns the natural log of the probability of observing the read mapping counts for this range
@@ -38,7 +38,6 @@ class HaplotypeEmissionProbability(val refRangeToHapListMap : Map<ReferenceRange
 
         }
 
-        //TODO make a better choice for the probability of a null haplotype
         return currentEmissionProbabilities[haplotype] ?: nullProbability
     }
 
@@ -63,7 +62,8 @@ class HaplotypeEmissionProbability(val refRangeToHapListMap : Map<ReferenceRange
         if (myHapMappings.isNullOrEmpty()) {
             //if there no reads then all haplotypes get assigned the same probability, it does not matter what it is.
             //note that 0.0 is ln(1), so this actually assigns a probability of 1 not zero. One interpretation is that
-            //if there are no reads then every haplotype will have 0 reads with a probability of 1.
+            //if there are no reads then every haplotype (including null haplotypes) will have 0 reads with a probability of 1.
+            nullProbability = 0.0
             return haplotypes.associateWith { 0.0 }
 
         } else {
@@ -75,6 +75,8 @@ class HaplotypeEmissionProbability(val refRangeToHapListMap : Map<ReferenceRange
                 .groupingBy { it.first }
                 .fold(0) { sum, pr -> sum + pr.second }
 
+            //since a null haplotype should have 0 counts, assign it binom.probability(0)
+            nullProbability = ln( binom.probability( 0) )
             return haplotypes.associateWith { hapid ->
                 ln( binom.probability(hapidCountMap[hapid] ?: 0) )
             }
