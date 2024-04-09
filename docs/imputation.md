@@ -3,16 +3,56 @@
 In this document, we will discuss the steps needed to perform
 imputation using the PHG:
 
-1. Indexing k-mers
-2. Mapping short reads
-3. Finding paths
+1. Export hVCF data
+2. Index k-mers from exported hVCF data
+3. Map short reads
+4. Find paths
 
 > [!NOTE]
 > The steps detailed in this document build on the materials from
 > the "[Building and Loading](build_and_load.md)" documentation. 
 > Please review this if you have not worked with the PHG before!
 
-## hVCF export
+## Quickstart
+
+* Export hVCF data:
+  ```shell
+  phg export-vcf \
+      --db-path /my/db/uri \
+      --dataset-type hvcf \
+      --sample-names LineA,LineB \
+      --output-dir /my/hvcf/dir
+  ```
+* Index k-mers:
+  ```shell
+  phg build-kmer-index \
+      --db-path /my/db/uri \
+      --hvcf-dir /my/hvcf/dir
+  ```
+
+* Map short reads
+  ```shell
+  phg map-kmers \
+      --hvcf-dir /my/hvcf/dir \
+      --kmer-index /my/hvcf/dir/kmerIndex.txt \
+      --key-file /my/path/keyfile \
+      --output-dir /my/mapping/dir
+  ```
+
+* Find paths
+  ```shell
+  phg find-paths \
+      --path-keyfile /my/path/keyfile \
+      --hvcf-dir /my/hvcf/dir \
+      --reference-genome /my/ref/genome \
+      --path-type haploid \
+      --output-dir /my/imputed/hvcfs
+  ```
+
+
+## Detailed walkthrough
+
+### hVCF export
 
 > [!NOTE]
 > This step is currently needed, but will be removed in the future as 
@@ -39,14 +79,10 @@ phg_v2_example/
 │   └── vcf_files/
 └── vcf_dbs
     ├── assemblies.agc
-    ├── gvcf_dataset # gVCF db storage
-    ├── hvcf_dataset # hVCF db storage
-    ├── hvcf_files
-    │   ├── Ref.h.vcf.gz
-    │   └── Ref.h.vcf.gz.csi
-    ├── reference
-    │   ├── Ref.bed
-    │   └── Ref.sam
+    ├── gvcf_dataset/
+    ├── hvcf_dataset/
+    ├── hvcf_files/
+    ├── reference/
     └── temp/
 ```
 
@@ -61,9 +97,9 @@ generated from two samples in our database:
 * `LineA`
 * `LineB`
 
-If you do not have hVCF files for samples you wish to impute against 
-already generated, we will first need to export this haplotype data 
-in the form of [hVCF](hvcf_specifications.md) data from the TileDB 
+If you do not have [hVCF files](hvcf_specifications.md) for samples 
+you wish to impute against already generated, we will first need to 
+export this haplotype data in the form of hVCF data from the TileDB 
 instance. This is done using the `export-vcf` command:
 
 ```shell
@@ -97,93 +133,231 @@ LineA
 LineB
 ```
 
-When we 
+Now, our command input looks like the following:
 
-## K-mer Indexing
+```shell
+./phg export-vcf \
+    --db-path vcf_dbs \
+    --dataset-type hvcf \
+    --sample-file sample_names.txt \
+    --output-dir output/vcf_files
+```
 
-Once we have the hVCF data exported, we need to index the k-mers. 
-This is done using the `build-kmer-index` command.
+After the export command, our directory structure will have new
+files added to the `vcf_files` directory:
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   ├── alignment_files/
+│   ├── ref_ranges.bed
+│   ├── updated_assemblies
+│   │   ├── Ref.fa
+│   │   ├── LineA.fa
+│   │   └── LineB.fa
+│   └── vcf_files
+│       ├── LineA.h.vcf *
+|       └── LineB.h.vcf *
+└── vcf_dbs
+    ├── assemblies.agc
+    ├── gvcf_dataset/
+    ├── hvcf_dataset/
+    ├── hvcf_files/
+    ├── reference/
+    └── temp/
+```
+
+
+
+### K-mer Indexing
+
+In order to run the later [k-mer read mapping steps](#read-mapping) 
+(_and run them quickly with a low memory footprint!_),
+we will first need to **build** an index containing all 31 bp length 
+[k-mers](https://en.wikipedia.org/wiki/K-mer) identified in
+the haplotypes exported from the prior step and store this as a flat
+file. This is performed using the `build-kmer-index` command:
 
 ```shell
 ./phg build-kmer-index \
-    --db-path /my/db/uri \
-    --hvcf-dir /my/hvcf/dir 
+    --db-path vcf_dbs \
+    --hvcf-dir output/vcf_files \
+    --index-file output/kmer_index.txt
 ```
 
-This command has 2 required parameters:
-* `--db-path` - path to directory storing the TileDB instances. The
-  AGC compressed genomes are also stored here as well under 
-  `db-path/assemblies.agc`.
+
+This command has **2** required parameters and **1** optional 
+parameter that I will specify for example purposes:
+* `--db-path` - path to directory storing the TileDB instances and
+  `assemblies.agc` file made in the 
+  "[Compress FASTA files](build_and_load.md#compress-fasta-files)"
+  section of the "[Build and Load](build_and_load.md)" documentation.
 * `--hvcf-dir` - the directory containing the hVCF files. This is the
   output directory from the `export-vcf` command.  Right now this is 
   required, but will be optional in the future.
+* `--index-file` (_optional_) - The full path of the k-mer index
+  file. If not specified, the default path will be:
+  * `<--hvcf-dir input>/kmerIndex.txt`
+  * In my case, this would be `output/vcf_files/kmerIndex.txt`
 
-This will store the k-mer index as `kmerIndex.txt` in the `--hvcf-dir` 
+This will store the k-mer index as `kmer_indext.txt` in the `output` 
 directory.
 
-In addition, this command can take optional parameters:
 
-* `--index-file` - The full path of the k-mer index file. 
-  Default = <hvcf-dir>/`kmerIndex.txt`.  
-* `--maxHapProportion` or `-p` - only k-mers mapping to less than or 
-  equal to maxHapProportion of haplotypes in a reference range will 
-  be retained. Default = `0.75`.  
-* `--max-arg-length` - The maximum argument length for a call to AGC. 
-  Default = `200000`. If you get an error caused by a call to agc 
-  being too long try reducing this value."
+#### Optional parameters
+In addition to `--index-file`, this command can take other optional 
+parameters:
+
+| Parameter name         | Description                                                                                                        | Default value |
+|------------------------|--------------------------------------------------------------------------------------------------------------------|---------------|
+| `--max-hap-proportion` | Only k-mers mapping to less than or equal to maxHapProportion of haplotypes in a reference range will be retained. | `0.75`        |
+| `--max-arg-length`     | The maximum argument length for a call to the [AGC program](https://github.com/acoleman2000/agc).                  | `200000`      |
+
+> [!TIP]
+> If you get an error caused by a call to AGC being too long,
+> try reducing the `--max-arg-length` value.
 
 The following optional parameters affect how k-mers are pre-filtered 
 to determine which are used for indexing. They would only need to be 
-adjusted if the number of k-mers in the index is too low or too high.
+adjusted if the number of k-mers in the index is too low or too high:
 
-* `--hashMask` or `-m` - with hashFilter, used to mask k-mers for 
-  filtering. Default uses only the last k-mer nucleotide. Only change 
-  this if you know what you are doing. Default = `3`.
-* `--hashFilter` or `-f` - Only hashes that pass the filter 
-  ((hashValue and hashMask) == hashFilter) will be considered. Do not 
-  change this value unless you know what you are doing. 
-  Default = `1`.
+| Parameter name  | Description                                                                                                                                                               | Default value |
+|-----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `--hash-mask`   | In conjunction with `--hash-filter`, used to mask k-mers for filtering. Default uses only the last k-mer nucleotide. **Only change this if you know what you are doing.** | `3`           |
+| `--hash-filter` | Only hashes that pass the filter ((hashValue and hashMask) == hashFilter) will be considered. **Only change this value unless you know what you are doing.**              | `1`           |
 
 
-## Read Mapping
+### Read Mapping
 
-Now that we have the index we can align short reads against the PHG 
-using the `map-kmers` command.
+Now that we have a generated k-mer index file, we can efficiently 
+align short reads against the PHG using the `map-kmers` command. To
+demonstrate this, I will retrieve some example data from our
+[PHGv2 GitHub test directory](https://github.com/maize-genetics/phg_v2/tree/main/data/test/kmerReadMapping/simulatedReads).
+The files I will be using from this directory for this walkthrough 
+will be the following:
+
+* `LineA_LineB_1.fq`
+* `LineA_LineB_2.fq`
+
+These files are simulated paired-end (e.g., `_1.fq` and `_2.fq`) 
+short reads with a length of 150 bps in 
+[FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) format. I will
+place these files under the `data` directory in sub folder called
+`short_reads`:
+
+```
+phg_v2_example/
+├── data
+│   └── short_reads          *
+│   │   ├── LineA_LineB_1.fq *
+│   │   └── LineA_LineB_2.fq * 
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   ├── alignment_files/
+│   ├── ref_ranges.bed
+│   ├── updated_assemblies
+│   │   ├── Ref.fa
+│   │   ├── LineA.fa
+│   │   └── LineB.fa
+│   └── vcf_files
+│       ├── LineA.h.vcf
+|       └── LineB.h.vcf
+└── vcf_dbs
+    ├── assemblies.agc
+    ├── gvcf_dataset/
+    ├── hvcf_dataset/
+    ├── hvcf_files/
+    ├── reference/
+    └── temp/
+```
+
+Now that we have both short read data and our k-mer index file, we
+can pass these to the `map-kmers` command:
 
 ```shell  
 ./phg map-kmers \
-    --hvcf-dir /my/hvcf/dir \
-    --kmer-index /my/hvcf/dir/kmerIndex.txt \
-    --read-files /path/to/reads/LineA_R1.fq /path/to/reads/LineA_R2.fq \
-    --output-dir /my/mapping/dir
+    --hvcf-dir output/vcf_files \
+    --kmer-index output/kmer_index.txt \
+    --key-file data/key_files/read_mapping_data.txt
+    --output-dir output/read_mappings
 ```
 
+`--read-files data/short_reads/LineA_LineB_1.fq,data/short_reads/LineA_LineB_2.fq \`
+
 This command has the following parameters:
+
 * `--hvcf-dir` - the directory containing the hVCF files.
 * `--kmer-index` - the k-mer index file created by the 
   `build-kmer-index` command.
-* `--read-files` - a comma separated list of fastq files for a single 
-  sample.  Either 1(for single end) or 2(for paired end) files can be 
-  input at a time this way. Any more and an error will be thrown.
+* `--key-file` - a tab-delimited list of FASTQ files for a collection
+  of samples.
+  + In the above example, I have made a key file and placed it in a
+    subdirectory under the `data` folder called `key_files`.
+  + My example key file would look like the following:
+    ```
+    sampleName  filename  filename2
+    LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
+    ```
+  + If you have more than one sample, you would place additional
+    lines at the bottom of the key file. For example:
+    ```
+    sampleName  filename  filename2
+    LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
+    CrossC data/short_reads/cross_c_1.fq  data/short_reads/cross_c_2.fq
+    CrossD data/short_reads/cross_d_1.fq  data/short_reads/cross_d_2.fq
+    ```
+  + > ℹ️ **Note**  
+    The key file for this parameter needs **column names**. If you
+    are using single-reads, the column names would be:
+    `sampleName` and `filename`. If you have paired-end reads (like 
+    the example above), the column names would be `sampleName`, 
+    `filename`, and `filename2`.
+  + > ℹ️ **Note**  
+    File names must be of type "FASTQ". In other words, files must 
+    end in the permitted extensions: `.fq`, `.fq.gz`, `.fastq`, and 
+    `.fastq.gz`.
+    
 * `--output-dir` - the directory to place the read mapping files.
 
-Instead of using `--read-files`, you can use `--key-file` to specify 
-a key file that contains a list of the read mapping files. 
-Columns for samplename and filename are required.  If using paired end 
-FASTQs, a filename2 column can be included. File names must end in 
-one of `.fq`, `.fq.ga`, `.fastq`, or `.fastq.gz`.
+> [!TIP]
+> If you do not want to create a key file and only have one sample,
+> you can replace the `--key-file` parameter with the `--read-files`
+> parameter. This parameter will take the paths to the FASTQ reads as
+> a comma separated list.
+> 
+> For example, if we were to modify the prior example, the command
+> structure would look like the following:
+> 
+> ```shell
+> ./phg map-kmers \
+>    --hvcf-dir output/vcf_files \
+>    --kmer-index output/kmer_index.txt \
+>    --read-files data/short_reads/LineA_LineB_1.fq,data/short_reads/LineA_LineB_2.fq
+>    --output-dir output/read_mappings 
+> ```
 
-The value of `--kmer-index` defaults to `--hvcf-dir`/kmerIndex.txt, 
-the default value used by BuildKmerIndex. If a non-default value was 
-used for the `kmerIndex` file in BuildKmerIndex, that same value 
-needs to be set here using this parameter.
+> [!NOTE]
+> If no value is passed to the `--kmer-index` parameter, it will 
+> default to `<--hvcf-dir value>/kmerIndex.txt`, the default value 
+> used by the `build-kmer-index` [command](#k-mer-indexing). If a 
+> non-default value was used for the `--index-file` parameter in 
+> `build-kmer-index`, that same value needs to be set here for the 
+> `--kmer-index` parameter.
 
 
 
 ## Find Paths
 FindPaths is the command used to impute paths through a 
 HaplotypeGraph based on a set of read mappings. The method uses read 
-mapping files generated by the map-kmers command. Running FindPaths 
+mapping files generated by the `map-kmers` command. Running FindPaths 
 uses the Viterbi algorithm to solve a hidden Markov model (HMM) to 
 identify the set of haplotypes most likely to have generated the 
 observed read mappings. A haploid path is a single path through the 
@@ -198,7 +372,7 @@ MapKmers is run to generate read mappings but the intermediate
 read-mapping files are not saved. To save a copy of the read-mapping 
 files, MapKmers and FindPaths must be run separately. For either 
 input type, the key-file must contain columns named sampleName and 
-filename. Optionally, key files for fastqs can also contain a 
+filename. Optionally, key files for FASTQs can also contain a 
 "filename2" column for paired-end reads. In either case, the key file 
 used to specify the files to be processed can take single files or 
 comma-separated lists for filename and filename2. Reads from lists of 
