@@ -50,7 +50,7 @@ class FullPipelineIT {
             File(TestExtension.testMafDir).deleteRecursively()
             File(TestExtension.testInputFastaDir).deleteRecursively()
             File(TestExtension.testOutputFastaDir).deleteRecursively()
-            File(TestExtension.testOutputGVCFDIr).deleteRecursively()
+            File(TestExtension.testOutputGVCFDir).deleteRecursively()
             File(TestExtension.testTileDBURI).deleteRecursively()
             File(TestExtension.testOutputDir).deleteRecursively()
 
@@ -61,7 +61,7 @@ class FullPipelineIT {
             File(TestExtension.testMafDir).mkdirs()
             File(TestExtension.testInputFastaDir).mkdirs()
             File(TestExtension.testOutputFastaDir).mkdirs()
-            File(TestExtension.testOutputGVCFDIr).mkdirs()
+            File(TestExtension.testOutputGVCFDir).mkdirs()
             File(TestExtension.testTileDBURI).mkdirs()
             File(TestExtension.testOutputDir).mkdirs()
         }
@@ -114,12 +114,12 @@ class FullPipelineIT {
 
         //Pull out the HVCF from TileDB
         val exportHVCF = ExportVcf()
-        val exportHVCFRefResult = exportHVCF.test("--db-path ${TestExtension.testTileDBURI} --sample-names Ref,LineA,LineB -o ${TestExtension.testOutputGVCFDIr}")
+        val exportHVCFRefResult = exportHVCF.test("--db-path ${TestExtension.testTileDBURI} --sample-names Ref,LineA,LineB -o ${TestExtension.testOutputGVCFDir}")
         println(exportHVCFRefResult.output)
 
         //Create a fasta from the HVCF
         val createFastaFromHvcf = CreateFastaFromHvcf()
-        val createFastaFromHvcfRefResult = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type haplotype --hvcf-dir ${TestExtension.testOutputGVCFDIr} -o ${TestExtension.testOutputHaplotypeFasta}")
+        val createFastaFromHvcfRefResult = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type haplotype --hvcf-dir ${TestExtension.testOutputGVCFDir} -o ${TestExtension.testOutputHaplotypeFasta}")
         println(createFastaFromHvcfRefResult.output)
 
         //Open the output fasta
@@ -134,9 +134,9 @@ class FullPipelineIT {
 
 
         //build a composite genome from the HVCFs
-        createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDIr}/Ref.h.vcf -o ${TestExtension.testOutputFastaDir}/Ref_composite.fa")
-        createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDIr}/LineA.h.vcf -o ${TestExtension.testOutputFastaDir}/LineA_composite.fa")
-        createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDIr}/LineB.h.vcf -o ${TestExtension.testOutputFastaDir}/LineB_composite.fa")
+        createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDir}/Ref.h.vcf -o ${TestExtension.testOutputFastaDir}/Ref_composite.fa")
+        createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDir}/LineA.h.vcf -o ${TestExtension.testOutputFastaDir}/LineA_composite.fa")
+        createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputGVCFDir}/LineB.h.vcf -o ${TestExtension.testOutputFastaDir}/LineB_composite.fa")
         
         //Compare the outputs.
         val refDiff =  compareFastaSeqs(TestExtension.smallseqRefFile, "${TestExtension.testOutputFastaDir}/Ref_composite.fa")

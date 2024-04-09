@@ -15,8 +15,8 @@ class TestExtension : BeforeAllCallback {
         val testMafDir = "${tempDir}mafDir/"
         val testInputFastaDir = "${tempDir}inputFastaDir/"
         val testOutputFastaDir = "${tempDir}outputFastaDir/"
-        val testOutputGVCFDIr = "${tempDir}outputGVCFDir/"
-
+        val testOutputGVCFDir = "${tempDir}outputGVCFDir/"
+        val testOutputHVCFDir = "${tempDir}outputHVCFDir/"
 
         const val smallSeqInputDir = "data/test/smallseq/"
 
@@ -99,7 +99,7 @@ class TestExtension : BeforeAllCallback {
         File(testMafDir).mkdirs()
         File(testInputFastaDir).mkdirs()
         File(testOutputFastaDir).mkdirs()
-        File(testOutputGVCFDIr).mkdirs()
+        File(testOutputGVCFDir).mkdirs()
         File(testTileDBURI).mkdirs()
 
     }
