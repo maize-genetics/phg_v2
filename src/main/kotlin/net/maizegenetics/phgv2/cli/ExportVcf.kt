@@ -2,16 +2,15 @@ package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
+import com.github.ajalt.clikt.parameters.groups.required
+import com.github.ajalt.clikt.parameters.groups.single
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
-import com.github.ajalt.clikt.parameters.groups.required
-import com.github.ajalt.clikt.parameters.groups.single
 import net.maizegenetics.phgv2.utils.verifyURI
 import org.apache.logging.log4j.LogManager
 import java.io.File
-
 
 
 // Enum indicating type of input for sample names
@@ -23,12 +22,12 @@ enum class SampleFormatEnum(private val value: String) {
  * Sealed classes to handle either a list of sample names or a file containing sample names, 1 per line.
  */
 sealed class SampleProcessing {
-   // abstract fun getSampleOption(): Pair<SampleFormatEnum,String>
+    // abstract fun getSampleOption(): Pair<SampleFormatEnum,String>
     // Would be nice if this could return the command itself, but
     // the command requires the value of the other input parameters,
     // which are not known here.
     abstract fun getExportCommand(): List<String>
-    data class SampleFile(val sampleFile: String): SampleProcessing() {
+    data class SampleFile(val sampleFile: String) : SampleProcessing() {
         @Override
         override fun getExportCommand(): List<String> {
             check(File(sampleFile).exists()) { "Samples file $sampleFile does not exist." }
@@ -36,7 +35,7 @@ sealed class SampleProcessing {
         }
     }
 
-    data class SampleList(val sampleList: String): SampleProcessing() {
+    data class SampleList(val sampleList: String) : SampleProcessing() {
         @Override
         override fun getExportCommand(): List<String> {
             return listOf(SampleFormatEnum.LIST.toString(), sampleList)
@@ -61,8 +60,14 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
     // Get the sample names from either a list or a file
     // the dataclass SampleProcessing.getExportCommand() a list with 2 strings: the type of input (file or list) and the value
     val samples: SampleProcessing by mutuallyExclusiveOptions(
-        option("--sample-names", help = "Comma separated list of Sample names to export. Either sampleNames or samplesFile must be provided").convert{ SampleProcessing.SampleList(it) },
-        option("--sample-file", help = "Text file with list of sample names to export, one per line. Either sampleNames or samplesFile must be provided").convert{ SampleProcessing.SampleFile(it)}
+        option(
+            "--sample-names",
+            help = "Comma separated list of Sample names to export. Either sampleNames or samplesFile must be provided"
+        ).convert { SampleProcessing.SampleList(it) },
+        option(
+            "--sample-file",
+            help = "Text file with list of sample names to export, one per line. Either sampleNames or samplesFile must be provided"
+        ).convert { SampleProcessing.SampleFile(it) }
     ).single().required()
 
 
@@ -78,7 +83,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         }
 
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
-        val validDB = verifyURI(dbPath,"hvcf_dataset")
+        val validDB = verifyURI(dbPath, "hvcf_dataset")
 
         // This is the tiledbvcf command we want to run:
         // Doing this with a ProcessBuilder and using the phg_v2 conda environment
@@ -86,7 +91,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         // or ... if the user provides a file with sample names
         // tiledbvcf export --uri tiledb/hvcf_dataset -O v --samples-file sampleNames.txt --output-dir exported-vcfs
 
-        val dtype =  if (datasetType == "gvcf") "gvcf_dataset" else "hvcf_dataset"
+        val dtype = if (datasetType == "gvcf") "gvcf_dataset" else "hvcf_dataset"
 
         // Tiledbvcf can take either a file with samplenames, or a comma-separated list of sample names
         // setup the command based on user input type.
@@ -126,7 +131,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         val builder = ProcessBuilder(*command)
 
         val redirectError = "$outputDir/export_${dtype}_error.log"
-        val redirectOutput = "$outputDir/export_$dtype}_output.log"
+        val redirectOutput = "$outputDir/export_${dtype}_output.log"
         builder.redirectOutput(File(redirectOutput))
         builder.redirectError(File(redirectError))
 
@@ -136,6 +141,30 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         if (error != 0) {
             myLogger.error("tiledbvcf export for: $samples run via ProcessBuilder returned error code $error")
             throw IllegalStateException("Error running tiledbvcf export of dataset $dbPath/$dtype for: $samples. error: $error")
+        }
+
+        val typeSamples = samples.getExportCommand()
+        val type = typeSamples[0]
+        val sampleNames = typeSamples[1]
+
+        when (type) {
+            SampleFormatEnum.FILE.toString() -> {
+                File(sampleNames).readLines().forEach { sample ->
+                    when (datasetType) {
+                        "gvcf" -> File("$outputDir/$sample.vcf").renameTo(File("$outputDir/${sample}.g.vcf"))
+                        "hvcf" -> File("$outputDir/$sample.vcf").renameTo(File("$outputDir/${sample}.h.vcf"))
+                    }
+                }
+            }
+
+            SampleFormatEnum.LIST.toString() -> {
+                sampleNames.split(",").forEach { sample ->
+                    when (datasetType) {
+                        "gvcf" -> File("$outputDir/$sample.vcf").renameTo(File("$outputDir/${sample}.g.vcf"))
+                        "hvcf" -> File("$outputDir/$sample.vcf").renameTo(File("$outputDir/${sample}.h.vcf"))
+                    }
+                }
+            }
         }
 
     }
