@@ -181,11 +181,10 @@ class AlignAssembliesTest {
         val userPlotDirPath = "${System.getProperty("user.dir")}/$userPlotDir"
         File(userPlotDirPath).mkdir()
 
-        val outputDir = "lynnOutput/alignment_files"
         val alignAssemblies = AlignAssemblies()
         val result = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "-a ${TestExtension.smallseqAssembliesListFile} -o userPlotDir --total-threads 1 --in-parallel 1"
+                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${userPlotDir} --total-threads 1 --in-parallel 1"
         )
         // verify file named LineA_dotplot.svg exists in the userPlotDir directory
         val plotFileLineA = "$userPlotDirPath/LineA_dotplot.svg"
