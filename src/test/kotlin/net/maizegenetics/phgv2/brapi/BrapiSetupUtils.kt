@@ -53,7 +53,7 @@ fun resetDirs() {
     File(TestExtension.testMafDir).deleteRecursively()
     File(TestExtension.testInputFastaDir).deleteRecursively()
     File(TestExtension.testOutputFastaDir).deleteRecursively()
-    File(TestExtension.testOutputGVCFDIr).deleteRecursively()
+    File(TestExtension.testOutputGVCFDir).deleteRecursively()
     File(TestExtension.testTileDBURI).deleteRecursively()
 
 
@@ -64,7 +64,7 @@ fun resetDirs() {
     File(TestExtension.testMafDir).mkdirs()
     File(TestExtension.testInputFastaDir).mkdirs()
     File(TestExtension.testOutputFastaDir).mkdirs()
-    File(TestExtension.testOutputGVCFDIr).mkdirs()
+    File(TestExtension.testOutputGVCFDir).mkdirs()
     File(TestExtension.testTileDBURI).mkdirs()
 }
 

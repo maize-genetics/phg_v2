@@ -1,10 +1,8 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
-import com.google.common.io.Files
 import net.maizegenetics.phgv2.brapi.createSmallSeqTiledb
 import net.maizegenetics.phgv2.brapi.resetDirs
-import net.maizegenetics.phgv2.utils.bgzipAndIndexGVCFfile
 import net.maizegenetics.phgv2.utils.getChecksum
 import org.apache.logging.log4j.LogManager
 import org.junit.jupiter.api.AfterAll
@@ -65,7 +63,7 @@ class ExportVcfTest {
         assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
 
         var checksum1 = getChecksum(TestExtension.smallseqRefHvcfFile)
-        var checksum2 = getChecksum("$outputHvcfDir/Ref.vcf")
+        var checksum2 = getChecksum("$outputHvcfDir/Ref.h.vcf")
 
         println("Ref.h.vcf expected checksum1: $checksum1")
         println("Ref.vcf actual checksum2: $checksum2")
@@ -73,6 +71,7 @@ class ExportVcfTest {
         assertEquals(checksum1, checksum2, "Ref.h.vcf checksums do not match")
 
     }
+
     @Test
     fun testMultipleSamplesFromList() {
         val result = ExportVcf().test(
@@ -85,7 +84,7 @@ class ExportVcfTest {
 
         // Verify Ref.vcf checksum
         var checksum1 = getChecksum(TestExtension.smallseqRefHvcfFile)
-        var checksum2 = getChecksum("$outputHvcfDir/Ref.vcf")
+        var checksum2 = getChecksum("$outputHvcfDir/Ref.h.vcf")
 
         println("Ref.h.vcf expected checksum1: $checksum1")
         println("Ref.vcf actual checksum2: $checksum2")
@@ -94,7 +93,7 @@ class ExportVcfTest {
 
         // Get checksum for LineA
         checksum1 = getChecksum(TestExtension.smallseqLineAHvcfFile)
-        checksum2 = getChecksum("$outputHvcfDir/LineA.vcf")
+        checksum2 = getChecksum("$outputHvcfDir/LineA.h.vcf")
         // verify checksums match
         assertEquals(checksum1, checksum2, "LineA.h.vcf checksums do not match")
     }
@@ -107,7 +106,7 @@ class ExportVcfTest {
 
 
         val result = ExportVcf().test(
-            "--db-path $dbPath --sample-file ${sampleFile.toString()} -o $outputHvcfDir"
+            "--db-path $dbPath --sample-file $sampleFile -o $outputHvcfDir"
         )
 
         println("testRunningExportHvcf: result output: ${result.output}")
@@ -116,7 +115,7 @@ class ExportVcfTest {
 
         // Verify ref vcf
         var checksum1 = getChecksum(TestExtension.smallseqRefHvcfFile)
-        var checksum2 = getChecksum("$outputHvcfDir/Ref.vcf")
+        var checksum2 = getChecksum("$outputHvcfDir/Ref.h.vcf")
 
         println("Ref.h.vcf expected checksum1: $checksum1")
         println("Ref.vcf actual checksum2: $checksum2")
@@ -125,7 +124,7 @@ class ExportVcfTest {
 
         // Get checksum for LineA
         checksum1 = getChecksum(TestExtension.smallseqLineAHvcfFile)
-        checksum2 = getChecksum("$outputHvcfDir/LineA.vcf")
+        checksum2 = getChecksum("$outputHvcfDir/LineA.h.vcf")
         // verify checksums match
         assertEquals(checksum1, checksum2, "LineA.h.vcf checksums do not match")
     }
