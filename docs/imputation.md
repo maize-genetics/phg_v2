@@ -429,7 +429,9 @@ section for additional input details.
 
 #### Example usage
 Using our prior working example, we can set up the path finding
-commands as follows:
+commands in the following code block. For reference, I have made
+a new subdirectory in the `output` folder called `vcf_files_imputed`
+and will place imputed hVCF files there:
 
 ```shell
 ./phg find-paths \
@@ -479,15 +481,15 @@ This command has the following required parameters:
 * `--output-dir` - The directory where the output hVCFs will be 
   written. One file will be written for each sample, and the output 
   file name will be `<sample name>.h.vcf`.
-
 * `--path-type`: The type of path to be imputed. The value must be 
   either `haploid` or `diploid`
 
 
 #### Optional Parameters
-Additional optional parameter may also be set. Please the following
-section ("[Likely Ancestors](#likely-ancestors)") for more
-information.
+Additional optional parameters may also be set to optimize your
+imputation pipeline. Please see the proceeding section 
+("[Likely Ancestors](#likely-ancestors)") for more information on
+how to leverage a set of the following parameters.
 
 | Parameter name             | Description                                                                                                                                                                                                                                                                                                  | Default value       |
 |----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------|
@@ -506,17 +508,17 @@ information.
 
 #### Likely Ancestors
 The term "ancestors" refers to the taxa or samples (i.e., assemblies)
-used to construct the haplotype graph used for imputation. The term "ancestors" is used
-because the model considers the haplotypes in the graph to represent
-the potential ancestral haplotypes from which the samples to be
-imputed were derived.
+used to construct the haplotype graph used for imputation. The term 
+"ancestors" is used because the model considers the haplotypes in the 
+graph to represent the potential ancestral haplotypes from which the 
+samples to be imputed were derived.
 
 In some scenarios, **limiting the number of ancestors** used to
 impute a sample will be useful. Some examples include:
 
-* if some samples were derived from an F1 cross and the individuals used
-  to build the graph include those parents, using only those parents
-  for imputation can improve accuracy.
+* if some samples were derived from an F1 cross and the individuals 
+  used to build the graph include those parents, using only those 
+  parents for imputation can improve accuracy.
 * Also, because imputing diploid
   paths is more computationally intensive than haploid paths, limiting
   the number of ancestors used per sample may be necessary to control
@@ -525,12 +527,12 @@ impute a sample will be useful. Some examples include:
 To restrict the number of ancestors used, set the
 `--use-likely-ancestors` parameter to `true`, and provide a value for
 either `--max-ancestors` or `--min-coverage`. For the case where the
-samples have been derived from a limited
-number of ancestors setting `--min-coverage` to `0.95` or `--max-ancestors` to
-the expected number of ancestors is a useful strategy. In either
-case, providing a name for the output file saves a record of the
-ancestors used for each sample and should be checked to make sure the
-samples behaved as expected.
+samples have been derived from a limited number of ancestors setting 
+`--min-coverage` to `0.95` or `--max-ancestors` to the expected 
+number of ancestors is a useful strategy. In either case, providing a 
+name for the output file saves a record of the ancestors used for 
+each sample and should be checked to make sure the samples behaved as 
+expected.
 
 When using this method, ancestors are chosen by first counting the
 number of reads for a sample that map to each ancestor in the
@@ -538,10 +540,67 @@ haplotype graph. The ancestor with the most mapped reads is chosen.
 Next the reads not mapping to first chosen ancestor are used to count
 reads mapping to the remaining ancestors and the ancestor with the
 most reads is selected. This is repeated until either the proportion
-of reads mapping to the selected ancestors >= min-coverage or the
-number ancestors selected equals max-ancestors. If a name is provided
-for the likely-ancestor-file, the chosen ancestors are written to
-that file in the order they were chosen along with the cumulative
-coverage, which is the proportion of reads mapping to each ancestor
-and the previously chosen ones.
+of reads mapping to the selected ancestors >= `--min-coverage` or the
+number ancestors selected equals `--max-ancestors`. If a name is 
+provided for the `--likely-ancestor-file`, the chosen ancestors are 
+written to that file in the order they were chosen along with the 
+cumulative coverage, which is the proportion of reads mapping to each 
+ancestor and the previously chosen ones.
 
+
+#### General output and next steps
+Now that we have newly imputed hVCF data, our example working
+directory looks like the following:
+
+```
+phg_v2_example/
+├── data
+│   └── short_reads
+│   │   ├── LineA_LineB_1.fq
+│   │   └── LineA_LineB_2.fq
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   ├── alignment_files/
+│   ├── ref_ranges.bed
+│   ├── updated_assemblies
+│   │   ├── Ref.fa
+│   │   ├── LineA.fa
+│   │   └── LineB.fa
+│   ├── vcf_files
+│   │   ├── LineA.h.vcf
+│   │   └── LineB.h.vcf
+│   │   vcf_files_imputed *
+│   │   └── LineA_B.h.vcf * 
+│   └── read_mappings
+│       └── LineA_LineB_1_readMapping.txt
+└── vcf_dbs
+    ├── assemblies.agc
+    ├── gvcf_dataset/
+    ├── hvcf_dataset/
+    ├── hvcf_files/
+    ├── reference/
+    └── temp/
+```
+
+Similar to the "[Build and Load](build_and_load.md#load-vcf-data-into-dbs)"
+steps, we can now load this data into our TileDB instance using the
+`load-vcf` command:
+
+```shell
+./phg load-vcf \
+    --vcf-dir output/vcf_files_imputed \
+    --db-path vcf_dbs \
+    --threads 10
+```
+
+This command takes three parameters:
+
+* `--vcf-dir` - Directory containing hVCF data. Since I have imputed 
+  data in a specific subdirectory, I will use the path
+  `output/vcf_files_imputed`
+* `--db-path` - Path to the directory containing the TileDB instances.
+* `--threads` - Number of threads for use by the TileDB loading
+  procedure.
