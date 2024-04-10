@@ -186,8 +186,7 @@ file. This is performed using the `build-kmer-index` command:
 ```shell
 ./phg build-kmer-index \
     --db-path vcf_dbs \
-    --hvcf-dir output/vcf_files \
-    --index-file output/kmer_index.txt
+    --hvcf-dir output/vcf_files
 ```
 
 
@@ -205,18 +204,45 @@ parameter that I will specify for example purposes:
   * `<--hvcf-dir input>/kmerIndex.txt`
   * In my case, this would be `output/vcf_files/kmerIndex.txt`
 
-This will store the k-mer index as `kmer_indext.txt` in the `output` 
-directory.
+Since we have used defaults, a new index file will show in the
+following `output/vcf_files` directory of our example:
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   ├── alignment_files/
+│   ├── ref_ranges.bed
+│   ├── updated_assemblies
+│   │   ├── Ref.fa
+│   │   ├── LineA.fa
+│   │   └── LineB.fa
+│   └── vcf_files
+│       ├── kmerIndex.txt *
+│       ├── LineA.h.vcf
+│       └── LineB.h.vcf
+└── vcf_dbs
+    ├── assemblies.agc
+    ├── gvcf_dataset/
+    ├── hvcf_dataset/
+    ├── hvcf_files/
+    ├── reference/
+    └── temp/
+```
 
 
 #### Optional parameters
 In addition to `--index-file`, this command can take other optional 
 parameters:
 
-| Parameter name         | Description                                                                                                        | Default value |
-|------------------------|--------------------------------------------------------------------------------------------------------------------|---------------|
-| `--max-hap-proportion` | Only k-mers mapping to less than or equal to maxHapProportion of haplotypes in a reference range will be retained. | `0.75`        |
-| `--max-arg-length`     | The maximum argument length for a call to the [AGC program](https://github.com/acoleman2000/agc).                  | `200000`      |
+| Parameter name         | Description                                                                                                        | Default value  |
+|------------------------|--------------------------------------------------------------------------------------------------------------------|----------------|
+| `--max-hap-proportion` | Only k-mers mapping to less than or equal to maxHapProportion of haplotypes in a reference range will be retained. | `0.75`         |
+| `--max-arg-length`     | The maximum argument length for a call to the [AGC program](https://github.com/acoleman2000/agc).                  | `200000`       |
 
 > [!TIP]
 > If you get an error caused by a call to AGC being too long,
@@ -226,10 +252,11 @@ The following optional parameters affect how k-mers are pre-filtered
 to determine which are used for indexing. They would only need to be 
 adjusted if the number of k-mers in the index is too low or too high:
 
-| Parameter name  | Description                                                                                                                                                               | Default value |
-|-----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| `--hash-mask`   | In conjunction with `--hash-filter`, used to mask k-mers for filtering. Default uses only the last k-mer nucleotide. **Only change this if you know what you are doing.** | `3`           |
-| `--hash-filter` | Only hashes that pass the filter ((hashValue and hashMask) == hashFilter) will be considered. **Only change this value unless you know what you are doing.**              | `1`           |
+| Parameter name  | Description                                                                                                                                                                         | Default value |
+|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `--hash-mask`   | In conjunction with `--hash-filter`, used to mask k-mers for filtering. Default uses only the last k-mer nucleotide. **Only change this value unless you know what you are doing.** | `3`           |
+| `--hash-filter` | Only hashes that pass the filter ((hashValue and hashMask) == hashFilter) will be considered. **Only change this value unless you know what you are doing.**                        | `1`           |
+
 
 
 ### Read mapping
@@ -268,6 +295,7 @@ phg_v2_example/
 │   │   ├── LineA.fa
 │   │   └── LineB.fa
 │   └── vcf_files
+│       ├── kmerIndex.txt
 │       ├── LineA.h.vcf
 │       └── LineB.h.vcf
 └── vcf_dbs
@@ -285,45 +313,52 @@ can pass these to the `map-kmers` command:
 ```shell  
 ./phg map-kmers \
     --hvcf-dir output/vcf_files \
-    --kmer-index output/kmer_index.txt \
-    --key-file data/key_files/read_mapping_data.txt
+    --key-file data/key_files/read_mapping_data.txt \
     --output-dir output/read_mappings
 ```
 
 This command has the following parameters:
 
 * `--hvcf-dir` - the directory containing the hVCF files.
-* `--kmer-index` - the k-mer index file created by the 
-  `build-kmer-index` command.
 * `--key-file` - a tab-delimited list of FASTQ files for a collection
   of samples.
   + In the above example, I have made a keyfile and placed it in a
-    subdirectory under the `data` folder called `key_files`.
+  subdirectory under the `data` folder called `key_files`.
   + My example keyfile would look like the following:
     ```
-    sampleName  filename  filename2
-    LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
+  sampleName  filename  filename2
+  LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
     ```
   + If you have more than one sample, you would place additional
-    lines at the bottom of the keyfile. For example:
+  lines at the bottom of the keyfile. For example:
     ```
-    sampleName  filename  filename2
-    LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
-    CrossC data/short_reads/cross_c_1.fq  data/short_reads/cross_c_2.fq
-    CrossD data/short_reads/cross_d_1.fq  data/short_reads/cross_d_2.fq
+  sampleName  filename  filename2
+  LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
+  CrossC data/short_reads/cross_c_1.fq  data/short_reads/cross_c_2.fq
+  CrossD data/short_reads/cross_d_1.fq  data/short_reads/cross_d_2.fq
     ```
   + > ℹ️ **Note**  
-    The keyfile for this parameter needs **column names**. If you
-    are using single-reads, the column names would be:
-    `sampleName` and `filename`. If you have paired-end reads (like 
-    the example above), the column names would be `sampleName`, 
-    `filename`, and `filename2`.
+  The keyfile for this parameter needs **column names**. If you
+  are using single-reads, the column names would be:
+  `sampleName` and `filename`. If you have paired-end reads (like 
+  the example above), the column names would be `sampleName`, 
+  `filename`, and `filename2`.
   + > ℹ️ **Note**  
-    File names must be of type "FASTQ". In other words, files must 
-    end in the permitted extensions: `.fq`, `.fq.gz`, `.fastq`, and 
-    `.fastq.gz`.
-    
+  File names must be of type "FASTQ". In other words, files must 
+  end in the permitted extensions: `.fq`, `.fq.gz`, `.fastq`, and 
+  `.fastq.gz`. 
 * `--output-dir` - the directory to place the read-mapping files.
+* `--kmer-index` (_optional_) - the k-mer index file created by the
+  `build-kmer-index` command.
+  + > ℹ️ **Note**  
+    The `--kmer-index` parameter should only be used if you
+    specify a given name and path for your k-mer index file
+    generated in the [last step](#k-mer-indexing). If you have
+    chosen the "default" option (i.e., leaving this blank), the 
+    `map-kmer` command will automatically detect the 
+    `kmerIndex.txt` file found in the directory specified by the 
+    `--hvcf-dir` parameter.
+
 
 > [!TIP]
 > If you do not want to create a keyfile and only have one sample,
@@ -338,7 +373,7 @@ This command has the following parameters:
 > ./phg map-kmers \
 >    --hvcf-dir output/vcf_files \
 >    --kmer-index output/kmer_index.txt \
->    --read-files data/short_reads/LineA_LineB_1.fq,data/short_reads/LineA_LineB_2.fq
+>    --read-files data/short_reads/LineA_LineB_1.fq,data/short_reads/LineA_LineB_2.fq \
 >    --output-dir output/read_mappings 
 > ```
 
@@ -458,8 +493,11 @@ This command has the following required parameters:
       in the keyfile can also be paths to FASTQ data (_see the 
       "[Read Mapping](#read-mapping)" section for further details_) 
     + > ℹ️ **Note**  
-      The keyfile must have two columns labeled `sampleName` and `filename`.
-      Any additional columns will be ignored.
+      The keyfile must have two columns labeled `sampleName` and 
+      `filename` if you are specifying paths to read-mapping files.
+      If you are using paths to FASTQ data, you may add another
+      column to your keyfile, labelled `filename2`, only if your 
+      FASTQ data is paired-end.
     + > ℹ️ **Note**  
       The samples in the `sampleName` must be unique and must match
       prior keyfile data from the "[Read Mapping](#read-mapping)" 
@@ -471,7 +509,7 @@ This command has the following required parameters:
     comma-separated list.
     + If bypassing the manual `map-kmers` step, paths to FASTQ
       files can be used. Either 1 (for single-end) or 2 (for 
-      paired-end) comma-separated files can be input at a time this way.
+      paired-end) comma-separated files can be input this way.
     + If specifying read-mapping files, comma-separated paths to
       files must have the `_readMapping.txt` suffix to work.
 * `--hvcf-dir` - The directory containing the hvcf used to build the 
