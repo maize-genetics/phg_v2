@@ -74,10 +74,6 @@ _Long-form documentation for this section can be found [here](docs/build_and_loa
 _Long-form documentation for this section can be found [here](docs/imputation.md)_
 
 
-> [!NOTE]
-> This section is currently in progress and command input may be
-> subject to change.
-
 ```shell
 ## Export
 ./phg export-vcf --db-path /my/db/uri --dataset-type hvcf --sample-names LineA,LineB --output-dir /my/hvcf/dir
@@ -169,7 +165,7 @@ More commonly used terms can be found [here](docs/terminology.md).
 ### PHG workflows
 1. [Installation](docs/installation.md)
 2. [Building and loading](docs/build_and_load.md)
-3. [Imputation](docs/imputation.md) (_**WIP**_) 🚧
+3. [Imputation](docs/imputation.md)
 4. [Export data](docs/export_data.md) (_**WIP**_) 🚧
 
 ### Reference
