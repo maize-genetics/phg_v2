@@ -612,7 +612,21 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         // did not always render correctly, particularly when the assembly
         // was not at a chromosomal level.
         val plot = plotDot(dfAnchorWave)
-        val plotFile = "${outputDir}/${justNameAsm}_dotplot.svg"
+
+        // Set the plotFile to be written.  If the outputDir begins with a "/", it is an absolute path
+        // and can be used as the path name.
+        // If the outputDir variable does not begin with a "/", it is a relative path, and we need to
+        // prepend the current working directory to it.
+        // ProcessBuilder above does not need this but ggsave() does not handle relative paths correctly.
+
+        val plotFile = if (outputDir.startsWith("/")) {
+            "${outputDir}/${justNameAsm}_dotplot.svg"
+        } else {
+            "${System.getProperty("user.dir")}/${outputDir}/${justNameAsm}_dotplot.svg"
+        }
+
+
+        myLogger.info("outputDir for ggsave: $outputDir, plotFile=$plotFile")
         val pathSVG = ggsave(plot, plotFile)
         myLogger.info("Dot plot for ${justNameAsm} saved to: $pathSVG")
 
