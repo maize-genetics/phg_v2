@@ -24,6 +24,20 @@ class CreateAnchorwaveDotplotTest {
     }
 
     @Test
+    fun testDotPlotWithRelativePath() {
+        val createAWdp = CreateAnchorwaveDotplot()
+        val inputFile = "data/test/smallseq/dummy_anchors_small.anchorspro"
+        val outputFile = "dummy_anchors_small.svg"
+
+        val outputFilePath = "${System.getProperty("user.dir")}/$outputFile"
+        val result = createAWdp.test("--input-file ${inputFile} --output-file ${outputFile}")
+        assertEquals(result.statusCode, 0)
+        assertTrue(File(outputFilePath).exists(),"Output file not created")
+
+        // Delete the outputFilePath
+        File(outputFilePath).delete()
+    }
+    @Test
     fun testCliktParams() {
         val createAWdp = CreateAnchorwaveDotplot()
         val inputFile = "data/test/smallseq/dummy_anchors_small.anchorspro"

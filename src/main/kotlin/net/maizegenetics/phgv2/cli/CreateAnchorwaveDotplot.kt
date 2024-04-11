@@ -29,7 +29,7 @@ class CreateAnchorwaveDotplot: CliktCommand(help = "create a dot plot stored in 
                 "--input-file must not be blank"
             }
         }
-    val outputFile by option(help = "Full path to the SVG file where the dotplot data will be stored - should end with .svg")
+    val outputFile by option(help = "Full path to the SVG file where the dotplot data will be stored - should end with .svg or .png")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -54,10 +54,18 @@ class CreateAnchorwaveDotplot: CliktCommand(help = "create a dot plot stored in 
         // Three, two, one, plot!
         val plot = AlignAssemblies().plotDot(dfAnchorWave)
 
-        myLogger.info("plot was created, call ggsave")
-        val pathSVG = ggsave(plot, "${outputFile}")
 
-        myLogger.info("dotplot output file written to $outputFile ")
+        // We specified in the help message that the output file shoudl be a full path.
+        // But since we are handling relative paths in AlignAssemblies, we will check for that here.
+        val plotFile = if (outputFile.startsWith("/")) {
+            outputFile
+        } else {
+            "${System.getProperty("user.dir")}/${outputFile}"
+        }
+        myLogger.info("plot was created, call ggsave")
+        val pathSVG = ggsave(plot, plotFile)
+
+        myLogger.info("dotplot output file written to $pathSVG ")
         val totalTime = (System.nanoTime() - startTime)/1e9
         myLogger.info("Time to process stats: $totalTime seconds")
 
