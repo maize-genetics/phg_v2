@@ -172,4 +172,4 @@ More commonly used terms can be found [here](docs/terminology.md).
 * [hVCF format specifications](docs/hvcf_specifications.md)
 * [haplotype region handling](docs/hvcf_region_handling.md)
 * [PHGv2 terminology](docs/terminology.md)
-  * [PHGv2 architecture](docs/img/architecture/phg_v2_architecture_20240411.svg)
+* [PHGv2 architecture](docs/img/architecture/phg_v2_architecture_20240411.svg)
