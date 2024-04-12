@@ -625,9 +625,14 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
             "${System.getProperty("user.dir")}/${outputDir}/${justNameAsm}_dotplot.svg"
         }
 
+        // If path is not specified for ggsave, ggsave will create a lets-plot-images folder
+        // in the current working directory.  It saves the file to the path specified
+        // in the plotFile variable, but still creates the lets-plot-images folder.
+        // hence, specify the "path" parameter in ggsave to avoid this.
+        val path = File(plotFile).parent
 
         myLogger.info("outputDir for ggsave: $outputDir, plotFile=$plotFile")
-        val pathSVG = ggsave(plot, plotFile)
+        val pathSVG = ggsave(plot, plotFile, path=path)
         myLogger.info("Dot plot for ${justNameAsm} saved to: $pathSVG")
 
     }
