@@ -975,7 +975,9 @@ phg create-maf-vcf \
     --bed output/ref_ranges.bed \
     --reference-file output/updated_assemblies/Ref.fa \
     --maf-dir output/alignment_files \
-    -o output/vcf_files
+    -o output/vcf_files \
+    --metrics-file output/vcf_files/VCFMetrics.tsv \
+    --skip-metrics
 ```
 
 3. (_**Optional**_) Create hVCF from existing PHG created gVCF files. 
@@ -1078,6 +1080,11 @@ The `create-maf-vcf` command requires the following inputs:
   [**"Align assemblies"**](#align-assemblies) section for further 
   details_).
 * `-o` - Output directory for the VCF data.
+* `--metrics-file` - Name of the output file for the VCF metrics table
+    if left blank, the table will be written to the output directory
+    and will be named `VCFMetrics.tsv`. See the QC metrics documentation
+    for details.
+* `--skip-metrics` - If this flag is set, QC metrics will not be calculated
 
 > [!WARNING]
 > The directory that you specify in the output (`-o`) section must
