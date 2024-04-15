@@ -395,6 +395,17 @@ This command has the following parameters:
 > `build-kmer-index`, that same value needs to be set here for the 
 > `--kmer-index` parameter.
 
+
+#### Optional parameters
+The Map Kmers  command can take the following optional parameters:
+
+| Parameter name                          | Description                                                                      | Default value |
+|-----------------------------------------|----------------------------------------------------------------------------------|---------------|
+| `--threads`                             | Number of threads used for mapping                                               | `5`           |
+| `--min-proportion-of-max-count`         | Minimum proportion of the maximum kmer count for a read to be considered a match | `1.0`         |
+| `--min-proportion-same-reference-range` | Minimum proportion of the read that must align to the same reference range       | `0.9`         |
+
+
 Now that we have performed k-mer mapping, we will have a new 
 read-mapping file in our example working directory that will be
 used for the path finding algorithm in the next step:

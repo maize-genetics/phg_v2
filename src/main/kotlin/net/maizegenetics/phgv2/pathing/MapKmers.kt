@@ -5,6 +5,8 @@ import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
 import com.github.ajalt.clikt.parameters.groups.required
 import com.github.ajalt.clikt.parameters.groups.single
 import com.github.ajalt.clikt.parameters.options.*
+import com.github.ajalt.clikt.parameters.types.double
+import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import java.io.File
 import java.util.logging.Logger
@@ -93,6 +95,17 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
             }
         }
 
+    val threads by option(help = "Number of threads to use. Default is 5.")
+        .int()
+        .default(5)
+
+    val minProportionOfMaxCount by option(help = "Minimum proportion of the maximum count for a read to be considered a match. Default is 1.0.")
+        .double()
+        .default(1.0)
+
+    val minProportionSameReferenceRange by option(help = "Minimum proportion of the read that must align to the same reference range. Default is 0.9.")
+        .double()
+        .default(0.9)
 
 
     override fun run() {
@@ -107,6 +120,6 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
 
         //create a HaplotypeGraph from the list of hvcf files
         val graph = HaplotypeGraph(hvcfFiles)
-        AlignmentUtils.alignReadsToHaplotypes(graph, kmerIndexFilename, readInputFiles.getReadFiles(), outputDir)
+        AlignmentUtils.alignReadsToHaplotypes(graph, kmerIndexFilename, readInputFiles.getReadFiles(), outputDir, threads, minProportionOfMaxCount, minProportionSameReferenceRange)
     }
 }

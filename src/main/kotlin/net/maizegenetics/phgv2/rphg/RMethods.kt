@@ -58,12 +58,13 @@ class RMethods {
     fun getRefRangesFromGraph(hapGraph: HaplotypeGraph): RList {
         val refRanges = hapGraph.ranges()
         return RList(
-            colNames = arrayOf("seqname", "start", "end"),
+            colNames = arrayOf("seqname", "start", "end", "rr_id"),
             rowNames = null,
             matrixData = arrayOf(
                 refRanges.map { it.contig }.toTypedArray(),
                 refRanges.map { it.start }.toTypedArray(),
-                refRanges.map { it.end }.toTypedArray()
+                refRanges.map { it.end }.toTypedArray(),
+                refRanges.map { it.toString() }.toTypedArray()
             )
         )
     }

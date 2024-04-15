@@ -39,12 +39,14 @@ class AlignmentUtils {
             kmerIndexFile: String,
             keyFileRecords: List<KeyFileData>,
             outputDir: String,
-            numThreads: Int = 5
+            numThreads: Int = 5,
+            minProportionOfMaxCount: Double = 1.0,
+            minSameReferenceRange: Double = 0.9,
         ) {
             val kmerIndexMap = loadKmerMaps(kmerIndexFile, graph)
 
             for (keyFileRecord in keyFileRecords) {
-                val hapIdMapping = processReadMappingForKeyFileRecord(keyFileRecord, kmerIndexMap, graph, numThreads)
+                val hapIdMapping = processReadMappingForKeyFileRecord(keyFileRecord, kmerIndexMap, graph, numThreads, minProportionOfMaxCount, minSameReferenceRange)
 
                 //export the read mapping to disk
                 //Use the first file name as the readmapping output name
