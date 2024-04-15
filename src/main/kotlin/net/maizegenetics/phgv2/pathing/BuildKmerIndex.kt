@@ -163,7 +163,14 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             //iterate through refranges, generate kmers from the sequence
             for (refrange in contigRangesMap[chr]!!) {
                 val hapidToSampleMap = graph.hapIdToSampleGametes(refrange)
-                val maxHaplotypes = ceil(hapidToSampleMap.size * maxHaplotypeProportion)
+
+                //if there are any null haplotypes add 1 to the number of hapids (hapidToSampleMap.size)
+                //The reason is that if a read maps to all non-null haplotypes, it is still informative if there are null haplotypes
+                val numberOfSampleGametesWithHapids = hapidToSampleMap.values.sumOf { it.size }
+                val hasNullHaplotypes = numberOfSampleGametesWithHapids < sampleGametes.size
+                val maxHaplotypes = if (hasNullHaplotypes) ceil((hapidToSampleMap.size + 1) * maxHaplotypeProportion)
+                else ceil(hapidToSampleMap.size * maxHaplotypeProportion)
+
                 //map haplotype ids to the sequence for that hapid
                 val hapidToSequencMap = mutableMapOf<String, List<String>>()
                 for (hapid in hapidToSampleMap.keys) {
@@ -184,7 +191,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                 }
 
                 val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidToSequencMap, hashMask, hashFilterValue)
-                var hashInPreviousRangeCount = 0
                 for (hashCount in kmerHashCounts.entries) {
                     val hashValue = hashCount.key
 

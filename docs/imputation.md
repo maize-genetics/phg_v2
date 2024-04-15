@@ -204,7 +204,9 @@ parameter that I will specify for example purposes:
   * `<--hvcf-dir input>/kmerIndex.txt`
   * In my case, this would be `output/vcf_files/kmerIndex.txt`
 
-Since we have used defaults, a new index file will show in the
+Running build-kmer-index creates an index file and a diagnostic file, kmerIndexStatistics.txt, 
+that is written to the same directory as the index file.
+Since we have used defaults, a new index file and a statistics file will show in the
 following `output/vcf_files` directory of our example:
 
 ```
@@ -223,6 +225,7 @@ phg_v2_example/
 │   │   └── LineB.fa
 │   └── vcf_files
 │       ├── kmerIndex.txt *
+│       ├── kmerIndexStatistics.txt *
 │       ├── LineA.h.vcf
 │       └── LineB.h.vcf
 └── vcf_dbs
@@ -239,10 +242,11 @@ phg_v2_example/
 In addition to `--index-file`, this command can take other optional 
 parameters:
 
-| Parameter name         | Description                                                                                                        | Default value  |
-|------------------------|--------------------------------------------------------------------------------------------------------------------|----------------|
-| `--max-hap-proportion` | Only k-mers mapping to less than or equal to maxHapProportion of haplotypes in a reference range will be retained. | `0.75`         |
-| `--max-arg-length`     | The maximum argument length for a call to the [AGC program](https://github.com/acoleman2000/agc).                  | `200000`       |
+| Parameter name             | Description                                                                                                       | Default value         |
+|----------------------------|-------------------------------------------------------------------------------------------------------------------|-----------------------|
+| `--max-hap-proportion`     | Only k-mers mapping to less than or equal to maxHapProportion of haplotypes in a reference range will be retained. | `0.75`                |
+| `--max-arg-length`         | The maximum argument length for a call to the [AGC program](https://github.com/acoleman2000/agc).                 | `200000`              |
+| `--no-diagnostics` or `-n` | A flag that eliminates the diagnostic report                                                                      | the report is written |
 
 > [!TIP]
 > If you get an error caused by a call to AGC being too long,
@@ -257,7 +261,13 @@ adjusted if the number of k-mers in the index is too low or too high:
 | `--hash-mask`   | In conjunction with `--hash-filter`, used to mask k-mers for filtering. Default uses only the last k-mer nucleotide. **Only change this value unless you know what you are doing.** | `3`           |
 | `--hash-filter` | Only hashes that pass the filter ((hashValue and hashMask) == hashFilter) will be considered. **Only change this value unless you know what you are doing.**                        | `1`           |
 
+#### Kmer index diagnostics
 
+Looking at kmer counts by reference range can help determine if diagnostic kmers provide adequate coverage for mapping 
+or if there are reference ranges or genomic regions with inadequate coverage. One potential issue is that similar sequence could be
+assigned to adjacent reference ranges in different assemblies instead of to the same range. This could result in the kmers
+being discarded because they map to adjacent ranges. The column "adjacentCount" lists, for each reference range, the 
+number of kmers discarded because they were detected in the previous reference range.
 
 ### Read mapping
 
