@@ -171,6 +171,30 @@ class AlignAssembliesTest {
     }
 
     @Test
+    fun testAssemblyRelativePathDir() {
+        // This function tests that ggsave can write when the assembly path is relative
+        // to the output directory.  This is really a test of the ggsave function, not the
+        // AlignAssemblies function, but it verifies a fix added to AlignAssemblies.
+
+        // create a directory name userPlotDir under the user's current working directory
+        val userPlotDir = "userPlotDir"
+        val userPlotDirPath = "${System.getProperty("user.dir")}/$userPlotDir"
+        File(userPlotDirPath).mkdir()
+
+        val alignAssemblies = AlignAssemblies()
+        val result = alignAssemblies.test(
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${userPlotDir} --total-threads 1 --in-parallel 1"
+        )
+        // verify file named LineA_dotplot.svg exists in the userPlotDir directory
+        val plotFileLineA = "$userPlotDirPath/LineA_dotplot.svg"
+        assertTrue(File(plotFileLineA).exists(), "File $plotFileLineA does not exist")
+
+        // clean up the userPlotDir directory, remove that directory and all that is in it
+        File(userPlotDirPath).deleteRecursively()
+
+    }
+    @Test
     fun testRunningAlignAssemblies() {
 
         // phg align-assemblies --gff /workdir/tmc46/AlignAssemblies/smallSeq_data/anchors.gff
