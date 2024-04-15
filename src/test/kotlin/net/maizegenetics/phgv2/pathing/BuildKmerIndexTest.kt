@@ -28,12 +28,13 @@ class BuildKmerIndexTest {
         @BeforeAll
         fun setup() {
             resetDirs()
+            setupAgc()
         }
 
         @JvmStatic
         @AfterAll
         fun teardown() {
-            resetDirs()
+//            resetDirs()
         }
 
         fun resetDirs() {
@@ -44,6 +45,9 @@ class BuildKmerIndexTest {
             File(TestExtension.tempDir).deleteRecursively()
             File(TestExtension.testOutputFastaDir).deleteRecursively()
             File(TestExtension.testOutputDir).deleteRecursively()
+            File(tempTestDir).deleteRecursively()
+            File(tempDBPathDir).deleteRecursively()
+            File(tempHvcfDir).deleteRecursively()
 
             File(TestExtension.tempDir).mkdirs()
             File(TestExtension.testOutputFastaDir).mkdirs()
@@ -52,6 +56,23 @@ class BuildKmerIndexTest {
             File(tempDBPathDir).mkdirs()
             File(tempHvcfDir).mkdirs()
 
+        }
+
+        private fun setupAgc() {
+            //create an AGC record with the Ref in it
+            val altFileListFile = TestExtension.testOutputFastaDir+"/agc_altList.txt"
+            BufferedWriter(FileWriter(altFileListFile)).use { writer ->
+                writer.write("data/test/smallseq/LineA.fa\n")
+                writer.write("data/test/smallseq/LineB.fa\n")
+                writer.write("data/test/smallseq/Ref.fa\n")
+            }
+
+            val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
+            File(dbPath).mkdirs()
+
+            //Call AGCCompress to create the AGC file
+            val agcCompress = AgcCompress()
+            agcCompress.processAGCFiles(dbPath,altFileListFile,"data/test/smallseq/Ref.fa")
         }
     }
 
@@ -119,7 +140,7 @@ class BuildKmerIndexTest {
     fun testProcessGraphKmers() {
 
         //populate the AGC database
-        setupAgc()
+//        setupAgc()
 
         //set up temporary file names
         val tempTestDir = "${TestExtension.tempDir}kmerTest/"
@@ -148,7 +169,7 @@ class BuildKmerIndexTest {
     fun testSourceFromOtherChr() {
 
         //populate the AGC database
-        setupAgc()
+//        setupAgc()
 
         //set up temporary file names
         val tempTestDir = "${TestExtension.tempDir}kmerTest/"
@@ -331,19 +352,4 @@ class BuildKmerIndexTest {
         assertEquals(truth,inputFile)
     }
 
-    private fun setupAgc() {
-        //create an AGC record with the Ref in it
-        val altFileListFile = TestExtension.testOutputFastaDir+"/agc_altList.txt"
-        BufferedWriter(FileWriter(altFileListFile)).use { writer ->
-            writer.write("data/test/smallseq/LineA.fa\n")
-            writer.write("data/test/smallseq/LineB.fa\n")
-        }
-
-        val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
-        File(dbPath).mkdirs()
-
-        //Call AGCCompress to create the AGC file
-        val agcCompress = AgcCompress()
-        agcCompress.processAGCFiles(dbPath,altFileListFile,"data/test/smallseq/Ref.fa")
-    }
 }

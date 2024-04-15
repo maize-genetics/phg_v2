@@ -27,8 +27,6 @@ class KmerIndexStatistics : CliktCommand(help="Write kmer counts by reference ra
     val outputFile by option(help = "The file (with path) to which the output will be written. Default is <hvcf-dir>/kmerIndexCounts.txt")
         .default("")
 
-
-
     override fun run() {
         val graph = buildHaplotypeGraph()
         val indexFilename = if (indexFile.isNotBlank()) indexFile else File(hvcfDir).resolve("kmerIndex.txt").absolutePath
@@ -36,13 +34,12 @@ class KmerIndexStatistics : CliktCommand(help="Write kmer counts by reference ra
         val rangeCounts = countKmersByRefrange(indexFilename)
 
         //write the resulting counts to a file
-        val refRangeToRangeIdMap = graph.refRangeToIndexMap()
         getBufferedWriter(outputFilename).use { myWriter ->
             myWriter.write("contig\tstart\tend\tlength\tkmerCount\n")
             for (range in graph.ranges()) {
                 val rangeLength = range.end - range.start + 1
                 val rangeCount = rangeCounts.getOrElse(range) {0}
-                myWriter.write("${range.contig}\t${range.start}\t${range.end}\t$rangeLength\t\n")
+                myWriter.write("${range.contig}\t${range.start}\t${range.end}\t$rangeLength\t$rangeCount\n")
             }
         }
     }

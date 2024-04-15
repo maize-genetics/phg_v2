@@ -15,6 +15,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.retrieveAgcContigForSamples
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.apache.logging.log4j.LogManager
@@ -81,6 +82,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
     val noDiagnostic by option("-n", "--no-diagnostics", help = "Flag that will suppress writing of diagnostics.").flag()
 
+    private val refrangeToAdjacentHashCount = mutableMapOf<ReferenceRange, Int>()
+
     override fun run() {
         //build the haplotypeGraph
         val graph = buildHaplotypeGraph()
@@ -92,9 +95,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         saveKmerHashesAndHapids(graph, kmerIndexFilename, hashToHapidMap)
 
         if (noDiagnostic) myLogger.info("BuildKmerIndex: Diagnostic output will not be written because the --no-diagnostic flag was set.")
-        else {
-            //Todo: write diagnostics
-        }
+        else writeDiagnostics(refrangeToAdjacentHashCount)
+
     }
 
     private fun buildHaplotypeGraph(): HaplotypeGraph {
@@ -137,7 +139,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         //needed for diagnostics
         val refRangeToIndexMap = graph.refRangeToIndexMap()
         val hapidToRefrangeMap = graph.hapIdToRefRangeMap()
-        val refrangeToAdjacentHashCount = mutableMapOf<ReferenceRange, Int>()
 
         for (chr in contigRangesMap.keys) {
             //get all sequence for this chromosome
@@ -202,7 +203,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                                 val hapidRefrange = hapidToRefrangeMap[hapidSet.first()]
                                 val wasPreviousRange = refRangeToIndexMap[refrange] == (refRangeToIndexMap[hapidRefrange] ?: -2) + 1
                                 if (wasPreviousRange) {
-                                    val oldCount = refrangeToAdjacentHashCount[]
+                                    val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
+                                    refrangeToAdjacentHashCount[refrange] = oldCount + 1
                                 }
                             }
                             discardSet.add(hashValue)
@@ -219,6 +221,38 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         myLogger.debug("Finished building kmer keep set, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
 
         return keepMap
+    }
+
+    private fun writeDiagnostics(adjacentHashCounts: Map<ReferenceRange, Int>) {
+        val diagnosticFileName = "kmerIndexStatistics.txt"
+        val diagnosticFilePath = if (indexFile.isBlank()) {
+            File(hvcfDir).resolve(diagnosticFileName).absolutePath
+        } else {
+            File(indexFile).parentFile.resolve(diagnosticFileName).absolutePath
+        }
+
+        val tmpStats = Files.createTempFile("stats", ".txt").toString()
+
+        //start by running KmerIndexStatistics
+        val argList = listOf("--hvcf-dir", hvcfDir, "--index-file", indexFile, "--output-file", tmpStats)
+        KmerIndexStatistics().main(argList)
+
+        //Add the counts from adjacentHashCounts
+        getBufferedReader(tmpStats).use { myReader ->
+            getBufferedWriter(diagnosticFilePath).use { myWriter ->
+                val header = myReader.readLine()
+                myWriter.write("$header\tadjacentCount\n")
+                var inputLine = myReader.readLine()
+                while (inputLine  != null) {
+                    val data = inputLine.split("\t")
+                    val refrange = ReferenceRange.parse("${data[0]}:${data[1]}-${data[2]}")
+                    val adjacentCount = adjacentHashCounts.getOrElse(refrange){0}
+                    myWriter.write("$inputLine\t${adjacentCount}\n")
+                    inputLine = myReader.readLine()
+                }
+            }
+        }
+
     }
 
     private fun regionToAgcRange(sampleName: String, region: Pair<Position,Position>): String {
