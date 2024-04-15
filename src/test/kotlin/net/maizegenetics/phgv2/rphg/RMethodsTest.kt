@@ -142,17 +142,18 @@ class RMethodsTest {
         val testRefRanges = rMethods.getRefRangesFromGraph(graph)
 
         assertEquals(
-            listOf("seqname", "start", "end"),
+            listOf("seqname", "start", "end", "rr_id"),
             testRefRanges.colNames?.toList()
         )
 
         assertEquals("phgv2_r_list", testRefRanges.toString())
         assertEquals(40, testRefRanges.matrixData!![0].size)
-        assertEquals(3, testRefRanges.matrixData!!.size)
+        assertEquals(4, testRefRanges.matrixData!!.size)
         assert(testRefRanges.rowNames.isNullOrEmpty())
         assert(testRefRanges.matrixData!![0].isArrayOf<String>())
         assert(testRefRanges.matrixData!![1].isArrayOf<Int>())
         assert(testRefRanges.matrixData!![2].isArrayOf<Int>())
+        assert(testRefRanges.matrixData!![3].isArrayOf<String>())
     }
 
     @Test
