@@ -153,7 +153,7 @@ class MapKmersTest {
             val maxIndex = hapIdCounts.indexOf(maxCount)
             val maxHapId = hapIdList[maxIndex]
             //It will miss the last haplotype of the chromosome as it is not in the graph due to anchorwave
-            if (refrange.start == 50501) {
+            if (refrange.start != 50501) {
                 println("$maxHapId ${hapIdCounts.zip(hapIdList).joinToString(",")}")
                 assertTrue(lineAHapIds.contains(maxHapId))
             }
