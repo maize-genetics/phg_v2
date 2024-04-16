@@ -51,7 +51,7 @@ class FindPathsTest {
         @AfterAll
         fun tearDown() {
             //comment out the following line to inspect the test results after the tests have been run
-            File(TestExtension.testOutputDir).deleteRecursively()
+//            File(TestExtension.testOutputDir).deleteRecursively()
         }
     }
 
@@ -145,7 +145,8 @@ class FindPathsTest {
         }
 
         var pathFindingTestArgs = "--path-type haploid --path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
-                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir}"
+                "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
+                "--out-parents-dir ${TestExtension.testOutputDir}parents"
 
         val pathFindingResult = FindPaths().test(pathFindingTestArgs)
         assertEquals(0, pathFindingResult.statusCode, "pathFinding status code was ${pathFindingResult.statusCode}")
