@@ -28,6 +28,7 @@ class BuildKmerIndexTest {
         @BeforeAll
         fun setup() {
             resetDirs()
+            setupAgc()
         }
 
         @JvmStatic
@@ -44,6 +45,9 @@ class BuildKmerIndexTest {
             File(TestExtension.tempDir).deleteRecursively()
             File(TestExtension.testOutputFastaDir).deleteRecursively()
             File(TestExtension.testOutputDir).deleteRecursively()
+            File(tempTestDir).deleteRecursively()
+            File(tempDBPathDir).deleteRecursively()
+            File(tempHvcfDir).deleteRecursively()
 
             File(TestExtension.tempDir).mkdirs()
             File(TestExtension.testOutputFastaDir).mkdirs()
@@ -52,6 +56,23 @@ class BuildKmerIndexTest {
             File(tempDBPathDir).mkdirs()
             File(tempHvcfDir).mkdirs()
 
+        }
+
+        private fun setupAgc() {
+            //create an AGC record with the Ref in it
+            val altFileListFile = TestExtension.testOutputFastaDir+"/agc_altList.txt"
+            BufferedWriter(FileWriter(altFileListFile)).use { writer ->
+                writer.write("data/test/smallseq/LineA.fa\n")
+                writer.write("data/test/smallseq/LineB.fa\n")
+                writer.write("data/test/smallseq/Ref.fa\n")
+            }
+
+            val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
+            File(dbPath).mkdirs()
+
+            //Call AGCCompress to create the AGC file
+            val agcCompress = AgcCompress()
+            agcCompress.processAGCFiles(dbPath,altFileListFile,"data/test/smallseq/Ref.fa")
         }
     }
 
@@ -118,9 +139,6 @@ class BuildKmerIndexTest {
     @Test
     fun testProcessGraphKmers() {
 
-        //populate the AGC database
-        setupAgc()
-
         //set up temporary file names
         val tempTestDir = "${TestExtension.tempDir}kmerTest/"
         val tempHvcfDir = "${tempTestDir}hvcfDir/"
@@ -146,9 +164,6 @@ class BuildKmerIndexTest {
 
     @Test
     fun testSourceFromOtherChr() {
-
-        //populate the AGC database
-        setupAgc()
 
         //set up temporary file names
         val tempTestDir = "${TestExtension.tempDir}kmerTest/"
@@ -176,6 +191,51 @@ class BuildKmerIndexTest {
 
         //delete this alternate B to make sure it does not interfere with other tests
         File("${tempHvcfDir}LineB_kmer_index_test.h.vcf").delete()
+    }
+
+    @Test
+    fun testKmersDiagnostics() {
+        //set up temporary file names
+        val tempTestDir = "${TestExtension.tempDir}kmerTest/"
+        val tempHvcfDir = "${tempTestDir}hvcfDir/"
+        val tempDBPathDir = "${TestExtension.testOutputFastaDir}/dbPath"
+
+        //copy hvcf files to temp directory,
+        // include the ref hvcf to test what happens when samples have no haplotype in some ref range
+        File("${tempHvcfDir}LineB.h.vcf").delete()
+        listOf(TestExtension.smallseqLineAHvcfFile,"${TestExtension.smallSeqInputDir}LineB_shiftedToAdjacentRange.h.vcf", TestExtension.smallseqRefHvcfFile)
+            .forEach { hvcfFile ->
+                val dst = File("$tempHvcfDir${File(hvcfFile).name}")
+                if (!dst.exists()) {
+                    File(hvcfFile).copyTo(dst)
+                }
+            }
+
+        //create a HaplotypeGraph from the hvcf files
+        val buildIndexResult = BuildKmerIndex().test("--db-path $tempDBPathDir --hvcf-dir $tempHvcfDir")
+
+        //delete the shifted B hvcf to avoid problems with other tests
+        File("${tempHvcfDir}LineB_shiftedToAdjacentRange.h.vcf").delete()
+
+        //Was the index created?
+        assertEquals(0, buildIndexResult.statusCode)
+        assert(File("${tempHvcfDir}/kmerIndex.txt").exists())
+
+        getBufferedReader("${tempHvcfDir}kmerIndexStatistics.txt").use { myReader ->
+            var inputLine = myReader.readLine()
+            var lineCount = 1
+            while (inputLine != null) {
+                //diagnostic report header is "contig	start	end	length	kmerCount	adjacentCount"
+                //only lines 6 and 28 should have adjacentCount > 0
+                if (lineCount == 2) assertEquals("1\t1\t1000\t1000\t193\t0", inputLine)
+                if (lineCount == 8) assertEquals("1\t16501\t17500\t1000\t236\t51", inputLine)
+                if (lineCount == 28) assertEquals("2\t16501\t17500\t1000\t236\t64", inputLine)
+                if (lineCount == 35) assertEquals("2\t34001\t38500\t4500\t896\t0", inputLine)
+                inputLine = myReader.readLine()
+                lineCount++
+            }
+        }
+
     }
 
     //Ignore for now as we are requiring both db-path and hvcf-dir currently.
@@ -331,19 +391,4 @@ class BuildKmerIndexTest {
         assertEquals(truth,inputFile)
     }
 
-    private fun setupAgc() {
-        //create an AGC record with the Ref in it
-        val altFileListFile = TestExtension.testOutputFastaDir+"/agc_altList.txt"
-        BufferedWriter(FileWriter(altFileListFile)).use { writer ->
-            writer.write("data/test/smallseq/LineA.fa\n")
-            writer.write("data/test/smallseq/LineB.fa\n")
-        }
-
-        val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
-        File(dbPath).mkdirs()
-
-        //Call AGCCompress to create the AGC file
-        val agcCompress = AgcCompress()
-        agcCompress.processAGCFiles(dbPath,altFileListFile,"data/test/smallseq/Ref.fa")
-    }
 }
