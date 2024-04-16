@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.pathing
 import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.double
@@ -14,13 +15,13 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.retrieveAgcContigForSamples
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileOutputStream
-import java.lang.IllegalStateException
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
@@ -78,6 +79,11 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         .int()
         .default(200000)
 
+    val noDiagnostics by option("-n", "--no-diagnostics", help = "Flag that will suppress writing of diagnostics.").flag()
+
+    private val refrangeToAdjacentHashCount = mutableMapOf<ReferenceRange, Int>()
+    private var runDiagnostics = true
+
     override fun run() {
         //build the haplotypeGraph
         val graph = buildHaplotypeGraph()
@@ -87,6 +93,13 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         //save the kmerIndex
         saveKmerHashesAndHapids(graph, kmerIndexFilename, hashToHapidMap)
+
+        if (noDiagnostics) {
+            runDiagnostics = false
+            myLogger.info("BuildKmerIndex: Diagnostic output will not be written because the --no-diagnostic flag was set.")
+        }
+        else writeDiagnostics(refrangeToAdjacentHashCount)
+
     }
 
     private fun buildHaplotypeGraph(): HaplotypeGraph {
@@ -125,6 +138,11 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         val sampleNames = sampleGametes.map { it.name }
 
         val contigRangesMap = graph.rangesByContig()
+
+        //needed for diagnostics
+        val refRangeToIndexMap = graph.refRangeToIndexMap()
+        val hapidToRefrangeMap = graph.hapIdToRefRangeMap()
+
         for (chr in contigRangesMap.keys) {
             //get all sequence for this chromosome
             val agcChromSequence = retrieveAgcContigForSamples(dbPath, sampleNames, chr)
@@ -148,7 +166,14 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             //iterate through refranges, generate kmers from the sequence
             for (refrange in contigRangesMap[chr]!!) {
                 val hapidToSampleMap = graph.hapIdToSampleGametes(refrange)
-                val maxHaplotypes = ceil(hapidToSampleMap.size * maxHaplotypeProportion)
+
+                //if there are any null haplotypes add 1 to the number of hapids (hapidToSampleMap.size)
+                //The reason is that if a read maps to all non-null haplotypes, it is still informative if there are null haplotypes
+                val numberOfSampleGametesWithHapids = hapidToSampleMap.values.sumOf { it.size }
+                val hasNullHaplotypes = numberOfSampleGametesWithHapids < sampleGametes.size
+                val maxHaplotypes = if (hasNullHaplotypes) ceil((hapidToSampleMap.size + 1) * maxHaplotypeProportion)
+                else ceil(hapidToSampleMap.size * maxHaplotypeProportion)
+
                 //map haplotype ids to the sequence for that hapid
                 val hapidToSequencMap = mutableMapOf<String, List<String>>()
                 for (hapid in hapidToSampleMap.keys) {
@@ -169,7 +194,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                 }
 
                 val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidToSequencMap, hashMask, hashFilterValue)
-
                 for (hashCount in kmerHashCounts.entries) {
                     val hashValue = hashCount.key
 
@@ -180,9 +204,18 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                         //if hash count >= numberOfHaplotype add it to the discard set
                         hashCount.value >= maxHaplotypes -> discardSet.add(hashValue)
                         //if the hash is already in the keepSet, it has been seen in a previous reference range
+                        //was this hash seen in the range immediately preceeding this one?
                         // so, remove it from the keep set and add it to the discard set
                         keepMap.containsKey(hashValue) -> {
-                            keepMap.remove(hashValue)
+                            val hapidSet = keepMap.remove(hashValue)
+                            if (runDiagnostics) {
+                                val hapidRefrange = hapidToRefrangeMap[hapidSet.first()]
+                                val wasPreviousRange = refRangeToIndexMap[refrange] == (refRangeToIndexMap[hapidRefrange] ?: -2) + 1
+                                if (wasPreviousRange) {
+                                    val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
+                                    refrangeToAdjacentHashCount[refrange] = oldCount + 1
+                                }
+                            }
                             discardSet.add(hashValue)
                         }
                         else -> {
@@ -197,6 +230,38 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         myLogger.debug("Finished building kmer keep set, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
 
         return keepMap
+    }
+
+    private fun writeDiagnostics(adjacentHashCounts: Map<ReferenceRange, Int>) {
+        val diagnosticFileName = "kmerIndexStatistics.txt"
+        val diagnosticFilePath = if (indexFile.isBlank()) {
+            File(hvcfDir).resolve(diagnosticFileName).absolutePath
+        } else {
+            File(indexFile).parentFile.resolve(diagnosticFileName).absolutePath
+        }
+
+        val tmpStats = Files.createTempFile("stats", ".txt").toString()
+
+        //start by running KmerIndexStatistics
+        val argList = listOf("--hvcf-dir", hvcfDir, "--index-file", indexFile, "--output-file", tmpStats)
+        KmerIndexStatistics().main(argList)
+
+        //Add the counts from adjacentHashCounts
+        getBufferedReader(tmpStats).use { myReader ->
+            getBufferedWriter(diagnosticFilePath).use { myWriter ->
+                val header = myReader.readLine()
+                myWriter.write("$header\tadjacentCount\n")
+                var inputLine = myReader.readLine()
+                while (inputLine  != null) {
+                    val data = inputLine.split("\t")
+                    val refrange = ReferenceRange.parse("${data[0]}:${data[1]}-${data[2]}")
+                    val adjacentCount = adjacentHashCounts.getOrElse(refrange){0}
+                    myWriter.write("$inputLine\t${adjacentCount}\n")
+                    inputLine = myReader.readLine()
+                }
+            }
+        }
+
     }
 
     private fun regionToAgcRange(sampleName: String, region: Pair<Position,Position>): String {
