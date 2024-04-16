@@ -34,7 +34,7 @@ class BuildKmerIndexTest {
         @JvmStatic
         @AfterAll
         fun teardown() {
-//            resetDirs()
+            resetDirs()
         }
 
         fun resetDirs() {

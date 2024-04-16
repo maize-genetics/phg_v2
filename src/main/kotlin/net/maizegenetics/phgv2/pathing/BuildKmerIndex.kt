@@ -79,9 +79,10 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         .int()
         .default(200000)
 
-    val noDiagnostic by option("-n", "--no-diagnostics", help = "Flag that will suppress writing of diagnostics.").flag()
+    val noDiagnostics by option("-n", "--no-diagnostics", help = "Flag that will suppress writing of diagnostics.").flag()
 
     private val refrangeToAdjacentHashCount = mutableMapOf<ReferenceRange, Int>()
+    private var runDiagnostics = true
 
     override fun run() {
         //build the haplotypeGraph
@@ -93,7 +94,10 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         //save the kmerIndex
         saveKmerHashesAndHapids(graph, kmerIndexFilename, hashToHapidMap)
 
-        if (noDiagnostic) myLogger.info("BuildKmerIndex: Diagnostic output will not be written because the --no-diagnostic flag was set.")
+        if (noDiagnostics) {
+            runDiagnostics = false
+            myLogger.info("BuildKmerIndex: Diagnostic output will not be written because the --no-diagnostic flag was set.")
+        }
         else writeDiagnostics(refrangeToAdjacentHashCount)
 
     }
@@ -204,7 +208,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                         // so, remove it from the keep set and add it to the discard set
                         keepMap.containsKey(hashValue) -> {
                             val hapidSet = keepMap.remove(hashValue)
-                            if (!noDiagnostic) {
+                            if (runDiagnostics) {
                                 val hapidRefrange = hapidToRefrangeMap[hapidSet.first()]
                                 val wasPreviousRange = refRangeToIndexMap[refrange] == (refRangeToIndexMap[hapidRefrange] ?: -2) + 1
                                 if (wasPreviousRange) {
