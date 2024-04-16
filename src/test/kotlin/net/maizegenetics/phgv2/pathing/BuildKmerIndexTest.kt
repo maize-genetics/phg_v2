@@ -228,7 +228,7 @@ class BuildKmerIndexTest {
                 //diagnostic report header is "contig	start	end	length	kmerCount	adjacentCount"
                 //only lines 6 and 28 should have adjacentCount > 0
                 if (lineCount == 2) assertEquals("1\t1\t1000\t1000\t193\t0", inputLine)
-                if (lineCount == 6) assertEquals("1\t11001\t12000\t1000\t246\t48", inputLine)
+                if (lineCount == 8) assertEquals("1\t16501\t17500\t1000\t236\t51", inputLine)
                 if (lineCount == 28) assertEquals("2\t16501\t17500\t1000\t236\t64", inputLine)
                 if (lineCount == 35) assertEquals("2\t34001\t38500\t4500\t896\t0", inputLine)
                 inputLine = myReader.readLine()
