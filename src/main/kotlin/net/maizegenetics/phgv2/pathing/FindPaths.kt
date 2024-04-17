@@ -104,8 +104,7 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         .required()
         .validate { require(File(it).isDirectory) {"$it is not a valid directory."} }
 
-    val outParentsDir by option(help="The directory where the a listing of assemblies imputed as parents will be written. " +
-            "File names will be <sampleName>_imputed_parents.txt. If no directory name is supplied, the files will not be written.")
+    val outParentsDir by option(help="The directory where the imputed parents (ancestors) will be written for each sample. File names will be <sampleName>_imputed_parents.txt. If no directory name is supplied, the files will not be written.")
         .default("")
 
     val pathType by option(help = "The type of path to find. Must be lower case 'haploid' or 'diploid' (without quotes). 'haploid' infers a single path through the graph. 'diploid' infers a pair of paths. Required parameter.")
