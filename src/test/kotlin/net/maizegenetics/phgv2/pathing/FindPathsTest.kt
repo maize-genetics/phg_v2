@@ -150,7 +150,7 @@ class FindPathsTest {
 
         val pathFindingResult = FindPaths().test(pathFindingTestArgs)
         assertEquals(0, pathFindingResult.statusCode, "pathFinding status code was ${pathFindingResult.statusCode}")
-
+        checkParentOutputIsLineA("${TestExtension.testOutputDir}parents/TestLine_imputed_parents.txt")
 
         //are all the haplotypes in the path from LineA?
         var resultHvcfName = "${TestExtension.testOutputDir}TestLine.h.vcf"
@@ -258,6 +258,19 @@ class FindPathsTest {
 
 
 
+    }
+
+    private fun checkParentOutputIsLineA(fileName: String) {
+        var numberOfLines = 0
+        getBufferedReader(fileName).use { myReader ->
+            myReader.lines().skip(1).forEach {
+                val parsedLine = it.split("\t")
+                assertEquals("LineA:0", parsedLine[3]) {"parent not LineA at ${parsedLine[0]}:${parsedLine[1]}-${parsedLine[2]}"}
+                numberOfLines++
+            }
+        }
+        //number of lines should be 40 because the header was skipped
+        assertEquals(40, numberOfLines) {"Number of lines in parent file"}
     }
 
     @Test
@@ -399,7 +412,7 @@ class FindPathsTest {
         val keyFilename = TestExtension.testOutputDir + "keyfileForPathTest.txt"
         getBufferedWriter(keyFilename).use { myWriter ->
             myWriter.write("sampleName\tfilename\n")
-            myWriter.write("TestLine\t$readMappingFile\n")
+            myWriter.write("TestLineLP\t$readMappingFile\n")
         }
 
         val likelyAncestorFile = TestExtension.testOutputDir + "testAncestors.txt"
@@ -416,7 +429,7 @@ class FindPathsTest {
             val header = it.readLine()
             assertEquals("sample\tancestor\tgameteId\treads\tcoverage", header)
             val parentInfo = it.readLine().split("\t")
-            assertEquals("TestLine", parentInfo[0])
+            assertEquals("TestLineLP", parentInfo[0])
             assertEquals("LineA", parentInfo[1])
             assertEquals("0", parentInfo[2])
             assertEquals(expectedCoverage, parentInfo[4].toDouble())
@@ -425,13 +438,13 @@ class FindPathsTest {
 
 
         //are all the haplotypes in the path from LineA?
-        val resultHvcfName = "${TestExtension.testOutputDir}TestLine.h.vcf"
+        val resultHvcfName = "${TestExtension.testOutputDir}TestLineLP.h.vcf"
         val vcfReader = VCFFileReader(File(resultHvcfName), false)
 
         val sampleA = SampleGamete("LineA")
         val haplotypesA = myGraph.ranges().map { myGraph.sampleToHapId(it, sampleA) }
         for (record in vcfReader) {
-            val testHaplotype = record.genotypes["TestLine"].alleles[0].displayString
+            val testHaplotype = record.genotypes["TestLineLP"].alleles[0].displayString
                 .substringAfter("<").substringBefore(">")
             if (testHaplotype.isNotBlank()) assert(haplotypesA.contains(testHaplotype)) {"$testHaplotype not a LineA haplotype"}
         }
@@ -457,6 +470,7 @@ class FindPathsTest {
      * (lineA,lineB). Chromosome 2 should be (lineA, lineB) for the first 9 ranges then (lineA,lineA).
      */
     private fun createDiploidReadMappings(graph: HaplotypeGraph, mappingFile: String): IntArray {
+        val myRandom = Random(300)
         val probMapToTarget = 0.99
         val probMapToOther = 0.1
         var readsWithA = 0
@@ -478,11 +492,11 @@ class FindPathsTest {
                 for ((hapid, samples) in hapids.entries) {
                     val isLineA = samples.any { it.name == "LineA" }
 
-                    if (isLineA && Random.nextDouble() < probMapToTarget) {
+                    if (isLineA && myRandom.nextDouble() < probMapToTarget) {
                         hapidList.add(hapid)
                         readsWithA += 2  //because the code adds a 2 count for each hapid list
                     }
-                    if (!isLineA && Random.nextDouble() < probMapToOther) hapidList.add(hapid)
+                    if (!isLineA && myRandom.nextDouble() < probMapToOther) hapidList.add(hapid)
                 }
                 if (hapidList.size > 0) {
                     val reads = readMap1[hapidList] ?: 0
@@ -510,11 +524,11 @@ class FindPathsTest {
                     val isTarget = samples.any { it.name == target }
                     val isLineA = samples.any { it.name == "LineA" }
 
-                    if (isTarget && Random.nextDouble() < probMapToTarget) {
+                    if (isTarget && myRandom.nextDouble() < probMapToTarget) {
                         hapidList.add(hapid)
                         if (isLineA) readsWithA += 2
                     }
-                    if (!isTarget && Random.nextDouble() < probMapToOther) {
+                    if (!isTarget && myRandom.nextDouble() < probMapToOther) {
                         hapidList.add(hapid)
                         if (isLineA) readsWithA += 2
                     }
@@ -537,11 +551,13 @@ class FindPathsTest {
      * total read counts
      */
     private fun createHaploidReadMappings(graph: HaplotypeGraph, mappingFile: String): IntArray {
+        val myRandom = Random(200)
         val probMapToA = 0.99
         val probMapToOther = 0.2
         val readMap = mutableMapOf<List<String>, Int>()
         var readsWithA = 0
         for (range in graph.ranges()) {
+            if (range.start > 50500 ) continue
             val hapids = graph.hapIdToSampleGametes(range)
             //generate some mappings
             repeat(4) {
@@ -549,11 +565,11 @@ class FindPathsTest {
                 for ((hapid, samples) in hapids.entries) {
                     val isLineA = samples.any { it.name == "LineA" }
 
-                    if (isLineA && Random.nextDouble() < probMapToA) {
+                    if (isLineA && myRandom.nextDouble() < probMapToA) {
                         hapidList.add(hapid)
                         readsWithA += 2  //because the code adds a 2 count for each hapid list
                     }
-                    if (!isLineA && Random.nextDouble() < probMapToOther) hapidList.add(hapid)
+                    if (!isLineA && myRandom.nextDouble() < probMapToOther) hapidList.add(hapid)
                 }
                 if (hapidList.size > 0) {
                     val reads = readMap[hapidList] ?: 0
@@ -571,7 +587,7 @@ class FindPathsTest {
     private fun createReadMappingsWithPathSwitches(graph: HaplotypeGraph, mappingFile: String) {
         //additional conditions to test: minReads, maxReads
 
-
+        val myRandom = Random(100)
         val probMapToTarget = 0.99
         val probMapToOther = 0.2
         val readMap = mutableMapOf<List<String>, Int>()
@@ -587,10 +603,10 @@ class FindPathsTest {
                 for ((hapid, samples) in hapids.entries) {
                     val isTarget = samples.any { it.name == target }
 
-                    if (isTarget && Random.nextDouble() < probMapToTarget) {
+                    if (isTarget && myRandom.nextDouble() < probMapToTarget) {
                         hapidList.add(hapid)
                     }
-                    if (!isTarget && Random.nextDouble() < probMapToOther) hapidList.add(hapid)
+                    if (!isTarget && myRandom.nextDouble() < probMapToOther) hapidList.add(hapid)
                 }
                 if (hapidList.size > 0) {
                     val reads = readMap[hapidList] ?: 0
@@ -603,9 +619,4 @@ class FindPathsTest {
 
     }
 
-    @Test
-    fun printHelp() {
-        val result = FindPaths().test("--help")
-        println("------help--------\n${result.output}")
-    }
 }
