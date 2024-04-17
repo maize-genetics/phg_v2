@@ -340,7 +340,7 @@ class FindPathsTest {
 
         val pathFindingTestArgs = "--path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
-                "--path-type diploid --prob-same-gamete 0.8"
+                "--path-type diploid --prob-same-gamete 0.8 --out-parents-dir ${TestExtension.testOutputDir}parents"
 
         val pathFindingResult = FindPaths().test(pathFindingTestArgs)
         assert(pathFindingResult.statusCode == 0)
@@ -384,6 +384,9 @@ class FindPathsTest {
             }
         }
 
+        //check parent file
+        checkDiploidParentFile(File("${TestExtension.testOutputDir}parents").resolve("TestLineD_imputed_parents.txt"))
+
         //test for exception when --use-likely-ancestors true
         val pathFindingTestArgsLikelyAncestor = "--path-type diploid --path-keyfile $keyFilename --hvcf-dir ${TestExtension.testVCFDir} " +
                 "--reference-genome ${TestExtension.smallseqRefFile} --output-dir ${TestExtension.testOutputDir} " +
@@ -391,6 +394,43 @@ class FindPathsTest {
 
         val exception = assertThrows<IllegalArgumentException> { FindPaths().test(pathFindingTestArgsLikelyAncestor) }
         assert(exception.message!!.startsWith("UseLikelyAncestors is true but likelyAncestors will not be checked"))
+    }
+
+    fun checkDiploidParentFile(parentFile: File) {
+        var numberOfLines = 0
+        getBufferedReader(parentFile).use { myReader ->
+            //Chr 1: one haplotype should be all A for chr1, the other A before or at start=25000 and ref after
+            //Chr 2: one haplotype should be all A for chr1, the other B before or at start=25000 and A after
+
+            myReader.lines().skip(1).forEach {
+                val parsedLine = it.split("\t")
+                val chr = parsedLine[0]
+                val start = parsedLine[1].toInt()
+                if(chr == "1") {
+                    if (start <= 25000) {
+                        assertEquals("LineA:0", parsedLine[3]) {"parent1 not LineA at ${parsedLine[0]}:${parsedLine[1]}-${parsedLine[2]}"}
+                        assertEquals("LineA:0", parsedLine[4]) {"parent2 not LineA at ${parsedLine[0]}:${parsedLine[1]}-${parsedLine[2]}"}
+                    } else {
+                        assert( (parsedLine[3] == "LineA:0" && parsedLine[4] == "Ref:0") || (parsedLine[4] == "LineA:0" && parsedLine[3] == "Ref:0"))
+                            {"parents incorrect at ${parsedLine[0]}:${parsedLine[1]}-${parsedLine[2]}"}
+                    }
+                }
+                if(chr == "2") {
+                    if (start <= 25000) {
+                        assert( (parsedLine[3] == "LineA:0" && parsedLine[4] == "LineB:0") || (parsedLine[4] == "LineA:0" && parsedLine[3] == "LineB:0"))
+                            {"parents incorrect at ${parsedLine[0]}:${parsedLine[1]}-${parsedLine[2]}"}
+                    } else {
+                        assertEquals("LineA:0", parsedLine[3]) {"parent not LineA at ${parsedLine[0]}:${parsedLine[1]}-${parsedLine[2]}"}
+                        assertEquals("LineA:0", parsedLine[4]) {"parent not LineA at ${parsedLine[0]}:${parsedLine[1]}-${parsedLine[2]}"}
+                    }
+                }
+                assertEquals("LineA:0", parsedLine[3]) {"parent not LineA at ${parsedLine[0]}:${parsedLine[1]}-${parsedLine[2]}"}
+                numberOfLines++
+            }
+        }
+        //number of lines should be 40 because the header was skipped
+        assertEquals(40, numberOfLines) {"Number of lines in parent file"}
+
     }
 
     @Test
