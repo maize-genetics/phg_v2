@@ -44,7 +44,7 @@ class ExportVcfTest {
         @AfterAll
         @JvmStatic
         fun teardown() {
-            File(TestExtension.tempDir).deleteRecursively()
+//            File(TestExtension.tempDir).deleteRecursively()
         }
 
     }
@@ -69,6 +69,15 @@ class ExportVcfTest {
         println("Ref.vcf actual checksum2: $checksum2")
 
         assertEquals(checksum1, checksum2, "Ref.h.vcf checksums do not match")
+
+    }
+
+    @Test
+    fun testExportGvcf() {
+        //todo create vcf and bed region files for testing
+        val result = ExportVcf().test(
+            "--db-path $dbPath -o $outputHvcfDir --dataset-type gvcf --sample-names Ref,LineA --regionsFile "
+        )
 
     }
 

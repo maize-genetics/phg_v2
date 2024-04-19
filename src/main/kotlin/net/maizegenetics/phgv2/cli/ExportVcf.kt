@@ -9,8 +9,11 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import net.maizegenetics.phgv2.utils.verifyURI
+import net.maizegenetics.phgv2.utils.writeBedfileFromVcf
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.nio.file.Files
+import kotlin.io.path.absolutePathString
 
 
 // Enum indicating type of input for sample names
@@ -74,6 +77,9 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
     val outputDir by option("-o", "--outputDir", help = "Directory where temporary and final files will be written")
         .required()
 
+    val regionsFile by option(help = "A bedfile or vcf file containing the regions to be exported. Regions can be single base pair positions. File extension must be either .bed or .vcf.")
+        .default("")
+
     override fun run() {
 
         val dbPath = if (dbPath.isBlank()) {
@@ -85,6 +91,10 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
         val validDB = verifyURI(dbPath, "hvcf_dataset")
 
+
+        //If a regions-file is specified, check for its existence
+        if (regionsFile.isNotBlank()) require(File(regionsFile).exists()) {"$regionsFile does not exist."}
+
         // This is the tiledbvcf command we want to run:
         // Doing this with a ProcessBuilder and using the phg_v2 conda environment
         // tiledbvcf export --uri tiledb/hvcf_dataset -O v --sample-names Ref --output-dir exported-vcfs
@@ -95,7 +105,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
 
         // Tiledbvcf can take either a file with samplenames, or a comma-separated list of sample names
         // setup the command based on user input type.
-        var command = if (samples.getExportCommand()[0] == SampleFormatEnum.FILE.toString()) arrayOf(
+        val command = if (samples.getExportCommand()[0] == SampleFormatEnum.FILE.toString()) mutableListOf(
             "conda",
             "run",
             "-n",
@@ -110,7 +120,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
             samples.getExportCommand()[1],
             "--output-dir",
             outputDir
-        ) else arrayOf(
+        ) else mutableListOf(
             "conda",
             "run",
             "-n",
@@ -127,8 +137,23 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
             outputDir
         )
 
+        if (regionsFile.isNotBlank()) {
+            when(File(regionsFile).extension) {
+                "vcf" -> {
+                    val tmpFilename = Files.createTempFile("tempBedfile", ".bed").absolutePathString()
+                    writeBedfileFromVcf(regionsFile, tmpFilename)
+                    command.add("--regions-file")
+                    command.add(tmpFilename)
+                }
+                "bed" -> {
+                    command.add("--regions-file")
+                    command.add(regionsFile)
+                }
+                else -> throw IllegalArgumentException("Regions file $regionsFile must end in .bed or .vcf.")
+            }
+        }
 
-        val builder = ProcessBuilder(*command)
+        val builder = ProcessBuilder(command)
 
         val redirectError = "$outputDir/export_${dtype}_error.log"
         val redirectOutput = "$outputDir/export_${dtype}_output.log"
@@ -168,5 +193,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         }
 
     }
+
+
 
 }
