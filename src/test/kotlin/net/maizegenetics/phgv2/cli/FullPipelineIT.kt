@@ -8,9 +8,7 @@ import net.maizegenetics.phgv2.cli.TestExtension.Companion.asmList
 import net.maizegenetics.phgv2.pathing.BuildKmerIndex
 import net.maizegenetics.phgv2.pathing.FindPaths
 import net.maizegenetics.phgv2.pathing.MapKmers
-import net.maizegenetics.phgv2.utils.getBufferedWriter
-import net.maizegenetics.phgv2.utils.getChecksumForString
-import net.maizegenetics.phgv2.utils.retrieveAgcGenomes
+import net.maizegenetics.phgv2.utils.*
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.extension.ExtendWith
@@ -147,6 +145,18 @@ class FullPipelineIT {
             val asmDiff =  compareFastaSeqs("${TestExtension.smallSeqInputDir}${asmName}.fa", "${TestExtension.testOutputFastaDir}${asmName}_composite.fa")
             assertTrue(asmDiff < 0.00001, "${asmName} Fasta is not the same as input")
         }
+
+        //what is in agc?
+        val genomes = retrieveAgcData(TestExtension.testTileDBURI, listOf("listset"))
+
+        if (genomes != null) {
+            println("agc genomes: ${genomes.joinToString(",")}")
+            val cmd = mutableListOf("listctg")
+            cmd.addAll(genomes)
+            println("agc contigs: ")
+            retrieveAgcData(TestExtension.testTileDBURI, cmd)?.forEach { println(it) }
+        }
+
 
         //build a kmer index
         println("building kmer index")

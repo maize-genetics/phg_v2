@@ -14,10 +14,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
-import net.maizegenetics.phgv2.utils.Position
-import net.maizegenetics.phgv2.utils.getBufferedReader
-import net.maizegenetics.phgv2.utils.retrieveAgcContigForSamples
-import net.maizegenetics.phgv2.utils.retrieveAgcContigs
+import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedWriter
 import java.io.File
@@ -145,22 +142,45 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         for (chr in contigRangesMap.keys) {
             //get all sequence for this chromosome
-            val agcChromSequence = retrieveAgcContigForSamples(dbPath, sampleNames, chr)
+//            val agcChromSequence = retrieveAgcContigForSamples(dbPath, sampleNames, chr)
 
-            // go through ref ranges and make a list of any sequence needed from other chroms then request that from agc
-            val otherRegions = mutableListOf<String>()
-            for (refrange in contigRangesMap[chr]!!) {
-                val hapidToSampleMap = graph.hapIdToSampleGametes(refrange)
-                for (hapid in hapidToSampleMap.keys) {
-                    val altheader = graph.altHeader(hapid)
-                    check(altheader != null) {"altheader null for $hapid in $refrange"}
-                    val regions = altheader.regions.filter { it.first.contig != chr }
-                        .map { regionToAgcRange(altheader.sampleName(), it) }
-                    otherRegions.addAll(regions)
-                }
-            }
+            //build a map of sampleName -> contig counts (from altheader.sampleName() and altheader.regions)
+            //map of sampleName -> (map of contig -> start-end (String) )
 
-            val agcOtherRegionSequence: Map<Pair<String,String>, NucSeq> = if (otherRegions.isNotEmpty()) getAgcSequenceForRanges(otherRegions)
+//            val minRangeCount = 0.5 * contigRangesMap[chr]!!.size
+//            val sampleNameToRegionsMap = mutableMapOf<String, MutableMap<String,MutableSet<String>>>()
+//            for (refrange in contigRangesMap[chr]!!) {
+//                for (hapid in graph.hapIdToSampleGametes(refrange).keys) {
+//                    val altheader = graph.altHeader(hapid)
+//                    check(altheader != null) {"altheader null for $hapid in $refrange"}
+//                    val sampleName = altheader.sampleName()
+//                    val regionsMap = sampleNameToRegionsMap.getOrPut(sampleName){mutableMapOf()}
+//                    val regions = altheader.regions
+//                    for (region in regions) {
+//                        val rangeSet = regionsMap.getOrPut(region.first.contig) { mutableSetOf() }
+//                        val rangeStr = if (region.first.position <= region.second.position) "${region.first.position}-${region.second.position}"
+//                        else "${region.second.position}-${region.first.position}"
+//                        rangeSet.add(rangeStr)
+//                    }
+//                }
+//            }
+//
+//            //For each sample name remove the contig with the highest range count if the count exceeds minRangeCount
+//            //add the request the entire contig for the max count if it exceeds half the number of refranges in the chrom
+//            val sampleContigList = mutableListOf<String>()
+//            val otherRegions = mutableListOf<String>()
+//            for ((sampleName, regionsMap) in sampleNameToRegionsMap.entries) {
+//                val biggestEntry = regionsMap.entries.maxBy { (_, regionSet) -> regionSet.size }
+//                if (biggestEntry.value.size > minRangeCount) {
+//                    regionsMap.remove(biggestEntry.key)
+//                    sampleContigList.add("${biggestEntry.key}@$sampleName")
+//                }
+//                //add remaining entries to otherRegions
+//                for ((contig, range) in regionsMap) otherRegions.add("$contig@$sampleName:$range")
+//            }
+            val agcRequestLists = rangeListsForAgcCommand(graph, contigRangesMap, chr)
+            val agcChromSequence = retrieveAgcContigForSamples(dbPath, agcRequestLists.sampleContigList, chr)
+            val agcOtherRegionSequence: Map<Pair<String,String>, NucSeq> = if (agcRequestLists.otherRegionsList.isNotEmpty()) getAgcSequenceForRanges(agcRequestLists.otherRegionsList)
             else emptyMap()
 
             //iterate through refranges, generate kmers from the sequence
@@ -517,12 +537,42 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             }
         }
 
-        fun getBufferedWriter(filePath: String): BufferedWriter {
-            return if (filePath.endsWith(".gz")) {
-                GZIPOutputStream(FileOutputStream(filePath)).bufferedWriter()
-            } else {
-                Files.newBufferedWriter(Paths.get(filePath))
+        data class AgcLists(val sampleContigList: List<String>, val otherRegionsList: List<String>)
+        fun rangeListsForAgcCommand(graph: HaplotypeGraph, contigRangesMap: Map<String, List<ReferenceRange>>, chr: String): AgcLists {
+            val minRangeCount = 0.5 * contigRangesMap[chr]!!.size
+            val sampleNameToRegionsMap = mutableMapOf<String, MutableMap<String,MutableSet<String>>>()
+            for (refrange in contigRangesMap[chr]!!) {
+                for (hapid in graph.hapIdToSampleGametes(refrange).keys) {
+                    val altheader = graph.altHeader(hapid)
+                    check(altheader != null) {"altheader null for $hapid in $refrange"}
+                    val sampleName = altheader.sampleName()
+                    val regionsMap = sampleNameToRegionsMap.getOrPut(sampleName){mutableMapOf()}
+                    val regions = altheader.regions
+                    for (region in regions) {
+                        val rangeSet = regionsMap.getOrPut(region.first.contig) { mutableSetOf() }
+                        val rangeStr = if (region.first.position <= region.second.position) "${region.first.position}-${region.second.position}"
+                        else "${region.second.position}-${region.first.position}"
+                        rangeSet.add(rangeStr)
+                    }
+                }
             }
+
+            //For each sample name remove the contig with the highest range count if the count exceeds minRangeCount
+            //add the request the entire contig for the max count if it exceeds half the number of refranges in the chrom
+            val sampleContigList = mutableListOf<String>()
+            val otherRegions = mutableListOf<String>()
+            for ((sampleName, regionsMap) in sampleNameToRegionsMap.entries) {
+                val biggestEntry = regionsMap.entries.maxBy { (_, regionSet) -> regionSet.size }
+                if (biggestEntry.value.size > minRangeCount) {
+                    regionsMap.remove(biggestEntry.key)
+                    sampleContigList.add("${biggestEntry.key}@$sampleName")
+                }
+                //add remaining entries to otherRegions
+                for ((contig, range) in regionsMap) otherRegions.add("$contig@$sampleName:$range")
+            }
+
+            return AgcLists(sampleContigList, otherRegions)
         }
+
     }
 }
