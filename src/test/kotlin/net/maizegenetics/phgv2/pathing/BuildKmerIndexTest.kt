@@ -2,6 +2,7 @@ package net.maizegenetics.phgv2.pathing
 
 import com.github.ajalt.clikt.testing.test
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
+import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.cli.AgcCompress
 import net.maizegenetics.phgv2.cli.TestExtension
@@ -18,6 +19,7 @@ import java.io.File
 import java.io.FileWriter
 import java.util.*
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @ExtendWith(TestExtension::class)
 class BuildKmerIndexTest {
@@ -389,6 +391,48 @@ class BuildKmerIndexTest {
         //compare truth with the file
         val inputFile = getBufferedReader(TestExtension.testKmerIndex).readLines()
         assertEquals(truth,inputFile)
+    }
+
+    @Test
+    fun testCreateAgcCommandLists() {
+        val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile,
+            TestExtension.smallseqLineBHvcfFile, TestExtension.smallseqRefHvcfFile))
+        //chr 1
+        val commandLists = BuildKmerIndex.rangeListsForAgcCommand(graph, graph.rangesByContig(), "1")
+        println("---------sampleContigList---------")
+        println(commandLists.sampleContigList)
+        println("---------otherRegionsList---------")
+        println(commandLists.otherRegionsList)
+        assertTrue(commandLists.sampleContigList.contains("1@LineA"), "command list does not contain 1@LineA")
+        assertTrue ( commandLists.sampleContigList.contains("1@LineB"), "command list does not contain 1@LineB")
+        assertTrue ( commandLists.sampleContigList.contains("1@Ref"), "command list does not contain 1@Ref" )
+        assertTrue(commandLists.otherRegionsList.isEmpty())
+
+        val graph2 = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile,
+            "${TestExtension.smallSeqInputDir}LineB_kmer_index_test.h.vcf", TestExtension.smallseqRefHvcfFile))
+        //chr 1
+        val commandLists2 = BuildKmerIndex.rangeListsForAgcCommand(graph2, graph2.rangesByContig(), "1")
+        println("---------sampleContigList---------")
+        println(commandLists2.sampleContigList)
+        println("---------otherRegionsList---------")
+        println(commandLists2.otherRegionsList)
+        assertTrue(commandLists2.sampleContigList.contains("1@LineA"), "command list does not contain 1@LineA")
+        assertTrue ( commandLists2.sampleContigList.contains("2@LineB"), "command list does not contain 2@LineB")
+        assertTrue ( commandLists2.sampleContigList.contains("1@Ref"), "command list does not contain 1@Ref" )
+        assertTrue(commandLists2.otherRegionsList.isEmpty())
+
+        val graph3 = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile,
+            "${TestExtension.smallSeqInputDir}LineB_agc_command_test.h.vcf", TestExtension.smallseqRefHvcfFile))
+        //chr 1
+        val commandLists3 = BuildKmerIndex.rangeListsForAgcCommand(graph3, graph3.rangesByContig(), "1")
+        println("---------sampleContigList---------")
+        println(commandLists3.sampleContigList)
+        println("---------otherRegionsList---------")
+        println(commandLists3.otherRegionsList)
+        assertTrue(commandLists3.sampleContigList.contains("1@LineA"), "command list does not contain 1@LineA")
+        assertTrue ( commandLists3.sampleContigList.contains("2@LineB"), "command list does not contain 2@LineB")
+        assertTrue ( commandLists3.sampleContigList.contains("1@Ref"), "command list does not contain 1@Ref" )
+        assertEquals(listOf("1@LineB:5501-6500", "1@LineB:34001-38500"), commandLists3.otherRegionsList, "other regions list not as expected for commandLists3")
     }
 
 }

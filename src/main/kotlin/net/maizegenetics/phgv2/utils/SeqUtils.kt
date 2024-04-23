@@ -1,8 +1,6 @@
 package net.maizegenetics.phgv2.utils
 
-import biokotlin.genome.SeqRecordSorts
 import biokotlin.seq.NucSeq
-import biokotlin.seq.NucSeqRecord
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -67,19 +65,6 @@ fun retrieveAgcContigs(dbPath: String, sampleName: String, ranges: List<Pair<Pos
 /**
  * Retrieves sequence from an agc data store.
  * @param dbPath    the folder containing assemblies.agc
- * @param sampleNameList    a list of sample names
- * @param contig    the name of a contig (e.g. chromosome)
- * @return  a Map of Pair(sample name, contig) -> NucSeq containing the sequence
- */
-fun retrieveAgcContigForSamples(dbPath: String, sampleNameList: List<String>, contig: String) : Map<Pair<String,String>,NucSeq> {
-    val rangeList = sampleNameList.map { sample ->  "${contig}@$sample"}
-    return retrieveAgcContigs(dbPath,rangeList)
-}
-
-/**
- * Retrieves sequence from an agc data store.
- * @param dbPath    the folder containing assemblies.agc
- * @param sampleName the name of a sample in the data store
  * @param ranges    a list of ranges to return
  * @return a map of Pair<sampleName, chrom:start-end> (or Pair<sampleName, chrom>) to a Biokotlin NucSeq containing the sequence
  *
@@ -118,7 +103,7 @@ fun buildRangesString(sampleName: String, ranges: List<Pair<Position,Position>>)
 /**
  * Processes AGC commands listset or listctg
  */
-fun retrieveAgcData(dbPath:String,agcCmdList:List<String>):List<String>? {
+fun retrieveAgcData(dbPath:String,agcCmdList:List<String>):List<String> {
 
     val agcFile = "${dbPath}/assemblies.agc"
 
