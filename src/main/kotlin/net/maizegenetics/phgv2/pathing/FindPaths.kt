@@ -104,6 +104,9 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         .required()
         .validate { require(File(it).isDirectory) {"$it is not a valid directory."} }
 
+    val outParentsDir by option(help="The directory where the imputed parents (ancestors) will be written for each sample. File names will be <sampleName>_imputed_parents.txt. If no directory name is supplied, the files will not be written.")
+        .default("")
+
     val pathType by option(help = "The type of path to find. Must be lower case 'haploid' or 'diploid' (without quotes). 'haploid' infers a single path through the graph. 'diploid' infers a pair of paths. Required parameter.")
         .choice("haploid", "diploid")
         .required()
@@ -167,6 +170,9 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
     override fun run() {
         val keyFileLines = readInputFiles.getReadFiles()
         require(keyFileLines.isNotEmpty()) {"Must provide either --path-keyfile or --read-files."}
+
+        //create the outParentsDir, if it does not already exist
+        if(outParentsDir.isNotBlank()) File(outParentsDir).mkdirs()
 
         var samplesToReadMappingFiles = when (getKeyFileType(keyFileLines)) {
             KeyfileType.READ ->
@@ -373,6 +379,18 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         val headerSet = altHeadersSample.map { altHeaderMetadataToVCFHeaderLine(it) }.toSet()
 
         exportVariantContext(myPath.name, variantContextList, hvcfFileName, referenceSequence, headerSet)
+
+        //write the parents (if requested)
+        if(outParentsDir.isNotBlank()) {
+            val outFile = File(outParentsDir).resolve("${myPath.name}_imputed_parents.txt")
+            getBufferedWriter(outFile).use { myWriter ->
+                myWriter.write("chrom\tstart\tend\tsample1\tsample2\n")
+                for ( node in myPath.hapidList) {
+                    myWriter.write("${node.refRange.contig}\t${node.refRange.start}\t${node.refRange.end}" +
+                            "\t${node.sampleGametes.getOrElse(0){""}}\t${node.sampleGametes.getOrElse(1){""}}\n")
+                }
+            }
+        }
 
     }
 
