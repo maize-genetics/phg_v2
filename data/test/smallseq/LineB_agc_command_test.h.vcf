@@ -1,0 +1,93 @@
+##fileformat=VCFv4.2
+##ALT=<ID=00f297caa4a0fa5a6f8e76d388393fa7,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:28501-33000,Checksum=00f297caa4a0fa5a6f8e76d388393fa7,RefChecksum=674dda50f4e91de9d4a88cc341173974,RefRange=1:28501-33000>
+##ALT=<ID=05efe15d97db33185b64821791b01b0f,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:5501-6500,Checksum=05efe15d97db33185b64821791b01b0f,RefChecksum=d896e9cc56e74f39fd3f3c665191d727,RefRange=1:5501-6500>
+##ALT=<ID=12ea83315f749ee2f2b38b631d8115f0,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:44001-45000,Checksum=12ea83315f749ee2f2b38b631d8115f0,RefChecksum=ae5fd1aaa09c70d56e357fe319373758,RefRange=2:44001-45000>
+##ALT=<ID=180417a01edbfed525d7c238910e0ff4,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:1-1000,Checksum=180417a01edbfed525d7c238910e0ff4,RefChecksum=5812acb1aff74866003656316c4539a6,RefRange=2:1-1000>
+##ALT=<ID=18dcf42d7b02fd603e05e3714fa71e95,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:39501-44000,Checksum=18dcf42d7b02fd603e05e3714fa71e95,RefChecksum=073286a82fe47d6a370e8a7a3803f1d3,RefRange=1:39501-44000>
+##ALT=<ID=25413a93cd7622fa44d015d6914f344d,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:34001-38500,Checksum=25413a93cd7622fa44d015d6914f344d,RefChecksum=9650638ee16a4853495610120e1323f8,RefRange=1:34001-38500>
+##ALT=<ID=261f7e63beed04e2500a9d8ae867e4ab,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:23001-27500,Checksum=261f7e63beed04e2500a9d8ae867e4ab,RefChecksum=9c467defbbea2e4be338eecd26c87e4c,RefRange=2:23001-27500>
+##ALT=<ID=39c0c13208f7990489337408cf980b79,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:23001-27500,Checksum=39c0c13208f7990489337408cf980b79,RefChecksum=164098aa7cfeff45d651fd5554538bbe,RefRange=1:23001-27500>
+##ALT=<ID=45b121547c7ae517a181fdd2621495c4,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:5501-6500,Checksum=45b121547c7ae517a181fdd2621495c4,RefChecksum=bbc9274ac9c98fd0f9399ec8f121b9d0,RefRange=2:5501-6500>
+##ALT=<ID=4df3ac835af83a9b5bf80d4e4850627d,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:38501-39500,Checksum=4df3ac835af83a9b5bf80d4e4850627d,RefChecksum=b9f31fca37c7bd6cd05526a1ba567c94,RefRange=2:38501-39500>
+##ALT=<ID=4fc7b8af32ddd74e07cb49d147ef1938,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:1-1000,Checksum=4fc7b8af32ddd74e07cb49d147ef1938,RefChecksum=546d1839623a5b0ea98bbff9a8a320e2,RefRange=1:1-1000>
+##ALT=<ID=5031218d4ac709dd51a946acd0550356,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:49501-50300,Checksum=5031218d4ac709dd51a946acd0550356,RefChecksum=39f96726321b329964435865b3694fd2,RefRange=2:49501-50500>
+##ALT=<ID=5d5381ccc68ac93826334f634578672e,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:38501-39500,Checksum=5d5381ccc68ac93826334f634578672e,RefChecksum=a7f279c629f06b3d666f07debaf2bbad,RefRange=1:38501-39500>
+##ALT=<ID=6b5f46bd5c31917af3ab6c3ccc8668cd,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:11001-12000,Checksum=6b5f46bd5c31917af3ab6c3ccc8668cd,RefChecksum=2b4590f722ef9229c15d29e0b4e51a0e,RefRange=1:11001-12000>
+##ALT=<ID=6fb2de47c835bd9ab026c02d62f49807,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:12001-16500,Checksum=6fb2de47c835bd9ab026c02d62f49807,RefChecksum=cb86faf105b192fd9281b7f8e00f4fae,RefRange=2:12001-16500>
+##ALT=<ID=79146831745c85d26117f13b5873935f,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:33001-34000,Checksum=79146831745c85d26117f13b5873935f,RefChecksum=7895054835ae364b35e7c4a805610232,RefRange=1:33001-34000>
+##ALT=<ID=7e388530fa03aa2ab21b3cd10a438f5a,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:45001-49500,Checksum=7e388530fa03aa2ab21b3cd10a438f5a,RefChecksum=06ae4e937668d301e325d43725a38c3f,RefRange=1:45001-49500>
+##ALT=<ID=8967fabf10e55d881caa6fe192e7d4ca,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:1001-5500,Checksum=8967fabf10e55d881caa6fe192e7d4ca,RefChecksum=57705b1e2541c7634ea59a48fc52026f,RefRange=1:1001-5500>
+##ALT=<ID=8bcf66e8c49da2d9ad8cbafa0bb7a93d,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:1001-5500,Checksum=8bcf66e8c49da2d9ad8cbafa0bb7a93d,RefChecksum=799371fe289fbe0046797729659cb5ff,RefRange=2:1001-5500>
+##ALT=<ID=8f2731708b30e1c402c6d6a69a983fe4,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:28501-33000,Checksum=8f2731708b30e1c402c6d6a69a983fe4,RefChecksum=e4f5f60483b68badd6caf4cc2812d2bc,RefRange=2:28501-33000>
+##ALT=<ID=8f7de1a693aa15fb8fb7b85e7a8b5e95,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:6501-11000,Checksum=8f7de1a693aa15fb8fb7b85e7a8b5e95,RefChecksum=66465399052d8ebe48b06329c60fee03,RefRange=1:6501-11000>
+##ALT=<ID=a593b1c67f90cd58523762c11773dce3,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:34001-38500,Checksum=a593b1c67f90cd58523762c11773dce3,RefChecksum=2c4b8564bbbdf70c6560fdefdbe3ef6a,RefRange=2:34001-38500>
+##ALT=<ID=a5ae89082f94ae1a03a2dbcea1551e51,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:33001-34000,Checksum=a5ae89082f94ae1a03a2dbcea1551e51,RefChecksum=6737c1cfff3c688e6c393fe405b51f6e,RefRange=2:33001-34000>
+##ALT=<ID=a7214fe07512b511ddf13edade461b39,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:49501-50300,Checksum=a7214fe07512b511ddf13edade461b39,RefChecksum=fafafee7c250c76b7e0571fde286022e,RefRange=1:49501-50500>
+##ALT=<ID=a8660522bc6d09bbb3ae7a60ea3ed64d,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:22001-23000,Checksum=a8660522bc6d09bbb3ae7a60ea3ed64d,RefChecksum=43687e13112bbe841f811b0a9de82a94,RefRange=2:22001-23000>
+##ALT=<ID=aff71f19de448514a6d9208b1fcb4e8a,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:12001-16500,Checksum=aff71f19de448514a6d9208b1fcb4e8a,RefChecksum=f2a26406aaa6aefdc20ccdf8cb313dff,RefRange=1:12001-16500>
+##ALT=<ID=b787382b1337fd694dd8d77de0141da4,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:11001-12000,Checksum=b787382b1337fd694dd8d77de0141da4,RefChecksum=347f0478b1a553ef107243cb60a9ba7d,RefRange=2:11001-12000>
+##ALT=<ID=bc94073196b0b2c13e62b5fa47c76b51,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:6501-11000,Checksum=bc94073196b0b2c13e62b5fa47c76b51,RefChecksum=b8843efbd6adaa261a01518dc2a39aa2,RefRange=2:6501-11000>
+##ALT=<ID=bcb3fa7872cb54537cdf34c96b01ed15,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:17501-22000,Checksum=bcb3fa7872cb54537cdf34c96b01ed15,RefChecksum=90919d6d6f101925c82108fb86ec0621,RefRange=1:17501-22000>
+##ALT=<ID=be9ca4fe6c9bc665702ab98c8e7593fe,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:44001-45000,Checksum=be9ca4fe6c9bc665702ab98c8e7593fe,RefChecksum=ddbae40728836c4c245f9ccb7e651515,RefRange=1:44001-45000>
+##ALT=<ID=c524a7c04519de87cb28b875146ac9ac,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:45001-49500,Checksum=c524a7c04519de87cb28b875146ac9ac,RefChecksum=c3415e16a664399ecec286ad7ae48e07,RefRange=2:45001-49500>
+##ALT=<ID=d36a25dd15269876f5738efac5b6d34f,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:16501-17500,Checksum=d36a25dd15269876f5738efac5b6d34f,RefChecksum=db22dfc14799b1aa666eb7d571cf04ec,RefRange=2:16501-17500>
+##ALT=<ID=d65e22539028b240fab289fa1a070f3f,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:27501-28500,Checksum=d65e22539028b240fab289fa1a070f3f,RefChecksum=9a863526c624a34d51c74f511756cfa4,RefRange=2:27501-28500>
+##ALT=<ID=d8dd1f9c56425f5874687a1ec67a31e8,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:39501-44000,Checksum=d8dd1f9c56425f5874687a1ec67a31e8,RefChecksum=c5c75ee44db641a9a1355b4a4cc7f4f1,RefRange=2:39501-44000>
+##ALT=<ID=dbf891359a4c3f8da75fbc602bcbd631,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:22001-23000,Checksum=dbf891359a4c3f8da75fbc602bcbd631,RefChecksum=a92a239d3a5652d3b9daba7de6febb97,RefRange=1:22001-23000>
+##ALT=<ID=ea27ac2def0e1d80c59cdb38b6dfa66a,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:27501-28500,Checksum=ea27ac2def0e1d80c59cdb38b6dfa66a,RefChecksum=105c85412229b45439db1f03c3f064f4,RefRange=1:27501-28500>
+##ALT=<ID=f9f80587acc7c2ac0e973ed343f69cfe,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=1:17501-22000,Checksum=f9f80587acc7c2ac0e973ed343f69cfe,RefChecksum=5be09ea29709972af27bf90073843f8d,RefRange=2:17501-22000>
+##ALT=<ID=fca8c375152e127d322a99bbd10e9873,Description="haplotype data for line: LineB",Source="/home/pjbrad/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineB,Regions=2:16501-17500,Checksum=fca8c375152e127d322a99bbd10e9873,RefChecksum=e07d04d2fc96b0f8f075aa5641785f78,RefRange=1:16501-17500>
+##FORMAT=<ID=AD,Number=3,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth (only filtered reads used for calling)">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##INFO=<ID=AF,Number=3,Type=Integer,Description="Allele Frequency">
+##INFO=<ID=ASM_Chr,Number=1,Type=String,Description="Assembly chromosome">
+##INFO=<ID=ASM_End,Number=1,Type=Integer,Description="Assembly end position">
+##INFO=<ID=ASM_Start,Number=1,Type=Integer,Description="Assembly start position">
+##INFO=<ID=ASM_Strand,Number=1,Type=String,Description="Assembly strand">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
+##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
+##contig=<ID=1,length=55000>
+##contig=<ID=2,length=55000>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	LineB
+1	1	.	G	<4fc7b8af32ddd74e07cb49d147ef1938>	.	.	END=1000	GT:AD:DP	1:0,2,0:2
+1	1001	.	A	<8967fabf10e55d881caa6fe192e7d4ca>	.	.	END=5500	GT:AD:DP	1:0,2,0:2
+1	5501	.	A	<05efe15d97db33185b64821791b01b0f>	.	.	END=6500	GT:AD:DP	1:0,2,0:2
+1	6501	.	C	<8f7de1a693aa15fb8fb7b85e7a8b5e95>	.	.	END=11000	GT:AD:DP	1:0,2,0:2
+1	11001	.	A	<6b5f46bd5c31917af3ab6c3ccc8668cd>	.	.	END=12000	GT:AD:DP	1:0,2,0:2
+1	12001	.	A	<aff71f19de448514a6d9208b1fcb4e8a>	.	.	END=16500	GT:AD:DP	1:0,2,0:2
+1	16501	.	A	<fca8c375152e127d322a99bbd10e9873>	.	.	END=17500	GT:AD:DP	1:0,2,0:2
+1	17501	.	C	<bcb3fa7872cb54537cdf34c96b01ed15>	.	.	END=22000	GT:AD:DP	1:0,2,0:2
+1	22001	.	C	<dbf891359a4c3f8da75fbc602bcbd631>	.	.	END=23000	GT:AD:DP	1:0,2,0:2
+1	23001	.	G	<39c0c13208f7990489337408cf980b79>	.	.	END=27500	GT:AD:DP	1:0,2,0:2
+1	27501	.	G	<ea27ac2def0e1d80c59cdb38b6dfa66a>	.	.	END=28500	GT:AD:DP	1:0,2,0:2
+1	28501	.	C	<00f297caa4a0fa5a6f8e76d388393fa7>	.	.	END=33000	GT:AD:DP	1:0,2,0:2
+1	33001	.	C	<79146831745c85d26117f13b5873935f>	.	.	END=34000	GT:AD:DP	1:0,2,0:2
+1	34001	.	A	<25413a93cd7622fa44d015d6914f344d>	.	.	END=38500	GT:AD:DP	1:0,2,0:2
+1	38501	.	C	<5d5381ccc68ac93826334f634578672e>	.	.	END=39500	GT:AD:DP	1:0,2,0:2
+1	39501	.	G	<18dcf42d7b02fd603e05e3714fa71e95>	.	.	END=44000	GT:AD:DP	1:0,2,0:2
+1	44001	.	G	<be9ca4fe6c9bc665702ab98c8e7593fe>	.	.	END=45000	GT:AD:DP	1:0,2,0:2
+1	45001	.	G	<7e388530fa03aa2ab21b3cd10a438f5a>	.	.	END=49500	GT:AD:DP	1:0,2,0:2
+1	49501	.	G	<a7214fe07512b511ddf13edade461b39>	.	.	END=50500	GT:AD:DP	1:0,2,0:2
+2	1	.	C	<180417a01edbfed525d7c238910e0ff4>	.	.	END=1000	GT:AD:DP	1:0,2,0:2
+2	1001	.	A	<8bcf66e8c49da2d9ad8cbafa0bb7a93d>	.	.	END=5500	GT:AD:DP	1:0,2,0:2
+2	5501	.	G	<45b121547c7ae517a181fdd2621495c4>	.	.	END=6500	GT:AD:DP	1:0,2,0:2
+2	6501	.	A	<bc94073196b0b2c13e62b5fa47c76b51>	.	.	END=11000	GT:AD:DP	1:0,2,0:2
+2	11001	.	A	<b787382b1337fd694dd8d77de0141da4>	.	.	END=12000	GT:AD:DP	1:0,2,0:2
+2	12001	.	A	<6fb2de47c835bd9ab026c02d62f49807>	.	.	END=16500	GT:AD:DP	1:0,2,0:2
+2	16501	.	A	<d36a25dd15269876f5738efac5b6d34f>	.	.	END=17500	GT:AD:DP	1:0,2,0:2
+2	17501	.	G	<f9f80587acc7c2ac0e973ed343f69cfe>	.	.	END=22000	GT:AD:DP	1:0,2,0:2
+2	22001	.	A	<a8660522bc6d09bbb3ae7a60ea3ed64d>	.	.	END=23000	GT:AD:DP	1:0,2,0:2
+2	23001	.	C	<261f7e63beed04e2500a9d8ae867e4ab>	.	.	END=27500	GT:AD:DP	1:0,2,0:2
+2	27501	.	G	<d65e22539028b240fab289fa1a070f3f>	.	.	END=28500	GT:AD:DP	1:0,2,0:2
+2	28501	.	A	<8f2731708b30e1c402c6d6a69a983fe4>	.	.	END=33000	GT:AD:DP	1:0,2,0:2
+2	33001	.	G	<a5ae89082f94ae1a03a2dbcea1551e51>	.	.	END=34000	GT:AD:DP	1:0,2,0:2
+2	34001	.	A	<a593b1c67f90cd58523762c11773dce3>	.	.	END=38500	GT:AD:DP	1:0,2,0:2
+2	38501	.	A	<4df3ac835af83a9b5bf80d4e4850627d>	.	.	END=39500	GT:AD:DP	1:0,2,0:2
+2	39501	.	A	<d8dd1f9c56425f5874687a1ec67a31e8>	.	.	END=44000	GT:AD:DP	1:0,2,0:2
+2	44001	.	G	<12ea83315f749ee2f2b38b631d8115f0>	.	.	END=45000	GT:AD:DP	1:0,2,0:2
+2	45001	.	A	<c524a7c04519de87cb28b875146ac9ac>	.	.	END=49500	GT:AD:DP	1:0,2,0:2
+2	49501	.	G	<5031218d4ac709dd51a946acd0550356>	.	.	END=50500	GT:AD:DP	1:0,2,0:2
