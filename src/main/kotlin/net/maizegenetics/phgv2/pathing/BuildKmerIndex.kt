@@ -190,7 +190,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                             val hapidSet = keepMap.remove(hashValue)
                             if (runDiagnostics) {
                                 val hapidRefrange = hapidToRefrangeMap[hapidSet.first()]
-                                val wasPreviousRange = refRangeToIndexMap[refrange] == (refRangeToIndexMap[hapidRefrange] ?: -2) + 1
+                                val wasPreviousRange = refRangeToIndexMap[refrange] == ((refRangeToIndexMap[hapidRefrange] ?: -2) + 1)
                                 if (wasPreviousRange) {
                                     val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
                                     refrangeToAdjacentHashCount[refrange] = oldCount + 1
