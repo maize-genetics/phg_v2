@@ -146,18 +146,6 @@ class FullPipelineIT {
             assertTrue(asmDiff < 0.00001, "${asmName} Fasta is not the same as input")
         }
 
-        //what is in agc?
-        val genomes = retrieveAgcData(TestExtension.testTileDBURI, listOf("listset"))
-
-        if (genomes != null) {
-            println("agc genomes: ${genomes.joinToString(",")}")
-            val cmd = mutableListOf("listctg")
-            cmd.addAll(genomes)
-            println("agc contigs: ")
-            retrieveAgcData(TestExtension.testTileDBURI, cmd)?.forEach { println(it) }
-        }
-
-
         //build a kmer index
         println("building kmer index")
         val buildKmerIndexArgs = "--db-path ${TestExtension.testTileDBURI} --hvcf-dir ${TestExtension.testVCFDir}"

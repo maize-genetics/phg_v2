@@ -506,6 +506,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
          * an agc command to get all the sequence for a chromosome from a [HaplotypeGraph].
          */
         fun rangeListsForAgcCommand(graph: HaplotypeGraph, contigRangesMap: Map<String, List<ReferenceRange>>, chr: String): AgcLists {
+            require(contigRangesMap.containsKey(chr)) {"In BuildKmerIndex.rangeListsForAgcCommand() chr is not in contigRangesMap."}
             //If at least half the ranges in a chromosome come from the sample contig, add the contig to the list of
             //  contig@sample to be retrieved. Otherwise add the individual ranges to otherRegions.
             val minRangeCount = 0.5 * contigRangesMap[chr]!!.size
