@@ -79,6 +79,7 @@ This command uses several parameters:
   + gVCF (`gvcf`) data
 * `--sample-names` - a comma (`,`) separated list of sample IDs.
 * `-o` - output directory of VCF data.
+* `--regions-file` - a file of positions to be exported. Can be a bedfile or a vcf file.
 
 > [!NOTE]
 > Make sure there is no whitespace between sample IDs. For example:
@@ -94,6 +95,8 @@ phg export-vcf \
   --sample-file sample_names.txt \
   -o output/hvcf_files
 ```
+If a --regions-file is specified, then only variants overlapping those positions will be exported. The regions-file
+must be either a bedfile or a vcf file and must have either a .bed or a .vcf extension.
 
 ### Create FASTA data
 While haplotype sequences are abstracted to MD5 hashes in hVCF
