@@ -62,7 +62,7 @@ dependencies {
     implementation("org.apache.logging.log4j:log4j-core:2.20.0")
     implementation("org.apache.logging.log4j:log4j-api:2.20.0")
 
-    implementation("com.google.guava:guava:30.1.1-jre")
+    implementation("com.google.guava:guava:33.1.0-jre")
 
     // Use these jar file when compiling for Linux
     // Keep the Mac Intel and Mac ARM jar inclusions commented out
