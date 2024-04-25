@@ -7,6 +7,7 @@ import net.maizegenetics.phgv2.utils.getChecksum
 import org.apache.logging.log4j.LogManager
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
@@ -19,9 +20,9 @@ class ExportVcfTest {
 
         private val myLogger = LogManager.getLogger(ExportVcfTest::class.java)
 
-        private val exportHvcfDir = "${TestExtension.tempDir}/export-vcfs/"
-        private val outputHvcfDir = "${exportHvcfDir}/output/"
-        private val inputHvcfDir = "${exportHvcfDir}/input/"
+        private val exportHvcfDir = "${TestExtension.tempDir}export-vcfs/"
+        private val outputHvcfDir = "${exportHvcfDir}output/"
+        private val inputHvcfDir = "${exportHvcfDir}input/"
         private val dbPath = "${exportHvcfDir}/tiledb_export_hvcf"
         private val testHvcfFile = inputHvcfDir + "/" + File(TestExtension.smallseqRefHvcfFile).name
 
@@ -41,10 +42,17 @@ class ExportVcfTest {
 
         }
 
+        @BeforeEach
+        fun deleteContentsOfOutput() {
+            for (listFile in File(outputHvcfDir).listFiles()) {
+                listFile.delete()
+            }
+        }
+
         @AfterAll
         @JvmStatic
         fun teardown() {
-//            File(TestExtension.tempDir).deleteRecursively()
+            File(TestExtension.tempDir).deleteRecursively()
         }
 
     }
@@ -69,15 +77,6 @@ class ExportVcfTest {
         println("Ref.vcf actual checksum2: $checksum2")
 
         assertEquals(checksum1, checksum2, "Ref.h.vcf checksums do not match")
-
-    }
-
-    @Test
-    fun testExportGvcf() {
-        //todo create vcf and bed region files for testing
-        val result = ExportVcf().test(
-            "--db-path $dbPath -o $outputHvcfDir --dataset-type gvcf --sample-names Ref,LineA --regionsFile "
-        )
 
     }
 

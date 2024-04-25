@@ -2,6 +2,7 @@ package net.maizegenetics.phgv2.cli
 
 import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.testing.test
+import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension.Companion.asmList
@@ -60,6 +61,7 @@ class FullPipelineIT {
             File(TestExtension.testInputFastaDir).mkdirs()
             File(TestExtension.testOutputFastaDir).mkdirs()
             File(TestExtension.testOutputHVCFDir).mkdirs()
+            File(TestExtension.testOutputGVCFDir).mkdirs()
             File(TestExtension.testTileDBURI).mkdirs()
             File(TestExtension.testOutputDir).mkdirs()
         }
@@ -146,13 +148,37 @@ class FullPipelineIT {
             assertTrue(asmDiff < 0.00001, "${asmName} Fasta is not the same as input")
         }
 
+        //export select sites as a gvcf
+        val bedResult = ExportVcf().test(
+            "--db-path ${TestExtension.testTileDBURI} -o ${TestExtension.testOutputGVCFDir} --dataset-type gvcf --sample-names LineA,LineB " +
+                    "--regions-file ${TestExtension.smallSeqLineAPositionsBed}"
+        )
+        assertEquals(0, bedResult.statusCode, "gvcf export not successful")
+
+        //check gvcf export with a bedfile for positions
+        val bedRecords = getBufferedReader(TestExtension.smallSeqLineAPositionsBed).use { bedReader ->
+            bedReader.readLines()
+        }
+        checkExpectedGvcf("${TestExtension.testOutputGVCFDir}LineA.g.vcf", bedRecords)
+        checkExpectedGvcf("${TestExtension.testOutputGVCFDir}LineB.g.vcf", bedRecords)
+        File("${TestExtension.testOutputGVCFDir}LineA.g.vcf").delete()
+        File("${TestExtension.testOutputGVCFDir}LineB.g.vcf").delete()
+
+        //repeat the gvcf export using a vcf file for positions
+        val vcfResult = ExportVcf().test(
+            "--db-path ${TestExtension.testTileDBURI} -o ${TestExtension.testOutputGVCFDir} --dataset-type gvcf --sample-names LineA,LineB " +
+                    "--regions-file ${TestExtension.smallSeqLineAPositionsVcf}"
+        )
+        assertEquals(0, vcfResult.statusCode, "gvcf export not successful")
+        checkExpectedGvcf("${TestExtension.testOutputGVCFDir}LineA.g.vcf", bedRecords)
+        checkExpectedGvcf("${TestExtension.testOutputGVCFDir}LineB.g.vcf", bedRecords)
+
         //build a kmer index
         println("building kmer index")
         val buildKmerIndexArgs = "--db-path ${TestExtension.testTileDBURI} --hvcf-dir ${TestExtension.testVCFDir}"
         val indexResult = BuildKmerIndex().test(buildKmerIndexArgs)
         assertEquals(0, indexResult.statusCode, "Kmer Indexing failed")
         println(indexResult.output)
-
 
         //create some reads with fairly high coverage to make sure mapping results are consistent so that they can be tested.
         val lineAFastqFilename = TestExtension.testInputFastaDir + "readsLineA.fastq"
@@ -286,6 +312,19 @@ class FullPipelineIT {
             if (doNotTestLastRange && range.start < 50500)
             assertEquals(graph.sampleToHapId(range, sgA), graph.sampleToHapId(range, sgTestSample), "TestSample hapid does not equal line A in $range")
         }
+    }
+
+    fun checkExpectedGvcf(testGvcf: String, bedRecords: List<String>) {
+        VCFFileReader(File(testGvcf), false).use { vcfReader ->
+            vcfReader.forEachIndexed { index, variantContext ->
+                val vcfStart = variantContext.start
+                val vcfEnd = variantContext.end
+                val bedData = bedRecords[index].split("\t")
+                val bedPos = bedData[2].toInt()  //in the bed file, bed end is the vcf 1-based position
+                assertTrue(bedPos in vcfStart..vcfEnd, "bed position $bedPos not in vcf range of $vcfStart to $vcfEnd")
+            }
+        }
+
     }
 
 }
