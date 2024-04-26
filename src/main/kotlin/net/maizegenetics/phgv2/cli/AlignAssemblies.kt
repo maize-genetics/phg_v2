@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.switch
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +38,16 @@ import javax.management.ObjectName
  * aligning, a dot plot is created showing the alignment,
  * with the file stored in PNG format to the output directory.
  *
+ * This function is refactored to allow easier running on systems
+ * using SLURM functionality.  Two new parameters are added:
+ * 1. justRef: if true, only the creation of the reference CDS file
+ *     and subsequent aligning of the reference fasta to that file
+ *     is performed.  These files should be saved by the user for
+ *     use with a slurm script
+ * 2.  slurm:  If true, a text file is created with separate individual
+ *     lines containing the commands to run anchorwave for each assembly,
+ *     using the created reference CDS fasta.
+ *
  * This function allows for multiple assembly alignments to be run
  * in parallel.  Users may specify number of alignments to run in parallel
  * and the total number of threads available to be split between the alignments.
@@ -69,6 +80,11 @@ import javax.management.ObjectName
 class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files using AnchorWave. ") {
 
     private val myLogger = LogManager.getLogger(AlignAssemblies::class.java)
+
+    val slurm by option("--slurm", help = "If this flag is set, run reference align to gff CDS, skip assembly alignments, instead create a text command file to use with slurm.")
+        .switch(
+            "--slurm" to true
+        ).default(false)
 
     val gff by option(help = "Full path to the reference gff file")
         .default("")
@@ -175,7 +191,11 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
             throw IllegalStateException("Error running minimap2 for reference: $error")
         }
 
-        runAnchorWaveMultiThread(referenceFile, assembliesList, cdsFasta, gff, refSamOutFile,runsAndThreads)
+        if (slurm) {
+            // TODO:  Create a text file with the commands to run anchorwave for each assembly
+        } else {
+            runAnchorWaveMultiThread(referenceFile, assembliesList, cdsFasta, gff, refSamOutFile,runsAndThreads)
+        }
 
     }
 
