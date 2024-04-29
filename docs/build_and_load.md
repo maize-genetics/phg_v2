@@ -1154,7 +1154,7 @@ phg_v2_example/
     │   └── Ref.h.vcf.gz.csi
     ├── reference
     │   ├── Ref.bed
-    │   └── Ref.sam
+    │   └── Ref.fa
     └── temp
 ```
 
