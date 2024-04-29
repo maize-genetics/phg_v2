@@ -8,9 +8,11 @@ import org.apache.logging.log4j.LogManager
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @ExtendWith(TestExtension::class)
 class ExportVcfTest {
@@ -69,6 +71,12 @@ class ExportVcfTest {
         println("Ref.vcf actual checksum2: $checksum2")
 
         assertEquals(checksum1, checksum2, "Ref.h.vcf checksums do not match")
+
+        //test using a regions-file without .vcf or .bed extension
+        assertThrows<IllegalArgumentException>() {
+            val regionResult = ExportVcf().test(
+            "--db-path $dbPath --sample-names Ref -o $outputHvcfDir --regions-file ${TestExtension.testKeyFile}"
+        )}
 
     }
 

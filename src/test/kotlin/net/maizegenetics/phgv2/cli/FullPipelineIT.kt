@@ -132,7 +132,6 @@ class FullPipelineIT {
             assertEquals(id, seqHash, "Hashes do not match for $id")
         }
 
-
         //build a composite genome from the HVCFs
         createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputHVCFDir}/Ref.h.vcf -o ${TestExtension.testOutputFastaDir}/Ref_composite.fa")
         createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputHVCFDir}/LineA.h.vcf -o ${TestExtension.testOutputFastaDir}/LineA_composite.fa")
@@ -315,13 +314,19 @@ class FullPipelineIT {
     }
 
     fun checkExpectedGvcf(testGvcf: String, bedRecords: List<String>) {
+        //Each position in bedRecords should have a record in the testGvcf
+        //But, more than one bed position may be covered by the same
+        var bedIndex = 0
+        val bedPositions = bedRecords.map { it.split("\t")[2].toInt() }
         VCFFileReader(File(testGvcf), false).use { vcfReader ->
-            vcfReader.forEachIndexed { index, variantContext ->
+            vcfReader.forEach { variantContext ->
                 val vcfStart = variantContext.start
                 val vcfEnd = variantContext.end
-                val bedData = bedRecords[index].split("\t")
-                val bedPos = bedData[2].toInt()  //in the bed file, bed end is the vcf 1-based position
+                val bedPos = bedPositions[bedIndex]
                 assertTrue(bedPos in vcfStart..vcfEnd, "bed position $bedPos not in vcf range of $vcfStart to $vcfEnd")
+
+                //advance the bedIndex until the position is no longer in the current gvcf interval
+                while (bedIndex < bedPositions.size && bedPositions[bedIndex] in vcfStart..vcfEnd) bedIndex++
             }
         }
 
