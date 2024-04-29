@@ -1,0 +1,32 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##FORMAT=<ID=AD,Number=3,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth (only filtered reads used for calling)">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##INFO=<ID=AF,Number=3,Type=Integer,Description="Allele Frequency">
+##INFO=<ID=ASM_Chr,Number=1,Type=String,Description="Assembly chromosome">
+##INFO=<ID=ASM_End,Number=1,Type=Integer,Description="Assembly end position">
+##INFO=<ID=ASM_Start,Number=1,Type=Integer,Description="Assembly start position">
+##INFO=<ID=ASM_Strand,Number=1,Type=String,Description="Assembly strand">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
+##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
+##contig=<ID=1,length=55000>
+##contig=<ID=2,length=55000>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	LineA
+1	17	.	T	A	.	.	ASM_Chr=1;ASM_End=17;ASM_Start=17;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+1	50	.	A	C	.	.	ASM_Chr=1;ASM_End=50;ASM_Start=17;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+1	63	.	T	A	.	.	ASM_Chr=1;ASM_End=63;ASM_Start=63;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+1	103	.	A	T	.	.	ASM_Chr=1;ASM_End=103;ASM_Start=103;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+1	123	.	T	A	.	.	ASM_Chr=1;ASM_End=123;ASM_Start=123;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+1	144	.	A	T	.	.	ASM_Chr=1;ASM_End=144;ASM_Start=144;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+1	158	.	T	G	.	.	ASM_Chr=1;ASM_End=158;ASM_Start=158;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+1	160	.	T	G	.	.	ASM_Chr=1;ASM_End=160;ASM_Start=160;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+2	87	.	G	T	.	.	ASM_Chr=2;ASM_End=87;ASM_Start=87;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+2	98	.	T	A	.	.	ASM_Chr=2;ASM_End=98;ASM_Start=98;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+2	169	.	T	G	.	.	ASM_Chr=2;ASM_End=169;ASM_Start=169;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+2	196	.	T	A	.	.	ASM_Chr=2;ASM_End=196;ASM_Start=196;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+2	268	.	T	G	.	.	ASM_Chr=2;ASM_End=268;ASM_Start=268;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+2	296	.	G	T	.	.	ASM_Chr=2;ASM_End=296;ASM_Start=296;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
