@@ -1,16 +1,18 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.options.default
-import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.switch
-import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
+import com.github.ajalt.clikt.parameters.groups.required
+import com.github.ajalt.clikt.parameters.groups.single
+import com.github.ajalt.clikt.parameters.options.*
 import com.github.ajalt.clikt.parameters.types.int
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import net.maizegenetics.phgv2.pathing.KeyFileData
+import net.maizegenetics.phgv2.pathing.PathInputFile
 import org.apache.logging.log4j.LogManager
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.toMap
@@ -76,6 +78,26 @@ import javax.management.ObjectName
  *  alignments, each using 5 threads.
  *
  */
+
+sealed class AssemblyList {
+    abstract fun getAssemblyFiles(): List<String>
+    data class AssemblyFile(val assembly: String): AssemblyList() {
+        @Override
+        override fun getAssemblyFiles(): List<String> {
+            check(File(assembly).exists()) { "Assembly file $assembly does not exist." }
+            return listOf(assembly)
+        }
+    }
+
+    data class AssemblyFileList(val file:String): AssemblyList() {
+        @Override
+        override fun getAssemblyFiles(): List<String> {
+            check(File(file).exists()) { "Assembly file $file does not exist." }
+            val assemblyNames = File(file).bufferedReader().readLines().filter { it.isNotBlank() }
+            return assemblyNames
+        }
+    }
+}
 class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files using AnchorWave. ") {
 
     private val myLogger = LogManager.getLogger(AlignAssemblies::class.java)
@@ -108,17 +130,14 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
     val referenceCdsFasta by option(help = "Full path to reference CDS fasta file created from a just-ref-prep run.")
         .default("")
 
-    val assemblies by option(
-        "-a",
-        "--assemblies",
-        help = "File containing list of assemblies to align, 1 per line, full path to updated file created via the phg prepare-assemblies command."
-    )
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--assemblies must not be blank"
-            }
-        }
+    val assembliesList: AssemblyList by mutuallyExclusiveOptions<AssemblyList>(
+        option("--assembly-file", help = "Full path to a single fasta file.   A value must be entered for " +
+                "either --assembly-file or --assembly-file-list.")
+            .convert{ AssemblyList.AssemblyFile(it) },
+        option("--assembly-file-list", help = "Full path to a file that contains a list of assemblies, " +
+                "one per line, full path name for each assembly. ")
+            .convert{ AssemblyList.AssemblyFileList(it) }
+    ).single().required()
 
     val outputDir by option("-o", "--output-dir", help = "Directory where temporary and final files will be written")
         .default("")
@@ -162,7 +181,8 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
     override fun run() {
 
         // Returns Pair<Int, Int> where the first value is the number of parallel alignments, the second is threadsPerAlignment
-        val runsAndThreads = calculatedNumThreadsAndRuns(totalThreads, inParallel, assemblies)
+        val numAssemblies = assembliesList.getAssemblyFiles().size
+        val runsAndThreads = calculatedNumThreadsAndRuns(totalThreads, inParallel, numAssemblies)
 
         var anchorwaveRefFiles = Pair(referenceCdsFasta, referenceSam)
         // It is required that either both referenceCdsFasta and reference Sam are provided or neither are
@@ -174,31 +194,31 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
 
         // If referenceCdsFasta and referenceSam are not provided, we need to create them
         if (referenceCdsFasta == "" ) {
-            anchorwaveRefFiles = processRefFiles(referenceFile, gff, outputDir, runsAndThreads, assemblies)
+            anchorwaveRefFiles = processRefFiles(referenceFile, gff, outputDir, runsAndThreads, assembliesList.getAssemblyFiles())
         }
 
         val cdsFasta = anchorwaveRefFiles.first
         val refSamOutFile = anchorwaveRefFiles.second
-        val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
+        //val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
 
 
         if (!justRefPrep) {
             // If justRefPrep is true, we only need to align the reference to the CDS file, then return
             // Otherwise, we continue and align the assemblies via anchorwave
-            runAnchorWaveMultiThread(referenceFile, assembliesList, cdsFasta, gff, refSamOutFile,runsAndThreads)
+            runAnchorWaveMultiThread(referenceFile, assembliesList.getAssemblyFiles(), cdsFasta, gff, refSamOutFile,runsAndThreads)
         }
 
     }
 
     fun processRefFiles( referenceFile:String,  gff:String,   outputDir:String,
-                         runsAndThreads:Pair<Int, Int>, assemblies:String): Pair<String,String>{
+                         runsAndThreads:Pair<Int, Int>, assembliesList:List<String>): Pair<String,String>{
 
         val cdsFasta = "$outputDir/ref.cds.fasta"
         createCDSfromRefData(referenceFile, gff, cdsFasta, outputDir)
 
         // create list of assemblies to align from the assemblies file
         // exclude blank lines
-        val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
+        //val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
 
         // run minimap2 for ref to refcds
         val justNameRef = File(referenceFile).nameWithoutExtension
@@ -253,7 +273,7 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
      * An algorithm is used that selects a middle value between the number of threads
      * and the number of alignments to run in parallel.
      */
-    fun calculatedNumThreadsAndRuns(totalThreads:Int, inParallel:Int, assemblies:String): Pair<Int, Int> {
+    fun calculatedNumThreadsAndRuns(totalThreads:Int, inParallel:Int, numAssemblies:Int): Pair<Int, Int> {
         // If totalThreads or inParallel are 0, it means the user did not specify them
         // In that case we calculate these values based on the number of processors available
         // and the amount of memory available.
@@ -309,7 +329,7 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         // we will use that number, or the number of assemblies in the list, whichever
         // is smaller.
 
-        val numAssemblies = File(assemblies).readLines().filter { it.isNotBlank() }.size
+
         // This needs to return a Pair<Int, Int> where the first value is the number of alignments, the seconds is threadsPerAlignment
         val runsAndThreads = if (inParallel > 0) {
             if (inParallel > totalConcurrentThreads) {
