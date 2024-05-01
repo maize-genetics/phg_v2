@@ -81,9 +81,9 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
 
     private val myLogger = LogManager.getLogger(AlignAssemblies::class.java)
 
-    val slurm by option("--slurm", help = "If this flag is set, run reference align to gff CDS, skip assembly alignments, instead create a text command file to use with slurm.")
+    val justRefPrep by option("--just-ref-prep", help = "If this flag is set, run reference align to gff CDS, skip assembly alignments, store the created files in the user provided output dir.")
         .switch(
-            "--slurm" to true
+            "--just-ref-prep" to true
         ).default(false)
 
     val gff by option(help = "Full path to the reference gff file")
@@ -101,6 +101,13 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
                 "--reference-file must not be blank"
             }
         }
+
+    val referenceSam by option(help = "Full path to reference SAM file created by AlignAssemblies class when the just-ref-prep option is used. Only needed if running from slurm script")
+        .default("")
+
+
+    val referenceCdsFasta by option(help = "Full path to reference CDS fasta file created from a just-ref-prep run. Only needed if running from slurm script")
+        .default("")
 
     val assemblies by option(
         "-a",
@@ -191,9 +198,9 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
             throw IllegalStateException("Error running minimap2 for reference: $error")
         }
 
-        if (slurm) {
-            // TODO:  Create a text file with the commands to run anchorwave for each assembly
-        } else {
+        if (!justRefPrep) {
+            // If justRefPrep is true, we only need to align the reference to the CDS file, then return
+            // Otherwise, we continue and align the assemblies via anchorwave
             runAnchorWaveMultiThread(referenceFile, assembliesList, cdsFasta, gff, refSamOutFile,runsAndThreads)
         }
 

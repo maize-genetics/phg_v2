@@ -29,6 +29,24 @@ class AlignAssembliesTest {
     }
 
     @Test
+    fun testCalculatedNumThreadsAndRuns() {
+        // This test verifies user data is used when provided.
+        // We only test with inParallel=1 and numThreads = 1 because the
+        // code accesses the memory and processors on the machine on which this test is run.
+        // I can't guarantee that the machine running the test has more than 1 processor.
+        // This is good enough to verify this function works when we call AlignAssemblies
+        // as part of a Slurm data array script.
+        val inParallel = 1
+        val numThreads = 1
+        // write temporary file with 1 assembly.  The assembly listed if never accessed,
+        // so anything can be in this file.
+        val assemblyList = "${TestExtension.tempDir}assemblyList.txt"
+        File(assemblyList).writeText("LineA")
+        val totalAssemblies = AlignAssemblies().calculatedNumThreadsAndRuns(inParallel, numThreads, assemblyList)
+        assertEquals(Pair(1, 1), totalAssemblies)
+    }
+
+    @Test
     fun testNumThreadsAndRuns() {
         // Test more assemblies than threads, it will pick the
         // middle option that has the highest number of parallel alignments
