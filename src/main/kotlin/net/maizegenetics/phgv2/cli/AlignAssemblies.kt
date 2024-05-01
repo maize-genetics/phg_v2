@@ -22,7 +22,6 @@ import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 import org.jetbrains.letsPlot.letsPlot
 import org.jetbrains.letsPlot.scale.scaleColorManual
-import org.jetbrains.letsPlot.scale.scaleColorViridis
 import org.jetbrains.letsPlot.scale.scaleXContinuous
 import org.jetbrains.letsPlot.scale.scaleYContinuous
 import java.io.File
@@ -102,11 +101,11 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
             }
         }
 
-    val referenceSam by option(help = "Full path to reference SAM file created by AlignAssemblies class when the just-ref-prep option is used. Only needed if running from slurm script")
+    val referenceSam by option(help = "Full path to reference SAM file created by AlignAssemblies class when the just-ref-prep option is used")
         .default("")
 
 
-    val referenceCdsFasta by option(help = "Full path to reference CDS fasta file created from a just-ref-prep run. Only needed if running from slurm script")
+    val referenceCdsFasta by option(help = "Full path to reference CDS fasta file created from a just-ref-prep run.")
         .default("")
 
     val assemblies by option(
@@ -166,44 +165,22 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         val runsAndThreads = calculatedNumThreadsAndRuns(totalThreads, inParallel, assemblies)
 
         var anchorwaveRefFiles = Pair(referenceCdsFasta, referenceSam)
-        if (referenceCdsFasta == "" || referenceSam == "") {
-            anchorwaveRefFiles = processRefFiles(referenceFile, gff, outputDir, runsAndThreads, assemblies)
+        // It is required that either both referenceCdsFasta and reference Sam are provided or neither are
+        // Check this and throw and error if not
+        if ((referenceCdsFasta == "" && referenceSam != "") || (referenceCdsFasta != "" && referenceSam == "")) {
+            myLogger.error("Both referenceCdsFasta and referenceSam must be provided if either is provided.")
+            throw IllegalStateException("Both referenceCdsFasta and referenceSam must be provided if either is provided.")
         }
 
+        // If referenceCdsFasta and referenceSam are not provided, we need to create them
+        if (referenceCdsFasta == "" ) {
+            anchorwaveRefFiles = processRefFiles(referenceFile, gff, outputDir, runsAndThreads, assemblies)
+        }
 
         val cdsFasta = anchorwaveRefFiles.first
         val refSamOutFile = anchorwaveRefFiles.second
         val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
 
-//        createCDSfromRefData(referenceFile, gff, cdsFasta, outputDir)
-//
-//        // create list of assemblies to align from the assemblies file
-//        // exclude blank lines
-//        val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
-//
-//        // run minimap2 for ref to refcds
-//        val justNameRef = File(referenceFile).nameWithoutExtension
-//        val samOutFile = "${justNameRef}.sam"
-//        val refSamOutFile = "${outputDir}/${samOutFile}"
-//
-//        // For minimap2, we will use the number of processors available as the number of threads.
-//        val builder = ProcessBuilder(
-//            "conda", "run", "-n", "phgv2-conda", "minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
-//            "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile
-//        )
-//        val redirectError = "$outputDir/minimap2Ref_error.log"
-//        val redirectOutput = "$outputDir/minimap2Ref_output.log"
-//        builder.redirectOutput(File(redirectOutput))
-//        builder.redirectError(File(redirectError))
-//
-//        myLogger.info("Ref minimap Command: " + builder.command().joinToString(" "));
-//
-//        val process = builder.start()
-//        val error = process.waitFor()
-//        if (error != 0) {
-//            myLogger.error("minimap2 for $referenceFile run via ProcessBuilder returned error code $error")
-//            throw IllegalStateException("Error running minimap2 for reference: $error")
-//        }
 
         if (!justRefPrep) {
             // If justRefPrep is true, we only need to align the reference to the CDS file, then return
