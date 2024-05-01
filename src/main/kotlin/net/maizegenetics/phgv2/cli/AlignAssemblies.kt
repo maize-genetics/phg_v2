@@ -165,9 +165,58 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         // Returns Pair<Int, Int> where the first value is the number of parallel alignments, the second is threadsPerAlignment
         val runsAndThreads = calculatedNumThreadsAndRuns(totalThreads, inParallel, assemblies)
 
-        // create CDS fasta from reference and gff3 file
-        val cdsFasta = "$outputDir/ref.cds.fasta"
+        var anchorwaveRefFiles = Pair(referenceCdsFasta, referenceSam)
+        if (referenceCdsFasta == "" || referenceSam == "") {
+            anchorwaveRefFiles = processRefFiles(referenceFile, gff, outputDir, runsAndThreads, assemblies)
+        }
 
+
+        val cdsFasta = anchorwaveRefFiles.first
+        val refSamOutFile = anchorwaveRefFiles.second
+        val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
+
+//        createCDSfromRefData(referenceFile, gff, cdsFasta, outputDir)
+//
+//        // create list of assemblies to align from the assemblies file
+//        // exclude blank lines
+//        val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
+//
+//        // run minimap2 for ref to refcds
+//        val justNameRef = File(referenceFile).nameWithoutExtension
+//        val samOutFile = "${justNameRef}.sam"
+//        val refSamOutFile = "${outputDir}/${samOutFile}"
+//
+//        // For minimap2, we will use the number of processors available as the number of threads.
+//        val builder = ProcessBuilder(
+//            "conda", "run", "-n", "phgv2-conda", "minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
+//            "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile
+//        )
+//        val redirectError = "$outputDir/minimap2Ref_error.log"
+//        val redirectOutput = "$outputDir/minimap2Ref_output.log"
+//        builder.redirectOutput(File(redirectOutput))
+//        builder.redirectError(File(redirectError))
+//
+//        myLogger.info("Ref minimap Command: " + builder.command().joinToString(" "));
+//
+//        val process = builder.start()
+//        val error = process.waitFor()
+//        if (error != 0) {
+//            myLogger.error("minimap2 for $referenceFile run via ProcessBuilder returned error code $error")
+//            throw IllegalStateException("Error running minimap2 for reference: $error")
+//        }
+
+        if (!justRefPrep) {
+            // If justRefPrep is true, we only need to align the reference to the CDS file, then return
+            // Otherwise, we continue and align the assemblies via anchorwave
+            runAnchorWaveMultiThread(referenceFile, assembliesList, cdsFasta, gff, refSamOutFile,runsAndThreads)
+        }
+
+    }
+
+    fun processRefFiles( referenceFile:String,  gff:String,   outputDir:String,
+                         runsAndThreads:Pair<Int, Int>, assemblies:String): Pair<String,String>{
+
+        val cdsFasta = "$outputDir/ref.cds.fasta"
         createCDSfromRefData(referenceFile, gff, cdsFasta, outputDir)
 
         // create list of assemblies to align from the assemblies file
@@ -198,12 +247,7 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
             throw IllegalStateException("Error running minimap2 for reference: $error")
         }
 
-        if (!justRefPrep) {
-            // If justRefPrep is true, we only need to align the reference to the CDS file, then return
-            // Otherwise, we continue and align the assemblies via anchorwave
-            runAnchorWaveMultiThread(referenceFile, assembliesList, cdsFasta, gff, refSamOutFile,runsAndThreads)
-        }
-
+        return Pair(cdsFasta, refSamOutFile)
     }
 
     /**
