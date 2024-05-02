@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.pathing
 
+import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.testing.test
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import net.maizegenetics.phgv2.api.HaplotypeGraph
@@ -8,6 +9,7 @@ import net.maizegenetics.phgv2.cli.AgcCompress
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
+import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Disabled
@@ -18,6 +20,7 @@ import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
 import java.util.*
+import kotlin.math.ceil
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -442,4 +445,45 @@ class BuildKmerIndexTest {
         assertEquals(listOf("1@LineB:5501-6500", "1@LineB:34001-38500"), commandLists3.otherRegionsList, "other regions list not as expected for commandLists3")
     }
 
+//    @Test
+    fun testCommandsWithNamDb() {
+        val graph = HaplotypeGraph(
+            listOf(
+                "/Users/pjbra/temp/hvcf-files/B73.h.vcf",
+                "/Users/pjbra/temp/hvcf-files/CML247.h.vcf"
+            )
+        )
+        val contigRangesMap = graph.rangesByContig()
+        val sampleGametes = graph.sampleGametesInGraph()
+        for (chr in contigRangesMap.keys) {
+            val agcRequestLists = BuildKmerIndex.rangeListsForAgcCommand(graph, contigRangesMap, chr)
+//            for (strvalue in agcRequestLists.sampleContigList) {
+//                println(strvalue)
+//            }
+            agcRequestLists.otherRegionsList.filter { it.startsWith("scaf_107") }.forEach { println(it) }
+        }
+
+        for (refrange in contigRangesMap["scaf_107"]!!) {
+            for (hapid in graph.hapIdToSampleGametes(refrange).keys) {
+                val altheader = graph.altHeader(hapid)
+                check(altheader != null) {"altheader null for $hapid in $refrange"}
+                val sampleName = altheader.sampleName()
+                //regionsMap is a map of contig -> set of ranges in that contig
+//                val regionsMap = sampleNameToRegionsMap.getOrPut(sampleName){mutableMapOf()}
+                val regions = altheader.regions
+
+                //for each range in region, that range is added to regionsMap for the sample
+                for (region in regions) {
+//                    val rangeSet = regionsMap.getOrPut(region.first.contig) { mutableSetOf() }
+//                    val rangeStr = if (region.first.position <= region.second.position) "${region.first.position}-${region.second.position}"
+//                    else "${region.second.position}-${region.first.position}"
+//                    rangeSet.add(rangeStr)
+
+                    println("${refrange} regions = ${region.first.contig}:${region.first.position} to ${region.second.contig}:${region.second.position}")
+                }
+            }
+        }
+
+
+    }
 }
