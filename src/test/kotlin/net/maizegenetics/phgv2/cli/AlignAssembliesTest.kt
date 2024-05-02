@@ -140,7 +140,19 @@ class AlignAssembliesTest {
         assertEquals(
             "Usage: align-assemblies [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --assemblies: --assemblies must not be blank\n", resultMissingAssembliesList.output
+                    "Error: must provide one of --assembly-file, --assembly-file-list\n", resultMissingAssembliesList.output
+        )
+
+        // Test both assembly-file and assembly-file-list parameters.  Should fail as only
+        // one should be previded
+        val resultBothAssemblies =
+            alignAssemblies.test(" --gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                    "--assembly-file ${TestExtension.smallseqLineAFile} --assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}")
+        assertEquals(resultBothAssemblies.statusCode, 1)
+        assertEquals(
+            "Usage: align-assemblies [<options>]\n" +
+                    "\n" +
+                    "Error: option --assembly-file cannot be used with --assembly-file-list\n", resultBothAssemblies.output
         )
 
         // Test missing output directory parameter
@@ -220,7 +232,7 @@ class AlignAssembliesTest {
 
         val result = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1"
+                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1"
         )
 
         println("testRunningAlignAssemblies: result output: ${result.output}")
@@ -301,10 +313,6 @@ class AlignAssembliesTest {
 
         assertEquals(checksum1, checksum2, "LineA.maf checksums do not match")
 
-        val mafOutputB1 = TestExtension.tempDir + "LineA_unsplitB1.maf"
-        val mafOutputB2 = TestExtension.tempDir + "LineA_unsplitB2.maf"
-
-
         // Test the dot plot files exist.  It is difficult to verify the pictures
         // look good from a junit test.  That has been done manually.
         val plotFileLineA = "${TestExtension.tempDir}/LineA_dotplot.svg"
@@ -317,7 +325,7 @@ class AlignAssembliesTest {
 
         val result = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} "
+                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} "
         )
 
         println("testRunningAlignAssemblies: result output: ${result.output}")
@@ -348,7 +356,7 @@ class AlignAssembliesTest {
 
         val result = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 300 --in-parallel 1"
+                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 300 --in-parallel 1"
         )
 
         println("testRunningAlignAssemblies: result output: ${result.output}")
@@ -372,7 +380,7 @@ class AlignAssembliesTest {
 
         val result = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 4 --in-parallel 4"
+                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 4 --in-parallel 4"
         )
 
         println("testRunningAlignAssemblies: result output: ${result.output}")
