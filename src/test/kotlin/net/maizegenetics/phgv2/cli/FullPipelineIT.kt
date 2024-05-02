@@ -95,7 +95,7 @@ class FullPipelineIT {
         val alignAssemblies = AlignAssemblies()
         val alignAssembliesResult = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.testMafDir}"
+                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.testMafDir}"
         )
         println(alignAssembliesResult.output)
 
