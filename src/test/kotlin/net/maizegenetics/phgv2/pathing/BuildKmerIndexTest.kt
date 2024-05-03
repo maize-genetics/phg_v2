@@ -192,8 +192,26 @@ class BuildKmerIndexTest {
         assertEquals(0, buildIndexResult.statusCode)
         assert(File("${tempHvcfDir}/kmerIndexOther.txt").exists())
 
-        //delete this alternate B to make sure it does not interfere with other tests
-        File("${tempHvcfDir}LineB_agc_command_test.h.vcf").delete()
+        //test using lines C and D to test condition: sampleContigList is empty
+        File(tempHvcfDir).listFiles().forEach { it.delete() }
+        listOf("${TestExtension.smallSeqInputDir}LineC.h.vcf", "${TestExtension.smallSeqInputDir}LineC.h.vcf")
+            .forEach { hvcfFile ->
+                val dst = File("$tempHvcfDir${File(hvcfFile).name}")
+                if (!dst.exists()) {
+                    File(hvcfFile).copyTo(dst)
+                }
+            }
+
+        //create a HaplotypeGraph from the hvcf files
+        val buildIndexResult2 = BuildKmerIndex().test("--db-path $tempDBPathDir --hvcf-dir $tempHvcfDir " +
+                "--max-arg-length 150 --index-file ${tempHvcfDir}kmerIndexOther.txt")
+
+        //Was the index created?
+        assertEquals(0, buildIndexResult2.statusCode)
+        assert(File("${tempHvcfDir}/kmerIndexOther.txt").exists())
+
+        //clean up the tempHvcfDir
+        File(tempHvcfDir).listFiles().forEach { it.delete() }
     }
 
     @Test
