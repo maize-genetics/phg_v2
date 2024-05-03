@@ -139,7 +139,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         for (chr in contigRangesMap.keys) {
             //get all sequence for this chromosome
             val agcRequestLists = rangeListsForAgcCommand(graph, contigRangesMap, chr)
-            val agcChromSequence = retrieveAgcContigs(dbPath, agcRequestLists.sampleContigList)
+            val agcChromSequence = if (agcRequestLists.sampleContigList.isNotEmpty()) retrieveAgcContigs(dbPath, agcRequestLists.sampleContigList)
+            else emptyMap()
             val agcOtherRegionSequence: Map<Pair<String,String>, NucSeq> = if (agcRequestLists.otherRegionsList.isNotEmpty()) getAgcSequenceForRanges(agcRequestLists.otherRegionsList)
             else emptyMap()
 
