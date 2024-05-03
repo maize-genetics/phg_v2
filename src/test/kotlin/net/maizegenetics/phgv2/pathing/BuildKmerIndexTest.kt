@@ -32,14 +32,14 @@ class BuildKmerIndexTest {
         @JvmStatic
         @BeforeAll
         fun setup() {
-            resetDirs()
-            setupAgc()
+//            resetDirs()
+//            setupAgc()
         }
 
         @JvmStatic
         @AfterAll
         fun teardown() {
-            resetDirs()
+//            resetDirs()
         }
 
         fun resetDirs() {
@@ -445,7 +445,7 @@ class BuildKmerIndexTest {
         assertEquals(listOf("1@LineB:5501-6500", "1@LineB:34001-38500"), commandLists3.otherRegionsList, "other regions list not as expected for commandLists3")
     }
 
-//    @Test
+    @Test
     fun testCommandsWithNamDb() {
         val graph = HaplotypeGraph(
             listOf(
@@ -455,13 +455,18 @@ class BuildKmerIndexTest {
         )
         val contigRangesMap = graph.rangesByContig()
         val sampleGametes = graph.sampleGametesInGraph()
-        for (chr in contigRangesMap.keys) {
-            val agcRequestLists = BuildKmerIndex.rangeListsForAgcCommand(graph, contigRangesMap, chr)
+//        for (chr in contigRangesMap.keys) {
+//            val agcRequestLists = BuildKmerIndex.rangeListsForAgcCommand(graph, contigRangesMap, chr)
 //            for (strvalue in agcRequestLists.sampleContigList) {
 //                println(strvalue)
 //            }
-            agcRequestLists.otherRegionsList.filter { it.startsWith("scaf_107") }.forEach { println(it) }
-        }
+//            agcRequestLists.otherRegionsList.filter { it.startsWith("scaf_107") }.forEach { println(it) }
+//        }
+
+        val agcRequestList = BuildKmerIndex.rangeListsForAgcCommand(graph, contigRangesMap, "scaf_107")
+        println("sampleContigList size = ${agcRequestList.sampleContigList.size}")
+        if (agcRequestList.sampleContigList.size > 0) agcRequestList.sampleContigList.forEach { println(it) }
+        println("----------- end sample contig list--------------")
 
         for (refrange in contigRangesMap["scaf_107"]!!) {
             for (hapid in graph.hapIdToSampleGametes(refrange).keys) {
