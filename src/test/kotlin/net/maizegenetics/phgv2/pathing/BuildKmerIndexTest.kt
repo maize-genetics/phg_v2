@@ -194,7 +194,7 @@ class BuildKmerIndexTest {
 
         //test using lines C and D to test condition: sampleContigList is empty
         File(tempHvcfDir).listFiles().forEach { it.delete() }
-        listOf("${TestExtension.smallSeqInputDir}LineC.h.vcf", "${TestExtension.smallSeqInputDir}LineC.h.vcf")
+        listOf("${TestExtension.smallSeqInputDir}LineD.h.vcf", "${TestExtension.smallSeqInputDir}LineE.h.vcf")
             .forEach { hvcfFile ->
                 val dst = File("$tempHvcfDir${File(hvcfFile).name}")
                 if (!dst.exists()) {
