@@ -412,7 +412,12 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         hapidKmerHashMap.entries.forEachIndexed { index, entry ->
             //this line encodes a haplotype set (hapset)
-            for (hapid in entry.key) encodedHapSets.set(offset + hapidIndex[hapid]!!)
+            //todo test for null pointer exception in the next line
+            for (hapid in entry.key) {
+                val ndx = hapidIndex[hapid]
+                if (ndx == null) myLogger.debug("BuildKmerIndex.buildEncodedHapSetsAndHashOffsets: ndx = null for hapid = $hapid. ")
+                else encodedHapSets.set(offset + ndx)
+            }
             //this line stores a pair of kmerHash, offset for each kmer mapping to this haplotype set
             for (kmerHash in entry.value) kmerHashOffsets.add(Pair(kmerHash, offset))
             offset += numberOfHaplotypesInRange
