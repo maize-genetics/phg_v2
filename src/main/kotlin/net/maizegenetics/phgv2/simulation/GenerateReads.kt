@@ -9,6 +9,7 @@ import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import kotlin.math.abs
 import kotlin.random.Random
 
 class GenerateReads: CliktCommand(help="Generate simulated reads") {
@@ -63,9 +64,12 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
                 for (chr in (1..10)) {
                     //pick the breakpoints
                     val chrRanges = ranges.filter { it.contig =="chr$chr" }
-                    var breakpointRange1 = chrRanges.random()
+                    val breakpointRanges1 = breakpointRanges(graph, chrRanges)
+                    val breakpointRanges2 = breakpointRanges(graph, chrRanges)
 
-
+                    //need to generate reads from 2 chromosomes as they are not identical for a heterozygous diploid
+                    //for chromosome 1 get sequence for CML247 before breakpoint1 and after breakpoint3, otherwise Oh43
+                    //for chromosome 2 get sequence for Oh43 before breakpoint1 and after breakpoint3, otherwise CML247
                     val sequence = retrieveAgcContigs("/tiledb_maize", listOf("chr$chr@CML247, chr$chr@Oh43"))
                     val nucseq = sequence.entries.first().value
                     val chrlen = nucseq.size()
@@ -88,8 +92,11 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
 
     fun breakpointRanges(graph: HaplotypeGraph, ranges: List<ReferenceRange>): List<ReferenceRange> {
         //don't use ranges that are not at least 10 from the end
-        var badRange = true
-        while (badRange) {
+        val minDistance = 500
+        val breakPointRanges = mutableListOf<ReferenceRange>()
+        val refrangeToIndexMap = graph.refRangeToIndexMap()
+
+        while (breakPointRanges.size < 2) {
             val candidateRange = ranges.random()
             val hapidSampleMap = graph.hapIdToSampleGametes(candidateRange)
             var allRegionsOK = true
@@ -100,9 +107,18 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
                         regions[0].first.position < regions[0].second.position  //the mapped sequence is not an inversion
                 allRegionsOK = allRegionsOK && isRegionOK
             }
+
+            if (allRegionsOK && breakPointRanges.size == 0) breakPointRanges.add(candidateRange)
+            else if (allRegionsOK) {
+                //only use if range indices are different by minDistance or more
+                val existingRangeIndex = refrangeToIndexMap[breakPointRanges[0]]!!
+                val candidateRangeIndex = refrangeToIndexMap[candidateRange]!!
+                if (abs(candidateRangeIndex - existingRangeIndex) >= minDistance) breakPointRanges.add(candidateRange)
+            }
+
         }
 
-        return listOf()
+        return breakPointRanges
     }
 
 }
