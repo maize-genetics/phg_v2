@@ -288,7 +288,7 @@ class BuildKmerIndexTest {
         val kmerMapToHapIds = Long2ObjectOpenHashMap<Set<String>>()
 
         //create a hapIdToRefRangeMap
-        val hapIdToRefRangeMap = mutableMapOf<String, ReferenceRange>()
+        val hapIdToRefRangeMap = mutableMapOf<String, List<ReferenceRange>>()
 
         //add in some KmerToHapIdSets
         kmerMapToHapIds[1L] = setOf("hap1","hap2")
@@ -302,13 +302,13 @@ class BuildKmerIndexTest {
 
 
         //create a hapId ToRangeMap
-        hapIdToRefRangeMap["hap1"] = ReferenceRange("chr1",10,50)
-        hapIdToRefRangeMap["hap2"] = ReferenceRange("chr1",10,50)
-        hapIdToRefRangeMap["hap3"] = ReferenceRange("chr1",10,50)
-        hapIdToRefRangeMap["hap4"] = ReferenceRange("chr1",10,50)
-        hapIdToRefRangeMap["hap10"] = ReferenceRange("chr1",100,150)
-        hapIdToRefRangeMap["hap11"] = ReferenceRange("chr1",100,150)
-        hapIdToRefRangeMap["hap12"] = ReferenceRange("chr1",100,150)
+        hapIdToRefRangeMap["hap1"] = listOf(ReferenceRange("chr1",10,50))
+        hapIdToRefRangeMap["hap2"] = listOf(ReferenceRange("chr1",10,50))
+        hapIdToRefRangeMap["hap3"] = listOf(ReferenceRange("chr1",10,50))
+        hapIdToRefRangeMap["hap4"] = listOf(ReferenceRange("chr1",10,50))
+        hapIdToRefRangeMap["hap10"] = listOf(ReferenceRange("chr1",100,150))
+        hapIdToRefRangeMap["hap11"] = listOf(ReferenceRange("chr1",100,150))
+        hapIdToRefRangeMap["hap12"] = listOf(ReferenceRange("chr1",100,150))
 
         //setup the truth
         val truth = mapOf(
