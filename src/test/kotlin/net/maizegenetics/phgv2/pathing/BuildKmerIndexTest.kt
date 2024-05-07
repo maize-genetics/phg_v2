@@ -192,7 +192,8 @@ class BuildKmerIndexTest {
         assertEquals(0, buildIndexResult.statusCode)
         assert(File("${tempHvcfDir}/kmerIndexOther.txt").exists())
 
-        //test using lines C and D to test condition: sampleContigList is empty
+        //test using lines D and E to test condition: sampleContigList is empty
+        //  caused by half or more of the haplotypes in a range having their source on a different contig
         File(tempHvcfDir).listFiles().forEach { it.delete() }
         listOf("${TestExtension.smallSeqInputDir}LineD.h.vcf", "${TestExtension.smallSeqInputDir}LineE.h.vcf")
             .forEach { hvcfFile ->

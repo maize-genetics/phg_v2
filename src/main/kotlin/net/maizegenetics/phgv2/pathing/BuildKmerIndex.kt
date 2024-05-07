@@ -83,20 +83,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         myLogger.info("Start of BuildKmerIndex...")
         val graph = buildHaplotypeGraph()
 
-        //test whether all the graph hapids are in refRangeToHapIndexMap
-        myLogger.info("Testing for hapids in refRangeToHapIndexMap")
-        val refRangeToHapIndexMap = graph.refRangeToHapIdMap()
-        for (range in graph.ranges()) {
-            val hapidToSample = graph.hapIdToSampleGametes(range)
-            val hapidIndex = refRangeToHapIndexMap[range]
-            require(hapidIndex != null) {"no hapid index for $range"}
-            for (hapid in hapidToSample.keys) {
-                if (hapidIndex[hapid] == null) myLogger.info("hapid index is null for $hapid from ${hapidToSample[hapid]}")
-            }
-        }
-        myLogger.info("Finished Testing for hapids in refRangeToHapIndexMap")
-
-
         val hashToHapidMap = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
 
         val kmerIndexFilename = if (indexFile == "") "${hvcfDir}/kmerIndex.txt" else indexFile
@@ -156,7 +142,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             //get all sequence for this chromosome
             val agcRequestLists = rangeListsForAgcCommand(graph, contigRangesMap, chr)
             val agcChromSequence = if (agcRequestLists.sampleContigList.isNotEmpty()) {
-                println("sampleContigList size = ${agcRequestLists.sampleContigList.size}, first element = ${agcRequestLists.sampleContigList[0]}")
+                myLogger.info("sampleContigList size = ${agcRequestLists.sampleContigList.size}, first element = ${agcRequestLists.sampleContigList[0]}")
                 retrieveAgcContigs(dbPath, agcRequestLists.sampleContigList)
             }
             else emptyMap()
@@ -431,10 +417,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         hapidKmerHashMap.entries.forEachIndexed { index, entry ->
             //this line encodes a haplotype set (hapset)
-            //todo test for null pointer exception in the next line
             for (hapid in entry.key) {
                 val ndx = hapidIndex[hapid]
-                if (ndx == null) myLogger.debug("BuildKmerIndex.buildEncodedHapSetsAndHashOffsets: ndx = null for hapid = $hapid. ")
+                if (ndx == null) myLogger.warn("BuildKmerIndex.buildEncodedHapSetsAndHashOffsets: ndx = null for hapid = $hapid.")
                 else encodedHapSets.set(offset + ndx)
             }
 
@@ -486,6 +471,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             val hapidSet = kmerMap.value
 
             //use the most frequent reference range
+            //all the haplotype ids map to the same refrange
+            //rarely some kmers will map to additional ref ranges but not all
+            //the most frequent ReferenceRange will be the one used to create this hapid set
             val referenceRangeList = hapidSet.mapNotNull { hapIdToRefRangeMap[it] }.flatten()
             val referenceRangeCounts = referenceRangeList.groupingBy { it }.eachCount()
             val currentRefRange = referenceRangeCounts.maxBy { it.value }.key
