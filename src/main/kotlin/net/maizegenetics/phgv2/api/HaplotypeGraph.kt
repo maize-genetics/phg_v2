@@ -350,12 +350,14 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     /**
      * Returns a map of hapid -> ReferenceRange
      */
-    fun hapIdToRefRangeMap(): MutableMap<String, ReferenceRange> {
-        //hapIdToRefRangeMap is a map of hapid -> ReferenceRange
-        val hapIdToRefRangeMap = mutableMapOf<String, ReferenceRange>()
+    fun hapIdToRefRangeMap(): MutableMap<String, MutableList<ReferenceRange>> {
+
+        //hapIdToRefRangeMap is a map of hapid -> list of ReferenceRange
+        val hapIdToRefRangeMap = mutableMapOf<String, MutableList<ReferenceRange>>()
         for (range in ranges()) {
             for (hapid in hapIdToSampleGametes(range).keys) {
-                hapIdToRefRangeMap[hapid] = range
+                val refrangeList = hapIdToRefRangeMap.getOrPut(hapid) { mutableListOf() }
+                refrangeList.add(range)
             }
         }
         return hapIdToRefRangeMap

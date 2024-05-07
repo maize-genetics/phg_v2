@@ -82,6 +82,21 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         //build the haplotypeGraph
         myLogger.info("Start of BuildKmerIndex...")
         val graph = buildHaplotypeGraph()
+
+        //test whether all the graph hapids are in refRangeToHapIndexMap
+        myLogger.info("Testing for hapids in refRangeToHapIndexMap")
+        val refRangeToHapIndexMap = graph.refRangeToHapIdMap()
+        for (range in graph.ranges()) {
+            val hapidToSample = graph.hapIdToSampleGametes(range)
+            val hapidIndex = refRangeToHapIndexMap[range]
+            require(hapidIndex != null) {"no hapid index for $range"}
+            for (hapid in hapidToSample.keys) {
+                if (hapidIndex[hapid] == null) myLogger.info("hapid index is null for $hapid from ${hapidToSample[hapid]}")
+            }
+        }
+        myLogger.info("Finished Testing for hapids in refRangeToHapIndexMap")
+
+
         val hashToHapidMap = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
 
         val kmerIndexFilename = if (indexFile == "") "${hvcfDir}/kmerIndex.txt" else indexFile
@@ -194,8 +209,12 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                         keepMap.containsKey(hashValue) -> {
                             val hapidSet = keepMap.remove(hashValue)
                             if (runDiagnostics) {
-                                val hapidRefrange = hapidToRefrangeMap[hapidSet.first()]
-                                val wasPreviousRange = refRangeToIndexMap[refrange] == ((refRangeToIndexMap[hapidRefrange] ?: -2) + 1)
+                                //check whether kmer was seen in previous refrange
+                                //hapidRefrangeIndexSet is the set of refrange indices of the refranges contain the hapids in hapidSet
+                                //that is the refranges that contain this kmer (mostly but not always a single refrange)
+                                val hapidRefrangeIndexSet = hapidSet.mapNotNull { hapidToRefrangeMap[it] }.flatten()
+                                    .map { refRangeToIndexMap[it] }.toSet()
+                                val wasPreviousRange = hapidRefrangeIndexSet.contains((refRangeToIndexMap[refrange] ?: 0)  - 1)
                                 if (wasPreviousRange) {
                                     val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
                                     refrangeToAdjacentHashCount[refrange] = oldCount + 1
@@ -418,6 +437,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                 if (ndx == null) myLogger.debug("BuildKmerIndex.buildEncodedHapSetsAndHashOffsets: ndx = null for hapid = $hapid. ")
                 else encodedHapSets.set(offset + ndx)
             }
+
             //this line stores a pair of kmerHash, offset for each kmer mapping to this haplotype set
             for (kmerHash in entry.value) kmerHashOffsets.add(Pair(kmerHash, offset))
             offset += numberOfHaplotypesInRange
@@ -458,17 +478,23 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      */
     fun getRefRangeToKmerSetMap(
         kmerMapToHapIds: Long2ObjectOpenHashMap<Set<String>>,
-        hapIdToRefRangeMap: MutableMap<String, ReferenceRange>
+        hapIdToRefRangeMap: Map<String, List<ReferenceRange>>
     ): Map<ReferenceRange, Set<Long>> {
         val refRangeToKmerSetMap = mutableMapOf<ReferenceRange, MutableSet<Long>>()
         for (kmerMap in kmerMapToHapIds.long2ObjectEntrySet()) {
             val kmer = kmerMap.longKey
-            val currentRefRange = hapIdToRefRangeMap[kmerMap.value.first()]!!
+            val hapidSet = kmerMap.value
+
+            //use the most frequent reference range
+            val referenceRangeList = hapidSet.mapNotNull { hapIdToRefRangeMap[it] }.flatten()
+            val referenceRangeCounts = referenceRangeList.groupingBy { it }.eachCount()
+            val currentRefRange = referenceRangeCounts.maxBy { it.value }.key
             if (refRangeToKmerSetMap.containsKey(currentRefRange)) {
                 refRangeToKmerSetMap[currentRefRange]!!.add(kmer)
             } else {
                 refRangeToKmerSetMap[currentRefRange] = mutableSetOf(kmer)
             }
+
         }
         return refRangeToKmerSetMap
     }
