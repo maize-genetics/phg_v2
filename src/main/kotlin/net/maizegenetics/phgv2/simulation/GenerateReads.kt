@@ -41,6 +41,7 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
                     val start = Random.nextInt(startLimit)
                     val end = start + readLength - 1
                     val readSeq = nucseq[start..end].seq()
+                    fastqWriter.write("@$sampleName.$it")
                     fastqWriter.write(readSeq + "\n")
                     fastqWriter.write("+\n")
                     fastqWriter.write("${"E".repeat(readLength)}\n")
@@ -59,6 +60,8 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
         val ranges = graph.ranges()
 
         myLogger.info("Generating single reads for CML247 X Oh43")
+        //generate the F2 name to use in the fastq file
+        val headerName = "CML247XOh43F2"
         getBufferedWriter(breakpointFile).use {breakPointWriter ->
             getBufferedWriter(outputFile).use { fastqWriter ->
                 for (chr in (1..10)) {
@@ -79,6 +82,7 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
                         val start = Random.nextInt(startLimit)
                         val end = start + readLength - 1
                         val readSeq = nucseq[start..end].seq()
+                        fastqWriter.write("@$headerName.$it")
                         fastqWriter.write(readSeq + "\n")
                         fastqWriter.write("+\n")
                         fastqWriter.write("${"E".repeat(readLength)}\n")
