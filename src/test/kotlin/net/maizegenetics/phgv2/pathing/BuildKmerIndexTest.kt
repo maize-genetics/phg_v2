@@ -195,8 +195,27 @@ class BuildKmerIndexTest {
         assertEquals(0, buildIndexResult.statusCode)
         assert(File("${tempHvcfDir}/kmerIndexOther.txt").exists())
 
-        //delete this alternate B to make sure it does not interfere with other tests
-        File("${tempHvcfDir}LineB_agc_command_test.h.vcf").delete()
+        //test using lines D and E to test condition: sampleContigList is empty
+        //  caused by half or more of the haplotypes in a range having their source on a different contig
+        File(tempHvcfDir).listFiles().forEach { it.delete() }
+        listOf("${TestExtension.smallSeqInputDir}LineD.h.vcf", "${TestExtension.smallSeqInputDir}LineE.h.vcf")
+            .forEach { hvcfFile ->
+                val dst = File("$tempHvcfDir${File(hvcfFile).name}")
+                if (!dst.exists()) {
+                    File(hvcfFile).copyTo(dst)
+                }
+            }
+
+        //create a HaplotypeGraph from the hvcf files
+        val buildIndexResult2 = BuildKmerIndex().test("--db-path $tempDBPathDir --hvcf-dir $tempHvcfDir " +
+                "--max-arg-length 150 --index-file ${tempHvcfDir}kmerIndexOther.txt")
+
+        //Was the index created?
+        assertEquals(0, buildIndexResult2.statusCode)
+        assert(File("${tempHvcfDir}/kmerIndexOther.txt").exists())
+
+        //clean up the tempHvcfDir
+        File(tempHvcfDir).listFiles().forEach { it.delete() }
     }
 
     @Test
@@ -273,7 +292,7 @@ class BuildKmerIndexTest {
         val kmerMapToHapIds = Long2ObjectOpenHashMap<Set<String>>()
 
         //create a hapIdToRefRangeMap
-        val hapIdToRefRangeMap = mutableMapOf<String, ReferenceRange>()
+        val hapIdToRefRangeMap = mutableMapOf<String, List<ReferenceRange>>()
 
         //add in some KmerToHapIdSets
         kmerMapToHapIds[1L] = setOf("hap1","hap2")
@@ -287,13 +306,13 @@ class BuildKmerIndexTest {
 
 
         //create a hapId ToRangeMap
-        hapIdToRefRangeMap["hap1"] = ReferenceRange("chr1",10,50)
-        hapIdToRefRangeMap["hap2"] = ReferenceRange("chr1",10,50)
-        hapIdToRefRangeMap["hap3"] = ReferenceRange("chr1",10,50)
-        hapIdToRefRangeMap["hap4"] = ReferenceRange("chr1",10,50)
-        hapIdToRefRangeMap["hap10"] = ReferenceRange("chr1",100,150)
-        hapIdToRefRangeMap["hap11"] = ReferenceRange("chr1",100,150)
-        hapIdToRefRangeMap["hap12"] = ReferenceRange("chr1",100,150)
+        hapIdToRefRangeMap["hap1"] = listOf(ReferenceRange("chr1",10,50))
+        hapIdToRefRangeMap["hap2"] = listOf(ReferenceRange("chr1",10,50))
+        hapIdToRefRangeMap["hap3"] = listOf(ReferenceRange("chr1",10,50))
+        hapIdToRefRangeMap["hap4"] = listOf(ReferenceRange("chr1",10,50))
+        hapIdToRefRangeMap["hap10"] = listOf(ReferenceRange("chr1",100,150))
+        hapIdToRefRangeMap["hap11"] = listOf(ReferenceRange("chr1",100,150))
+        hapIdToRefRangeMap["hap12"] = listOf(ReferenceRange("chr1",100,150))
 
         //setup the truth
         val truth = mapOf(

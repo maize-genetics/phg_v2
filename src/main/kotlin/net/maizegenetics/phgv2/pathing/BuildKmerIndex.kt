@@ -80,7 +80,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
     override fun run() {
         //build the haplotypeGraph
+        myLogger.info("Start of BuildKmerIndex...")
         val graph = buildHaplotypeGraph()
+
         val hashToHapidMap = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
 
         val kmerIndexFilename = if (indexFile == "") "${hvcfDir}/kmerIndex.txt" else indexFile
@@ -139,7 +141,10 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         for (chr in contigRangesMap.keys) {
             //get all sequence for this chromosome
             val agcRequestLists = rangeListsForAgcCommand(graph, contigRangesMap, chr)
-            val agcChromSequence = if (agcRequestLists.sampleContigList.isNotEmpty()) retrieveAgcContigs(dbPath, agcRequestLists.sampleContigList)
+            val agcChromSequence = if (agcRequestLists.sampleContigList.isNotEmpty()) {
+                myLogger.info("sampleContigList size = ${agcRequestLists.sampleContigList.size}, first element = ${agcRequestLists.sampleContigList[0]}")
+                retrieveAgcContigs(dbPath, agcRequestLists.sampleContigList)
+            }
             else emptyMap()
             val agcOtherRegionSequence: Map<Pair<String,String>, NucSeq> = if (agcRequestLists.otherRegionsList.isNotEmpty()) getAgcSequenceForRanges(agcRequestLists.otherRegionsList)
             else emptyMap()
@@ -190,8 +195,12 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                         keepMap.containsKey(hashValue) -> {
                             val hapidSet = keepMap.remove(hashValue)
                             if (runDiagnostics) {
-                                val hapidRefrange = hapidToRefrangeMap[hapidSet.first()]
-                                val wasPreviousRange = refRangeToIndexMap[refrange] == ((refRangeToIndexMap[hapidRefrange] ?: -2) + 1)
+                                //check whether kmer was seen in previous refrange
+                                //hapidRefrangeIndexSet is the set of refrange indices of the refranges contain the hapids in hapidSet
+                                //that is the refranges that contain this kmer (mostly but not always a single refrange)
+                                val hapidRefrangeIndexSet = hapidSet.mapNotNull { hapidToRefrangeMap[it] }.flatten()
+                                    .map { refRangeToIndexMap[it] }.toSet()
+                                val wasPreviousRange = hapidRefrangeIndexSet.contains((refRangeToIndexMap[refrange] ?: 0)  - 1)
                                 if (wasPreviousRange) {
                                     val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
                                     refrangeToAdjacentHashCount[refrange] = oldCount + 1
@@ -408,7 +417,12 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         hapidKmerHashMap.entries.forEachIndexed { index, entry ->
             //this line encodes a haplotype set (hapset)
-            for (hapid in entry.key) encodedHapSets.set(offset + hapidIndex[hapid]!!)
+            for (hapid in entry.key) {
+                val ndx = hapidIndex[hapid]
+                if (ndx == null) myLogger.warn("BuildKmerIndex.buildEncodedHapSetsAndHashOffsets: ndx = null for hapid = $hapid.")
+                else encodedHapSets.set(offset + ndx)
+            }
+
             //this line stores a pair of kmerHash, offset for each kmer mapping to this haplotype set
             for (kmerHash in entry.value) kmerHashOffsets.add(Pair(kmerHash, offset))
             offset += numberOfHaplotypesInRange
@@ -449,17 +463,26 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      */
     fun getRefRangeToKmerSetMap(
         kmerMapToHapIds: Long2ObjectOpenHashMap<Set<String>>,
-        hapIdToRefRangeMap: MutableMap<String, ReferenceRange>
+        hapIdToRefRangeMap: Map<String, List<ReferenceRange>>
     ): Map<ReferenceRange, Set<Long>> {
         val refRangeToKmerSetMap = mutableMapOf<ReferenceRange, MutableSet<Long>>()
         for (kmerMap in kmerMapToHapIds.long2ObjectEntrySet()) {
             val kmer = kmerMap.longKey
-            val currentRefRange = hapIdToRefRangeMap[kmerMap.value.first()]!!
+            val hapidSet = kmerMap.value
+
+            //use the most frequent reference range
+            //all the haplotype ids map to the same refrange
+            //rarely some kmers will map to additional ref ranges but not all
+            //the most frequent ReferenceRange will be the one used to create this hapid set
+            val referenceRangeList = hapidSet.mapNotNull { hapIdToRefRangeMap[it] }.flatten()
+            val referenceRangeCounts = referenceRangeList.groupingBy { it }.eachCount()
+            val currentRefRange = referenceRangeCounts.maxBy { it.value }.key
             if (refRangeToKmerSetMap.containsKey(currentRefRange)) {
                 refRangeToKmerSetMap[currentRefRange]!!.add(kmer)
             } else {
                 refRangeToKmerSetMap[currentRefRange] = mutableSetOf(kmer)
             }
+
         }
         return refRangeToKmerSetMap
     }
