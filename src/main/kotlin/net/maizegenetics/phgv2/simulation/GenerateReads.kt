@@ -41,7 +41,7 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
                     val start = Random.nextInt(startLimit)
                     val end = start + readLength - 1
                     val readSeq = nucseq[start..end].seq()
-                    fastqWriter.write("@$sampleName.$it")
+                    fastqWriter.write("@$sampleName.$it\n")
                     fastqWriter.write(readSeq + "\n")
                     fastqWriter.write("+\n")
                     fastqWriter.write("${"E".repeat(readLength)}\n")
@@ -82,7 +82,7 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
                         val start = Random.nextInt(startLimit)
                         val end = start + readLength - 1
                         val readSeq = nucseq[start..end].seq()
-                        fastqWriter.write("@$headerName.$it")
+                        fastqWriter.write("@$headerName.$it\n")
                         fastqWriter.write(readSeq + "\n")
                         fastqWriter.write("+\n")
                         fastqWriter.write("${"E".repeat(readLength)}\n")
