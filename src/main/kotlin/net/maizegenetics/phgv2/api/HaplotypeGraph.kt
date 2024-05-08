@@ -350,7 +350,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     /**
      * Returns a map of hapid -> ReferenceRange
      */
-    fun hapIdToRefRangeMap(): MutableMap<String, MutableList<ReferenceRange>> {
+    fun hapIdToRefRangeMap(): Map<String, List<ReferenceRange>> {
 
         //hapIdToRefRangeMap is a map of hapid -> list of ReferenceRange
         val hapIdToRefRangeMap = mutableMapOf<String, MutableList<ReferenceRange>>()
