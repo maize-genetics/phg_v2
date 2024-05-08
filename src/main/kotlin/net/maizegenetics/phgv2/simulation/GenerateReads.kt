@@ -27,7 +27,7 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
         //read header will be @<sampleName>:<chr>:<start>:<end>
         //then sequence, +, string of "E" same length as sequence
         val readLength = 100
-        val outputFile = File("/workdir/simulation/reads/$sampleName-single-reads.fq")
+        val outputFile = File("/workdir/simulation/fastq/$sampleName-single-reads.fq")
 
         myLogger.info("Generating single reads for $sampleName")
         getBufferedWriter(outputFile).use { fastqWriter ->
@@ -53,8 +53,8 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
 
     fun makeDiploidReads() {
         val readLength = 100
-        val outputFile = File("/workdir/simulation/reads/CML247XOh43-single-reads.fq")
-        val breakpointFile = File("/workdir/simulation/reads/CML247XOh43-breakpoints.txt")
+        val outputFile = File("/workdir/simulation/fastq/CML247XOh43-single-reads.fq")
+        val breakpointFile = File("/workdir/simulation/fastq/CML247XOh43-breakpoints.txt")
 
         val graph = HaplotypeGraph(listOf("/workdir/simulation/hvcf_files/CML247.h.vcf.gz","/workdir/simulation/hvcf_files/Oh43.h.vcf.gz"))
         val ranges = graph.ranges()
