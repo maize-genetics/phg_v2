@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.pathing
 import biokotlin.util.bufferedReader
 import htsjdk.samtools.fastq.FastqReader
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -22,7 +23,10 @@ import kotlin.math.min
  * data class to hold the KmerMap information.  From the PHGv1 source code:
  */
 //data class KmerMapData(val haplotypeListId: Int, val rangeToBitSetMap: Map<Int, BitSet>, val kmerHashToLongMap: Long2LongOpenHashMap)
-data class KmerMapData(val rangeToBitSetMap: Map<ReferenceRange, BitSet>, val kmerHashToLongMap: Long2LongOpenHashMap)
+//data class KmerMapData(val rangeToBitSetMap: Map<ReferenceRange, BitSet>, val kmerHashToLongMap: Long2LongOpenHashMap)
+data class KmerMapData(val rangeToBitSetMap: Map<ReferenceRange, BitSet>, val kmerHashToLongMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>)
+
+data class RefRangeOffset(val refRange: ReferenceRange, val offset: Long)
 
 data class KeyFileData(val sampleName: String, val file1: String, val file2: String = "")
 
@@ -80,6 +84,7 @@ class AlignmentUtils {
 
             val rangeToBitSetMap = mutableMapOf<ReferenceRange, BitSet>()
             val kmerHashMap = Long2LongOpenHashMap()
+            val kmerToRefRangeAndOffsetMap = Long2ObjectOpenHashMap<MutableList<RefRangeOffset>>()
             var lineCount = 0
             var totalLineCount = 0
             var refrange = ReferenceRange("NULL", 0, 0)
@@ -125,7 +130,18 @@ class AlignmentUtils {
 
                                 val hash = hashOffset[0].toLong()
                                 val offset = refrangeLong or hashOffset[1].toLong()
-                                kmerHashMap.put(hash, offset)
+
+
+                                val offsetList = kmerToRefRangeAndOffsetMap.get(hash)
+                                if(offsetList == null) {
+                                    val newOffsetList = mutableListOf(RefRangeOffset(refrange, offset))
+                                    kmerToRefRangeAndOffsetMap.put(hash, newOffsetList)
+                                } else {
+                                    offsetList.add(RefRangeOffset(refrange, offset))
+                                }
+
+
+//                                kmerHashMap.put(hash, offset)
                             }
                         }
 
@@ -136,7 +152,14 @@ class AlignmentUtils {
                 }
             }
 
-            return KmerMapData(rangeToBitSetMap, kmerHashMap)
+//            return KmerMapData(rangeToBitSetMap, kmerHashMap)
+            //convert kmerToRefRangeAndOffsetMap to be immutable
+            val immutableKmerToRefRangeMap = Long2ObjectOpenHashMap<List<RefRangeOffset>>()
+            for(key in kmerToRefRangeAndOffsetMap.keys) {
+                immutableKmerToRefRangeMap.put(key, kmerToRefRangeAndOffsetMap.get(key)!!.toList())
+            }
+
+            return KmerMapData(rangeToBitSetMap, immutableKmerToRefRangeMap)
         }
 
 
@@ -257,7 +280,8 @@ class AlignmentUtils {
             sortedLists: SendChannel<List<String>>,
             minProportionOfMaxCount: Double = 1.0,
             minSameReferenceRange: Double = 0.9,
-            kmerHashOffsetMap: Long2LongOpenHashMap,
+//            kmerHashOffsetMap: Long2LongOpenHashMap,
+            kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
             refrangeToBitSet: Map<Int, BitSet>,
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>
         ) {
@@ -303,7 +327,8 @@ class AlignmentUtils {
             read: String,
             minProportionOfMaxCount: Double = 1.0,
             minSameReferenceRange: Double = 0.9,
-            kmerHashOffsetMap: Long2LongOpenHashMap,
+//            kmerHashOffsetMap: Long2LongOpenHashMap,
+            kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
             refrangeToBitSet: Map<Int, BitSet>,
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>
         ): Set<String> {
@@ -348,7 +373,8 @@ class AlignmentUtils {
          */
         fun extractKmersFromSequence(
             sequence: String,
-            kmerHashOffsetMap: Long2LongOpenHashMap,
+//            kmerHashOffsetMap: Long2LongOpenHashMap,
+            kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
             refrangeToBitSet: Map<Int, BitSet>,
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>,
             rangeToHapidMap: MutableMap<Int, MutableList<String>>
@@ -382,26 +408,45 @@ class AlignmentUtils {
          */
         fun rangeHapidMapFromKmerHash(
             kmerHash: Long,
-            kmerHashOffsetMap: Long2LongOpenHashMap,
+//            kmerHashOffsetMap: Long2LongOpenHashMap,
+            kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
             refrangeToBitSet: Map<Int, BitSet>,
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>
         ): Map<Int, MutableList<String>> {
-            //get the encoded refrangeId, offset from the kmerMap
-            val encodedOffset = kmerHashOffsetMap.getOrDefault(kmerHash, -1L)     //[kmerHash]
 
-            //kmerHashOffsetMap.getOrDefault(kmerHash, -1L) returns -1L rather than null when the kmerHash is not in the map.
-            //so if encodedOffset = -1L, the kmerhash does not map to any haplotypes. Return an empty map.
-            if (encodedOffset == -1L) return mapOf()
+            val encodedOffsets = kmerHashOffsetMap.getOrDefault(kmerHash, mutableListOf())     //[kmerHash]
 
-            val (rangeId, offset) = decodeRangeIdAndOffset(encodedOffset)
+            //Loop through the offsets as we can have multiple offsets for a single kmerHash across multiple reference ranges
+            val rangeToHapidMap = mutableMapOf<Int, MutableList<String>>()
+            for (encodedOffset in encodedOffsets) {
+                val (rangeId, offset) = decodeRangeIdAndOffset(encodedOffset.offset)
+                val hapidIndex = rangeToHapidIndexMap[rangeId]
+                val hapidBitSet = refrangeToBitSet[rangeId]
+                if (hapidIndex == null || hapidBitSet == null) continue
 
-            val hapidIndex = rangeToHapidIndexMap[rangeId]
-            val hapidBitSet = refrangeToBitSet[rangeId]
-            if (hapidIndex == null || hapidBitSet == null) return mapOf()
+                val hapidList = hapidIndex.entries.filter { (_, index) -> hapidBitSet.get(offset + index) }
+                    .map { it.key }.toMutableList()
+                rangeToHapidMap[rangeId] = hapidList
+            }
 
-            val hapidList = hapidIndex.entries.filter { (_, index) -> hapidBitSet.get(offset + index) }
-                .map { it.key }.toMutableList()
-            return mapOf(rangeId to hapidList)
+            return rangeToHapidMap
+
+//            //get the encoded refrangeId, offset from the kmerMap
+//            val encodedOffset = kmerHashOffsetMap.getOrDefault(kmerHash, -1L)     //[kmerHash]
+//
+//            //kmerHashOffsetMap.getOrDefault(kmerHash, -1L) returns -1L rather than null when the kmerHash is not in the map.
+//            //so if encodedOffset = -1L, the kmerhash does not map to any haplotypes. Return an empty map.
+//            if (encodedOffset == -1L) return mapOf()
+//
+//            val (rangeId, offset) = decodeRangeIdAndOffset(encodedOffset)
+//
+//            val hapidIndex = rangeToHapidIndexMap[rangeId]
+//            val hapidBitSet = refrangeToBitSet[rangeId]
+//            if (hapidIndex == null || hapidBitSet == null) return mapOf()
+//
+//            val hapidList = hapidIndex.entries.filter { (_, index) -> hapidBitSet.get(offset + index) }
+//                .map { it.key }.toMutableList()
+//            return mapOf(rangeId to hapidList)
         }
 
         /**

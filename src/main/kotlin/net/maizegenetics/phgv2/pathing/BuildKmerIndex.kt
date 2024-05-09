@@ -136,6 +136,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         val refRangeToIndexMap = graph.refRangeToIndexMap()
         val hapidToRefrangeMap = graph.hapIdToRefRangeMap()
 
+        val maxHapsToKeep = sampleGametes.size * 2
+
         for (chr in contigRangesMap.keys) {
             //get all sequence for this chromosome
             val agcRequestLists = rangeListsForAgcCommand(graph, contigRangesMap, chr)
@@ -180,23 +182,41 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                     //if the hash is in the discard set skip it
                     if (discardSet.contains(hashValue)) continue
 
+//                    when {
+//                        //if hash count >= numberOfHaplotype add it to the discard set
+//                        hashCount.value >= maxHaplotypes -> discardSet.add(hashValue)
+//                        //if the hash is already in the keepSet, it has been seen in a previous reference range
+//                        //was this hash seen in the range immediately preceeding this one?
+//                        // so, remove it from the keep set and add it to the discard set
+//                        keepMap.containsKey(hashValue) -> {
+//                            val hapidSet = keepMap.remove(hashValue)
+//                            if (runDiagnostics) {
+//                                val hapidRefrange = hapidToRefrangeMap[hapidSet.first()]
+//                                val wasPreviousRange = refRangeToIndexMap[refrange] == ((refRangeToIndexMap[hapidRefrange] ?: -2) + 1)
+//                                if (wasPreviousRange) {
+//                                    val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
+//                                    refrangeToAdjacentHashCount[refrange] = oldCount + 1
+//                                }
+//                            }
+//                            discardSet.add(hashValue)
+//                        }
+//                        else -> {
+//                            keepMap[hashValue] = longToHapIdMap[hashValue]
+//                        }
+//                    }
+
                     when {
                         //if hash count >= numberOfHaplotype add it to the discard set
                         hashCount.value >= maxHaplotypes -> discardSet.add(hashValue)
                         //if the hash is already in the keepSet, it has been seen in a previous reference range
                         //was this hash seen in the range immediately preceeding this one?
                         // so, remove it from the keep set and add it to the discard set
-                        keepMap.containsKey(hashValue) -> {
-                            val hapidSet = keepMap.remove(hashValue)
-                            if (runDiagnostics) {
-                                val hapidRefrange = hapidToRefrangeMap[hapidSet.first()]
-                                val wasPreviousRange = refRangeToIndexMap[refrange] == ((refRangeToIndexMap[hapidRefrange] ?: -2) + 1)
-                                if (wasPreviousRange) {
-                                    val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
-                                    refrangeToAdjacentHashCount[refrange] = oldCount + 1
-                                }
-                            }
+                        keepMap.containsKey(hashValue) && (keepMap[hashValue].size + longToHapIdMap[hashValue]!!.size) > maxHapsToKeep -> {
+                            keepMap.remove(hashValue)
                             discardSet.add(hashValue)
+                        }
+                        keepMap.containsKey(hashValue) && (keepMap[hashValue].size + longToHapIdMap[hashValue]!!.size) <= maxHapsToKeep -> {
+                            keepMap[hashValue] = keepMap[hashValue]!!.union(longToHapIdMap[hashValue]!!)
                         }
                         else -> {
                             keepMap[hashValue] = longToHapIdMap[hashValue]
