@@ -253,12 +253,17 @@ class MapKmersTest {
 
         val refRangeIdToHapIdMap = graph.refRangeIdToHapIdMap()
 
-        //loop through the kmers in kmerHashToLong Map
-        loadedKmerMapData.kmerHashToLongMap.long2ObjectEntrySet().flatMap {(kmerHash, values) -> values.map { Pair(kmerHash,it.offset) } }
-            .forEach { (kmerHash, encodedOffset) ->
-                val kmerHashLong = kmerHash.toLong()
-                assertTrue(kmerMapToHapids.containsKey(kmerHashLong))
 
+        loadedKmerMapData.kmerHashToLongMap.long2ObjectEntrySet().forEach {(kmerHash, values) ->
+            val kmerHashLong = kmerHash.toLong()
+            assertTrue(kmerMapToHapids.containsKey(kmerHashLong))
+
+            //Loop through the values and test the kmers keeping track of the hapIds which are not in any known refRange.
+            val hapIds = kmerMapToHapids[kmerHashLong]!!
+            val unSeenHapIds = mutableSetOf<String>()
+            unSeenHapIds.addAll(hapIds)
+
+            for((refRange,encodedOffset) in values) {
                 val (refRangeId, offset) = AlignmentUtils.decodeRangeIdAndOffset(encodedOffset)
                 //get the ref range so we can look up refRange -> HapId Index
                 val hapIdToIndexMap = refRangeIdToHapIdMap[refRangeId]!!
@@ -269,12 +274,46 @@ class MapKmersTest {
                 //check to make sure all hapIds are in HapIdToIndexMap
                 //We do not want to check the other direction as there are more hapIds in the graph than are hit by this kmer
                 hapIds.forEach { hapId ->
-                    assertTrue(hapIdToIndexMap.containsKey(hapId))
-                    //check the bitset at offset + hapIdToIndexMap[hapId] is true
-                    val hapIndex = hapIdToIndexMap[hapId]!!
-                    assertTrue(currentBitSet[hapIndex + offset])
+                    if(hapIdToIndexMap.containsKey(hapId)) {
+                        //check the bitset at offset + hapIdToIndexMap[hapId] is true
+                        val hapIndex = hapIdToIndexMap[hapId]!!
+                        assertTrue(currentBitSet[hapIndex + offset])
+                        unSeenHapIds.remove(hapId)
+                    }
                 }
             }
+
+            //Check to make sure all hapIds are seen
+            if(unSeenHapIds.isNotEmpty()) {
+                println("Kmer: $kmerHashLong")
+                println("Unseen HapIds: $unSeenHapIds")
+            }
+            assertTrue(unSeenHapIds.isEmpty())
+
+        }
+
+//        //loop through the kmers in kmerHashToLong Map
+//        loadedKmerMapData.kmerHashToLongMap.long2ObjectEntrySet().flatMap {(kmerHash, values) -> values.map { Pair(kmerHash,it.offset) } }
+//            .forEach { (kmerHash, encodedOffset) ->
+//                val kmerHashLong = kmerHash.toLong()
+//                assertTrue(kmerMapToHapids.containsKey(kmerHashLong))
+//
+//                val (refRangeId, offset) = AlignmentUtils.decodeRangeIdAndOffset(encodedOffset)
+//                //get the ref range so we can look up refRange -> HapId Index
+//                val hapIdToIndexMap = refRangeIdToHapIdMap[refRangeId]!!
+//
+//                val hapIds = kmerMapToHapids[kmerHashLong]!!
+//
+//                val currentBitSet = loadedKmerMapData.rangeToBitSetMap[ranges[refRangeId]]!!
+//                //check to make sure all hapIds are in HapIdToIndexMap
+//                //We do not want to check the other direction as there are more hapIds in the graph than are hit by this kmer
+//                hapIds.forEach { hapId ->
+//                    assertTrue(hapIdToIndexMap.containsKey(hapId))
+//                    //check the bitset at offset + hapIdToIndexMap[hapId] is true
+//                    val hapIndex = hapIdToIndexMap[hapId]!!
+//                    assertTrue(currentBitSet[hapIndex + offset])
+//                }
+//            }
 //        loadedKmerMapData.kmerHashToLongMap.long2LongEntrySet().forEach { (kmerHash,encodedOffset) ->
 //            val kmerHashLong = kmerHash.toLong()
 //            assertTrue(kmerMapToHapids.containsKey(kmerHashLong))
