@@ -263,12 +263,15 @@ class MapKmersTest {
             val unSeenHapIds = mutableSetOf<String>()
             unSeenHapIds.addAll(hapIds)
 
+            println("Kmer: $kmerHashLong")
             for((refRange,encodedOffset) in values) {
                 val (refRangeId, offset) = AlignmentUtils.decodeRangeIdAndOffset(encodedOffset)
+                println("\t$refRange $refRangeId $offset")
                 //get the ref range so we can look up refRange -> HapId Index
                 val hapIdToIndexMap = refRangeIdToHapIdMap[refRangeId]!!
 
                 val hapIds = kmerMapToHapids[kmerHashLong]!!
+                println("\t\t$hapIds")
 
                 val currentBitSet = loadedKmerMapData.rangeToBitSetMap[ranges[refRangeId]]!!
                 //check to make sure all hapIds are in HapIdToIndexMap
@@ -285,6 +288,7 @@ class MapKmersTest {
 
             //Check to make sure all hapIds are seen
             if(unSeenHapIds.isNotEmpty()) {
+                println("Error:")
                 println("Kmer: $kmerHashLong")
                 println("Unseen HapIds: $unSeenHapIds")
             }
