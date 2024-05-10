@@ -506,14 +506,14 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             //rarely some kmers will map to additional ref ranges but not all
             //the most frequent ReferenceRange will be the one used to create this hapid set
             val referenceRangeList = hapidSet.mapNotNull { hapIdToRefRangeMap[it] }.flatten()
-            val referenceRangeCounts = referenceRangeList.groupingBy { it }.eachCount()
-            val currentRefRange = referenceRangeCounts.maxBy { it.value }.key
-            if (refRangeToKmerSetMap.containsKey(currentRefRange)) {
-                refRangeToKmerSetMap[currentRefRange]!!.add(kmer)
-            } else {
-                refRangeToKmerSetMap[currentRefRange] = mutableSetOf(kmer)
-            }
 
+            for(refRange in referenceRangeList) {
+                if (refRangeToKmerSetMap.containsKey(refRange)) {
+                    refRangeToKmerSetMap[refRange]!!.add(kmer)
+                } else {
+                    refRangeToKmerSetMap[refRange] = mutableSetOf(kmer)
+                }
+            }
         }
         return refRangeToKmerSetMap
     }
