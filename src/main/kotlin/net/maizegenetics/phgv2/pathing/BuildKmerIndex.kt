@@ -188,37 +188,48 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                     //if the hash is in the discard set skip it
                     if (discardSet.contains(hashValue)) continue
 
-//                    when {
-//                        //if hash count >= numberOfHaplotype add it to the discard set
-//                        hashCount.value >= maxHaplotypes -> discardSet.add(hashValue)
-//                        //if the hash is already in the keepSet, it has been seen in a previous reference range
-//                        //was this hash seen in the range immediately preceeding this one?
-//                        // so, remove it from the keep set and add it to the discard set
-//                        keepMap.containsKey(hashValue) -> {
-//                            val hapidSet = keepMap.remove(hashValue)
-//                            if (runDiagnostics) {
-//                                val hapidRefrange = hapidToRefrangeMap[hapidSet.first()]
-//                                val wasPreviousRange = refRangeToIndexMap[refrange] == ((refRangeToIndexMap[hapidRefrange] ?: -2) + 1)
-//                                if (wasPreviousRange) {
-//                                    val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
-//                                    refrangeToAdjacentHashCount[refrange] = oldCount + 1
-//                                }
-//                            }
-//                            discardSet.add(hashValue)
-//                        }
-//                        else -> {
-//                            keepMap[hashValue] = longToHapIdMap[hashValue]
-//                        }
-//                    }
-
                     when {
                         //if hash count >= numberOfHaplotype add it to the discard set
-                        hashCount.value >= maxHaplotypes -> discardSet.add(hashValue)
+                        hashCount.value >= maxHaplotypes ->  {
+//                            if (runDiagnostics) {
+//                                val hapidRefranges = hapidToRefrangeMap[keepMap[hashValue]!!.first()]?: emptyList()
+//
+//                                for(hapidRefrange in hapidRefranges) {
+//                                    val wasPreviousRange = refRangeToIndexMap[refrange] == ((refRangeToIndexMap[hapidRefrange] ?: -2) + 1)
+//                                    if (wasPreviousRange) {
+//                                        val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
+//                                        refrangeToAdjacentHashCount[refrange] = oldCount + 1
+//                                    }
+//                                }
+//                            }
+                            discardSet.add(hashValue)
+                        }
                         //if the hash is already in the keepSet, it has been seen in a previous reference range
                         //was this hash seen in the range immediately preceeding this one?
                         // so, remove it from the keep set and add it to the discard set
                         keepMap.containsKey(hashValue) && (keepMap[hashValue].size + longToHapIdMap[hashValue]!!.size) > maxHapsToKeep -> {
-                            keepMap.remove(hashValue)
+                            val hapIdSet = keepMap.remove(hashValue)
+
+                            if (runDiagnostics) {
+//                                val hapidRefranges = hapidToRefrangeMap[keepMap[hashValue]!!.first()]?: emptyList()
+//
+//                                for(hapidRefrange in hapidRefranges) {
+//                                    val wasPreviousRange = refRangeToIndexMap[refrange] == ((refRangeToIndexMap[hapidRefrange] ?: -2) + 1)
+//                                    if (wasPreviousRange) {
+//                                        val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
+//                                        refrangeToAdjacentHashCount[refrange] = oldCount + 1
+//                                    }
+//                                }
+
+                                val hapidRefrangeIndexSet = hapIdSet.mapNotNull { hapidToRefrangeMap[it] }.flatten()
+                                    .map { refRangeToIndexMap[it] }.toSet()
+                                val wasPreviousRange = hapidRefrangeIndexSet.contains((refRangeToIndexMap[refrange] ?: 0)  - 1)
+                                if (wasPreviousRange) {
+                                    val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
+                                    refrangeToAdjacentHashCount[refrange] = oldCount + 1
+                                }
+                            }
+
 //=======
 //                        keepMap.containsKey(hashValue) -> {
 //                            val hapidSet = keepMap.remove(hashValue)
