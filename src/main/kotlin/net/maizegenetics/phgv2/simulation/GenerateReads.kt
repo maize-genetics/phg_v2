@@ -31,7 +31,7 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
 
         myLogger.info("Generating single reads for $sampleName")
         getBufferedWriter(outputFile).use { fastqWriter ->
-            for (chr in (1..10)) {
+            for (chr in listOf(10,9,8,7,6,5,4,3,2,1)) {
                 val sequence = retrieveAgcContigs(dbPath, listOf("chr${chr.toString()}@$sampleName"))
                 val nucseq = sequence.entries.first().value
                 val chrlen = nucseq.size()
