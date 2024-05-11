@@ -1,15 +1,22 @@
 package net.maizegenetics.phgv2.simulation
 
+import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
+import htsjdk.samtools.fastq.FastqReader
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.api.SampleGamete
+import net.maizegenetics.phgv2.pathing.AlignmentUtils
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.apache.logging.log4j.LogManager
 import java.io.File
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.random.Random
 
 class GenerateReads: CliktCommand(help="Generate simulated reads") {
@@ -18,9 +25,10 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
     val sampleNames by option(help = "sample names").default("")
 
     override fun run() {
-        for (sampleName in sampleNames.split(",")) {
-            singleReadsFromSample(sampleName, "/tiledb_maize")
-        }
+//        for (sampleName in sampleNames.split(",")) {
+//            singleReadsFromSample(sampleName, "/tiledb_maize")
+//        }
+        testReadMapping()
     }
 
     fun singleReadsFromSample(sampleName: String, dbPath: String) {
@@ -125,5 +133,69 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
         return breakPointRanges
     }
 
+    fun testReadMapping() {
+        val minProportionOfMaxCount = 1.0
+        val minSameReferenceRange = 0.9
+
+        val hvcfFilenames = File("/workdir/simulation/hvcf_files").listFiles()
+            .filter { it.name.endsWith(".h.vcf.gz") }.map { it.absolutePath }
+        val graph = HaplotypeGraph(hvcfFilenames)
+        val kmerIndexMap = AlignmentUtils.loadKmerMaps("/workdir/simulation/hvcf_files/kmerIndex.txt", graph)
+//        val fastqFiles = Pair(keyFileRecord.file1, keyFileRecord.file2)
+
+
+//        net.maizegenetics.phgv2.pathing.myLogger.info("reading records from the fastq file(s): ${fastqFiles.first}, ${fastqFiles.second}")
+
+
+        val rangeIdToBitsetMap =
+            AlignmentUtils.convertRefRangeToIdBitsetMap(kmerIndexMap.rangeToBitSetMap, graph.refRangeToIndexMap())
+
+        //Setting up the channels for the coroutines
+//        val readStringChannel = Channel<Pair<String, String>>(100)
+//        val sortedHapidListChannel = Channel<List<String>>(100)
+        val numberOfMappingThreads = 10
+
+        val mySequence = retrieveAgcContigs("/tiledb_maize", listOf("chr1@B73"))
+
+        val hapidToRange = graph.hapIdToRefRangeMap()
+        val b73SampleGamete = SampleGamete("B73")
+
+        //Run the blocking coroutine to read the fastq files and process the reads
+        for (refrange in graph.ranges()) {
+            if (refrange.contig == "chr1") {
+
+                val rangeSequence = mySequence.get(Pair("B73", "chr1"))!!.get(refrange.start..refrange.end).seq()
+                val seq2 = ""
+                val rangeHapidSet = mutableSetOf<String>()
+                var readsMapped = 0
+                for (seq in rangeSequence.windowed(100, 100)) {
+                    val hapids = AlignmentUtils.readToHapidSet(
+                        seq, minProportionOfMaxCount, minSameReferenceRange,
+                        kmerIndexMap.kmerHashToLongMap, rangeIdToBitsetMap, graph.refRangeIdToHapIdMap()
+                    )
+                    if (hapids.isNotEmpty()) {
+                        rangeHapidSet.addAll(hapids)
+                        readsMapped++
+                    }
+
+                }
+
+                //test whether hapids come from the correct range and are B73 hapids
+
+                val hapidToSampleGameteMap = graph.hapIdToSampleGametes(refrange)
+                val rangeHapids = rangeHapidSet.filter { hapidToRange[it]!!.contains(refrange) }
+                val nonRangeHapids = rangeHapidSet.filter { !hapidToRange[it]!!.contains(refrange) }
+                val rangeSampleGametes = rangeHapids.mapNotNull { hapidToSampleGameteMap[it] }
+                val otherRanges = nonRangeHapids.map { hapidToRange[it] }
+
+                println("$refrange - $readsMapped reads mapped, samples: $rangeSampleGametes")
+                println("$refrange - other: $otherRanges")
+
+            }
+
+
+        }
+
+    }
 }
 
