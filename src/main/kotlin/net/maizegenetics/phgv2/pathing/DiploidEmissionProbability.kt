@@ -20,6 +20,8 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
     private val sampleGametesInGraph = graph.sampleGametesInGraph()
     private val noReadCountProbability = 0.0
     private var rangeHasReads = true
+    //minimum probability must be greater then 0 since we need to take the ln of it
+    private val minProbability = Double.MIN_VALUE
 
     /**
      * Returns the natural log of the emission probability for a given state and [ReferenceRange].
@@ -66,7 +68,8 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
         for (ndx1 in haplotypesInRefrange.indices) {
             for (ndx2 in ndx1 until haplotypesInRefrange.size) {
                 val haplotypePair = UnorderedHaplotypePair(Pair(haplotypesInRefrange[ndx1], haplotypesInRefrange[ndx2]))
-                probabilityMap[haplotypePair] = ln(haplotypePairProbability(haplotypePair, readSetCounts))
+                val prob = haplotypePairProbability(haplotypePair, readSetCounts).coerceAtLeast(minProbability)
+                probabilityMap[haplotypePair] = ln(prob)
             }
         }
 
@@ -75,10 +78,12 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
         if (anyNullHaplotypes) {
             for (haplotype in haplotypesInRefrange) {
                 val haplotypePair = UnorderedHaplotypePair(Pair(haplotype, null))
-                probabilityMap[haplotypePair] = ln(haplotypePairProbability(haplotypePair, readSetCounts))
+                val prob = haplotypePairProbability(haplotypePair, readSetCounts).coerceAtLeast(minProbability)
+                probabilityMap[haplotypePair] = ln(prob)
             }
             val haplotypePair = UnorderedHaplotypePair(Pair(null, null))
-            probabilityMap[haplotypePair] = ln(haplotypePairProbability(haplotypePair, readSetCounts))
+            val prob = haplotypePairProbability(haplotypePair, readSetCounts).coerceAtLeast(minProbability)
+            probabilityMap[haplotypePair] = ln(prob)
         }
 
         //take the natural log of the probabilities
