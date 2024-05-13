@@ -1,6 +1,5 @@
 package net.maizegenetics.phgv2.pathing
 
-import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.testing.test
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import net.maizegenetics.phgv2.api.HaplotypeGraph
@@ -9,7 +8,6 @@ import net.maizegenetics.phgv2.cli.AgcCompress
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
-import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Disabled
@@ -20,7 +18,6 @@ import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
 import java.util.*
-import kotlin.math.ceil
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
