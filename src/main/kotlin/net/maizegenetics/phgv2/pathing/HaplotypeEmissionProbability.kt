@@ -77,7 +77,7 @@ class HaplotypeEmissionProbability(val refRangeToHapListMap : Map<ReferenceRange
                 .fold(0) { sum, pr -> sum + pr.second }
 
             //since a null haplotype should have 0 counts, assign it min
-            nullProbability = ln( binom.probability( 0) ).coerceAtLeast(minProbability)
+            nullProbability = ln( binom.probability( 0).coerceAtLeast(minProbability) )
             return haplotypes.associateWith { hapid ->
                 val prob = binom.probability(hapidCountMap[hapid] ?: 0).coerceAtLeast(minProbability)
                 ln( prob )
