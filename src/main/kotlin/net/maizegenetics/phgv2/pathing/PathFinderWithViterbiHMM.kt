@@ -176,6 +176,33 @@ class PathFinderWithViterbiHMM(
             if (!useRange(readMap[nextRange], counters, nextRange)) {
                 continue
             }
+
+            //debug
+            val reportRange = nextRange.contig == "chr1" && nextRange.start in (5769996..6162051)
+            if (reportRange) {
+                myLogger.info("Ref range = $nextRange, incoming paths are")
+                paths.forEach { println("${it.sampleGametes} : ${it.totalProbability}") }
+
+                val readCountMap = readMap[nextRange]
+                if (readCountMap == null) println("no reads for $nextRange")
+                else {
+                    val idCountMap = readCountMap.entries.flatMap { (idList, count) -> idList.map{Pair(it, count)} }.groupBy({it.first}, {it.second})
+                    val idCounts = idCountMap.mapValues { it.value.sum() }
+                    val hapidToSamples = graph.hapIdToSampleGametes(nextRange)
+                    println("sample gamete counts")
+                    idCounts.forEach { println("${hapidToSamples[it.key]}: ${it.value}") }
+                    println("emission probabilities:")
+                    val hapidSet = sampleGameteToHaplotypeMap.values.toSet()
+                    hapidSet.forEach { hapid -> println("${hapidToSamples[hapid]}: ${emissionProb.getLnProbObsGivenState(hapid, nextRange)}") }
+                }
+
+
+            }
+
+//            -------------------
+
+
+
             val newPaths = ArrayList<PathNode>()
 
             //TODO revisit whether randomly picking best is a good strategy

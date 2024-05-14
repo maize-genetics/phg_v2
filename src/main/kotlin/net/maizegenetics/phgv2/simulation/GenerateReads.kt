@@ -1,12 +1,9 @@
 package net.maizegenetics.phgv2.simulation
 
-import biokotlin.util.bufferedReader
+import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import htsjdk.samtools.fastq.FastqReader
-import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
@@ -14,9 +11,9 @@ import net.maizegenetics.phgv2.pathing.AlignmentUtils
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.apache.logging.log4j.LogManager
+import java.io.BufferedWriter
 import java.io.File
 import kotlin.math.abs
-import kotlin.math.max
 import kotlin.random.Random
 
 class GenerateReads: CliktCommand(help="Generate simulated reads") {
@@ -28,7 +25,9 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
 //        for (sampleName in sampleNames.split(",")) {
 //            singleReadsFromSample(sampleName, "/tiledb_maize")
 //        }
-        testReadMapping()
+//        testReadMapping()
+
+        makeDiploidReads()
     }
 
     fun singleReadsFromSample(sampleName: String, dbPath: String) {
@@ -65,36 +64,44 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
         val breakpointFile = File("/workdir/simulation/fastq/CML247XOh43-breakpoints.txt")
 
         val graph = HaplotypeGraph(listOf("/workdir/simulation/hvcf_files/CML247.h.vcf.gz","/workdir/simulation/hvcf_files/Oh43.h.vcf.gz"))
-        val ranges = graph.ranges()
+        val rangesByChrom = graph.rangesByContig()
 
-        myLogger.info("Generating single reads for CML247 X Oh43")
+        myLogger.info("Generating single reads for CML247 X Oh43 F2")
         //generate the F2 name to use in the fastq file
         val headerName = "CML247XOh43F2"
         getBufferedWriter(breakpointFile).use {breakPointWriter ->
+            breakPointWriter.write("index\tchr\tstart\tend\n")
             getBufferedWriter(outputFile).use { fastqWriter ->
                 for (chr in (1..10)) {
+                    println("generating reads for chromosome $chr")
                     //pick the breakpoints
-                    val chrRanges = ranges.filter { it.contig =="chr$chr" }
-                    val breakpointRanges1 = breakpointRanges(graph, chrRanges)
-                    val breakpointRanges2 = breakpointRanges(graph, chrRanges)
+                    val chrRanges = rangesByChrom["chr$chr"]
+                    check(chrRanges != null) {"chrRanges null for chr$chr"}
+                    val breakpointRangeArray = Array<List<ReferenceRange>>(2) {breakpointRanges(graph, chrRanges)}
+                    for (index in breakpointRangeArray.indices) {
+                        for (refrange in breakpointRangeArray[index]) breakPointWriter.write("$index\t${refrange.contig}\t${refrange.start}\t${refrange.end}\n")
+                    }
 
                     //need to generate reads from 2 chromosomes as they are not identical for a heterozygous diploid
-                    //for chromosome 1 get sequence for CML247 before breakpoint1 and after breakpoint3, otherwise Oh43
-                    //for chromosome 2 get sequence for Oh43 before breakpoint1 and after breakpoint3, otherwise CML247
-                    val sequence = retrieveAgcContigs("/tiledb_maize", listOf("chr$chr@CML247, chr$chr@Oh43"))
-                    val nucseq = sequence.entries.first().value
-                    val chrlen = nucseq.size()
-                    val numberOfReads = chrlen / 1000
-                    val startLimit = chrlen - 100
-                    repeat(numberOfReads) {
-                        val start = Random.nextInt(startLimit)
-                        val end = start + readLength - 1
-                        val readSeq = nucseq[start..end].seq()
-                        fastqWriter.write("@$headerName.$it\n")
-                        fastqWriter.write(readSeq + "\n")
-                        fastqWriter.write("+\n")
-                        fastqWriter.write("${"E".repeat(readLength)}\n")
+                    //for chromosome 1 get sequence for CML247 before breakpoint1 and after breakpoint2, otherwise Oh43
+                    //for chromosome 2 get sequence for Oh43 before breakpoint1 and after breakpoint2, otherwise CML247
+                    val sequence = retrieveAgcContigs("/tiledb_maize", listOf("chr$chr@CML247:0, chr$chr@Oh43:0"))
+
+                    //generate reads
+                    for (index in breakpointRangeArray.indices) {
+                        for (segment in 1..3) {
+                            val sampleGamete = when(segment) {
+                                1 -> if (index == 0) SampleGamete("CML247") else SampleGamete("Oh43")
+                                2 -> if (index == 0) SampleGamete("Oh43") else SampleGamete("CML247")
+                                3 -> if (index == 0) SampleGamete("CML247") else SampleGamete("Oh43")
+                                else -> throw IllegalArgumentException("invalid segment number $segment")
+                            }
+                            val nucseq = sequence[Pair(chr.toString(), sampleGamete.name)]!!
+                            val endpoints = segmentEndpoints(segment, sampleGamete, breakpointRangeArray[index], graph, nucseq)
+                            writeSegmentedReads(endpoints[0], endpoints[1], readLength, nucseq, fastqWriter, headerName, sampleGamete)
+                        }
                     }
+
                 }
             }
 
@@ -102,6 +109,56 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
 
     }
 
+    /**
+     * @param whichSegment segment (1, 2, or 3) for which to return endpoints
+     * @param sampleGamete the SampleGamete
+     * @param breakPointRanges the ranges used for the breakpoints
+     * @param graph the HaplotypeGraph
+     * @param nucseq the nucseq for the sample gamete, used to get the chromosome length
+     * @return the segment endpoints in the sample gamete coordinates
+     */
+    fun segmentEndpoints(whichSegment: Int, sampleGamete: SampleGamete, breakPointRanges: List<ReferenceRange>, graph: HaplotypeGraph, nucseq: NucSeq): IntArray {
+        val endpoints = IntArray(2)
+        endpoints[0] = when (whichSegment) {
+            1 -> 1
+            2 -> graph.altHeader(graph.sampleToHapId(breakPointRanges[0], sampleGamete)!!)!!.regions[0].second.position
+            3 -> graph.altHeader(graph.sampleToHapId(breakPointRanges[1], sampleGamete)!!)!!.regions[0].second.position
+            else -> throw IllegalArgumentException("invalid segment number")
+        }
+        endpoints[1] = when (whichSegment) {
+            1 -> graph.altHeader(graph.sampleToHapId(breakPointRanges[0], sampleGamete)!!)!!.regions[0].second.position
+            2 -> graph.altHeader(graph.sampleToHapId(breakPointRanges[1], sampleGamete)!!)!!.regions[0].second.position
+            3 -> {
+                nucseq.size()
+            }
+            else -> throw IllegalArgumentException("invalid segment number")
+        }
+        return endpoints
+    }
+
+    fun writeSegmentedReads(start: Int, end: Int, readLength: Int, nucseq: NucSeq, fastqWriter: BufferedWriter, headerName: String, sampleGamete: SampleGamete) {
+        val segmentLength = end - start + 1
+        val numberOfReads = segmentLength / 2000
+        val startLimit = segmentLength - 100
+
+        println("writing reads for $sampleGamete, $start - $end")
+        repeat(numberOfReads) {
+            val readStart = Random.nextInt(startLimit) + start
+            val readEnd = start + readLength - 1
+            val readSeq = nucseq[readStart..readEnd].seq()
+            fastqWriter.write("@$headerName.$it\n")
+            fastqWriter.write(readSeq + "\n")
+            fastqWriter.write("+\n")
+            fastqWriter.write("${"E".repeat(readLength)}\n")
+        }
+    }
+
+    /**
+     * select a pair of breakpoints for a single chromosome.
+     * @param graph     a HaplotypeGraph
+     * @param ranges    a list of the ReferenceRanges for a single chromosome
+     * @return      a list of two ranges selected as breakpoints
+     */
     fun breakpointRanges(graph: HaplotypeGraph, ranges: List<ReferenceRange>): List<ReferenceRange> {
         //don't use ranges that are not at least 10 from the end
         val minDistance = 500
