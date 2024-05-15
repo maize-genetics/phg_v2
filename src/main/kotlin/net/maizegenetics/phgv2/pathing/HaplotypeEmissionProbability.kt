@@ -24,6 +24,7 @@ class HaplotypeEmissionProbability(val refRangeToHapListMap : Map<ReferenceRange
     private var currentRefRange = ReferenceRange("none",0,0)
     private var currentEmissionProbabilities = mapOf<String, Double>()
     private var nullProbability : Double = -10.0
+    private val minProbability = Double.MIN_VALUE
 
     /**
      * Returns the natural log of the probability of observing the read mapping counts for this range
@@ -75,10 +76,10 @@ class HaplotypeEmissionProbability(val refRangeToHapListMap : Map<ReferenceRange
                 .groupingBy { it.first }
                 .fold(0) { sum, pr -> sum + pr.second }
 
-            //since a null haplotype should have 0 counts, assign it binom.probability(0)
-            nullProbability = ln( binom.probability( 0) )
+            //since a null haplotype should have 0 counts, assign it min
+            nullProbability = ln( binom.probability( 0).coerceAtLeast(minProbability) )
             return haplotypes.associateWith { hapid ->
-                val prob = binom.probability(hapidCountMap[hapid] ?: 0).coerceAtLeast(Double.MIN_VALUE)
+                val prob = binom.probability(hapidCountMap[hapid] ?: 0).coerceAtLeast(minProbability)
                 ln( prob )
             }
 
