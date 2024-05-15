@@ -187,8 +187,12 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                     if (discardSet.contains(hashValue)) continue
 
                     when {
-                        //if hash count >= numberOfHaplotype add it to the discard set
-                        hashCount.value >= maxHaplotypes -> discardSet.add(hashValue)
+                        //if hash count >= numberOfHaplotype add it to the discard set and remove it from the keep map (if there)
+                        hashCount.value >= maxHaplotypes -> {
+                            discardSet.add(hashValue)
+                            keepMap.remove(hashValue)
+                        }
+
                         //if the hash is already in the keepSet, it has been seen in a previous reference range
                         //was this hash seen in the range immediately preceeding this one?
                         // so, remove it from the keep set and add it to the discard set
@@ -218,7 +222,12 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         }
         myLogger.debug("Finished building kmer keep set, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
-
+        //make sure no hashes in the keepMap are also in discard
+        var numberInDiscardSet = 0
+        for (element in keepMap.long2ObjectEntrySet()) {
+            if (discardSet.contains(element.longKey)) numberInDiscardSet++
+        }
+        myLogger.info("$numberInDiscardSet kmers in the keepMap are also in the discardSet.")
         return keepMap
     }
 
