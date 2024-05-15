@@ -2,6 +2,7 @@ package net.maizegenetics.phgv2.pathing
 
 import biokotlin.util.bufferedReader
 import htsjdk.samtools.fastq.FastqReader
+import io.ktor.util.*
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel

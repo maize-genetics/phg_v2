@@ -25,9 +25,11 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
 //        for (sampleName in sampleNames.split(",")) {
 //            singleReadsFromSample(sampleName, "/tiledb_maize")
 //        }
-//        testReadMapping()
+        testReadMapping()
 
-        makeDiploidReads()
+//        makeDiploidReads()
+
+//        singleReadsWithinRangesOnly("/tiledb_maize")
     }
 
     fun singleReadsFromSample(sampleName: String, dbPath: String) {
@@ -38,13 +40,14 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
 
         myLogger.info("Generating single reads for $sampleName")
         getBufferedWriter(outputFile).use { fastqWriter ->
-            for (chr in listOf(10,9,8,7,6,5,4,3,2,1)) {
+            for (chr in 1..10) {
                 val sequence = retrieveAgcContigs(dbPath, listOf("chr${chr.toString()}@$sampleName"))
                 val nucseq = sequence.entries.first().value
                 val chrlen = nucseq.size()
                 val numberOfReads = chrlen / 1000
                 val startLimit = chrlen - 100
                 repeat(numberOfReads) {
+
                     val start = Random.nextInt(startLimit)
                     val end = start + readLength - 1
                     val readSeq = nucseq[start..end].seq()
@@ -52,6 +55,43 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
                     fastqWriter.write(readSeq + "\n")
                     fastqWriter.write("+\n")
                     fastqWriter.write("${"E".repeat(readLength)}\n")
+                }
+            }
+        }
+
+    }
+
+    fun singleReadsWithinRangesOnly(dbPath: String) {
+        //read header will be @<sampleName>:<chr>:<start>:<end>
+        //then sequence, +, string of "E" same length as sequence
+        val readLength = 100
+        val outputFile = File("/workdir/simulation/fastq/B73-single-reads-byrange.fq")
+        val graph = HaplotypeGraph(listOf("/workdir/simulation/hvcf_files/B73.h.vcf.gz"))
+        val contigToRefranges = graph.rangesByContig()
+
+        myLogger.info("Generating single reads for B73 by range")
+        getBufferedWriter(outputFile).use { fastqWriter ->
+            for (chr in 1..10) {
+                val ranges = contigToRefranges["chr$chr"]!!
+                val sequence = retrieveAgcContigs(dbPath, listOf("chr${chr.toString()}@B73"))
+                val nucseq = sequence.entries.first().value
+//                val chrlen = nucseq.size()
+//                val numberOfReads = chrlen / 1000
+//                val startLimit = chrlen - 100
+                for (range in ranges) {
+                    val myLength = range.end - range.start + 1
+                    val startLimit = myLength - 100
+                    val numberOfReads = myLength / 1000 + 1
+                    repeat(numberOfReads) {
+                        val start = Random.nextInt(startLimit) + range.start
+                        val end = start + readLength - 1
+                        val readSeq = nucseq[start..end].seq()
+                        fastqWriter.write("@B73.$it\n")
+                        fastqWriter.write(readSeq + "\n")
+                        fastqWriter.write("+\n")
+                        fastqWriter.write("${"E".repeat(readLength)}\n")
+                    }
+
                 }
             }
         }
@@ -85,18 +125,20 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
                     //need to generate reads from 2 chromosomes as they are not identical for a heterozygous diploid
                     //for chromosome 1 get sequence for CML247 before breakpoint1 and after breakpoint2, otherwise Oh43
                     //for chromosome 2 get sequence for Oh43 before breakpoint1 and after breakpoint2, otherwise CML247
-                    val sequence = retrieveAgcContigs("/tiledb_maize", listOf("chr$chr@CML247:0, chr$chr@Oh43:0"))
-
+                    val sequence = retrieveAgcContigs("/tiledb_maize", listOf("chr$chr@CML247","chr$chr@Oh43"))
+                    println("nucseqs retrieved from agc:")
+                    for (namePair in sequence.keys) println("${namePair.first}, ${namePair.second}")
                     //generate reads
                     for (index in breakpointRangeArray.indices) {
                         for (segment in 1..3) {
-                            val sampleGamete = when(segment) {
-                                1 -> if (index == 0) SampleGamete("CML247") else SampleGamete("Oh43")
-                                2 -> if (index == 0) SampleGamete("Oh43") else SampleGamete("CML247")
-                                3 -> if (index == 0) SampleGamete("CML247") else SampleGamete("Oh43")
+                            val sampleName = when(segment) {
+                                1 -> if (index == 0) "CML247" else "Oh43"
+                                2 -> if (index == 0) "Oh43" else "CML247"
+                                3 -> if (index == 0) "CML247" else "Oh43"
                                 else -> throw IllegalArgumentException("invalid segment number $segment")
                             }
-                            val nucseq = sequence[Pair(chr.toString(), sampleGamete.name)]!!
+                            val sampleGamete = SampleGamete(sampleName)
+                            val nucseq = sequence[Pair(sampleName, "chr$chr")]!!
                             val endpoints = segmentEndpoints(segment, sampleGamete, breakpointRangeArray[index], graph, nucseq)
                             writeSegmentedReads(endpoints[0], endpoints[1], readLength, nucseq, fastqWriter, headerName, sampleGamete)
                         }
@@ -119,6 +161,18 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
      */
     fun segmentEndpoints(whichSegment: Int, sampleGamete: SampleGamete, breakPointRanges: List<ReferenceRange>, graph: HaplotypeGraph, nucseq: NucSeq): IntArray {
         val endpoints = IntArray(2)
+
+        val hapid1 = graph.sampleToHapId(breakPointRanges[0], sampleGamete)
+        check(hapid1 != null) {"hapid is null for $sampleGamete at ${breakPointRanges[0]}"}
+        val region1 = graph.altHeader(hapid1)
+        check(region1 != null) {"region is null for $hapid1, $sampleGamete, ${breakPointRanges[0]}"}
+
+        val hapid2 = graph.sampleToHapId(breakPointRanges[1], sampleGamete)
+        check(hapid2 != null) {"hapid is null for $sampleGamete at ${breakPointRanges[1]}"}
+        val region2 = graph.altHeader(hapid2)
+        check(region2 != null) {"region is null for $hapid2, $sampleGamete, ${breakPointRanges[1]}"}
+
+
         endpoints[0] = when (whichSegment) {
             1 -> 1
             2 -> graph.altHeader(graph.sampleToHapId(breakPointRanges[0], sampleGamete)!!)!!.regions[0].second.position
@@ -144,7 +198,7 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
         println("writing reads for $sampleGamete, $start - $end")
         repeat(numberOfReads) {
             val readStart = Random.nextInt(startLimit) + start
-            val readEnd = start + readLength - 1
+            val readEnd = readStart + readLength - 1
             val readSeq = nucseq[readStart..readEnd].seq()
             fastqWriter.write("@$headerName.$it\n")
             fastqWriter.write(readSeq + "\n")
@@ -164,10 +218,16 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
         val minDistance = 500
         val breakPointRanges = mutableListOf<ReferenceRange>()
         val refrangeToIndexMap = graph.refRangeToIndexMap()
+        val requiredSampleGametes = listOf(SampleGamete("CML247"), SampleGamete("Oh43"))
+
 
         while (breakPointRanges.size < 2) {
             val candidateRange = ranges.random()
+            //make sure that both CML247 and Oh43 have haplotypes in this range
             val hapidSampleMap = graph.hapIdToSampleGametes(candidateRange)
+            val sampleGametesInCandidateRange = hapidSampleMap.flatMap { it.value }
+            if (!sampleGametesInCandidateRange.containsAll(requiredSampleGametes)) continue
+
             var allRegionsOK = true
             for (hapid in hapidSampleMap.keys) {
                 val regions = graph.altHeader(hapid)!!.regions
@@ -217,9 +277,9 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
         val hapidToRange = graph.hapIdToRefRangeMap()
         val b73SampleGamete = SampleGamete("B73")
 
-        //Run the blocking coroutine to read the fastq files and process the reads
+
         for (refrange in graph.ranges()) {
-            if (refrange.contig == "chr1") {
+            if (refrange.contig == "chr1" && refrange.start in 5769996..6162051) {
 
                 val rangeSequence = mySequence.get(Pair("B73", "chr1"))!!.get(refrange.start..refrange.end).seq()
                 val seq2 = ""
