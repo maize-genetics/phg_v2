@@ -8,6 +8,8 @@ import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.pathing.AlignmentUtils
+import net.maizegenetics.phgv2.pathing.FindPaths
+import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.apache.logging.log4j.LogManager
@@ -25,11 +27,14 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
 //        for (sampleName in sampleNames.split(",")) {
 //            singleReadsFromSample(sampleName, "/tiledb_maize")
 //        }
-        testReadMapping()
+//        testReadMapping()
 
 //        makeDiploidReads()
 
 //        singleReadsWithinRangesOnly("/tiledb_maize")
+
+//        decodeReadMapping()
+        testHapidsFromGraph()
     }
 
     fun singleReadsFromSample(sampleName: String, dbPath: String) {
@@ -312,6 +317,53 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
 
 
         }
+
+    }
+
+    fun decodeReadMapping() {
+        getBufferedWriter("/workdir/simulation/reads/B73-single-reads_decoded.txt").use {myWriter ->
+            myWriter.write("contig\tstart\tend\tsamples\tcount\n")
+            val fileList = File("/workdir/simulation/hvcf_files").listFiles().filter { it.name.endsWith(".h.vcf.gz") }.map { it.absolutePath }
+            val graph = HaplotypeGraph(fileList)
+            val readMappings = AlignmentUtils.importReadMapping("/workdir/simulation/reads/B73-single-reads_readMapping.txt")
+            val mappingsByRefrange = FindPaths().readMappingByRange(readMappings, graph)
+
+            for ((refrange, mappings) in mappingsByRefrange) {
+                val hapidToSample = graph.hapIdToSampleGametes(refrange)
+                val hapidCounts = mappings.entries.map {(hapidList, count) -> hapidList.map { Pair(it, count) }}
+                    .flatten().groupBy({it.first},{it.second}).mapValues { it.value.sum() }
+                val sampleCounts = hapidCounts.mapKeys { hapidToSample[it.key]!! }
+                for (entry in sampleCounts) {
+                    myWriter.write("${refrange.contig}\t${refrange.start}\t${refrange.end}\t${entry.key}\t${entry.value}\n")
+                }
+            }
+        }
+
+    }
+
+    fun testHapidsFromGraph() {
+        val fileList = File("/workdir/simulation/hvcf_files").listFiles().filter { it.name.endsWith(".h.vcf.gz") }.map { it.absolutePath }
+        println("file list :")
+        fileList.forEach { println(it) }
+        val graph = HaplotypeGraph(fileList)
+        val b73SampleGamete = SampleGamete("B73")
+        for (range in graph.ranges()) {
+            val b73hapid = graph.sampleToHapId(range, b73SampleGamete)
+            if (b73hapid == null) println("b73hapid is null at $range")
+            else {
+                val altHeader = graph.altHeader(b73hapid)
+                if (altHeader == null) println("altHeader is null for $b73hapid at $range") else {
+                    if (altHeader.sampleName() != "B73") {
+                        println("For $range and hapid = $b73hapid, altHeader sample name is ${altHeader.sampleName()} and regions = ${altHeader.regions}")
+                        val hapidMap = graph.hapIdToSampleGametes(range)
+                        println(" hapidMap = $hapidMap")
+                    }
+                }
+            }
+        }
+    }
+
+    fun testAgcContent() {
 
     }
 }

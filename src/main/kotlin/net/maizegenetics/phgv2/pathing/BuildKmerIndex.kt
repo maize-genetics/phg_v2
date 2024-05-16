@@ -14,6 +14,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedWriter
@@ -146,11 +147,21 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                 retrieveAgcContigs(dbPath, agcRequestLists.sampleContigList)
             }
             else emptyMap()
+
+            //debug stuff
+            //how long is the sequence for each sample's chromosome
+            agcChromSequence.entries.forEach { (pair, nucseq) -> println("${pair.first}, ${pair.second} length = ${nucseq.size()}") }
+
             val agcOtherRegionSequence: Map<Pair<String,String>, NucSeq> = if (agcRequestLists.otherRegionsList.isNotEmpty()) getAgcSequenceForRanges(agcRequestLists.otherRegionsList)
             else emptyMap()
 
             //iterate through refranges, generate kmers from the sequence
             for (refrange in contigRangesMap[chr]!!) {
+
+                val debug = refrange.contig == "chr1" && (refrange.start == 5836552 || refrange.start == 5859790
+                        || refrange.start == 5897030 || refrange.start ==  5866480 || refrange.start == 5778596)
+                val b73hapid = graph.sampleToHapId(refrange, SampleGamete("B73"))
+
                 val hapidToSampleMap = graph.hapIdToSampleGametes(refrange)
 
                 //if there are any null haplotypes add 1 to the number of hapids (hapidToSampleMap.size)
@@ -179,7 +190,59 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                     hapidToSequencMap[hapid] = sequenceList
                 }
 
+                if (debug) {
+                    val seqlist = hapidToSequencMap[b73hapid]
+                    when {
+                        seqlist == null -> println("$refrange B73 sequence list is null")
+                        seqlist.isEmpty() -> println("$refrange B73 sequence list is empty")
+                        else -> {
+                            println("$refrange: B73 has sequence lengths of ${seqlist.map { it.length }}")
+                            if (refrange.start == 5836552) {
+                                val nucseq = agcChromSequence[Pair("B73", "chr1")]!!
+                                if (nucseq == null) println("null nucseq for B73, chr1") else {
+                                    var seqlen = nucseq.get(5836552..5841719).size()
+                                    var seq = nucseq.get(5836552..5841719).seq()
+                                    println("seqlen = $seqlen, length of seq = ${seq.length}")
+
+                                    var subseq = nucseq.get(5836552..5836652)
+                                    seqlen =subseq.size()
+                                    seq = subseq.seq()
+                                    println("For 5836552..5836652, seqlen = $seqlen, length of seq = ${seq.length}")
+                                    println("seq = $seq")
+
+                                    subseq = nucseq.get(5836542..5836562)
+                                    seqlen =subseq.size()
+                                    seq = subseq.seq()
+                                    println("For 5836552..5836652, seqlen = $seqlen, length of seq = ${seq.length}")
+                                    println("seq = $seq")
+
+
+                                }
+                                check(b73hapid != null) {"b73hapid is null"}
+                                val altHeader = graph.altHeader(b73hapid)
+                                check(altHeader != null) {"alt header for b73hapid is null"}
+                                println("alt header sample name is ${altHeader.sampleName()}, chr is $chr")
+                                val seqRegion = altHeader.regions[0]
+                                val seqRange = seqRegion.first.position - 1..seqRegion.second.position - 1
+                                println("range is $seqRange")
+
+                                val nseq = agcChromSequence[Pair(altHeader.sampleName(), chr)] //?.get(seqRange)?.seq() ?:""
+                                check(nseq != null) {"nseq is null"}
+                                println("nseq (all of chr$chr for ${altHeader.sampleName()}) length is ${nseq.size()}")
+                                val subseq = nseq[seqRange]
+                                println("sequence for range $seqRange has length = ${subseq.size()}")
+                            }
+                        }
+                    }
+                }
+
                 val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidToSequencMap, hashMask, hashFilterValue)
+
+                if (debug) {
+                    val countOfB73kmers = longToHapIdMap.entries.count { it.value.contains(b73hapid) }
+                    println("$refrange maps to $countOfB73kmers B73 kmers")
+                }
+
                 for (hashCount in kmerHashCounts.entries) {
                     val hashValue = hashCount.key
 
