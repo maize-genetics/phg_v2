@@ -155,6 +155,10 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             val agcOtherRegionSequence: Map<Pair<String,String>, NucSeq> = if (agcRequestLists.otherRegionsList.isNotEmpty()) getAgcSequenceForRanges(agcRequestLists.otherRegionsList)
             else emptyMap()
 
+            //debug stuff
+//            println("agcOtherRegionSequence keys:")
+//            agcOtherRegionSequence.keys.forEach { println(it) }
+
             //iterate through refranges, generate kmers from the sequence
             for (refrange in contigRangesMap[chr]!!) {
 
@@ -176,17 +180,42 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                 for (hapid in hapidToSampleMap.keys) {
                     //checked for altHeader existence already
                     val altHeader = graph.altHeader(hapid)!!
+//                    val sequenceList = altHeader.regions.map { region ->
+//                        val inThisChrom = region.first.contig == chr
+//                        if (inThisChrom) {
+//                            //translate from 1-based Position to 0-based nucseq coordinates
+//                            val seqRange = if (region.first.position <= region.second.position) (region.first.position - 1..region.second.position - 1)
+//                            else (region.second.position - 1..region.first.position - 1)
+//                            agcChromSequence[Pair(altHeader.sampleName(), chr)]?.get(seqRange)?.seq() ?:""
+//                        } else {
+//                            agcOtherRegionSequence[Pair(altHeader.sampleName(), regionToString(region))]?.seq() ?:""
+//                        }
+//                    }
+
                     val sequenceList = altHeader.regions.map { region ->
-                        val inThisChrom = region.first.contig == chr
-                        if (inThisChrom) {
-                            //translate from 1-based Position to 0-based nucseq coordinates
-                            val seqRange = if (region.first.position <= region.second.position) (region.first.position - 1..region.second.position - 1)
-                            else (region.second.position - 1..region.first.position - 1)
-                            agcChromSequence[Pair(altHeader.sampleName(), chr)]?.get(seqRange)?.seq() ?:""
-                        } else {
-                            agcOtherRegionSequence[Pair(altHeader.sampleName(), regionToString(region))]?.seq() ?:""
+                        //regions need to be corrected for any inversions. That is range.start < range.end.
+                        // Note that agc request positions are 1-based but nucseq positions are 0-based
+                        //
+                        //first check whether sampleName and contig is in agcChromSequence
+                        //if so, use that. If not, attempt to get the sequence from afcOtherRegionSequence
+                        //when requesting directly from agc use this range
+                        val seqRangeStr =
+                            if (region.first.position <= region.second.position) "${region.first.position}-${region.second.position}"
+                            else "${region.second.position}-${region.first.position}"
+                        //when requesting from a NucSeq use this range
+                        val nucseqRange =
+                            if (region.first.position <= region.second.position) (region.first.position - 1..<region.second.position)
+                            else (region.second.position - 1..<region.first.position)
+
+                        val contigNuqseq = agcChromSequence[Pair(altHeader.sampleName(), region.first.contig)]
+
+                        val regionNucSeq = if (contigNuqseq != null) contigNuqseq[nucseqRange] else {
+                            agcOtherRegionSequence[Pair(altHeader.sampleName(), "${region.first.contig}:$seqRangeStr")]
                         }
+                        check(regionNucSeq != null) { "No sequence for ${altHeader.sampleName()} at ${region.first.contig}:$seqRangeStr; hapid $hapid, sample ${hapidToSampleMap[hapid]}" }
+                        regionNucSeq.seq()
                     }
+
                     hapidToSequencMap[hapid] = sequenceList
                 }
 
@@ -197,44 +226,44 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                         seqlist.isEmpty() -> println("$refrange B73 sequence list is empty")
                         else -> {
                             println("$refrange: B73 has sequence lengths of ${seqlist.map { it.length }}")
-                            if (refrange.start == 5836552) {
-                                val nucseq = agcChromSequence[Pair("B73", "chr1")]!!
-                                if (nucseq == null) println("null nucseq for B73, chr1") else {
-                                    var seqlen = nucseq.get(5836552..5841719).size()
-                                    var seq = nucseq.get(5836552..5841719).seq()
-                                    println("seqlen = $seqlen, length of seq = ${seq.length}")
-
-                                    var subseq = nucseq.get(5836552..5836652)
-                                    seqlen =subseq.size()
-                                    seq = subseq.seq()
-                                    println("For 5836552..5836652, seqlen = $seqlen, length of seq = ${seq.length}")
-                                    println("seq = $seq")
-
-                                    subseq = nucseq.get(5836542..5836562)
-                                    seqlen =subseq.size()
-                                    seq = subseq.seq()
-                                    println("For 5836552..5836652, seqlen = $seqlen, length of seq = ${seq.length}")
-                                    println("seq = $seq")
-
-
-                                }
+//                            if (refrange.start == 5836552) {
+//                                val nucseq = agcChromSequence[Pair("B73", "chr1")]!!
+//                                if (nucseq == null) println("null nucseq for B73, chr1") else {
+//                                    var seqlen = nucseq.get(5836552..5841719).size()
+//                                    var seq = nucseq.get(5836552..5841719).seq()
+//                                    println("seqlen = $seqlen, length of seq = ${seq.length}")
+//
+//                                    var subseq = nucseq.get(5836552..5836652)
+//                                    seqlen =subseq.size()
+//                                    seq = subseq.seq()
+//                                    println("For 5836552..5836652, seqlen = $seqlen, length of seq = ${seq.length}")
+//                                    println("seq = $seq")
+//
+//                                    subseq = nucseq.get(5836542..5836562)
+//                                    seqlen =subseq.size()
+//                                    seq = subseq.seq()
+//                                    println("For 5836552..5836652, seqlen = $seqlen, length of seq = ${seq.length}")
+//                                    println("seq = $seq")
+//
+//
+//                                }
                                 check(b73hapid != null) {"b73hapid is null"}
                                 val altHeader = graph.altHeader(b73hapid)
                                 check(altHeader != null) {"alt header for b73hapid is null"}
-                                println("alt header sample name is ${altHeader.sampleName()}, chr is $chr")
+                                println("alt header sample name is ${altHeader.sampleName()}, chr is ${altHeader.regions[0].first.contig}")
                                 val seqRegion = altHeader.regions[0]
                                 val seqRange = seqRegion.first.position - 1..seqRegion.second.position - 1
                                 println("range is $seqRange")
 
-                                val nseq = agcChromSequence[Pair(altHeader.sampleName(), chr)] //?.get(seqRange)?.seq() ?:""
-                                check(nseq != null) {"nseq is null"}
-                                println("nseq (all of chr$chr for ${altHeader.sampleName()}) length is ${nseq.size()}")
-                                val subseq = nseq[seqRange]
-                                println("sequence for range $seqRange has length = ${subseq.size()}")
+//                                val nseq = agcChromSequence[Pair(altHeader.sampleName(), chr)] //?.get(seqRange)?.seq() ?:""
+//                                check(nseq != null) {"nseq is null for "}
+//                                println("nseq (all of chr$chr for ${altHeader.sampleName()}) length is ${nseq.size()}")
+//                                val subseq = nseq[seqRange]
+//                                println("sequence for range $seqRange has length = ${subseq.size()}")
                             }
                         }
                     }
-                }
+//                }
 
                 val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidToSequencMap, hashMask, hashFilterValue)
 
@@ -619,6 +648,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                     val regions = altheader.regions
 
                     //for each range in region, that range is added to regionsMap for the sample
+                    //agc requests are 1-based positions, so the region positions are correct
                     for (region in regions) {
                         val rangeSet = regionsMap.getOrPut(region.first.contig) { mutableSetOf() }
                         val rangeStr = if (region.first.position <= region.second.position) "${region.first.position}-${region.second.position}"

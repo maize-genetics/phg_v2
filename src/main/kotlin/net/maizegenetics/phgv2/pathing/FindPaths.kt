@@ -407,7 +407,7 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         }
     }
 
-    private fun readMappingByRange(readCounts: Map<List<String>, Int>, graph: HaplotypeGraph): Map<ReferenceRange, Map<List<String>, Int>> {
+    fun readMappingByRange(readCounts: Map<List<String>, Int>, graph: HaplotypeGraph): Map<ReferenceRange, Map<List<String>, Int>> {
         val hapid2Refrange = graph.hapIdToRefRangeMap()
         //groups readCounts for the entire genome into separate maps for each reference range
         //since some hapids map to more than one reference range, assign each hapid set to the reference range with the most hapids in the set
