@@ -363,8 +363,5 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
         }
     }
 
-    fun testAgcContent() {
-
-    }
 }
 
