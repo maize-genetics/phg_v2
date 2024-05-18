@@ -82,9 +82,29 @@ class FullPipelineIT {
         val createRanges = CreateRanges()
         val createRangesResult = createRanges.test("--gff ${TestExtension.smallseqAnchorsGffFile} --output ${TestExtension.testBEDFile} --reference-file ${TestExtension.smallseqRefFile}")
 
+        //Write fastas to testInputFastaDir, changing chromosome names for LineB
+        File(TestExtension.smallseqLineAFile).copyTo(File("${TestExtension.testInputFastaDir}LineA.fa"))
+        getBufferedWriter("${TestExtension.testInputFastaDir}LineB.fa").use { fastaWriter ->
+            getBufferedReader(TestExtension.smallseqLineBFile).use { fastaReader ->
+                fastaReader.forEachLine {
+                    val newLine = it.replace(">", ">chr")
+                    fastaWriter.write(newLine)
+                    fastaWriter.write("\n")
+                }
+            }
+        }
+
+        //write the assemblies list
+        val assembliesList = "${TestExtension.testInputFastaDir}assembliesList.txt"
+        getBufferedWriter(assembliesList).use { myWriter ->
+            myWriter.write("${TestExtension.testInputFastaDir}LineA.fa\n")
+            myWriter.write("${TestExtension.testInputFastaDir}LineB.fa\n")
+        }
+
         //Create the agc record:
         val agcCompress = AgcCompress()
-        val agcResult = agcCompress.test("--fasta-list ${TestExtension.smallseqAssembliesListFile} --db-path ${TestExtension.testTileDBURI} --reference-file ${TestExtension.smallseqRefFile}")
+
+        val agcResult = agcCompress.test("--fasta-list $assembliesList --db-path ${TestExtension.testTileDBURI} --reference-file ${TestExtension.smallseqRefFile}")
         println(agcResult.output)
 
         println(createRangesResult.output)
@@ -97,7 +117,7 @@ class FullPipelineIT {
         val alignAssemblies = AlignAssemblies()
         val alignAssembliesResult = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.testMafDir}"
+                    "-a $assembliesList -o ${TestExtension.testMafDir}"
         )
         println(alignAssembliesResult.output)
 
