@@ -336,16 +336,16 @@ This command has the following parameters:
   subdirectory under the `data` folder called `key_files`.
   + My example keyfile would look like the following:
     ```
-  sampleName  filename  filename2
-  LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
+    sampleName  filename  filename2
+    LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
     ```
   + If you have more than one sample, you would place additional
   lines at the bottom of the keyfile. For example:
     ```
-  sampleName  filename  filename2
-  LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
-  CrossC data/short_reads/cross_c_1.fq  data/short_reads/cross_c_2.fq
-  CrossD data/short_reads/cross_d_1.fq  data/short_reads/cross_d_2.fq
+    sampleName  filename  filename2
+    LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
+    CrossC data/short_reads/cross_c_1.fq  data/short_reads/cross_c_2.fq
+    CrossD data/short_reads/cross_d_1.fq  data/short_reads/cross_d_2.fq
     ```
   + > ℹ️ **Note**  
   The keyfile for this parameter needs **column names**. If you
