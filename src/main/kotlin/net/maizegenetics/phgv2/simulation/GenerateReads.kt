@@ -29,12 +29,12 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
 //        }
 //        testReadMapping()
 
-//        makeDiploidReads()
+        makeDiploidReads()
 
 //        singleReadsWithinRangesOnly("/tiledb_maize")
 
 //        decodeReadMapping()
-        testHapidsFromGraph()
+//        testHapidsFromGraph()
     }
 
     fun singleReadsFromSample(sampleName: String, dbPath: String) {
@@ -192,6 +192,7 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
             }
             else -> throw IllegalArgumentException("invalid segment number")
         }
+        check(endpoints[0] < endpoints[1]) {"endpoints not ordered correctly for $sampleGamete, ${breakPointRanges[0]}, ${breakPointRanges[1]}"}
         return endpoints
     }
 
@@ -252,7 +253,7 @@ class GenerateReads: CliktCommand(help="Generate simulated reads") {
 
         }
 
-        return breakPointRanges
+        return breakPointRanges.sortedBy { it.start }
     }
 
     fun testReadMapping() {
