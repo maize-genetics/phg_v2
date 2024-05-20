@@ -168,12 +168,14 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                     val altHeader = graph.altHeader(hapid)!!
 
                     val sequenceList = altHeader.regions.map { region ->
-                        //Regions need to be corrected for any inversions. That is range.start < range.end.
+                        //Regions need to be corrected for any inversions. That is, when requesting sequence
+                        // make sure that  range.start < range.end.
                         // Note that agc positions are 1-based but nucseq positions are 0-based.
                         // Because chromosome names can vary between assemblies, for any given assembly
-                        // the chromosome name in agcChromSequence may be specific to that assembly
-                        // To deal with that, first check whether sampleName and contig is in agcChromSequence
-                        // if so, use that. If not, get the sequence from afcOtherRegionSequence
+                        // the chromosome name in agcChromSequence may be specific to that assembly.
+                        // To deal with that, first check whether a needed sampleName, contig is in agcChromSequence.
+                        // If so, use that. If not, get the sequence from afcOtherRegionSequence
+
                         //when requesting from agc, use this range
                         val seqRangeStr =
                             if (region.first.position <= region.second.position) "${region.first.position}-${region.second.position}"
@@ -188,6 +190,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                         val regionNucSeq = if (contigNuqseq != null) contigNuqseq[nucseqRange] else {
                             agcOtherRegionSequence[Pair(altHeader.sampleName(), "${region.first.contig}:$seqRangeStr")]
                         }
+
+                        //regionNucSeq should always be found. If it is not, throw an error because something has gone wrong somewhere.
                         check(regionNucSeq != null) { "No sequence for ${altHeader.sampleName()} at ${region.first.contig}:$seqRangeStr; hapid $hapid, sample ${hapidToSampleMap[hapid]}" }
                         regionNucSeq.seq()
                     }

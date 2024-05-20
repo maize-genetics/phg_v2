@@ -82,7 +82,8 @@ class FullPipelineIT {
         val createRanges = CreateRanges()
         val createRangesResult = createRanges.test("--gff ${TestExtension.smallseqAnchorsGffFile} --output ${TestExtension.testBEDFile} --reference-file ${TestExtension.smallseqRefFile}")
 
-        //Write fastas to testInputFastaDir, changing chromosome names for LineB
+        //Write fastas to testInputFastaDir, changing chromosome names for LineB in order to test
+        // that the full pipeline will work when assembly chromosome names are not all the same
         File(TestExtension.smallseqLineAFile).copyTo(File("${TestExtension.testInputFastaDir}LineA.fa"))
         getBufferedWriter("${TestExtension.testInputFastaDir}LineB.fa").use { fastaWriter ->
             getBufferedReader(TestExtension.smallseqLineBFile).use { fastaReader ->
