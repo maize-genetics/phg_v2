@@ -14,7 +14,6 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
-import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedWriter
@@ -281,14 +280,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             }
         }
 
-    }
-
-    private fun regionToString(region: Pair<Position,Position>): String {
-        return if (region.first.position <= region.second.position) {
-            "${region.first.contig}:${region.first.position - 1}-${region.second.position - 1}"
-        } else {
-            "${region.first.contig}:${region.second.position - 1}-${region.first.position - 1}"
-        }
     }
 
     private fun getAgcSequenceForRanges(ranges: List<String>): Map<Pair<String,String>, NucSeq> {
