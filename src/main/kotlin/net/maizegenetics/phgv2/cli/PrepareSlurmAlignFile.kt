@@ -12,6 +12,9 @@ import java.io.File
  * It  takes as input a list of assemblies, a reference genome, a reference gff file and the reference cds fasta
  * aligned sam file, created by the AlignAssemblies class.  The latter should have been created via
  * align-assemblies with the just-ref-prep option.
+ *
+ * What is needed beyond this is taking the slurm command file and verifying it can be run in a slurm job.
+ * That will not be done in a junit test - needs to happen on scinet.
  */
 
 class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning assemblies in a slurm data array job") {
@@ -62,11 +65,19 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
             }
         }
 
-    val outputFile by option("-o", "--output-file", help = "Full path and name for a file where the individual align-assembly commands will be printed")
+    val slurmCommandFile by option( help = "Full path and name for a file where the individual align-assembly commands will be printed")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--output-file must not be blank"
+                "--slurm-command-file must not be blank"
+            }
+        }
+
+    val outputDir by option("-o", "--output-dir", help = "Directory where temporary and final files from anchorwave alignment will be written")
+        .default("")
+        .validate {
+            require(it.isNotBlank()) {
+                "--output-dir must not be blank"
             }
         }
 
@@ -94,7 +105,21 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
     override fun run() {
         // This method creates the files needed for aligning assemblies in a slurm data array job.
         // For each assembly in the list, add an entry to the slurm data array job file that calls align-assemblies clikt command
-        TODO("Not yet implemented")
+        // THis is implemented in the createSlrumDatArrayJobFile() function
+        println("PrepareSlurmALignFile: in run, calling createSlurmDataArrayJobFile")
+        createSlurmDataArrayJobFile(
+            gff,
+            referenceFile,
+            referenceCdsSam,
+            referenceCdsFasta,
+            assemblies,
+            slurmCommandFile,
+            outputDir,
+            totalThreads,
+            inParallel,
+            refMaxAlignCov,
+            queryMaxAlignCov
+        )
     }
 
     // This method creates the files needed for aligning assemblies in a slurm data array job.
@@ -111,7 +136,8 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
         referenceCdsSam: String,
         referenceCdsFasta: String,
         assemblies: String,
-        outputFile: String,
+        slurmCommandFile: String,
+        outputDir:String,
         totalThreads: Int,
         inParallel: Int,
         refMaxAlignCov: Int,
@@ -119,16 +145,16 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
     ) {
         // This method creates the file needed for aligning assemblies in a slurm data array job.
         // For each assembly in the list, add an entry to the slurm data array job file that calls align-assemblies clikt command
-        //TODO()
 
         // Create a list of assemblies
         val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
-        val writer = File(outputFile).bufferedWriter()
+        val writer = File(slurmCommandFile).bufferedWriter()
         // for each assembly in the list, write a line to the file that calls the align-assemblies command
         // We use the parameters supplied to this function as the parameters for the align-assemblies command,
         assembliesList.forEach {
             // THis might now be correct - check copilots' parameters.
-            writer.write("phg align-assemblies -gff $gff -reference-file $referenceFile -reference-cds-sam $referenceCdsSam -reference-cds-fasta $referenceCdsFasta -assembly $it -total-threads $totalThreads -in-parallel $inParallel -ref-max-align-cov $refMaxAlignCov -query-max-align-cov $queryMaxAlignCov\n")
+            writer.write("phg align-assemblies --gff $gff --output-dir $outputDir --reference-file $referenceFile --reference-sam $referenceCdsSam --reference-cds-fasta $referenceCdsFasta --assembly-file $it --total-threads $totalThreads --in-parallel $inParallel --ref-max-align-cov $refMaxAlignCov --query-max-align-cov $queryMaxAlignCov\n")
         }
+        writer.close()
     }
 }
