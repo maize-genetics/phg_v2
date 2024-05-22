@@ -69,7 +69,7 @@ In this document, we will discuss the steps needed to:
         --reference-file /my/ref.fasta \
         --gvcf-dir /my/gvcf/files 
   
-    # Hvcf from PHG created gVCF
+    # hVCF from PHGv1 created gVCF (OPTIONAL)
     phg gvcf2hvcf \
         --db-path /path/to/dbs \
         --bed /path/to/bed_file.bed \
@@ -406,10 +406,9 @@ The `prepare-assemblies` command has two goals:
 1. Copy the FASTAs to a new file whose name is changed to be 
    `<sample name>.fa`.
 2. Add a sample name tag (e.g., `sampleName=`) to the id lines of the 
-   FASTA file. **These 
-   updated assembly FASTA files should be used as input to both the 
-   `agc-compress` step and the `align-assemblies` step.** This ensures 
-   consistent sample names across the pipeline.
+   FASTA file. **These updated assembly FASTA files should be used as 
+   input to both the `agc-compress` step and the `align-assemblies`
+   step.** This ensures consistent sample names across the pipeline.
 
 To better explain the first goal, let's use an example. A file named 
 `Zm-CML52-NAM-1.0.fa` would be copied to a new one named `CML52.fa`. 
@@ -975,12 +974,14 @@ phg create-maf-vcf \
     --bed output/ref_ranges.bed \
     --reference-file output/updated_assemblies/Ref.fa \
     --maf-dir output/alignment_files \
-    -o output/vcf_files
+    -o output/vcf_files \
+    --metrics-file output/vcf_files/VCFMetrics.tsv \
+    --skip-metrics
 ```
 
-3. (_**Optional**_) Create hVCF from existing PHG created gVCF files. 
-   Use instead of create-maf-vcf if you have previously created gVCF files 
-   from PHG and want to create hVCF files:
+3. **(OPTIONAL!)** Create hVCF from existing PHGv1 created gVCF files. 
+   Use instead of create-maf-vcf if you have previously created gVCF 
+   files from PHGv1 and want to create hVCF files:
 
 ```shell
 phg gvcf2hvcf \
@@ -1078,6 +1079,11 @@ The `create-maf-vcf` command requires the following inputs:
   [**"Align assemblies"**](#align-assemblies) section for further 
   details_).
 * `-o` - Output directory for the VCF data.
+* `--metrics-file` - Name of the output file for the VCF metrics table
+    if left blank, the table will be written to the output directory
+    and will be named `VCFMetrics.tsv`. See the QC metrics documentation
+    for details.
+* `--skip-metrics` - If this flag is set, QC metrics will not be calculated
 
 > [!WARNING]
 > The directory that you specify in the output (`-o`) section must
@@ -1098,7 +1104,12 @@ of different file types for each sample:
 Here, `<sample_name>` would be the name of each sample that was
 aligned to the reference genome.
 
-#### `gvcf2hvcf` inputs (_optional_)
+#### `gvcf2hvcf` inputs (OPTIONAL!)
+
+> [!NOTE]
+> The `gvcf2hvcf` command should only be used if you have preexisting
+> gVCF data created from historic PHGv1 steps!
+
 The `gvcf2hvcf` command requires the following inputs:
 
 * `--db-path` - Path to the directory containing the TileDB
@@ -1186,5 +1197,5 @@ This command takes three parameters:
 
 
 ### Where to go from here?
-
+* [QC Metrics](qc_metrics.md)
 * [Imputation and Path Finding](imputation.md)
