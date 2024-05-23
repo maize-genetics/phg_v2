@@ -83,7 +83,6 @@ class AlignmentUtils {
 
 
             val rangeToBitSetMap = mutableMapOf<ReferenceRange, BitSet>()
-            val kmerHashMap = Long2LongOpenHashMap()
             val kmerToRefRangeAndOffsetMap = Long2ObjectOpenHashMap<MutableList<RefRangeOffset>>()
             var lineCount = 0
             var totalLineCount = 0
@@ -140,8 +139,6 @@ class AlignmentUtils {
                                     offsetList.add(RefRangeOffset(refrange, offset))
                                 }
 
-
-//                                kmerHashMap.put(hash, offset)
                             }
                         }
 
@@ -152,7 +149,6 @@ class AlignmentUtils {
                 }
             }
 
-//            return KmerMapData(rangeToBitSetMap, kmerHashMap)
             //convert kmerToRefRangeAndOffsetMap to be immutable
             val immutableKmerToRefRangeMap = Long2ObjectOpenHashMap<List<RefRangeOffset>>()
             for(key in kmerToRefRangeAndOffsetMap.keys) {
@@ -280,7 +276,6 @@ class AlignmentUtils {
             sortedLists: SendChannel<List<String>>,
             minProportionOfMaxCount: Double = 1.0,
             minSameReferenceRange: Double = 0.9,
-//            kmerHashOffsetMap: Long2LongOpenHashMap,
             kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
             refrangeToBitSet: Map<Int, BitSet>,
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>
@@ -327,7 +322,6 @@ class AlignmentUtils {
             read: String,
             minProportionOfMaxCount: Double = 1.0,
             minSameReferenceRange: Double = 0.9,
-//            kmerHashOffsetMap: Long2LongOpenHashMap,
             kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
             refrangeToBitSet: Map<Int, BitSet>,
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>
@@ -352,6 +346,7 @@ class AlignmentUtils {
 
             //all hapids should be from the same reference range,
             //but if some are not then only those from the majority reference range should be used, so...
+            //TODO Make this work with multiple reference ranges
             val filteredHapidList = hapidsFromOneReferenceRange(rangeToHapidMap, minSameReferenceRange)
 
             //count the hapids
