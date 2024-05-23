@@ -191,17 +191,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                     when {
                         //if hash count >= numberOfHaplotype add it to the discard set
                         hashCount.value >= maxHaplotypes ->  {
-//                            if (runDiagnostics) {
-//                                val hapidRefranges = hapidToRefrangeMap[keepMap[hashValue]!!.first()]?: emptyList()
-//
-//                                for(hapidRefrange in hapidRefranges) {
-//                                    val wasPreviousRange = refRangeToIndexMap[refrange] == ((refRangeToIndexMap[hapidRefrange] ?: -2) + 1)
-//                                    if (wasPreviousRange) {
-//                                        val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
-//                                        refrangeToAdjacentHashCount[refrange] = oldCount + 1
-//                                    }
-//                                }
-//                            }
+                            if(keepMap.containsKey(hashValue)) {
+                                keepMap.remove(hashValue)
+                            }
                             discardSet.add(hashValue)
                         }
                         //if the hash is already in the keepSet, it has been seen in a previous reference range
@@ -211,16 +203,19 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                             val hapIdSet = keepMap.remove(hashValue)
 
                             if (runDiagnostics) {
-//                                val hapidRefranges = hapidToRefrangeMap[keepMap[hashValue]!!.first()]?: emptyList()
-//
-//                                for(hapidRefrange in hapidRefranges) {
-//                                    val wasPreviousRange = refRangeToIndexMap[refrange] == ((refRangeToIndexMap[hapidRefrange] ?: -2) + 1)
-//                                    if (wasPreviousRange) {
-//                                        val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
-//                                        refrangeToAdjacentHashCount[refrange] = oldCount + 1
-//                                    }
-//                                }
-
+                                val hapidRefrangeIndexSet = hapIdSet.mapNotNull { hapidToRefrangeMap[it] }.flatten()
+                                    .map { refRangeToIndexMap[it] }.toSet()
+                                val wasPreviousRange = hapidRefrangeIndexSet.contains((refRangeToIndexMap[refrange] ?: 0)  - 1)
+                                if (wasPreviousRange) {
+                                    val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
+                                    refrangeToAdjacentHashCount[refrange] = oldCount + 1
+                                }
+                            }
+                            discardSet.add(hashValue)
+                        }
+                        keepMap.containsKey(hashValue) && (keepMap[hashValue].size + longToHapIdMap[hashValue]!!.size) <= maxHapsToKeep -> {
+                            val hapIdSet = keepMap[hashValue]
+                            if (runDiagnostics) {
                                 val hapidRefrangeIndexSet = hapIdSet.mapNotNull { hapidToRefrangeMap[it] }.flatten()
                                     .map { refRangeToIndexMap[it] }.toSet()
                                 val wasPreviousRange = hapidRefrangeIndexSet.contains((refRangeToIndexMap[refrange] ?: 0)  - 1)
@@ -230,26 +225,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                                 }
                             }
 
-//=======
-//                        keepMap.containsKey(hashValue) -> {
-//                            val hapidSet = keepMap.remove(hashValue)
-//                            if (runDiagnostics) {
-//                                //check whether kmer was seen in previous refrange
-//                                //hapidRefrangeIndexSet is the set of refrange indices of the refranges contain the hapids in hapidSet
-//                                //that is the refranges that contain this kmer (mostly but not always a single refrange)
-//                                val hapidRefrangeIndexSet = hapidSet.mapNotNull { hapidToRefrangeMap[it] }.flatten()
-//                                    .map { refRangeToIndexMap[it] }.toSet()
-//                                val wasPreviousRange = hapidRefrangeIndexSet.contains((refRangeToIndexMap[refrange] ?: 0)  - 1)
-//                                if (wasPreviousRange) {
-//                                    val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
-//                                    refrangeToAdjacentHashCount[refrange] = oldCount + 1
-//                                }
-//                            }
-//>>>>>>> main
-                            discardSet.add(hashValue)
-                        }
-                        keepMap.containsKey(hashValue) && (keepMap[hashValue].size + longToHapIdMap[hashValue]!!.size) <= maxHapsToKeep -> {
+
                             keepMap[hashValue] = keepMap[hashValue]!!.union(longToHapIdMap[hashValue]!!)
+
                         }
                         else -> {
                             keepMap[hashValue] = longToHapIdMap[hashValue]
