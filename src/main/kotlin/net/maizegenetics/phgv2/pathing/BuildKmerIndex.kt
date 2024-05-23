@@ -167,17 +167,36 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                 for (hapid in hapidToSampleMap.keys) {
                     //checked for altHeader existence already
                     val altHeader = graph.altHeader(hapid)!!
+
                     val sequenceList = altHeader.regions.map { region ->
-                        val inThisChrom = region.first.contig == chr
-                        if (inThisChrom) {
-                            //translate from 1-based Position to 0-based nucseq coordinates
-                            val seqRange = if (region.first.position <= region.second.position) (region.first.position - 1..region.second.position - 1)
-                            else (region.second.position - 1..region.first.position - 1)
-                            agcChromSequence[Pair(altHeader.sampleName(), chr)]?.get(seqRange)?.seq() ?:""
-                        } else {
-                            agcOtherRegionSequence[Pair(altHeader.sampleName(), regionToString(region))]?.seq() ?:""
+                        //Regions need to be corrected for any inversions. That is, when requesting sequence
+                        // make sure that  range.start < range.end.
+                        // Note that agc positions are 1-based but nucseq positions are 0-based.
+                        // Because chromosome names can vary between assemblies, for any given assembly
+                        // the chromosome name in agcChromSequence may be specific to that assembly.
+                        // To deal with that, first check whether a needed sampleName, contig is in agcChromSequence.
+                        // If so, use that. If not, get the sequence from afcOtherRegionSequence
+
+                        //when requesting from agc, use this range
+                        val seqRangeStr =
+                            if (region.first.position <= region.second.position) "${region.first.position}-${region.second.position}"
+                            else "${region.second.position}-${region.first.position}"
+                        //when requesting from a NucSeq use this range
+                        val nucseqRange =
+                            if (region.first.position <= region.second.position) (region.first.position - 1..<region.second.position)
+                            else (region.second.position - 1..<region.first.position)
+
+                        val contigNuqseq = agcChromSequence[Pair(altHeader.sampleName(), region.first.contig)]
+
+                        val regionNucSeq = if (contigNuqseq != null) contigNuqseq[nucseqRange] else {
+                            agcOtherRegionSequence[Pair(altHeader.sampleName(), "${region.first.contig}:$seqRangeStr")]
                         }
+
+                        //regionNucSeq should always be found. If it is not, throw an error because something has gone wrong somewhere.
+                        check(regionNucSeq != null) { "No sequence for ${altHeader.sampleName()} at ${region.first.contig}:$seqRangeStr; hapid $hapid, sample ${hapidToSampleMap[hapid]}" }
+                        regionNucSeq.seq()
                     }
+
                     hapidToSequencMap[hapid] = sequenceList
                 }
 
@@ -196,6 +215,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                             }
                             discardSet.add(hashValue)
                         }
+
                         //if the hash is already in the keepSet, it has been seen in a previous reference range
                         //was this hash seen in the range immediately preceeding this one?
                         // so, remove it from the keep set and add it to the discard set
@@ -239,7 +259,12 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         }
         myLogger.debug("Finished building kmer keep set, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
-
+        //make sure no hashes in the keepMap are also in discard
+        var numberInDiscardSet = 0
+        for (element in keepMap.long2ObjectEntrySet()) {
+            if (discardSet.contains(element.longKey)) numberInDiscardSet++
+        }
+        myLogger.info("$numberInDiscardSet kmers in the keepMap are also in the discardSet.")
         return keepMap
     }
 
@@ -273,14 +298,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             }
         }
 
-    }
-
-    private fun regionToString(region: Pair<Position,Position>): String {
-        return if (region.first.position <= region.second.position) {
-            "${region.first.contig}:${region.first.position - 1}-${region.second.position - 1}"
-        } else {
-            "${region.first.contig}:${region.second.position - 1}-${region.first.position - 1}"
-        }
     }
 
     private fun getAgcSequenceForRanges(ranges: List<String>): Map<Pair<String,String>, NucSeq> {
@@ -567,6 +584,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                     val regions = altheader.regions
 
                     //for each range in region, that range is added to regionsMap for the sample
+                    //agc requests are 1-based positions, so the region positions are correct
                     for (region in regions) {
                         val rangeSet = regionsMap.getOrPut(region.first.contig) { mutableSetOf() }
                         val rangeStr = if (region.first.position <= region.second.position) "${region.first.position}-${region.second.position}"

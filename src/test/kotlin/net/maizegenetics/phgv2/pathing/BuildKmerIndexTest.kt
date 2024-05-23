@@ -149,11 +149,24 @@ class BuildKmerIndexTest {
         //copy hvcf files to temp directory,
         // include the ref hvcf to test what happens when samples have no haplotype in some ref range
         File(tempHvcfDir).listFiles().forEach { file -> file.delete()}
-        listOf(TestExtension.smallseqLineAHvcfFile,TestExtension.smallseqLineBHvcfFile, TestExtension.smallseqRefHvcfFile)
+        listOf(TestExtension.smallseqLineAHvcfFile,TestExtension.smallseqRefHvcfFile)
             .forEach { hvcfFile ->
             val dst = File("$tempHvcfDir${File(hvcfFile).name}")
             if (!dst.exists()) {
                 File(hvcfFile).copyTo(dst)
+            }
+        }
+
+        //reverse one of the alt headers in LineB hvcf, in order to cover lines testing for inverted sequence in the alt header
+        getBufferedReader(TestExtension.smallseqLineBHvcfFile).use { hvcfReader ->
+            getBufferedWriter("${tempHvcfDir}LineB.h.vcf").use { hvcfWriter ->
+                var inputLine = hvcfReader.readLine()
+                while (inputLine != null) {
+                    val outputLine = inputLine.replace("Regions=1:28501-33000","Regions=1:33000-28501")
+                    hvcfWriter.write(outputLine)
+                    hvcfWriter.write("\n")
+                    inputLine = hvcfReader.readLine()
+                }
             }
         }
 
