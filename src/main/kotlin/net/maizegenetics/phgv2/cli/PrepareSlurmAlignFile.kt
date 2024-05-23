@@ -34,7 +34,8 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
             }
         }
 
-    val referenceCdsSam by option(help = "Full path to reference SAM file created by AlignAssemblies class when the just-ref-prep option is used")
+    val referenceCdsSam by option(help = "Full path to reference SAM file created by align-assemblies command when the just-ref-prep option is used." +
+    "This is the SAM file created when aligning the reference fasta to the reference CDS regions.")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -85,15 +86,6 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
         .int()
         .default(1)
 
-    val inParallel by option(
-        help = "Number of assemblies to simultaneously process. " +
-                "If you have 10 threads and the in-parallel value is 2, then 2 assemblies will be aligned at a time, each using 5 threads." +
-                "The anchorwave application can take up to 30G per thread for each assembly processed, plus some overhead." +
-                "Consider this memory factor when providing values for the total-threads and in-parallel."
-    )
-        .int()
-        .default(1)
-
     val refMaxAlignCov by option(help = "Anchorwave proali parameter R, indicating reference genome maximum alignment coverage.")
         .int()
         .default(1)
@@ -116,7 +108,7 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
             slurmCommandFile,
             outputDir,
             totalThreads,
-            inParallel,
+            1, // default for in-paralel as there is only one assembly per line
             refMaxAlignCov,
             queryMaxAlignCov
         )
@@ -152,7 +144,8 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
         // for each assembly in the list, write a line to the file that calls the align-assemblies command
         // We use the parameters supplied to this function as the parameters for the align-assemblies command,
         assembliesList.forEach {
-            // THis might now be correct - check copilots' parameters.
+            // THis might not be correct - check copilots' parameters.
+            // TODO: Should I even have in-parallel and total-threads as parameters?
             writer.write("phg align-assemblies --gff $gff --output-dir $outputDir --reference-file $referenceFile --reference-sam $referenceCdsSam --reference-cds-fasta $referenceCdsFasta --assembly-file $it --total-threads $totalThreads --in-parallel $inParallel --ref-max-align-cov $refMaxAlignCov --query-max-align-cov $queryMaxAlignCov\n")
         }
         writer.close()
