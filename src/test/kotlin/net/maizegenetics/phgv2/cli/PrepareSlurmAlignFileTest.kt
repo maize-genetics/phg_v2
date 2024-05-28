@@ -39,10 +39,11 @@ class PrepareSlurmAlignFileTest {
         val refCDSfasta = TestExtension.smallseqRefFile
         val refCDSSam = TestExtension.smallseqRefFile
         val assembliesList = TestExtension.smallseqAssembliesListFile
+        val slurmCommandFile = "${TestExtension.tempDir}/slurm_align.sh"
 
         // Test missing gff parameter
         // LCJ - this needs ALL the parameters except gff or you get error message on all that are missing.
-        val resultMissingGFF = prepareAssemblies.test("--reference-file ${refFasta} --reference-cds-sam ${refSam} --reference-cds-fasta ${refCDSfasta} --assemblies ${assembliesList}")
+        val resultMissingGFF = prepareAssemblies.test("--reference-file ${refFasta} --reference-cds-sam ${refSam} --reference-cds-fasta ${refCDSfasta} --assemblies ${assembliesList} --slurm-command-file ${slurmCommandFile} -o ${TestExtension.tempDir} ")
         assertEquals(1, resultMissingGFF.statusCode )
         assertEquals("Usage: prepare-slurm-align-file [<options>]\n" +
                 "\n" +
@@ -100,8 +101,9 @@ class PrepareSlurmAlignFileTest {
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
                     "--reference-cds-sam ${refCDSsam} --reference-cds-fasta ${refCDSfasta} " +
                     "--slurm-command-file ${TestExtension.tempDir}/slurm_align.sh " +
-                    "--assemblies ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1"
+                    "--assemblies ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1"
         )
+
         // verify good result
         assertEquals(0, result.statusCode,  "status code not 0 for PrepareSlurmAlignFile: ${result.statusCode}")
 
