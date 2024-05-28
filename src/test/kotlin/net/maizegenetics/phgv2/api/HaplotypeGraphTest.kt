@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlin.test.fail
 
 @ExtendWith(TestExtension::class)
 class HaplotypeGraphTest {
@@ -107,10 +106,14 @@ class HaplotypeGraphTest {
         for (range in graph.ranges()) {
             val hapIdLineA = graph.sampleToHapId(range, SampleGamete("LineA"))
             val refRangeLineA = hapIdToRefRangeMap[hapIdLineA]
-            assertEquals(range, refRangeLineA, "hapIdToRefRangeMap does not contain correct range $refRangeLineA for LineA")
+            assertTrue(refRangeLineA != null, "$hapIdLineA does not map to a reference range")
+            assertEquals(1, refRangeLineA.size)
+            assertEquals(range, refRangeLineA[0], "hapIdToRefRangeMap does not contain correct range $refRangeLineA for LineA")
             val hapIdLineB = graph.sampleToHapId(range, SampleGamete("LineB"))
             val refRangeLineB = hapIdToRefRangeMap[hapIdLineB]
-            assertEquals(range, refRangeLineB, "hapIdToRefRangeMap does not contain correct range $refRangeLineB for LineB")
+            assertTrue(refRangeLineB != null, "$hapIdLineB does not map to a reference range")
+            assertEquals(1, refRangeLineB.size)
+            assertEquals(range, refRangeLineB[0], "hapIdToRefRangeMap does not contain correct range $refRangeLineB for LineB")
         }
     }
 

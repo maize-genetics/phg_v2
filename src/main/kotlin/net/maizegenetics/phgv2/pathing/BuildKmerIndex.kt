@@ -80,7 +80,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
     override fun run() {
         //build the haplotypeGraph
+        myLogger.info("Start of BuildKmerIndex...")
         val graph = buildHaplotypeGraph()
+
         val hashToHapidMap = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
 
         val kmerIndexFilename = if (indexFile == "") "${hvcfDir}/kmerIndex.txt" else indexFile
@@ -139,7 +141,11 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         for (chr in contigRangesMap.keys) {
             //get all sequence for this chromosome
             val agcRequestLists = rangeListsForAgcCommand(graph, contigRangesMap, chr)
-            val agcChromSequence = retrieveAgcContigs(dbPath, agcRequestLists.sampleContigList)
+            val agcChromSequence = if (agcRequestLists.sampleContigList.isNotEmpty()) {
+                myLogger.info("sampleContigList size = ${agcRequestLists.sampleContigList.size}, first element = ${agcRequestLists.sampleContigList[0]}")
+                retrieveAgcContigs(dbPath, agcRequestLists.sampleContigList)
+            }
+            else emptyMap()
             val agcOtherRegionSequence: Map<Pair<String,String>, NucSeq> = if (agcRequestLists.otherRegionsList.isNotEmpty()) getAgcSequenceForRanges(agcRequestLists.otherRegionsList)
             else emptyMap()
 
@@ -159,17 +165,36 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                 for (hapid in hapidToSampleMap.keys) {
                     //checked for altHeader existence already
                     val altHeader = graph.altHeader(hapid)!!
+
                     val sequenceList = altHeader.regions.map { region ->
-                        val inThisChrom = region.first.contig == chr
-                        if (inThisChrom) {
-                            //translate from 1-based Position to 0-based nucseq coordinates
-                            val seqRange = if (region.first.position <= region.second.position) (region.first.position - 1..region.second.position - 1)
-                            else (region.second.position - 1..region.first.position - 1)
-                            agcChromSequence[Pair(altHeader.sampleName(), chr)]?.get(seqRange)?.seq() ?:""
-                        } else {
-                            agcOtherRegionSequence[Pair(altHeader.sampleName(), regionToString(region))]?.seq() ?:""
+                        //Regions need to be corrected for any inversions. That is, when requesting sequence
+                        // make sure that  range.start < range.end.
+                        // Note that agc positions are 1-based but nucseq positions are 0-based.
+                        // Because chromosome names can vary between assemblies, for any given assembly
+                        // the chromosome name in agcChromSequence may be specific to that assembly.
+                        // To deal with that, first check whether a needed sampleName, contig is in agcChromSequence.
+                        // If so, use that. If not, get the sequence from afcOtherRegionSequence
+
+                        //when requesting from agc, use this range
+                        val seqRangeStr =
+                            if (region.first.position <= region.second.position) "${region.first.position}-${region.second.position}"
+                            else "${region.second.position}-${region.first.position}"
+                        //when requesting from a NucSeq use this range
+                        val nucseqRange =
+                            if (region.first.position <= region.second.position) (region.first.position - 1..<region.second.position)
+                            else (region.second.position - 1..<region.first.position)
+
+                        val contigNuqseq = agcChromSequence[Pair(altHeader.sampleName(), region.first.contig)]
+
+                        val regionNucSeq = if (contigNuqseq != null) contigNuqseq[nucseqRange] else {
+                            agcOtherRegionSequence[Pair(altHeader.sampleName(), "${region.first.contig}:$seqRangeStr")]
                         }
+
+                        //regionNucSeq should always be found. If it is not, throw an error because something has gone wrong somewhere.
+                        check(regionNucSeq != null) { "No sequence for ${altHeader.sampleName()} at ${region.first.contig}:$seqRangeStr; hapid $hapid, sample ${hapidToSampleMap[hapid]}" }
+                        regionNucSeq.seq()
                     }
+
                     hapidToSequencMap[hapid] = sequenceList
                 }
 
@@ -181,16 +206,24 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                     if (discardSet.contains(hashValue)) continue
 
                     when {
-                        //if hash count >= numberOfHaplotype add it to the discard set
-                        hashCount.value >= maxHaplotypes -> discardSet.add(hashValue)
+                        //if hash count >= numberOfHaplotype add it to the discard set and remove it from the keep map (if there)
+                        hashCount.value >= maxHaplotypes -> {
+                            discardSet.add(hashValue)
+                            keepMap.remove(hashValue)
+                        }
+
                         //if the hash is already in the keepSet, it has been seen in a previous reference range
                         //was this hash seen in the range immediately preceeding this one?
                         // so, remove it from the keep set and add it to the discard set
                         keepMap.containsKey(hashValue) -> {
                             val hapidSet = keepMap.remove(hashValue)
                             if (runDiagnostics) {
-                                val hapidRefrange = hapidToRefrangeMap[hapidSet.first()]
-                                val wasPreviousRange = refRangeToIndexMap[refrange] == ((refRangeToIndexMap[hapidRefrange] ?: -2) + 1)
+                                //check whether kmer was seen in previous refrange
+                                //hapidRefrangeIndexSet is the set of refrange indices of the refranges contain the hapids in hapidSet
+                                //that is the refranges that contain this kmer (mostly but not always a single refrange)
+                                val hapidRefrangeIndexSet = hapidSet.mapNotNull { hapidToRefrangeMap[it] }.flatten()
+                                    .map { refRangeToIndexMap[it] }.toSet()
+                                val wasPreviousRange = hapidRefrangeIndexSet.contains((refRangeToIndexMap[refrange] ?: 0)  - 1)
                                 if (wasPreviousRange) {
                                     val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
                                     refrangeToAdjacentHashCount[refrange] = oldCount + 1
@@ -208,7 +241,12 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         }
         myLogger.debug("Finished building kmer keep set, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
-
+        //make sure no hashes in the keepMap are also in discard
+        var numberInDiscardSet = 0
+        for (element in keepMap.long2ObjectEntrySet()) {
+            if (discardSet.contains(element.longKey)) numberInDiscardSet++
+        }
+        myLogger.info("$numberInDiscardSet kmers in the keepMap are also in the discardSet.")
         return keepMap
     }
 
@@ -242,14 +280,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             }
         }
 
-    }
-
-    private fun regionToString(region: Pair<Position,Position>): String {
-        return if (region.first.position <= region.second.position) {
-            "${region.first.contig}:${region.first.position - 1}-${region.second.position - 1}"
-        } else {
-            "${region.first.contig}:${region.second.position - 1}-${region.first.position - 1}"
-        }
     }
 
     private fun getAgcSequenceForRanges(ranges: List<String>): Map<Pair<String,String>, NucSeq> {
@@ -407,7 +437,12 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         hapidKmerHashMap.entries.forEachIndexed { index, entry ->
             //this line encodes a haplotype set (hapset)
-            for (hapid in entry.key) encodedHapSets.set(offset + hapidIndex[hapid]!!)
+            for (hapid in entry.key) {
+                val ndx = hapidIndex[hapid]
+                if (ndx == null) myLogger.warn("BuildKmerIndex.buildEncodedHapSetsAndHashOffsets: ndx = null for hapid = $hapid.")
+                else encodedHapSets.set(offset + ndx)
+            }
+
             //this line stores a pair of kmerHash, offset for each kmer mapping to this haplotype set
             for (kmerHash in entry.value) kmerHashOffsets.add(Pair(kmerHash, offset))
             offset += numberOfHaplotypesInRange
@@ -448,17 +483,26 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      */
     fun getRefRangeToKmerSetMap(
         kmerMapToHapIds: Long2ObjectOpenHashMap<Set<String>>,
-        hapIdToRefRangeMap: MutableMap<String, ReferenceRange>
+        hapIdToRefRangeMap: Map<String, List<ReferenceRange>>
     ): Map<ReferenceRange, Set<Long>> {
         val refRangeToKmerSetMap = mutableMapOf<ReferenceRange, MutableSet<Long>>()
         for (kmerMap in kmerMapToHapIds.long2ObjectEntrySet()) {
             val kmer = kmerMap.longKey
-            val currentRefRange = hapIdToRefRangeMap[kmerMap.value.first()]!!
+            val hapidSet = kmerMap.value
+
+            //use the most frequent reference range
+            //all the haplotype ids map to the same refrange
+            //rarely some kmers will map to additional ref ranges but not all
+            //the most frequent ReferenceRange will be the one used to create this hapid set
+            val referenceRangeList = hapidSet.mapNotNull { hapIdToRefRangeMap[it] }.flatten()
+            val referenceRangeCounts = referenceRangeList.groupingBy { it }.eachCount()
+            val currentRefRange = referenceRangeCounts.maxBy { it.value }.key
             if (refRangeToKmerSetMap.containsKey(currentRefRange)) {
                 refRangeToKmerSetMap[currentRefRange]!!.add(kmer)
             } else {
                 refRangeToKmerSetMap[currentRefRange] = mutableSetOf(kmer)
             }
+
         }
         return refRangeToKmerSetMap
     }
@@ -523,6 +567,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                     val regions = altheader.regions
 
                     //for each range in region, that range is added to regionsMap for the sample
+                    //agc requests are 1-based positions, so the region positions are correct
                     for (region in regions) {
                         val rangeSet = regionsMap.getOrPut(region.first.contig) { mutableSetOf() }
                         val rangeStr = if (region.first.position <= region.second.position) "${region.first.position}-${region.second.position}"

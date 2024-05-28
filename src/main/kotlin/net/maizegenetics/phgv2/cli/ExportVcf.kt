@@ -8,9 +8,16 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import htsjdk.variant.variantcontext.VariantContext
+import htsjdk.variant.variantcontext.writer.Options
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder
+import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.utils.verifyURI
+import net.maizegenetics.phgv2.utils.writeBedfileFromVcf
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.nio.file.Files
+import kotlin.io.path.absolutePathString
 
 
 // Enum indicating type of input for sample names
@@ -74,7 +81,21 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
     val outputDir by option("-o", "--outputDir", help = "Directory where temporary and final files will be written")
         .required()
 
+    val regionsFile by option(help = "A bedfile or vcf file containing the regions to be exported. Regions can be single base pair positions. File extension must be either .bed or .vcf.")
+        .default("")
+
     override fun run() {
+
+        //if using a regions file, the output vcfs can contain duplicate sequential reference blocks which need to be deleted
+        //in that case write the vcf files to a temp directory, then write the de-duped vcfs to the output.
+        //If a regions-file is specified, check for its existence
+        val workingOutputDirectory = if (regionsFile.isNotBlank()) {
+            require(File(regionsFile).exists()) {"$regionsFile does not exist."}
+            val tmpDir = Files.createTempDirectory("vcfOut").toFile()
+            tmpDir.deleteOnExit()
+            tmpDir
+        } else File(outputDir)
+
 
         val dbPath = if (dbPath.isBlank()) {
             System.getProperty("user.dir")
@@ -95,7 +116,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
 
         // Tiledbvcf can take either a file with samplenames, or a comma-separated list of sample names
         // setup the command based on user input type.
-        var command = if (samples.getExportCommand()[0] == SampleFormatEnum.FILE.toString()) arrayOf(
+        val command = if (samples.getExportCommand()[0] == SampleFormatEnum.FILE.toString()) mutableListOf(
             "conda",
             "run",
             "-n",
@@ -109,8 +130,8 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
             "--samples-file",
             samples.getExportCommand()[1],
             "--output-dir",
-            outputDir
-        ) else arrayOf(
+            workingOutputDirectory.absolutePath
+        ) else mutableListOf(
             "conda",
             "run",
             "-n",
@@ -124,11 +145,28 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
             "--sample-names",
             samples.getExportCommand()[1],
             "--output-dir",
-            outputDir
+            workingOutputDirectory.absolutePath
         )
 
+        if (regionsFile.isNotBlank()) {
+            when (File(regionsFile).extension) {
+                "vcf" -> {
+                    val tmpFilename = Files.createTempFile("tempBedfile", ".bed").absolutePathString()
+                    writeBedfileFromVcf(regionsFile, tmpFilename)
+                    command.add("--regions-file")
+                    command.add(tmpFilename)
+                }
 
-        val builder = ProcessBuilder(*command)
+                "bed" -> {
+                    command.add("--regions-file")
+                    command.add(regionsFile)
+                }
+
+                else -> throw IllegalArgumentException("Regions file $regionsFile must end in .bed or .vcf.")
+            }
+        }
+
+        val builder = ProcessBuilder(command)
 
         val redirectError = "$outputDir/export_${dtype}_error.log"
         val redirectOutput = "$outputDir/export_${dtype}_output.log"
@@ -141,6 +179,19 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         if (error != 0) {
             myLogger.error("tiledbvcf export for: $samples run via ProcessBuilder returned error code $error")
             throw IllegalStateException("Error running tiledbvcf export of dataset $dbPath/$dtype for: $samples. error: $error")
+        }
+
+        if (regionsFile.isNotBlank()) {
+            //get rid of duplicate reference blocks and write the resulting files to the output directory
+            val fileList = workingOutputDirectory.listFiles().filter { it.name.endsWith(".vcf") }
+            val finalOutputDirectory = File(outputDir)
+            for (tmpFile in fileList) {
+                val outputFile = finalOutputDirectory.resolve(tmpFile.name)
+                deleteDuplicateSequentialRefBlocks(tmpFile, outputFile)
+            }
+
+            //finished with the temporary workingOutputDirectory so delete it and contents
+            workingOutputDirectory.deleteRecursively()
         }
 
         val typeSamples = samples.getExportCommand()
@@ -169,4 +220,38 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
 
     }
 
+    private fun deleteDuplicateSequentialRefBlocks(inputVcf: File, outputVcf: File) {
+        VCFFileReader(inputVcf, false).use { vcfReader ->
+            val writer = VariantContextWriterBuilder()
+                .unsetOption(Options.INDEX_ON_THE_FLY)
+                .setOutputFile(outputVcf)
+                .setOutputFileType(VariantContextWriterBuilder.OutputType.VCF)
+                .setOption(Options.ALLOW_MISSING_FIELDS_IN_HEADER)
+                .build()
+
+            writer.writeHeader(vcfReader.header)
+
+            var previousContext: VariantContext? = null
+            for (varctxt in vcfReader) {
+                if (areVariantContextsDifferent(previousContext, varctxt)) {
+                    writer.add(varctxt)
+                    previousContext = varctxt
+                }
+            }
+
+            writer.close()
+
+        }
+    }
+
+    private fun areVariantContextsDifferent(vc1: VariantContext?, vc2: VariantContext?): Boolean {
+        return when {
+            vc1 == null -> true
+            vc2 == null -> true
+            vc1.contig != vc2.contig -> true
+            vc1.start != vc2.start -> true
+            vc2.end != vc2.end -> true
+            else -> false
+        }
+    }
 }

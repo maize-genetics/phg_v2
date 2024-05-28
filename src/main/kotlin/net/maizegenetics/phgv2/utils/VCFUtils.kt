@@ -2,11 +2,15 @@
 
 package net.maizegenetics.phgv2.utils
 
+import biokotlin.util.bufferedReader
 import htsjdk.variant.vcf.VCFAltHeaderLine
+import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeader
 import htsjdk.variant.vcf.VCFHeaderVersion
+import htsjdk.variant.vcf.VCFReader
 import net.maizegenetics.phgv2.api.SampleGamete
 import org.apache.logging.log4j.LogManager
+import java.nio.file.Paths
 
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.VCFUtils")
 
@@ -93,4 +97,19 @@ fun altHeaderMetadataToVCFHeaderLine(altHeaderData: AltHeaderMetaData, altHeader
         VCFHeaderVersion.VCF4_2
     )
 
+}
+
+/**
+ * Converts a VCF file to a bedfile containing the positions in the VCF.
+ */
+fun writeBedfileFromVcf(vcfName: String, bedName: String, bedfileHeader:String = "") {
+    val vcfReader = VCFFileReader(Paths.get(vcfName), false)
+    getBufferedWriter(bedName).use { bedWriter ->
+        if (bedfileHeader.isNotBlank()) bedWriter.write(bedfileHeader + "\n")
+
+        //subtract 1 from the start of each vcf feature to convert to bed format
+        for(varctxt in vcfReader) {
+            bedWriter.write("${varctxt.contig}\t${varctxt.start - 1}\t${varctxt.end}\n")
+        }
+    }
 }

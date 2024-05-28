@@ -43,7 +43,9 @@ Untar and add the wrapper script to your `PATH` variable. Detailed
 information about these steps can be found [here](docs/installation.md).
 ### Build and load data
 
-_Long-form documentation for this section can be found [here](docs/build_and_load.md)_
+_Long-form documentation for this section can be found 
+[here](docs/build_and_load.md). Additional information about **QC 
+metrics** can be found [here](docs/qc_metrics.md)._
 
 ```shell
 ## Setup conda environment
@@ -102,7 +104,6 @@ _Long-form documentation for this section can be found [here](docs/imputation.md
 ## Export from Tiledb
 ./phg export-vcf --db-path /my/db/uri --dataset-type hvcf --sample-Names LineA,LineB --output-dir /my/output/dir
 ```
-
 
 
 
@@ -169,6 +170,7 @@ More commonly used terms can be found [here](docs/terminology.md).
 4. [Export data](docs/export_data.md) (_**WIP**_) 🚧
 
 ### Reference
+* [QC metrics](docs/qc_metrics.md)
 * [hVCF format specifications](docs/hvcf_specifications.md)
 * [haplotype region handling](docs/hvcf_region_handling.md)
 * [PHGv2 terminology](docs/terminology.md)

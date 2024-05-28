@@ -36,6 +36,8 @@ class TestExtension : BeforeAllCallback {
         const val smallseqLineAHvcfFileBadAltTag = "${smallSeqInputDir}LineA_old_BadALTHeader.h.vcf"
         const val smallseqLineBHvcfFile = "${smallSeqInputDir}LineB.h.vcf"
         const val smallseqLineBHvcfFileBadAltTag = "${smallSeqInputDir}LineB_old_BadALTHeader.h.vcf"
+        const val smallSeqLineAPositionsVcf = "${smallSeqInputDir}LineAPositions.vcf"
+        const val smallSeqLineAPositionsBed = "${smallSeqInputDir}LineAPositions.bed"
 
         const val exportGraphDir = "data/test/exportGraph/"
         const val exportGraphSingleSample = "${exportGraphDir}testSingleSampleHaplotypeGraph.vcf"
