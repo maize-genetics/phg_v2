@@ -28,10 +28,10 @@ import kotlin.time.DurationUnit
 import kotlin.time.measureTimedValue
 
 /**
- * Creates a Map of 32-mer hash -> hapid list for the haplotypes in a HaplotypeGraph. Only hashes observed
- * in exactly one reference range will be kept. Also, hashes will be retained only if they map to at
- * most [maxHaplotypeProportion] * the number of haplotyes in a reference range. Only hashes that pass the filter
- * ((hashValue and [hashMask]) == [hashFilterValue]) will be considered. For example, setting [hashMask] = 3u and [hashFilterValue] = 1u
+ * Creates a Map of 32-mer hash -> hapid list for the haplotypes in a HaplotypeGraph. Hashes will be retained only if they map to at
+ * most [maxHaplotypeProportion] * the number of haplotyes in a reference range.  If a kmer is too repetitive(>2 * numSamples), the kmer will be purged.
+ * Only hashes that pass the filter ((hashValue and [hashMask]) == [hashFilterValue]) will be considered.
+ * For example, setting [hashMask] = 3u and [hashFilterValue] = 1u
  * only uses hashes from kmers ending in C. To filter on the final two positions set [hashMask] = 16u (0b1111).
  * [hashFilterValue] is based on the two bit encoding of nucleotides: A -> 0, C -> 1, G -> 2, T -> 3.
  * For example, the [hashFilterValue] for CG is 6u (0b0110).

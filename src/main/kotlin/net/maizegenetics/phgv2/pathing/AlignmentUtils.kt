@@ -22,8 +22,6 @@ import kotlin.math.min
 /**
  * data class to hold the KmerMap information.  From the PHGv1 source code:
  */
-//data class KmerMapData(val haplotypeListId: Int, val rangeToBitSetMap: Map<Int, BitSet>, val kmerHashToLongMap: Long2LongOpenHashMap)
-//data class KmerMapData(val rangeToBitSetMap: Map<ReferenceRange, BitSet>, val kmerHashToLongMap: Long2LongOpenHashMap)
 data class KmerMapData(val rangeToBitSetMap: Map<ReferenceRange, BitSet>, val kmerHashToLongMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>)
 
 data class RefRangeOffset(val refRange: ReferenceRange, val offset: Long)
