@@ -168,6 +168,7 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         .int()
         .default(1)
 
+
     data class InputChannelData(
         val refFasta: String,
         val asmFasta: String,
@@ -226,8 +227,13 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         val refSamOutFile = "${outputDir}/${samOutFile}"
 
         // For minimap2, we will use the number of processors available as the number of threads.
+//        val builder = ProcessBuilder(
+//            "conda", "run", "-n", "phgv2-conda", "minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
+//            "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile
+//        )
+
         val builder = ProcessBuilder(
-            "conda", "run", "-n", "phgv2-conda", "minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
+            "minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
             "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile
         )
         val redirectError = "$outputDir/minimap2Ref_error.log"
@@ -444,11 +450,23 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
 
         // val command = "anchorwave gff2seq -r ${refFasta} -i ${gffFile} -o ${cdsFasta} "
         // Need to set the conda environment here to access anchorwave
+//        val builder = ProcessBuilder(
+//            "conda",
+//            "run",
+//            "-n",
+//            "phgv2-conda",
+//            "anchorwave",
+//            "gff2seq",
+//            "-r",
+//            refFasta,
+//            "-i",
+//            gffFile,
+//            "-o",
+//            cdsFasta
+//        )
+
+
         val builder = ProcessBuilder(
-            "conda",
-            "run",
-            "-n",
-            "phgv2-conda",
             "anchorwave",
             "gff2seq",
             "-r",
@@ -537,11 +555,8 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
 
                 myLogger.info("alignAssembly: asmFileFull: ${assemblyEntry.asmFasta}, outputFile: $asmSamFile , threadsPerRun: ${assemblyEntry.threadsPerRun}")
 
+
                 val builder = ProcessBuilder(
-                    "conda",
-                    "run",
-                    "-n",
-                    "phgv2-conda",
                     "minimap2",
                     "-x",
                     "splice",
@@ -603,11 +618,37 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         // a GVCF keyfile from the maf keyfiles.  It will be understood that the maf
         // file name is <assemblyFastaNoExtension>.maf
         val outputFile = "${outputDir}/${justNameAsm}.maf"
+//        val builder = ProcessBuilder(
+//            "conda",
+//            "run",
+//            "-n",
+//            "phgv2-conda",
+//            "anchorwave",
+//            "proali",
+//            "-i",
+//            gffFile,
+//            "-r",
+//            refFasta,
+//            "-as",
+//            cdsFasta,
+//            "-a",
+//            asmSam,
+//            "-ar",
+//            refSam,
+//            "-s",
+//            asmFasta,
+//            "-n",
+//            anchorsproFile,
+//            "-R",
+//            refMaxAlignCov.toString(),
+//            "-Q",
+//            queryMaxAlignCov.toString(),
+//            "-t",
+//            threadsPerRun,
+//            "-o",
+//            outputFile
+//        )
         val builder = ProcessBuilder(
-            "conda",
-            "run",
-            "-n",
-            "phgv2-conda",
             "anchorwave",
             "proali",
             "-i",
@@ -633,6 +674,7 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
             "-o",
             outputFile
         )
+
 
         val redirectError = "${outputDir}/proali_${justNameAsm}_outputAndError.log"
         myLogger.info("redirectError: $redirectError")
