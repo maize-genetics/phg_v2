@@ -21,29 +21,52 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
       - name: Setup Miniconda
         uses: conda-incubator/setup-miniconda@v2
         with:
-          auto-activate-base: true
+          auto-activate-base: false
           activate-environment: ""
           miniconda-version: "latest"
-      - name: Run Conda
-        run: conda env create --solver=libmamba --file src/main/resources/phg_environment.yml && $(conda shell.bash hook) && conda activate phgv2-conda
+
+      - name: Initialize Conda
+        shell: bash -l {0}
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda init bash
+          conda config --set always_yes yes
+          conda update conda
+
+      - name: Create Conda environment
+        shell: bash -l {0}
+        run: conda env create --solver=libmamba --file src/main/resources/phg_environment.yml
+
+      - name: Activate Conda environment
+        shell: bash -l {0}
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate phgv2-conda
+
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
           distribution: temurin
           java-version: 17
           cache: 'gradle'
+
       - name: Update applications.conf
         run: src/scripts/update_applications_conf.sh
+
       - name: Build with Gradle
         run: ./gradlew clean build --no-daemon
+
       - name: Run Kover XML report
         run: ./gradlew koverXMLReport
+
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           files: build/reports/kover/report.xml
+
