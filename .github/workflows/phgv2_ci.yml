@@ -28,7 +28,7 @@ jobs:
           activate-environment: ""
           miniconda-version: "latest"
       - name: Run Conda
-        run: conda env create --solver=libmamba --file src/main/resources/phg_environment.yml
+        run: conda env create --solver=libmamba --file src/main/resources/phg_environment.yml && conda shell.bash hook && conda activate phgv2-conda
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
