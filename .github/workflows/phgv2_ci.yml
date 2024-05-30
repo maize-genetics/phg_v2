@@ -29,21 +29,15 @@ jobs:
           activate-environment: ""
           miniconda-version: "latest"
 
-      - name: Initialize Conda
-        shell: bash -l {0}
-        run: |
-          source $(conda info --base)/etc/profile.d/conda.sh
-          conda init bash
-
-      - name: Create Conda environment
-        shell: bash -l {0}
-        run: conda env create --solver=libmamba --file src/main/resources/phg_environment.yml
+      - name: Update Conda environment
+        run: conda env update --name base  --solver=libmamba --file src/main/resources/ghActions_environment.yml
 
       - name: Activate Conda environment
         shell: bash -l {0}
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
-          conda activate phgv2-conda
+          conda deactivate
+          conda activate base
 
       - name: Set up Java
         uses: actions/setup-java@v3
