@@ -263,7 +263,6 @@ class MapKmersTest {
             val unSeenHapIds = mutableSetOf<String>()
             unSeenHapIds.addAll(hapIds)
 
-            println("Kmer: $kmerHashLong")
             for((refRange,encodedOffset) in values) {
                 val (refRangeId, offset) = AlignmentUtils.decodeRangeIdAndOffset(encodedOffset)
                 println("\t$refRange $refRangeId $offset")
