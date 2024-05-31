@@ -233,9 +233,14 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
 //        )
 
         val builder = ProcessBuilder(
-            "minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
+            "conda", "run", "-p", "/Users/lcj34/opt/miniconda3/envs/phgv2-conda", "minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
             "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile
         )
+
+//        val builder = ProcessBuilder(
+//            "minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
+//            "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile
+//        )
         val redirectError = "$outputDir/minimap2Ref_error.log"
         val redirectOutput = "$outputDir/minimap2Ref_output.log"
         builder.redirectOutput(File(redirectOutput))
@@ -465,8 +470,11 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
 //            cdsFasta
 //        )
 
-
         val builder = ProcessBuilder(
+            "conda",
+            "run",
+            "-p",
+            "/Users/lcj34/opt/miniconda3/envs/phgv2-conda",
             "anchorwave",
             "gff2seq",
             "-r",
@@ -476,6 +484,18 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
             "-o",
             cdsFasta
         )
+
+
+//        val builder = ProcessBuilder(
+//            "anchorwave",
+//            "gff2seq",
+//            "-r",
+//            refFasta,
+//            "-i",
+//            gffFile,
+//            "-o",
+//            cdsFasta
+//        )
 
         val redirectOutput = "$outputDir/anchorwave_gff2seq_output.log"
         val redirectError = "$outputDir/anchorwave_gff2seq_error.log"
@@ -555,8 +575,11 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
 
                 myLogger.info("alignAssembly: asmFileFull: ${assemblyEntry.asmFasta}, outputFile: $asmSamFile , threadsPerRun: ${assemblyEntry.threadsPerRun}")
 
-
                 val builder = ProcessBuilder(
+                    "conda",
+                    "run",
+                    "-p",
+                    "/Users/lcj34/opt/miniconda3/envs/phgv2-conda",
                     "minimap2",
                     "-x",
                     "splice",
@@ -573,6 +596,24 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
                     "-o",
                     asmSamFile
                 )
+
+//                val builder = ProcessBuilder(
+//                    "minimap2",
+//                    "-x",
+//                    "splice",
+//                    "-t",
+//                    assemblyEntry.threadsPerRun.toString(),
+//                    "-k",
+//                    "12",
+//                    "-a",
+//                    "-p",
+//                    "0.4",
+//                    "-N20",
+//                    assemblyEntry.asmFasta,
+//                    cdsFasta,
+//                    "-o",
+//                    asmSamFile
+//                )
 
                 val redirectError = "${assemblyEntry.outputDir}/minimap2_${justName}_error.log"
                 val redirectOutput = "${assemblyEntry.outputDir}/minimap2_${justName}_output.log"
@@ -648,7 +689,12 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
 //            "-o",
 //            outputFile
 //        )
+
         val builder = ProcessBuilder(
+            "conda",
+            "run",
+            "-p",
+            "/Users/lcj34/opt/miniconda3/envs/phgv2-conda",
             "anchorwave",
             "proali",
             "-i",
@@ -674,6 +720,33 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
             "-o",
             outputFile
         )
+
+//        val builder = ProcessBuilder(
+//            "anchorwave",
+//            "proali",
+//            "-i",
+//            gffFile,
+//            "-r",
+//            refFasta,
+//            "-as",
+//            cdsFasta,
+//            "-a",
+//            asmSam,
+//            "-ar",
+//            refSam,
+//            "-s",
+//            asmFasta,
+//            "-n",
+//            anchorsproFile,
+//            "-R",
+//            refMaxAlignCov.toString(),
+//            "-Q",
+//            queryMaxAlignCov.toString(),
+//            "-t",
+//            threadsPerRun,
+//            "-o",
+//            outputFile
+//        )
 
 
         val redirectError = "${outputDir}/proali_${justNameAsm}_outputAndError.log"
