@@ -83,10 +83,20 @@ This command uses several parameters:
 
 > [!NOTE]
 > Make sure there is no whitespace between sample IDs. For example:
-> * `SampleA,SampleB` ✅
-> * `SampleA , SampleB` ❌
+> * `LineA,LineB` ✅
+> * `LineA , LineB` ❌
 
-Users may instead use the `--sample-file` parameter to specify a file that contains the sample names, one per line.
+Users may instead use the `--sample-file` parameter to specify a file 
+that contains the sample names, one per line. For example, if I have
+a text file called `sample_names.txt`, the contents of the file would
+look like the following:
+
+```
+LineA
+LineB
+```
+
+...and would be passed to the `export-vcf` command:
 
 ```shell
 phg export-vcf \
@@ -95,8 +105,34 @@ phg export-vcf \
   --sample-file sample_names.txt \
   -o output/hvcf_files
 ```
-If a --regions-file is specified, then only variants overlapping those positions will be exported. The regions-file
-must be either a bedfile or a vcf file and must have either a .bed or a .vcf extension.
+If input is specified for the `--regions-file` parameter, only 
+variants overlapping those positions will be exported. 
+The regions-file must be either a 
+[BED file](https://en.wikipedia.org/wiki/BED_(file_format)) or a 
+[VCF file](https://en.wikipedia.org/wiki/Variant_Call_Format), and 
+must have either a `.bed` or a `.vcf` extension.
+
+For example, if I want the regions from `1` to `5000` base pairs (bp) on
+chromosome 3 (in my case the ID would be `chr03`), I could make a BED 
+file:
+
+```
+chr03 0 5000
+```
+
+> [!NOTE]
+> BED files are 0-based, so plan accordingly!
+
+...or this could be a VCF file that contains a data line for `chr03`
+region information for the `CHROM`, `POS`, and
+`INFO` columns with the `INFO` column containing a `END` field. For
+example:
+
+```
+#CHROM  POS ID  REF ALT QUAL  FILTER  INFO  ...
+chr03   1   r1  A   T   50    PASS    END=5000
+```
+
 
 ### Create FASTA data
 While haplotype sequences are abstracted to MD5 hashes in hVCF
@@ -166,13 +202,11 @@ and data can be retrieved:
   $ curl http://localhost:8080/brapi/v2/samples
   ```
 
-* using the R package, `rPHG2`:
-
-  ```r
-  # Retrieving same data as prior cURL example
-  library(rPHG2)
-  
-  PHGServerCon("localhost", 8080) |> readSamples()
+  ```shell
+  # An example pointing to a composite hVCF file
+  $ curl http://localhost:8080/brapi/v2/variantsets
   ```
-  + Since `rPHG2` is its own library, more information about using
-    it can be found [here](https://maize-genetics.github.io/rPHG2/).
+
+* using the R package, `rPHG2`. Since this is a separate library,
+  more information about the library and retrieval methods can be
+  found [here](https://rphg2.maizegenetics.net/articles/rPHG2.html).
