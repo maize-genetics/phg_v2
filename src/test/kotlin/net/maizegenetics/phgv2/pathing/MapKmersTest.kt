@@ -735,6 +735,6 @@ class MapKmersTest {
 
         //Call AGCCompress to create the AGC file
         val agcCompress = AgcCompress()
-        agcCompress.processAGCFiles(dbPath,altFileListFile,"data/test/smallseq/Ref.fa")
+        agcCompress.processAGCFiles(dbPath,altFileListFile,"data/test/smallseq/Ref.fa","")
     }
 }

@@ -112,7 +112,7 @@ class AgcCompressTest {
         assertEquals(true, agcFile.exists())
 
         // Verify the samples in the agc file are as expected,
-        val agcInitialSampleList = agcCompress.getSampleListFromAGC(agcFile.toString(),"${dbPath}/temp")
+        val agcInitialSampleList = agcCompress.getSampleListFromAGC(agcFile.toString(),"${dbPath}/temp","")
         val initialSampleSet = listOf("LineA","LineB","Ref")
         assertEquals(true, agcInitialSampleList.containsAll(initialSampleSet))
 
@@ -130,11 +130,11 @@ class AgcCompressTest {
 
         // Verify the samples in both agc files are as expected,
         // do this using the agcCompress getSampleListFromAGC method
-        val agcSampleList = agcCompress.getSampleListFromAGC(agcFile.toString(),"${dbPath}/temp")
+        val agcSampleList = agcCompress.getSampleListFromAGC(agcFile.toString(),"${dbPath}/temp","")
         val sampleSetForAGC = listOf("LineA","LineB","LineC","Ref") // all files plus the file (LineC) that was appended
         assertEquals(true, agcSampleList.containsAll(sampleSetForAGC))
 
-        val agcBackupSampleList = agcCompress.getSampleListFromAGC(agcBackupFile.toString(),"${dbPath}/temp")
+        val agcBackupSampleList = agcCompress.getSampleListFromAGC(agcBackupFile.toString(),"${dbPath}/temp","")
         // Verify the agcBackupSampleLIst contains only the samples in fileList and does not
         // cantain the samples in appendFileList
         val sampleSetForBackup = listOf("LineA","LineB","Ref") // all files minus the file (LineC) that was appended
@@ -159,7 +159,7 @@ class AgcCompressTest {
 
         val agcCompress = AgcCompress()
          // "badOption" is not valid option, should return false
-        val success = agcCompress.loadAGCFiles(fastaList, "badOption",dbPath,refFasta, tempDir)
+        val success = agcCompress.loadAGCFiles(fastaList, "badOption",dbPath,refFasta, tempDir,"")
         assertEquals(false, success)
     }
 
