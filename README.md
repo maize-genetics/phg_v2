@@ -55,17 +55,17 @@ metrics** can be found [here](docs/qc_metrics.md)._
 ./phg initdb --db-path /path/to/dbs
 
 ## Preprocessing data
-./phg prepare-assemblies --keyfile /path/to/keyfile --output-dir /path/to/updated/fastas --threads numberThreadstoRun
+./phg prepare-assemblies --keyfile /path/to/keyfile --output-dir data/updated_assemblies --threads numberThreadstoRun
 
 ## Build VCF data
-./phg create-ranges --reference-file Ref.fa --gff my.gff --boundary gene --pad 500 --range-min-size 500 -o /path/to/bed/file.bed
-./phg align-assemblies --gff anchors.gff --reference-file Ref.fa -a assembliesList.txt --total-threads 20 --in-parallel 4 -o /path/for/generatedFiles
-./phg agc-compress --db-path /path/to/dbs --reference-file /my/ref.fasta --fasta-list /my/assemblyFastaList.txt 
-./phg create-ref-vcf --bed /my/bed/file.bed --reference-file /my/ref.fasta --reference-url https://url-for-ref --reference-name B73 --db-path /path/to/tiled/dataset folder
-./phg create-maf-vcf --db-path /path/to/dbs --bed /my/bed/file.bed --reference-file /my/ref.fasta --maf-dir /my/maf/files -o /path/to/vcfs
+./phg create-ranges --reference-file data/updated_assemblies/Ref.fa --gff my.gff --boundary gene --pad 500 --range-min-size 500 -o /path/to/bed/file.bed
+./phg align-assemblies --gff anchors.gff --reference-file data/updated_assemblies/Ref.fa -a assembliesList.txt --total-threads 20 --in-parallel 4 -o /path/for/generatedFiles
+./phg agc-compress --db-path /path/to/dbs --reference-file data/updated_assemblies/Ref.fa --fasta-list /my/assemblyFastaList.txt 
+./phg create-ref-vcf --bed /my/bed/file.bed --reference-file data/updated_assemblies/Ref.fa --reference-url https://url-for-ref --reference-name B73 --db-path /path/to/tiled/dataset folder
+./phg create-maf-vcf --db-path /path/to/dbs --bed /my/bed/file.bed --reference-file data/updated_assemblies/Ref.fa --maf-dir /my/maf/files -o /path/to/vcfs
 
 ## OPTIONAL: Convert GVCF to HVCF: use this instead of create-maf-vcf if you have GVCF files created by PHG, but do not have MAF or h.vcf files
-./phg gvcf2hvcf --bed /my/bin/file.bed --gvcf-dir /my/gvcf/dir --reference-file /my/ref.fasta --db-path /path/to/dbs
+./phg gvcf2hvcf --bed /my/bin/file.bed --gvcf-dir /my/gvcf/dir --reference-file data/updated_assemblies/Ref.fa --db-path /path/to/dbs
  
 ## Load data into DBs
 ./phg load-vcf --vcf /my/vcf/dir --dbpath /path/to/dbs
@@ -170,8 +170,9 @@ More commonly used terms can be found [here](docs/terminology.md).
 4. [Export data](docs/export_data.md) (_**WIP**_) 🚧
 
 ### Reference
-* [QC metrics](docs/qc_metrics.md)
-* [hVCF format specifications](docs/hvcf_specifications.md)
 * [haplotype region handling](docs/hvcf_region_handling.md)
+* [hVCF format specifications](docs/hvcf_specifications.md)
+* [Ktor server deployment](...) (_**WIP**_) 🚧
 * [PHGv2 terminology](docs/terminology.md)
 * [PHGv2 architecture](docs/img/architecture/phg_v2_architecture_20240411.svg)
+* [QC metrics](docs/qc_metrics.md)
