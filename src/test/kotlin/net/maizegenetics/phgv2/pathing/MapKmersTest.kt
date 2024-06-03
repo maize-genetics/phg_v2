@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.pathing
 import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.testing.test
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import net.maizegenetics.phgv2.api.HaplotypeGraph
@@ -252,26 +253,45 @@ class MapKmersTest {
 
         val refRangeIdToHapIdMap = graph.refRangeIdToHapIdMap()
 
-        //loop through the kmers in kmerHashToLong Map
-        loadedKmerMapData.kmerHashToLongMap.long2LongEntrySet().forEach { (kmerHash,encodedOffset) ->
+
+        loadedKmerMapData.kmerHashToLongMap.long2ObjectEntrySet().forEach {(kmerHash, values) ->
             val kmerHashLong = kmerHash.toLong()
             assertTrue(kmerMapToHapids.containsKey(kmerHashLong))
 
-            val (refRangeId, offset) = AlignmentUtils.decodeRangeIdAndOffset(encodedOffset)
-            //get the ref range so we can look up refRange -> HapId Index
-            val hapIdToIndexMap = refRangeIdToHapIdMap[refRangeId]!!
-
+            //Loop through the values and test the kmers keeping track of the hapIds which are not in any known refRange.
             val hapIds = kmerMapToHapids[kmerHashLong]!!
+            val unSeenHapIds = mutableSetOf<String>()
+            unSeenHapIds.addAll(hapIds)
 
-            val currentBitSet = loadedKmerMapData.rangeToBitSetMap[ranges[refRangeId]]!!
-            //check to make sure all hapIds are in HapIdToIndexMap
-            //We do not want to check the other direction as there are more hapIds in the graph than are hit by this kmer
-            hapIds.forEach { hapId ->
-                assertTrue(hapIdToIndexMap.containsKey(hapId))
-                //check the bitset at offset + hapIdToIndexMap[hapId] is true
-                val hapIndex = hapIdToIndexMap[hapId]!!
-                assertTrue(currentBitSet[hapIndex + offset])
+            for((refRange,encodedOffset) in values) {
+                val (refRangeId, offset) = AlignmentUtils.decodeRangeIdAndOffset(encodedOffset)
+                println("\t$refRange $refRangeId $offset")
+                //get the ref range so we can look up refRange -> HapId Index
+                val hapIdToIndexMap = refRangeIdToHapIdMap[refRangeId]!!
+
+                val hapIds = kmerMapToHapids[kmerHashLong]!!
+                println("\t\t$hapIds")
+
+                val currentBitSet = loadedKmerMapData.rangeToBitSetMap[ranges[refRangeId]]!!
+                //check to make sure all hapIds are in HapIdToIndexMap
+                //We do not want to check the other direction as there are more hapIds in the graph than are hit by this kmer
+                hapIds.forEach { hapId ->
+                    if(hapIdToIndexMap.containsKey(hapId)) {
+                        //check the bitset at offset + hapIdToIndexMap[hapId] is true
+                        val hapIndex = hapIdToIndexMap[hapId]!!
+                        assertTrue(currentBitSet[hapIndex + offset])
+                        unSeenHapIds.remove(hapId)
+                    }
+                }
             }
+
+            //Check to make sure all hapIds are seen
+            if(unSeenHapIds.isNotEmpty()) {
+                println("Error:")
+                println("Kmer: $kmerHashLong")
+                println("Unseen HapIds: $unSeenHapIds")
+            }
+            assertTrue(unSeenHapIds.isEmpty())
         }
     }
 
@@ -465,8 +485,8 @@ class MapKmersTest {
         val rangeToBitSetMap = mapOf(1 to bitSet, 2 to bitSet) //Can use the same bitset here
 
         val rangeToHapidIndexMap = mapOf(1 to mapOf("1" to 0, "2" to 1), 2 to mapOf("3" to 0, "4" to 1))
-
-        val kmerHashOffsetMap = Long2LongOpenHashMap()
+        
+        val kmerHashOffsetMap = Long2ObjectOpenHashMap<List<RefRangeOffset>>()
         //Build minKmers for the read and add them to the kmerHashOffsetMap
         var previousHash = Pair(0L, 0L)
 
@@ -496,11 +516,12 @@ class MapKmersTest {
         refRange1Kmers.forEachIndexed() { index, kmerHash ->
             val offset = (index % 3) * 2
 //            kmerHashOffsetMap[kmerHash] = (1.toLong() shl 32) or offset.toLong()
-            kmerHashOffsetMap[kmerHash] = (1.toLong() shl 32) or 2.toLong()
+//            kmerHashOffsetMap[kmerHash] = (1.toLong() shl 32) or 2.toLong()
+            kmerHashOffsetMap[kmerHash] = listOf(RefRangeOffset(ReferenceRange("1",1,100),(1.toLong() shl 32) or 2.toLong()))
         }
         refRange2Kmers.forEachIndexed() { index, kmerHash ->
             val offset = (index % 3) * 2
-            kmerHashOffsetMap[kmerHash] = (2.toLong() shl 32) or offset.toLong()
+            kmerHashOffsetMap[kmerHash] =listOf(RefRangeOffset(ReferenceRange("1",200,300), (2.toLong() shl 32) or offset.toLong()))
         }
 
         val hapIdsSameRefRange90 = AlignmentUtils.readToHapidSet(read, 1.0, .9, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
@@ -540,9 +561,10 @@ class MapKmersTest {
         val rangeToBitSetMap = mapOf(1 to bitSet)
 
 
-        val kmerHashOffsetMap = Long2LongOpenHashMap()
+//        val kmerHashOffsetMap = Long2LongOpenHashMap()
+        val kmerHashOffsetMap = Long2ObjectOpenHashMap<List<RefRangeOffset>>()
         //make some offsets  THey need to be 0, 2, 4
-        kmerHashOffsetMap[minHash] = (1.toLong() shl 32) or 4.toLong()
+        kmerHashOffsetMap[minHash] = listOf(RefRangeOffset(ReferenceRange("1",100,200),(1.toLong() shl 32) or 4.toLong()))
 
         val rangeToHapidIndexMap = mapOf(1 to mapOf("1" to 0, "2" to 1))
 
@@ -587,11 +609,18 @@ class MapKmersTest {
         //make kmer 3 map to set [1,2]
         val kmer3Hash = 3.toLong()
 
-        val kmerHashOffsetMap = Long2LongOpenHashMap()
+//        val kmerHashOffsetMap = Long2LongOpenHashMap()
+//        //make some offsets  THey need to be 0, 2, 4
+//        kmerHashOffsetMap[kmer1Hash] = (1.toLong() shl 32) or 0.toLong()
+//        kmerHashOffsetMap[kmer2Hash] = (1.toLong() shl 32) or 2.toLong()
+//        kmerHashOffsetMap[kmer3Hash] = (1.toLong() shl 32) or 4.toLong()
+
+
+        val kmerHashOffsetMap = Long2ObjectOpenHashMap<List<RefRangeOffset>>()
         //make some offsets  THey need to be 0, 2, 4
-        kmerHashOffsetMap[kmer1Hash] = (1.toLong() shl 32) or 0.toLong()
-        kmerHashOffsetMap[kmer2Hash] = (1.toLong() shl 32) or 2.toLong()
-        kmerHashOffsetMap[kmer3Hash] = (1.toLong() shl 32) or 4.toLong()
+        kmerHashOffsetMap[kmer1Hash] = listOf(RefRangeOffset(ReferenceRange("1",1,100),(1.toLong() shl 32) or 0.toLong()))
+        kmerHashOffsetMap[kmer2Hash] = listOf(RefRangeOffset(ReferenceRange("1",1,100),(1.toLong() shl 32) or 2.toLong()))
+        kmerHashOffsetMap[kmer3Hash] = listOf(RefRangeOffset(ReferenceRange("1",1,100),(1.toLong() shl 32) or 4.toLong()))
 
         val rangeHapidMap1 = AlignmentUtils.rangeHapidMapFromKmerHash(kmer1Hash, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
         assertEquals(1, rangeHapidMap1.size)
