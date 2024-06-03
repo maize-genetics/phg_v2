@@ -123,7 +123,7 @@ class LoadVCFTest {
         val dbPath = "${TestExtension.testTileDBURI}"
         // make the dbPath directory if it does not exist
         File(dbPath).mkdirs()
-        Initdb().createDataSets(dbPath)
+        Initdb().createDataSets(dbPath,"")
 
         // verify the dbPath directory exists with subdirectories hvcf_dataset and gvcf_dataset
         val dbDir = File(dbPath)

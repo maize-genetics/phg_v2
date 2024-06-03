@@ -512,7 +512,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
 
         val ranges = metaDataToRangeLookup.flatMap { it.second }
 
-        val seqs = retrieveAgcContigs(dbPath,ranges)
+        val seqs = retrieveAgcContigs(dbPath,ranges,"")
 
         return metaDataToRangeLookup.map { it.first.copy(asmSeq = buildSeq(seqs,it.third,it.first)) } //This is a useful way to keep things immutable
     }

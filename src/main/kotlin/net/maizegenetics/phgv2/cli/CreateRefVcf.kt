@@ -222,11 +222,11 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
 
             // Create the tiledb datasets if they don't exist
             File(dbPath).mkdirs()
-            Initdb().createDataSets(dbPath)
+            Initdb().createDataSets(dbPath,"")
 
             // Load the Ref hvcf file to tiledb
             val loadVcf = LoadVcf()
-            loadVcf.loadVcfFiles(tiledbHvcfDir,dbPath) // default the threads to "1" for the ref.
+            loadVcf.loadVcfFiles(tiledbHvcfDir,dbPath,"") // default the threads to "1" for the ref.
 
             // Store the bed file and the reference fasta file to the dbPath/reference folder
             // Create the dbPath/reference folder if it doesn't exist
