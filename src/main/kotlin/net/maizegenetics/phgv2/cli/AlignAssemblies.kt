@@ -1,15 +1,18 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.options.default
-import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
+import com.github.ajalt.clikt.parameters.groups.required
+import com.github.ajalt.clikt.parameters.groups.single
+import com.github.ajalt.clikt.parameters.options.*
 import com.github.ajalt.clikt.parameters.types.int
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import net.maizegenetics.phgv2.pathing.KeyFileData
+import net.maizegenetics.phgv2.pathing.PathInputFile
 import org.apache.logging.log4j.LogManager
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.toMap
@@ -21,7 +24,6 @@ import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 import org.jetbrains.letsPlot.letsPlot
 import org.jetbrains.letsPlot.scale.scaleColorManual
-import org.jetbrains.letsPlot.scale.scaleColorViridis
 import org.jetbrains.letsPlot.scale.scaleXContinuous
 import org.jetbrains.letsPlot.scale.scaleYContinuous
 import java.io.File
@@ -36,6 +38,16 @@ import javax.management.ObjectName
  * chromosome fusion or whole genome duplication.  After
  * aligning, a dot plot is created showing the alignment,
  * with the file stored in PNG format to the output directory.
+ *
+ * This function is refactored to allow easier running on systems
+ * using SLURM functionality.  Two new parameters are added:
+ * 1. justRef: if true, only the creation of the reference CDS file
+ *     and subsequent aligning of the reference fasta to that file
+ *     is performed.  These files should be saved by the user for
+ *     use with a slurm script
+ * 2.  slurm:  If true, a text file is created with separate individual
+ *     lines containing the commands to run anchorwave for each assembly,
+ *     using the created reference CDS fasta.
  *
  * This function allows for multiple assembly alignments to be run
  * in parallel.  Users may specify number of alignments to run in parallel
@@ -66,9 +78,34 @@ import javax.management.ObjectName
  *  alignments, each using 5 threads.
  *
  */
+
+sealed class AssemblyList {
+    abstract fun getAssemblyFiles(): List<String>
+    data class AssemblyFile(val assembly: String): AssemblyList() {
+        @Override
+        override fun getAssemblyFiles(): List<String> {
+            check(File(assembly).exists()) { "Assembly file $assembly does not exist." }
+            return listOf(assembly)
+        }
+    }
+
+    data class AssemblyFileList(val file:String): AssemblyList() {
+        @Override
+        override fun getAssemblyFiles(): List<String> {
+            check(File(file).exists()) { "Assembly file $file does not exist." }
+            val assemblyNames = File(file).bufferedReader().readLines().filter { it.isNotBlank() }
+            return assemblyNames
+        }
+    }
+}
 class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files using AnchorWave. ") {
 
     private val myLogger = LogManager.getLogger(AlignAssemblies::class.java)
+
+    val justRefPrep by option("--just-ref-prep", help = "If this flag is set, run reference align to gff CDS, skip assembly alignments, store the created files in the user provided output dir.")
+        .switch(
+            "--just-ref-prep" to true
+        ).default(false)
 
     val gff by option(help = "Full path to the reference gff file")
         .default("")
@@ -86,17 +123,21 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
             }
         }
 
-    val assemblies by option(
-        "-a",
-        "--assemblies",
-        help = "File containing list of assemblies to align, 1 per line, full path to updated file created via the phg prepare-assemblies command."
-    )
+    val referenceSam by option(help = "Full path to reference SAM file created by AlignAssemblies class when the just-ref-prep option is used")
         .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--assemblies must not be blank"
-            }
-        }
+
+
+    val referenceCdsFasta by option(help = "Full path to reference CDS fasta file created from a just-ref-prep run.")
+        .default("")
+
+    val assembliesList: AssemblyList by mutuallyExclusiveOptions<AssemblyList>(
+        option("--assembly-file", help = "Full path to a single fasta file.   A value must be entered for " +
+                "either --assembly-file or --assembly-file-list.")
+            .convert{ AssemblyList.AssemblyFile(it) },
+        option("--assembly-file-list", help = "Full path to a file that contains a list of assemblies, " +
+                "one per line, full path name for each assembly. ")
+            .convert{ AssemblyList.AssemblyFileList(it) }
+    ).single().required()
 
     val outputDir by option("-o", "--output-dir", help = "Directory where temporary and final files will be written")
         .default("")
@@ -143,30 +184,55 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
     override fun run() {
 
         // Returns Pair<Int, Int> where the first value is the number of parallel alignments, the second is threadsPerAlignment
-        val runsAndThreads = calculatedNumThreadsAndRuns(totalThreads, inParallel, assemblies)
+        val numAssemblies = assembliesList.getAssemblyFiles().size
+        val runsAndThreads = calculatedNumThreadsAndRuns(totalThreads, inParallel, numAssemblies)
 
-        // create CDS fasta from reference and gff3 file
+        var anchorwaveRefFiles = Pair(referenceCdsFasta, referenceSam)
+        // It is required that either both referenceCdsFasta and reference Sam are provided or neither are
+        // Check this and throw and error if not
+        if ((referenceCdsFasta == "" && referenceSam != "") || (referenceCdsFasta != "" && referenceSam == "")) {
+            myLogger.error("Both referenceCdsFasta and referenceSam must be provided if either is provided.")
+            throw IllegalStateException("Both referenceCdsFasta and referenceSam must be provided if either is provided.")
+        }
+
+        // If referenceCdsFasta and referenceSam are not provided, we need to create them
+        if (referenceCdsFasta == "" ) {
+            anchorwaveRefFiles = processRefFiles(referenceFile, gff, outputDir, runsAndThreads, condaEnvPrefix)
+        }
+
+        val cdsFasta = anchorwaveRefFiles.first
+        val refSamOutFile = anchorwaveRefFiles.second
+        //val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
+
+
+        if (!justRefPrep) {
+            // If justRefPrep is true, we only need to align the reference to the CDS file, then return
+            // Otherwise, we continue and align the assemblies via anchorwave
+            runAnchorWaveMultiThread(referenceFile, assembliesList.getAssemblyFiles(), cdsFasta, gff, refSamOutFile,runsAndThreads)
+        }
+
+    }
+
+    fun processRefFiles( referenceFile:String,  gff:String,   outputDir:String,
+                         runsAndThreads:Pair<Int, Int>, condaEnvPrefix:String): Pair<String,String>{
+
         val cdsFasta = "$outputDir/ref.cds.fasta"
-
-        createCDSfromRefData(referenceFile, gff, cdsFasta, outputDir)
+        createCDSfromRefData(referenceFile, gff, cdsFasta, outputDir,condaEnvPrefix)
 
         // create list of assemblies to align from the assemblies file
         // exclude blank lines
-        val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
+        //val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
 
         // run minimap2 for ref to refcds
         val justNameRef = File(referenceFile).nameWithoutExtension
         val samOutFile = "${justNameRef}.sam"
         val refSamOutFile = "${outputDir}/${samOutFile}"
 
-        // For minimap2, we will use the number of processors available as the number of threads.
         val command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix, "minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
             "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile)
         else mutableListOf("conda","run","-n","phgv2-conda","minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
             "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile)
-
         val builder = ProcessBuilder(command)
-        // For minimap2, we will use the number of processors available as the number of threads.
 
         val redirectError = "$outputDir/minimap2Ref_error.log"
         val redirectOutput = "$outputDir/minimap2Ref_output.log"
@@ -182,8 +248,7 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
             throw IllegalStateException("Error running minimap2 for reference: $error")
         }
 
-        runAnchorWaveMultiThread(referenceFile, assembliesList, cdsFasta, gff, refSamOutFile,runsAndThreads)
-
+        return Pair(cdsFasta, refSamOutFile)
     }
 
     /**
@@ -212,7 +277,7 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
      * An algorithm is used that selects a middle value between the number of threads
      * and the number of alignments to run in parallel.
      */
-    fun calculatedNumThreadsAndRuns(totalThreads:Int, inParallel:Int, assemblies:String): Pair<Int, Int> {
+    fun calculatedNumThreadsAndRuns(totalThreads:Int, inParallel:Int, numAssemblies:Int): Pair<Int, Int> {
         // If totalThreads or inParallel are 0, it means the user did not specify them
         // In that case we calculate these values based on the number of processors available
         // and the amount of memory available.
@@ -268,7 +333,7 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         // we will use that number, or the number of assemblies in the list, whichever
         // is smaller.
 
-        val numAssemblies = File(assemblies).readLines().filter { it.isNotBlank() }.size
+
         // This needs to return a Pair<Int, Int> where the first value is the number of alignments, the seconds is threadsPerAlignment
         val runsAndThreads = if (inParallel > 0) {
             if (inParallel > totalConcurrentThreads) {
@@ -379,10 +444,11 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         }
     }
 
-    private fun createCDSfromRefData(refFasta: String, gffFile: String, cdsFasta: String, outputDir: String): Boolean {
+    private fun createCDSfromRefData(refFasta: String, gffFile: String, cdsFasta: String, outputDir: String, condaEnvPrefix:String): Boolean {
 
         // val command = "anchorwave gff2seq -r ${refFasta} -i ${gffFile} -o ${cdsFasta} "
         // Need to set the conda environment here to access anchorwave
+
         val command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix, "anchorwave",
             "gff2seq",
             "-r",
@@ -510,7 +576,6 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
                     "-o",
                     asmSamFile)
                 val builder = ProcessBuilder(command)
-
                 val redirectError = "${assemblyEntry.outputDir}/minimap2_${justName}_error.log"
                 val redirectOutput = "${assemblyEntry.outputDir}/minimap2_${justName}_output.log"
                 myLogger.info("redirectError: $redirectError")
@@ -605,7 +670,6 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
             outputFile)
 
         val builder = ProcessBuilder(command)
-
         val redirectError = "${outputDir}/proali_${justNameAsm}_outputAndError.log"
         myLogger.info("redirectError: $redirectError")
 

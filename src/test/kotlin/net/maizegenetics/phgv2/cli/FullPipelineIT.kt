@@ -118,14 +118,14 @@ class FullPipelineIT {
         val alignAssemblies = AlignAssemblies()
         val alignAssembliesResult = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "-a $assembliesList -o ${TestExtension.testMafDir}"
+                    "--assembly-file-list $assembliesList -o ${TestExtension.testMafDir}"
         )
         println(alignAssembliesResult.output)
 
         //Run BuildMafVCF
         val createMafVCF = CreateMafVcf()
         val createMAFVCFResult = createMafVCF.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} " +
-                "--reference-file ${TestExtension.smallseqRefFile} --maf-dir ${TestExtension.testMafDir} -o ${TestExtension.testVCFDir}")
+                "--reference-file ${TestExtension.smallseqRefFile} --maf-dir ${TestExtension.testMafDir} -o ${TestExtension.testVCFDir} ")
         println(createMAFVCFResult.output)
 
         //Load All HVCFs into Tile DB
