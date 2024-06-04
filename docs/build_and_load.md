@@ -12,14 +12,23 @@ In this document, we will discuss the steps needed to:
     ```shell
     phg setup-environment --env-file phg_environment.yml
     ```
+  
 * Initialize TileDB instances:
     ```shell
     phg initdb \
         --db-path /path/to/dbs \
         --gvcf-anchor-gap 1000000 \
-        --hvcf-anchor-gap 1000 \
-        --conda-env-prefix /path/to/conda/env
+        --hvcf-anchor-gap 1000
     ```
+
+* Update FASTA headers with sample information:
+    ```shell
+    phg prepare-assemblies \
+        --keyfile /path/to/keyfile \
+        --output-dir /path/to/updated/fastas \
+        --threads 10
+    ```
+
 * Create BED file from GFF for reference range coordinates:
     ```shell
     phg create-ranges \
@@ -31,22 +40,13 @@ In this document, we will discuss the steps needed to:
         -o /path/to/bed_file.bed
     ```
 
-* Update FASTA headers with sample information:
-    ```shell
-    phg prepare-assemblies \
-        --keyfile /path/to/keyfile \
-        --output-dir /path/to/updated/fastas \
-        --threads 10
-    ```
-
 * Align assemblies:
     ```shell
     phg align-assemblies \
         --gff anchors.gff \
         --reference-file /my/ref.fasta \
         --assemblies assemblies_list.txt \
-        -o /path/for/generated_files \
-        --conda-env-prefix /path/to/conda/env
+        -o /path/for/generated_files
     ```
 
 * Compress FASTA files
@@ -54,8 +54,7 @@ In this document, we will discuss the steps needed to:
     phg agc-compress \
         --db-path /path/to/dbs \
         --reference-file \
-        --fasta-list /my/assembly_fasta_list.txt \
-        --conda-env-prefix /path/to/conda/env
+        --fasta-list /my/assembly_fasta_list.txt
     ```
 * Create VCF files
     ```shell
@@ -64,15 +63,13 @@ In this document, we will discuss the steps needed to:
         --bed /path/to/bed_file.bed \
         --reference-file /my/ref.fasta \
         --reference-name B73 \
-        --db-path /path/to/dbs \
-        --conda-env-prefix /path/to/conda/env
+        --db-path /path/to/dbs
   
     # MAF alignments VCF
     phg create-maf-vcf \
         --bed /path/to/bed_file.bed \
         --reference-file /my/ref.fasta \
-        --gvcf-dir /my/gvcf/files \
-        --conda-env-prefix /path/to/conda/env
+        --gvcf-dir /my/gvcf/files 
   
     # hVCF from PHGv1 created gVCF (OPTIONAL)
     phg gvcf2hvcf \
@@ -87,7 +84,6 @@ In this document, we will discuss the steps needed to:
         --vcf /my/vcf/dir \
         --db-path /path/to/dbs \
         --threads 10
-        --conda-env-prefix /path/to/conda/env
     ```
 
 ## Detailed walkthrough
@@ -104,23 +100,24 @@ phg_v2_example/
 ```
 
 For the following steps, I will be using example small sequence
-data from [PHGv2 GitHub repository](https://github.com/maize-genetics/phg_v2/tree/main/data/test/smallseq).
+data from the [PHGv2 GitHub repository](https://github.com/maize-genetics/phg_v2/tree/main/data/test/smallseq).
 This is a collection of small raw sequence files that
 we use for pipeline testing. These will be placed in the `data`
 subdirectory while files created by this pipeline will be placed in
-the `output` subdirectory. Here, I have downloaded a FASTA files:
+the `output` subdirectory. Here, I have downloaded the following 
+FASTA files:
 
 * `Ref.fa`
 * `LineA.fa`
 * `LineB.fa`
 
 ...and have renamed and placed them (which is needed to highlight the 
-functionality of the [Prepare Assembly FASTA Files](#prepare-assembly-fasta-files)
-section later) in the `data` directory. 
+functionality of the ["Prepare Assembly FASTA Files"](#prepare-assembly-fasta-files)
+section later) in the `data/` directory. 
 
-Additionally, I have also downloaded a GFF file called `anchors.gff` 
-which will be used for the [Create Reference Ranges](#create-reference-ranges)
-and [Align Assemblies](#align-assemblies) steps. Overall, my example
+Additionally, I have downloaded a GFF file called `anchors.gff` 
+which will be used for the ["Create Reference Ranges"](#create-reference-ranges)
+and ["Align Assemblies"](#align-assemblies) steps. Overall, my example
 working directory now looks like the following:
 
 ```
@@ -134,17 +131,18 @@ phg_v2_example/
 ```
 
 This documentation will also assume that the PHGv2 application is 
-placed in your system's `PATH` variable (_see installation 
-documentation for further details_).
+placed in your system's `PATH` variable (_see the [installation 
+documentation](installation.md) for further details_).
 
 
 
 ### Set up Conda environment
 Once you have downloaded the latest release of PHGv2 and have Conda 
-installed (_see installation documentation_), you will first need to set up a 
-Conda environment to accommodate the necessary pieces of software for 
-alignment and storage. Here is a list of essential pieces of
-software that will be installed in your Conda environment:
+installed (_see the [installation](installation.md) documentation_), 
+you will first need to set up a Conda environment to accommodate the 
+necessary pieces of software for alignment, compression, and storage. 
+Here is a list of essential pieces of software that will be installed 
+in your Conda environment:
 
 | Software   | Purpose                                                    |
 |------------|------------------------------------------------------------|
@@ -199,8 +197,8 @@ conda activate phgv2-conda
 ```
 
 > [!NOTE]
-> It is imperative the conda environment you create is named
-> `phgv2-conda`. This is the default environment name that PHGv2 uses
+> It is imperative the conda environment you create is named 
+> `phgv2-conda`. This is the default environment name that PHGv2 uses 
 > when executing shell commands from within the software.
 
 If we look in our example project directory, you will also see two
@@ -210,33 +208,25 @@ error output from the PHGv2 command steps:
 * `condaCreate_error.log`
 * `condaCreate_output.log`
 
-> [!NOTE]
-> If you need or want to have the conda environment setup in a non-default
-> location, you must run the "conda env create" command manually
-> using the --prefix option to specify the name and location of the
-> environment.  This created location should then be passed as the
-> "conda-env-prefix" parameter for all PHGv2 commands that have this optional
-> parameter.  For this scenario, the .yml file should not contain the "name"
-> section.  An example of the command to create the environment in a
-> non-default location is:
->
 
-```shell
-conda env create --prefix /path/to/new/conda/env --file phg_environment.yml
-```
 
 ### Running phg commands
 
-> [!NOTE]
-> The `db-path` parameter shows up in many of the PHGv2 commands. It 
-> is the path to the directory where the TileDB datasets are stored.
-> This parameter is an optional parameter for all commands in which it 
-> appears.  If a folder is not specified for the `db-path`, the 
-> software will use the current working directory. When TileDB 
-> datasets are required for processing, the `db-path` parameter value 
-> will be verified to ensure the required datasets are present. If 
-> they are not present in the `db-path` folder (or in the current 
-> working directory) the software with throw an exception.
+PHGv2 has several commands that specify an output directory. This is 
+depicted as either `-o` or `--output-dir` for the parameter names. 
+**Please make sure that these directories exist in your project 
+before running any commands that require the `-o` or `--output-dir` 
+field**!
+
+Additionally, the `--db-path` parameter shows up in many of the PHGv2 
+commands. It is the path to the directory where the TileDB datasets 
+are stored. This parameter is an optional parameter for all commands 
+in which it appears.  If a folder is not specified for the 
+`--db-path`, the software will use the current working directory. 
+When TileDB datasets are required for processing, the `--db-path` 
+parameter value will be verified to ensure the required datasets are 
+present. If they are not present in the `--db-path` folder (or in the 
+current working directory) the software with throw an exception.
 
 
 
@@ -256,8 +246,7 @@ process using the `initdb` command:
 ./phg initdb \
     --db-path vcf_dbs \
     --gvcf-anchor-gap 1000000 \
-    --hvcf-anchor-gap 1000 \
-    --conda-env-prefix /path/to/conda/env
+    --hvcf-anchor-gap 1000
 ```
 
 This command takes one required parameter, `--db-path` which is the 
@@ -265,21 +254,14 @@ path or subdirectory to where we want to place our databases. In this
 example project, I will initialize the hVCF and gVCF database 
 folders in a subdirectory called `vcf_dbs`.
 
-Three optional parameters may also be set.
-
-Parameters `--gvcf-anchor-gap` and `--hvcf-anchor-gap`
-define the distance between anchors 
+Two optional parameters, `--gvcf-anchor-gap` and `--hvcf-anchor-gap` 
+may also be set. These parameters define the distance between anchors 
 in the two TileDB-VCF sparse arrays. Smaller values enable faster 
 data retrieval. However, if there are non-symbolic variants that span 
 many anchors (for example, very large deletions), then the `load-vcf` 
 command will require a large amount of RAM to process variant 
 information for each assembly. More information can be found in the 
 [TileDB-VCF docs.](https://tiledb-inc.github.io/TileDB-VCF/documentation/the-solution.html)
-
-Optional parameter `--conda-env-prefix` is the path to the Conda env directory
-that contains the conda environment needed to run phg. This parameter is
-used when the conda environment to activate does not reside in the default
-location.  
 
 After initialization is complete, we will have two empty TileDB-VCF
 instances and a `temp` directory in our `vcf_dbs` subdirectory:
@@ -301,146 +283,31 @@ phg_v2_example/
 │   ├── LineA-final-01.fa
 │   └── LineB-final-04.fa
 ├── output
-└── vcf_dbs
-    ├── gvcf_dataset
-    ├── hvcf_dataset
-    └── temp
+└── vcf_dbs *
+    ├── gvcf_dataset/ *
+    ├── hvcf_dataset/ *
+    └── temp/ *
 ```
 
-
-
-### Create reference ranges
-Next, we must define ordered sequences of genic and inter-genic 
-ranges across the reference genome. These ordered ranges, which we 
-will call "reference ranges", are used to specify haplotype sequence 
-coordinate information for the haplotype and genomic variant call 
-format data. These genomic positions are structured using the 
-[BED](https://en.wikipedia.org/wiki/BED_(file_format)) format.
-
-Generally, this data is not readily available as BED files. PHGv2
-can generate this file directly from 
-[GFF](https://en.wikipedia.org/wiki/General_feature_format)-formatted 
-data using the `create-ranges` command:
-
-```shell
-./phg create-ranges \
-    --gff data/anchors.gff \
-    --reference-file data/Ref-v5.fa \
-    --boundary gene \
-    --pad 500 \
-    --range-min-size 500 \
-    -o output/ref_ranges.bed
-```
-
-This command uses several parameters:
-
-* `--gff` - Our reference GFF file of interest. Since 
-  reference ranges are usually established by genic/intergenic 
-  regions, we can leverage coordinate and feature information from
-  GFF files.
-* `--reference-file` - Our reference genome in 
-  [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format. This
-  is needed for determining the intergenic regions near the ends of 
-  chromosomes.
-* `--boundary` - How do you want to define the boundaries of the 
-  reference ranges. Currently, these can be defined as either
-  `gene` or `cds` regions:
-
-  <img src="img/build_and_load/create_ranges_01.svg" width="500" alt=""/>
-  
-  + In the above figure, if `--boundary` is set to `gene`, the start
-    and end positions are at the UTR regions for each gene feature from
-    the GFF file, while `cds` will begin and end at the open reading 
-    frame. By default, the `cds` option will try to identify the
-    transcript with the longest open reading frame if there are
-    multiple transcript "children" for a gene "parent" in the GFF
-    file.
-* `--pad` - The number of base pairs you would like to flank regions:
-
-  <img src="img/build_and_load/create_ranges_02.svg" width="500" alt=""/>
-
-  + For example, if we were to set the `--pad` parameter to `500`,
-    we would extend the region 500 base pairs upstream and downstream
-    of the defined boundary (in this case, `gene`).
-
-  
-
-> [!NOTE]
-> There is a possibility that overlaps of regions will occur. If
-> this does happen, `create-ranges` will identify any overlapping
-> regions and merge regions together:
-> ```
-> [---Overlap 1----]
->            [-------Overlap 2-------]
-> ====================================
-> [---------Merged overlap-----------]
->  ```
-
-* `--range-min-size` - The minimum size for each range in the BED 
-  file. This parameter is optional with a default of 500 base pairs. 
-  For example, if we were to set the `--range-min-size` parameter to 
-  `500`, any region that is less than 500 base pairs in length will 
-  be merged with the previous region on that contig.  If the first 
-  region of a contig is less than the specified minimum size, it will 
-  be merged with the next region on that contig.  This merging is 
-  done in `create-ranges` after the gene or CDS region has been 
-  created and padding has been applied.
-* `-o` - Name for the output BED file.
-
-In the above example, I am using test data from the 
-[PHGv2 GitHub repository](https://github.com/maize-genetics/phg_v2/tree/main/data/test/smallseq).
-After the command is finished, we have produced a BED file (which
-in my case, is located in a subdirectory labelled `output`). This BED 
-file contains 6 columns of information:
-
-| Column | Value               |
-|--------|---------------------|
-| `1`    | Sequence name       |
-| `2`    | Start position (bp) |
-| `3`    | End position (bp)   |
-| `4`    | Range ID            |
-| `5`    | Score (always `0`)  |
-| `6`    | Strand information  |
-
-> [!NOTE]
-> Column `4` will either be gene or cds name depending on the boundary
-> input.  If regions overlapped and were merged, the name is a comma 
-> separated string of all the genes/CDS features included in this BED 
-> region.
-
-Now that we have a BED file, our example working directory now
-looks like the following:
-
-```
-phg_v2_example/
-├── data
-│   ├── anchors.gff
-│   ├── Ref-v5.fa
-│   ├── LineA-final-01.fa
-│   └── LineB-final-04.fa
-├── output
-│   └── ref_ranges.bed
-└── vcf_dbs
-    ├── gvcf_dataset
-    ├── hvcf_dataset
-    └── temp
-```
 
 
 ### Prepare Assembly FASTA files
-The `prepare-assemblies` command has two goals:
+Before we begin our alignment and VCF creation steps, we must first
+process our "raw" FASTA files. This section will accomplish two
+goals:
 
-1. Copy the FASTAs to a new file whose name is changed to be 
-   `<sample name>.fa`.
-2. Add a sample name tag (e.g., `sampleName=`) to the id lines of the 
-   FASTA file. **These updated assembly FASTA files should be used as 
-   input to both the `agc-compress` step and the `align-assemblies`
-   step.** This ensures consistent sample names across the pipeline.
+1. Copy and rename FASTA files via user-provided sample name IDs.
+2. Add a sample name tag to the ID lines of each FASTA file.
 
-To better explain the first goal, let's use an example. A file named 
-`Zm-CML52-NAM-1.0.fa` would be copied to a new one named `CML52.fa`. 
-This action is based on a keyfile (_which we will discuss later in the 
-parameters section_) provided by the user. The keyfile would list 
+> [!WARNING]
+> **These updated assembly FASTA files need to be used as input for 
+> both `agc-compress` and `align-assemblies` steps.** This ensures 
+> consistent sample names across the pipeline!
+
+To better explain the first goal, let's use an example. A file named
+`Zm-CML52-NAM-1.0.fa` would be copied to a new one named `CML52.fa`.
+This action is based on a keyfile (_which we will discuss later in the
+parameters section_) provided by the user. The keyfile would list
 "CML52" as the sample name for this FASTA shown below:
 
 ```
@@ -450,17 +317,17 @@ parameters section_) provided by the user. The keyfile would list
 Zm-CML52-NAM-1.0.fa   CML52
 ```
 
-The reason for this change is the AGC compression tool stores the 
-file name (minus extension) as the sample name when creating the 
-compressed file.  This keeps the AGC sample name consistent with 
-sample names that are stored in the VCF files. With consistent sample 
+The reason for this change is the AGC compression tool stores the
+file name (minus extension) as the sample name when creating the
+compressed file.  This keeps the AGC sample name consistent with
+sample names that are stored in the VCF files. With consistent sample
 names, sequence and variants may be associated.
 
-For the second goal: As of the current date of this document, the 
+For the second goal: As of the current date of this document, the
 return methods of AGC will not keep track of sample IDs when returning
 sequence information from the compressed file **unless you explicitly
 state the sample information in the header lines of the FASTA files
-you wish to compress for the PHGv2 databases**. 
+you wish to compress for the PHGv2 databases**.
 
 To explain this
 further, let's imagine that we have two FASTA files: `LineA.fa` and
@@ -526,7 +393,7 @@ ATGCGTTCGCCTTCCG
 
 While we can manually modify the header lines of our FASTA
 file, this can become tedious and prone to a new set of downstream
-errors. To automate this, PHGv2 provides a command to append sample 
+errors. To automate this, PHGv2 provides a command to append sample
 information to the headers of each FASTA file called
 `prepare-assemblies`:
 
@@ -534,7 +401,7 @@ information to the headers of each FASTA file called
 phg prepare-assemblies \
     --keyfile data/annotation_keyfile.txt \
     --threads 10 \
-    --output-dir output/updated_assemblies
+    -o output/updated_assemblies
 ```
 
 This command takes 3 parameters:
@@ -547,33 +414,28 @@ This command takes 3 parameters:
   | `1`    | Path to FASTA file you would like annotated (this is similar to the text files used to point to the FASTA file paths in the [`agc-compress`](#compress-fasta-files) and [`align-assemblies`](#align-assemblies) commands). |
   | `2`    | Name of the sample that will be (1) appended to each header line and (2) the name of the newly generated FASTA file.                                                                                                       |
 
-  + My example `annotation_keyfile.txt` would look like this:
+  + My example `annotation_keyfile.txt` (which is placed in the 
+    `data/` subdirectory) would look like this:
       ```shell
       data/Ref-v5.fa Ref
       data/LineA-final-01.fa   LineA
       data/LineB-final-04.fa   LineB
       ```
   + > ⚠️ **Warning**  
-    **All** sample assemblies (**including your reference assembly**) 
+    **All** sample assemblies (**including your reference assembly**)
     that you would want processed need to be included in this keyfile.
 * `--threads` - Optional number of threads to update multiple
   FASTA files in parallel. _Defaults to `1`_.
 * `-o` - Output directory for the newly updated FASTA files
 
-> [!WARNING]
-> This step must be performed before the `agc-compress` step and the 
-> `align-assemblies` step.
 
-> [!WARNING]
-> Sample IDs in the keyfile must match with what is found in the
-> TileDB instances.
 
 > [!NOTE]
-> FASTA input files can be either uncompressed or compressed. The 
-> output from the `prepare-assemblies` command will be new FASTA files 
-> that are **uncompressed**.  While AGC accepts compressed FASTA 
-> files, the `align-assemblies` command uses 
-> [AnchorWave](https://github.com/baoxingsong/AnchorWave) which 
+> FASTA input files can be either uncompressed or compressed. The
+> output from the `prepare-assemblies` command will be new FASTA files
+> that are **uncompressed**.  While AGC accepts compressed FASTA
+> files, the `align-assemblies` command uses
+> [AnchorWave](https://github.com/baoxingsong/AnchorWave) which
 > requires uncompressed FASTA files.
 
 Once finished, this command will produce FASTA files with the name
@@ -611,30 +473,236 @@ ATGCGTACGCGCACCG
 >```
 
 Now that we are finished preparing samples, my example working
-directory looks like the following with a newly formed subdirectory 
+directory looks like the following with a newly formed subdirectory
 called `updated_assemblies` under the `output` directory:
 
 ```
 phg_v2_example/
 ├── data
 │   ├── anchors.gff
+│   ├── annotation_keyfile.txt *
 │   ├── Ref-v5.fa
 │   ├── LineA-final-01.fa
 │   └── LineB-final-04.fa
 ├── output
-│   ├── ref_ranges.bed
-│   ├── updated_assemblies
-│   │   ├── Ref.fa
-│   │   ├── LineA.fa
-│   │   └── LineB.fa
+│   ├── updated_assemblies *
+│   │   ├── Ref.fa *
+│   │   ├── LineA.fa *
+│   │   └── LineB.fa *
 └── vcf_dbs
-    ├── gvcf_dataset # gVCF db storage
-    ├── hvcf_dataset # hVCF db storage
-    └── temp
+    ├── gvcf_dataset/
+    ├── hvcf_dataset/
+    └── temp/
 ```
 
 For further steps, we will be using the updated assemblies from the
 `output/updated_assemblies` directory path.
+
+
+
+### Compress FASTA files
+For optimal storage of sequence information, we can convert our
+"plain-text" FASTA files into a more compact representation using
+compression. For PHGv2, we can use a command called `agc-compress`,
+which is a wrapper for the
+[Assembled Genomes Compressor](https://github.com/refresh-bio/agc)
+(AGC). AGC provides performant and efficient compression ratios for
+our assembly genomes. Like AnchorWave, AGC is also installed during
+the Conda environment setup phase, so there is no need to install
+this manually.
+
+To run the compression step, we can call the `agc-compress`
+command:
+
+```shell
+./phg agc-compress \
+    --db-path vcf_dbs \
+    --fasta-list data/assemblies_list.txt \
+    --reference-file output/updated_assemblies/Ref.fa
+```
+
+This command takes in 3 parameters:
+* `--db-path` - path to directory storing the TileDB instances. The
+  AGC compressed genomes will be placed here on completion.
+
+> [!NOTE]
+> The directory specified here should be the same directory used to
+> initialize the TileDB instances in the database initialization
+> (`initdb`) step.
+
+* `--fasta-list` - List of annotated assembly FASTA genomes to
+  compress.
+
+> [!NOTE]
+> The list specified in `--fasta-list` should be the list of FASTA
+> files output from the `prepare-assemblies` command (_see the
+> [**"Prepare Assembly FASTA files"**](#prepare-assembly-fasta-files) section for
+> further details_).
+
+* `--reference-file` - Reference FASTA genome processed with
+  the `prepare-assemblies` command.
+
+After compression is finished, we can navigate to the directory
+containing the TileDB instances. In my case, this would be the
+subdirectory, `vcf_dbs`. Here, you will see a new file created:
+`assemblies.agc`. This is the compressed AGC file containing our
+assemblies. This file will be used later to query for haplotype
+sequence regions and composite genome creation. Our example
+working directory now looks like this:
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── annotation_keyfile.txt
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   └── updated_assemblies
+│       ├── Ref.fa
+│       ├── LineA.fa
+│       └── LineB.fa
+└── vcf_dbs
+    ├── assemblies.agc *
+    ├── gvcf_dataset/
+    ├── hvcf_dataset/
+    └── temp/
+```
+
+When running the `agc-compress` command, the software will
+determine if the "create" or "append" AGC command should be used.
+If the `assemblies.agc` file is not present in the db-path directory,
+the software will use the "create" command to compress and load the
+FASTAs. If the `assemblies.agc` file is present in the db-path
+directory, the software will use the "append" command to compress and
+load the FASTAs to the existing `assemblies.agc` file. It skips FASTA
+files whose "name" portion (file name without extension) is already
+represented as a sample name in the `assemblies.agc` file, adding only
+the new FASTAs to this file.
+
+
+
+### Create reference ranges
+Next, we must define ordered sequences of genic and inter-genic 
+ranges across the reference genome. These ordered ranges, which we 
+will call "reference ranges", are used to specify haplotype sequence 
+coordinate information for the haplotype and genomic variant call 
+format data. These genomic positions are structured using the 
+[BED](https://en.wikipedia.org/wiki/BED_(file_format)) format.
+
+Generally, this data is not readily available as BED files. PHGv2
+can generate this file directly from 
+[GFF](https://en.wikipedia.org/wiki/General_feature_format)-formatted 
+data using the `create-ranges` command:
+
+```shell
+./phg create-ranges \
+    --gff data/anchors.gff \
+    --reference-file output/updated_assemblies/Ref.fa \
+    --boundary gene \
+    --pad 500 \
+    --range-min-size 500 \
+    -o output/ref_ranges.bed
+```
+
+This command uses several parameters:
+
+* `--gff` - Our reference GFF file of interest. Since 
+  reference ranges are usually established by genic/intergenic 
+  regions, we can leverage coordinate and feature information from
+  GFF files.
+* `--reference-file` - Our reference genome in 
+  [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format. This
+  is needed for determining the intergenic regions near the ends of 
+  chromosomes.
+* `--boundary` - How do you want to define the boundaries of the 
+  reference ranges. Currently, these can be defined as either
+  `gene` or `cds` regions:
+
+  <img src="img/build_and_load/create_ranges_01.svg" width="500" alt=""/>
+  
+  + In the above figure, if `--boundary` is set to `gene`, the start
+    and end positions are at the UTR regions for each gene feature from
+    the GFF file, while `cds` will begin and end at the open reading 
+    frame. By default, the `cds` option will try to identify the
+    transcript with the longest open reading frame if there are
+    multiple transcript "children" for a gene "parent" in the GFF
+    file.
+* `--pad` - The number of base pairs you would like to flank regions:
+
+  <img src="img/build_and_load/create_ranges_02.svg" width="500" alt=""/>
+
+  + For example, if we were to set the `--pad` parameter to `500`,
+    we would extend the region 500 base pairs upstream and downstream
+    of the defined boundary (in this case, `gene`).
+
+> [!NOTE]
+> There is a possibility that overlaps of regions will occur. If
+> this does happen, `create-ranges` will identify any overlapping
+> regions and merge regions together:
+> ```
+> [---Overlap 1----]
+>            [-------Overlap 2-------]
+> ====================================
+> [---------Merged overlap-----------]
+>  ```
+
+* `--range-min-size` - The minimum size for each range in the BED 
+  file. This parameter is optional with a default of 500 base pairs. 
+  For example, if we were to set the `--range-min-size` parameter to 
+  `500`, any region that is less than 500 base pairs in length will 
+  be merged with the previous region on that contig.  If the first 
+  region of a contig is less than the specified minimum size, it will 
+  be merged with the next region on that contig.  This merging is 
+  done in `create-ranges` after the gene or CDS region has been 
+  created and padding has been applied.
+* `-o` - Name for the output BED file.
+
+In the above example, I am using test data from the 
+[PHGv2 GitHub repository](https://github.com/maize-genetics/phg_v2/tree/main/data/test/smallseq).
+After the command is finished, we have produced a BED file (which
+in my case, is located in a subdirectory labelled `output`). This BED 
+file contains 6 columns of information:
+
+| Column | Value               |
+|--------|---------------------|
+| `1`    | Sequence name       |
+| `2`    | Start position (bp) |
+| `3`    | End position (bp)   |
+| `4`    | Range ID            |
+| `5`    | Score (always `0`)  |
+| `6`    | Strand information  |
+
+> [!NOTE]
+> Column `4` will either be gene or cds name depending on the boundary
+> input.  If regions overlapped and were merged, the name is a comma 
+> separated string of all the genes/CDS features included in this BED 
+> region.
+
+Now that we have a BED file, our example working directory now
+looks like the following:
+
+```
+phg_v2_example/
+├── data
+│   ├── anchors.gff
+│   ├── annotation_keyfile.txt
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   ├── ref_ranges.bed *
+│   └── updated_assemblies
+│       ├── Ref.fa
+│       ├── LineA.fa
+│       └── LineB.fa
+└── vcf_dbs
+    ├── assemblies.agc
+    ├── gvcf_dataset/
+    ├── hvcf_dataset/
+    └── temp/
+```
 
 
 
@@ -664,8 +732,7 @@ To run the aligner step, we can call the `align-assemblies` command:
     --assemblies data/assemblies_list.txt \
     --total-threads 20 \
     --in-parallel 2 \
-    -o output/alignment_files \
-    --conda-env-prefix /path/to/conda/env
+    -o output/alignment_files
 ```
 
 This command uses several parameters:
@@ -684,8 +751,8 @@ This command uses several parameters:
   to each uncompressed assembly you would like to align. For example, since I am
   using the example data found on the 
   [PHGv2 GitHub repository](https://github.com/maize-genetics/phg_v2/tree/main/data/test/smallseq),
-  I can create a text file called `assemblies_list.txt` and populate
-  it with the following lines:
+  I can create a text file called `assemblies_list.txt` (placed in 
+  the `data/` subdirectory) and populate it with the following lines:
 
   ```
   output/updated_assemblies/LineA.fa
@@ -699,12 +766,10 @@ This command uses several parameters:
   + > ⚠️ **Warning**  
     This text list **should not** contain the path to the reference
     genome since this is recognized in the `--reference-file` flag.
-    
 
 * `-o` - The name of the directory for the alignment outputs.
 
-  
-In addition to the above parameters, there are three optional parameters. When values are not specified for these parameters,
+In addition to the above parameters, there are two optional parameters. When values are not specified for these parameters,
 default values are calculated by the software based on the system processor and memory configuration.
 
 * `--total-threads` - How many threads would you like to allocate for
@@ -715,9 +780,6 @@ default values are calculated by the software based on the system processor and 
   More information about this step and the `--total-threads` step can
   be found in the following **Details - threads and parallelization** 
   section.
-* `--conda-env-prefix` - The path to the Conda directory that contains  
-    the conda environment needed to run phg.  If not set, env `phgv2-conda` in the defauilt location will be used.
-
 
 > [!WARNING]
 > The directory that you specify in the output (`-o`) section must
@@ -746,42 +808,43 @@ future steps):
 phg_v2_example/
 ├── data
 │   ├── anchors.gff
+│   ├── annotation_keyfile.txt
+│   ├── assemblies_list.txt *
 │   ├── Ref-v5.fa
 │   ├── LineA-final-01.fa
 │   └── LineB-final-04.fa
 ├── output
 │   ├── alignment_files
-│   │   ├── anchorwave_gff2seq_error.log
-│   │   ├── anchorwave_gff2seq_output.log
-│   │   ├── LineA.maf
-│   │   ├── LineA.sam
-│   │   ├── LineA.svg
-│   │   ├── LineA_Ref.anchorspro
-│   │   ├── LineB.maf
-│   │   ├── LineB.sam
-│   │   ├── LineB.svg
-│   │   ├── LineB_Ref.anchorspro
-│   │   ├── minimap2_LineA_error.log
-│   │   ├── minimap2_LineA_output.log
-│   │   ├── minimap2_LineB_error.log
-│   │   ├── minimap2_LineB_output.log
-│   │   ├── minimap2_Ref_error.log
-│   │   ├── minimap2_Ref_output.log
-│   │   ├── proali_LineA_outputAndError.log
-│   │   ├── proali_LineB_outputAndError.log
-│   │   ├── ref.cds.fasta
-│   │   └── Ref.sam
+│   │   ├── anchorwave_gff2seq_error.log *
+│   │   ├── anchorwave_gff2seq_output.log *
+│   │   ├── LineA.maf *
+│   │   ├── LineA.sam *
+│   │   ├── LineA.svg *
+│   │   ├── LineA_Ref.anchorspro *
+│   │   ├── LineB.maf *
+│   │   ├── LineB.sam *
+│   │   ├── LineB.svg *
+│   │   ├── LineB_Ref.anchorspro *
+│   │   ├── minimap2_LineA_error.log *
+│   │   ├── minimap2_LineA_output.log *
+│   │   ├── minimap2_LineB_error.log *
+│   │   ├── minimap2_LineB_output.log *
+│   │   ├── minimap2_Ref_error.log *
+│   │   ├── minimap2_Ref_output.log *
+│   │   ├── proali_LineA_outputAndError.log *
+│   │   ├── proali_LineB_outputAndError.log *
+│   │   ├── ref.cds.fasta *
+│   │   └── Ref.sam *
 │   ├── ref_ranges.bed
 │   └── updated_assemblies
 │       ├── Ref.fa
 │       ├── LineA.fa
 │       └── LineB.fa
 └── vcf_dbs
-    ├── gvcf_dataset # gVCF db storage
-    ├── hvcf_dataset # hVCF db storage
-    └── temp
+    ├── gvcf_dataset/
+    ├── hvcf_dataset/
+    └── temp/
 ```
-
 
 
 #### Internal AnchorWave and minimap2 commands
@@ -871,8 +934,7 @@ For example, if the system has 512 GB of memory, 80 processors and 5
 assemblies that need aligning, the maximum number of threads that
 could be run in parallel is 24 (512/21). The number of potential 
 parallel alignments with the threads allocated for each is shown in 
-the table below
-
+the table below:
 
 | Alignments in parallel | Threads per alignment |
 |------------------------|-----------------------|
@@ -895,95 +957,6 @@ when determining the AnchorWave setup.
 
 
 
-### Compress FASTA files
-For optimal storage of sequence information, we can convert our 
-"plain-text" FASTA files into a more compact representation using 
-compression. For PHGv2, we can use a command called `agc-compress`, 
-which is a wrapper for the
-[Assembled Genomes Compressor](https://github.com/refresh-bio/agc) 
-(AGC). AGC provides performant and efficient compression ratios for 
-our assembly genomes. Like AnchorWave, AGC is also installed during
-the Conda environment setup phase, so there is no need to install 
-this manually.  
-
-To run the compression step, we can call the `agc-compress` 
-command:
-
-```shell
-./phg agc-compress \
-    --db-path vcf_dbs \
-    --fasta-list data/assemblies_list.txt \
-    --reference-file output/updated_assemblies/Ref.fa \
-    --conda-env-prefix /path/to/conda/env
-```
-
-This command takes in 3 parameters:
-* `--db-path` - path to directory storing the TileDB instances. The
-  AGC compressed genomes will be placed here on completion.
-
-> [!NOTE]
-> The directory specified here should be the same directory used to 
-> initialize the TileDB instances in the database initialization 
-> (`initdb`) step.
-
-* `--fasta-list` - List of annotated assembly FASTA genomes to 
-  compress.
-
-> [!NOTE]
-> The list specified in `--fasta-list` should be the list of FASTA 
-> files output from the `prepare-assemblies` command (_see the 
-> [**"Prepare Assembly FASTA files"**](#prepare-assembly-fasta-files) section for 
-> further details_).
-
-* `--reference-file` - Reference FASTA genome processed with
-  the `prepare-assemblies` command.
-
-In addition, `conda-env-prefix` is an optional parameter that specifies the path 
-to the Conda directory that contains the conda environment needed to run phg.  
-If not set, conda env `phgv2-conda` in the defauilt location will be used.
-
-After compression is finished, we can navigate to the directory
-containing the TileDB instances. In my case, this would be the
-subdirectory, `vcf_dbs`. Here, you will see a new file created:
-`assemblies.agc`. This is the compressed AGC file containing our 
-assemblies. This file will be used later to query for haplotype
-sequence regions and composite genome creation. Our example
-working directory now looks like this:
-
-```
-phg_v2_example/
-├── data
-│   ├── anchors.gff
-│   ├── Ref-v5.fa
-│   ├── LineA-final-01.fa
-│   └── LineB-final-04.fa
-├── output
-│   ├── alignment_files/
-│   ├── ref_ranges.bed
-│   └── updated_assemblies
-│       ├── Ref.fa
-│       ├── LineA.fa
-│       └── LineB.fa
-└── vcf_dbs
-    ├── assemblies.agc
-    ├── gvcf_dataset # gVCF db storage
-    ├── hvcf_dataset # hVCF db storage
-    └── temp
-```
-
-When running the `agc-compress` command, the software will 
-determine if the "create" or "append" AGC command should be used. 
-If the `assemblies.agc` file is not present in the db-path directory, 
-the software will use the "create" command to compress and load the 
-FASTAs. If the assemblies.agc file is present in the db-path 
-directory, the software will use the "append" command to compress and
-load the FASTAs to the existing assemblies.agc file. It skips FASTA 
-files whose "name" portion (file name without extension) is already 
-represented as a sample name in the assemblies.agc file, adding only 
-the new FASTAs to this file.
-
-
-
 ### Create VCF files
 Now that we have (1) created alignments of our assemblies against a
 single reference genome and (2) created compressed representations
@@ -998,8 +971,7 @@ phg create-ref-vcf \
     --bed output/ref_ranges.bed \
     --reference-file output/updated_assemblies/Ref.fa \
     --reference-name Ref \
-    --db-path vcf_dbs \
-    --conda-env-prefix /path/to/conda/env
+    --db-path vcf_dbs
 ```
 
 2. Create hVCF and gVCF data from assembly alignments against reference
@@ -1011,10 +983,7 @@ phg create-maf-vcf \
     --bed output/ref_ranges.bed \
     --reference-file output/updated_assemblies/Ref.fa \
     --maf-dir output/alignment_files \
-    -o output/vcf_files \
-    --metrics-file output/vcf_files/VCFMetrics.tsv \
-    --skip-metrics \
-    --conda-env-prefix /path/to/conda/env
+    -o output/vcf_files
 ```
 
 3. **(OPTIONAL!)** Create hVCF from existing PHGv1 created gVCF files. 
@@ -1031,15 +1000,14 @@ phg gvcf2hvcf \
 
 > [!TIP]
 > For more information about the haplotype VCF (hVCF) specification,
-> please refer to the hVCF specification documentation.
+> please refer to the [hVCF specification documentation](hvcf_specifications.md).
 
 VCF creation is split up into two separate commands since the
 reference genome and aligned assemblies require different sets of
 input data. An additional optional command is available to convert
 existing PHG created gVCF files to hVCF files:
 
-#### `create-ref-vcf` inputs
-The `create-ref-vcf` command requires the following inputs:
+#### Inputs for the `create-ref-vcf` command
 
 * `--bed` - a BED file containing ordered reference ranges (_see
   the [**"Create reference ranges"**](#create-reference-ranges) section for further 
@@ -1056,13 +1024,12 @@ The `create-ref-vcf` command requires the following inputs:
     step.
 * `--db-path` - path to PHG database directory for VCF storage.
 
-OPTIONAL parameters:
-There are 2 optional parameters to `create-ref-vcf`:
 
-* `--reference-url` - URL where the reference FASTA file can be 
-  downloaded. This will be added to the VCF header information.
-* `--conda-env-prefix` - path to the Conda directory that contains the conda environment needed to run phg.  If not set, env `phgv2-conda` in the defauilt location will be used.
-
+> [!NOTE]
+> Optionally, `create-ref-vcf` can also use another parameter, 
+> `--reference-url`. This is an optional URL where the reference
+> FASTA file can be downloaded. This will be added to the VCF header
+> information.
 
 Once the command is complete, and you have navigated into the 
 `--db-path` parameter directory (in my case, `vcf_dbs/`), you will 
@@ -1093,8 +1060,7 @@ FASTA are stored here for future reference.
 In addition to creating the files, the `create-ref-vcf` command will load the
 reference hVCF file to the `hvcf_dataset` TileDB instance.
 
-#### `create-maf-vcf` inputs
-The `create-maf-vcf` command requires the following inputs:
+#### Inputs for the `create-maf-vcf` command
 
 * `--db-path` - Path to the directory containing the TileDB 
   instances. This is needed to access the AGC compressed assembly
@@ -1118,42 +1084,36 @@ The `create-maf-vcf` command requires the following inputs:
   [**"Align assemblies"**](#align-assemblies) section for further 
   details_).
 * `-o` - Output directory for the VCF data.
+
+`create-maf-vcf` provides two **optional** parameters for metrics 
+data (_see the **["QC Metrics"](qc_metrics.md)** documentation for
+further information_):
+
 * `--metrics-file` - Name of the output file for the VCF metrics table
     if left blank, the table will be written to the output directory
-    and will be named `VCFMetrics.tsv`. See the QC metrics documentation
-    for details.
-* `--skip-metrics` - If this flag is set, QC metrics will not be calculated
-
-> [!WARNING]
-> The directory that you specify in the output (`-o`) section must
-> be an existing directory.
-
-Optional Parameter: 
-
-* `--conda-env-prefix` - path to the Conda directory that contains the conda environment needed to run phg.  If not set, env `phgv2-conda` in the defauilt location will be used.
+    and will be named `VCFMetrics.tsv`.
+* `--skip-metrics` - If this flag is set, QC metrics will not be 
+  calculated
 
 Once the command is complete, and you have navigated into the output
 directory (in my case, `output/vcf_files`), you will see a collection
 of different file types for each sample:
 
-
-| File                         | Description                                              |
-|------------------------------|----------------------------------------------------------|
-| `<sample_name>.h.vcf.gz`     | compressed reference haplotype VCF (hVCF) file           |
-| `<sample_name>.h.vcf.gz.csi` | coordinate sorted index (CSI) of the reference hVCF file |
-| `<sample_name>.g.vcf.gz`     | compressed reference genomic VCF (gVCF) file             |
-| `<sample_name>.g.vcf.gz.csi` | coordinate sorted index (CSI) of the reference gVCF file |
+| File                         | Description                                                              |
+|------------------------------|--------------------------------------------------------------------------|
+| `<sample_name>.h.vcf.gz`     | compressed reference [haplotype VCF](hvcf_specifications.md) (hVCF) file |
+| `<sample_name>.h.vcf.gz.csi` | coordinate sorted index (CSI) of the reference hVCF file                 |
+| `<sample_name>.g.vcf.gz`     | compressed reference genomic VCF (gVCF) file                             |
+| `<sample_name>.g.vcf.gz.csi` | coordinate sorted index (CSI) of the reference gVCF file                 |
 
 Here, `<sample_name>` would be the name of each sample that was
 aligned to the reference genome.
 
-#### `gvcf2hvcf` inputs (OPTIONAL!)
+#### Inputs for the `gvcf2hvcf` command (OPTIONAL!)
 
 > [!NOTE]
 > The `gvcf2hvcf` command should only be used if you have preexisting
 > gVCF data created from historic PHGv1 steps!
-
-The `gvcf2hvcf` command requires the following inputs:
 
 * `--db-path` - Path to the directory containing the TileDB
   instances. This is needed to access the AGC compressed assembly
@@ -1180,6 +1140,8 @@ structure now looks like the following:
 phg_v2_example/
 ├── data
 │   ├── anchors.gff
+│   ├── annotation_keyfile.txt
+│   ├── assemblies_list.txt
 │   ├── Ref-v5.fa
 │   ├── LineA-final-01.fa
 │   └── LineB-final-04.fa
@@ -1190,27 +1152,29 @@ phg_v2_example/
 │   │   ├── Ref.fa
 │   │   ├── LineA.fa
 │   │   └── LineB.fa
-│   └── vcf_files
-│       ├── LineA.h.vcf.gz
-│       ├── LineA.h.vcf.gz.csi
-│       ├── LineA.g.vcf.gz
-│       ├── LineA.g.vcf.gz.csi
-│       ├── LineB.h.vcf.gz
-│       ├── LineB.h.vcf.gz.csi
-│       ├── LineB.g.vcf.gz
-│       └── LineB.g.vcf.gz.csi
+│   └── vcf_files *
+│       ├── LineA.h.vcf.gz *
+│       ├── LineA.h.vcf.gz.csi *
+│       ├── LineA.g.vcf.gz *
+│       ├── LineA.g.vcf.gz.csi *
+│       ├── LineB.h.vcf.gz *
+│       ├── LineB.h.vcf.gz.csi *
+│       ├── LineB.g.vcf.gz *
+│       ├── LineB.g.vcf.gz.csi *
+│       └── VCFMetrics.tsv *
 └── vcf_dbs
     ├── assemblies.agc
-    ├── gvcf_dataset # gVCF db storage
-    ├── hvcf_dataset # hVCF db storage
-    ├── hvcf_files
-    │   ├── Ref.h.vcf.gz
-    │   └── Ref.h.vcf.gz.csi
-    ├── reference
-    │   ├── Ref.bed
-    │   └── Ref.fa
-    └── temp
+    ├── gvcf_dataset/
+    ├── hvcf_dataset/
+    ├── hvcf_files *
+    │   ├── Ref.h.vcf.gz *
+    │   └── Ref.h.vcf.gz.csi *
+    ├── reference *
+    │   ├── Ref.bed *
+    │   └── Ref.fa *
+    └── temp/
 ```
+
 
 
 ### Load VCF data into DBs
@@ -1223,24 +1187,23 @@ and gVCF files into their respective TileDB directories:
 ./phg load-vcf \
     --vcf-dir output/vcf_files \
     --db-path vcf_dbs \
-    --threads 10 \
-    --conda-env-prefix /path/to/conda/env
+    --threads 10
 ```
 
 This command takes three parameters:
 
 * `--vcf-dir` - Directory containing `h.vcf.gz` and/or `g.vcf.gz` 
   files made from the `create-ref-vcf` and `create-maf-vcf` commands
-  (_See the [**"Create VCF files"**](#create-vcf-files) section for 
+  (_see the [**"Create VCF files"**](#create-vcf-files) section for 
   further details_). In my example case this is a subdirectory
   called `output/vcf_files`.
 * `--db-path` - Path to the directory containing the TileDB instances.
 * `--threads` - Number of threads for use by the TileDB loading
   procedure.
 
-Optional Parameter:
+After VCF files have been loaded, the directory containing the TileDB
+instances (in our case, `vcf_dbs/`) can be compressed for backups
 
-* `--conda-env-prefix` - path to the Conda directory that contains the conda environment needed to run phg.  If not set, env `phgv2-conda` in the defauilt location will be used.
 
 
 ### Where to go from here?
