@@ -18,6 +18,12 @@ import java.io.File
  */
 
 class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning assemblies in a slurm data array job") {
+
+    val phgLocation by option(help = " full path to the phg executable relative to be used in the slurm command file. " +
+            "Default assumes vommsnf id tun gtom the folder containing the executable.  This will be the first" +
+            " part of the command in the slurm command file. ")
+        .default("./phg")
+
     val gff by option(help = "Full path to the reference gff file")
         .default("")
         .validate {
@@ -94,12 +100,17 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
         .int()
         .default(1)
 
+    val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment." +
+            " This is necessary if the conda env is not named phgv2-conda and/or is not in the conda default location")
+        .default("")
+
     override fun run() {
         // This method creates the files needed for aligning assemblies in a slurm data array job.
         // For each assembly in the list, add an entry to the slurm data array job file that calls align-assemblies clikt command
         // THis is implemented in the createSlrumDatArrayJobFile() function
         println("PrepareSlurmALignFile: in run, calling createSlurmDataArrayJobFile")
         createSlurmDataArrayJobFile(
+            phgLocation,
             gff,
             referenceFile,
             referenceCdsSam,
@@ -110,7 +121,8 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
             totalThreads,
             1, // default for in-paralel as there is only one assembly per line
             refMaxAlignCov,
-            queryMaxAlignCov
+            queryMaxAlignCov,
+            condaEnvPrefix
         )
     }
 
@@ -123,6 +135,7 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
     //The file will contain a line for each assembly to be aligned.  Each line will be a call to the phg align-assemblies command.
     //The parameters for the call will be the parameters supplied to this function.
     fun createSlurmDataArrayJobFile(
+        phgLocation: String,
         gff: String,
         referenceFile: String,
         referenceCdsSam: String,
@@ -133,7 +146,8 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
         totalThreads: Int,
         inParallel: Int,
         refMaxAlignCov: Int,
-        queryMaxAlignCov: Int
+        queryMaxAlignCov: Int,
+        condaEnvPrefix:String
     ) {
         // This method creates the file needed for aligning assemblies in a slurm data array job.
         // For each assembly in the list, add an entry to the slurm data array job file that calls align-assemblies clikt command
@@ -143,10 +157,17 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
         val writer = File(slurmCommandFile).bufferedWriter()
         // for each assembly in the list, write a line to the file that calls the align-assemblies command
         // We use the parameters supplied to this function as the parameters for the align-assemblies command,
+
+        // set the conda-env-prefix if one was supplied
+        val condaEnv = if (condaEnvPrefix.isNotBlank()) {
+            "--conda-env-prefix $condaEnvPrefix"
+        } else {
+            ""
+        }
         assembliesList.forEach {
             // THis might not be correct - check copilots' parameters.
             // TODO: Should I even have in-parallel and total-threads as parameters?
-            writer.write("phg align-assemblies --gff $gff --output-dir $outputDir --reference-file $referenceFile --reference-sam $referenceCdsSam --reference-cds-fasta $referenceCdsFasta --assembly-file $it --total-threads $totalThreads --in-parallel $inParallel --ref-max-align-cov $refMaxAlignCov --query-max-align-cov $queryMaxAlignCov\n")
+            writer.write("$phgLocation align-assemblies --gff $gff --output-dir $outputDir --reference-file $referenceFile --reference-sam $referenceCdsSam --reference-cds-fasta $referenceCdsFasta --assembly-file $it --total-threads $totalThreads --in-parallel $inParallel --ref-max-align-cov $refMaxAlignCov --query-max-align-cov $queryMaxAlignCov ${condaEnv}\n")
         }
         writer.close()
     }
