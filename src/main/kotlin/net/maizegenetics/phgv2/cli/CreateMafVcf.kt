@@ -70,6 +70,9 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
             "--skip-metrics" to true
         ).default(false)
 
+    val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
+        .default("")
+
     /**
      * Function to create the ASM hVCF and gVCF.
      * It will first use Biokotlin to build the gVCF and then will use the BED file to extract out the hVCF information.
@@ -512,7 +515,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
 
         val ranges = metaDataToRangeLookup.flatMap { it.second }
 
-        val seqs = retrieveAgcContigs(dbPath,ranges)
+        val seqs = retrieveAgcContigs(dbPath,ranges,"")
 
         return metaDataToRangeLookup.map { it.first.copy(asmSeq = buildSeq(seqs,it.third,it.first)) } //This is a useful way to keep things immutable
     }
@@ -629,7 +632,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
 
         // Verify the tiledbURI
         // If it doesn't an exception will be thrown
-        val validDB = verifyURI(dbPath,"hvcf_dataset")
+        val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
         if(metricsFile != "") {
             createASMHvcfs(dbPath, bed, referenceFile, mafDir, outputDir, metricsFile, skipMetrics)
         } else {

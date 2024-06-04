@@ -127,6 +127,9 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         .int()
         .default(1)
 
+    val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
+        .default("")
+
     data class InputChannelData(
         val refFasta: String,
         val asmFasta: String,
@@ -157,10 +160,14 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         val refSamOutFile = "${outputDir}/${samOutFile}"
 
         // For minimap2, we will use the number of processors available as the number of threads.
-        val builder = ProcessBuilder(
-            "conda", "run", "-n", "phgv2-conda", "minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
-            "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile
-        )
+        val command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix, "minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
+            "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile)
+        else mutableListOf("conda","run","-n","phgv2-conda","minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
+            "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile)
+
+        val builder = ProcessBuilder(command)
+        // For minimap2, we will use the number of processors available as the number of threads.
+
         val redirectError = "$outputDir/minimap2Ref_error.log"
         val redirectOutput = "$outputDir/minimap2Ref_output.log"
         builder.redirectOutput(File(redirectOutput))
@@ -376,20 +383,23 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
 
         // val command = "anchorwave gff2seq -r ${refFasta} -i ${gffFile} -o ${cdsFasta} "
         // Need to set the conda environment here to access anchorwave
-        val builder = ProcessBuilder(
-            "conda",
-            "run",
-            "-n",
-            "phgv2-conda",
-            "anchorwave",
+        val command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix, "anchorwave",
             "gff2seq",
             "-r",
             refFasta,
             "-i",
             gffFile,
             "-o",
-            cdsFasta
-        )
+            cdsFasta)
+        else mutableListOf("conda","run","-n","phgv2-conda","anchorwave",
+            "gff2seq",
+            "-r",
+            refFasta,
+            "-i",
+            gffFile,
+            "-o",
+            cdsFasta)
+        val builder = ProcessBuilder(command)
 
         val redirectOutput = "$outputDir/anchorwave_gff2seq_output.log"
         val redirectError = "$outputDir/anchorwave_gff2seq_error.log"
@@ -469,12 +479,7 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
 
                 myLogger.info("alignAssembly: asmFileFull: ${assemblyEntry.asmFasta}, outputFile: $asmSamFile , threadsPerRun: ${assemblyEntry.threadsPerRun}")
 
-                val builder = ProcessBuilder(
-                    "conda",
-                    "run",
-                    "-n",
-                    "phgv2-conda",
-                    "minimap2",
+                val command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix,"minimap2",
                     "-x",
                     "splice",
                     "-t",
@@ -488,8 +493,23 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
                     assemblyEntry.asmFasta,
                     cdsFasta,
                     "-o",
-                    asmSamFile
-                )
+                    asmSamFile)
+                else mutableListOf("conda","run","-n","phgv2-conda","minimap2",
+                    "-x",
+                    "splice",
+                    "-t",
+                    assemblyEntry.threadsPerRun.toString(),
+                    "-k",
+                    "12",
+                    "-a",
+                    "-p",
+                    "0.4",
+                    "-N20",
+                    assemblyEntry.asmFasta,
+                    cdsFasta,
+                    "-o",
+                    asmSamFile)
+                val builder = ProcessBuilder(command)
 
                 val redirectError = "${assemblyEntry.outputDir}/minimap2_${justName}_error.log"
                 val redirectOutput = "${assemblyEntry.outputDir}/minimap2_${justName}_output.log"
@@ -535,12 +555,7 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         // a GVCF keyfile from the maf keyfiles.  It will be understood that the maf
         // file name is <assemblyFastaNoExtension>.maf
         val outputFile = "${outputDir}/${justNameAsm}.maf"
-        val builder = ProcessBuilder(
-            "conda",
-            "run",
-            "-n",
-            "phgv2-conda",
-            "anchorwave",
+        val command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix,"anchorwave",
             "proali",
             "-i",
             gffFile,
@@ -563,8 +578,33 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
             "-t",
             threadsPerRun,
             "-o",
-            outputFile
-        )
+            outputFile)
+        else mutableListOf("conda","run","-n","phgv2-conda","anchorwave",
+            "proali",
+            "-i",
+            gffFile,
+            "-r",
+            refFasta,
+            "-as",
+            cdsFasta,
+            "-a",
+            asmSam,
+            "-ar",
+            refSam,
+            "-s",
+            asmFasta,
+            "-n",
+            anchorsproFile,
+            "-R",
+            refMaxAlignCov.toString(),
+            "-Q",
+            queryMaxAlignCov.toString(),
+            "-t",
+            threadsPerRun,
+            "-o",
+            outputFile)
+
+        val builder = ProcessBuilder(command)
 
         val redirectError = "${outputDir}/proali_${justNameAsm}_outputAndError.log"
         myLogger.info("redirectError: $redirectError")

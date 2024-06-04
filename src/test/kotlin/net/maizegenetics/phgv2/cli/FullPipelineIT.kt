@@ -293,7 +293,7 @@ class FullPipelineIT {
 
         //create reads from lineA
         val readList = mutableListOf<String>()
-        val seqMap = retrieveAgcGenomes(TestExtension.testTileDBURI, listOf("LineA"))
+        val seqMap = retrieveAgcGenomes(TestExtension.testTileDBURI, listOf("LineA"),"")
         seqMap.entries.forEach { (_, seq) ->
             val chrlen = seq.size()
             val numberOfReads = (coverage * chrlen / readLength).toInt()
