@@ -17,7 +17,8 @@ In this document, we will discuss the steps needed to:
     phg initdb \
         --db-path /path/to/dbs \
         --gvcf-anchor-gap 1000000 \
-        --hvcf-anchor-gap 1000
+        --hvcf-anchor-gap 1000 \
+        --conda-env-prefix /path/to/conda/env
     ```
 * Create BED file from GFF for reference range coordinates:
     ```shell
@@ -44,7 +45,8 @@ In this document, we will discuss the steps needed to:
         --gff anchors.gff \
         --reference-file /my/ref.fasta \
         --assemblies assemblies_list.txt \
-        -o /path/for/generated_files
+        -o /path/for/generated_files \
+        --conda-env-prefix /path/to/conda/env
     ```
 
 * Compress FASTA files
@@ -52,7 +54,8 @@ In this document, we will discuss the steps needed to:
     phg agc-compress \
         --db-path /path/to/dbs \
         --reference-file \
-        --fasta-list /my/assembly_fasta_list.txt
+        --fasta-list /my/assembly_fasta_list.txt \
+        --conda-env-prefix /path/to/conda/env
     ```
 * Create VCF files
     ```shell
@@ -61,13 +64,15 @@ In this document, we will discuss the steps needed to:
         --bed /path/to/bed_file.bed \
         --reference-file /my/ref.fasta \
         --reference-name B73 \
-        --db-path /path/to/dbs
+        --db-path /path/to/dbs \
+        --conda-env-prefix /path/to/conda/env
   
     # MAF alignments VCF
     phg create-maf-vcf \
         --bed /path/to/bed_file.bed \
         --reference-file /my/ref.fasta \
-        --gvcf-dir /my/gvcf/files 
+        --gvcf-dir /my/gvcf/files \
+        --conda-env-prefix /path/to/conda/env
   
     # hVCF from PHGv1 created gVCF (OPTIONAL)
     phg gvcf2hvcf \
@@ -82,6 +87,7 @@ In this document, we will discuss the steps needed to:
         --vcf /my/vcf/dir \
         --db-path /path/to/dbs \
         --threads 10
+        --conda-env-prefix /path/to/conda/env
     ```
 
 ## Detailed walkthrough
@@ -193,8 +199,8 @@ conda activate phgv2-conda
 ```
 
 > [!NOTE]
-> It is imperative the conda environment you create is named 
-> `phgv2-conda`. This is the default environment name that PHGv2 uses 
+> It is imperative the conda environment you create is named
+> `phgv2-conda`. This is the default environment name that PHGv2 uses
 > when executing shell commands from within the software.
 
 If we look in our example project directory, you will also see two
@@ -204,7 +210,20 @@ error output from the PHGv2 command steps:
 * `condaCreate_error.log`
 * `condaCreate_output.log`
 
+> [!NOTE]
+> If you need or want to have the conda environment setup in a non-default
+> location, you must run the "conda env create" command manually
+> using the --prefix option to specify the name and location of the
+> environment.  This created location should then be passed as the
+> "conda-env-prefix" parameter for all PHGv2 commands that have this optional
+> parameter.  For this scenario, the .yml file should not contain the "name"
+> section.  An example of the command to create the environment in a
+> non-default location is:
+>
 
+```shell
+conda env create --prefix /path/to/new/conda/env --file phg_environment.yml
+```
 
 ### Running phg commands
 
@@ -237,7 +256,8 @@ process using the `initdb` command:
 ./phg initdb \
     --db-path vcf_dbs \
     --gvcf-anchor-gap 1000000 \
-    --hvcf-anchor-gap 1000
+    --hvcf-anchor-gap 1000 \
+    --conda-env-prefix /path/to/conda/env
 ```
 
 This command takes one required parameter, `--db-path` which is the 
@@ -245,14 +265,21 @@ path or subdirectory to where we want to place our databases. In this
 example project, I will initialize the hVCF and gVCF database 
 folders in a subdirectory called `vcf_dbs`.
 
-Two optional parameters, `--gvcf-anchor-gap` and `--hvcf-anchor-gap` 
-may also be set. These parameters define the distance between anchors 
+Three optional parameters may also be set.
+
+Parameters `--gvcf-anchor-gap` and `--hvcf-anchor-gap`
+define the distance between anchors 
 in the two TileDB-VCF sparse arrays. Smaller values enable faster 
 data retrieval. However, if there are non-symbolic variants that span 
 many anchors (for example, very large deletions), then the `load-vcf` 
 command will require a large amount of RAM to process variant 
 information for each assembly. More information can be found in the 
 [TileDB-VCF docs.](https://tiledb-inc.github.io/TileDB-VCF/documentation/the-solution.html)
+
+Optional parameter `--conda-env-prefix` is the path to the Conda env directory
+that contains the conda environment needed to run phg. This parameter is
+used when the conda environment to activate does not reside in the default
+location.  
 
 After initialization is complete, we will have two empty TileDB-VCF
 instances and a `temp` directory in our `vcf_dbs` subdirectory:
@@ -637,7 +664,8 @@ To run the aligner step, we can call the `align-assemblies` command:
     --assemblies data/assemblies_list.txt \
     --total-threads 20 \
     --in-parallel 2 \
-    -o output/alignment_files
+    -o output/alignment_files \
+    --conda-env-prefix /path/to/conda/env
 ```
 
 This command uses several parameters:
@@ -676,7 +704,7 @@ This command uses several parameters:
 * `-o` - The name of the directory for the alignment outputs.
 
   
-In addition to the above parameters, there are two optional parameters. When values are not specified for these parameters,
+In addition to the above parameters, there are three optional parameters. When values are not specified for these parameters,
 default values are calculated by the software based on the system processor and memory configuration.
 
 * `--total-threads` - How many threads would you like to allocate for
@@ -687,6 +715,9 @@ default values are calculated by the software based on the system processor and 
   More information about this step and the `--total-threads` step can
   be found in the following **Details - threads and parallelization** 
   section.
+* `--conda-env-prefix` - The path to the Conda directory that contains  
+    the conda environment needed to run phg.  If not set, env `phgv2-conda` in the defauilt location will be used.
+
 
 > [!WARNING]
 > The directory that you specify in the output (`-o`) section must
@@ -882,7 +913,8 @@ command:
 ./phg agc-compress \
     --db-path vcf_dbs \
     --fasta-list data/assemblies_list.txt \
-    --reference-file output/updated_assemblies/Ref.fa
+    --reference-file output/updated_assemblies/Ref.fa \
+    --conda-env-prefix /path/to/conda/env
 ```
 
 This command takes in 3 parameters:
@@ -905,6 +937,10 @@ This command takes in 3 parameters:
 
 * `--reference-file` - Reference FASTA genome processed with
   the `prepare-assemblies` command.
+
+In addition, `conda-env-prefix` is an optional parameter that specifies the path 
+to the Conda directory that contains the conda environment needed to run phg.  
+If not set, conda env `phgv2-conda` in the defauilt location will be used.
 
 After compression is finished, we can navigate to the directory
 containing the TileDB instances. In my case, this would be the
@@ -962,7 +998,8 @@ phg create-ref-vcf \
     --bed output/ref_ranges.bed \
     --reference-file output/updated_assemblies/Ref.fa \
     --reference-name Ref \
-    --db-path vcf_dbs
+    --db-path vcf_dbs \
+    --conda-env-prefix /path/to/conda/env
 ```
 
 2. Create hVCF and gVCF data from assembly alignments against reference
@@ -976,7 +1013,8 @@ phg create-maf-vcf \
     --maf-dir output/alignment_files \
     -o output/vcf_files \
     --metrics-file output/vcf_files/VCFMetrics.tsv \
-    --skip-metrics
+    --skip-metrics \
+    --conda-env-prefix /path/to/conda/env
 ```
 
 3. **(OPTIONAL!)** Create hVCF from existing PHGv1 created gVCF files. 
@@ -1018,12 +1056,13 @@ The `create-ref-vcf` command requires the following inputs:
     step.
 * `--db-path` - path to PHG database directory for VCF storage.
 
+OPTIONAL parameters:
+There are 2 optional parameters to `create-ref-vcf`:
 
-> [!NOTE]
-> Optionally, `create-ref-vcf` can also use another parameter, 
-> `--reference-url`. This is an optional URL where the reference
-> FASTA file can be downloaded. This will be added to the VCF header
-> information.
+* `--reference-url` - URL where the reference FASTA file can be 
+  downloaded. This will be added to the VCF header information.
+* `--conda-env-prefix` - path to the Conda directory that contains the conda environment needed to run phg.  If not set, env `phgv2-conda` in the defauilt location will be used.
+
 
 Once the command is complete, and you have navigated into the 
 `--db-path` parameter directory (in my case, `vcf_dbs/`), you will 
@@ -1088,6 +1127,10 @@ The `create-maf-vcf` command requires the following inputs:
 > [!WARNING]
 > The directory that you specify in the output (`-o`) section must
 > be an existing directory.
+
+Optional Parameter: 
+
+* `--conda-env-prefix` - path to the Conda directory that contains the conda environment needed to run phg.  If not set, env `phgv2-conda` in the defauilt location will be used.
 
 Once the command is complete, and you have navigated into the output
 directory (in my case, `output/vcf_files`), you will see a collection
@@ -1180,7 +1223,8 @@ and gVCF files into their respective TileDB directories:
 ./phg load-vcf \
     --vcf-dir output/vcf_files \
     --db-path vcf_dbs \
-    --threads 10
+    --threads 10 \
+    --conda-env-prefix /path/to/conda/env
 ```
 
 This command takes three parameters:
@@ -1194,6 +1238,9 @@ This command takes three parameters:
 * `--threads` - Number of threads for use by the TileDB loading
   procedure.
 
+Optional Parameter:
+
+* `--conda-env-prefix` - path to the Conda directory that contains the conda environment needed to run phg.  If not set, env `phgv2-conda` in the defauilt location will be used.
 
 
 ### Where to go from here?
