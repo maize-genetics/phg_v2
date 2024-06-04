@@ -105,7 +105,7 @@ class FullPipelineIT {
         //Create the agc record:
         val agcCompress = AgcCompress()
 
-        val agcResult = agcCompress.test("--fasta-list ${TestExtension.smallseqAssembliesListFile} --db-path ${TestExtension.testTileDBURI} --reference-file ${TestExtension.smallseqRefFile}")
+        val agcResult = agcCompress.test("--fasta-list $assembliesList --db-path ${TestExtension.testTileDBURI} --reference-file ${TestExtension.smallseqRefFile}")
         println(agcResult.output)
 
         println(createRangesResult.output)
@@ -118,7 +118,7 @@ class FullPipelineIT {
         val alignAssemblies = AlignAssemblies()
         val alignAssembliesResult = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.testMafDir}"
+                    "-a $assembliesList -o ${TestExtension.testMafDir}"
         )
         println(alignAssembliesResult.output)
 
@@ -293,7 +293,7 @@ class FullPipelineIT {
 
         //create reads from lineA
         val readList = mutableListOf<String>()
-        val seqMap = retrieveAgcGenomes(TestExtension.testTileDBURI, listOf("LineA"))
+        val seqMap = retrieveAgcGenomes(TestExtension.testTileDBURI, listOf("LineA"),"")
         seqMap.entries.forEach { (_, seq) ->
             val chrlen = seq.size()
             val numberOfReads = (coverage * chrlen / readLength).toInt()
