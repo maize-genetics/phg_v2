@@ -256,7 +256,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
 
         // Verify the tiledbURI
         // If it doesn't an exception will be thrown
-        val validDB = verifyURI(dbPath,"hvcf_dataset")
+        val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
 
         buildFastaFromHVCF(dbPath, output, fastaType, hvcfDir, hvcfFile,condaEnvPrefix)
     }

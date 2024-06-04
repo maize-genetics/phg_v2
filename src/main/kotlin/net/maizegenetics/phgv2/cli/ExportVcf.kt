@@ -107,7 +107,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         }
 
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
-        val validDB = verifyURI(dbPath, "hvcf_dataset")
+        val validDB = verifyURI(dbPath, "hvcf_dataset",condaEnvPrefix)
 
         // This is the tiledbvcf command we want to run:
         // Doing this with a ProcessBuilder and using the phg_v2 conda environment

@@ -33,6 +33,9 @@ object StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
         .int()
         .default(8080)
 
+    val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
+        .default("")
+
     lateinit var server: NettyApplicationEngine
 
     fun serverURL(): String {
@@ -70,7 +73,7 @@ object StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
         } else { // dbPath has a value
             if (configPath != null && configPath.isNotBlank()) {
                 if (configPath != dbPath) {
-                    if (!verifyURI(dbPath, "hvcf_dataset")) {
+                    if (!verifyURI(dbPath, "hvcf_dataset",condaEnvPrefix)) {
                         myLogger.error("start-server:  \ndp-path does not contain a valid tiledb created hvcf_dataset.  \nPlease re-run start-server with a valid value for db-path parameter.")
                         throw IllegalArgumentException("start-server:  \nTILEDB_URI is not valid.  \nPlease re-run start-server with a valid value for dbPath parameter.")
                     }
@@ -79,7 +82,7 @@ object StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
                     myLogger.info("\nstart-server:  Running server with db-path/TILEDB_URI of ${configPath}.")
                 }
             } else {
-                if (!verifyURI(tiledbPath, "hvcf_dataset")) {
+                if (!verifyURI(tiledbPath, "hvcf_dataset",condaEnvPrefix)) {
                     myLogger.error("hvcf_dataset does not exist in $dbPath.  Please check your path, and/or run Initdb to create the datasets.")
                     throw IllegalArgumentException("A valid hvcf_dataset does not exist in $dbPath.")
                 }

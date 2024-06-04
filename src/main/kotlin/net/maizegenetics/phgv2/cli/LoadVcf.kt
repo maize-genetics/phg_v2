@@ -59,7 +59,7 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
             dbPath
         }
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
-        val validDB = verifyURI(dbPath,"hvcf_dataset")
+        val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
 
         loadVcfFiles(vcfDir,dbPath,condaEnvPrefix,threads)
     }
