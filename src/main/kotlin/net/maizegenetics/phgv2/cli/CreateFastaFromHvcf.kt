@@ -62,18 +62,22 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
     val hvcfDir by option("--hvcf-dir", help = "Path to directory holding hVCF files. Data will be pulled directly from these files instead of querying TileDB")
         .default("")
 
+    val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
+        .default("")
+
+
     /**
      * Function to build the Fasta file from the HVCF and the agc record.
      * Right now it does not support pulling from TileDB, but will in the future.
      */
-    fun buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfDir: String ,hvcfFile : String) {
+    fun buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfDir: String ,hvcfFile : String, condaEnvPrefix:String) {
         if(hvcfDir != "") {
             //Loop through the directory and figure out which files are hvcf files
             // the gvcf and hvcf files may be in the same folder, so verify specific extension
             val hvcfFiles = File(hvcfDir).listFiles { file -> file.extension == "h.vcf" || file.name.endsWith("h.vcf.gz") || file.name.endsWith("hvcf") || file.name.endsWith("hvcf.gz")}
             //Loop through each file and run the buildFastaFromHVCF function
             BufferedWriter(FileWriter(outputFile)).use { output ->
-                writeSequences(output,hvcfFiles.flatMap { processSingleHVCF(VCFFileReader(it,false), dbPath) }
+                writeSequences(output,hvcfFiles.flatMap { processSingleHVCF(VCFFileReader(it,false), dbPath,condaEnvPrefix) }
                     .associate { it.id to it }
                     .values.toList(), fastaType)
             }
@@ -85,20 +89,20 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
             //Load in the HVCF
             val hvcfFile = VCFFileReader(File(hvcfFile),false)
             BufferedWriter(FileWriter(outputFile)).use { output ->
-                val records = processSingleHVCF(hvcfFile, dbPath)
+                val records = processSingleHVCF(hvcfFile, dbPath,condaEnvPrefix)
                 writeSequences(output,records, fastaType)
             }
         }
     }
 
-    fun processSingleHVCF(vcfFileReader: VCFFileReader, dbPath: String) : List<HaplotypeSequence> {
+    fun processSingleHVCF(vcfFileReader: VCFFileReader, dbPath: String,condaEnvPrefix:String) : List<HaplotypeSequence> {
         //extract out the haplotype sequence boundaries for each haplotype from the hvcf
         val altHeaderMap = parseALTHeader(vcfFileReader.header)
 
         val samples = vcfFileReader.header.sampleNamesInOrder
         val hvcfRecords = vcfFileReader.iterator().asSequence().toList()
 
-        return samples.flatMap { sample -> createHaplotypeSequences(dbPath, sample, hvcfRecords, altHeaderMap) }
+        return samples.flatMap { sample -> createHaplotypeSequences(dbPath, sample, hvcfRecords, altHeaderMap,condaEnvPrefix) }
     }
 
     fun writeSequences(outputWriter: BufferedWriter, haplotypeSequences: List<HaplotypeSequence>, fastaType: String) {
@@ -119,7 +123,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
      *    "hapSampleName" is the samplename associated with the haplotype sequence, and this information
      *           is pulled from the ALT header line using the hapid as an index.
      */
-    fun createHaplotypeSequences(dbPath:String, sampleName: String, haplotypeVariants: List<VariantContext>, altHeaders: Map<String, AltHeaderMetaData>): List<HaplotypeSequence> {
+    fun createHaplotypeSequences(dbPath:String, sampleName: String, haplotypeVariants: List<VariantContext>, altHeaders: Map<String, AltHeaderMetaData>,condaEnvPrefix:String): List<HaplotypeSequence> {
         val chromToAltEntryData = mutableMapOf<String, MutableList<Triple<MutableList<String>,MutableList<String>,HaplotypeSequence>>>()
         val hapSeqList = mutableListOf<HaplotypeSequence>()
         // Filter out the haplotype variants that do not have the sampleName
@@ -159,7 +163,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
         // This returns a list of HaplotypeSequence objects.
         for(chrom in chromToAltEntryData.keys) {
             val ranges = chromToAltEntryData[chrom]!!.flatMap { it.first }
-            val seqs = retrieveAgcContigs(dbPath,ranges)
+            val seqs = retrieveAgcContigs(dbPath,ranges,condaEnvPrefix)
             // add to the hapSeqList an updated HaplotypeSequence object containing the sequence built from AGC contigs
              hapSeqList.addAll(chromToAltEntryData[chrom]!!.map { it.third.copy(sequence = buildHapSeq(seqs, it.second,it.third)) })
         }
@@ -252,8 +256,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
 
         // Verify the tiledbURI
         // If it doesn't an exception will be thrown
-        val validDB = verifyURI(dbPath,"hvcf_dataset")
+        val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
 
-        buildFastaFromHVCF(dbPath, output, fastaType, hvcfDir, hvcfFile)
+        buildFastaFromHVCF(dbPath, output, fastaType, hvcfDir, hvcfFile,condaEnvPrefix)
     }
 }

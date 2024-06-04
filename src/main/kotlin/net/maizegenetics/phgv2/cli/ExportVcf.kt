@@ -84,6 +84,9 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
     val regionsFile by option(help = "A bedfile or vcf file containing the regions to be exported. Regions can be single base pair positions. File extension must be either .bed or .vcf.")
         .default("")
 
+    val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
+        .default("")
+
     override fun run() {
 
         //if using a regions file, the output vcfs can contain duplicate sequential reference blocks which need to be deleted
@@ -104,7 +107,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         }
 
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
-        val validDB = verifyURI(dbPath, "hvcf_dataset")
+        val validDB = verifyURI(dbPath, "hvcf_dataset",condaEnvPrefix)
 
         // This is the tiledbvcf command we want to run:
         // Doing this with a ProcessBuilder and using the phg_v2 conda environment
@@ -114,9 +117,12 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
 
         val dtype = if (datasetType == "gvcf") "gvcf_dataset" else "hvcf_dataset"
 
+        // Setup the conda enviroment portion of the command
+        var command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix) else mutableListOf("conda","run","-n","phgv2-conda")
+
         // Tiledbvcf can take either a file with samplenames, or a comma-separated list of sample names
         // setup the command based on user input type.
-        val command = if (samples.getExportCommand()[0] == SampleFormatEnum.FILE.toString()) mutableListOf(
+        var dataCommand = if (samples.getExportCommand()[0] == SampleFormatEnum.FILE.toString()) mutableListOf(
             "conda",
             "run",
             "-n",
@@ -153,19 +159,21 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
                 "vcf" -> {
                     val tmpFilename = Files.createTempFile("tempBedfile", ".bed").absolutePathString()
                     writeBedfileFromVcf(regionsFile, tmpFilename)
-                    command.add("--regions-file")
-                    command.add(tmpFilename)
+                    dataCommand.add("--regions-file")
+                    dataCommand.add(tmpFilename)
                 }
 
                 "bed" -> {
-                    command.add("--regions-file")
-                    command.add(regionsFile)
+                    dataCommand.add("--regions-file")
+                    dataCommand.add(regionsFile)
                 }
 
                 else -> throw IllegalArgumentException("Regions file $regionsFile must end in .bed or .vcf.")
             }
         }
 
+        // join the 2 conda and data portion of the commands
+        command.addAll(dataCommand)
         val builder = ProcessBuilder(command)
 
         val redirectError = "$outputDir/export_${dtype}_error.log"

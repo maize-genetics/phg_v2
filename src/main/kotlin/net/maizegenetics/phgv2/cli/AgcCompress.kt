@@ -82,7 +82,7 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
         }
         // Verify the dbPath contains valid tiledb created datasets
         // If it doesn't an exception will be thrown
-        val validDB = verifyURI(tiledbFolder,"hvcf_dataset")
+        val validDB = verifyURI(tiledbFolder,"hvcf_dataset",condaEnvPrefix)
         // process the input
         processAGCFiles(tiledbFolder,fastaList,referenceFile, condaEnvPrefix)
 

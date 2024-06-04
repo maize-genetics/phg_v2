@@ -19,7 +19,7 @@ class AgcCompressTest {
         @BeforeAll
         fun setup() {
             File(TestExtension.testTileDBURI).mkdirs()
-            Initdb().createDataSets(TestExtension.testTileDBURI)
+            Initdb().createDataSets(TestExtension.testTileDBURI,"")
         }
 
         @JvmStatic
@@ -173,7 +173,7 @@ class AgcCompressTest {
         val fastaCreateFileNamesFile = File(dbPath, "fastaBadNames.txt")
         fastaCreateFileNamesFile.writeText("data/test/agcTestBad/LineA_noSN.fa\n")
 
-        Initdb().createDataSets(TestExtension.tempDir)
+        Initdb().createDataSets(TestExtension.tempDir,"")
         val agcCompress = AgcCompress()
         assertThrows<IllegalStateException> {
             // Create the initial compressed file

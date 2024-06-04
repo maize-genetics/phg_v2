@@ -63,6 +63,9 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
 
+    val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
+        .default("")
+
     override fun run() {
         myLogger.info("begin CreateRefVcf: validate dpPath URI")
         val dbPath = if (dbPath.isBlank()) {
@@ -71,7 +74,7 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
             dbPath
         }
         // Verify the dbPath is a valid tiledb URI
-        val validDB = verifyURI(dbPath,"hvcf_dataset")
+        val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
 
         createRefHvcf(bed,referenceFile,referenceName,referenceUrl,dbPath)
     }
@@ -222,11 +225,11 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
 
             // Create the tiledb datasets if they don't exist
             File(dbPath).mkdirs()
-            Initdb().createDataSets(dbPath)
+            Initdb().createDataSets(dbPath,"")
 
             // Load the Ref hvcf file to tiledb
             val loadVcf = LoadVcf()
-            loadVcf.loadVcfFiles(tiledbHvcfDir,dbPath) // default the threads to "1" for the ref.
+            loadVcf.loadVcfFiles(tiledbHvcfDir,dbPath,"") // default the threads to "1" for the ref.
 
             // Store the bed file and the reference fasta file to the dbPath/reference folder
             // Create the dbPath/reference folder if it doesn't exist
