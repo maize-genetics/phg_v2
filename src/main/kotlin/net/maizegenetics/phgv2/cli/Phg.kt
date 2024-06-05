@@ -53,6 +53,6 @@ fun main(args: Array<String>) = Phg()
         SetupEnvironment(), Initdb(), CreateRanges(), PrepareAssemblies(), AgcCompress(), AlignAssemblies(),
         CreateAnchorwaveDotplot(), CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), LoadVcf(), ExportVcf(),
         BuildKmerIndex(), MapKmers(), FindPaths(), // Imputation
-        CreateFastaFromHvcf(), MergeHvcfs(), CalcVcfMetrics(), StartServer // Utilities
+        CreateFastaFromHvcf(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer // Utilities
     )
     .main(args)
