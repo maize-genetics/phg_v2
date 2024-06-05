@@ -8,13 +8,19 @@ import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
 
 /**
- * This class provides a means of preparing data for aligning assemblies in a slurm data array job.
- * It  takes as input a list of assemblies, a reference genome, a reference gff file and the reference cds fasta
- * aligned sam file, created by the AlignAssemblies class.  The latter should have been created via
- * align-assemblies with the just-ref-prep option.
+ * This is a convenience class for creating a file that can be submitted to slurm as a data array job.
+ * It is not required to be run - users can create the file manually if they prefer.
  *
- * What is needed beyond this is taking the slurm command file and verifying it can be run in a slurm job.
- * That will not be done in a junit test - needs to happen on scinet.
+ * This class provides a means of preparing data for aligning assemblies in a slurm data array job.
+ * It takes as input the values for parameters needed to run the align-assemblies command.  This
+ * could be done manually, but if the list of assemblies to align is long, this class provides
+ * a quick way to create the file needed for a slurm data array job.
+ *
+ * Output:  A file that contains a line for each assembly in the list of assemblies to align.  Each line
+ * is a call to the phg align-assemblies command.  The parameters for the call are the parameters supplied
+ * to this class.
+ *
+ * The output file can be submitted to slurm as a data array job.
  */
 
 class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning assemblies in a slurm data array job") {

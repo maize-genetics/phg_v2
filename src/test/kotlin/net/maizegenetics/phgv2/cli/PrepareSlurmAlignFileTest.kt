@@ -37,7 +37,6 @@ class PrepareSlurmAlignFileTest {
         val refFasta = TestExtension.smallseqRefFile
         val refSam = TestExtension.smallseqRefFile
         val refCDSfasta = TestExtension.smallseqRefFile
-        val refCDSSam = TestExtension.smallseqRefFile
         val assembliesList = TestExtension.smallseqAssembliesListFile
         val slurmCommandFile = "${TestExtension.tempDir}/slurm_align.sh"
 

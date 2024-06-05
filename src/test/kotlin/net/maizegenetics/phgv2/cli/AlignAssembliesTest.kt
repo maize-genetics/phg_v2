@@ -330,9 +330,12 @@ class AlignAssembliesTest {
         // First, run align-assemblies with the --just-ref-prep option to create the reference cds sam and fasta files
         val alignAssemblies = AlignAssemblies()
         val outputDir = TestExtension.tempDir
+        // delete all files with extension .maf in the output directory (may be present from previous tests)
+        File(outputDir).listFiles { _, name -> name.endsWith(".maf") }?.forEach { it.delete() }
+
         val referenceFile = TestExtension.smallseqRefFile
         val prepResult = alignAssemblies.test(
-            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file $referenceFile " +
                     "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${outputDir} --total-threads 1 --in-parallel 1 --just-ref-prep"
         )
         // verify good result

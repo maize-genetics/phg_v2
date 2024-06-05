@@ -40,16 +40,24 @@ import javax.management.ObjectName
  * with the file stored in PNG format to the output directory.
  *
  * This function is refactored to allow easier running on systems
- * using SLURM functionality.  Two new parameters are added:
- * 1. justRef: if true, only the creation of the reference CDS file
+ * using SLURM functionality.  Three new optional parameters are added:
+ *
+ * 1. just-ref-prep: if true, only the creation of the reference CDS file
  *     and subsequent aligning of the reference fasta to that file
  *     is performed.  These files should be saved by the user for
- *     use with a slurm script
- * 2.  slurm:  If true, a text file is created with separate individual
- *     lines containing the commands to run anchorwave for each assembly,
- *     using the created reference CDS fasta.
+ *     use with a slurm script.  They are needed for the running of
+ *     anchorwave's proali command, which performs the alignment.
+ * 2.  reference-cds-fasta: If present, this is the full path to the reference
+ *    CDS fasta file created from a previous run of this command.  If this is provided,
+ *    the reference-sam parameter must also be provided.  Users would provide values for these
+ *    two parameters if they wanted to avoid running that part of the align-assemblies command again.
+ *    This is desired when running through a slurm data-array job, where the reference CDS alignment
+ *    is done once, and then the assemblies are aligned to the resulting reference-cds-fasta and reference-sam files.
+ * 3.  reference-sam: If present, this is the full path to the reference-sam file
+ *     created from a previous run of this command.  If this is provided, the reference-cds-fasta
+ *     parameter must also be provided.
  *
- * This function allows for multiple assembly alignments to be run
+ * When running on a single machine, this class allows for multiple assembly alignments to be run
  * in parallel.  Users may specify number of alignments to run in parallel
  * and the total number of threads available to be split between the alignments.
  * Anchorwave takes 10G of RAM for the dynamic program aspects, and then another
