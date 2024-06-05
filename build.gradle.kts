@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 val ktorVersion = "2.3.7"
 
 plugins {
-    kotlin("jvm") version "1.9.23"
+    kotlin("jvm") version "1.9.24"
     application
     id("org.jetbrains.kotlinx.kover") version "0.7.3"
     kotlin("plugin.serialization") version "1.6.21"
@@ -15,7 +15,7 @@ group = "net.maizegenetics"
 This build script is need to use the early access
  */
 buildscript {
-    val kotlinVersion by extra("1.9.23")
+    val kotlinVersion by extra("1.9.24")
 
     repositories {
         mavenCentral()
@@ -25,7 +25,7 @@ buildscript {
     dependencies {
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
         classpath(kotlin("serialization", version = kotlinVersion))
-        classpath("org.jetbrains.dokka:dokka-gradle-plugin:1.6.21")
+        classpath("org.jetbrains.dokka:dokka-gradle-plugin:1.9.20")
     }
 }
 
@@ -45,7 +45,7 @@ dependencies {
     implementation("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.7.0")
     implementation("org.jetbrains.lets-plot:lets-plot-image-export:4.3.0")
     implementation("org.jetbrains.lets-plot:lets-plot-batik:4.3.0")
-    implementation("org.biokotlin:biokotlin:0.16")
+    implementation("org.biokotlin:biokotlin:0.17")
     implementation("com.github.ajalt.clikt:clikt:4.2.0")
 
     implementation("com.github.samtools:htsjdk:4.0.1")
@@ -55,7 +55,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-test:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-script-runtime:${kotlinVersion}")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.2")
 
     implementation("org.apache.commons:commons-math3:3.6.1")
