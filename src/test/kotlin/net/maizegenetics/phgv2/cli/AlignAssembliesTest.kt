@@ -9,6 +9,7 @@ import org.jetbrains.kotlinx.dataframe.io.readDelim
 import org.jetbrains.kotlinx.dataframe.io.writeCSV
 import org.jetbrains.letsPlot.export.ggsave
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 
@@ -318,6 +319,69 @@ class AlignAssembliesTest {
         val plotFileLineA = "${TestExtension.tempDir}/LineA_dotplot.svg"
         assertTrue(File(plotFileLineA).exists(), "File $plotFileLineA does not exist")
     }
+
+    @Test
+    fun testWithRefPrepFiles() {
+        // This test verifies the alignments are performed with the ref-cds-sam and ref-cds-fasta are supplied
+        // in the command.
+        // TO do this, must first create those files.  This is done by running align-assemblies with the
+        // --just-ref-prep option.
+
+        // First, run align-assemblies with the --just-ref-prep option to create the reference cds sam and fasta files
+        val alignAssemblies = AlignAssemblies()
+        val outputDir = TestExtension.tempDir
+        val referenceFile = TestExtension.smallseqRefFile
+        val prepResult = alignAssemblies.test(
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${outputDir} --total-threads 1 --in-parallel 1 --just-ref-prep"
+        )
+        // verify good result
+        assertEquals(0, prepResult.statusCode, "status code not 0 for AlignAssemblies with just-ref-prep: ${prepResult.statusCode}")
+        // verify no MAF files in the output directory
+        val mafFiles = File(TestExtension.tempDir).listFiles { _, name -> name.endsWith(".maf") }
+        assertEquals(0, mafFiles.size, "MAF files found in output directory when none should be present")
+        // verify the reference cds sam and fasta files were created
+        val refSam = "${outputDir}/Ref.sam"
+        assertTrue(File(refSam).exists(), "File $refSam does not exist")
+        val refCdsFasta = "${outputDir}/ref.cds.fasta"
+        assertTrue(File(refCdsFasta).exists(), "File $refCdsFasta does not exist")
+
+        println("start of second alignAssemblies call")
+
+        // Now run the alignAssemblies using the assembliesList and passing values for the ref-cds-sam and ref-cds-fasta
+        val result = alignAssemblies.test(
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1 " +
+                    "--reference-sam $refSam --reference-cds-fasta $refCdsFasta"
+        )
+        // verify good result
+        assertEquals(0, result.statusCode, "status code not 0 for AlignAssemblies with ref-cds-sam and ref-cds-fasta: ${result.statusCode}")
+        // verify MAF files in the output directory
+        val mafFiles2 = File(TestExtension.tempDir).listFiles { _, name -> name.endsWith(".maf") }
+        assertEquals(2, mafFiles2.size, "MAF files not found in output directory when they should be present")
+    }
+
+    @Test
+    fun onlyOnePrepFile() {
+        // Users must provide either both reference-sam and reference-cds-fasta or neither.
+        assertThrows<IllegalStateException> {
+            AlignAssemblies().test(
+                "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                        "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1 " +
+                        "--reference-sam ${TestExtension.smallseqRefFile}"
+            )
+        }
+
+        // test with just the reference-cds-fasta file
+        assertThrows<IllegalStateException> {
+            AlignAssemblies().test(
+                "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                        "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1 " +
+                        "--reference-cds-fasta ${TestExtension.smallseqRefFile}"
+            )
+        }
+    }
+
     @Test
     fun testSystemDefinedThreadsAndRuns() {
 
