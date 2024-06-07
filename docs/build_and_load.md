@@ -1078,7 +1078,8 @@ specified by the `--assemblies` parameter contains 100 assemblies, the output fi
 
 #### Prepare Slurm File for Alignments parameters
 This command uses several parameters:
-* `--phg-location` - The location of the phg executable.  This is needed to run the align-assemblies command.
+* `--phg-location` - The location of the phg executable.  The full path should be provided. This is needed to run the align-assemblies command.
+   If it is not specified, the current directory, ie `./phg`, will be assumed.
 * `--gff` - GFF file for the reference genome. This is used to
   identify full-length coding sequences to use as anchors
 * `--reference-file` - The reference genome in 
@@ -1119,7 +1120,12 @@ This command uses several parameters:
     `reference-sam` is not, the software will throw an exception.
 
 
+Example lines from the created slurm file are shown below.  
+```shell
+./phg align-assemblies --gff data/anchors.gff --output-dir output/alignment_files --reference-file output/update_assemblies/Ref.fa --reference-sam output/alignment_files/Ref.sam --reference-cds-fasta output/alignment_files/ref.cds.fasta --assembly-file data/test/smallseq/LineA.fa --total-threads 20 in-parallel 1  --ref-max-align-cov 1 --query-max-align-cov 1
+./phg align-assemblies --gff data/anchors.gff --output-dir output/alignment_files --reference-file output/update_assemblies/Ref.fa --reference-sam output/alignment_files/Ref.sam --reference-cds-fasta output/alignment_files/ref.cds.fasta --assembly-file data/test/smallseq/LineB.fa --total-threads 20 in-parallel 1  --ref-max-align-cov 1 --query-max-align-cov 1
 
+````
 
 ### Create VCF files
 Now that we have (1) created alignments of our ass  emblies against a
