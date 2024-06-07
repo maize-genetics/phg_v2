@@ -227,10 +227,6 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         val cdsFasta = "$outputDir/ref.cds.fasta"
         createCDSfromRefData(referenceFile, gff, cdsFasta, outputDir,condaEnvPrefix)
 
-        // create list of assemblies to align from the assemblies file
-        // exclude blank lines
-        //val assembliesList = File(assemblies).readLines().filter { it.isNotBlank() }
-
         // run minimap2 for ref to refcds
         val justNameRef = File(referenceFile).nameWithoutExtension
         val samOutFile = "${justNameRef}.sam"

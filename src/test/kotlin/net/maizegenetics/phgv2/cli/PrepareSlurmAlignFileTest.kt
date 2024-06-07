@@ -41,42 +41,42 @@ class PrepareSlurmAlignFileTest {
         val slurmCommandFile = "${TestExtension.tempDir}/slurm_align.sh"
 
         // Test missing gff parameter
-        val resultMissingGFF = prepareAssemblies.test("--reference-file ${refFasta} --reference-cds-sam ${refSam} --reference-cds-fasta ${refCDSfasta} --assemblies ${assembliesList} --slurm-command-file ${slurmCommandFile} -o ${TestExtension.tempDir} ")
+        val resultMissingGFF = prepareAssemblies.test("--reference-file ${refFasta} --reference-sam ${refSam} --reference-cds-fasta ${refCDSfasta} --assemblies ${assembliesList} --slurm-command-file ${slurmCommandFile} -o ${TestExtension.tempDir} ")
         assertEquals(1, resultMissingGFF.statusCode )
         assertEquals("Usage: prepare-slurm-align-file [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --gff: --gff must not be blank\n", resultMissingGFF.output)
 
         // Test missing reference-file parameter
-        val resultMissingRefFile = prepareAssemblies.test("--gff ${TestExtension.smallseqAnchorsGffFile} --reference-cds-sam ${refSam} --reference-cds-fasta ${refCDSfasta} --assemblies ${assembliesList} --slurm-command-file ${slurmCommandFile} -o ${TestExtension.tempDir}")
+        val resultMissingRefFile = prepareAssemblies.test("--gff ${TestExtension.smallseqAnchorsGffFile} --reference-sam ${refSam} --reference-cds-fasta ${refCDSfasta} --assemblies ${assembliesList} --slurm-command-file ${slurmCommandFile} -o ${TestExtension.tempDir}")
         assertEquals(1, resultMissingRefFile.statusCode )
         assertEquals("Usage: prepare-slurm-align-file [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --reference-file: --reference-file must not be blank\n", resultMissingRefFile.output)
 
-        // Test missing reference-cds-sam parameter
+        // Test missing reference-sam parameter
         val resultMissingRefSam = prepareAssemblies.test("--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${refFasta} --reference-cds-fasta ${refCDSfasta} --assemblies ${assembliesList} --slurm-command-file ${slurmCommandFile} -o ${TestExtension.tempDir}")
         assertEquals(1, resultMissingRefSam.statusCode )
         assertEquals("Usage: prepare-slurm-align-file [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --reference-cds-sam: --reference-cds-sam must not be blank\n", resultMissingRefSam.output)
+                "Error: invalid value for --reference-sam: --reference-sam must not be blank\n", resultMissingRefSam.output)
 
         // Test missing reference-cds-fasta parameter
-        val resultMissingRefCdsFasta = prepareAssemblies.test("--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${refFasta} --reference-cds-sam ${refSam} --assemblies ${assembliesList} --slurm-command-file ${slurmCommandFile} -o ${TestExtension.tempDir}")
+        val resultMissingRefCdsFasta = prepareAssemblies.test("--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${refFasta} --reference-sam ${refSam} --assemblies ${assembliesList} --slurm-command-file ${slurmCommandFile} -o ${TestExtension.tempDir}")
         assertEquals(1, resultMissingRefSam.statusCode )
         assertEquals("Usage: prepare-slurm-align-file [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --reference-cds-fasta: --reference-cds-fasta must not be blank\n", resultMissingRefCdsFasta.output)
 
         // Test missing reference-cds-fasta parameter
-        val resultMissingSlurm = prepareAssemblies.test("--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${refFasta} --reference-cds-fasta ${refCDSfasta} --reference-cds-sam ${refSam} --assemblies ${assembliesList}  -o ${TestExtension.tempDir}")
+        val resultMissingSlurm = prepareAssemblies.test("--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${refFasta} --reference-cds-fasta ${refCDSfasta} --reference-sam ${refSam} --assemblies ${assembliesList}  -o ${TestExtension.tempDir}")
         assertEquals(1, resultMissingSlurm.statusCode )
         assertEquals("Usage: prepare-slurm-align-file [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --slurm-command-file: --slurm-command-file must not be blank\n", resultMissingSlurm.output)
 
         // Test missing output file
-        val resultMissingOutput = prepareAssemblies.test("--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${refFasta} --reference-cds-fasta ${refCDSfasta} --reference-cds-sam ${refSam} --assemblies ${assembliesList}  --slurm-command-file ${slurmCommandFile}")
+        val resultMissingOutput = prepareAssemblies.test("--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${refFasta} --reference-cds-fasta ${refCDSfasta} --reference-sam ${refSam} --assemblies ${assembliesList}  --slurm-command-file ${slurmCommandFile}")
         assertEquals(1, resultMissingOutput.statusCode )
         assertEquals("Usage: prepare-slurm-align-file [<options>]\n" +
                 "\n" +
@@ -114,7 +114,7 @@ class PrepareSlurmAlignFileTest {
         println("Finished just-ref-prep, now running PrepareSlurmAlignFile")
         val result = prepareAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "--reference-cds-sam ${refCDSsam} --reference-cds-fasta ${refCDSfasta} " +
+                    "--reference-sam ${refCDSsam} --reference-cds-fasta ${refCDSfasta} " +
                     "--slurm-command-file ${TestExtension.tempDir}/slurm_align.sh " +
                     "--assemblies ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1"
         )
@@ -139,7 +139,7 @@ class PrepareSlurmAlignFileTest {
         val resultConda = prepareAssemblies.test(
             "--phg-location /project/buckler_lab_panand/phg/bin/phg " +
                     "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "--reference-cds-sam ${refCDSsam} --reference-cds-fasta ${refCDSfasta} " +
+                    "--reference-sam ${refCDSsam} --reference-cds-fasta ${refCDSfasta} " +
                     "--slurm-command-file ${TestExtension.tempDir}/slurm_align.sh " +
                     "--assemblies ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --conda-env-prefix /project/buckler_lab_panand/phgv2-conda"
         )

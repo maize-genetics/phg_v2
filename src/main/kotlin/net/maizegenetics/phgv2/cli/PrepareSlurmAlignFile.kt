@@ -25,8 +25,8 @@ import java.io.File
 
 class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning assemblies in a slurm data array job") {
 
-    val phgLocation by option(help = " full path to the phg executable relative to be used in the slurm command file. " +
-            "Default assumes vommsnf id tun gtom the folder containing the executable.  This will be the first" +
+    val phgLocation by option(help = " full path to the phg executable to be used in the slurm command file. " +
+            "Default assumes command is run from the folder containing the executable.  This will be the first" +
             " part of the command in the slurm command file. ")
         .default("./phg")
 
@@ -46,12 +46,12 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
             }
         }
 
-    val referenceCdsSam by option(help = "Full path to reference SAM file created by align-assemblies command when the just-ref-prep option is used." +
+    val referenceSam by option(help = "Full path to reference SAM file created by align-assemblies command when the just-ref-prep option is used." +
     "This is the SAM file created when aligning the reference fasta to the reference CDS regions.")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--reference-cds-sam must not be blank"
+                "--reference-sam must not be blank"
             }
         }
 
@@ -119,7 +119,7 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
             phgLocation,
             gff,
             referenceFile,
-            referenceCdsSam,
+            referenceSam,
             referenceCdsFasta,
             assemblies,
             slurmCommandFile,
@@ -144,7 +144,7 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
         phgLocation: String,
         gff: String,
         referenceFile: String,
-        referenceCdsSam: String,
+        referenceSam: String,
         referenceCdsFasta: String,
         assemblies: String,
         slurmCommandFile: String,
@@ -173,7 +173,7 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
         assembliesList.forEach {
             // THis might not be correct - check copilots' parameters.
             // TODO: Should I even have in-parallel and total-threads as parameters?
-            writer.write("$phgLocation align-assemblies --gff $gff --output-dir $outputDir --reference-file $referenceFile --reference-sam $referenceCdsSam --reference-cds-fasta $referenceCdsFasta --assembly-file $it --total-threads $totalThreads --in-parallel $inParallel --ref-max-align-cov $refMaxAlignCov --query-max-align-cov $queryMaxAlignCov ${condaEnv}\n")
+            writer.write("$phgLocation align-assemblies --gff $gff --output-dir $outputDir --reference-file $referenceFile --reference-sam $referenceSam --reference-cds-fasta $referenceCdsFasta --assembly-file $it --total-threads $totalThreads --in-parallel $inParallel --ref-max-align-cov $refMaxAlignCov --query-max-align-cov $queryMaxAlignCov ${condaEnv}\n")
         }
         writer.close()
     }
