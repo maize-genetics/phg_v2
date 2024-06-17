@@ -9,6 +9,7 @@ import net.maizegenetics.phgv2.cli.TestExtension.Companion.asmList
 import net.maizegenetics.phgv2.pathing.BuildKmerIndex
 import net.maizegenetics.phgv2.pathing.FindPaths
 import net.maizegenetics.phgv2.pathing.MapKmers
+import net.maizegenetics.phgv2.pathing.SimulateReads
 import net.maizegenetics.phgv2.utils.*
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
@@ -39,7 +40,7 @@ class FullPipelineIT {
         @JvmStatic
         @AfterAll
         fun teardown() {
-            resetDirs()
+//            resetDirs()
         }
 
         fun resetDirs() {
@@ -249,7 +250,13 @@ class FullPipelineIT {
         println(diploidResult.output)
         checkExpectedHvcf("TestSample")
 
+        println("Simulating haploid reads")
+        val haploidArgs = "--db-path ${TestExtension.testTileDBURI} --hvcf-dir ${TestExtension.testVCFDir} --sample-names LineA --fastq-out-dir ${TestExtension.testOutputDir}"
+        SimulateReads().test(haploidArgs)
+
         println("FullPipelineIt finished after ${(System.nanoTime() - startTime) / 1e9} sec")
+
+
     }
 
 

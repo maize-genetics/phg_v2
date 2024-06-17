@@ -45,7 +45,7 @@ sealed class SampleList {
 class SimulateReads : CliktCommand(help = "Simulate reads from agc sequence") {
     private val myLogger = LogManager.getLogger(SimulateReads::class.java)
 
-    val dbPath by option(help = "Path of directory containing tiledb and asseblies.agc").required()
+    val dbPath by option(help = "Path of directory containing tiledb and assemblies.agc").required()
 
     val hvcfDir by option(help = "The directory containing the h.vcf files for the samples.").required()
 
@@ -79,12 +79,17 @@ class SimulateReads : CliktCommand(help = "Simulate reads from agc sequence") {
         val sampleNameSet = sampleInput.sampleChromosomeList().map { it.first }.toSet()
         val cmdList = mutableListOf("listctg")
         cmdList.addAll(sampleNameSet)
+        println("agcData:")
         agcChromosomeBySample = retrieveAgcData(dbPath, cmdList).associate { it ->
+            println(it)
             val splitOnColon = it.split(":")
             val genome = splitOnColon[0]
-            val chromList = splitOnColon[1].split(",")
+            val headerLines = splitOnColon[1].split(",")
+            val chromList = headerLines.map { it.split(" ")[0] }
+            println("chromList = $chromList")
             Pair(genome, chromList)
         }
+        println("end agcData--------------------")
         if (simulateF2) diploidReads() else singleReads()
     }
 
@@ -121,7 +126,7 @@ class SimulateReads : CliktCommand(help = "Simulate reads from agc sequence") {
         myLogger.info("Generating single reads for $sampleName, read length = $readLength, coverage = $coverage")
         getBufferedWriter(outputFile).use { fastqWriter ->
             for (chr in chromosomes) {
-                val sequence = retrieveAgcContigs(dbPath, listOf("chr${chr.toString()}@$sampleName"))
+                val sequence = retrieveAgcContigs(dbPath, listOf("${chr.toString()}@$sampleName"))
                 val nucseq = sequence.entries.first().value
                 val chrlen = nucseq.size()
                 val numberOfReads = (chrlen / readLength * coverage).toInt()
