@@ -135,9 +135,10 @@ class MlReadInputArray : CliktCommand(help = "write an ML input array from a rea
             //header
 //            mlWriter.write(parentStats.map { it.parent.name }.joinToString(sep, prefix = "name$sep", postfix = "\n"))
             val headerNames = Array(numberOfGametes) {IndexToSampleGamete[it]}
-            mlWriter.write("range$sep${headerNames.joinToString(sep)}\n")
+//            mlWriter.write("range$sep${headerNames.joinToString(sep)}\n")
+            mlWriter.write("Name\tTokenized\n")
 
-//            var rowIndex = 0
+            var rowIndex = 0
             for (refrange in graph.ranges()) {
                 val outputRows = mutableListOf<String>()
                 val refrangeCountMap = countMap[refrange]
@@ -146,6 +147,7 @@ class MlReadInputArray : CliktCommand(help = "write an ML input array from a rea
                     for ((hapidList, count) in refrangeCountMap) {
                         val gameteArray = IntArray(numberOfGametes) {0}
                         //change gameteArray value to 1 for all gametes that have hapids in the list
+                        //or list the gametes
                         for (hapid in hapidList) {
                             val gameteList = hapidToGamete[hapid]
                             check(gameteList != null) {"$hapid was in count map but not in hapid to gamete map"}
@@ -154,15 +156,16 @@ class MlReadInputArray : CliktCommand(help = "write an ML input array from a rea
                                 gameteArray[ndx] = 1
                             }
                         }
-                        val outputString = gameteArray.joinToString(sep)
+                        val dummyNames = hapidList.mapNotNull { hapid -> hapidToGamete[hapid] }.flatten()
+                            .map { "gamete_${sampleGameteIndex[it]}" }.joinToString(sep, prefix = "\"", postfix = "\"")
                         repeat(count) {
-                            outputRows.add("$refrange$sep$outputString\n")
+                            outputRows.add(dummyNames)
                         }
                     }
                     if (shuffle) outputRows.shuffle()
                     outputRows.forEach {
-                        mlWriter.write(it)
-//                        rowIndex++
+                        mlWriter.write("Read$rowIndex\t$it\n")
+                        rowIndex++
                     }
                 }
             }
