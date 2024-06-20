@@ -51,7 +51,7 @@ class FindPathsTest {
         @AfterAll
         fun tearDown() {
             //comment out the following line to inspect the test results after the tests have been run
-            File(TestExtension.testOutputDir).deleteRecursively()
+//            File(TestExtension.testOutputDir).deleteRecursively()
         }
     }
 
@@ -136,6 +136,10 @@ class FindPathsTest {
         val myGraph = HaplotypeGraph(listOfHvcfFilenames)
         val readMappingFile = TestExtension.testOutputDir + "test_readMapping.txt"
         createHaploidReadMappings(myGraph, readMappingFile)
+
+        //write an ML array from the read mapping file
+        MlReadInputArray().test("--hvcf-dir ${TestExtension.testVCFDir} " +
+                "--read-file $readMappingFile --output-file ${TestExtension.testOutputDir}mlarray.txt --shuffle")
 
         //create a keyfile
         val keyFilename = TestExtension.testOutputDir + "keyfileForPathTest.txt"

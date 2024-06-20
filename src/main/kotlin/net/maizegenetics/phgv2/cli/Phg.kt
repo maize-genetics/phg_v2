@@ -7,6 +7,7 @@ import net.maizegenetics.phgv2.agc.PrepareAssemblies
 import net.maizegenetics.phgv2.pathing.BuildKmerIndex
 import net.maizegenetics.phgv2.pathing.FindPaths
 import net.maizegenetics.phgv2.pathing.MapKmers
+import net.maizegenetics.phgv2.pathing.MlReadInputArray
 import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.setupDebugLogging
 
@@ -52,7 +53,7 @@ fun main(args: Array<String>) = Phg()
     .subcommands(
         SetupEnvironment(), Initdb(), CreateRanges(), PrepareAssemblies(), AgcCompress(), AlignAssemblies(),
         CreateAnchorwaveDotplot(), CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), LoadVcf(), ExportVcf(),
-        BuildKmerIndex(), MapKmers(), FindPaths(), // Imputation
+        BuildKmerIndex(), MapKmers(), FindPaths(), MlReadInputArray(), // Imputation
         CreateFastaFromHvcf(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer // Utilities
     )
     .main(args)
