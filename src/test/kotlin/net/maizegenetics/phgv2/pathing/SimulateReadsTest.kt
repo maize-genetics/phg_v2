@@ -71,6 +71,10 @@ class SimulateReadsTest {
 
     @Test
     fun testSimulateDiploid() {
+        println("Simulating haploid reads")
+        val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
+        val diploidArgs = "--db-path $dbPath --hvcf-dir ${TestExtension.testVCFDir} --sample-names LineA --fastq-out-dir ${TestExtension.testOutputDir} --"
+        SimulateReads().test(diploidArgs)
 
     }
 }
