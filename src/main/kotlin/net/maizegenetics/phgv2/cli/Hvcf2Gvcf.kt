@@ -1,18 +1,18 @@
 package net.maizegenetics.phgv2.cli
 
-import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import htsjdk.variant.variantcontext.VariantContext
+import htsjdk.variant.variantcontext.VariantContextBuilder
+import htsjdk.variant.variantcontext.VariantContextComparator
 import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.parseALTHeader
 import net.maizegenetics.phgv2.utils.verifyURI
 import org.apache.logging.log4j.LogManager
-import org.jetbrains.kotlinx.dataframe.io.SupportedFormatSample
 import java.io.File
 
 /**
@@ -31,6 +31,15 @@ import java.io.File
  *    and add to a set.
  * 3.  export the gvcf files from the tiledb database
  * 3.  bgzip and index the gvcf files
+ * 4.  ALso from the hvcf files, create a list of ReferenceRange objects for each sample
+ * 5.  Read the gvcf files, a sample at a time, and for each sample, pull the gvcf records
+ * that overlap the ReferenceRanges for that sample.  This will be a list of VariantContext records.
+ * 6.  Merge the list of vcRecords for each sample together, sorted by reference ranges, and write
+ * to a new gvcf file in the output directory.
+ * 7.  The header for the gvcf file will be the same as the header from one of the gvcf files.
+ *     With the exception that sampleName will be changed to the sample name from the hvcf file.
+ * 8.  The gvcf file will be written to the output directory.
+ *
  *
  */
 class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG created g.vcf files")  {
@@ -61,12 +70,10 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
             dbPath
         }
 
-        // Verify the tiledbURI
-        // If it doesn't an exception will be thrown
+        // Verify the tiledbURI - verifyURI will throw an exception if the URI is not valid
         val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
 
         buildGvcfFromHvcf(dbPath, outputDir, hvcfDir, condaEnvPrefix)
-        //buildFastaFromHVCF(dbPath, output, fastaType, hvcfDir, hvcfFile,condaEnvPrefix)
     }
 
     fun buildGvcfFromHvcf(dbPath: String, outputDir: String, hvcfDir: String, condaEnvPrefix: String) {
@@ -76,19 +83,49 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
             .filter { it.name.endsWith("g.vcf.gz")  || it.name.endsWith("g.vcf")  }.toList()
             .forEach { hvcfFile ->
                 val hvcfFileReader = VCFFileReader(hvcfFile,false)
-                val records = processSingleHVCF(hvcfFile, dbPath,condaEnvPrefix)
-
+                val headerAndRecords = processSingleHVCF(hvcfFile, dbPath,condaEnvPrefix)
+                // Add the correct sample name to the headers
+                val newHeaders = fixGvcfSampleName(headerAndRecords.first, hvcfFile.nameWithoutExtension)
+                val gvcfFile = "$outputDir/${hvcfFile.nameWithoutExtension}.g.vcf"
+                writePathsToGvcf(gvcfFile, headerAndRecords.second,newHeaders)
             }
 
     }
 
-    fun processSingleHVCF(hvcfFile: File, dbPath: String, condaEnvPrefix: String) {
-        val reader = VCFFileReader(hvcfFile,false)
-        val header = reader.fileHeader
-        val altHeaders = parseALTHeader(header)
-        val sampleNames = altHeaders.values.map { it.sampleName() }.toSet()
+    //THis function takes the header lines from a gvcf and alters the line
+    // beginning with #CHROM to have the sample name from the hvcf file
+    fun fixGvcfSampleName(headers: List<String>, sampleName:String):List<String> {
+        val newHeaders = mutableListOf<String>()
+        headers.forEach {
+            if (it.startsWith("#CHROM")) {
+                var parts = it.split("\t").toMutableList()
+                parts[9] = sampleName
+                newHeaders.add(parts.joinToString("\t"))
+            }
+            else {
+                newHeaders.add(it)
+            }
+        }
+        return newHeaders
+    }
 
-        // THis checks for existing gvcf files, and if they don't exist, exports them
+    // WRite the header and gvcf lines to the specified file
+    fun writePathsToGvcf(outputFile:String, variants:List<VariantContext>,headers:List<String>) {
+        val writer = File(outputFile).bufferedWriter()
+        headers.forEach { writer.write("$it\n") }
+        variants.forEach { writer.write("$it\n") }
+        writer.close()
+    }
+    fun processSingleHVCF(hvcfFile: File, dbPath: String, condaEnvPrefix: String): Pair<List<String>,List<VariantContext>> {
+
+        val reader = VCFFileReader(hvcfFile,false)
+        // We also need to print to the new gvcf all the headers from 1 of the accessed gvcf files
+        val header = reader.fileHeader
+        val altHeaders = parseALTHeader(header = header)
+        val sampleNames = altHeaders.values.map { it.sampleName() }.toSet()
+        val contigNames = header.contigLines.map { it.id } // contig names needed for sorting
+
+        // This checks for existing gvcf files, and if they don't exist, exports them
         val exportSuccess = exportGvcfFiles(sampleNames, outputDir, dbPath, condaEnvPrefix)
 
 
@@ -121,28 +158,44 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         // THis may not be the correct version, either.  Do I need a map of REferenceRange to VariantContext records?
         // in which case, do I lose the sample names?
 
+        val gvcfHeaders = mutableListOf<String>()
+        //val refRangeToVariantContext = mutableMapOf<ReferenceRange, List<VariantContext>>()
         val refRangeToVariantContext = mutableMapOf<ReferenceRange, MutableList<VariantContext>>()
         // This is WRONG, but might give me ideas on what to do
         sampleToRefRanges.forEach { sample, ranges ->
-            val gvcfFile = "$outputDir/${sample}.g.vcf"
+            val gvcfFile = "$outputDir/${sample}.vcf" // tiledb wrote with extension .vcf
 
             val gvcfReader = VCFFileReader(File(gvcfFile),false)
+            // We take the headers from one of the gvcf files and save it to the gvcfHeaders list
+            // to be printed when we create our new gvcf file
+            if (gvcfHeaders.isEmpty()) {
+                gvcfHeaders.addAll(gvcfReader.fileHeader.toString().split("\n"))
+            }
 
-            // THis needs to loop through both the List of ReferenceRanges and the gvcfRecords
+            // This needs to loop through both the List of ReferenceRanges and the gvcfRecords
             // It should find entries in the gvcf file whose positions overlap those of the reference ranges
             // and add them to the gvcfRecords list.
-            val rangeToGvcfRecords = findOverlappingRecords(ranges, gvcfReader);
+            val rangeToGvcfRecords = findOverlappingRecords(ranges, gvcfReader)
+            //Add the rangeToGvcfRecords to the refRangeToVariantContext map
+            // we can use "plus" but it creates a new map containing the combined entries
+            // and assigns it back to refRangeToVariantContext
+            // chatGPT says that below is more efficient than using "plus"
+            // refRangeToVariantContext.plus(rangeToGvcfRecords)
+            // refRangeToVariantContext.addAll(rangeToGvcfRecords) fails as "addAll" is not an option of a mutableMap
 
-            // now need to split the gvcf records that extend beyond the reference range
-            // Once this is done we can put this set of records into the refRangeToVariantContext map
-
-
-            // We will not yet be writing anything to a file
-
+            for ((range, variantList) in rangeToGvcfRecords) {
+                val existingList = refRangeToVariantContext.getOrPut(range) { mutableListOf() }
+                existingList.addAll(variantList)
+            }
         }
+        // Put all the VariantContext records from the refRangeToVariantContext map
+        // onto a list, then sort that list.
+        val allRecords = mutableListOf<VariantContext>()
+        refRangeToVariantContext.values.forEach { allRecords.addAll(it) }
+        val contigList = listOf<String>("")
+        val variants = allRecords.sortedWith(VariantContextComparator(contigList))
 
-
-        return
+        return Pair(gvcfHeaders,variants)
     }
 
     // function to export the gvcf file if they don't exist
@@ -156,7 +209,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         }
 
         val missingFiles = gvcfFiles.filter { !File(it).exists() }
-        //For the entries in the missingFiles list, create a list of sampleNames.
+        // For the entries in the missingFiles list, create a list of sampleNames.
         // The sampleNames are the entry in the missingFiles list, remove up to and
         // including the first "/" and remove the ".vcf" extension
         val missingSampleNames = missingFiles.map { it.substringAfterLast("/").substringBeforeLast(".") }
@@ -182,7 +235,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
             outputDir
         )
 
-        // join the 2 conda and data portion of the commands
+        // join the conda and data portion of the commands
         command.addAll(dataCommand)
         val builder = ProcessBuilder(command)
 
@@ -200,19 +253,20 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         }
 
         // For all files in missingSampleNames, rename them to g.vcf
-        missingSampleNames.forEach { sample ->
-            File("$outputDir/$sample.vcf").renameTo(File("$outputDir/${sample}.g.vcf"))
-        }
+        // tiledb writes the exported files as .vcf
+//        missingSampleNames.forEach { sample ->
+//            File("$outputDir/$sample.vcf").renameTo(File("$outputDir/${sample}.g.vcf"))
+//        }
 
         return success
     }
 
     // This is based on CreateMafVCF:convertGVCFToHVCFForChrom() that determines if a variant or part
     // of a variant is in a reference range.  It differs in that we are not creating hvcf meta data,
-    // but rather, at this stage, or merely finding the overlapping variants
+    // but rather, at this stage, are merely finding the overlapping variants
     // Another function will be called to split the gvcf records if they extend  beyond the reference range
     // either at the beginning or the end.
-    fun findOverlappingRecords(ranges:List<ReferenceRange>, reader:VCFFileReader):Map<ReferenceRange,List<VariantContext>> {
+    fun findOverlappingRecords(ranges:List<ReferenceRange>, reader:VCFFileReader):MutableMap<ReferenceRange,MutableList<VariantContext>> {
         val refRangeToVariantContext = mutableMapOf<ReferenceRange, MutableList<VariantContext>>() // this will be returned
         var currentVariant = reader.iterator().next()
         for (range in ranges) {
@@ -223,17 +277,18 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
 
             while (currentVariant != null) {
 
-
-                //check different cases for the variant
+                // check different cases for the variant
                 //If variant is fully contained in Bed region add to temp list and increment currentVariantIdx
                 //If variant is partially contained in Bed region add to temp list do not increment as we need to see if the next bed also overlaps
                 //If variant is not contained in Bed region, skip and do not increment as we need to see if the next bed overlaps
                 if(CreateMafVcf().bedRegionContainedInVariant(Pair(Position(regionChrom,regionStart),Position(regionChrom,regionEnd)), currentVariant)) {
                     // THis is the case where the region is completely contained within the variant,
                     // meaning the variant may overlap the region.  We need to adjust the asm positions
-                    val fixedVariants = fixASMPositions(Pair(Position(regionChrom,regionStart),Position(regionChrom,regionEnd)), listOf(currentVariant))
-                    refRangeToVariantContext.getOrPut(range, { mutableListOf() }).addAll(fixedVariants)
-                    tempVariants.clear()
+                    val fixedVariants = fixPositions(Pair(Position(regionChrom,regionStart),Position(regionChrom,regionEnd)), listOf(currentVariant))
+                    // Add the fixedVariants to the refRangeToVariantContext map, for the current range
+                    val currentVariants = refRangeToVariantContext.getOrPut(range, { mutableListOf() })
+                    currentVariants.addAll(fixedVariants)
+                    refRangeToVariantContext[range] = currentVariants
                     break
                 }
                 if(CreateMafVcf().variantFullyContained(Pair(Position(regionChrom,regionStart),Position(regionChrom,regionEnd)), currentVariant)) {
@@ -252,29 +307,41 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
                 else if(CreateMafVcf().variantAfterRegion(Pair(Position(regionChrom,regionStart),Position(regionChrom,regionEnd)), currentVariant)) {
                     //write out what is in tempVariants
                     if(tempVariants.isNotEmpty()) {
-                        val fixedVariants = fixASMPositions(Pair(Position(regionChrom,regionStart),Position(regionChrom,regionEnd)), listOf(currentVariant))
-                        refRangeToVariantContext.getOrPut(range, { mutableListOf() }).addAll(fixedVariants)
+                        val fixedVariants = fixPositions(Pair(Position(regionChrom,regionStart),Position(regionChrom,regionEnd)), tempVariants)
+                        val currentVariants = refRangeToVariantContext.getOrPut(range, { mutableListOf() })
+                        currentVariants.addAll(fixedVariants)
+                        refRangeToVariantContext[range] = currentVariants
                         tempVariants.clear()
                     }
                     //move up Bed region
                     break
                 }
-                else { //this is the case if the Variant is behind the BED region
+                else { //this is the case where the Variant is behind the BED region
                     //move up Variant
                     currentVariant = reader.iterator().next()
                 }
+            }
+            // Process the last variants in the list
+            if(tempVariants.isNotEmpty()) {
+                val fixedVariants = fixPositions(Pair(Position(regionChrom,regionStart),Position(regionChrom,regionEnd)), tempVariants)
+                val currentVariants = refRangeToVariantContext.getOrPut(range, { mutableListOf() })
+                currentVariants.addAll(fixedVariants)
+                refRangeToVariantContext[range] = currentVariants
+                tempVariants.clear()
             }
         }
 
         return refRangeToVariantContext
     }
 
-    // This fixes the asm position in the tempVariants list.  It should return an
-    // ammended version of the list. COde is based on CreateMafVcf:convertGVCFRecordsToHVCFMetaData()
-    // but only deals with the ASM positions portion of this code.
-    fun fixASMPositions( region: Pair<Position,Position>, variants: List<VariantContext> ): List<VariantContext> {
+    // This fixes both the ref start/end and the asm positions in the tempVariants list.  It should return an
+    // ammended version of the list. Code is based on CreateMafVcf:convertGVCFRecordsToHVCFMetaData()
+    // but only deals with the ASM positions portion of this code.  In addition, it adds code
+    // to adjust the variant's start/end positions. Indels are not currently handled.
+    fun fixPositions(region: Pair<Position,Position>, variants: List<VariantContext> ): List<VariantContext> {
         val fixedVariants = mutableListOf<VariantContext>()
 
+        // TODO ADD INDEL SUPPORT
         //Take the first and the last variantContext
         val firstVariant = variants.first()
         val lastVariant = variants.last()
@@ -283,91 +350,94 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         val firstStrand = firstVariant.getAttributeAsString("ASM_Strand","+")
 
         val lastStrand = lastVariant.getAttributeAsString("ASM_Strand","+")
-        //Resize the first and last variantContext ASM start and end based on the regions
-        var newASMStart = CreateMafVcf().resizeVariantContext(firstVariant, region.first.position, firstStrand)
-        if(newASMStart == -1) {
-            newASMStart = if(firstStrand == "+") firstVariant.getAttributeAsInt("ASM_Start",region.first.position)
-            else firstVariant.getAttributeAsInt("ASM_End",region.first.position)
+        //Resize the first and last variantContext ref/ASM start and end based on the regions
+        var newStartPositions = resizeVCandASMpositions(firstVariant, region.first.position, firstStrand)
+        if(newStartPositions == Pair(-1,-1)) {
+            newStartPositions = if(firstStrand == "+") Pair(firstVariant.start,firstVariant.getAttributeAsInt("ASM_Start",region.first.position))
+            else Pair(firstVariant.end,firstVariant.getAttributeAsInt("ASM_End",region.first.position))
         }
 
-        var newASMEnd = CreateMafVcf().resizeVariantContext(lastVariant, region.second.position, lastStrand)
-        if(newASMEnd == -1) {
-            newASMEnd = if(lastStrand == "+") lastVariant.getAttributeAsInt("ASM_End",region.second.position)
-            else lastVariant.getAttributeAsInt("ASM_Start",region.second.position)
+        var newEndPositions = resizeVCandASMpositions(lastVariant, region.second.position, lastStrand)
+        if(newEndPositions == Pair(-1,-1)) {
+            newEndPositions = if(lastStrand == "+") Pair(lastVariant.end,lastVariant.getAttributeAsInt("ASM_End",region.second.position))
+            else Pair(lastVariant.start,lastVariant.getAttributeAsInt("ASM_Start",region.second.position))
         }
 
-        val regions = CreateMafVcf().buildNewAssemblyRegions(newASMStart,newASMEnd,variants)
+        // At this point, we have changes for the first and last regions.  If the list size
+        // is only 1, we change it based on newStartPositions and newEndPositions
+        // If there are multiple, we change the first and last entries.  The first entry gets its start changed,
+        // THe last entry gets  end values changed.  The middle entries are not changed.
+        if (variants.size == 1) {
+            val updatedFirstVariant = VariantContextBuilder(firstVariant)
+                .start(newStartPositions.first.toLong())
+                .stop(newEndPositions.first.toLong())
+                .attribute("ASM_Start", newStartPositions.second)
+                .attribute("ASM_End", newEndPositions.second)
+                .make()
+            fixedVariants.add(updatedFirstVariant)
+        }
+        else {
+            // update the first and last variants, leaving those
+            // in the middle unchanged
+            val updatedFirstVariant = VariantContextBuilder(firstVariant)
+                .start(newStartPositions.first.toLong())
+                .attribute("ASM_Start", newStartPositions.second)
+                .make()
+            fixedVariants.add(updatedFirstVariant)
+            val updatedLastVariant = VariantContextBuilder(lastVariant)
+                .stop(newEndPositions.first.toLong())
+                .attribute("ASM_End", newEndPositions.second)
+                .make()
 
-        //TODO - need to add the new regions to the variantContexts, replacing the old ASM_* values
+            if (variants.size > 2) {
+                fixedVariants.addAll(variants.subList(1,variants.size-1))
+            }
+            fixedVariants.add(updatedLastVariant)
+        }
+
         return fixedVariants
 
     }
-    // this function takes a list of REferenceRange objects and a VarientContext Reader, and finds
-    // positions in the gvcf file that overlap the ReferenceRange objects.  It returns a list of
-    // VariantContext records that overlap the ReferenceRange objects.
-    // Hmmm . this may not be correct.  I believe I need a map of ReferenceRange to VariantContext records
 
-    fun findOverlappingRecords1(ranges:List<ReferenceRange>, reader:VCFFileReader):Map<ReferenceRange,List<VariantContext>> {
-        // Assume the List<ReferenceRanges> is sorted by CHromosome and start position
-        // Read the gvcf file, and for each VariantContext record, check if it overlaps.  Keep reading until we get to a variantContext
-        // that overlaps with our current reference range.  When we find a context that overlaps, add it to the list of VariantContext records
-        // for that range.  There may be more than 1 record that overlaps with a range.  Do not move to the next ReferenceRange until
-        // the variant context record is beyond the end of the current ReferenceRange..  And do not move to the next variant Context record
-        // if the current one extends beyond the current reference range.  It may get added to a list for both reference ranges.
-        // This is a bit tricky, but I think it can be done.
-        val refRangeToVariantContext = mutableMapOf<ReferenceRange, MutableList<VariantContext>>()
-        var currentRange = ranges[0]
-        var currentRangeIndex = 0
-        var currentVariantContext = reader.iterator().next()
-        //This is not totally correct but is a good start.
-        // the chromosomes will change, and that is fine, we may need to move to the next refRange
-        while (currentVariantContext != null) {
-            if (currentVariantContext.contig != currentRange.contig) {
-                //  At some point either the ReferenceRange
-                // entry and/or the VariantContext entry is going to move up to the next
-                // chromosome.  That means we need to move to the next ReferenceRange
-                // and check if the VariantContext is on that chromosome.  If it is, we
-                // need to check if it overlaps the ReferenceRange.  If it does, we add it
-                // to the list of VariantContext records for that ReferenceRange.  If it doesn't
-                // we move to the next VariantContext record.
 
-                // how do I know if it is the VariantContext or the ReferenceRange that needs to move up?
-                // I think it is the ReferenceRange that needs to move up.  If the VariantContext is on the
-                // next chromosome, it will not overlap the current ReferenceRange.  If the ReferenceRange
-                // is on the next chromosome, it will not overlap the current VariantContext.  So, I think
-                // I need to move the ReferenceRange up to the next chromosome.
-                currentRangeIndex++
-                if (currentRangeIndex >= ranges.size) {
-                    // We are done
-                    break
+    // The position is the position in the reference range.  The strand is the strand of the variant
+    fun resizeVCandASMpositions(variant: VariantContext, position: Int, strand : String) : Pair<Int,Int> {
+        //check to see if the variant is either a RefBlock or is a SNP with equal lengths
+        var refAsmPos = Pair<Int,Int>(-1,-1) // this is what is returned
+        return if (CreateMafVcf().isVariantResizable(variant)) {
+            // if the position is < the start of the variant, then we return <position,asm_start>
+            // if the postiion is > variant end, then we return <position, asm_end>
+            // But the "position" must be modified in the above with an offset.
+            // these 2 checks verify the position is within the variant range
+            // if the strand is +, then we return position + offset
+            // if the strand is -, then we return position - offset
+            when {
+                position < variant.start -> {
+                    // The reference position starts before the variant, so we should
+                    // keep it as the variant start
+                    Pair(variant.start,variant.getAttributeAsInt("ASM_Start",variant.start))
                 }
-                currentRange = ranges[currentRangeIndex]
-                // need to check again if the contigs match - not sure this is right, check Zack's code
-
-            }
-            if (currentVariantContext.start > currentRange.end) {
-                // This variantContext is beyond the current ReferenceRange
-                // Move to the next ReferenceRange
-                currentRangeIndex++
-                if (currentRangeIndex >= ranges.size) {
-                    // We are done
-                    break
+                position > variant.end -> {
+                    // The reference position is after the variant, so we should
+                    // keep it as the variant end
+                    Pair(variant.end,variant.getAttributeAsInt("ASM_End",variant.end))
                 }
-                currentRange = ranges[currentRangeIndex]
-            } else if (currentVariantContext.end < currentRange.start) {
-                // This variantContext is before the current ReferenceRange
-                // Move to the next variantContext
-                currentVariantContext = reader.iterator().next()
-            } else {
-                // This variantContext overlaps the current ReferenceRange
-                // Add it to the list of VariantContext records for the current ReferenceRange
-                val vcList = refRangeToVariantContext.getOrDefault(currentRange, mutableListOf())
-                vcList.add(currentVariantContext)
-                refRangeToVariantContext[currentRange] = vcList
-                currentVariantContext = reader.iterator().next()
+                strand == "+" -> {
+                    val offset = position - variant.start
+                    Pair(position+offset,variant.getAttributeAsInt("ASM_Start",variant.start) + offset)
+                }
+                strand == "-" -> {
+                    val offset = position - variant.start
+                    Pair(position-offset,variant.getAttributeAsInt("ASM_Start",variant.end) - offset)
+                }
+                else -> refAsmPos
             }
+
+        }
+        else {
+            refAsmPos
         }
 
-        return refRangeToVariantContext
     }
+
 }
