@@ -134,6 +134,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         // altHeaders map with the key of the current record's ID.
         val sampleToRefRanges = mutableMapOf<String, MutableList<ReferenceRange>>()
 
+
         // process the hvcf records into the sampleToRefRanges map
         reader.forEach { context ->
             val id = context.getAlternateAllele(0).displayString.removeSurrounding("<", ">")
@@ -176,7 +177,15 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
             // This needs to loop through both the List of ReferenceRanges and the gvcfRecords
             // It should find entries in the gvcf file whose positions overlap those of the reference ranges
             // and add them to the gvcfRecords list.
-            val rangeToGvcfRecords = findOverlappingRecords(ranges, gvcfReader)
+            val gvcfVariants  = mutableListOf<VariantContext>()
+            gvcfReader.use { reader ->
+                for (vc in reader) {
+                    gvcfVariants.add(vc)
+                }
+            }
+            gvcfReader.close()
+            //val rangeToGvcfRecords = findOverlappingRecords(ranges, gvcfReader)
+            val rangeToGvcfRecords = findOverlappingRecords(ranges, gvcfVariants)
             //Add the rangeToGvcfRecords to the refRangeToVariantContext map
             // we can use "plus" but it creates a new map containing the combined entries
             // and assigns it back to refRangeToVariantContext
@@ -188,7 +197,6 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
                 val existingList = refRangeToVariantContext.getOrPut(range) { mutableListOf() }
                 existingList.addAll(variantList)
             }
-            gvcfReader.close()
         }
         // Put all the VariantContext records from the refRangeToVariantContext map
         // onto a list, then sort that list.
@@ -269,16 +277,17 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
     // but rather, at this stage, are merely finding the overlapping variants
     // Another function will be called to split the gvcf records if they extend  beyond the reference range
     // either at the beginning or the end.
-    fun findOverlappingRecords(ranges:List<ReferenceRange>, reader:VCFFileReader):MutableMap<ReferenceRange,MutableList<VariantContext>> {
+    fun findOverlappingRecords(ranges:List<ReferenceRange>, variantContexts:List<VariantContext>):MutableMap<ReferenceRange,MutableList<VariantContext>> {
         val refRangeToVariantContext = mutableMapOf<ReferenceRange, MutableList<VariantContext>>() // this will be returned
-        var currentVariant = reader.iterator().next()
+        var currentVariantIdx = 0
         for (range in ranges) {
             val regionStart = range.start
             val regionEnd = range.end
             val regionChrom = range.contig
             val tempVariants = mutableListOf<VariantContext>()
 
-            while (currentVariant != null) {
+            while (currentVariantIdx < variantContexts.size) {
+                val currentVariant = variantContexts[currentVariantIdx]
 
                 // check different cases for the variant
                 //If variant is fully contained in Bed region add to temp list and increment currentVariantIdx
@@ -297,7 +306,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
                 if(CreateMafVcf().variantFullyContained(Pair(Position(regionChrom,regionStart),Position(regionChrom,regionEnd)), currentVariant)) {
                     //This is the case where the variant is completely contained within the region
                     tempVariants.add(currentVariant)
-                    currentVariant = reader.iterator().next()
+                    currentVariantIdx++
                 }
                 else if(CreateMafVcf().variantPartiallyContainedStart(Pair(Position(regionChrom,regionStart),Position(regionChrom,regionEnd)),currentVariant)) {
                     tempVariants.add(currentVariant)
@@ -305,7 +314,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
                 }
                 else if(CreateMafVcf().variantPartiallyContainedEnd(Pair(Position(regionChrom,regionStart),Position(regionChrom,regionEnd)), currentVariant)) {
                     tempVariants.add(currentVariant)
-                    currentVariant = reader.iterator().next()
+                    currentVariantIdx++
                 }
                 else if(CreateMafVcf().variantAfterRegion(Pair(Position(regionChrom,regionStart),Position(regionChrom,regionEnd)), currentVariant)) {
                     //write out what is in tempVariants
@@ -321,7 +330,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
                 }
                 else { //this is the case where the Variant is behind the BED region
                     //move up Variant
-                    currentVariant = reader.iterator().next()
+                    currentVariantIdx++
                 }
             }
             // Process the last variants in the list
