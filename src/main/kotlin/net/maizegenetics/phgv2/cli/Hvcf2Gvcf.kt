@@ -80,10 +80,10 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         // get list of hvcf files
         // walk the gvcf directory process files with g.vcf.gz extension
         File(hvcfDir).walk().filter { !it.isHidden && !it.isDirectory }
-            .filter { it.name.endsWith("g.vcf.gz")  || it.name.endsWith("g.vcf")  }.toList()
+            .filter { it.name.endsWith("h.vcf.gz")  || it.name.endsWith("h.vcf")  }.toList()
             .forEach { hvcfFile ->
-                val hvcfFileReader = VCFFileReader(hvcfFile,false)
-                val headerAndRecords = processSingleHVCF(hvcfFile, dbPath,condaEnvPrefix)
+                println("buildGvcfFromHvcf: Processing hvcf file: ${hvcfFile.name}")
+                val headerAndRecords = processSingleHVCF(outputDir, hvcfFile, dbPath,condaEnvPrefix)
                 // Add the correct sample name to the headers
                 val newHeaders = fixGvcfSampleName(headerAndRecords.first, hvcfFile.nameWithoutExtension)
                 val gvcfFile = "$outputDir/${hvcfFile.nameWithoutExtension}.g.vcf"
@@ -116,7 +116,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         variants.forEach { writer.write("$it\n") }
         writer.close()
     }
-    fun processSingleHVCF(hvcfFile: File, dbPath: String, condaEnvPrefix: String): Pair<List<String>,List<VariantContext>> {
+    fun processSingleHVCF(outputDir:String, hvcfFile: File, dbPath: String, condaEnvPrefix: String): Pair<List<String>,List<VariantContext>> {
 
         val reader = VCFFileReader(hvcfFile,false)
         // We also need to print to the new gvcf all the headers from 1 of the accessed gvcf files
@@ -128,7 +128,6 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         // This checks for existing gvcf files, and if they don't exist, exports them
         val exportSuccess = exportGvcfFiles(sampleNames, outputDir, dbPath, condaEnvPrefix)
 
-
         // Using the hvcfdFileReader, walk the hvcf file and for each entry create
         // a ReferenceRange object and add that to a list of Reference Range objects
         // for the sample to which it applies.  You will get the sample by indexing the
@@ -137,7 +136,8 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
 
         // process the hvcf records into the sampleToRefRanges map
         reader.forEach { context ->
-            val altHeader = altHeaders[context.id]
+            val id = context.getAlternateAllele(0).displayString.removeSurrounding("<", ">")
+            val altHeader = altHeaders[id]
             val sampleName = altHeader?.sampleName() ?: throw IllegalStateException("No ALT header found for record: ${context.id}")
             val refRange = ReferenceRange(context.contig, context.start, context.end)
             val sampleList = sampleToRefRanges.getOrDefault(sampleName, mutableListOf())
@@ -145,6 +145,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
             sampleToRefRanges[sampleName] = sampleList
 
         }
+        reader.close()
 
         // Now we can read the gvcfs, a sample at a time, into the gvcfRecords list and process.
         // or we could process these in parallel - how much memory do we need to hold all?  it isn't
@@ -161,7 +162,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         val gvcfHeaders = mutableListOf<String>()
         //val refRangeToVariantContext = mutableMapOf<ReferenceRange, List<VariantContext>>()
         val refRangeToVariantContext = mutableMapOf<ReferenceRange, MutableList<VariantContext>>()
-        // This is WRONG, but might give me ideas on what to do
+
         sampleToRefRanges.forEach { sample, ranges ->
             val gvcfFile = "$outputDir/${sample}.vcf" // tiledb wrote with extension .vcf
 
@@ -187,13 +188,13 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
                 val existingList = refRangeToVariantContext.getOrPut(range) { mutableListOf() }
                 existingList.addAll(variantList)
             }
+            gvcfReader.close()
         }
         // Put all the VariantContext records from the refRangeToVariantContext map
         // onto a list, then sort that list.
         val allRecords = mutableListOf<VariantContext>()
         refRangeToVariantContext.values.forEach { allRecords.addAll(it) }
-        val contigList = listOf<String>("")
-        val variants = allRecords.sortedWith(VariantContextComparator(contigList))
+        val variants = allRecords.sortedWith(VariantContextComparator(contigNames))
 
         return Pair(gvcfHeaders,variants)
     }
@@ -208,6 +209,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
             gvcfFiles.add(gvcfFile)
         }
 
+        println("exportGvcfFiles: gvcfFiles= ${gvcfFiles}")
         val missingFiles = gvcfFiles.filter { !File(it).exists() }
         // For the entries in the missingFiles list, create a list of sampleNames.
         // The sampleNames are the entry in the missingFiles list, remove up to and
@@ -245,6 +247,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         builder.redirectError(File(redirectError))
 
         myLogger.info("ExportVcf Command: " + builder.command().joinToString(" "))
+        println("TILEDB ExportVcf Command: " + builder.command().joinToString(" "))
         val process = builder.start()
         val error = process.waitFor()
         if (error != 0) {
