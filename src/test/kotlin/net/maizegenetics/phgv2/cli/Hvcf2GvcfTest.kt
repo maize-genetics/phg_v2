@@ -110,7 +110,7 @@ class Hvcf2GvcfTest {
 
         // Run hvcf2gvcf on the copied file
         val hvcf2gvcf = Hvcf2Gvcf()
-        result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir}")
+        result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
 
         println("done !!")
 

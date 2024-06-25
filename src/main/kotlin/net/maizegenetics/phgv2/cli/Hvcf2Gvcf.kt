@@ -7,9 +7,13 @@ import com.github.ajalt.clikt.parameters.options.validate
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.variantcontext.VariantContextBuilder
 import htsjdk.variant.variantcontext.VariantContextComparator
+import htsjdk.variant.vcf.VCFEncoder
 import htsjdk.variant.vcf.VCFFileReader
+import htsjdk.variant.vcf.VCFHeader
+import htsjdk.variant.vcf.VCFHeaderLine
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.exportVariantContext
 import net.maizegenetics.phgv2.utils.parseALTHeader
 import net.maizegenetics.phgv2.utils.verifyURI
 import org.apache.logging.log4j.LogManager
@@ -61,6 +65,13 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
 
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
+    val referenceFile by option(help = "Path to local Reference FASTA file needed for sequence dictionary")
+        .default("")
+        .validate {
+            require(it.isNotBlank()) {
+                "--reference-file must not be blank"
+            }
+        }
 
     override fun run() {
         //TODO("Not yet implemented")
@@ -70,24 +81,29 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
             dbPath
         }
 
+        println("Hvcf2Gvcf: dbPath = $dbPath, hvcfDir = $hvcfDir, outputDir = $outputDir, condaEnvPrefix = $condaEnvPrefix")
+
         // Verify the tiledbURI - verifyURI will throw an exception if the URI is not valid
         val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
 
-        buildGvcfFromHvcf(dbPath, outputDir, hvcfDir, condaEnvPrefix)
+        buildGvcfFromHvcf(dbPath, referenceFile, outputDir, hvcfDir, condaEnvPrefix)
     }
 
-    fun buildGvcfFromHvcf(dbPath: String, outputDir: String, hvcfDir: String, condaEnvPrefix: String) {
+    fun buildGvcfFromHvcf(dbPath: String, referenceFile: String, outputDir: String, hvcfDir: String, condaEnvPrefix: String) {
+        // load the reference file
+        println("LCJ - in buildGvcfFromHvcf")
+        val refSeq = CreateMafVcf().buildRefGenomeSeq(referenceFile)
         // get list of hvcf files
         // walk the gvcf directory process files with g.vcf.gz extension
         File(hvcfDir).walk().filter { !it.isHidden && !it.isDirectory }
             .filter { it.name.endsWith("h.vcf.gz")  || it.name.endsWith("h.vcf")  }.toList()
             .forEach { hvcfFile ->
                 println("buildGvcfFromHvcf: Processing hvcf file: ${hvcfFile.name}")
-                val headerAndRecords = processSingleHVCF(outputDir, hvcfFile, dbPath,condaEnvPrefix)
+                val records = processSingleHVCF(outputDir, hvcfFile, dbPath,condaEnvPrefix)
 
                 val sample = hvcfFile.toString().substringAfterLast("/").substringBefore(".")
                 val gvcfFile = "$outputDir/${sample}.g.vcf"
-                writePathsToGvcf(gvcfFile, headerAndRecords.second,headerAndRecords.first)
+                exportVariantContext(sample,records,gvcfFile, refSeq,setOf())
             }
 
     }
@@ -97,10 +113,30 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
     fun writePathsToGvcf(outputFile:String, variants:List<VariantContext>,headers:List<String>) {
         val writer = File(outputFile).bufferedWriter()
         headers.forEach { writer.write("$it\n") }
-        variants.forEach { writer.write("$it\n") }
+        variants.forEach { writer.write("${it.toString()}\n") }
         writer.close()
     }
-    fun processSingleHVCF(outputDir:String, hvcfFile: File, dbPath: String, condaEnvPrefix: String): Pair<List<String>,List<VariantContext>> {
+
+    fun writeVariantsToVcf(outputFile: String, variants: List<VariantContext>, headers: List<String>) {
+        val writer = File(outputFile).bufferedWriter()
+        headers.forEach { writer.write("$it\n") }
+
+        // Create a VCFHeader object from the headers list
+        val metaData = headers.filter { it.startsWith("##") }.map { VCFHeaderLine(it.substring(2, it.indexOf('=')), it.substring(it.indexOf('=') + 1)) }
+        val header = VCFHeader(metaData.toMutableSet())
+
+        // Create a VCFEncoder
+        val vcfEncoder = VCFEncoder(header, false, false)
+
+        variants.forEach { variant ->
+            val vcfLine = vcfEncoder.encode(variant)
+            writer.write("$vcfLine\n")
+        }
+
+        writer.close()
+    }
+
+    fun processSingleHVCF(outputDir:String, hvcfFile: File, dbPath: String, condaEnvPrefix: String): List<VariantContext> {
 
         val reader = VCFFileReader(hvcfFile,false)
         // We also need to print to the new gvcf all the headers from 1 of the accessed gvcf files
@@ -149,41 +185,12 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         // THis may not be the correct version, either.  Do I need a map of REferenceRange to VariantContext records?
         // in which case, do I lose the sample names?
 
-        val gvcfHeaders = mutableListOf<String>()
         //val refRangeToVariantContext = mutableMapOf<ReferenceRange, List<VariantContext>>()
         val refRangeToVariantContext = mutableMapOf<ReferenceRange, MutableList<VariantContext>>()
 
-        var needHeaders = true
         sampleToRefRanges.forEach { sample, ranges ->
             val gvcfFile = "$outputDir/${sample}.vcf" // tiledb wrote with extension .vcf
 
-            // Add headers if we haven't already.
-            if (needHeaders) {
-                needHeaders = false
-                File(gvcfFile).useLines { lines ->
-                    lines.forEach { line ->
-                        if (line.startsWith("#")) {
-                            if (line.startsWith("#CHROM")) {
-                                // split the line on tabs, and for the 10th column,
-                                // change the value to "sampleName"
-                                // add the updated line to the headerLines and then return
-                                val cols = line.split("\t").toMutableList()
-                                cols[9] = pathSample
-                                println("\ncols9 = ${cols[9]}")
-                                println ("cols = ${cols.joinToString("\t")}")
-                                gvcfHeaders.add(cols.joinToString("\t"))
-
-                                // Stop reading after the header section
-                                return@forEach
-                            }
-                            gvcfHeaders.add(line)
-                        } else {
-                            // Stop reading after the header section
-                            return@forEach
-                        }
-                    }
-                }
-            }
 
             val gvcfReader = VCFFileReader(File(gvcfFile),false)
             // We take the headers from one of the gvcf files and save it to the gvcfHeaders list
@@ -219,7 +226,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         refRangeToVariantContext.values.forEach { allRecords.addAll(it) }
         val variants = allRecords.sortedWith(VariantContextComparator(contigNames))
 
-        return Pair(gvcfHeaders,variants)
+        return variants
     }
 
     // function to export the gvcf file if they don't exist
