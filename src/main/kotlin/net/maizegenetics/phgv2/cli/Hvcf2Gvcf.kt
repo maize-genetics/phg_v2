@@ -108,34 +108,6 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
 
     }
 
-
-    // WRite the header and gvcf lines to the specified file
-    fun writePathsToGvcf(outputFile:String, variants:List<VariantContext>,headers:List<String>) {
-        val writer = File(outputFile).bufferedWriter()
-        headers.forEach { writer.write("$it\n") }
-        variants.forEach { writer.write("${it.toString()}\n") }
-        writer.close()
-    }
-
-    fun writeVariantsToVcf(outputFile: String, variants: List<VariantContext>, headers: List<String>) {
-        val writer = File(outputFile).bufferedWriter()
-        headers.forEach { writer.write("$it\n") }
-
-        // Create a VCFHeader object from the headers list
-        val metaData = headers.filter { it.startsWith("##") }.map { VCFHeaderLine(it.substring(2, it.indexOf('=')), it.substring(it.indexOf('=') + 1)) }
-        val header = VCFHeader(metaData.toMutableSet())
-
-        // Create a VCFEncoder
-        val vcfEncoder = VCFEncoder(header, false, false)
-
-        variants.forEach { variant ->
-            val vcfLine = vcfEncoder.encode(variant)
-            writer.write("$vcfLine\n")
-        }
-
-        writer.close()
-    }
-
     fun processSingleHVCF(outputDir:String, hvcfFile: File, dbPath: String, condaEnvPrefix: String): List<VariantContext> {
 
         val reader = VCFFileReader(hvcfFile,false)
@@ -191,10 +163,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         sampleToRefRanges.forEach { sample, ranges ->
             val gvcfFile = "$outputDir/${sample}.vcf" // tiledb wrote with extension .vcf
 
-
             val gvcfReader = VCFFileReader(File(gvcfFile),false)
-            // We take the headers from one of the gvcf files and save it to the gvcfHeaders list
-            // to be printed when we create our new gvcf file
 
             // This needs to loop through both the List of ReferenceRanges and the gvcfRecords
             // It should find entries in the gvcf file whose positions overlap those of the reference ranges
@@ -206,7 +175,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
                 }
             }
             gvcfReader.close()
-            //val rangeToGvcfRecords = findOverlappingRecords(ranges, gvcfReader)
+            println("LCJ:processSingleHVCF: gvcfVariants size = ${gvcfVariants.size}")
             val rangeToGvcfRecords = findOverlappingRecords(ranges, gvcfVariants)
             //Add the rangeToGvcfRecords to the refRangeToVariantContext map
             // we can use "plus" but it creates a new map containing the combined entries
