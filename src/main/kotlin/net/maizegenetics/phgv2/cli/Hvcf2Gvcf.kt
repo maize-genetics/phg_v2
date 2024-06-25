@@ -84,30 +84,14 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
             .forEach { hvcfFile ->
                 println("buildGvcfFromHvcf: Processing hvcf file: ${hvcfFile.name}")
                 val headerAndRecords = processSingleHVCF(outputDir, hvcfFile, dbPath,condaEnvPrefix)
-                // Add the correct sample name to the headers
-                val newHeaders = fixGvcfSampleName(headerAndRecords.first, hvcfFile.nameWithoutExtension)
-                val gvcfFile = "$outputDir/${hvcfFile.nameWithoutExtension}.g.vcf"
-                writePathsToGvcf(gvcfFile, headerAndRecords.second,newHeaders)
+
+                val sample = hvcfFile.toString().substringAfterLast("/").substringBefore(".")
+                val gvcfFile = "$outputDir/${sample}.g.vcf"
+                writePathsToGvcf(gvcfFile, headerAndRecords.second,headerAndRecords.first)
             }
 
     }
 
-    //THis function takes the header lines from a gvcf and alters the line
-    // beginning with #CHROM to have the sample name from the hvcf file
-    fun fixGvcfSampleName(headers: List<String>, sampleName:String):List<String> {
-        val newHeaders = mutableListOf<String>()
-        headers.forEach {
-            if (it.startsWith("#CHROM")) {
-                var parts = it.split("\t").toMutableList()
-                parts[9] = sampleName
-                newHeaders.add(parts.joinToString("\t"))
-            }
-            else {
-                newHeaders.add(it)
-            }
-        }
-        return newHeaders
-    }
 
     // WRite the header and gvcf lines to the specified file
     fun writePathsToGvcf(outputFile:String, variants:List<VariantContext>,headers:List<String>) {
@@ -133,6 +117,11 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         // for the sample to which it applies.  You will get the sample by indexing the
         // altHeaders map with the key of the current record's ID.
         val sampleToRefRanges = mutableMapOf<String, MutableList<ReferenceRange>>()
+
+        // Get the sampleName from the hvcf file.  THis is the name
+        // without the path, and without the extension of h.vcf, hvcf, h.vcf.gz or hvcf.gz
+        val pathSample = hvcfFile.toString().substringAfterLast("/").substringBefore(".")
+        println("LCJ: hvcfFileName  = ${hvcfFile.toString()}, pathSample = $pathSample")
 
 
         // process the hvcf records into the sampleToRefRanges map
@@ -164,15 +153,41 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         //val refRangeToVariantContext = mutableMapOf<ReferenceRange, List<VariantContext>>()
         val refRangeToVariantContext = mutableMapOf<ReferenceRange, MutableList<VariantContext>>()
 
+        var needHeaders = true
         sampleToRefRanges.forEach { sample, ranges ->
             val gvcfFile = "$outputDir/${sample}.vcf" // tiledb wrote with extension .vcf
+
+            // Add headers if we haven't already.
+            if (needHeaders) {
+                needHeaders = false
+                File(gvcfFile).useLines { lines ->
+                    lines.forEach { line ->
+                        if (line.startsWith("#")) {
+                            if (line.startsWith("#CHROM")) {
+                                // split the line on tabs, and for the 10th column,
+                                // change the value to "sampleName"
+                                // add the updated line to the headerLines and then return
+                                val cols = line.split("\t").toMutableList()
+                                cols[9] = pathSample
+                                println("\ncols9 = ${cols[9]}")
+                                println ("cols = ${cols.joinToString("\t")}")
+                                gvcfHeaders.add(cols.joinToString("\t"))
+
+                                // Stop reading after the header section
+                                return@forEach
+                            }
+                            gvcfHeaders.add(line)
+                        } else {
+                            // Stop reading after the header section
+                            return@forEach
+                        }
+                    }
+                }
+            }
 
             val gvcfReader = VCFFileReader(File(gvcfFile),false)
             // We take the headers from one of the gvcf files and save it to the gvcfHeaders list
             // to be printed when we create our new gvcf file
-            if (gvcfHeaders.isEmpty()) {
-                gvcfHeaders.addAll(gvcfReader.fileHeader.toString().split("\n"))
-            }
 
             // This needs to loop through both the List of ReferenceRanges and the gvcfRecords
             // It should find entries in the gvcf file whose positions overlap those of the reference ranges
