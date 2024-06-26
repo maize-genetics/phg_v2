@@ -129,8 +129,6 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         // Get the sampleName from the hvcf file.  THis is the name
         // without the path, and without the extension of h.vcf, hvcf, h.vcf.gz or hvcf.gz
         val pathSample = hvcfFile.toString().substringAfterLast("/").substringBefore(".")
-        println("LCJ: hvcfFileName  = ${hvcfFile.toString()}, pathSample = $pathSample")
-
 
         // process the hvcf records into the sampleToRefRanges map
         reader.forEach { context ->
@@ -175,8 +173,10 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
                 }
             }
             gvcfReader.close()
-            println("LCJ:processSingleHVCF: gvcfVariants size = ${gvcfVariants.size}")
-            val rangeToGvcfRecords = findOverlappingRecords(ranges, gvcfVariants)
+
+            //val rangeToGvcfRecords = findOverlappingRecords(ranges, gvcfVariants)
+            val rangeToGvcfRecords = findOverlappingRecordsForSample(ranges, gvcfVariants)
+
             //Add the rangeToGvcfRecords to the refRangeToVariantContext map
             // we can use "plus" but it creates a new map containing the combined entries
             // and assigns it back to refRangeToVariantContext
@@ -263,6 +263,21 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         return success
     }
 
+    fun findOverlappingRecordsForSample(ranges:List<ReferenceRange>, variantContexts:List<VariantContext>):MutableMap<ReferenceRange,MutableList<VariantContext>> {
+        // split ranges and variantContexts by chromosome
+        val overlappingRecords = mutableMapOf<ReferenceRange, MutableList<VariantContext>>()
+        val rangesByChrom = ranges.groupBy { it.contig }
+        val variantContextsByChrom = variantContexts.groupBy { it.contig }
+        // call findOverlappingRecords for each chromosome, add the results to overlappingRecords
+        rangesByChrom.keys.forEach { chrom ->
+            val chromRanges = rangesByChrom[chrom] ?: emptyList()
+            val chromVariants = variantContextsByChrom[chrom] ?: emptyList()
+            val chromOverlappingRecords = findOverlappingRecords(chromRanges, chromVariants)
+            overlappingRecords.putAll(chromOverlappingRecords)
+        }
+        return overlappingRecords
+    }
+
     // This is based on CreateMafVCF:convertGVCFToHVCFForChrom() that determines if a variant or part
     // of a variant is in a reference range.  It differs in that we are not creating hvcf meta data,
     // but rather, at this stage, are merely finding the overlapping variants
@@ -271,6 +286,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
     fun findOverlappingRecords(ranges:List<ReferenceRange>, variantContexts:List<VariantContext>):MutableMap<ReferenceRange,MutableList<VariantContext>> {
         val refRangeToVariantContext = mutableMapOf<ReferenceRange, MutableList<VariantContext>>() // this will be returned
         var currentVariantIdx = 0
+        println("LCJ - findOverlappingRecords, size of ranges: ${ranges.size}, size of variantContexts: ${variantContexts.size}")
         for (range in ranges) {
             val regionStart = range.start
             val regionEnd = range.end
@@ -292,6 +308,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
                     val currentVariants = refRangeToVariantContext.getOrPut(range, { mutableListOf() })
                     currentVariants.addAll(fixedVariants)
                     refRangeToVariantContext[range] = currentVariants
+                    tempVariants.clear()
                     break
                 }
                 if(CreateMafVcf().variantFullyContained(Pair(Position(regionChrom,regionStart),Position(regionChrom,regionEnd)), currentVariant)) {
