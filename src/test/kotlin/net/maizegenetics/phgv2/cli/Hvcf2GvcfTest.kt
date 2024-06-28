@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @ExtendWith(TestExtension::class)
 class Hvcf2GvcfTest {
@@ -112,9 +113,49 @@ class Hvcf2GvcfTest {
         val hvcf2gvcf = Hvcf2Gvcf()
         result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
 
+        // TODO
+        // Need some assertions here
         println("done !!")
 
 
+    }
+
+    @Test
+    fun testCreateRefGvcf() {
+        // This is a test of the Hvcf2Gvcf:createRefGvcf function.  We create a reference gvcf file
+        // and verify it has data for all reference ranges in the bed file.
+
+        val outputDir = TestExtension.tempDir
+        val refName = "Ref"
+
+        val ranges = "data/test/smallseq/anchors.bed"
+        val refFasta = "data/test/smallseq/Ref.fa"
+        val refSeq = CreateMafVcf().buildRefGenomeSeq(refFasta)
+
+        Hvcf2Gvcf().createRefGvcf(refName, ranges, refSeq, outputDir)
+        assertTrue(File("$outputDir/$refName.vcf").exists())
+
+        // read the file and verify that it has data for all reference ranges in the bed file
+        val lines = File("$outputDir/$refName.vcf").readLines()
+        val refRanges = File(ranges).readLines()
+
+        // Verify there are 17 lines in the file that begin with "#" (header lines)
+        assertEquals(17, lines.filter { it.startsWith("#") }.size)
+
+        // Verify the first line is the file is "##fileformat=VCFv4.2"
+        assertEquals("##fileformat=VCFv4.2", lines[0])
+
+        // verify there are 20 lines in the created file that begin with "1" and 20 that begin with "2"
+        assertEquals(20, lines.filter { it.startsWith("1") }.size)
+        assertEquals(20, lines.filter { it.startsWith("2") }.size)
+
+        val chrom1entry = "1\t1001\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=5500;ASM_Start=1001;ASM_Strand=+;END=5500\tGT:AD:DP:PL\t0:30,0:30:0,90,90"
+        val chom2entry = "2\t1001\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=5500;ASM_Start=1001;ASM_Strand=+;END=5500\tGT:AD:DP:PL\t0:30,0:30:0,90,90"
+
+        // verify the file contains both the chrom1entry and the chrom2entry
+        assertTrue(lines.contains(chrom1entry))
+        assertTrue(lines.contains(chom2entry))
+        println("ref gvcf file created: $outputDir/$refName.vcf")
     }
 
 }
