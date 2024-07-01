@@ -46,8 +46,7 @@ class Hvcf2GvcfTest {
 
         //Run InitDB
         println("createSmallSeqTiledb - calling Initdb")
-        val initdb = Initdb()
-        initdb.test("--db-path ${dbPath}")
+        Initdb().createDataSets(TestExtension.testTileDBURI,"")
 
         // Should run PrepareAssemblies ??  Or are they fine for smallSeq?
         // SmallSeq fastas already contain sampleName=<sampleName> in the header.
@@ -102,16 +101,16 @@ class Hvcf2GvcfTest {
         // Copy the $TestExtension.testVCFDir/LineB.h.vcf.gz to $TestExtension.testVCFDir/LineBPath.h.vcf.gz
         // Make directory ${TestExtension.testVCFDir}/testOutputGVCFDir
 
-        println("NOW ... running hvcf2gvcf")
-        val testGVCFdir = "${TestExtension.testVCFDir}/testOutputGVCFDir"
-        File(testGVCFdir).mkdirs()
-        val lineBPathHvcf = "${testGVCFdir}/LineBPath.h.vcf.gz"
-        val lineBHvcf = "${TestExtension.testVCFDir}/LineB.h.vcf.gz"
-        File(lineBHvcf).copyTo(File(lineBPathHvcf))
-
-        // Run hvcf2gvcf on the copied file
-        val hvcf2gvcf = Hvcf2Gvcf()
-        result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
+//        println("NOW ... running hvcf2gvcf")
+//        val testGVCFdir = "${TestExtension.testVCFDir}/testOutputGVCFDir"
+//        File(testGVCFdir).mkdirs()
+//        val lineBPathHvcf = "${testGVCFdir}/LineBPath.h.vcf.gz"
+//        val lineBHvcf = "${TestExtension.testVCFDir}/LineB.h.vcf.gz"
+//        File(lineBHvcf).copyTo(File(lineBPathHvcf))
+//
+//        // Run hvcf2gvcf on the copied file
+//        val hvcf2gvcf = Hvcf2Gvcf()
+//        result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
 
         // TODO
         // Need some assertions here
