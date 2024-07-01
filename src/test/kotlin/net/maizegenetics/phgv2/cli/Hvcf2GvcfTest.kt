@@ -83,7 +83,7 @@ class Hvcf2GvcfTest {
         // remember - there is no gvcf for the ref
         println("testSimpleHvcf2Gvcf: running CreateMafVcf")
         val createMafVcf = CreateMafVcf()
-        result = createMafVcf.test("--db-path ${dbPath} --bed data/test/smallSeq/anchors.bed --reference-file ${refFasta} --maf-dir ${TestExtension.tempDir} -o ${TestExtension.testVCFDir}")
+        result = createMafVcf.test("--db-path ${dbPath} --bed ${ranges} --reference-file ${refFasta} --maf-dir ${TestExtension.tempDir} -o ${TestExtension.testVCFDir}")
         println(result.output)
 
         // Need to load the vcf now!
@@ -101,16 +101,16 @@ class Hvcf2GvcfTest {
         // Copy the $TestExtension.testVCFDir/LineB.h.vcf.gz to $TestExtension.testVCFDir/LineBPath.h.vcf.gz
         // Make directory ${TestExtension.testVCFDir}/testOutputGVCFDir
 
-//        println("NOW ... running hvcf2gvcf")
-//        val testGVCFdir = "${TestExtension.testVCFDir}/testOutputGVCFDir"
-//        File(testGVCFdir).mkdirs()
-//        val lineBPathHvcf = "${testGVCFdir}/LineBPath.h.vcf.gz"
-//        val lineBHvcf = "${TestExtension.testVCFDir}/LineB.h.vcf.gz"
-//        File(lineBHvcf).copyTo(File(lineBPathHvcf))
-//
-//        // Run hvcf2gvcf on the copied file
-//        val hvcf2gvcf = Hvcf2Gvcf()
-//        result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
+        println("NOW ... running hvcf2gvcf")
+        val testGVCFdir = "${TestExtension.testVCFDir}/testOutputGVCFDir"
+        File(testGVCFdir).mkdirs()
+        val lineBPathHvcf = "${testGVCFdir}/LineBPath.h.vcf.gz"
+        val lineBHvcf = "${TestExtension.testVCFDir}/LineB.h.vcf.gz"
+        File(lineBHvcf).copyTo(File(lineBPathHvcf))
+
+        // Run hvcf2gvcf on the copied file
+        val hvcf2gvcf = Hvcf2Gvcf()
+        result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
 
         // TODO
         // Need some assertions here
