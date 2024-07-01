@@ -630,6 +630,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
             dbPath
         }
 
+        println("CreateMafVCF: begin run dbPath = $dbPath")
         // Verify the tiledbURI
         // If it doesn't an exception will be thrown
         val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)

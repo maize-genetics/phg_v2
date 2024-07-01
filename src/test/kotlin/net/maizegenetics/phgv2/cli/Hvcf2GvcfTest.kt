@@ -45,19 +45,19 @@ class Hvcf2GvcfTest {
 
 
         //Run InitDB
-        println("createSmallSeqTiledb - calling Initdb")
+        println("testSimpleHvcf2Gvcf: - calling Initdb")
         Initdb().createDataSets(TestExtension.testTileDBURI,"")
 
         // Should run PrepareAssemblies ??  Or are they fine for smallSeq?
         // SmallSeq fastas already contain sampleName=<sampleName> in the header.
 
         // Tiledb datasets were created during initialization (@beforeAll)
-        println("running agcCompress")
+        println("testSimpleHvcf2Gvcf:running agcCompress")
         val agcCompress = AgcCompress()
         var agcResult = agcCompress.test("--fasta-list ${TestExtension.smallseqAssembliesListFile} --db-path ${dbPath} --reference-file ${TestExtension.smallseqRefFile}")
         println(agcResult.output)
 
-        println("running CreateRefVcf")
+        println("testSimpleHvcf2Gvcf:running CreateRefVcf")
         var result = CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $refFasta --reference-url ${refUrl} --db-path $dbPath")
         assertEquals(0, result.statusCode )
 
@@ -68,7 +68,7 @@ class Hvcf2GvcfTest {
         // Run createMAFVCf on the assemblies LineA and LIneB to get
         // data into the db.
 
-        println("running AlignAssemblies")
+        println("testSimpleHvcf2Gvcf: running AlignAssemblies")
         val alignAssemblies = AlignAssemblies()
 
         result = alignAssemblies.test(
@@ -76,19 +76,19 @@ class Hvcf2GvcfTest {
                     "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1"
         )
 
-        println("testRunningAlignAssemblies: result output: ${result.output}")
+        println("testSimpleHvcf2Gvcf: result output: ${result.output}")
         assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
 
         // Load assemblies using CreateMafVcf - creates and loads gvcf and hvcf
         // remember - there is no gvcf for the ref
-        println("running CreateMafVcf")
+        println("testSimpleHvcf2Gvcf: running CreateMafVcf")
         val createMafVcf = CreateMafVcf()
         result = createMafVcf.test("--db-path ${dbPath} --bed data/test/smallSeq/anchors.bed --reference-file ${refFasta} --maf-dir ${TestExtension.tempDir} -o ${TestExtension.testVCFDir}")
         println(result.output)
 
         // Need to load the vcf now!
         // Load the vcf files into the tiledb dataset
-        println("running LoadVcf")
+        println("testSimpleHvcf2Gvcf: running LoadVcf")
         val loadVcf = LoadVcf()
         result = loadVcf.test("--db-path ${dbPath} --vcf-dir ${TestExtension.testVCFDir}")
 
