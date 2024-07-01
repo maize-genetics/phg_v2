@@ -67,6 +67,7 @@ phg prepare-slurm-align-file  \
     -o output/alignment_files
 ````
 
+
 ### Parameters
 This command uses several parameters:
 * `--phg-location` - The location of the phg executable.  The full path should be provided. This is needed to run the align-assemblies command.
@@ -167,3 +168,66 @@ I have two samples:
 > call to the `align-assemblies` command for a single assembly. If the 
 > file specified by the `--assemblies` parameter contains _100_ 
 > assemblies, the output file will contain _100_ lines.
+
+
+### Integrating into SLURM jobs
+Since the output from `prepare-slurm-align-file` is simply a list
+of individual `align-assemblies` commands (each representing an
+individual assembly), we must pass this along to an actual SLURM
+array job. Below we have added an example SLURM script detailing
+some example parameters and code setup you _may_ want to use for your
+applications:
+
+```shell
+#!/bin/bash
+
+#SBATCH --time=10:30:00  # walltime limit (HH:MM:SS)
+#SBATCH --nodes=1  # number of nodes
+#SBATCH --ntasks-per-node=40  # 40 processor core(s) per node X 2 threads per core
+#SBATCH --mem=200G  # maximum memory per node
+#SBATCH --partition=short  # standard node(s)
+#SBATCH --job-name="10T_anchorwaveV2"
+#SBATCH --mail-user=lcj34@cornell.edu  # email address
+#SBATCH --mail-type=BEGIN
+#SBATCH --mail-type=END
+#SBATCH --mail-type=FAIL
+#SBATCH --array=0-4
+# LOAD MODULES, INSERT CODE, AND RUN YOUR PROGRAMS HERE
+module load miniconda
+module load java/17
+
+eval "$(conda shell.bash hook)"
+
+conda activate /project/buckler_lab_panand/lynn.johnson/phgv2-conda
+
+echo "All jobs in this array have:"
+echo "- SLURM array job id: ${SLURM_ARRAY_JOB_ID}"
+echo "- SLURM array task count: ${SLURM_ARRAY_TASK_COUNT}"
+echo "- SLURM array starting task: ${SLURM_ARRAY_TASK_MIN}"
+echo "- SLURM array ending task: ${SLURM_ARRAY_TASK_MAX}"
+echo "This job in the array has:"
+echo "- SLURM job id: ${SLURM_JOB_ID}"
+echo "- SLURM array task id: ${SLURM_ARRAY_TASK_ID}"
+
+INPUTFILE=<your_align_command_input>
+
+IFS=$'\n' read -d '' -r -a LINES < ${INPUTFILE}
+LINE=${LINES[$SLURM_ARRAY_TASK_ID]}
+eval ${LINE}
+if [ $? -eq 0 ]
+  then
+    echo -e "$(date +"%D  %r")\tSuccess: ${LINE}"
+    exit 0
+  else
+    echo -e "$(date +"%D  %r")\tFailed\t${LINE}"
+    echo -e "$(date +"%D  %r")\tJobID\t${SLURM_JOB_ID}"
+    echo -e "$(date +"%D  %r")\tTaskID\t${SLURM_ARRAY_TASK_ID}"
+  exit 1
+fi
+```
+
+...where the line that contains the `INPUTFILE` variable declaration
+is the path to the `prepare-slurm-align-file` command output (in our
+case, this would be `output/slurm_align_file.txt`). For more
+information about how to get started with SLURM, please check out
+the [official guides](https://slurm.schedmd.com/quickstart.html).
