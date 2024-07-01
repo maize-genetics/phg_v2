@@ -43,9 +43,38 @@ private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.SeqUt
  *      e.g. LineA:1,2
  *           LineB:1,2
  *
+ * 4. retrieveRefSampleName: called to get the name of the sample used as the reference in the AGC file.
+ *    Expected user input: dbPath:String
+ *    THe command sent to age is "agc listref <in.agc>"  THe output is written to the output stream
+ *    and returned from the function as a string.
+ *
  * The rest of the functions in this file are used internally by the above functions.
  *
  */
+
+/**
+ * Retrieves the name of the sample used as the reference in the AGC file.
+ * @param dbPath    the folder containing assemblies.agc
+ * @return the name of the sample used as the reference in the AGC file
+ */
+fun retrieveRefSampleName(dbPath: String,condaEnvPrefix:String):String {
+    val agcFile = "${dbPath}/assemblies.agc"
+    check(File(agcFile).exists()) { "File assemblies.agc does not exist in folder $dbPath- please send a valid path that indicates the parent folder for your assemblies.agc compressed file." }
+
+    val command = if (condaEnvPrefix.isNotBlank()) arrayOf("conda","run","-p",condaEnvPrefix,"agc","listref",agcFile)
+    else arrayOf("conda","run","-n","phgv2-conda","agc","listref",agcFile)
+
+    val commandToPrint = if (command.joinToString(" ").length > 150) command.joinToString(" ").substring(0,150) else command.joinToString(" ")
+    myLogger.info("retrieveRefSampleName: Running Agc Command:\n${commandToPrint}...")
+
+    val agcProcess = ProcessBuilder(*command)
+        .start()
+
+    val agcOut = BufferedInputStream(agcProcess.inputStream, 5000000)
+    val refSampleName = agcOut.bufferedReader().readLine()
+    agcOut.close()
+    return refSampleName
+}
 
 /**
  * Retrieves sequence from an agc data store.
