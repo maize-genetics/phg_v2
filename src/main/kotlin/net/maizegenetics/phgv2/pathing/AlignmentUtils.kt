@@ -312,6 +312,84 @@ class AlignmentUtils {
         }
 
         /**
+         * Function to process the reads for multiple ReferenceRanges.  This will work with both paired and single ended reads.
+         */
+        suspend fun processReadsMultipleRefRanges(
+            reads: ReceiveChannel<Pair<String, String>>,
+            sortedLists: SendChannel<List<String>>,
+            minProportionOfMaxCount: Double = 1.0,
+            kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
+            refrangeToBitSet: Map<Int, BitSet>,
+            rangeToHapidIndexMap: Map<Int, Map<String, Int>>
+        ) {
+            for (pairOfReads in reads) {
+                val (result1, result2) = extractHapIdHitsForReadPair(
+                    pairOfReads,
+                    minProportionOfMaxCount,
+                    kmerHashOffsetMap,
+                    refrangeToBitSet,
+                    rangeToHapidIndexMap
+                )
+
+                //Process the mappings for each reference range
+                processHapIdHits(result1, result2, sortedLists)
+            }
+        }
+
+        /**
+         * Function to process the hapIdHits for a read pair.  This will work with both paired and single ended reads.
+         * If the second read is empty, then it will be treated as a single ended read and will return only 1 set of hapids
+         */
+        private suspend fun processHapIdHits(
+            result1: Map<Int, Set<String>>,
+            result2: Map<Int, Set<String>>,
+            sortedLists: SendChannel<List<String>>
+        ) {
+            for (entry in result1) {
+                val rangeId = entry.key
+                val hapIds = entry.value
+
+                val intersectResult = if (result2.containsKey(rangeId)) {
+                    hapIds.intersect(result2[rangeId]!!)
+                } else {
+                    hapIds
+                }
+                if (intersectResult.isNotEmpty()) sortedLists.send(intersectResult.sorted())
+            }
+        }
+
+        /**
+         * Function to extract the hapIdHits for a read pair.  This will work with both paired and single ended reads.
+         */
+        private fun extractHapIdHitsForReadPair(
+            pairOfReads: Pair<String, String>,
+            minProportionOfMaxCount: Double,
+            kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
+            refrangeToBitSet: Map<Int, BitSet>,
+            rangeToHapidIndexMap: Map<Int, Map<String, Int>>
+        ): Pair<Map<Int, Set<String>>, Map<Int, Set<String>>> {
+            val result1 = readToHapIdSetMultipleRefRanges(
+                pairOfReads.first,
+                minProportionOfMaxCount,
+                kmerHashOffsetMap,
+                refrangeToBitSet,
+                rangeToHapidIndexMap
+            )
+            val result2 = if (pairOfReads.second.isNotEmpty()) {
+                readToHapIdSetMultipleRefRanges(
+                    pairOfReads.second,
+                    minProportionOfMaxCount,
+                    kmerHashOffsetMap,
+                    refrangeToBitSet,
+                    rangeToHapidIndexMap
+                )
+            } else {
+                emptyMap()
+            }
+            return Pair(result1, result2)
+        }
+
+        /**
          * Takes a [read] and generates a list of hapids to which its kmers map. Returns only hapids from a single
          * reference range. If no kmers map or if fewer than [minSameReferenceRange] of the kmers map to a single
          * reference range an empty Set will be returned.
@@ -348,10 +426,49 @@ class AlignmentUtils {
             val filteredHapidList = hapidsFromOneReferenceRange(rangeToHapidMap, minSameReferenceRange)
 
             //count the hapids
-            val hapidCounts = filteredHapidList.groupingBy { it }.eachCount()
+            return filterHapIdsByKmerCount(filteredHapidList, minProportionOfMaxCount)
+        }
 
-            //determine maxcount then create a hapidset from the hapids with maxcount
+        /**
+         * Takes a [read] and generates a list of hapids to which its kmers map. Returns hapids from multiple
+         * reference ranges. If no kmers map or if fewer than [minSameReferenceRange] of the kmers map to a single
+         * reference range an empty Set will be returned.
+         */
+        fun readToHapIdSetMultipleRefRanges(read: String,
+                                            minProportionOfMaxCount: Double = 1.0,
+                                            kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
+                                            refrangeToBitSet: Map<Int, BitSet>,
+                                            rangeToHapidIndexMap: Map<Int, Map<String, Int>>): Map<Int, Set<String>> {
+            //generate kmer hash from the read
+            val rangeToHapidMap = mutableMapOf<Int, MutableList<String>>()
+            val splitList = read
+                .split("[^ACGT]+".toRegex())
+                .filter { it.length > 31 }
+            for (sequence in splitList) {
+                extractKmersFromSequence(
+                    sequence,
+                    kmerHashOffsetMap,
+                    refrangeToBitSet,
+                    rangeToHapidIndexMap,
+                    rangeToHapidMap
+                )
+            }
+            //if no hapids map to this read, return an empty set
+            if (rangeToHapidMap.size == 0) return emptyMap()
 
+            //hapIds are already grouped by refRange so we just need to process each ranges hapIds and make sure that we
+            // have good enough coverage
+            return rangeToHapidMap.map { (rangeId, hapIds) ->
+               Pair(rangeId, filterHapIdsByKmerCount(hapIds, minProportionOfMaxCount))
+            }.toMap()
+        }
+
+        /**
+         * Function to filter hapIds by the kmer count.  This will return a set of hapIds that have a count greater than
+         * or equal to the [minProportionOfMaxCount] of the max count.
+         */
+        fun filterHapIdsByKmerCount(hapIds: List<String>, minProportionOfMaxCount: Double): Set<String> {
+            val hapidCounts = hapIds.groupingBy { it }.eachCount()
             val maxcount = hapidCounts.values.maxOrNull()
             return if (maxcount == null) setOf<String>()
             else {
