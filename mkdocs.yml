@@ -1,0 +1,108 @@
+# Project information
+site_name: Practical Haplotype Graph
+site_description: A pangenome for plant systems
+site_author: Buckler Lab
+site_url: https://www.maizegenetics.net
+
+# Repository configuration
+repo_name: PHGv2
+repo_url: https://github.com/maize-genetics/phg_v2
+
+# Theme configuration
+theme:
+  icon:
+    repo: fontawesome/brands/github
+  name: material
+  custom_dir: docs
+  logo: img/product/phg_logo_white.svg
+  favicon: img/product/favicon.png
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/link
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: green
+      accent: green
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch-off
+        name: Switch to system preference
+  features:
+    - content.code.select
+    - content.code.copy
+    - content.code.annotate
+    - navigation.tabs
+    - navigation.top
+    - navigation.sections
+    - navigation.indexes
+    - navigation.expand
+    - search.highlight
+  language: en
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+# Copyright
+copyright: Copyright &copy; 2023 - 2024 Buckler Lab
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/maize-genetics
+    - icon: fontawesome/brands/x-twitter
+      link: https://x.com/edbuckler
+    - icon: fontawesome/brands/youtube
+      link: https://www.youtube.com/c/BucklerLab
+
+# Markdown extensions
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - tables
+  - admonition
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+
+# Extra 
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+# Navigation
+nav:
+  - Home: 
+      - index.md
+  - Getting Started:
+      - Installation: installation.md
+      - Building and loading: build_and_load.md
+      - Imputation: imputation.md
+      - Resequencing: index.md
+  - Reference:
+      - Exporting data: export_data.md
+      - hVCF region handling: hvcf_region_handling.md
+      - hVCF specifications: hvcf_specifications.md
+      - Ktor specifications: ktor_specifications.md
+      - QC metrics: qc_metrics.md
+      - Terminology: terminology.md
+  - Community:
+      - qc_metrics.md
+
