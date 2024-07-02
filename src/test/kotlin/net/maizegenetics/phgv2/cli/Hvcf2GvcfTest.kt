@@ -111,16 +111,13 @@ class Hvcf2GvcfTest {
 
     @Test
     fun testPathHvcf2Gvcf() {
-        // This is a test of the Hvcf2Gvcf:run function.  We copy an hvcf file created from CreateMafVcf to a new location
-        // and run that through hvcf2gvcf.  We then verify that the output file exists.
+        // This is a test of the Hvcf2Gvcf:run function.  An hvcf file created from the
+        // smallSeq FindPathsTest is copied to a new location and run through hvcf2gvcf.
 
         val dbPath = TestExtension.testTileDBURI
-        val refName = "Ref"
-
-        val ranges = "data/test/smallseq/anchors.bed"
         val refFasta = "data/test/smallseq/Ref.fa"
 
-        // THe tiledb datasets have been created and populated in the setup functions.
+        // The tiledb datasets have been created and populated in the setup functions.
         // Using hvcf file TestLine2.h.vcf, created from the FindPathsTest junit
         // This has been stored to test/smallseq folder.  Its contents represent sequence
         // from 2 assemblies, LineA and LineB.
