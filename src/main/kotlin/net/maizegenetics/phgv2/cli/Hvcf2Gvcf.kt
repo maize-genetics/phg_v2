@@ -93,19 +93,20 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         // get list of hvcf files
         // walk the gvcf directory process files with g.vcf.gz extension
         File(hvcfDir).walk().filter { !it.isHidden && !it.isDirectory }
-            .filter { it.name.endsWith("h.vcf.gz")  || it.name.endsWith("h.vcf")  }.toList()
+            .filter { it.name.endsWith("h.vcf.gz")  || it.name.endsWith("h.vcf")  }
             .forEach { hvcfFile ->
                 myLogger.info("buildGvcfFromHvcf: Processing hvcf file: ${hvcfFile.name}")
-                val records = processSingleHVCF(refSeq, outputDir, hvcfFile, dbPath,condaEnvPrefix)
+                val records = processHVCFtoVariantContext(refSeq, outputDir, hvcfFile, dbPath,condaEnvPrefix)
 
                 val sample = hvcfFile.toString().substringAfterLast("/").substringBefore(".")
                 val gvcfFile = "$outputDir/${sample}.g.vcf"
+                myLogger.info("buildGvcfFromHvcf: exporting VariantContexts to gvcf file: $gvcfFile")
                 exportVariantContext(sample,records,gvcfFile, refSeq,setOf())
             }
 
     }
 
-    fun processSingleHVCF(refSeq:Map<String,NucSeq>, outputDir:String, hvcfFile: File, dbPath: String, condaEnvPrefix: String): List<VariantContext> {
+    fun processHVCFtoVariantContext(refSeq:Map<String,NucSeq>, outputDir:String, hvcfFile: File, dbPath: String, condaEnvPrefix: String): List<VariantContext> {
 
         val reader = VCFFileReader(hvcfFile,false)
         // We also need to print to the new gvcf all the headers from 1 of the accessed gvcf files
@@ -121,31 +122,25 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         // a ReferenceRange object and add that to a list of Reference Range objects
         // for the sample to which it applies.  You will get the sample by indexing the
         // altHeaders map with the key of the current record's ID.
-        val sampleToRefRanges = mutableMapOf<String, MutableList<ReferenceRange>>()
-
-        // Get the sampleName from the hvcf file.  This is the name
-        // without the path, and without the extension of h.vcf, hvcf, h.vcf.gz or hvcf.gz
-        val pathSample = hvcfFile.toString().substringAfterLast("/").substringBefore(".")
 
         var rangesSkipped = 0
-        // process the hvcf records into the sampleToRefRanges map
-        reader.forEach { context ->
-            // These are ref ranges that pathing could not align
+        var totalHvcfVariants = 0
+
+        // process the hvcf records into a sampleToRefRanges map
+        val sampleToRefRanges = reader.mapNotNull { context ->
+            totalHvcfVariants++
             if (context.alternateAlleles.isEmpty() || context.alternateAlleles.any { it.isNoCall }) {
-                // skip records with no alternate alleles
                 rangesSkipped++
-                return@forEach
+                null
+            } else {
+                val id = context.getAlternateAllele(0).displayString.removeSurrounding("<", ">")
+                val altHeader = altHeaders[id]
+                val sampleName = altHeader?.sampleName() ?: throw IllegalStateException("No ALT header found for record: $id")
+                val refRange = ReferenceRange(context.contig, context.start, context.end)
+                Pair(sampleName, refRange)
             }
-            val id = context.getAlternateAllele(0).displayString.removeSurrounding("<", ">")
+        }.groupBy({ it.first }, { it.second })
 
-            val altHeader = altHeaders[id]
-            val sampleName = altHeader?.sampleName() ?: throw IllegalStateException("No ALT header found for record: ${id}")
-            val refRange = ReferenceRange(context.contig, context.start, context.end)
-            val sampleList = sampleToRefRanges.getOrDefault(sampleName, mutableListOf())
-            sampleList.add(refRange)
-            sampleToRefRanges[sampleName] = sampleList
-
-        }
         reader.close()
 
         // There is no gvcf for the reference, so we need to create one if
@@ -170,7 +165,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
             createRefGvcf(refSampleName, bedFile, refSeq, outputDir)
         }
 
-        myLogger.info("Hvcf2Gvcf:processSingleHVCF: rangesSkipped = $rangesSkipped")
+        myLogger.info("Hvcf2Gvcf:processHVCFtoVariantContext: rangesSkipped = $rangesSkipped, totalHvcfVariants = $totalHvcfVariants")
 
         // For each sample, read the gvcf file and pull the gvcf records that overlap the ReferenceRanges
         // for that sample.  This will be a list of VariantContext records.  After we have the list of vcfRecords
@@ -180,7 +175,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         val refRangeToVariantContext = mutableMapOf<ReferenceRange, MutableList<VariantContext>>()
 
         sampleToRefRanges.forEach { sample, ranges ->
-            myLogger.info("processSingleHVCF: processing sample: $sample")
+            myLogger.info("processHVCFtoVariantContext: processing sample: $sample")
             val gvcfFile = "$outputDir/${sample}.vcf" // tiledb wrote with extension .vcf
             val gvcfReader = VCFFileReader(File(gvcfFile),false)
 
@@ -342,6 +337,8 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
     fun findOverlappingRecords(ranges:List<ReferenceRange>, variantContexts:List<VariantContext>):MutableMap<ReferenceRange,MutableList<VariantContext>> {
         val refRangeToVariantContext = mutableMapOf<ReferenceRange, MutableList<VariantContext>>() // this will be returned
         var currentVariantIdx = 0
+        var debug = false
+
         for (range in ranges) {
             val regionStart = range.start
             val regionEnd = range.end
@@ -364,6 +361,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                     currentVariants.addAll(fixedVariants)
                     refRangeToVariantContext[range] = currentVariants
                     tempVariants.clear()
+                    // Do not increment currentVariantIdx as there could be another bed range overlapping this variant
                     break
                 }
                 if(CreateMafVcf().variantFullyContained(Pair(Position(regionChrom,regionStart),Position(regionChrom,regionEnd)), currentVariant)) {
@@ -427,25 +425,24 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         val lastStrand = lastVariant.getAttributeAsString("ASM_Strand","+")
 
         // Resize the first and last variantContext ref/ASM start and end based on the regions
-        // THis returs a list of Pairs of Ints.  The first Int is the reference position
+        // This returns a list of Pairs of Ints.  The first Int is the reference position
         // and the second Int is the ASM position.  The first pair is for the start of the first variant,
-        // the second pair is for the end of the last variant..  If there is only 1 variant, the 2 should be
+        // the second pair is for the end of the last variant..  If there is only 1 variant, the 2 should be the same.
 
         val newGvcfPositions = resizeVCandASMpositions(Pair(firstVariant,lastVariant), Pair(region.first.position,region.second.position), Pair(firstStrand,lastStrand))
 
         // At this point, we have changes for the first and last regions.  If the list size
         // is only 1, we change it based on newStartPositions and newEndPositions
         // If there are multiple, we change the first and last entries.  The first entry gets its start changed,
-        // THe last entry gets end values changed.
-        // NOTE: we do not alter the .stop or .attribute("END") entries.  The size is always 1
-        // for both REF_BLOCK and SNP.  This code does not support indels
+        // The last entry gets end values changed.
         if (variants.size == 1) {
-            // Not setting "stop" for the ref (vs ASM_*) position as it will alwasy
+            // Not setting "stop" for the ref (vs ASM_*) position as it will always
             // be 1 for REF_BLOCK or SNP, so this doesn't change
             val updatedFirstVariant = VariantContextBuilder(firstVariant)
                 .start(newGvcfPositions[0].first.toLong())
-                .attribute("ASM_Start", newGvcfPositions[1].second)
+                .attribute("ASM_Start", newGvcfPositions[0].second)
                 .attribute("ASM_End", newGvcfPositions[1].second)
+                .attribute("END", newGvcfPositions[1].first.toLong())
                 .make()
             fixedVariants.add(updatedFirstVariant)
         }
@@ -459,6 +456,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
             fixedVariants.add(updatedFirstVariant)
             val updatedLastVariant = VariantContextBuilder(lastVariant)
                 .attribute("ASM_End", newGvcfPositions[1].second)
+                .attribute("END", newGvcfPositions[1].first.toLong())
                 .make()
 
             if (variants.size > 2) {
@@ -468,7 +466,6 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         }
 
         return fixedVariants
-
     }
 
     //  Based on CreateMafVcf:resizeVariantContext() - but this version deals with both
@@ -565,7 +562,5 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         }
         updatedPositions.add(refAsmPos_last)
         return updatedPositions
-
     }
-
 }

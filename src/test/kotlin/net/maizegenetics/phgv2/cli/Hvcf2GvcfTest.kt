@@ -16,9 +16,56 @@ class Hvcf2GvcfTest {
         @JvmStatic
         @BeforeAll
         fun setup() {
+            val dbPath = TestExtension.testTileDBURI
+            val refName = "Ref"
+            val refUrl = TestExtension.refURL
+
+            val ranges = "data/test/smallseq/anchors.bed"
+            val refFasta = "data/test/smallseq/Ref.fa"
+
             File(TestExtension.testVCFDir).mkdirs()
             File(TestExtension.testTileDBURI).mkdirs()
-            Initdb().createDataSets(TestExtension.testTileDBURI,"")
+            Initdb().createDataSets(dbPath,"")
+
+            // Create the agc compressed file
+            println("testSimpleHvcf2Gvcf:running agcCompress")
+            val agcCompress = AgcCompress()
+            var agcResult = agcCompress.test("--fasta-list ${TestExtension.smallseqAssembliesListFile} --db-path ${dbPath} --reference-file ${TestExtension.smallseqRefFile}")
+            println(agcResult.output)
+
+            println("testSimpleHvcf2Gvcf:running CreateRefVcf")
+            var result = CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $refFasta --reference-url ${refUrl} --db-path $dbPath")
+            assertEquals(0, result.statusCode )
+
+            // RUn alignAssemblies test to get MAF files.
+            // Run createMAFVCf on the assemblies LineA and LIneB to get
+            // data into the db.
+
+            println("testSimpleHvcf2Gvcf: running AlignAssemblies")
+            val alignAssemblies = AlignAssemblies()
+
+            result = alignAssemblies.test(
+                "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                        "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1"
+            )
+
+            println("testSimpleHvcf2Gvcf: result output: ${result.output}")
+            assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
+
+            // Load assemblies using CreateMafVcf - creates and loads gvcf and hvcf
+            // remember - there is no gvcf for the ref
+            println("testSimpleHvcf2Gvcf: running CreateMafVcf")
+            val createMafVcf = CreateMafVcf()
+            result = createMafVcf.test("--db-path ${dbPath} --bed ${ranges} --reference-file ${refFasta} --maf-dir ${TestExtension.tempDir} -o ${TestExtension.testVCFDir}")
+            println(result.output)
+
+            // Need to load the vcf now!
+            // Load the vcf files into the tiledb dataset
+            println("testSimpleHvcf2Gvcf: running LoadVcf")
+            val loadVcf = LoadVcf()
+            result = loadVcf.test("--db-path ${dbPath} --vcf-dir ${TestExtension.testVCFDir}")
+
+
         }
 
         @JvmStatic
@@ -37,71 +84,12 @@ class Hvcf2GvcfTest {
         // and run that through hvcf2gvcf.  We then verify that the output file exists.
 
         val dbPath = TestExtension.testTileDBURI
-        val refName = "Ref"
-        val refUrl = TestExtension.refURL
-
-        val ranges = "data/test/smallseq/anchors.bed"
         val refFasta = "data/test/smallseq/Ref.fa"
-
-
-        //Run InitDB
-        println("testSimpleHvcf2Gvcf: - calling Initdb")
-        Initdb().createDataSets(TestExtension.testTileDBURI,"")
-
-        // Should run PrepareAssemblies ??  Or are they fine for smallSeq?
-        // SmallSeq fastas already contain sampleName=<sampleName> in the header.
-
-        // Tiledb datasets were created during initialization (@beforeAll)
-        println("testSimpleHvcf2Gvcf:running agcCompress")
-        val agcCompress = AgcCompress()
-        var agcResult = agcCompress.test("--fasta-list ${TestExtension.smallseqAssembliesListFile} --db-path ${dbPath} --reference-file ${TestExtension.smallseqRefFile}")
-        println(agcResult.output)
-
-        println("testSimpleHvcf2Gvcf:running CreateRefVcf")
-        var result = CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $refFasta --reference-url ${refUrl} --db-path $dbPath")
-        assertEquals(0, result.statusCode )
-
-        // Verify the tiledbUri/reference folder exists and contains the ranges file
-        val referenceDir = "${dbPath}/reference/"
-
-        // RUn alignAssemblies test to get MAF files.
-        // Run createMAFVCf on the assemblies LineA and LIneB to get
-        // data into the db.
-
-        println("testSimpleHvcf2Gvcf: running AlignAssemblies")
-        val alignAssemblies = AlignAssemblies()
-
-        result = alignAssemblies.test(
-            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1"
-        )
-
-        println("testSimpleHvcf2Gvcf: result output: ${result.output}")
-        assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
-
-        // Load assemblies using CreateMafVcf - creates and loads gvcf and hvcf
-        // remember - there is no gvcf for the ref
-        println("testSimpleHvcf2Gvcf: running CreateMafVcf")
-        val createMafVcf = CreateMafVcf()
-        result = createMafVcf.test("--db-path ${dbPath} --bed ${ranges} --reference-file ${refFasta} --maf-dir ${TestExtension.tempDir} -o ${TestExtension.testVCFDir}")
-        println(result.output)
-
-        // Need to load the vcf now!
-        // Load the vcf files into the tiledb dataset
-        println("testSimpleHvcf2Gvcf: running LoadVcf")
-        val loadVcf = LoadVcf()
-        result = loadVcf.test("--db-path ${dbPath} --vcf-dir ${TestExtension.testVCFDir}")
-
-        // verify the gvcf and hvcf files were created, and that the hvcf file was written somewhere -
-        // are we doing that by default?  if so, where?  Is it undewr the reference folder?
-        // RUn to here, stop, verify the output files.  It is written to the tempDir/vcfDir (${TestExtension.testVCFDir})
-        // so copy LineB.h.vcf.gz to LineBPath.h.vcf.gz
-        // then run hvcf2gvcf on LineBPath.h.vcf.gz
 
         // Copy the $TestExtension.testVCFDir/LineB.h.vcf.gz to $TestExtension.testVCFDir/LineBPath.h.vcf.gz
         // Make directory ${TestExtension.testVCFDir}/testOutputGVCFDir
 
-        println("NOW ... running hvcf2gvcf")
+        println("\nNOW ... running hvcf2gvcf")
         val testGVCFdir = "${TestExtension.testVCFDir}/testOutputGVCFDir"
         File(testGVCFdir).mkdirs()
         val lineBPathHvcf = "${testGVCFdir}/LineBPath.h.vcf.gz"
@@ -110,7 +98,9 @@ class Hvcf2GvcfTest {
 
         // Run hvcf2gvcf on the copied file
         val hvcf2gvcf = Hvcf2Gvcf()
-        result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
+        val result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
+        // verify the output file exists, which will be LineBPath.g.vcf
+        assertTrue(File("${testGVCFdir}/LineBPath.g.vcf").exists())
 
         // TODO
         // Need some assertions here
@@ -119,6 +109,41 @@ class Hvcf2GvcfTest {
 
     }
 
+    @Test
+    fun testPathHvcf2Gvcf() {
+        // This is a test of the Hvcf2Gvcf:run function.  We copy an hvcf file created from CreateMafVcf to a new location
+        // and run that through hvcf2gvcf.  We then verify that the output file exists.
+
+        val dbPath = TestExtension.testTileDBURI
+        val refName = "Ref"
+
+        val ranges = "data/test/smallseq/anchors.bed"
+        val refFasta = "data/test/smallseq/Ref.fa"
+
+        // THe tiledb datasets have been created and populated in the setup functions.
+        // Using hvcf file TestLine2.h.vcf, created from the FindPathsTest junit
+        // This has been stored to test/smallseq folder.  Its contents represent sequence
+        // from 2 assemblies, LineA and LineB.
+
+
+        println("\ntestPathHvcf2Gvcf... running hvcf2gvcf")
+        val testGVCFdir = "${TestExtension.testVCFDir}/testOutputGVCFDir"
+        File(testGVCFdir).deleteRecursively() // make sure folder is clean
+        File(testGVCFdir).mkdirs() // start fresh
+        val testLine2Hvcf = "${testGVCFdir}/TestLine2.h.vcf.gz"
+        val line2Hvcf = "data/test/smallseq/TestLine2.h.vcf.gz"
+        File(line2Hvcf).copyTo(File(testLine2Hvcf))
+
+        // Run hvcf2gvcf on the copied file
+        val hvcf2gvcf = Hvcf2Gvcf()
+        val result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
+        // verify the output file exists, which will be LineBPath.g.vcf
+        assertTrue(File("${testGVCFdir}/TestLine2.g.vcf").exists())
+
+        // TODO
+        // Need more assertions here
+        println("testPathHvcf2Gvcf done !!")
+    }
     @Test
     fun testCreateRefGvcf() {
         // This is a test of the Hvcf2Gvcf:createRefGvcf function.  We create a reference gvcf file
