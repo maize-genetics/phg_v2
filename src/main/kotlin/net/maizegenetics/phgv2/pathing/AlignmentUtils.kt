@@ -227,15 +227,6 @@ class AlignmentUtils {
                                 limitSingleRefRange,
                                 minSameReferenceRange
                             )
-                            //processReads(
-                            //                                readStringChannel,
-                            //                                sortedHapidListChannel,
-                            //                                minProportionOfMaxCount,
-                            //                                minSameReferenceRange,
-                            //                                kmerIndexMap.kmerHashToLongMap,
-                            //                                rangeIdToBitsetMap,
-                            //                                graph.refRangeIdToHapIdMap()
-                            //                            )
                         })
                     }
 
@@ -283,57 +274,11 @@ class AlignmentUtils {
             }
         }
 
-
-        /**
-         * Function to process a read or a readPair into their corresponding hapIdSet.  This will work with both single and paired end reads.
-         * To Work with single ended reads, the second String in the Pair should be an empty String.
-         */
-        suspend fun processReads(
-            reads: ReceiveChannel<Pair<String, String>>,
-            sortedLists: SendChannel<List<String>>,
-            minProportionOfMaxCount: Double = 1.0,
-            minSameReferenceRange: Double = 0.9,
-            kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
-            refrangeToBitSet: Map<Int, BitSet>,
-            rangeToHapidIndexMap: Map<Int, Map<String, Int>>
-        ) {
-            for (pairOfReads in reads) {
-                val result1 = readToHapidSet(
-                    pairOfReads.first,
-                    minProportionOfMaxCount,
-                    minSameReferenceRange,
-                    kmerHashOffsetMap,
-                    refrangeToBitSet,
-                    rangeToHapidIndexMap
-                )
-                val result2 = if (pairOfReads.second.isNotEmpty()) {
-                    readToHapidSet(
-                        pairOfReads.second,
-                        minProportionOfMaxCount,
-                        minSameReferenceRange,
-                        kmerHashOffsetMap,
-                        refrangeToBitSet,
-                        rangeToHapidIndexMap
-                    )
-                } else {
-                    setOf<String>()
-                }
-
-                val intersectResult = if (result2.isNotEmpty()) {
-                    result1.intersect(result2)
-                } else {
-                    result1
-                }
-
-                if (intersectResult.isNotEmpty()) sortedLists.send(intersectResult.sorted())
-
-            }
-        }
-
         /**
          * Function to process the reads for multiple ReferenceRanges.  This will work with both paired and single ended reads.
+         * To Work with single ended reads, the second String in the Pair should be an empty String.
          */
-        suspend fun processReadsMultipleRefRanges(
+        private suspend fun processReadsMultipleRefRanges(
             reads: ReceiveChannel<Pair<String, String>>,
             sortedLists: SendChannel<List<String>>,
             kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
@@ -416,46 +361,6 @@ class AlignmentUtils {
                 emptyMap()
             }
             return Pair(result1, result2)
-        }
-
-        /**
-         * Takes a [read] and generates a list of hapids to which its kmers map. Returns only hapids from a single
-         * reference range. If no kmers map or if fewer than [minSameReferenceRange] of the kmers map to a single
-         * reference range an empty Set will be returned.
-         */
-        fun readToHapidSet(
-            read: String,
-            minProportionOfMaxCount: Double = 1.0,
-            minSameReferenceRange: Double = 0.9,
-            kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
-            refrangeToBitSet: Map<Int, BitSet>,
-            rangeToHapidIndexMap: Map<Int, Map<String, Int>>
-        ): Set<String> {
-            //generate kmer hash from the read
-            val rangeToHapidMap = mutableMapOf<Int, MutableList<String>>()
-            val splitList = read
-                .split("[^ACGT]+".toRegex())
-                .filter { it.length > 31 }
-            for (sequence in splitList) {
-                extractKmersFromSequence(
-                    sequence,
-                    kmerHashOffsetMap,
-                    refrangeToBitSet,
-                    rangeToHapidIndexMap,
-                    rangeToHapidMap
-                )
-            }
-
-            //if no hapids map to this read, return an empty set
-            if (rangeToHapidMap.size == 0) return setOf()
-
-            //all hapids should be from the same reference range,
-            //but if some are not then only those from the majority reference range should be used, so...
-            //TODO Make this work with multiple reference ranges
-            val filteredHapidList = hapidsFromOneReferenceRange(rangeToHapidMap, minSameReferenceRange)
-
-            //count the hapids
-            return filterHapIdsByKmerCount(filteredHapidList, minProportionOfMaxCount)
         }
 
         /**
@@ -591,23 +496,6 @@ class AlignmentUtils {
             val rangeId = (encodedOffset shr 32).toInt()
             val offset = (encodedOffset and 0xFFFFFFFF).toInt()
             return Pair(rangeId, offset)
-        }
-
-        /**
-         * Takes a map of range -> (haplotype id list) then determines whether at least [minSameReferenceRange] of them
-         * map to the same reference range and returns only those hapids mapping to that reference range.
-         * Returns an empty list if there is no reference range meeting that criterion.
-         */
-        fun hapidsFromOneReferenceRange(
-            rangeHapidMap: Map<Int, List<String>>,
-            minSameReferenceRange: Double = 0.9
-        ): List<String> {
-            val numberOfHapids = rangeHapidMap.values.sumOf { it.size }
-            val maxHapidCount = rangeHapidMap.values.maxOf { it.size }
-            if (maxHapidCount.toDouble() / numberOfHapids.toDouble() < minSameReferenceRange) return listOf()
-            val entryWithMaxCount = rangeHapidMap.entries.find { it.value.size == maxHapidCount }
-            check(entryWithMaxCount != null) { "No entry has the max count.  This should never happen." }
-            return entryWithMaxCount.value
         }
 
         fun filterHapIdsToOneReferenceRange(
