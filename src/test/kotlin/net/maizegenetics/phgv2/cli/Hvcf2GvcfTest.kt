@@ -101,6 +101,12 @@ class Hvcf2GvcfTest {
         val result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
         // verify the output file exists, which will be LineBPath.g.vcf
         assertTrue(File("${testGVCFdir}/LineBPath.g.vcf").exists())
+        // Verify header lines
+        val lines = File("${testGVCFdir}/LineBPath.g.vcff").readLines()
+        assertEquals(17, lines.filter { it.startsWith("#") }.size)
+        assertEquals("##fileformat=VCFv4.2", lines[0])
+        assertTrue(`lines`.contains("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tTestLine2"))
+
 
         // TODO
         // Need some assertions here
@@ -136,9 +142,22 @@ class Hvcf2GvcfTest {
         val result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
         // verify the output file exists, which will be LineBPath.g.vcf
         assertTrue(File("${testGVCFdir}/TestLine2.g.vcf").exists())
+        // Verify header lines
+        val lines = File("${testGVCFdir}/TestLine2.g.vcf").readLines()
+        assertEquals(17, lines.filter { it.startsWith("#") }.size)
+        assertEquals("##fileformat=VCFv4.2", lines[0])
+        assertTrue(`lines`.contains("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tTestLine2"))
 
-        // TODO
-        // Need more assertions here
+        // compare to the "truth" file
+        // Regarding the truth file: Because the LineA.vcf and LineB.vcf files have no data past position 50300
+        // in them, the TestLine2.g.vcf file will have no data past position 50300 in it.
+        // The entries for positions between 1-27500 on both chrosomes 1 and 2 all come from LineA.vcf
+        // The entries for positions between 27501-50300 on both chromosomes 1 and 2 all come from LineB.vcf.
+        // In additiona, the TestLine2.g.vcf file has entries at the beginning of each reference range as the
+        // hvcf file lists the region beginning with the refRange beginning. RefBLocks were created for these
+        // positions from refBLock beginning to first variant in the vcf file.
+        CreateMafVCFTest().compareTwoGVCFFiles("data/test/hvcfToGvcf/TestLine2_truth.g.vcf", "${testGVCFdir}/TestLine2.g.vcf")
+
         println("testPathHvcf2Gvcf done !!")
     }
     @Test
