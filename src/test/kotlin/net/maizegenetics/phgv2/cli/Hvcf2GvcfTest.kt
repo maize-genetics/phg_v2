@@ -102,14 +102,21 @@ class Hvcf2GvcfTest {
         // verify the output file exists, which will be LineBPath.g.vcf
         assertTrue(File("${testGVCFdir}/LineBPath.g.vcf").exists())
         // Verify header lines
-        val lines = File("${testGVCFdir}/LineBPath.g.vcff").readLines()
+        val lines = File("${testGVCFdir}/LineBPath.g.vcf").readLines()
         assertEquals(17, lines.filter { it.startsWith("#") }.size)
         assertEquals("##fileformat=VCFv4.2", lines[0])
-        assertTrue(`lines`.contains("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tTestLine2"))
+        assertTrue(`lines`.contains("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tLineBPath"))
 
+        // The LineBPath.g.vcf file will contain lines representing the beginning of the ref ranges, e.g.1\t1001 1\t5501 1\t6501 2\t1001 2\t5501 2\t6501
+        // These are not in the original LineB.vcf file, but are added by hvcf2gvcf to represent the beginning of the ref ranges as the
+        // h.vcf files from which it is made shows those positions.  These entries are created as refBlocks from the beginning of the refRange
+        assertTrue(lines.contains("1\t1001\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=1001;ASM_Start=1001;ASM_Strand=+;END=1001\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
+        assertTrue(lines.contains("1\t5501\t.\tC\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=5561;ASM_Start=5501;ASM_Strand=+;END=5561\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
+        assertTrue(lines.contains("1\t6501\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=6531;ASM_Start=6501;ASM_Strand=+;END=6531\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
+        assertTrue(lines.contains("2\t1001\t.\tC\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=1064;ASM_Start=1001;ASM_Strand=+;END=1064\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
+        assertTrue(lines.contains("2\t5501\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=5508;ASM_Start=5501;ASM_Strand=+;END=5508\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
+        assertTrue(lines.contains("2\t6501\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=6501;ASM_Start=6501;ASM_Strand=+;END=6501\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
 
-        // TODO
-        // Need some assertions here
         println("done !!")
 
 
