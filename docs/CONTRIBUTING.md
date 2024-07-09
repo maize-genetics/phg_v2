@@ -11,7 +11,7 @@ Thank you for your interest in contributing to PHG_v2! We welcome contributions 
 * [Testing](#testing)
 
 ## Code of Conduct
-Please note that this project is released with a [Contributor Code of Conduct](../CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
+Please note that this project is released with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
 
 ## Getting Started
 The PHG_v2 project is written in Kotlin and uses the Gradle build system. To get started, you will need to install the following:
