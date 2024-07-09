@@ -65,7 +65,7 @@ phg prepare-slurm-align-file  \
     --output-dir /path/for/align-assemblies/output \
     --slurm-file output/slurm_align_file.txt \
     -o output/alignment_files
-````
+```
 
 
 ### Parameters
