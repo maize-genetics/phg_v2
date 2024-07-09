@@ -68,6 +68,9 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
             }
         }
 
+    val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
+        .default("")
+
 
     override fun run() {
         myLogger.info("Starting AGC compression: validate the URI")
@@ -79,13 +82,13 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
         }
         // Verify the dbPath contains valid tiledb created datasets
         // If it doesn't an exception will be thrown
-        val validDB = verifyURI(tiledbFolder,"hvcf_dataset")
+        val validDB = verifyURI(tiledbFolder,"hvcf_dataset",condaEnvPrefix)
         // process the input
-        processAGCFiles(tiledbFolder,fastaList,referenceFile)
+        processAGCFiles(tiledbFolder,fastaList,referenceFile, condaEnvPrefix)
 
     }
 
-    fun processAGCFiles(dbPath:String, fastaList:String, refFasta:String) {
+    fun processAGCFiles(dbPath:String, fastaList:String, refFasta:String, condaEnvPrefix:String) {
 
         val tempDir = "${dbPath}/temp"
         File(tempDir).mkdirs()
@@ -98,7 +101,7 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
             // if it exists, check if the fasta files in the fastaList/fastaFiles are already in the agc file
             // Print a list of the duplicates, add the non-duplicates to the compressed file.
             val duplicateList =
-                compareNewExistingSampleNames("${dbPath}/assemblies.agc", getCurrentSampleNames(fastaFiles),tempDir)
+                compareNewExistingSampleNames("${dbPath}/assemblies.agc", getCurrentSampleNames(fastaFiles),tempDir,condaEnvPrefix)
             if (duplicateList.isNotEmpty()) {
                 myLogger.info("The following fasta files are already represented in the AGC compressed file and will not be loaded: ${duplicateList}")
             }
@@ -116,7 +119,7 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
                 myLogger.info("VerifyFileAnnotation: time: " + (System.nanoTime() - startTime).toDouble() / 1_000_000_000.0 + " secs.")
                 // Call method to load AGC files with the list of fasta files and load option
                 myLogger.info("calling loadAGCFiles")
-                val success = loadAGCFiles(fileToLoad.toString(), "append", dbPath, refFasta,tempDir)
+                val success = loadAGCFiles(fileToLoad.toString(), "append", dbPath, refFasta,tempDir, condaEnvPrefix)
             } else {
                 myLogger.info("No new fasta files to load -returning")
             }
@@ -128,7 +131,7 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
             // print out time it took to verify the fasta files in seconds
             myLogger.info("VerifyFileAnnotation: time: " + (System.nanoTime() - startTime).toDouble() / 1_000_000_000.0 + " secs.")
             myLogger.info("calling loadAGCFiles")
-            val success = loadAGCFiles(fastaList, "create",dbPath,refFasta, tempDir)
+            val success = loadAGCFiles(fastaList, "create",dbPath,refFasta, tempDir, condaEnvPrefix)
         }
 
     }
@@ -173,19 +176,26 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
     }
 
 
-    fun loadAGCFiles(fastaFiles: String, loadOption: String, dbPath:String, refFasta:String, tempDir:String): Boolean {
+    fun loadAGCFiles(fastaFiles: String, loadOption: String, dbPath:String, refFasta:String, tempDir:String, condaEnvPrefix:String): Boolean {
 
         val agcFile = "${dbPath}/assemblies.agc"
         val agcFileOut = "${dbPath}/assemblies_tmp.agc"
         val builder = ProcessBuilder()
         var redirectOutput = tempDir + "/agc_create_output.log"
         var redirectError = tempDir + "/agc_create_error.log"
+        val command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix) else mutableListOf("conda","run","-n","phgv2-conda")
         when (loadOption) {
             "create" -> {
-                builder.command("conda","run","-n","phgv2-conda","agc","create","-i",fastaFiles,"-o",agcFile,refFasta)
+                val createCommand = listOf("agc","create","-i",fastaFiles,"-o",agcFile,refFasta)
+                command.addAll(createCommand)
+                //builder.command("conda","run","-n","phgv2-conda","agc","create","-i",fastaFiles,"-o",agcFile,refFasta)
+                builder.command(command)
             }
             "append" -> {
-                builder.command("conda","run","-n","phgv2-conda","agc","append","-i",fastaFiles,agcFile,"-o",agcFileOut)
+                val appendCommand = listOf("agc","append","-i",fastaFiles,agcFile,"-o",agcFileOut)
+                command.addAll(appendCommand)
+                //builder.command("conda","run","-n","phgv2-conda","agc","append","-i",fastaFiles,agcFile,"-o",agcFileOut)
+                builder.command(command)
                 redirectOutput = tempDir + "/agc_append_output.log"
                 redirectError = tempDir + "/agc_append_error.log"
             }
@@ -240,14 +250,16 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
         return sampleNames
     }
 
-    fun getSampleListFromAGC(agcFile:String,tempDir:String): List<String> {
+    fun getSampleListFromAGC(agcFile:String,tempDir:String,condaEnvPrefix:String): List<String> {
         // This function will return a list of samples from the AGC compressed file.
         // This will be used to verify that the new list of fastas has nothing overlapping
         // the exsiting fastas in the AGC compressed file.
 
         var sampleList = listOf<String>()
         // Query the agc compressed file to get list of sample names
-        var builder = ProcessBuilder("conda","run","-n","phgv2-conda","agc","listset",agcFile)
+        val command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix,"agc","listset",agcFile) else mutableListOf("conda","run","-n","phgv2-conda","agc","listset",agcFile)
+        //var builder = ProcessBuilder("conda","run","-n","phgv2-conda","agc","listset",agcFile)
+        var builder = ProcessBuilder(command)
         var redirectOutput = tempDir + "/agc_create_output.log"
         var redirectError = tempDir + "/agc_create_error.log"
         builder.redirectOutput( File(redirectOutput))
@@ -275,13 +287,13 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
     // This function will take a list of fasta names compiled from the input fasta
     // files and compare them to those name already in the agc compressed file.
     // It returns a list of any duplicates
-    fun compareNewExistingSampleNames(agcFile:String, newFastas:List<String>, tempDir:String): List<String> {
+    fun compareNewExistingSampleNames(agcFile:String, newFastas:List<String>, tempDir:String,condaEnvPrefix:String): List<String> {
         // Need to process the newFastas list to just the name without extension or path
         // that is what is stored as the sample name in the AGC compressed file.
         val newSampleNames = getCurrentSampleNames(newFastas)
 
         // Query the agc compressed file to get list of sample names
-        val duplicateList = getSampleListFromAGC(agcFile,tempDir).intersect(newSampleNames).toList()
+        val duplicateList = getSampleListFromAGC(agcFile,tempDir,condaEnvPrefix).intersect(newSampleNames).toList()
 
         // Match the duplicateList to the newFastas list to get the full path and extension
         // of the fasta files that are duplicates

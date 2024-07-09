@@ -28,10 +28,10 @@ import kotlin.time.DurationUnit
 import kotlin.time.measureTimedValue
 
 /**
- * Creates a Map of 32-mer hash -> hapid list for the haplotypes in a HaplotypeGraph. Only hashes observed
- * in exactly one reference range will be kept. Also, hashes will be retained only if they map to at
- * most [maxHaplotypeProportion] * the number of haplotyes in a reference range. Only hashes that pass the filter
- * ((hashValue and [hashMask]) == [hashFilterValue]) will be considered. For example, setting [hashMask] = 3u and [hashFilterValue] = 1u
+ * Creates a Map of 32-mer hash -> hapid list for the haplotypes in a HaplotypeGraph. Hashes will be retained only if they map to at
+ * most [maxHaplotypeProportion] * the number of haplotyes in a reference range.  If a kmer is too repetitive(>2 * numSamples), the kmer will be purged.
+ * Only hashes that pass the filter ((hashValue and [hashMask]) == [hashFilterValue]) will be considered.
+ * For example, setting [hashMask] = 3u and [hashFilterValue] = 1u
  * only uses hashes from kmers ending in C. To filter on the final two positions set [hashMask] = 16u (0b1111).
  * [hashFilterValue] is based on the two bit encoding of nucleotides: A -> 0, C -> 1, G -> 2, T -> 3.
  * For example, the [hashFilterValue] for CG is 6u (0b0110).
@@ -138,12 +138,14 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         val refRangeToIndexMap = graph.refRangeToIndexMap()
         val hapidToRefrangeMap = graph.hapIdToRefRangeMap()
 
+        val maxHapsToKeep = sampleGametes.size * 2
+
         for (chr in contigRangesMap.keys) {
             //get all sequence for this chromosome
             val agcRequestLists = rangeListsForAgcCommand(graph, contigRangesMap, chr)
             val agcChromSequence = if (agcRequestLists.sampleContigList.isNotEmpty()) {
                 myLogger.info("sampleContigList size = ${agcRequestLists.sampleContigList.size}, first element = ${agcRequestLists.sampleContigList[0]}")
-                retrieveAgcContigs(dbPath, agcRequestLists.sampleContigList)
+                retrieveAgcContigs(dbPath, agcRequestLists.sampleContigList,"")
             }
             else emptyMap()
             val agcOtherRegionSequence: Map<Pair<String,String>, NucSeq> = if (agcRequestLists.otherRegionsList.isNotEmpty()) getAgcSequenceForRanges(agcRequestLists.otherRegionsList)
@@ -206,22 +208,22 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                     if (discardSet.contains(hashValue)) continue
 
                     when {
-                        //if hash count >= numberOfHaplotype add it to the discard set and remove it from the keep map (if there)
-                        hashCount.value >= maxHaplotypes -> {
+                        //if hash count >= numberOfHaplotype add it to the discard set
+                        hashCount.value >= maxHaplotypes ->  {
+                            if(keepMap.containsKey(hashValue)) {
+                                keepMap.remove(hashValue)
+                            }
                             discardSet.add(hashValue)
-                            keepMap.remove(hashValue)
                         }
 
                         //if the hash is already in the keepSet, it has been seen in a previous reference range
                         //was this hash seen in the range immediately preceeding this one?
                         // so, remove it from the keep set and add it to the discard set
-                        keepMap.containsKey(hashValue) -> {
-                            val hapidSet = keepMap.remove(hashValue)
+                        keepMap.containsKey(hashValue) && (keepMap[hashValue].size + longToHapIdMap[hashValue]!!.size) > maxHapsToKeep -> {
+                            val hapIdSet = keepMap.remove(hashValue)
+
                             if (runDiagnostics) {
-                                //check whether kmer was seen in previous refrange
-                                //hapidRefrangeIndexSet is the set of refrange indices of the refranges contain the hapids in hapidSet
-                                //that is the refranges that contain this kmer (mostly but not always a single refrange)
-                                val hapidRefrangeIndexSet = hapidSet.mapNotNull { hapidToRefrangeMap[it] }.flatten()
+                                val hapidRefrangeIndexSet = hapIdSet.mapNotNull { hapidToRefrangeMap[it] }.flatten()
                                     .map { refRangeToIndexMap[it] }.toSet()
                                 val wasPreviousRange = hapidRefrangeIndexSet.contains((refRangeToIndexMap[refrange] ?: 0)  - 1)
                                 if (wasPreviousRange) {
@@ -230,6 +232,22 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                                 }
                             }
                             discardSet.add(hashValue)
+                        }
+                        keepMap.containsKey(hashValue) && (keepMap[hashValue].size + longToHapIdMap[hashValue]!!.size) <= maxHapsToKeep -> {
+                            val hapIdSet = keepMap[hashValue]
+                            if (runDiagnostics) {
+                                val hapidRefrangeIndexSet = hapIdSet.mapNotNull { hapidToRefrangeMap[it] }.flatten()
+                                    .map { refRangeToIndexMap[it] }.toSet()
+                                val wasPreviousRange = hapidRefrangeIndexSet.contains((refRangeToIndexMap[refrange] ?: 0)  - 1)
+                                if (wasPreviousRange) {
+                                    val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
+                                    refrangeToAdjacentHashCount[refrange] = oldCount + 1
+                                }
+                            }
+
+
+                            keepMap[hashValue] = keepMap[hashValue]!!.union(longToHapIdMap[hashValue]!!)
+
                         }
                         else -> {
                             keepMap[hashValue] = longToHapIdMap[hashValue]
@@ -288,7 +306,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         val sequenceMap = mutableMapOf<Pair<String,String>, NucSeq>()
         ranges.windowed(maxArgs, maxArgs, true).forEach {
             myLogger.debug("getting sequence for $it")
-            sequenceMap.putAll(retrieveAgcContigs(dbPath, it))
+            sequenceMap.putAll(retrieveAgcContigs(dbPath, it,""))
         }
         return sequenceMap
     }
@@ -438,9 +456,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         hapidKmerHashMap.entries.forEachIndexed { index, entry ->
             //this line encodes a haplotype set (hapset)
             for (hapid in entry.key) {
-                val ndx = hapidIndex[hapid]
-                if (ndx == null) myLogger.warn("BuildKmerIndex.buildEncodedHapSetsAndHashOffsets: ndx = null for hapid = $hapid.")
-                else encodedHapSets.set(offset + ndx)
+                if(hapidIndex.containsKey(hapid)) encodedHapSets.set(offset + hapidIndex[hapid]!!)
+                else myLogger.warn("BuildKmerIndex.buildEncodedHapSetsAndHashOffsets: ndx = null for hapid = $hapid.")
             }
 
             //this line stores a pair of kmerHash, offset for each kmer mapping to this haplotype set
@@ -495,14 +512,14 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             //rarely some kmers will map to additional ref ranges but not all
             //the most frequent ReferenceRange will be the one used to create this hapid set
             val referenceRangeList = hapidSet.mapNotNull { hapIdToRefRangeMap[it] }.flatten()
-            val referenceRangeCounts = referenceRangeList.groupingBy { it }.eachCount()
-            val currentRefRange = referenceRangeCounts.maxBy { it.value }.key
-            if (refRangeToKmerSetMap.containsKey(currentRefRange)) {
-                refRangeToKmerSetMap[currentRefRange]!!.add(kmer)
-            } else {
-                refRangeToKmerSetMap[currentRefRange] = mutableSetOf(kmer)
-            }
 
+            for(refRange in referenceRangeList) {
+                if (refRangeToKmerSetMap.containsKey(refRange)) {
+                    refRangeToKmerSetMap[refRange]!!.add(kmer)
+                } else {
+                    refRangeToKmerSetMap[refRange] = mutableSetOf(kmer)
+                }
+            }
         }
         return refRangeToKmerSetMap
     }

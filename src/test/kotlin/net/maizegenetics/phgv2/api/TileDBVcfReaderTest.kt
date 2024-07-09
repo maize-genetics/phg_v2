@@ -41,7 +41,7 @@ class TileDBVcfReaderTest {
         }
 
         //create the database
-        Initdb().createDataSets(dbPath)
+        Initdb().createDataSets(dbPath,"")
         val loader = LoadVcf()
 
         val command = "--vcf-dir ${TestExtension.testVCFDir} --db-path $dbPath"

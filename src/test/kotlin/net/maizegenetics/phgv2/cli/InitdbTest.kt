@@ -36,7 +36,7 @@ class InitdbTest {
 
         val dbPath = tempDir + "tiledb_datasets/"
         val initdb = Initdb()
-        val result = initdb.createDataSets( dbPath)
+        val result = initdb.createDataSets( dbPath,"")
         println("result = $result")
         // To verify, we  check that the outputDir contains the expected files
         val expectedFiles = listOf("${dbPath}gvcf_dataset", "${dbPath}hvcf_dataset", "${dbPath}temp/tiledb_gvcf_createURI_error.log", "${dbPath}temp/tiledb_gvcf_createURI_output.log", "${dbPath}temp/tiledb_hvcf_createURI_error.log", "${dbPath}temp/tiledb_hvcf_createURI_output.log")
@@ -49,7 +49,7 @@ class InitdbTest {
         expectedLogFiles.forEach { File(it).delete() }
 
         // Run this again to verify that the datasets are not overwritten.
-        val result2 = initdb.createDataSets( dbPath)
+        val result2 = initdb.createDataSets( dbPath,"")
         println("result2 = $result2")
 
         // The output and error log files are not recreated because the

@@ -359,7 +359,7 @@ fun getChecksumForString(seq: String, protocol: String="Md5"): String {
  *  The actual tiledb dataset names are constant and are either gvcf_dataset or hvcf_dataset
  */
 
-fun verifyURI(dbPath:String,uri:String): Boolean {
+fun verifyURI(dbPath:String,uri:String,condaEnvPrefix:String): Boolean {
     // Check that the user supplied db folder exists
     check(File(dbPath).exists()) { "Folder $dbPath does not exist - please send a valid path that indicates the parent folder for your tiledb datasets." }
 
@@ -379,7 +379,10 @@ fun verifyURI(dbPath:String,uri:String): Boolean {
 
     if (File(dataset).exists()  && Files.isDirectory(Paths.get(dataset))){
         // check if is a tiledb dataset
-        var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri",dataset)
+        var command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix,"tiledbvcf","stat","--uri",dataset)
+        else mutableListOf("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri",dataset)
+
+        var builder = ProcessBuilder(command)
         var redirectOutput = tempDir + "/tiledb_statURI_output.log"
         var redirectError = tempDir + "/tiledb_statURI_error.log"
         builder.redirectOutput( File(redirectOutput))

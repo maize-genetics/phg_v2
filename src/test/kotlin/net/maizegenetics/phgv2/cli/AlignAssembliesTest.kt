@@ -9,6 +9,7 @@ import org.jetbrains.kotlinx.dataframe.io.readDelim
 import org.jetbrains.kotlinx.dataframe.io.writeCSV
 import org.jetbrains.letsPlot.export.ggsave
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 
@@ -26,6 +27,22 @@ class AlignAssembliesTest {
         // what should be returned as we do not know the system running the test.
         // This has been tested manually on multiple systems.
         assertTrue(availMemory > 0, "System memory is 0")
+    }
+
+    @Test
+    fun testCalculatedNumThreadsAndRuns() {
+        // This test verifies user data is used when provided.
+        // We only test with inParallel=1 and numThreads = 1 because the
+        // code accesses the memory and processors on the machine on which this test is run.
+        // I can't guarantee that the machine running the test has more than 1 processor.
+        // This is good enough to verify this function works when we call AlignAssemblies
+        // as part of a Slurm data array script.
+        val inParallel = 1
+        val numThreads = 1
+        // calculateNumThreadsAndRuns needs to know how many assemblies, but doesn't need to know the fasta names
+        // send with just 1 assembly
+        val totalAssemblies = AlignAssemblies().calculatedNumThreadsAndRuns(inParallel, numThreads, 1)
+        assertEquals(Pair(1, 1), totalAssemblies)
     }
 
     @Test
@@ -99,7 +116,7 @@ class AlignAssembliesTest {
 
         // Test missing gff file parameter,
         val resultMissingGff =
-            alignAssemblies.test(" --reference-file ${TestExtension.testRefFasta} -a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}")
+            alignAssemblies.test(" --reference-file ${TestExtension.testRefFasta} --assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}")
         assertEquals(resultMissingGff.statusCode, 1)
         assertEquals(
             "Usage: align-assemblies [<options>]\n" +
@@ -109,7 +126,7 @@ class AlignAssembliesTest {
 
         // Test missing reference file parameter,
         val resultMissingRef =
-            alignAssemblies.test(" --gff ${TestExtension.smallseqAnchorsGffFile} -a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}")
+            alignAssemblies.test(" --gff ${TestExtension.smallseqAnchorsGffFile} --assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}")
         assertEquals(resultMissingRef.statusCode, 1)
         assertEquals(
             "Usage: align-assemblies [<options>]\n" +
@@ -124,12 +141,24 @@ class AlignAssembliesTest {
         assertEquals(
             "Usage: align-assemblies [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --assemblies: --assemblies must not be blank\n", resultMissingAssembliesList.output
+                    "Error: must provide one of --assembly-file, --assembly-file-list\n", resultMissingAssembliesList.output
+        )
+
+        // Test both assembly-file and assembly-file-list parameters.  Should fail as only
+        // one should be previded
+        val resultBothAssemblies =
+            alignAssemblies.test(" --gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                    "--assembly-file ${TestExtension.smallseqLineAFile} --assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}")
+        assertEquals(resultBothAssemblies.statusCode, 1)
+        assertEquals(
+            "Usage: align-assemblies [<options>]\n" +
+                    "\n" +
+                    "Error: option --assembly-file cannot be used with --assembly-file-list\n", resultBothAssemblies.output
         )
 
         // Test missing output directory parameter
         val resultMissingOutputDir =
-            alignAssemblies.test(" --gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} -a ${TestExtension.smallseqAssembliesListFile}")
+            alignAssemblies.test(" --gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} --assembly-file-list ${TestExtension.smallseqAssembliesListFile}")
         assertEquals(resultMissingOutputDir.statusCode, 1)
         assertEquals(
             "Usage: align-assemblies [<options>]\n" +
@@ -157,7 +186,7 @@ class AlignAssembliesTest {
 
         val result = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "-a $assemblyListWithSpaces -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1"
+                    "--assembly-file-list $assemblyListWithSpaces -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1"
         )
 
         val lineAMAF = TestExtension.tempDir + "LineA.maf"
@@ -165,8 +194,6 @@ class AlignAssembliesTest {
 
         val lineBMAF = TestExtension.tempDir + "LineB.maf"
         assertTrue(File(lineBMAF).exists(), "File $lineBMAF does not exist")
-
-
 
     }
 
@@ -184,7 +211,7 @@ class AlignAssembliesTest {
         val alignAssemblies = AlignAssemblies()
         val result = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${userPlotDir} --total-threads 1 --in-parallel 1"
+                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${userPlotDir} --total-threads 1 --in-parallel 1"
         )
         // verify file named LineA_dotplot.svg exists in the userPlotDir directory
         val plotFileLineA = "$userPlotDirPath/LineA_dotplot.svg"
@@ -199,14 +226,14 @@ class AlignAssembliesTest {
 
         // phg align-assemblies --gff /workdir/tmc46/AlignAssemblies/smallSeq_data/anchors.gff
         // --ref /workdir/tmc46/AlignAssemblies/smallSeq_data/Ref.fa
-        // -a /workdir/tmc46/AlignAssemblies/assembliesList.txt
+        // --assembly-file-list /workdir/tmc46/AlignAssemblies/assembliesList.txt
         // -o /workdir/tmc46/AlignAssemblies/temp
 
         val alignAssemblies = AlignAssemblies()
 
         val result = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1"
+                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1"
         )
 
         println("testRunningAlignAssemblies: result output: ${result.output}")
@@ -254,13 +281,118 @@ class AlignAssembliesTest {
     }
 
     @Test
+    fun testRunningSingleAssemblyFile() {
+
+        // This test passes a single assembly file to align, vs a file that contains
+        // a list of assemblies to align. It is testing the --assembly-file parameter.
+        // The other tests verified the --assembly-file-list parameter.
+
+        val alignAssemblies = AlignAssemblies()
+
+        val result = alignAssemblies.test(
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                    "--assembly-file ${TestExtension.smallseqLineAFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1"
+        )
+
+        println("testRunningAlignAssemblies: result output: ${result.output}")
+
+        assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
+
+        val lineAMAF = TestExtension.tempDir + "LineA.maf"
+        assertTrue(File(lineAMAF).exists(), "File $lineAMAF does not exist")
+
+        val mafOutputA1 = TestExtension.tempDir + "LineA_unsplitA1.maf"
+        val mafOutputA2 = TestExtension.tempDir + "LineA_unsplitA2.maf"
+        testMergingMAF(TestExtension.smallseqLineAMafFile, mafOutputA1)
+        testMergingMAF(lineAMAF, mafOutputA2)
+
+        var checksum1 = getChecksum(mafOutputA1)
+        var checksum2 = getChecksum(mafOutputA2)
+
+        println("LineA expected checksum1: $checksum1")
+        println("LineA actual checksum2: $checksum2")
+
+        assertEquals(checksum1, checksum2, "LineA.maf checksums do not match")
+
+        // Test the dot plot files exist.  It is difficult to verify the pictures
+        // look good from a junit test.  That has been done manually.
+        val plotFileLineA = "${TestExtension.tempDir}/LineA_dotplot.svg"
+        assertTrue(File(plotFileLineA).exists(), "File $plotFileLineA does not exist")
+    }
+
+    @Test
+    fun testWithRefPrepFiles() {
+        // This test verifies the alignments are performed with the ref-cds-sam and ref-cds-fasta are supplied
+        // in the command.
+        // TO do this, must first create those files.  This is done by running align-assemblies with the
+        // --just-ref-prep option.
+
+        // First, run align-assemblies with the --just-ref-prep option to create the reference cds sam and fasta files
+        val alignAssemblies = AlignAssemblies()
+        val outputDir = TestExtension.tempDir
+        // delete all files with extension .maf in the output directory (may be present from previous tests)
+        File(outputDir).listFiles { _, name -> name.endsWith(".maf") }?.forEach { it.delete() }
+
+        val referenceFile = TestExtension.smallseqRefFile
+        val prepResult = alignAssemblies.test(
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file $referenceFile " +
+                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${outputDir} --total-threads 1 --in-parallel 1 --just-ref-prep"
+        )
+        // verify good result
+        assertEquals(0, prepResult.statusCode, "status code not 0 for AlignAssemblies with just-ref-prep: ${prepResult.statusCode}")
+        // verify no MAF files in the output directory
+        val mafFiles = File(TestExtension.tempDir).listFiles { _, name -> name.endsWith(".maf") }
+        assertEquals(0, mafFiles.size, "MAF files found in output directory when none should be present")
+        // verify the reference cds sam and fasta files were created
+        val refSam = "${outputDir}/Ref.sam"
+        assertTrue(File(refSam).exists(), "File $refSam does not exist")
+        val refCdsFasta = "${outputDir}/ref.cds.fasta"
+        assertTrue(File(refCdsFasta).exists(), "File $refCdsFasta does not exist")
+
+        println("start of second alignAssemblies call")
+
+        // Now run the alignAssemblies using the assembliesList and passing values for the ref-cds-sam and ref-cds-fasta
+        val result = alignAssemblies.test(
+            "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1 " +
+                    "--reference-sam $refSam --reference-cds-fasta $refCdsFasta"
+        )
+        // verify good result
+        assertEquals(0, result.statusCode, "status code not 0 for AlignAssemblies with ref-cds-sam and ref-cds-fasta: ${result.statusCode}")
+        // verify MAF files in the output directory
+        val mafFiles2 = File(TestExtension.tempDir).listFiles { _, name -> name.endsWith(".maf") }
+        assertEquals(2, mafFiles2.size, "MAF files not found in output directory when they should be present")
+    }
+
+    @Test
+    fun onlyOnePrepFile() {
+        // Users must provide either both reference-sam and reference-cds-fasta or neither.
+        assertThrows<IllegalStateException> {
+            AlignAssemblies().test(
+                "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                        "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1 " +
+                        "--reference-sam ${TestExtension.smallseqRefFile}"
+            )
+        }
+
+        // test with just the reference-cds-fasta file
+        assertThrows<IllegalStateException> {
+            AlignAssemblies().test(
+                "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
+                        "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 1 --in-parallel 1 " +
+                        "--reference-cds-fasta ${TestExtension.smallseqRefFile}"
+            )
+        }
+    }
+
+    @Test
     fun testSystemDefinedThreadsAndRuns() {
 
         val alignAssemblies = AlignAssemblies()
 
         val result = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} "
+                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} "
         )
 
         println("testRunningAlignAssemblies: result output: ${result.output}")
@@ -291,7 +423,7 @@ class AlignAssembliesTest {
 
         val result = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 300 --in-parallel 1"
+                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 300 --in-parallel 1"
         )
 
         println("testRunningAlignAssemblies: result output: ${result.output}")
@@ -315,7 +447,7 @@ class AlignAssembliesTest {
 
         val result = alignAssemblies.test(
             "--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
-                    "-a ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 4 --in-parallel 4"
+                    "--assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir} --total-threads 4 --in-parallel 4"
         )
 
         println("testRunningAlignAssemblies: result output: ${result.output}")

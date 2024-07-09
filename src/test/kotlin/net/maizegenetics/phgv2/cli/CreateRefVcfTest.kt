@@ -18,7 +18,7 @@ class CreateRefVcfTest {
         @BeforeAll
         fun setup() {
             File(TestExtension.testTileDBURI).mkdirs()
-            Initdb().createDataSets(TestExtension.testTileDBURI)
+            Initdb().createDataSets(TestExtension.testTileDBURI,"")
         }
 
         // Comment out the tearDown()if you need to look at the logs files created by ProcessBuilder

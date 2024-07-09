@@ -39,7 +39,10 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
         .int()
         .default(1000)
 
-    fun createDataSets(dbpath:String, gvcfAnchorGap: Int = 1000000, hvcfAnchorGap: Int = 1000) {
+    val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
+        .default("")
+
+    fun createDataSets(dbpath:String, condaEnvPrefix:String,gvcfAnchorGap: Int = 1000000, hvcfAnchorGap: Int = 1000) {
         // Check that the user supplied folder exists
         val dbfolder = File(dbpath)
 
@@ -65,7 +68,12 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
         // this environment.
         var logFile = "${tempDir}/tiledbvcf_createHvcf.log"
 
-        var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","create","--uri",hvcf_dataset,"-n","--log-level","debug","--log-file",logFile,"--anchor-gap",hvcfAnchorGap.toString())
+        val condaCommand = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix)
+        else mutableListOf("conda","run","-n","phgv2-conda")
+        val hvcfCommand = mutableListOf("tiledbvcf","create","--uri",hvcf_dataset,"-n","--log-level","debug","--log-file",logFile,"--anchor-gap",hvcfAnchorGap.toString())
+        var command = condaCommand + hvcfCommand
+
+        var builder = ProcessBuilder(command)
         var redirectOutput = tempDir + "/tiledb_hvcf_createURI_output.log"
         var redirectError = tempDir + "/tiledb_hvcf_createURI_error.log"
         builder.redirectOutput( File(redirectOutput))
@@ -88,7 +96,9 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
 
         // Now create the gvcf dataset
         logFile = "${tempDir}/tiledbvcf_createHvcf.log"
-        builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","create","--uri",gvcf_dataset,"-n","--log-level","debug","--log-file",logFile,"--anchor-gap",gvcfAnchorGap.toString())
+        val gvcfCommand = mutableListOf("tiledbvcf","create","--uri",gvcf_dataset,"-n","--log-level","debug","--log-file",logFile,"--anchor-gap",gvcfAnchorGap.toString())
+        command = condaCommand + gvcfCommand
+        builder = ProcessBuilder(command)
         redirectOutput = tempDir + "/tiledb_gvcf_createURI_output.log"
         redirectError = tempDir + "/tiledb_gvcf_createURI_error.log"
         builder.redirectOutput( File(redirectOutput))
@@ -121,7 +131,7 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
         }
 
         // call method to create the environment
-        createDataSets(dbPath, gvcfAnchorGap, hvcfAnchorGap)
+        createDataSets(dbPath, condaEnvPrefix,gvcfAnchorGap, hvcfAnchorGap)
     }
 
 }

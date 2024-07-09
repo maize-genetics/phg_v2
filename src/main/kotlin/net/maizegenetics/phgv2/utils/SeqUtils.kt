@@ -56,9 +56,9 @@ private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.SeqUt
  *
  *
  */
-fun retrieveAgcContigs(dbPath: String, sampleName: String, ranges: List<Pair<Position,Position>>) : Map<Pair<String,String>,NucSeq> {
+fun retrieveAgcContigs(dbPath: String, sampleName: String, ranges: List<Pair<Position,Position>>,condaEnvPrefix:String) : Map<Pair<String,String>,NucSeq> {
     val rangesString = buildRangesString(sampleName, ranges)
-    return retrieveAgcContigs(dbPath,rangesString)
+    return retrieveAgcContigs(dbPath,rangesString,condaEnvPrefix)
 
 }
 
@@ -75,16 +75,16 @@ fun retrieveAgcContigs(dbPath: String, sampleName: String, ranges: List<Pair<Pos
  *     contig1 (this will error if there are more than 2 genome with "contig1" )
  *
  */
-fun retrieveAgcContigs(dbPath:String,ranges:List<String>):Map<Pair<String,String>,NucSeq> {
+fun retrieveAgcContigs(dbPath:String,ranges:List<String>,condaEnvPrefix:String):Map<Pair<String,String>,NucSeq> {
 
-    val commands = buildAgcCommandFromList(dbPath, "getctg",ranges)
+    val commands = buildAgcCommandFromList(dbPath, "getctg",ranges,condaEnvPrefix)
     val genomeChromNucSeqMap = queryAgc(commands)
     return genomeChromNucSeqMap
 }
 
-fun retrieveAgcGenomes(dbPath:String,genomes:List<String>):Map<Pair<String,String>,NucSeq> {
+fun retrieveAgcGenomes(dbPath:String,genomes:List<String>,condaEnvPrefix:String):Map<Pair<String,String>,NucSeq> {
 
-    val commands = buildAgcCommandFromList(dbPath, "getset",genomes)
+    val commands = buildAgcCommandFromList(dbPath, "getset",genomes,condaEnvPrefix)
     val genomeChromNucSeqMap = queryAgc(commands)
     return genomeChromNucSeqMap
 }
@@ -103,7 +103,7 @@ fun buildRangesString(sampleName: String, ranges: List<Pair<Position,Position>>)
 /**
  * Processes AGC commands listset or listctg
  */
-fun retrieveAgcData(dbPath:String,agcCmdList:List<String>):List<String> {
+fun retrieveAgcData(dbPath:String,agcCmdList:List<String>,condaEnvPrefix:String):List<String> {
 
     val agcFile = "${dbPath}/assemblies.agc"
 
@@ -119,7 +119,8 @@ fun retrieveAgcData(dbPath:String,agcCmdList:List<String>):List<String> {
     }
 
     val command = mutableListOf<String>()
-    val commandPrefix = arrayOf("conda","run","-n","phgv2-conda","agc",agcCmd,agcFile)
+    val commandPrefix = if (condaEnvPrefix.isNotBlank()) arrayOf("conda","run","-p",condaEnvPrefix,"agc",agcCmd,agcFile)
+              else arrayOf("conda","run","-n","phgv2-conda","agc",agcCmd,agcFile)
     command.addAll(commandPrefix)
     command.addAll(genomes)
 
@@ -233,7 +234,7 @@ fun dataFromListSet(agcOut:BufferedInputStream):List<String>{
  *  The agcCmd parameter is the specific agc command to run, e.g. "getctg",  or "getset"
  *  This method is called from retrieveAgcContigs() and retrieveAgcGenomes()
  */
-fun buildAgcCommandFromList(dbPath:String, agcCmd:String, ranges:List<String>): Array<String> {
+fun buildAgcCommandFromList(dbPath:String, agcCmd:String, ranges:List<String>, condaEnvPrefix:String): Array<String> {
 
     // Validate the dbPath. We check if the folder exists, and if it contains the file assemblies.agc
     val agcFile = "${dbPath}/assemblies.agc"
@@ -241,8 +242,10 @@ fun buildAgcCommandFromList(dbPath:String, agcCmd:String, ranges:List<String>): 
     check(File(agcFile).exists()) { "File assemblies.agc does not exist in folder $dbPath- please send a valid path that indicates the parent folder for your assemblies.agc compressed file." }
 
     val command = mutableListOf<String>()
-    val commandPrefix = arrayOf("conda","run","-n","phgv2-conda","agc",agcCmd,agcFile)
+    val commandPrefix = if (condaEnvPrefix.isNotBlank()) arrayOf("conda","run","-p","phgv2-conda") else arrayOf("conda","run","-n","phgv2-conda")
+    val commandData = arrayOf("agc",agcCmd,agcFile)
     command.addAll(commandPrefix)
+    command.addAll(commandData)
     command.addAll(ranges)
 
     return command.toTypedArray()

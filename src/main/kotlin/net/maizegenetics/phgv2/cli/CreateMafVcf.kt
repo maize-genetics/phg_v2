@@ -14,6 +14,7 @@ import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeaderLine
 import htsjdk.variant.vcf.VCFHeaderVersion
 import net.maizegenetics.phgv2.utils.*
+import net.maizegenetics.phgv2.utils.Position
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
@@ -68,6 +69,9 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         .switch(
             "--skip-metrics" to true
         ).default(false)
+
+    val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
+        .default("")
 
     /**
      * Function to create the ASM hVCF and gVCF.
@@ -511,7 +515,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
 
         val ranges = metaDataToRangeLookup.flatMap { it.second }
 
-        val seqs = retrieveAgcContigs(dbPath,ranges)
+        val seqs = retrieveAgcContigs(dbPath,ranges,"")
 
         return metaDataToRangeLookup.map { it.first.copy(asmSeq = buildSeq(seqs,it.third,it.first)) } //This is a useful way to keep things immutable
     }
@@ -628,7 +632,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
 
         // Verify the tiledbURI
         // If it doesn't an exception will be thrown
-        val validDB = verifyURI(dbPath,"hvcf_dataset")
+        val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
         if(metricsFile != "") {
             createASMHvcfs(dbPath, bed, referenceFile, mafDir, outputDir, metricsFile, skipMetrics)
         } else {
