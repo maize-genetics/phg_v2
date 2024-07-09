@@ -9,6 +9,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
+import htsjdk.variant.variantcontext.GenotypeBuilder
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.variantcontext.VariantContextBuilder
 import htsjdk.variant.variantcontext.VariantContextComparator
@@ -45,8 +46,20 @@ import java.io.File
  *
  *
  */
+
+
 class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf using data from existing PHG created g.vcf files")  {
     private val myLogger = LogManager.getLogger(Hvcf2Gvcf::class.java)
+    // These values come from BioKotlin:MAFToGVCF - they should remain consistent - what is a better
+    // way to handle this?  Perhaps in Biokotlin they shoudl be moved outside the class and thus
+    // accewssible as is done with MAFToGVCF.kt:refDepth, which we import to this class?
+
+    //This array represents the PL(Phred-likelihood) tag in VCF.  Basically the lowest number is the most likely allele.
+    //In the case of refPL the first is the most likely and in the case of the altPL the first alternate allele is the most likely.
+    val refPL = intArrayOf(0, 90, 90)
+
+    //Value to set the DP tag for each of the variants.
+    val totalDP = 30
 
     val hvcfDir by option("--hvcf-dir", help = "Path to directory holding hVCF files. Data will be pulled directly from these files instead of querying TileDB")
         .default("")
@@ -199,7 +212,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                 }
             }
             gvcfReader.close()
-            val rangeToGvcfRecords = findOverlappingRecordsForSample(ranges, gvcfVariants)
+            val rangeToGvcfRecords = findOverlappingRecordsForSample(sample,ranges, gvcfVariants)
 
             //Add the rangeToGvcfRecords to the refRangeToVariantContext map
             // we can use "plus" but it creates a new map containing the combined entries
@@ -340,7 +353,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
     // Process the gvcf records for a sample, and return a map of ReferenceRange to VariantContext
     // These are processed per-sample, then per-chromosome, to reduce memory usage
-    fun findOverlappingRecordsForSample(ranges:List<ReferenceRange>, variantContexts:List<VariantContext>):MutableMap<ReferenceRange,MutableList<VariantContext>> {
+    fun findOverlappingRecordsForSample(sample:String,ranges:List<ReferenceRange>, variantContexts:List<VariantContext>):MutableMap<ReferenceRange,MutableList<VariantContext>> {
         // split ranges and variantContexts by chromosome
         val time = System.nanoTime()
         val overlappingRecords = mutableMapOf<ReferenceRange, MutableList<VariantContext>>()
@@ -351,7 +364,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
             val chromRanges = rangesByChrom[chrom] ?: emptyList()
             val chromVariants = variantContextsByChrom[chrom] ?: emptyList()
             myLogger.info("findOverlappingRecordsForSample: Processing ${chromRanges.size} ranges and ${chromVariants.size} variants for chromosome $chrom")
-            val chromOverlappingRecords = findOverlappingRecords(chromRanges, chromVariants)
+            val chromOverlappingRecords = findOverlappingRecords(sample,chromRanges, chromVariants)
             overlappingRecords.putAll(chromOverlappingRecords)
         }
         println("Time to run findOverlappingRecordsForSample: ${(System.nanoTime() - time)/1e9} seconds")
@@ -362,7 +375,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
     // This is based on CreateMafVCF:convertGVCFToHVCFForChrom() which determines if a variant or part
     // of a variant is in a reference range.  It differs in that we are not creating hvcf meta data,
     // but rather, at this stage, are merely finding the overlapping variants
-    fun findOverlappingRecords(ranges: List<ReferenceRange>, variantContexts: List<VariantContext>): MutableMap<ReferenceRange, MutableList<VariantContext>> {
+    fun findOverlappingRecords(sample:String, ranges: List<ReferenceRange>, variantContexts: List<VariantContext>): MutableMap<ReferenceRange, MutableList<VariantContext>> {
         val time = System.nanoTime()
         val refRangeToVariantContext = mutableMapOf<ReferenceRange, MutableList<VariantContext>>() // this will be returned
         var currentVariantIdx = 0
@@ -382,7 +395,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                     createMafVcf.bedRegionContainedInVariant(Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), currentVariant) -> {
                         // This is the case where the region is completely contained within the variant,
                         // meaning the variant may overlap the region.  We need to adjust the asm positions
-                        val fixedVariants = fixPositions(Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), listOf(currentVariant))
+                        val fixedVariants = fixPositions(sample,Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), listOf(currentVariant))
                         val currentVariants = refRangeToVariantContext.getOrPut(range) { mutableListOf() }
                         currentVariants.addAll(fixedVariants)
                         tempVariants.clear()
@@ -404,7 +417,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                     createMafVcf.variantAfterRegion(Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), currentVariant) -> {
                         // write data from tempVariants
                         if (tempVariants.isNotEmpty()) {
-                            val fixedVariants = fixPositions(Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), tempVariants)
+                            val fixedVariants = fixPositions(sample,Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), tempVariants)
                             val currentVariants = refRangeToVariantContext.getOrPut(range) { mutableListOf() }
                             currentVariants.addAll(fixedVariants)
                             tempVariants.clear()
@@ -421,7 +434,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
             // Process the last variants in the list
             if (tempVariants.isNotEmpty()) {
-                val fixedVariants = fixPositions(Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), tempVariants)
+                val fixedVariants = fixPositions(sample,Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), tempVariants)
                 val currentVariants = refRangeToVariantContext.getOrPut(range) { mutableListOf() }
                 currentVariants.addAll(fixedVariants)
                 tempVariants.clear()
@@ -432,90 +445,11 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         return refRangeToVariantContext
     }
 
-
-    fun fixPositions(region: Pair<Position,Position>, variants: List<VariantContext> ): List<VariantContext> {
-        val fixedVariants = mutableListOf<VariantContext>()
-
-        // TODO ADD INDEL SUPPORT ??
-        //Take the first and the last variantContext
-        val firstVariant = variants.first()
-        val lastVariant = variants.last()
-
-        //val check strandedness of the variants
-        val firstStrand = firstVariant.getAttributeAsString("ASM_Strand","+")
-
-        val lastStrand = lastVariant.getAttributeAsString("ASM_Strand","+")
-
-        // Resize the first and last variantContext ref/ASM start and end based on the regions
-        // This returns a list of Pairs of Ints.  The first Int is the reference position
-        // and the second Int is the ASM position.  The first pair is for the start of the first variant,
-        // the second pair is for the end of the last variant..  If there is only 1 variant, the 2 should be the same.
-
-        val newGvcfPositions = resizeVCandASMpositions(Pair(firstVariant,lastVariant), Pair(region.first.position,region.second.position), Pair(firstStrand,lastStrand))
-
-        // At this point, we have changes for the first and last regions.  If the list size
-        // is only 1, we change it based on newStartPositions and newEndPositions
-        // If there are multiple, we change the first and last entries.  The first entry gets its start changed,
-        // The last entry gets end values changed.
-        if (variants.size == 1) {
-            // Not setting "stop" for the ref (vs ASM_*) position as it will always
-            // be 1 for REF_BLOCK or SNP, so this doesn't change
-            try {
-                val updatedFirstVariant = VariantContextBuilder(firstVariant)
-                    .start(newGvcfPositions[0].first.toLong())
-                    .attribute("ASM_Start", newGvcfPositions[0].second)
-                    .attribute("ASM_End", newGvcfPositions[1].second)
-                    .attribute("END", newGvcfPositions[1].first)
-                    .make()
-                fixedVariants.add(updatedFirstVariant)
-            } catch (exc: Exception) {
-                println("Error: Size=1 updating first variant with newGvcfPositions: ${newGvcfPositions}, created from region: ${region}")
-                println("  the firstVariant that FAILS: ${firstVariant}")
-                throw exc
-            }
-
-        }
-        else {
-            // update the first and last variants, leaving those
-            // in the middle unchanged
-            try {
-                val updatedFirstVariant = VariantContextBuilder(firstVariant)
-                    .start(newGvcfPositions[0].first.toLong())
-                    .attribute("ASM_Start", newGvcfPositions[0].second)
-                    .make()
-                fixedVariants.add(updatedFirstVariant)
-            } catch (exc: Exception) {
-                println("Error: Size > 1, updating first variant with newGvcfPositions: ${newGvcfPositions}, created from region: ${region}")
-                println("  the firstVariant that FAILS: ${firstVariant}")
-                throw exc
-            }
-
-            try {
-                val updatedLastVariant = VariantContextBuilder(lastVariant)
-                    .attribute("ASM_End", newGvcfPositions[1].second)
-                    .attribute("END", newGvcfPositions[1].first)
-                    .make()
-
-                if (variants.size > 2) {
-                    fixedVariants.addAll(variants.subList(1,variants.size-1))
-                }
-                fixedVariants.add(updatedLastVariant)
-            } catch (exc: Exception) {
-                println("Error: Size > 1, updating last variant with newGvcfPositions: ${newGvcfPositions}, created from region: ${region}")
-                println("  the lastVariant that FAILS: ${lastVariant}")
-                throw exc
-            }
-
-        }
-
-        return fixedVariants
-    }
-
     // This fixes both the ref start/end and the asm positions in the tempVariants list.  It should return an
     // ammended version of the list. Code is based on CreateMafVcf:convertGVCFRecordsToHVCFMetaData()
     // but only deals with the ASM positions portion of this code.  In addition, it adds code
     // to adjust the variant's start/end positions. Indels are not currently handled.
-    fun fixPositionsWithTryCatch(region: Pair<Position,Position>, variants: List<VariantContext> ): List<VariantContext> {
+    fun fixPositions(sampleName:String, region: Pair<Position,Position>, variants: List<VariantContext> ): List<VariantContext> {
         val fixedVariants = mutableListOf<VariantContext>()
 
         // TODO ADD INDEL SUPPORT ??
@@ -535,6 +469,8 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
         val newGvcfPositions = resizeVCandASMpositions(Pair(firstVariant,lastVariant), Pair(region.first.position,region.second.position), Pair(firstStrand,lastStrand))
 
+        println("LCJ - fixPosition: firstVariant=${firstVariant}")
+        println("LCJ - fixPOsition: firstVariant genotypes = ${firstVariant.genotypes}")
         // At this point, we have changes for the first and last regions.  If the list size
         // is only 1, we change it based on newStartPositions and newEndPositions
         // If there are multiple, we change the first and last entries.  The first entry gets its start changed,
@@ -543,16 +479,33 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
             // Not setting "stop" for the ref (vs ASM_*) position as it will always
             // be 1 for REF_BLOCK or SNP, so this doesn't change
             try {
-                val updatedFirstVariant = VariantContextBuilder(firstVariant)
+                val genotype = listOf(firstVariant.alleles[0])
+
+                val genotypeBuilder = GenotypeBuilder(sampleName,genotype)
+                val currentGenotype = genotypeBuilder.DP(totalDP).AD(refDepth).PL(refPL).make()
+
+                val updatedFirstVariant = VariantContextBuilder()
+                    .chr(firstVariant.contig)
                     .start(newGvcfPositions[0].first.toLong())
+                    .stop(newGvcfPositions[1].first.toLong())
                     .attribute("ASM_Start", newGvcfPositions[0].second)
+                    .attribute("ASM_End", newGvcfPositions[1].second)
+                    .attribute("ASM_Strand",firstVariant.getAttributeAsString("ASM_Strand","+"))
+                    .attribute("END", newGvcfPositions[1].first)
+                    .alleles(firstVariant.alleles)
+                    .genotypes(currentGenotype)
                     .make()
+//                val updatedFirstVariantOld = VariantContextBuilder(firstVariant)
+//                    .start(newGvcfPositions[0].first.toLong())
+//                    .attribute("ASM_Start", newGvcfPositions[0].second)
+//                    .attribute("ASM_End", newGvcfPositions[1].second)
+//                    .attribute("END", newGvcfPositions[1].first)
+//                    .make()
                 fixedVariants.add(updatedFirstVariant)
             } catch (exc: Exception) {
                 println("Error: Size=1 updating first variant with newGvcfPositions: ${newGvcfPositions}, created from region: ${region}")
                 println("  the firstVariant that FAILS: ${firstVariant}")
                 throw exc
-
             }
 
         }
@@ -560,10 +513,25 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
             // update the first and last variants, leaving those
             // in the middle unchanged
             try {
+                val genotype = listOf(firstVariant.alleles[0])
+                val genotypeBuilder = GenotypeBuilder(sampleName,genotype)
+                val firstGenotype = genotypeBuilder.DP(totalDP).AD(refDepth).PL(refPL).make()
+               // val firstGenotype = GenotypeBuilder(sampleName,listOf(firstVariant.alleles[0])).DP(totalDP).AD(refDepth).PL(refPL).make()
                 val updatedFirstVariant = VariantContextBuilder(firstVariant)
+                    .chr(firstVariant.contig)
                     .start(newGvcfPositions[0].first.toLong())
+                    .stop(firstVariant.end.toLong())
                     .attribute("ASM_Start", newGvcfPositions[0].second)
+                    .attribute("ASM_End", firstVariant.getAttributeAsInt("ASM_End",firstVariant.end))
+                    .attribute("ASM_Strand",firstVariant.getAttributeAsString("ASM_Strand","+"))
+                    .attribute("END", firstVariant.end)
+                    .alleles(firstVariant.alleles)
+                    .genotypes(firstGenotype)
                     .make()
+//                val updatedFirstVariantOld = VariantContextBuilder(firstVariant)
+//                    .start(newGvcfPositions[0].first.toLong())
+//                    .attribute("ASM_Start", newGvcfPositions[0].second)
+//                    .make()
                 fixedVariants.add(updatedFirstVariant)
             } catch (exc: Exception) {
                 println("Error: Size > 1, updating first variant with newGvcfPositions: ${newGvcfPositions}, created from region: ${region}")
@@ -572,11 +540,27 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
             }
 
             try {
-                val updatedLastVariant = VariantContextBuilder(lastVariant)
+                val genotype = listOf(lastVariant.alleles[0])
+                val genotypeBuilder = GenotypeBuilder(sampleName,genotype)
+                val lastGenotype = genotypeBuilder.DP(totalDP).AD(refDepth).PL(refPL).make()
+                //val lastGenotype = GenotypeBuilder(sampleName,listOf(lastVariant.alleles[0])).DP(totalDP).AD(refDepth).PL(refPL).make()
+
+                val updatedLastVariant = VariantContextBuilder()
+                    .chr(lastVariant.contig)
+                    .start(lastVariant.start.toLong())
+                    .stop(newGvcfPositions[1].first.toLong())
+                    .attribute("ASM_Start", lastVariant.getAttributeAsInt("ASM_Start",lastVariant.start))
                     .attribute("ASM_End", newGvcfPositions[1].second)
+                    .attribute("ASM_Strand",lastVariant.getAttributeAsString("ASM_Strand","+"))
                     .attribute("END", newGvcfPositions[1].first)
+                    .alleles(lastVariant.alleles)
+                    .genotypes(lastGenotype)
                     .make()
-                fixedVariants.add(updatedLastVariant)
+//                val updatedLastVariantOld = VariantContextBuilder(lastVariant)
+//                    .attribute("ASM_End", newGvcfPositions[1].second)
+//                    .attribute("END", newGvcfPositions[1].first)
+//                    .make()
+
                 if (variants.size > 2) {
                     fixedVariants.addAll(variants.subList(1,variants.size-1))
                 }
@@ -587,10 +571,11 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                 throw exc
             }
 
-
         }
+
         return fixedVariants
     }
+
 
     //  Based on CreateMafVcf:resizeVariantContext() - but this version deals with both
     // the reference start/end as well as  the ASM_* positions
