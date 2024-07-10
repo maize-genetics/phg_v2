@@ -9,10 +9,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
-import htsjdk.variant.variantcontext.GenotypeBuilder
-import htsjdk.variant.variantcontext.VariantContext
-import htsjdk.variant.variantcontext.VariantContextBuilder
-import htsjdk.variant.variantcontext.VariantContextComparator
+import htsjdk.variant.variantcontext.*
 import htsjdk.variant.vcf.VCFEncoder
 import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeader
@@ -21,6 +18,7 @@ import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.util.*
 
 /**
  * This class takes a phgv2 hvcf file that was created via path-finding, and
@@ -479,29 +477,29 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
             // Not setting "stop" for the ref (vs ASM_*) position as it will always
             // be 1 for REF_BLOCK or SNP, so this doesn't change
             try {
-                val genotype = listOf(firstVariant.alleles[0])
+//                val genotype = listOf(firstVariant.alleles[0])
+//                val genotypeBuilder = GenotypeBuilder(sampleName,genotype)
+//                val currentGenotype = genotypeBuilder.DP(totalDP).AD(refDepth).PL(refPL).make()
 
-                val genotypeBuilder = GenotypeBuilder(sampleName,genotype)
-                val currentGenotype = genotypeBuilder.DP(totalDP).AD(refDepth).PL(refPL).make()
-
-                val updatedFirstVariant = VariantContextBuilder()
+                // From createRefRangeVC - in VariantLoadingUtils.kt.  The substring(0,1) removes the "*" for alleles e.g. G*
+                val firstRefAllele = Allele.create(firstVariant.alleles[0].toString().substring(0,1),true)
+                val gt = GenotypeBuilder().name(sampleName).alleles(Arrays.asList(firstRefAllele)).DP(totalDP).AD(refDepth).PL(refPL).make()
+                val vcb = VariantContextBuilder()
                     .chr(firstVariant.contig)
                     .start(newGvcfPositions[0].first.toLong())
                     .stop(newGvcfPositions[1].first.toLong())
-                    .attribute("ASM_Start", newGvcfPositions[0].second)
-                    .attribute("ASM_End", newGvcfPositions[1].second)
-                    .attribute("ASM_Strand",firstVariant.getAttributeAsString("ASM_Strand","+"))
                     .attribute("END", newGvcfPositions[1].first)
-                    .alleles(firstVariant.alleles)
-                    .genotypes(currentGenotype)
+                    .alleles(Arrays.asList(firstRefAllele, Allele.NON_REF_ALLELE))
+                    .genotypes(gt)
                     .make()
+
 //                val updatedFirstVariantOld = VariantContextBuilder(firstVariant)
 //                    .start(newGvcfPositions[0].first.toLong())
 //                    .attribute("ASM_Start", newGvcfPositions[0].second)
 //                    .attribute("ASM_End", newGvcfPositions[1].second)
 //                    .attribute("END", newGvcfPositions[1].first)
 //                    .make()
-                fixedVariants.add(updatedFirstVariant)
+                fixedVariants.add(vcb)
             } catch (exc: Exception) {
                 println("Error: Size=1 updating first variant with newGvcfPositions: ${newGvcfPositions}, created from region: ${region}")
                 println("  the firstVariant that FAILS: ${firstVariant}")
@@ -513,26 +511,26 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
             // update the first and last variants, leaving those
             // in the middle unchanged
             try {
-                val genotype = listOf(firstVariant.alleles[0])
-                val genotypeBuilder = GenotypeBuilder(sampleName,genotype)
-                val firstGenotype = genotypeBuilder.DP(totalDP).AD(refDepth).PL(refPL).make()
-               // val firstGenotype = GenotypeBuilder(sampleName,listOf(firstVariant.alleles[0])).DP(totalDP).AD(refDepth).PL(refPL).make()
-                val updatedFirstVariant = VariantContextBuilder(firstVariant)
-                    .chr(firstVariant.contig)
-                    .start(newGvcfPositions[0].first.toLong())
-                    .stop(firstVariant.end.toLong())
-                    .attribute("ASM_Start", newGvcfPositions[0].second)
-                    .attribute("ASM_End", firstVariant.getAttributeAsInt("ASM_End",firstVariant.end))
-                    .attribute("ASM_Strand",firstVariant.getAttributeAsString("ASM_Strand","+"))
-                    .attribute("END", firstVariant.end)
-                    .alleles(firstVariant.alleles)
-                    .genotypes(firstGenotype)
-                    .make()
+
 //                val updatedFirstVariantOld = VariantContextBuilder(firstVariant)
 //                    .start(newGvcfPositions[0].first.toLong())
 //                    .attribute("ASM_Start", newGvcfPositions[0].second)
 //                    .make()
-                fixedVariants.add(updatedFirstVariant)
+                val firstRefAllele = Allele.create(firstVariant.alleles[0].toString().substring(0,1),true)
+                val gt = GenotypeBuilder().name(sampleName).alleles(Arrays.asList(firstRefAllele)).DP(totalDP).AD(refDepth).PL(refPL).make()
+                val vcb = VariantContextBuilder()
+                    .chr(firstVariant.contig)
+                    .start(newGvcfPositions[0].first.toLong())
+                    .stop(firstVariant.end.toLong())
+                    .attribute("END", firstVariant.end)
+                    .attribute("ASM_Start", newGvcfPositions[0].second)
+                    .attribute("ASM_End", firstVariant.getAttributeAsInt("ASM_End",firstVariant.end))
+                    .attribute("ASM_Strand",firstVariant.getAttributeAsString("ASM_Strand","+"))
+                    .alleles(Arrays.asList(firstRefAllele, Allele.NON_REF_ALLELE))
+                    .genotypes(gt)
+                    .make()
+
+                fixedVariants.add(vcb)
             } catch (exc: Exception) {
                 println("Error: Size > 1, updating first variant with newGvcfPositions: ${newGvcfPositions}, created from region: ${region}")
                 println("  the firstVariant that FAILS: ${firstVariant}")
@@ -540,21 +538,19 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
             }
 
             try {
-                val genotype = listOf(lastVariant.alleles[0])
-                val genotypeBuilder = GenotypeBuilder(sampleName,genotype)
-                val lastGenotype = genotypeBuilder.DP(totalDP).AD(refDepth).PL(refPL).make()
-                //val lastGenotype = GenotypeBuilder(sampleName,listOf(lastVariant.alleles[0])).DP(totalDP).AD(refDepth).PL(refPL).make()
 
-                val updatedLastVariant = VariantContextBuilder()
+                val firstRefAllele = Allele.create(lastVariant.alleles[0].toString().substring(0,1),true)
+                val gt = GenotypeBuilder().name(sampleName).alleles(Arrays.asList(firstRefAllele)).DP(totalDP).AD(refDepth).PL(refPL).make()
+                val vcb = VariantContextBuilder()
                     .chr(lastVariant.contig)
                     .start(lastVariant.start.toLong())
                     .stop(newGvcfPositions[1].first.toLong())
+                    .attribute("END", newGvcfPositions[1].first)
                     .attribute("ASM_Start", lastVariant.getAttributeAsInt("ASM_Start",lastVariant.start))
                     .attribute("ASM_End", newGvcfPositions[1].second)
                     .attribute("ASM_Strand",lastVariant.getAttributeAsString("ASM_Strand","+"))
-                    .attribute("END", newGvcfPositions[1].first)
-                    .alleles(lastVariant.alleles)
-                    .genotypes(lastGenotype)
+                    .alleles(Arrays.asList(firstRefAllele, Allele.NON_REF_ALLELE))
+                    .genotypes(gt)
                     .make()
 //                val updatedLastVariantOld = VariantContextBuilder(lastVariant)
 //                    .attribute("ASM_End", newGvcfPositions[1].second)
@@ -564,7 +560,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                 if (variants.size > 2) {
                     fixedVariants.addAll(variants.subList(1,variants.size-1))
                 }
-                fixedVariants.add(updatedLastVariant)
+                fixedVariants.add(vcb)
             } catch (exc: Exception) {
                 println("Error: Size > 1, updating last variant with newGvcfPositions: ${newGvcfPositions}, created from region: ${region}")
                 println("  the lastVariant that FAILS: ${lastVariant}")
