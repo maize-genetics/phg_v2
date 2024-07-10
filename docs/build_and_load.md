@@ -32,7 +32,7 @@ In this document, we will discuss the steps needed to:
 * Create BED file from GFF for reference range coordinates:
     ```shell
     phg create-ranges \
-        --reference-file /my/ref.fasta \
+        --reference-file /my/updated/ref.fasta \
         --gff my.gff \
         --boundary gene \
         --pad 500 \
@@ -44,8 +44,8 @@ In this document, we will discuss the steps needed to:
     ```shell
     phg align-assemblies \
         --gff anchors.gff \
-        --reference-file /my/ref.fasta \
-        --assemblies assemblies_list.txt \
+        --reference-file /my/updated/ref.fasta \
+        --assemblies /updated/assemblies_list.txt \
         -o /path/for/generated_files
     ```
 
@@ -54,28 +54,30 @@ In this document, we will discuss the steps needed to:
     phg agc-compress \
         --db-path /path/to/dbs \
         --reference-file \
-        --fasta-list /my/assembly_fasta_list.txt
+        --fasta-list /my/updated/assembly_fasta_list.txt
     ```
 * Create VCF files
     ```shell
     # Reference VCF
     phg create-ref-vcf \
         --bed /path/to/bed_file.bed \
-        --reference-file /my/ref.fasta \
+        --reference-file /my/updated/ref.fasta \
         --reference-name B73 \
         --db-path /path/to/dbs
   
     # MAF alignments VCF
     phg create-maf-vcf \
+        --db-path /path/to/dbs \
         --bed /path/to/bed_file.bed \
-        --reference-file /my/ref.fasta \
-        --gvcf-dir /my/gvcf/files 
+        --reference-file /my/updated/ref.fasta \
+        --maf-dir /output/for/alignment_files \
+        -o /path/for/generated_files \
   
     # hVCF from PHGv1 created gVCF (OPTIONAL)
     phg gvcf2hvcf \
         --db-path /path/to/dbs \
         --bed /path/to/bed_file.bed \
-        --reference-file /my/ref.fasta \
+        --reference-file /my/updated/ref.fasta \
         --gvcf-dir /my/gvcf/files 
     ```
 * Load data into DBs
