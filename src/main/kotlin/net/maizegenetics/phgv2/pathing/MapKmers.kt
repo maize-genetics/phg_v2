@@ -103,12 +103,21 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
         .double()
         .default(1.0)
 
-    val minProportionSameReferenceRange by option(help = "Minimum proportion of the read that must align to the same reference range. Default is 0.9.")
+    val limitSingleRefRange by option(help = "Enable this option to force reads to only count haplotypeIds from kmers coming from a single Reference Range.")
+        .flag(default = false)
+
+    val minProportionSameReferenceRange by option(help = "Minimum proportion of the read that must align to the same reference range. This option is not used unless -limit-single-ref-range is used.  Default is 0.9.")
         .double()
         .default(0.9)
 
 
     override fun run() {
+        //check to see if minProportionSameReferenceRange is being used without limitSingleRefRange
+        if(!limitSingleRefRange) {
+            myLogger.info("The --min-proportion-same-reference-range option is not used unless --limit-single-ref-range is used.  " +
+                    "Ignoring --min-proportion-same-reference-range.")
+        }
+
         myLogger.info("Begin mapping reads to the pangenome kmer index.")
         //loop through all files in hvcfDir and create a list of hvcf files
         val hvcfFiles = File(hvcfDir).walkTopDown().filter { it.isFile }
@@ -120,6 +129,6 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
 
         //create a HaplotypeGraph from the list of hvcf files
         val graph = HaplotypeGraph(hvcfFiles)
-        AlignmentUtils.alignReadsToHaplotypes(graph, kmerIndexFilename, readInputFiles.getReadFiles(), outputDir, threads, minProportionOfMaxCount, minProportionSameReferenceRange)
+        AlignmentUtils.alignReadsToHaplotypes(graph, kmerIndexFilename, readInputFiles.getReadFiles(), outputDir, threads, minProportionOfMaxCount, limitSingleRefRange, minProportionSameReferenceRange)
     }
 }
