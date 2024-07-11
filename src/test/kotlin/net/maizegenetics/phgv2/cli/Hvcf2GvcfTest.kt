@@ -1,9 +1,11 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.utils.verifyURI
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import kotlin.test.assertEquals
@@ -78,6 +80,36 @@ class Hvcf2GvcfTest {
         }
     }
 
+    @Test
+    fun testCliktParams() {
+        val hvcf2gvcf = Hvcf2Gvcf()
+
+        // There are only 3 required parameters - test for missing each one
+        assertThrows<IllegalArgumentException> {
+            //Check that an error is thrown when the dbPath folder does not exist
+            hvcf2gvcf.test("--hvcf-dir ${TestExtension.testVCFDir} --reference-file ${TestExtension.testRefFasta} ")
+        }
+
+        val resultMissingRef =
+            hvcf2gvcf.test("--db-path ${TestExtension.testTileDBURI}  --hvcf-dir ${TestExtension.testMafDir}")
+        assertEquals(resultMissingRef.statusCode, 1)
+        assertEquals(
+            "Usage: hvcf2gvcf [<options>]\n" +
+                    "\n" +
+                    "Error: invalid value for --reference-file: --reference-file must not be blank\n", resultMissingRef.output
+        )
+
+
+        val resultMissingHvcfDir =
+            hvcf2gvcf.test("--db-path ${TestExtension.testTileDBURI}  --reference-file ${TestExtension.testRefFasta}")
+        assertEquals(resultMissingHvcfDir.statusCode, 1)
+        assertEquals(
+            "Usage: hvcf2gvcf [<options>]\n" +
+                    "\n" +
+                    "Error: invalid value for --hvcf-dir: --hvcf-dir must not be blank\n", resultMissingHvcfDir.output
+        )
+
+    }
     @Test
     fun testSimpleHvcf2Gvcf() {
         // This is a basic test.  We copy an hvcf file created from CreateMafVcf to a new location
