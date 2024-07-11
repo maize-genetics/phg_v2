@@ -2,7 +2,7 @@
 site_name: Practical Haplotype Graph
 site_description: Pangenome system for plant breeding and genetics
 site_author: Buckler Lab
-site_url: https://www.maizegenetics.net
+site_url: https://phg.maizegenetics.net
 
 # Repository configuration
 repo_name: PHGv2
