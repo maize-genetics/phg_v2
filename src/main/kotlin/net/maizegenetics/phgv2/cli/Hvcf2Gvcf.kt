@@ -111,10 +111,11 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
             .forEach { hvcfFile ->
                 myLogger.info("buildGvcfFromHvcf: Processing hvcf file: ${hvcfFile.name}")
                 var time = System.nanoTime()
-                val records = processHVCFtoVariantContext(refSeq, outputDir, hvcfFile, dbPath,condaEnvPrefix)
+                val sample = hvcfFile.toString().substringAfterLast("/").substringBefore(".")
+                val records = processHVCFtoVariantContext(sample,refSeq, outputDir, hvcfFile, dbPath,condaEnvPrefix)
                 println("Time to processHVCFtoVariantContext: ${(System.nanoTime() - time)/1e9} seconds")
 
-                val sample = hvcfFile.toString().substringAfterLast("/").substringBefore(".")
+
                 val gvcfFile = "$outputDir/${sample}.g.vcf"
                 myLogger.info("buildGvcfFromHvcf: exporting VariantContexts to gvcf file: $gvcfFile")
                 time = System.nanoTime()
@@ -124,7 +125,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
     }
 
-    fun processHVCFtoVariantContext(refSeq:Map<String,NucSeq>, outputDir:String, hvcfFile: File, dbPath: String, condaEnvPrefix: String): List<VariantContext> {
+    fun processHVCFtoVariantContext(outputSampleName:String,refSeq:Map<String,NucSeq>, outputDir:String, hvcfFile: File, dbPath: String, condaEnvPrefix: String): List<VariantContext> {
 
         val reader = VCFFileReader(hvcfFile,false)
         // We also need to print to the new gvcf all the headers from 1 of the accessed gvcf files
@@ -210,7 +211,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                 }
             }
             gvcfReader.close()
-            val rangeToGvcfRecords = findOverlappingRecordsForSample(sample,ranges, gvcfVariants)
+            val rangeToGvcfRecords = findOverlappingRecordsForSample(outputSampleName,ranges, gvcfVariants)
 
             //Add the rangeToGvcfRecords to the refRangeToVariantContext map
             // we can use "plus" but it creates a new map containing the combined entries
@@ -351,7 +352,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
     // Process the gvcf records for a sample, and return a map of ReferenceRange to VariantContext
     // These are processed per-sample, then per-chromosome, to reduce memory usage
-    fun findOverlappingRecordsForSample(sample:String,ranges:List<ReferenceRange>, variantContexts:List<VariantContext>):MutableMap<ReferenceRange,MutableList<VariantContext>> {
+    fun findOverlappingRecordsForSample(outputSampleName:String,ranges:List<ReferenceRange>, variantContexts:List<VariantContext>):MutableMap<ReferenceRange,MutableList<VariantContext>> {
         // split ranges and variantContexts by chromosome
         val time = System.nanoTime()
         val overlappingRecords = mutableMapOf<ReferenceRange, MutableList<VariantContext>>()
@@ -362,7 +363,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
             val chromRanges = rangesByChrom[chrom] ?: emptyList()
             val chromVariants = variantContextsByChrom[chrom] ?: emptyList()
             myLogger.info("findOverlappingRecordsForSample: Processing ${chromRanges.size} ranges and ${chromVariants.size} variants for chromosome $chrom")
-            val chromOverlappingRecords = findOverlappingRecords(sample,chromRanges, chromVariants)
+            val chromOverlappingRecords = findOverlappingRecords(outputSampleName,chromRanges, chromVariants)
             overlappingRecords.putAll(chromOverlappingRecords)
         }
         println("Time to run findOverlappingRecordsForSample: ${(System.nanoTime() - time)/1e9} seconds")
@@ -439,7 +440,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
             }
         }
 
-        println("Time to run chatGPT findOverlappingRecords: ${(System.nanoTime() - time) / 1e9} seconds")
+        println("Time to run findOverlappingRecords: ${(System.nanoTime() - time) / 1e9} seconds")
         return refRangeToVariantContext
     }
 
@@ -467,8 +468,8 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
         val newGvcfPositions = resizeVCandASMpositions(Pair(firstVariant,lastVariant), Pair(region.first.position,region.second.position), Pair(firstStrand,lastStrand))
 
-        println("LCJ - fixPosition: firstVariant=${firstVariant}")
-        println("LCJ - fixPOsition: firstVariant genotypes = ${firstVariant.genotypes}")
+//        println("LCJ - fixPosition: firstVariant=${firstVariant}")
+//        println("LCJ - fixPOsition: firstVariant genotypes = ${firstVariant.genotypes}")
         // At this point, we have changes for the first and last regions.  If the list size
         // is only 1, we change it based on newStartPositions and newEndPositions
         // If there are multiple, we change the first and last entries.  The first entry gets its start changed,
@@ -489,6 +490,10 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                     .start(newGvcfPositions[0].first.toLong())
                     .stop(newGvcfPositions[1].first.toLong())
                     .attribute("END", newGvcfPositions[1].first)
+                    .attribute("ASM_Chr",firstVariant.getAttributeAsString("ASM_Chr",""))
+                    .attribute("ASM_Start", newGvcfPositions[0].second)
+                    .attribute("ASM_End", firstVariant.getAttributeAsInt("ASM_End",firstVariant.end))
+                    .attribute("ASM_Strand",firstVariant.getAttributeAsString("ASM_Strand","+"))
                     .alleles(Arrays.asList(firstRefAllele, Allele.NON_REF_ALLELE))
                     .genotypes(gt)
                     .make()
@@ -523,6 +528,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                     .start(newGvcfPositions[0].first.toLong())
                     .stop(firstVariant.end.toLong())
                     .attribute("END", firstVariant.end)
+                    .attribute("ASM_Chr",firstVariant.getAttributeAsString("ASM_Chr",""))
                     .attribute("ASM_Start", newGvcfPositions[0].second)
                     .attribute("ASM_End", firstVariant.getAttributeAsInt("ASM_End",firstVariant.end))
                     .attribute("ASM_Strand",firstVariant.getAttributeAsString("ASM_Strand","+"))
@@ -546,6 +552,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                     .start(lastVariant.start.toLong())
                     .stop(newGvcfPositions[1].first.toLong())
                     .attribute("END", newGvcfPositions[1].first)
+                    .attribute("ASM_Chr",lastVariant.getAttributeAsString("ASM_Chr",""))
                     .attribute("ASM_Start", lastVariant.getAttributeAsInt("ASM_Start",lastVariant.start))
                     .attribute("ASM_End", newGvcfPositions[1].second)
                     .attribute("ASM_Strand",lastVariant.getAttributeAsString("ASM_Strand","+"))
