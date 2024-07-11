@@ -338,7 +338,8 @@ fun queryAgc(commands:Array<String>):Map<Pair<String,String>,NucSeq> {
                         genomeChromNucSeq.put(Pair(currGenome,chromPlusRange),NucSeq(currSeq.toString()))
                     }
                     // reset chromosome name and sequence, begin processing next chrom
-                    currChrom = line.substring(1).split(" ")[0]
+                    // Split on ALL whitespace, to handle tabs etc between the chrom name and other data on the line
+                    currChrom = line.substring(1).split("\\s+".toRegex())[0]
 
                     val genomeStart = line.indexOf("sampleName=")
                     if (genomeStart < 0) {
