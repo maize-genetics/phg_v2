@@ -32,7 +32,7 @@ In this document, we will discuss the steps needed to:
 * Create BED file from GFF for reference range coordinates:
     ```shell
     phg create-ranges \
-        --reference-file /my/ref.fasta \
+        --reference-file /my/updated/ref.fasta \
         --gff my.gff \
         --boundary gene \
         --pad 500 \
@@ -44,8 +44,8 @@ In this document, we will discuss the steps needed to:
     ```shell
     phg align-assemblies \
         --gff anchors.gff \
-        --reference-file /my/ref.fasta \
-        --assemblies assemblies_list.txt \
+        --reference-file /my/updated/ref.fasta \
+        --assemblies /updated/assemblies_list.txt \
         -o /path/for/generated_files
     ```
 
@@ -54,28 +54,30 @@ In this document, we will discuss the steps needed to:
     phg agc-compress \
         --db-path /path/to/dbs \
         --reference-file \
-        --fasta-list /my/assembly_fasta_list.txt
+        --fasta-list /my/updated/assembly_fasta_list.txt
     ```
 * Create VCF files
     ```shell
     # Reference VCF
     phg create-ref-vcf \
         --bed /path/to/bed_file.bed \
-        --reference-file /my/ref.fasta \
+        --reference-file /my/updated/ref.fasta \
         --reference-name B73 \
         --db-path /path/to/dbs
   
     # MAF alignments VCF
     phg create-maf-vcf \
+        --db-path /path/to/dbs \
         --bed /path/to/bed_file.bed \
-        --reference-file /my/ref.fasta \
-        --gvcf-dir /my/gvcf/files 
+        --reference-file /my/updated/ref.fasta \
+        --maf-dir /output/for/alignment_files \
+        -o /path/for/generated_files \
   
     # hVCF from PHGv1 created gVCF (OPTIONAL)
     phg gvcf2hvcf \
         --db-path /path/to/dbs \
         --bed /path/to/bed_file.bed \
-        --reference-file /my/ref.fasta \
+        --reference-file /my/updated/ref.fasta \
         --gvcf-dir /my/gvcf/files 
     ```
 * Load data into DBs
@@ -373,7 +375,7 @@ ATGCGTTCGCCTTCCG
 After we compress this information using the `agc-compress` command,
 we will have a file called `assemblies.agc`. PHGv2 leverages this
 compressed sequence file when creating VCF data (_see
-the [**"Create VCF files"**](#create-vcf-files) section for further
+the ["Create VCF files"](#create-vcf-files) section for further
 details_). The issue arrives when we query the compressed data using
 [AGC's `getctg`](https://github.com/refresh-bio/agc#extract-contigs-from-the-archive)
 command. When we query this example archive, we will get the
@@ -563,7 +565,7 @@ This command takes in 3 parameters:
 > [!NOTE]
 > The list specified in `--fasta-list` should be the list of FASTA
 > files output from the `prepare-assemblies` command (_see the
-> [**"Prepare Assembly FASTA files"**](#prepare-assembly-fasta-files) section for
+> ["Prepare Assembly FASTA files"](#prepare-assembly-fasta-files) section for
 > further details_).
 
 * `--reference-file` - Reference FASTA genome processed with
@@ -766,36 +768,21 @@ To run the aligner step, we can call the `align-assemblies` command:
     -o output/alignment_files \
     --conda-env-prefix /path/to/conda/env
 ```
-Users may opt to run a set of assemblies on a single machine, or they may prefer to kick off
-a SLURM job that takes entries from an array and sends each one to a different node to process.
-Which option is chosen determines which parameters are sent to the `align-assemblies` command.
 
-#### Running on a single machine
-When running on a single machine, the `--total-threads` and `--in-parallel` parameters are used to
-determine how many threads to allocate for the alignment step and how many genomes to run in parallel.
-Users only need to call the `align-assemblies` command once and there is no pre-procssing steps necessary
-
-#### Running on a SLURM Job
-When running  jobs in a slurm array, the first step is to run the `align-assemblies` command with the
-`just-ref-prep` parameter set to `true`.  This will run the preliminary steps of aligning the reference
-genome to the GFF CDS, creating the reference-sam and reference-cds-fasta needed for aligning the individual
-assemblies.  The output of this step will be written to the user supplied output directory.  
-
-The second step would be to create the slurm data array file. This is a text file which has an align-assemblies 
-command, one per line, for each assembly that will be run.  It will use the reference-sam and reference-cds-fasta
-files created in the first step as input to the align-assemblies command.  This file may be created manually
-by the user, or may be created by running the `PrepareSlurmAlignFile` command.
-
-The third step is to submit the slurm job.  When running a slurm job, the `--in-parallel` parameter is not
-used as each `align-assemblies` command is kicked off on a different node.  The number of threads to use is
-still specified by the `--total-threads` parameter.  Each assembly alignment is run on a separate node.
-
-An example file resulting from the `PrepareSlurmAlignFile` command is shown below:
+> [!NOTE]
+> The following example workflow is for users who have access to a
+> **single machine**. If you are running this on an 
+> [HPC](https://en.wikipedia.org/wiki/High-performance_computing)
+> system that leverages the 
+> [SLURM](https://en.wikipedia.org/wiki/Slurm_Workload_Manager)
+> job scheduler, **please follow the guidelines found in the 
+> ["SLURM Usage"](slurm_usage.md) documentation** to maximize
+> computational efficiency.
 
 
 #### Align-assemblies parameters
 
-This command uses several parameters:
+This `align-assemblies` command uses several **required** parameters:
 * `--gff` - GFF file for the reference genome. This is used to
   identify full-length coding sequences to use as anchors
 * `--reference-file` - The reference genome in 
@@ -803,13 +790,13 @@ This command uses several parameters:
   + > ℹ️ **Note**  
     The path to the reference genome should be the **updated version**
     that was created during the `prepare-assemblies` command.
-* `--assembly-file-list` Or `--assembly-file` - Either a single annotated file may be specified, or a text file containing a list of **annotated**
-  assembly genomes (_see the 
-  [**"Prepare Assembly FASTA files"**](#prepare-assembly-fasta-files) section for 
-  further details_).
-  The single assembly or the contents of the assembly list file should be either full or relative paths
-  to each uncompressed assembly you would like to align. For example, since I am
-  using the example data found on the 
+* `--assembly-file-list` Or `--assembly-file` - Either a single 
+  annotated file may be specified, or a text file containing a list 
+  of **annotated** assembly genomes (_see the ["Prepare Assembly FASTA files"](#prepare-assembly-fasta-files) 
+  section for further details_). The single assembly or the contents 
+  of the assembly list file should be either full or relative paths
+  to each uncompressed assembly you would like to align.
+  For example, since I am using the example data found on the 
   [PHGv2 GitHub repository](https://github.com/maize-genetics/phg_v2/tree/main/data/test/smallseq),
   I can create a text file called `assemblies_list.txt` (placed in 
   the `data/` subdirectory) and populate it with the following lines:
@@ -821,49 +808,63 @@ This command uses several parameters:
   Here, I am planning on aligning two genomes called `LineA` and 
   `LineB`. Since these are created with the `prepare-assemblies` command 
   and the output is located in a subdirectory called 
-  `output/updated/` relative to my working directory, I will also 
-  add that to the path.
+  `output/updated_assemblies/` relative to my working directory, I 
+  will also add that to the path.
   + > ⚠️ **Warning**  
     This text list **should not** contain the path to the reference
     genome since this is recognized in the `--reference-file` flag.
 
 * `-o` - The name of the directory for the alignment outputs.
 
-In addition to the above parameters, there are several optional parameters. When values are not specified for these parameters,
-default values are calculated by the software based on the system processor and memory configuration.
+#### Align-assemblies _optional_ parameters
+In addition to the above parameters, there are several **_optional_** 
+parameters. When values are not specified for these parameters,
+default values are calculated by the software based on the system 
+processor and memory configuration:
 
 * `--total-threads` - How many threads would you like to allocate for
   the alignment step? More information about this step and the 
-  `--in-parallel` step can be found in the following **Details - 
-  threads and parallelization** section.
-* `--in-parallel` - How many genomes would like to run in parallel?
-  More information about this step and the `--total-threads` step can
-  be found in the following **Details - threads and parallelization** 
+  `--in-parallel` step can be found in the following 
+  [Details - threads and parallelization](#details---threads-and-parallelization) 
   section.
-* `--conda-env-prefix` - Optional parameter that specifies the path
-  to the Conda directory that contains the conda environment needed
-  to run phg. If not set, conda env `phgv2-conda` in the default
-  location will be used.
-* `just-ref-prep` - Optional parameter that specifies whether to
-  run only the prelimiary steps of aligning the reference genome to
-  the GFF CDS, creating the reference-sam and reference-cds-fasta needed  
-  for aligning the individual assemblies.  This is desirable when a list of 
-  assembly files will be run through a SLURM job and we don't want to 
-  unnecessarily create these 2 files multiple times.  If set to `true`, 
-  the software stops after creating these two files, which will be written
-  to the user supplied output directory.  The default value is `false`.
-* `reference-sam` - Optional parameter. If this is specified, the optional parameter
-  `reference-cds-fasta` must also be supplied.  When both are supplied, the software  
-   skips the creation of these files and uses those supplied by the user.  This is 
-   desirable when the user is running multiple assembly alignments from a SLURM data-array
-   option and does not wish to realign the reference multiple times.  If specified, but
-    `reference-cds-fasta` is not, the software will throw an exception. 
-* `reference-cds-fasta` - Optional parameter. If this is specified, the optional parameter
-  `reference-sam` must also be supplied.  When both are supplied, the software  
-   skips the creation of these files and uses those supplied by the user.  This is 
-   desirable when the user is running multiple assembly alignments from a SLURM data-array
-   option and does not wish to realign the reference multiple times.  If specified, but
-    `reference-sam` is not, the software will throw an exception.
+* `--in-parallel` - How many genomes would you like to run in 
+  parallel? More information about this step and the `--total-threads` 
+  step can be found in the following 
+  ["Details - threads and parallelization"](#details---threads-and-parallelization) 
+  section.
+* `--conda-env-prefix` - Specifies the path to the Conda directory 
+  that contains the Conda environment needed to run the PHG software. 
+  If not set, a Conda environment labelled `phgv2-conda` will be used 
+  in the default location.
+* `--just-ref-prep` - Specifies whether to run only the preliminary 
+  steps of aligning the reference genome to the GFF CDS, creating the 
+  `reference-sam` and `reference-cds-fasta` files needed for aligning 
+  the individual assemblies. This is desirable when a list of assembly 
+  files will be run through a SLURM job, and we don't want to 
+  unnecessarily create these 2 files multiple times. If set to `true`, 
+  the software stops after creating these two files, which will be 
+  written to the user supplied output directory. The default value is 
+  `false`. More information about these parameters can be found in the 
+  supplemental ["SLURM Usage"](slurm_usage.md) documentation.
+* `--reference-sam` - If this is specified, the parameter 
+  `--reference-cds-fasta` must also be supplied. When both are 
+  supplied, the software skips the creation of these files and uses 
+  those supplied by the user. This is desirable when the user is 
+  running multiple assembly alignments from a SLURM data-array option 
+  and does not wish to realign the reference multiple times. If 
+  specified, but `--reference-cds-fasta` is not, **the software will 
+  throw an exception**. More information about these parameters can be
+  found in the supplemental ["SLURM Usage"](slurm_usage.md) 
+  documentation.
+* `--reference-cds-fasta` - If this is specified, the parameter
+  `--reference-sam` must also be supplied. When both are supplied, the 
+  software skips the creation of these files and uses those supplied 
+  by the user. This is desirable when the user is running multiple 
+  assembly alignments from a SLURM data-array option and does not 
+  wish to realign the reference multiple times. If specified, but 
+  `--reference-sam` is not, **the software will throw an exception**. 
+  More information about these parameters can be found in the 
+  supplemental ["SLURM Usage"](slurm_usage.md) documentation.
 
 > [!WARNING]
 > The directory that you specify in the output (`-o`) section must
@@ -1039,93 +1040,7 @@ User defined values for in-parallel and total-threads are considered
 along with the number of assemblies to align and system capacities, 
 when determining the AnchorWave setup.
 
-### Prepare Slurm File for Alignments
-This is a convenience command for creating a file that can be submitted to slurm as a data array job.
-It is not required to be run - users can create the file manually if they prefer.
 
-This class provides a means of preparing data for aligning assemblies in a slurm data array job.
-It takes as input the values for parameters needed to run the align-assemblies command.  This
-could be done manually, but if the list of assemblies to align is long, this class provides
-a quick way to create the file needed for a slurm data array job.
-
-Output:  A file that contains a line for each assembly in the list of assemblies to align.  Each line
-is a call to the phg align-assemblies command.  The parameters for the call are the parameters supplied
-to this class.
-
-The output file can be submitted to slurm as a data array job.
-
-```shell
-phg prepare-slurm-align-file  \
-    --phg-location /path/to/phg \
-    --gff data/anchors.gff \
-    --reference-file output/updated_assemblies/Ref.fa \
-    --reference-sam output/alignment_files/Ref.sam \
-    --reference-cds-fasta output/alignment_files/ref.cds.fasta \
-    --asemblies data/assemblies_list.txt \
-    --ref-max-align-cov 1 \
-    --query-max-align-cov 1 \
-    --total-threads 20 \
-    -o output/alignment_files \
-    --conda-env-prefix /path/to/conda/env \
-    --output-dir /path/for/align-assemblies/output \
-    --slurm-file output/slurm_align_file.txt
-  
-````
-If the file specified by the `--assemblies` parameter contains contains 10 assemblies, the output file
-will contain 10 lines, each with a call to the align-assemblies command for a single assembly.  If the file
-specified by the `--assemblies` parameter contains 100 assemblies, the output file will contain 100 lines,
-
-
-#### Prepare Slurm File for Alignments parameters
-This command uses several parameters:
-* `--phg-location` - The location of the phg executable.  The full path should be provided. This is needed to run the align-assemblies command.
-   If it is not specified, the current directory, ie `./phg`, will be assumed.
-* `--gff` - GFF file for the reference genome. This is used to
-  identify full-length coding sequences to use as anchors
-* `--reference-file` - The reference genome in 
-  [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format.
-  + > ℹ️ **Note**  
-    The path to the reference genome should be the **updated version**
-    that was created during the `prepare-assemblies` command.
-
-* `--assemblies` - A text file containing a list of **annotated**
-  assembly genomes (_see the 
-  [**"Prepare Assembly FASTA files"**](#prepare-assembly-fasta-files) section for 
-  further details_).
-  The contents of the assembly list file should be either full or relative paths
-  to each uncompressed assembly you would like to align. For example, since I am
-  using the example data found on the 
-  [PHGv2 GitHub repository](
-* `--ref-max-align-cov` - The maximum reference genome alignment coverage.  This is used in the proali command.  The default value is 1.
-* `--query-max-align-cov` - The maximum query genome alignment coverage.  This is used in the proali command.  The default value is 1.
-* `--total-threads` - How many threads would you like to allocate for
-  the alignment step? 
-* `--conda-env-prefix` - Optional parameter that specifies the path
-  to the Conda directory that contains the conda environment needed
-  to run phg. If not set, conda env `phgv2-conda` in the default
-  location will be used.
-* `--output-dir` - The name of the directory for the alignment outputs.
-* `--slurm-file` - The name of the file that will be created that contains the slurm commands to run the align-assemblies command for each assembly in the list of assemblies.
-* `--reference-sam` - Optional parameter. If this is specified, the optional parameter
-  `reference-cds-fasta` must also be supplied.  When both are supplied, the software  
-   skips the creation of these files and uses those supplied by the user.  This is 
-   desirable when the user is running multiple assembly alignments from a SLURM data-array
-   option and does not wish to realign the reference multiple times.  If specified, but
-    `reference-cds-fasta` is not, the software will throw an exception.
-* `--reference-cds-fasta` - Optional parameter. If this is specified, the optional parameter
-  `reference-sam` must also be supplied.  When both are supplied, the software  
-   skips the creation of these files and uses those supplied by the user.  This is 
-   desirable when the user is running multiple assembly alignments from a SLURM data-array
-   option and does not wish to realign the reference multiple times.  If specified, but
-    `reference-sam` is not, the software will throw an exception.
-
-
-Example lines from the created slurm file are shown below.  
-```shell
-./phg align-assemblies --gff data/anchors.gff --output-dir output/alignment_files --reference-file output/update_assemblies/Ref.fa --reference-sam output/alignment_files/Ref.sam --reference-cds-fasta output/alignment_files/ref.cds.fasta --assembly-file data/test/smallseq/LineA.fa --total-threads 20 in-parallel 1  --ref-max-align-cov 1 --query-max-align-cov 1
-./phg align-assemblies --gff data/anchors.gff --output-dir output/alignment_files --reference-file output/update_assemblies/Ref.fa --reference-sam output/alignment_files/Ref.sam --reference-cds-fasta output/alignment_files/ref.cds.fasta --assembly-file data/test/smallseq/LineB.fa --total-threads 20 in-parallel 1  --ref-max-align-cov 1 --query-max-align-cov 1
-
-````
 
 ### Create VCF files
 Now that we have (1) created alignments of our ass  emblies against a
@@ -1182,7 +1097,7 @@ existing PHG created gVCF files to hVCF files:
 #### Inputs for the `create-ref-vcf` command
 
 * `--bed` - a BED file containing ordered reference ranges (_see
-  the [**"Create reference ranges"**](#create-reference-ranges) section for further 
+  the ["Create reference ranges"](#create-reference-ranges) section for further 
   details_). This is used to define the positional information of the 
   VCF.
 * `--reference-file` - processed reference FASTA genome (from 
@@ -1238,9 +1153,9 @@ reference hVCF file to the `hvcf_dataset` TileDB instance.
 * `--db-path` - Path to the directory containing the TileDB 
   instances. This is needed to access the AGC compressed assembly
   genome information found in the `assemblies.agc` file (_see the 
-  [**"Compress FASTA files"**](#compress-fasta-files) section for further details_).
+  ["Compress FASTA files"](#compress-fasta-files) section for further details_).
 * `--bed` - A BED file containing ordered reference ranges (_see
-  the [**"Create reference ranges"**](#create-reference-ranges) section for further 
+  the ["Create reference ranges"](#create-reference-ranges) section for further 
   details_). This is used to define the positional information of the 
   VCF in relation to the reference genome.
 * `--reference-file` - Reference FASTA genome used for creating
@@ -1250,11 +1165,11 @@ reference hVCF file to the `hvcf_dataset` TileDB instance.
   key.
   + > ℹ️ **Note**  
     This should be the processed reference assembly generated from
-    the [Prepare Assembly FASTA Files](#prepare-assembly-fasta-files)
+    the ["Prepare Assembly FASTA Files"](#prepare-assembly-fasta-files)
     step.
 * `--maf-dir` - Directory containing the MAF files generated using
   the `align-assemblies` command (_see the 
-  [**"Align assemblies"**](#align-assemblies) section for further 
+  ["Align assemblies"](#align-assemblies) section for further 
   details_).
 * `-o` - Output directory for the VCF data.
 
@@ -1295,9 +1210,9 @@ aligned to the reference genome.
 * `--db-path` - Path to the directory containing the TileDB
   instances. This is needed to access the AGC compressed assembly
   genome information found in the `assemblies.agc` file (_see the
-  [**"Compress FASTA files"**](#compress-fasta-files) section for further details_).
+  ["Compress FASTA files"](#compress-fasta-files) section for further details_).
 * `--bed` - A BED file containing ordered reference ranges (_see
-  the [**"Create reference ranges"**](#create-reference-ranges) section for further
+  the ["Create reference ranges"](#create-reference-ranges) section for further
   details_). This is used to define the positional information of the
   VCF in relation to the reference genome.
 * `--reference-file` - Reference FASTA genome used for creating
@@ -1372,7 +1287,7 @@ This command takes three parameters:
 
 * `--vcf-dir` - Directory containing `h.vcf.gz` and/or `g.vcf.gz` 
   files made from the `create-ref-vcf` and `create-maf-vcf` commands
-  (_see the [**"Create VCF files"**](#create-vcf-files) section for 
+  (_see the ["Create VCF files"](#create-vcf-files) section for 
   further details_). In my example case this is a subdirectory
   called `output/vcf_files`.
 * `--db-path` - Path to the directory containing the TileDB instances.

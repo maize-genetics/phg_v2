@@ -2,7 +2,6 @@ package net.maizegenetics.phgv2.pathing
 
 import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.testing.test
-import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -514,9 +513,6 @@ class MapKmersTest {
         val test = 123
         //Make offsets for refRange1Kmers using % to assign offset
         refRange1Kmers.forEachIndexed() { index, kmerHash ->
-            val offset = (index % 3) * 2
-//            kmerHashOffsetMap[kmerHash] = (1.toLong() shl 32) or offset.toLong()
-//            kmerHashOffsetMap[kmerHash] = (1.toLong() shl 32) or 2.toLong()
             kmerHashOffsetMap[kmerHash] = listOf(RefRangeOffset(ReferenceRange("1",1,100),(1.toLong() shl 32) or 2.toLong()))
         }
         refRange2Kmers.forEachIndexed() { index, kmerHash ->
@@ -524,15 +520,15 @@ class MapKmersTest {
             kmerHashOffsetMap[kmerHash] =listOf(RefRangeOffset(ReferenceRange("1",200,300), (2.toLong() shl 32) or offset.toLong()))
         }
 
-        val hapIdsSameRefRange90 = AlignmentUtils.readToHapidSet(read, 1.0, .9, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        val hapIdsSameRefRange90 = AlignmentUtils.readToHapIdSetMultipleRefRanges(read, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap, 1.0, true, .9)
         //should be an empty set
         assertEquals(0, hapIdsSameRefRange90.size)
 
-        val hapIdsSameRefRange50 = AlignmentUtils.readToHapidSet(read, 1.0, .5, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+        val hapIdsSameRefRange50 = AlignmentUtils.readToHapIdSetMultipleRefRanges(read, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap,1.0, true, .5)
         //Should just have hap2 in it
         //Have to set this lower as we have less than 100 kmers after we turn into a set
         assertEquals(1, hapIdsSameRefRange50.size)
-        assertTrue(hapIdsSameRefRange50.contains("2"))
+        assertTrue(hapIdsSameRefRange50[hapIdsSameRefRange50.keys.first()]?.contains("2")!!)
         //Try a kmer not found in the map
         val simpleSeq = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         //build hash for this seq
@@ -540,8 +536,8 @@ class MapKmersTest {
         for (i in 0..31) {
             hashValue = BuildKmerIndex.updateKmerHashAndReverseCompliment(hashValue, simpleSeq[i])
         }
-        val minHash = min(hashValue.first, hashValue.second)
-        val hapIdsSameRefRange50MissingKmer = AlignmentUtils.readToHapidSet(simpleSeq, 1.0, .5, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap)
+
+        val hapIdsSameRefRange50MissingKmer = AlignmentUtils.readToHapIdSetMultipleRefRanges(simpleSeq, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap,1.0,true, .5)
         assertEquals(0, hapIdsSameRefRange50MissingKmer.size)
 
     }
@@ -672,20 +668,20 @@ class MapKmersTest {
     }
 
     @Test
-    fun testHapidsFromOneReferenceRange() {
+    fun testFilterHapIdsToOneReferenceRange() {
         //Testing:
-        //hapidsFromOneReferenceRange(rangeHapidMap: Map<Int, List<Int>>, minSameReferenceRange: Double = 0.9): List<Int>
+        //filterHapIdsToOneReferenceRange(rangeHapidMap: Map<Int, List<Int>>, minSameReferenceRange: Double = 0.9): Map<Int,List<String>>
 
         //Create a rangeToHapIdMap
         val rangeToHapIdMap = mapOf(1 to listOf("1","2","3"), 2 to listOf("100"))
 
-        val hapIdsFor100Percent = AlignmentUtils.hapidsFromOneReferenceRange(rangeToHapIdMap, 1.0)
+        val hapIdsFor100Percent = AlignmentUtils.filterHapIdsToOneReferenceRange(rangeToHapIdMap, 1.0)
         //should be an empty list
         assertEquals(hapIdsFor100Percent.size, 0)
 
-        val hapIdsFor50Percent = AlignmentUtils.hapidsFromOneReferenceRange(rangeToHapIdMap, 0.5)
-        assertEquals(hapIdsFor50Percent.size, 3)
-        assertEquals(hapIdsFor50Percent, listOf("1","2","3"))
+        val hapIdsFor50Percent = AlignmentUtils.filterHapIdsToOneReferenceRange(rangeToHapIdMap, 0.5)
+        assertEquals(hapIdsFor50Percent.values.first().size, 3)
+        assertEquals(hapIdsFor50Percent.values.first(), listOf("1","2","3"))
     }
 
     @Test

@@ -106,7 +106,6 @@ _Long-form documentation for this section can be found [here](docs/imputation.md
 ```
 
 
-
 ## Design and history
 
 [PHGv1](https://bitbucket.org/bucklerlab/practicalhaplotypegraph/wiki/Home) was [published in 2022](https://doi.org/10.1093/bioinformatics/btac410). It addressed many
@@ -167,12 +166,13 @@ More commonly used terms can be found [here](docs/terminology.md).
 1. [Installation](docs/installation.md)
 2. [Building and loading](docs/build_and_load.md)
 3. [Imputation](docs/imputation.md)
-4. [Export data](docs/export_data.md) (_**WIP**_) 🚧
+4. [Export data](docs/export_data.md)
 
 ### Reference
 * [haplotype region handling](docs/hvcf_region_handling.md)
 * [hVCF format specifications](docs/hvcf_specifications.md)
-* [Ktor server deployment](...) (_**WIP**_) 🚧
+* [Ktor specifications](...)
 * [PHGv2 terminology](docs/terminology.md)
 * [PHGv2 architecture](docs/img/architecture/phg_v2_architecture_20240411.svg)
 * [QC metrics](docs/qc_metrics.md)
+* [SLURM Usage with `align-assemblies`](docs/slurm_usage.md)
