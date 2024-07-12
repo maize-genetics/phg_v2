@@ -48,7 +48,15 @@ imputation using the PHG:
       --path-type haploid \
       --output-dir /my/imputed/hvcfs
   ```
-
+  
+* OPTIONAL: Get SNPs from imputed hVCFs
+  ```shell
+  phg hvcf2gvcf \
+      --hvcf-dir /my/imputed/hvcfs \
+      --db-path /my/db/uri \
+      --reference-file /my/ref/genome \
+      --output-dir /my/gvcf/dir
+  ```
 
 ## Detailed walkthrough
 
@@ -671,3 +679,24 @@ This command takes three parameters:
 * `--db-path` - Path to the directory containing the TileDB instances.
 * `--threads` - Number of threads for use by the TileDB loading
   procedure.
+
+### Create g.vcf files
+Our imputed hVCF files provide data on a haplotype level. If desired we can take 
+the hVCF files and create gVCF files. This provides SNP level data and is done using 
+the `hvcf2gvcf` command:
+
+
+```shell
+./phg hvcf2gvcf \
+    --hvcf-dir output/vcf_files_imputed \
+    --db-path vcf_dbs \
+    --reference-file output/updated_assemblies/Ref.fa \
+    --output-dir output/gvcf_files
+```
+This command takes 4 parameters:
+* `--hvcf-dir` - Directory containing hVCF data. Since I have imputed 
+  data in a specific subdirectory, I will use the path
+  `output/vcf_files_imputed`
+* `--db-path` - Path to the directory containing the TileDB instances.
+* `--reference-file` - The reference genome fasta file.
+* `--output-dir` - The directory to place the gVCF files.
