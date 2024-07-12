@@ -680,7 +680,7 @@ This command takes three parameters:
 * `--threads` - Number of threads for use by the TileDB loading
   procedure.
 
-### Create g.vcf files
+### Create g.vcf files (OPTIONAL)
 Our imputed hVCF files provide data on a haplotype level. If desired we can take 
 the hVCF files and create gVCF files. This provides SNP level data and is done using 
 the `hvcf2gvcf` command:
