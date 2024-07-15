@@ -1,5 +1,5 @@
 # Static Site Setup
-These instructions are deploying a local version of the static PHG website:
+These instructions are for deploying a local version of the static PHG website:
 
 ## Retrieve `mkdocs-material` from conda
 
