@@ -19,6 +19,9 @@ data class HaplotypeSequence(val id: String, val sequence: String, val refRangeI
 /**
  * Class to create either a composite or a haplotype fasta file from an input hvcf file or from TileDB directly.
  *
+ * Users MAY specify either a folder with multiple hvcf files, or a single hvcf file.  Output files will be
+ * written to a specified directory, with names based on the hvcf file name.
+ *
  * As mentioned in the terminology section of the Documentation, a composite fasta file is a fasta file that contains
  * all the haplotypes for a given contig concatenated together by contig.  This pseudo genome can be used for rare
  * allele finding.
@@ -40,11 +43,11 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
 
-    val output by option("-o", "--output", help = "Name for output Fasta file")
+    val outputDir by option("-o", "--output-dir", help = "DIrectory where output fasta FIles will be written")
         .default("")
         .validate {
             require(it.isNotBlank()) {
-                "--output/-o must not be blank"
+                "--output-dir/-o must not be blank"
             }
         }
 
@@ -70,29 +73,46 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
      * Function to build the Fasta file from the HVCF and the agc record.
      * Right now it does not support pulling from TileDB, but will in the future.
      */
-    fun buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfDir: String ,hvcfFile : String, condaEnvPrefix:String) {
-        if(hvcfDir != "") {
-            //Loop through the directory and figure out which files are hvcf files
-            // the gvcf and hvcf files may be in the same folder, so verify specific extension
-            val hvcfFiles = File(hvcfDir).listFiles { file -> file.extension == "h.vcf" || file.name.endsWith("h.vcf.gz") || file.name.endsWith("hvcf") || file.name.endsWith("hvcf.gz")}
-            //Loop through each file and run the buildFastaFromHVCF function
-            BufferedWriter(FileWriter(outputFile)).use { output ->
-                writeSequences(output,hvcfFiles.flatMap { processSingleHVCF(VCFFileReader(it,false), dbPath,condaEnvPrefix) }
-                    .associate { it.id to it }
-                    .values.toList(), fastaType)
+    fun buildFastaFromHVCF(dbPath: String, outputDir: String, fastaType:String, hvcfDir: String ,hvcfFile : String, condaEnvPrefix:String) {
+
+        if (hvcfDir != "") {
+            // Loop through the directory and figure out which files are hvcf files
+            // The gvcf and hvcf files may be in the same folder, so verify specific extension
+            val hvcfFiles = File(hvcfDir).listFiles { file ->
+                file.extension == "h.vcf" || file.name.endsWith("h.vcf.gz") || file.name.endsWith("hvcf") ||
+                        file.name.endsWith("hvcf.gz")
+            }
+
+            // Loop through each file and run the processSingleHVCF function
+            hvcfFiles?.forEach { hvcfFile ->
+                val outputFileName = "${hvcfFile.nameWithoutExtension}.fa"
+                val outputFile = "$outputDir/$outputFileName"
+
+                BufferedWriter(FileWriter(outputFile)).use { output ->
+                    writeSequences(output,
+                        processSingleHVCF(VCFFileReader(hvcfFile, false), dbPath, condaEnvPrefix)
+                            .associate { it.id to it }
+                            .values.toList(),
+                        fastaType)
+                }
             }
         }
-        else  if(hvcfFile == "") {
-            //Load in the TileDB
+        else if (hvcfFile == "") {
+            // Load in the TileDB
             TODO("TileDB VCF Reader Not implemented yet.  Please run with --hvcf-file")
         } else {
-            //Load in the HVCF
-            val hvcfFile = VCFFileReader(File(hvcfFile),false)
+            // Load in the HVCF
+            val hvcfFileReader = VCFFileReader(File(hvcfFile), false)
+            val fileHvcf = File(hvcfFile)
+            val outputFileName = "${fileHvcf.nameWithoutExtension}.fa"
+            val outputFile = "$outputDir/$outputFileName"
+
             BufferedWriter(FileWriter(outputFile)).use { output ->
-                val records = processSingleHVCF(hvcfFile, dbPath,condaEnvPrefix)
-                writeSequences(output,records, fastaType)
+                val records = processSingleHVCF(hvcfFileReader, dbPath, condaEnvPrefix)
+                writeSequences(output, records, fastaType)
             }
         }
+
     }
 
     fun processSingleHVCF(vcfFileReader: VCFFileReader, dbPath: String,condaEnvPrefix:String) : List<HaplotypeSequence> {
@@ -258,6 +278,6 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
         // If it doesn't an exception will be thrown
         val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
 
-        buildFastaFromHVCF(dbPath, output, fastaType, hvcfDir, hvcfFile,condaEnvPrefix)
+        buildFastaFromHVCF(dbPath, outputDir, fastaType, hvcfDir, hvcfFile,condaEnvPrefix)
     }
 }
