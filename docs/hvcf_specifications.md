@@ -55,10 +55,10 @@ The following code block illustrates a formatted example hVCF file:
 2      49501 .  G   <39f96726321b329964435865b3694fd2>                                    .    .      END=50500 GT     1   1   1
 2      50501 .  G   <105e63346a01d88e8339eddf9131c435>                                    .    .      END=55000 GT     1   1   1
 ```
-> [!NOTE]
-> In the prior example, the hVCF output columns below the header line
-> (e.g. below the line starting with `#CHROM`) are formatted for 
-> visual clarity. In a real example, delimiters are tab (`\t`) based.
+!!! note
+    In the prior example, the hVCF output columns below the header line
+    (e.g. below the line starting with `#CHROM`) are formatted for 
+    visual clarity. In a real example, delimiters are tab (`\t`) based.
 
 ### Meta-information lines
 The header portion of an hVCF file contain rows of "meta-information"
@@ -189,8 +189,8 @@ the `FORMAT` column is also required with the `GT` identifier.
 More information about each of these fields is discussed in the
 next section.
 
-> [!NOTE]
-> The end of the line must have no tab characters (`\t`).
+!!! note
+    The end of the line must have no tab characters (`\t`).
 
 
 ### Data lines

@@ -47,13 +47,13 @@ To facilitate this, we strongly recommend using the
 environment management system, with a focus on the lightweight Conda 
 package manager, [Miniconda](https://conda.io/miniconda.html).
 
-> [!NOTE]
-> This has currently been tested on _Fedora_- and 
-> _Debian_-derived Unix systems
+!!! note
+    This has currently been tested on _Fedora_- and 
+    _Debian_-derived Unix systems
 
-> [!NOTE]
-> AnchorWave is currently not supported on Windows. 
-> [See AnchorWave documentation for further details](https://github.com/baoxingsong/AnchorWave#installation).
+!!! note
+    AnchorWave is currently not supported on Windows. 
+    [See AnchorWave documentation for further details](https://github.com/baoxingsong/AnchorWave#installation).
 
 
 ## Get PHGv2
@@ -101,16 +101,16 @@ export PATH="/path/to/phgv2-package/:$PATH"
 ...where `/path/to/phgv2-package/` is the path to the location of the
 `phg` executable wrapper script.
 
-> [!NOTE]
-> The above path example must be the path to the `bin` subdirectory
-> found in the `phg` directory.
+!!! note
+    The above path example must be the path to the `bin` subdirectory
+    found in the `phg` directory.
  
-> [!NOTE]
-> The Java JAR files (`.jar`) in the `lib` subdirectory
-> must remain in the same directory as `phg` for it to work.
+!!! note
+    The Java JAR files (`.jar`) in the `lib` subdirectory
+    must remain in the same directory as `phg` for it to work.
 
-> [!NOTE]
-> Be sure to include the final `/` in your path.
+!!! note
+    Be sure to include the final `/` in your path.
 
 
 ## Test that PHGv2 works
@@ -121,9 +121,9 @@ the following command:
 ./phg --help
 ```
 
-> [!NOTE]
-> This assumes that you have added `phg` to your `PATH` using the
-> above example, or you are within the `bin` subdirectory.
+!!! note
+    This assumes that you have added `phg` to your `PATH` using the
+    above example, or you are within the `bin` subdirectory.
 
 This should output summary text to the terminal including syntax
 help and a list of subcommands and descriptions.
@@ -150,19 +150,19 @@ stands for GB:
 export JAVA_OPTS="-Xmx50g"
 ```
 
-> [!NOTE]
-> In order for memory to properly be set, you must set this 
-> **before** running any of the PHGv2 commands.
+!!! note
+    In order for memory to properly be set, you must set this
+    **before** running any of the PHGv2 commands.
 
-> [!NOTE]
-> Setting JVM memory will only affect JVM-intensive commands. Since
-> PGHv2 utilizes several external pieces of software several commands
-> will **not** be affected by this. Currently, these are:
->
-> * `setup-environment`
-> * `initdb`
-> * `align-assemblies`
-> * `agc-compress`
-> 
-> ...which rely on conda, TileDB, AnchorWave, and AGC, respectively.
+!!! note
+    Setting JVM memory will only affect JVM-intensive commands. Since
+    PGHv2 utilizes several external pieces of software several commands
+    will **not** be affected by this. Currently, these are:
+    
+    * `setup-environment`
+    * `initdb`
+    * `align-assemblies`
+    * `agc-compress`
+    
+    ...which rely on conda, TileDB, AnchorWave, and AGC, respectively.
 

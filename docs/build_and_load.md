@@ -198,10 +198,10 @@ using the following conda command:
 conda activate phgv2-conda
 ```
 
-> [!NOTE]
-> It is imperative the conda environment you create is named 
-> `phgv2-conda`. This is the default environment name that PHGv2 uses 
-> when executing shell commands from within the software.
+!!! note
+    It is imperative the conda environment you create is named 
+    `phgv2-conda`. This is the default environment name that PHGv2 uses 
+    when executing shell commands from within the software.
 
 If we look in our example project directory, you will also see two
 new logging (`.log`) files which will record all the logging and
@@ -210,20 +210,20 @@ error output from the PHGv2 command steps:
 * `condaCreate_error.log`
 * `condaCreate_output.log`
 
-> [!NOTE]
-> If you need or want to have the conda environment setup in a non-default
-> location, you must run the "conda env create" command manually
-> using the --prefix option to specify the name and location of the
-> environment.  This created location should then be passed as the
-> "conda-env-prefix" parameter for all PHGv2 commands that have this optional
-> parameter.  For this scenario, the .yml file should not contain the "name"
-> section.  An example of the command to create the environment in a
-> non-default location is:
->
-
-```shell
-conda env create --prefix /path/to/new/conda/env --file phg_environment.yml
-```
+!!! note
+    If you need or want to have the conda environment setup in a non-default
+    location, you must run the "conda env create" command manually
+    using the --prefix option to specify the name and location of the
+    environment.  This created location should then be passed as the
+    "conda-env-prefix" parameter for all PHGv2 commands that have this optional
+    parameter.  For this scenario, the .yml file should not contain the "name"
+    section.  An example of the command to create the environment in a
+    non-default location is:
+    
+    
+    ```shell
+    conda env create --prefix /path/to/new/conda/env --file phg_environment.yml
+    ```
 
 
 ### Running phg commands
@@ -327,10 +327,12 @@ goals:
 1. Copy and rename FASTA files via user-provided sample name IDs.
 2. Add a sample name tag to the ID lines of each FASTA file.
 
-> [!WARNING]
-> **These updated assembly FASTA files need to be used as input for 
-> both `agc-compress` and `align-assemblies` steps.** This ensures 
-> consistent sample names across the pipeline!
+!!! warning
+    Updated assembly **and** reference FASTA files will need to
+    be used as input for all downstream commands that take assembly 
+    or reference FASTA files as input (e.g., `agc-compress`, 
+    `align-assemblies`, etc.). This ensures consistent sample names 
+    across the pipeline!
 
 To better explain the first goal, let's use an example. A file named
 `Zm-CML52-NAM-1.0.fa` would be copied to a new one named `CML52.fa`.
@@ -458,13 +460,13 @@ This command takes 3 parameters:
 
 
 
-> [!NOTE]
-> FASTA input files can be either uncompressed or compressed. The
-> output from the `prepare-assemblies` command will be new FASTA files
-> that are **uncompressed**.  While AGC accepts compressed FASTA
-> files, the `align-assemblies` command uses
-> [AnchorWave](https://github.com/baoxingsong/AnchorWave) which
-> requires uncompressed FASTA files.
+!!! note
+    FASTA input files can be either uncompressed or compressed. The
+    output from the `prepare-assemblies` command will be new FASTA files
+    that are **uncompressed**.  While AGC accepts compressed FASTA
+    files, the `align-assemblies` command uses
+    [AnchorWave](https://github.com/baoxingsong/AnchorWave) which
+    requires uncompressed FASTA files.
 
 Once finished, this command will produce FASTA files with the name
 of the sample from the keyfile appended to each header line. For
@@ -484,21 +486,21 @@ $ head LineA.fa
 ATGCGTACGCGCACCG
 ```
 
->[!NOTE]
->This command will just append the name of a file to the end of the
->FASTA headers. For example, if we had a more detailed header:
->
->```
->chr1 pos=1:16
->ATGCGTACGCGCACCG
->```
->
->...the header would become:
->
->```
->chr1 pos=1:16 sampleName=LineA
->ATGCGTACGCGCACCG
->```
+!!! note
+    This command will just append the name of a file to the end of the
+    FASTA headers. For example, if we had a more detailed header:
+    
+    ```
+    chr1 pos=1:16
+    ATGCGTACGCGCACCG
+    ```
+    
+    ...the header would become:
+    
+    ```
+    chr1 pos=1:16 sampleName=LineA
+    ATGCGTACGCGCACCG
+    ```
 
 Now that we are finished preparing samples, my example working
 directory looks like the following with a newly formed subdirectory
@@ -554,19 +556,19 @@ This command takes in 3 parameters:
 * `--db-path` - path to directory storing the TileDB instances. The
   AGC compressed genomes will be placed here on completion.
 
-> [!NOTE]
-> The directory specified here should be the same directory used to
-> initialize the TileDB instances in the database initialization
-> (`initdb`) step.
+!!! note
+    The directory specified here should be the same directory used to
+    initialize the TileDB instances in the database initialization
+    (`initdb`) step.
 
 * `--fasta-list` - List of annotated assembly FASTA genomes to
   compress.
 
-> [!NOTE]
-> The list specified in `--fasta-list` should be the list of FASTA
-> files output from the `prepare-assemblies` command (_see the
-> ["Prepare Assembly FASTA files"](#prepare-assembly-fasta-files) section for
-> further details_).
+!!! note
+    The list specified in `--fasta-list` should be the list of FASTA
+    files output from the `prepare-assemblies` command (_see the
+    ["Prepare Assembly FASTA files"](#prepare-assembly-fasta-files) section for
+    further details_).
 
 * `--reference-file` - Reference FASTA genome processed with
   the `prepare-assemblies` command.
@@ -653,8 +655,8 @@ This command uses several parameters:
   reference ranges. Currently, these can be defined as either
   `gene` or `cds` regions:
 
-  <img src="img/build_and_load/create_ranges_01.svg" width="500" alt=""/>
-  
+![](img/build_and_load/create_ranges_01.svg)
+
   + In the above figure, if `--boundary` is set to `gene`, the start
     and end positions are at the UTR regions for each gene feature from
     the GFF file, while `cds` will begin and end at the open reading 
@@ -664,22 +666,23 @@ This command uses several parameters:
     file.
 * `--pad` - The number of base pairs you would like to flank regions:
 
-  <img src="img/build_and_load/create_ranges_02.svg" width="500" alt=""/>
+![](img/build_and_load/create_ranges_02.svg)
 
   + For example, if we were to set the `--pad` parameter to `500`,
     we would extend the region 500 base pairs upstream and downstream
     of the defined boundary (in this case, `gene`).
 
-> [!NOTE]
-> There is a possibility that overlaps of regions will occur. If
-> this does happen, `create-ranges` will identify any overlapping
-> regions and merge regions together:
-> ```
-> [---Overlap 1----]
->            [-------Overlap 2-------]
-> ====================================
-> [---------Merged overlap-----------]
->  ```
+!!! note
+    There is a possibility that overlaps of regions will occur. If
+    this does happen, `create-ranges` will identify any overlapping
+    regions and merge regions together:
+
+    ```
+    [---Overlap 1----]
+               [-------Overlap 2-------]
+    ====================================
+    [---------Merged overlap-----------]
+    ```
 
 * `--range-min-size` - The minimum size for each range in the BED 
   file. This parameter is optional with a default of 500 base pairs. 
@@ -707,11 +710,11 @@ file contains 6 columns of information:
 | `5`    | Score (always `0`)  |
 | `6`    | Strand information  |
 
-> [!NOTE]
-> Column `4` will either be gene or cds name depending on the boundary
-> input.  If regions overlapped and were merged, the name is a comma 
-> separated string of all the genes/CDS features included in this BED 
-> region.
+!!! note
+    Column `4` will either be gene or cds name depending on the boundary
+    input.  If regions overlapped and were merged, the name is a comma 
+    separated string of all the genes/CDS features included in this BED 
+    region.
 
 Now that we have a BED file, our example working directory now
 looks like the following:
@@ -751,10 +754,10 @@ polymorphism, or whole-genome duplications. Since this software is
 already set up during the Conda environment step, there is no need
 to install this manually.
 
-> [!NOTE]
-> For best results with imputation and rare allele calling pipelines, 
-> **please use high quality assemblies** that have been run through 
-> the `prepare-assemblies` command.
+!!! note
+    For best results with imputation and rare allele calling pipelines, 
+    **please use high quality assemblies** that have been run through 
+    the `prepare-assemblies` command.
 
 To run the aligner step, we can call the `align-assemblies` command:
 
@@ -769,15 +772,15 @@ To run the aligner step, we can call the `align-assemblies` command:
     --conda-env-prefix /path/to/conda/env
 ```
 
-> [!NOTE]
-> The following example workflow is for users who have access to a
-> **single machine**. If you are running this on an 
-> [HPC](https://en.wikipedia.org/wiki/High-performance_computing)
-> system that leverages the 
-> [SLURM](https://en.wikipedia.org/wiki/Slurm_Workload_Manager)
-> job scheduler, **please follow the guidelines found in the 
-> ["SLURM Usage"](slurm_usage.md) documentation** to maximize
-> computational efficiency.
+!!! note
+    The following example workflow is for users who have access to a
+    **single machine**. If you are running this on an 
+    [HPC](https://en.wikipedia.org/wiki/High-performance_computing)
+    system that leverages the 
+    [SLURM](https://en.wikipedia.org/wiki/Slurm_Workload_Manager)
+    job scheduler, **please follow the guidelines found in the 
+    ["SLURM Usage"](slurm_usage.md) documentation** to maximize
+    computational efficiency.
 
 
 #### Align-assemblies parameters
@@ -825,12 +828,12 @@ processor and memory configuration:
 * `--total-threads` - How many threads would you like to allocate for
   the alignment step? More information about this step and the 
   `--in-parallel` step can be found in the following 
-  [Details - threads and parallelization](#details---threads-and-parallelization) 
+  [Details - threads and parallelization](#details-threads-and-parallelization) 
   section.
 * `--in-parallel` - How many genomes would you like to run in 
   parallel? More information about this step and the `--total-threads` 
   step can be found in the following 
-  ["Details - threads and parallelization"](#details---threads-and-parallelization) 
+  ["Details - threads and parallelization"](#details-threads-and-parallelization) 
   section.
 * `--conda-env-prefix` - Specifies the path to the Conda directory 
   that contains the Conda environment needed to run the PHG software. 
@@ -866,9 +869,9 @@ processor and memory configuration:
   More information about these parameters can be found in the 
   supplemental ["SLURM Usage"](slurm_usage.md) documentation.
 
-> [!WARNING]
-> The directory that you specify in the output (`-o`) section must
-> be an existing directory.
+!!! warning
+    The directory that you specify in the output (`-o`) section must
+    be an existing directory.
 
 Once alignment is finished, and you have navigated into the output 
 directory (in my case, this would be `output/alignment_files`),
@@ -977,13 +980,13 @@ or review the following code blocks:
       -t <'--total-threads' / '--in-parallel' parameter> \
       -o <assembly_sample.maf>
   ```
-> [!NOTE]
-> In the above `proali` command, the maximum reference genome 
-> alignment coverage (`-R`) and maximum query genome coverage (`-Q`)
-> can be manually set using the `--ref-max-align-cov` and 
-> `--query-max-algin-cov` commands, respectively. If these are not
-> set, they will both default to the value of `1` as shown in the
-> prior `-R` and `-Q` parameters.
+!!! note
+    In the above `proali` command, the maximum reference genome 
+    alignment coverage (`-R`) and maximum query genome coverage (`-Q`)
+    can be manually set using the `--ref-max-align-cov` and 
+    `--query-max-algin-cov` commands, respectively. If these are not
+    set, they will both default to the value of `1` as shown in the
+    prior `-R` and `-Q` parameters.
 
 
 #### Details - threads and parallelization
@@ -1085,9 +1088,9 @@ phg gvcf2hvcf \
     --gvcf-dir output/gvcf_files 
 ```
 
-> [!TIP]
-> For more information about the haplotype VCF (hVCF) specification,
-> please refer to the [hVCF specification documentation](hvcf_specifications.md).
+!!! tip
+    For more information about the haplotype VCF (hVCF) specification,
+    please refer to the [hVCF specification documentation](hvcf_specifications.md).
 
 VCF creation is split up into two separate commands since the
 reference genome and aligned assemblies require different sets of
@@ -1203,9 +1206,9 @@ aligned to the reference genome.
 
 #### Inputs for the `gvcf2hvcf` command (OPTIONAL!)
 
-> [!NOTE]
-> The `gvcf2hvcf` command should only be used if you have preexisting
-> gVCF data created from historic PHGv1 steps!
+!!! note
+    The `gvcf2hvcf` command should only be used if you have preexisting
+    gVCF data created from historic PHGv1 steps!
 
 * `--db-path` - Path to the directory containing the TileDB
   instances. This is needed to access the AGC compressed assembly
