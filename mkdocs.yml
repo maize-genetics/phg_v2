@@ -13,7 +13,7 @@ theme:
   icon:
     repo: fontawesome/brands/github
   name: material
-  custom_dir: docs
+  custom_dir: docs/index_override
   logo: img/product/phg_logo_white.svg
   favicon: img/product/favicon.png
   palette:
@@ -93,7 +93,7 @@ nav:
       - Installation: installation.md
       - Building and loading: build_and_load.md
       - Imputation: imputation.md
-      - Resequencing: index.md
+      - Resequencing: resequencing.md
   - Reference:
       - Exporting data: export_data.md
       - hVCF region handling: hvcf_region_handling.md

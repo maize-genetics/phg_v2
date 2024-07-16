@@ -1,0 +1,294 @@
+<!-- Custom HTML site displayed as the Home chapter -->
+
+{% extends "base.html" %}
+{% block tabs %}
+{{ super() }}
+<style>
+  :root {
+    --d-blue: rgba(42, 37, 204, 0.0);
+    --d-pink: rgba(247, 15, 220, 0.0);
+    --d-yellow: rgba(242, 245, 66, 0.0);
+  }
+
+  .info {
+    margin: 32px 2.8rem;
+    background-color: var(--d-yellow);
+    max-width: 100%;
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .info-left-head,
+  .info-right-head,
+  .info-left-body,
+  .info-right-body {
+    display: flex;
+    color: #333;
+    padding: 10px;
+    align-items: center;
+  }
+
+  .info-left-head,
+  .info-right-head {
+    background-color: var(--d-blue);
+    font-size: 2em;
+    width: 40%;
+    justify-content: flex-end;
+  }
+
+  .info-right-head {
+    justify-content: flex-start;
+  }
+
+  .info-left-body,
+  .info-right-body {
+    background-color: var(--d-pink);
+    width: 60%;
+    justify-content: flex-start;
+    text-align: justify;
+    flex-direction: column;
+  }
+
+  .info-left-head {
+    text-align: right;
+    border-right: 1px solid #333;
+    margin: auto;
+  }
+
+  .info-right-head {
+    text-align: left;
+    border-left: 1px solid #333;
+    margin: auto;
+  }
+
+  .logos {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-flow: row wrap;
+    margin: 0 auto;
+  }
+
+  .logos img {
+    flex: 1 1 auto;
+    padding: 25px;
+    max-height: 130px;
+    vertical-align: middle;
+  }
+
+  .md-main {
+    flex-grow: 0;
+  }
+
+  .md-main__inner {
+    display: flex;
+    height: 100%;
+  }
+
+  .text-center {
+    text-align: center;
+    padding-right: 15px;
+    padding-left: 15px;
+    margin-right: auto;
+    margin-left: auto;
+    margin-top: 15px;
+    font-family: 'Lato', sans-serif;
+    font-size: 23px;
+    font-weight: 300;
+    padding-bottom: 10px;
+  }
+
+  .tx-container {
+    padding-top: 0;
+    background: linear-gradient(#4cae4f 10%, #fff 100%);
+  }
+
+  .tx-hero {
+    margin: 32px 2.8rem;
+    color: var(--md-primary-bg-color);
+    justify-content: center;
+  }
+
+  .tx-hero .md-button {
+    margin-top: 0.5rem;
+    margin-right: 0.5rem;
+    color: var(--md-primary-bg-color);
+  }
+
+  .tx-hero .md-button:focus,
+  .tx-hero .md-button:hover {
+    background-color: var(--md-accent-fg-color);
+    color: var(--md-default-bg-color);
+    border-color: var(--md-accent-fg-color);
+  }
+
+  .tx-hero .md-button--primary {
+    background-color: #333;
+    color: #fff;
+    border-color: #333;
+  }
+
+  .tx-hero .md-button--secondary {
+    background-color: hsl(0, 0, 0, 0);
+    color: #333;
+    border-color: #333;
+  }
+
+  .tx-hero h1 {
+    margin-bottom: 1rem;
+    color: currentColor;
+    font-weight: 700;
+  }
+
+  .tx-hero__content {
+    color: #333;
+    padding-bottom: 1rem;
+    margin: 0 auto;
+  }
+
+  .tx-hero__image {
+    width: auto;
+    height: auto;
+    order: 1;
+    padding-right: auto;
+  }
+
+  @media screen and (max-width: 60em) {
+    .info {
+      flex-direction: column;
+    }
+
+    .info-left-head,
+    .info-right-body,
+    .info-left-body,
+    .info-right-head {
+      justify-content: flex-start;
+      text-align: center;
+      width: 100%;
+    }
+
+    .info-left-head,
+    .info-right-head {
+      font-size: 1.5em;
+      border-bottom: 1px solid #333;
+    }
+
+    .info-left-head {
+      border-right: 0;
+    }
+
+    .info-right-head {
+      border-left: 0;
+      order: 1; /* Display this first */
+    }
+
+    .info-left-body {
+      order: 2; /* Display this second */
+    }
+  }
+
+  @media screen and (max-width: 30em) {
+    .tx-hero h1 {
+      font-size: 1.4rem;
+    }
+  }
+
+  @media screen and (min-width: 60em) {
+    .md-sidebar--secondary {
+      display: none;
+    }
+
+    .tx-hero {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tx-hero__content {
+      max-width: 22rem;
+      margin-top: 3.5rem;
+      margin-bottom: 3.5rem;
+      margin-left: 1rem;
+      margin-right: 4rem;
+      align-items: center;
+    }
+  }
+
+  @media screen and (min-width: 76.25em) {
+    .md-sidebar--primary {
+      display: none;
+    }
+  }
+</style>
+
+
+<!-- Main site Entry button descriptions -->
+<section class="tx-container">
+  <div class="md-grid md-typeset">
+    <div class="tx-hero">
+      <div class="tx-hero__image">
+        <img src="img/product/phg_logo_black.svg" draggable="false">
+      </div>
+      <div class="tx-hero__content">
+        <h1>The Practical Haplotype Graph</h1>
+        <p>Optimized pangenome representation for plant breeding and genetics.</p>
+        <a href="{{ page.next_page.url | url }}" title="{{ page.next_page.title | striptags }}" class="md-button md-button--primary">
+          Get started
+        </a>
+        <a href="{{ config.repo_url }}" title="PHGv2 Source" class="md-button md-button--secondary">
+          Go to GitHub
+        </a>
+      </div>
+    </div>
+
+    <div class="info">
+      <div class="info-left-body">
+        <p>The <b>Practical Haplotype Graph</b> (PHG) is optimized for plant breeding and genetics, where genomic diversity can be high, phased haplotypes are common (e.g., inbred lines), and imputation with low-density markers is essential for breeding efficiency. This complements other imputation tools (e.g., BEAGLE) designed explicitly for handling samples from unphased species characterized by low genetic diversity and high-density genotyping.</p>
+      </div>
+      <div class="info-right-head">
+        <p>Pangenomes for <b>plant breeding and genetics.</b></p>
+      </div>
+    </div>
+
+    <div class="info">
+      <div class="info-left-head">
+        <p>Versatile uses cases for your <b>research program.</b></p>
+      </div>
+      <div class="info-right-body">
+        <p>The PHG is a graph-based trellis representation of consecutive genic and intergenic regions (called reference ranges), representing diversity across and between samples. It can be used to:</p>
+        <ul>
+          <li>Create custom genomes for alignment</li>
+          <li>Call rare alleles</li>
+          <li>Impute genotypes</li>
+          <li>Efficiently store genomic data from many samples (i.e., reference, assemblies, and other lines)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="info">
+      <div class="info-left-body">
+        <p>With our improved code redesign and user interface, building a PHG database is quick and efficient. For example, using <b>~7-8 commands</b>, we can build a pangenome database consisting of <b>58 sorghum assemblies</b> in <b>less than a day with minimal computational resources:</b></p>
+        <img src="img/product/phg_benchmarks.svg" draggable="false">
+      </div>
+      <div class="info-right-head">
+        <p>Efficient code. <b>Quick turnarounds.</b></p>
+      </div>
+    </div>
+
+    <div class="info">
+      <div class="info-left-head">
+        <p>Community-defined <b>standards.</b></p>
+      </div>
+      <div class="info-right-body">
+        <p><b>Version 2</b> of the PHG leverages several <b>community-defined formats</b> and tools for enhanced productiviy and cross-compatibility. Tools included are <b>TileDB-VCF</b> (performant API for storing and querying VCF data), <b>AnchorWave</b> (sensitive aligner for genomes with high sequence diversity), <b>agc</b> (efficient FASTA genome compression), and the <b>Breeding API (BrAPI)</b> for easy exchange of genotype data between plant breeding applications:</p>
+        <img src="img/product/phg_architecture_simple.svg" draggable="false">
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+{% endblock %}
+{% block content %}{% endblock %}
+{% block footer %}{% endblock %}
