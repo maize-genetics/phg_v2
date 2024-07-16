@@ -54,15 +54,15 @@ class CreateFastaFromHvcfTest {
         assertEquals(resultMissingOutput.statusCode, 1)
         assertEquals("Usage: create-fasta-from-hvcf [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --output: --output/-o must not be blank\n",resultMissingOutput.output)
+                "Error: invalid value for --output-dir: --output-dir/-o must not be blank\n",resultMissingOutput.output)
 
-        val resultMissingFastaType = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} -o ${TestExtension.testOutputRefFasta} --hvcf-file /test_file.h.vcf")
+        val resultMissingFastaType = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} -o ${TestExtension.tempDir} --hvcf-file /test_file.h.vcf")
         assertEquals(resultMissingFastaType.statusCode, 1)
         assertEquals("Usage: create-fasta-from-hvcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --fasta-type: --fasta-type must be either composite or haplotype\n",resultMissingFastaType.output)
 
-        val resultBadFastaType = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} -o ${TestExtension.testOutputRefFasta} --fasta-type bad")
+        val resultBadFastaType = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} -o ${TestExtension.tempDir} --fasta-type bad")
         assertEquals(resultBadFastaType.statusCode, 1)
         assertEquals("Usage: create-fasta-from-hvcf [<options>]\n" +
                 "\n" +
@@ -339,6 +339,8 @@ class CreateFastaFromHvcfTest {
 
         }
     }
+
+    // LCJ 0 This one hangs!  Does it hang in master?
     @Test
     fun testBuildFastaFromHVCF() {
         //buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfFile : String)
@@ -349,7 +351,7 @@ class CreateFastaFromHvcfTest {
 
         val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
 
-        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}/Ref_Test_output.fa", "composite","",refHVCFFileName,"")
+        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}", "composite","",refHVCFFileName,"")
 
         //Compare the composite against the truth input
         val truthFasta = NucSeqIO("data/test/smallseq/Ref.fa").readAll()
