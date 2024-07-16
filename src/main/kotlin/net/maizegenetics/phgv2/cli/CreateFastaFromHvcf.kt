@@ -69,6 +69,9 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
         .default("")
 
 
+    // Pre-compile the Regex pattern - used when creating the output fasta file names
+    val HVCF_PATTERN = Regex("""(\.hvcf|\.h\.vcf|\.hvcf\.gz|\.h\.vcf\.gz)$""")
+
     /**
      * Function to build the Fasta file from the HVCF and the agc record.
      * Right now it does not support pulling from TileDB, but will in the future.
@@ -85,7 +88,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
 
             // Loop through each file and run the processSingleHVCF function
             hvcfFiles?.forEach { hvcfFile ->
-                val outputFileName = "${hvcfFile.nameWithoutExtension}.fa"
+                val outputFileName = hvcfFile.name.replace(HVCF_PATTERN, ".fa")
+                //val outputFileName = "${hvcfFile.nameWithoutExtension}.fa"
                 val outputFile = "$outputDir/$outputFileName"
 
                 BufferedWriter(FileWriter(outputFile)).use { output ->
@@ -103,8 +107,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
         } else {
             // Load in the HVCF
             val hvcfFileReader = VCFFileReader(File(hvcfFile), false)
-            val fileHvcf = File(hvcfFile)
-            val outputFileName = "${fileHvcf.nameWithoutExtension}.fa"
+            val outputFileName = File(hvcfFile).name.replace(HVCF_PATTERN, ".fa")
+            //val outputFileName = "${fileHvcf.nameWithoutExtension}.fa"
             val outputFile = "$outputDir/$outputFileName"
 
             BufferedWriter(FileWriter(outputFile)).use { output ->

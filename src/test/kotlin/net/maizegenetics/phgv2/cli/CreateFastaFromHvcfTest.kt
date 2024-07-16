@@ -340,9 +340,8 @@ class CreateFastaFromHvcfTest {
         }
     }
 
-    // LCJ 0 This one hangs!  Does it hang in master?
     @Test
-    fun testBuildFastaFromHVCF() {
+    fun testBuildFastaFromHVCF_fileInput() {
         //buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfFile : String)
         val refHVCFFileName = "data/test/smallseq/Ref.h.vcf"
         val vcfReader = VCFFileReader(File(refHVCFFileName), false)
@@ -355,23 +354,70 @@ class CreateFastaFromHvcfTest {
 
         //Compare the composite against the truth input
         val truthFasta = NucSeqIO("data/test/smallseq/Ref.fa").readAll()
-        val outputFastaComposite = NucSeqIO("${TestExtension.testOutputFastaDir}/Ref_Test_output.fa").readAll()
+        val outputFastaComposite = NucSeqIO("${TestExtension.testOutputFastaDir}/Ref.fa").readAll()
         for(chr in truthFasta.keys) {
             assertEquals(getChecksumForString(truthFasta[chr]!!.seq()), getChecksumForString(outputFastaComposite[chr]!!.seq()))
         }
 
         //build a haplotype fasta as well
-        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}/Ref_Test_output_hap.fa", "haplotype","",refHVCFFileName,"")
+        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}", "haplotype","",refHVCFFileName,"")
 
         //get truth hashes:
         val truthHashes = altHeaders.values.map { it.id }.toSet()
         //load in the haplotypes and build hashes
-        val outputFastaHaplotypes = NucSeqIO("${TestExtension.testOutputFastaDir}/Ref_Test_output_hap.fa").readAll()
+        val outputFastaHaplotypes = NucSeqIO("${TestExtension.testOutputFastaDir}/Ref.fa").readAll()
         outputFastaHaplotypes.values.map { getChecksumForString(it.seq()) }.toSet().forEach{
             assertTrue(truthHashes.contains(it))
         }
 
     }
+
+    @Test
+    fun testBuildFastaFromHVCF_dirInput() {
+        // This test builds fastas for multiple hvcf files in a directory
+        // It verifies that the output files are created and that the sequences are correct
+
+        //buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfFile : String)
+        val refHVCFFileName = "data/test/smallseq/Ref.h.vcf"
+        val lineBHvcfFileName = "data/test/smallseq/LineB.h.vcf"
+
+        // Write the hvcf files to the output directory: TestExtension.testOutputHVCFDir
+        val hvcfDir = TestExtension.testOutputHVCFDir
+        val outputFastaDir = TestExtension.testOutputFastaDir
+        File(hvcfDir).mkdirs()
+        File(outputFastaDir).mkdirs()
+        File(TestExtension.testOutputHVCFDir+"/Ref.h.vcf").writeBytes(File(refHVCFFileName).readBytes())
+        File(TestExtension.testOutputHVCFDir+"/LineB.h.vcf").writeBytes(File(lineBHvcfFileName).readBytes())
+
+
+        val refVcfReader = VCFFileReader(File(refHVCFFileName), false)
+        val createFastaFromHvcf = CreateFastaFromHvcf()
+        val refAltHeaders= parseALTHeader(refVcfReader.header)
+
+        val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
+
+        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}", "composite",hvcfDir,"","")
+
+        //Compare the composite against the truth input
+        val refTruthFasta = NucSeqIO("data/test/smallseq/Ref.fa").readAll()
+        val outputFastaComposite = NucSeqIO("${TestExtension.testOutputFastaDir}/Ref.fa").readAll()
+        for(chr in refTruthFasta.keys) {
+            assertEquals(getChecksumForString(refTruthFasta[chr]!!.seq()), getChecksumForString(outputFastaComposite[chr]!!.seq()))
+        }
+
+        //build a haplotype fasta as well
+        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}", "haplotype",hvcfDir,"","")
+
+        //get truth hashes:
+        val truthHashes = refAltHeaders.values.map { it.id }.toSet()
+        //load in the haplotypes and build hashes
+        val outputFastaHaplotypes = NucSeqIO("${TestExtension.testOutputFastaDir}/Ref.fa").readAll()
+        outputFastaHaplotypes.values.map { getChecksumForString(it.seq()) }.toSet().forEach{
+            assertTrue(truthHashes.contains(it))
+        }
+
+    }
+
 
     @Test
     fun testExtractInversions() {
