@@ -328,9 +328,11 @@ goals:
 2. Add a sample name tag to the ID lines of each FASTA file.
 
 !!! warning
-    **These updated assembly FASTA files need to be used as input for 
-    both `agc-compress` and `align-assemblies` steps.** This ensures 
-    consistent sample names across the pipeline!
+    Updated assembly **and** reference FASTA files will need to
+    be used as input for all downstream commands that take assembly 
+    or reference FASTA files as input (e.g., `agc-compress`, 
+    `align-assemblies`, etc.). This ensures consistent sample names 
+    across the pipeline!
 
 To better explain the first goal, let's use an example. A file named
 `Zm-CML52-NAM-1.0.fa` would be copied to a new one named `CML52.fa`.
