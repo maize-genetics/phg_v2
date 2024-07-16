@@ -53,10 +53,10 @@ parameter followed by the suffix, `_dotplot.svg`.
   output/alignment_files/LineB_dotplot.svg
   ```
 
-> [!NOTE]
-> As of PHGv2 version `2.2.74.123`, the plots generated with the 
-> `align-assemblies` command are part of the default output and 
-> **is not optional**.
+!!! note
+    As of PHGv2 version `2.2.74.123`, the plots generated with the 
+    `align-assemblies` command are part of the default output and 
+    **is not optional**.
 
 
 **2. As a standalone command:**
@@ -138,12 +138,12 @@ parameters:
   corresponding hVCF files are optional.
 * `--output` - The name for the output metrics table
 
-> [!NOTE]
-> `calc-vcf-metrics` **is not a general-purpose tool for VCF files**. 
-> It was designed specifically for the files produced by 
-> `create-maf-vcf`, which are single-sample, haploid gVCFs and hVCFs.
-> Metrics may not be accurate for VCF files that do not fit this 
-> format.
+!!! note
+    `calc-vcf-metrics` **is not a general-purpose tool for VCF files**. 
+    It was designed specifically for the files produced by 
+    `create-maf-vcf`, which are single-sample, haploid gVCFs and hVCFs.
+    Metrics may not be accurate for VCF files that do not fit this 
+    format.
 
 
 ### Output

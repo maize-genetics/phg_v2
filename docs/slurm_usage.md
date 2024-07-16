@@ -162,12 +162,12 @@ I have two samples:
 ./phg align-assemblies --gff data/anchors.gff --output-dir output/alignment_files --reference-file output/update_assemblies/Ref.fa --reference-sam output/alignment_files/Ref.sam --reference-cds-fasta output/alignment_files/ref.cds.fasta --assembly-file data/test/smallseq/LineB.fa --total-threads 20 in-parallel 1  --ref-max-align-cov 1 --query-max-align-cov 1
 ````
 
-> [!NOTE]
-> If the file specified by the `--assemblies` parameter contains _10_
-> assemblies, the output file will contain _10_ lines, each with a 
-> call to the `align-assemblies` command for a single assembly. If the 
-> file specified by the `--assemblies` parameter contains _100_ 
-> assemblies, the output file will contain _100_ lines.
+!!! note
+    If the file specified by the `--assemblies` parameter contains _10_
+    assemblies, the output file will contain _10_ lines, each with a 
+    call to the `align-assemblies` command for a single assembly. If the 
+    file specified by the `--assemblies` parameter contains _100_ 
+    assemblies, the output file will contain _100_ lines.
 
 
 ### Integrating into SLURM jobs

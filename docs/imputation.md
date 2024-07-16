@@ -8,10 +8,10 @@ imputation using the PHG:
 3. Map short reads
 4. Find paths
 
-> [!NOTE]
-> The steps detailed in this document build on the materials from
-> the "[Building and Loading](build_and_load.md)" documentation. 
-> Please review this if you have not worked with the PHG before!
+!!! note
+    The steps detailed in this document build on the materials from
+    the "[Building and Loading](build_and_load.md)" documentation. 
+    Please review this if you have not worked with the PHG before!
 
 ## Quick start
 
@@ -62,9 +62,9 @@ imputation using the PHG:
 
 ### hVCF export
 
-> [!NOTE]
-> This step is currently needed, but will be removed in the future as 
-> we can do direct connections to the hVCF TileDB instance.
+!!! note
+    This step is currently needed, but will be removed in the future as 
+    we can do direct connections to the hVCF TileDB instance.
 
 Where we last left off in the "[Build and Load](build_and_load.md)"
 steps, we had an example directory that looks similar to the
@@ -94,9 +94,9 @@ phg_v2_example/
     └── temp/
 ```
 
-> [!NOTE]
-> The following steps in the rest of this document will assume we are 
-> in the top level of our `phg_v2_example` working directory.
+!!! note
+    The following steps in the rest of this document will assume we are 
+    in the top level of our `phg_v2_example` working directory.
 
 
 For this example imputation pipeline, we will be using haplotypes 
@@ -256,9 +256,9 @@ parameters:
 | `--max-arg-length`         | The maximum argument length for a call to the [AGC program](https://github.com/acoleman2000/agc).                 | `200000`              |
 | `--no-diagnostics` or `-n` | A flag that eliminates the diagnostic report                                                                      | the report is written |
 
-> [!TIP]
-> If you get an error caused by a call to AGC being too long,
-> try reducing the `--max-arg-length` value.
+!!! tip
+    If you get an error caused by a call to AGC being too long,
+    try reducing the `--max-arg-length` value.
 
 The following optional parameters affect how k-mers are pre-filtered 
 to determine which are used for indexing. They would only need to be 
@@ -378,30 +378,30 @@ This command has the following parameters:
     `--hvcf-dir` parameter.
 
 
-> [!TIP]
-> If you do not want to create a keyfile and only have one sample,
-> you can replace the `--key-file` parameter with the `--read-files`
-> parameter. This parameter will take the paths to the FASTQ reads as
-> a comma separated list.
-> 
-> For example, if we were to modify the prior example, the command
-> structure would look like the following:
-> 
-> ```shell
-> ./phg map-kmers \
->    --hvcf-dir output/vcf_files \
->    --kmer-index output/kmer_index.txt \
->    --read-files data/short_reads/LineA_LineB_1.fq,data/short_reads/LineA_LineB_2.fq \
->    --output-dir output/read_mappings 
-> ```
+!!! tip
+    If you do not want to create a keyfile and only have one sample,
+    you can replace the `--key-file` parameter with the `--read-files`
+    parameter. This parameter will take the paths to the FASTQ reads as
+    a comma separated list.
+    
+    For example, if we were to modify the prior example, the command
+    structure would look like the following:
+    
+    ```shell
+    ./phg map-kmers \
+       --hvcf-dir output/vcf_files \
+       --kmer-index output/kmer_index.txt \
+       --read-files data/short_reads/LineA_LineB_1.fq,data/short_reads/LineA_LineB_2.fq \
+       --output-dir output/read_mappings 
+    ```
 
-> [!NOTE]
-> If no value is passed to the `--kmer-index` parameter, it will 
-> default to `<--hvcf-dir value>/kmerIndex.txt`, the default value 
-> used by the `build-kmer-index` [command](#k-mer-indexing). If a 
-> non-default value was used for the `--index-file` parameter in 
-> `build-kmer-index`, that same value needs to be set here for the 
-> `--kmer-index` parameter.
+!!! note
+    If no value is passed to the `--kmer-index` parameter, it will 
+    default to `<--hvcf-dir value>/kmerIndex.txt`, the default value 
+    used by the `build-kmer-index` [command](#k-mer-indexing). If a 
+    non-default value was used for the `--index-file` parameter in 
+    `build-kmer-index`, that same value needs to be set here for the 
+    `--kmer-index` parameter.
 
 
 #### Optional parameters
@@ -415,10 +415,15 @@ The Map Kmers  command can take the following optional parameters:
 | `--min-proportion-same-reference-range` | Minimum proportion of the read that must align to the same reference range                                          | `0.9`         |
 
 
-> [!NOTE]
-> If --limit-single-ref-range is set to true, reads that map to multiple reference ranges will be discarded based on the --min-proportion-same-reference-range parameter.
-> If left off or set to false, --min-proportion-same-reference-range will be ignored.
-> By limiting reads to only map to a single reference range, your imputation accuracy could improve at the expense of not using as many reads.  You will need to test this out for your specific use case.
+!!! note
+    If `--limit-single-ref-range` is set to true, reads that map to 
+    multiple reference ranges will be discarded based on the 
+    `--min-proportion-same-reference-range` parameter. If left off 
+    or set to false, `--min-proportion-same-reference-range` will be 
+    ignored. By limiting reads to only map to a single reference 
+    range, your imputation accuracy could improve at the expense 
+    of not using as many reads. You will need to test this out for 
+    your specific use case.
 
 
 
@@ -457,16 +462,16 @@ phg_v2_example/
     └── temp/
 ```
 
-> [!NOTE]
-> The naming scheme for the read-mapping files follows the first
-> sample in the keyfile or comma-delimited list and:
-> 1. strips the path and FASTQ extension text
-> 2. adds the `readMapping.txt` suffix to the stripped sample name
-> 
-> Additionally, $n$ amount of files will be generated for $n$ amount 
-> of short read samples found in the keyfile or comma-delimited list.
-> For example, if you have 3 samples you are trying to impute, 3 read 
-> mapping files will be generated in the given output. 
+!!! note
+    The naming scheme for the read-mapping files follows the first
+    sample in the keyfile or comma-delimited list and:
+    1. strips the path and FASTQ extension text
+    2. adds the `readMapping.txt` suffix to the stripped sample name
+    
+    Additionally, $n$ amount of files will be generated for $n$ amount 
+    of short read samples found in the keyfile or comma-delimited list.
+    For example, if you have 3 samples you are trying to impute, 3 read 
+    mapping files will be generated in the given output. 
 
 
 
@@ -494,9 +499,9 @@ files, `map-kmers` and `find-paths` must be run separately.** For
 more information, please refer to the prior "[Read Mapping](#read-mapping)"
 section for additional input details.
 
-> [!NOTE]
-> If you using read-mapping files, the files **must** end with the 
-> `_readMapping.txt` suffix or errors will occur.
+!!! note
+    If you using read-mapping files, the files **must** end with the 
+    `_readMapping.txt` suffix or errors will occur.
 
 
 #### Example usage
