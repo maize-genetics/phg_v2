@@ -82,7 +82,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
             // Loop through the directory and figure out which files are hvcf files
             // The gvcf and hvcf files may be in the same folder, so verify specific extension
             val hvcfFiles = File(hvcfDir).listFiles { file ->
-                file.extension == "h.vcf" || file.name.endsWith("h.vcf.gz") || file.name.endsWith("hvcf") ||
+                file.name.endsWith("h.vcf") || file.name.endsWith("h.vcf.gz") || file.name.endsWith("hvcf") ||
                         file.name.endsWith("hvcf.gz")
             }
 
