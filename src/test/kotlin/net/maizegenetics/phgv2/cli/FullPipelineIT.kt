@@ -140,7 +140,7 @@ class FullPipelineIT {
 
         //Create a fasta from the HVCF
         val createFastaFromHvcf = CreateFastaFromHvcf()
-        val createFastaFromHvcfRefResult = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type haplotype --hvcf-dir ${TestExtension.testOutputHVCFDir} -o ${TestExtension.testOutputHaplotypeFasta}")
+        val createFastaFromHvcfRefResult = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type haplotype --hvcf-dir ${TestExtension.testOutputHVCFDir} -o ${TestExtension.testOutputFastaDir}")
         println(createFastaFromHvcfRefResult.output)
 
         //Open the output fasta

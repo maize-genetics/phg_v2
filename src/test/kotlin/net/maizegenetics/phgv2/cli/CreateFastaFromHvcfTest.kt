@@ -375,24 +375,55 @@ class CreateFastaFromHvcfTest {
     @Test
     fun testBuildFastaFromHVCF_dirInput() {
         // This test builds fastas for multiple hvcf files in a directory
-        // It verifies that the output files are created and that the sequences are correct
+        // It verifies that the output files are created and that the sequences are correct,
+        // and there are individual fasta files for each hvcf file.
 
-        //buildFastaFromHVCF(dbPath: String, outputFile: String, fastaType:String, hvcfFile : String)
+        // The first hvcf file is the Ref hvcf file.  Ref.h.vcf stored to test/data/smallseq was created by
+        // splitting the genome based on the anchors.bed file, then creating haplotypes for those regions.
+        // When creating a fasta based on that h.vcf file, the output fasta should be the same as the original
+        //
+        // The second hvcf file is the LineB hvcf file.  LineB.h.vcf stored to test/data/smallseq was created by
+        // aligning LineB to Ref.fa and creating haplotypes. When creating a fasta based on
+        // that h.vcf file, we can't guarantee the results will be identical to the original LineB.fa file.
+        // THis is because some pieces of sequence may be left out of the alignment, or insertions may be moved
+        // to a different place (included as part of other haplotype), etc.
+        //
+        // Because of this, we create our own LineB.h.vcf file by running the LineB.fa file through
+        // CreateRefVcf.createRefHvcf().  This will create a LineB.h.vcf file the same
+        // way the Ref.h.vcf file was created.  The haplotype sequence in the LineB.h.vcf file should be the same
+        // sequence as the original LineB.fa file.
+
         val refHVCFFileName = "data/test/smallseq/Ref.h.vcf"
-        val lineBHvcfFileName = "data/test/smallseq/LineB.h.vcf"
+        val lineBFasta = "data/test/smallseq/LineB.fa"
 
-        // Write the hvcf files to the output directory: TestExtension.testOutputHVCFDir
-        val hvcfDir = TestExtension.testOutputHVCFDir
+        // Write the Ref hvcf file to the output directory: TestExtension.testOutputHVCFDir/hvcf_files
+        // We add the subfolder "hcf_files" as this is a subfolder to which createRefHvcf will write the hvcf files.
+        val hvcfDir = "${TestExtension.testOutputHVCFDir}/hvcf_files"
         val outputFastaDir = TestExtension.testOutputFastaDir
         File(hvcfDir).mkdirs()
         File(outputFastaDir).mkdirs()
-        File(TestExtension.testOutputHVCFDir+"/Ref.h.vcf").writeBytes(File(refHVCFFileName).readBytes())
-        File(TestExtension.testOutputHVCFDir+"/LineB.h.vcf").writeBytes(File(lineBHvcfFileName).readBytes())
+        File(TestExtension.testOutputHVCFDir+"/hvcf_files/Ref.h.vcf").writeBytes(File(refHVCFFileName).readBytes())
 
+        // Create LineB.h.vcf file
+        // We don't use the LIneB.h.vcf stored in test/smallseq because we aren't sure how it was
+        // created, but probably by aligning LineB to Ref.fa.  The haplotype sequences may be slightly different
+        // from what is stored in LineB.fa originally.  Instead create a new LineB.h.vcf file that has the
+        // haploytpes created the same way the ref haplotypes were created.
+
+        val createRefVcf = CreateRefVcf()
+        val ranges = "data/test/smallseq/anchors.bed"
+
+        createRefVcf.createRefHvcf(ranges,lineBFasta,"LineB","",TestExtension.testOutputHVCFDir)
+
+        // createRefHvcf will compress the output file.
+        val lineBHvcfFileName = TestExtension.testOutputHVCFDir+"/hvcf_files/LineB.h.vcf.gz"
 
         val refVcfReader = VCFFileReader(File(refHVCFFileName), false)
         val createFastaFromHvcf = CreateFastaFromHvcf()
         val refAltHeaders= parseALTHeader(refVcfReader.header)
+
+        val lineBVcfReader = VCFFileReader(File(lineBHvcfFileName), false)
+        val lineBAltHeaders= parseALTHeader(lineBVcfReader.header)
 
         val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
 
@@ -400,9 +431,17 @@ class CreateFastaFromHvcfTest {
 
         //Compare the composite against the truth input
         val refTruthFasta = NucSeqIO("data/test/smallseq/Ref.fa").readAll()
-        val outputFastaComposite = NucSeqIO("${TestExtension.testOutputFastaDir}/Ref.fa").readAll()
+        val refOutputFastaComposite = NucSeqIO("${TestExtension.testOutputFastaDir}/Ref.fa").readAll()
         for(chr in refTruthFasta.keys) {
-            assertEquals(getChecksumForString(refTruthFasta[chr]!!.seq()), getChecksumForString(outputFastaComposite[chr]!!.seq()))
+            assertEquals(getChecksumForString(refTruthFasta[chr]!!.seq()), getChecksumForString(refOutputFastaComposite[chr]!!.seq()))
+        }
+
+        // Compare the LineB composite against the truth input
+        val lineBTruthFasta = NucSeqIO("data/test/smallseq/LineB.fa").readAll()
+        val lineBOutputFastaComposite = NucSeqIO("${TestExtension.testOutputFastaDir}/LineB.fa").readAll()
+        for(chr in lineBTruthFasta.keys) {
+            println("Compare Composite lineB chr: $chr")
+            assertEquals(getChecksumForString(lineBTruthFasta[chr]!!.seq()), getChecksumForString(lineBOutputFastaComposite[chr]!!.seq()))
         }
 
         //build a haplotype fasta as well
@@ -414,6 +453,14 @@ class CreateFastaFromHvcfTest {
         val outputFastaHaplotypes = NucSeqIO("${TestExtension.testOutputFastaDir}/Ref.fa").readAll()
         outputFastaHaplotypes.values.map { getChecksumForString(it.seq()) }.toSet().forEach{
             assertTrue(truthHashes.contains(it))
+        }
+
+        // Get LineB truth hashes:
+        val lineBTruthHashes = lineBAltHeaders.values.map { it.id }.toSet()
+        // Load in the LineB haplotypes and build hashes
+        val lineBOutputFastaHaplotypes = NucSeqIO("${TestExtension.testOutputFastaDir}/LineB.fa").readAll()
+        lineBOutputFastaHaplotypes.values.map { getChecksumForString(it.seq()) }.toSet().forEach{
+            assertTrue(lineBTruthHashes.contains(it))
         }
 
     }
