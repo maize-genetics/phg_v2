@@ -10,4 +10,4 @@ dependencies:
   - anchorwave=1.2.2
   - bcftools
   - samtools
-  - agc:3.1
+  - agc=3.1
