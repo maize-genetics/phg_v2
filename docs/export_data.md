@@ -3,10 +3,10 @@
 In this document, we will discuss general strategies for exporting
 data from a PHG database.
 
-> [!NOTE]
-> This section will assume you have a pre-existing database loaded
-> with haplotype data. See the ["Building and Loading"](build_and_load.md)
-> documentation for further information.
+!!! note
+    This section will assume you have a pre-existing database loaded
+    with haplotype data. See the ["Building and Loading"](build_and_load.md)
+    documentation for further information.
 
 ## Quickstart
 
@@ -81,10 +81,10 @@ This command uses several parameters:
 * `-o` - output directory of VCF data.
 * `--regions-file` - a file of positions to be exported. Can be a bedfile or a vcf file.
 
-> [!NOTE]
-> Make sure there is no whitespace between sample IDs. For example:
-> * `LineA,LineB` ✅
-> * `LineA , LineB` ❌
+!!! note
+    Make sure there is no whitespace between sample IDs. For example:
+    * `LineA,LineB` ✅
+    * `LineA , LineB` ❌
 
 Users may instead use the `--sample-file` parameter to specify a file 
 that contains the sample names, one per line. For example, if I have
@@ -120,8 +120,8 @@ file:
 chr03 0 5000
 ```
 
-> [!NOTE]
-> BED files are 0-based, so plan accordingly!
+!!! note
+    BED files are 0-based, so plan accordingly!
 
 ...or this could be a VCF file that contains a data line for `chr03`
 region information for the `CHROM`, `POS`, and

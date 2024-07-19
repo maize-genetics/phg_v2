@@ -6,10 +6,10 @@ and possible edge cases that may arise in hVCF creation.
 
 ## Alternative allele fields - an overview
 
-> [!NOTE]
-> For more information about this hVCF field and other general
-> information about hVCF specifications, please review the
-> [haplotype VCF specification](hvcf_specifications.md) article.
+!!! note
+    For more information about this hVCF field and other general
+    information about hVCF specifications, please review the
+    [haplotype VCF specification](hvcf_specifications.md) article.
 
 The alternative allele (`##ALT`) field contains key-value information
 that represents the haplotype sequence and ID for a given
@@ -41,7 +41,7 @@ aligned against the given reference range (denoted with the MD5 hash,
 the values of 14 and 19 (`14-19`) base-pairs. We can represent this
 graphically with a dot plot:
 
-<img src="img/hvcf_region_handling/common_alignment.svg" width="400" alt=""/>
+![](img/hvcf_region_handling/common_alignment.svg)
 
 In the above example, `LineA` (y-axis) is aligned against our
 reference genome, in this case, identified as `Reference` (x-axis).
@@ -54,7 +54,7 @@ positions (in this case between `14` and `19` base-pairs). Using
 this region value, we can navigate back to `LineA`'s FASTA file and
 identify the sequence region:
 
-<img src="img/hvcf_region_handling/fasta_regions.svg" width="350" alt=""/>
+![](img/hvcf_region_handling/fasta_regions.svg)
 
 
 ## Possible edge cases - inversions
@@ -65,7 +65,7 @@ reference range boundary can land on
 [inversion regions](https://www.genome.gov/genetics-glossary/Inversion).
 For example, let's illustrate this scenario with another dot plot:
 
-<img src="img/hvcf_region_handling/inversion_handling.svg" width="400" alt=""/>
+![](img/hvcf_region_handling/inversion_handling.svg)
 
 Here, when we align `LineA` against the reference, there is an 
 inversion at the end of this boundary. How do we represent this using
