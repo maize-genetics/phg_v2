@@ -88,7 +88,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
 
             // Loop through each file and run the processSingleHVCF function
             hvcfFiles?.forEach { hvcfFile ->
-                val outputFileName = hvcfFile.name.replace(HVCF_PATTERN, ".fa")
+                val tempFileName = hvcfFile.name.replace(HVCF_PATTERN, ".fa")
+                val outputFileName = File(tempFileName).name.replace(".fa", "_${fastaType}.fa")
                 val outputFile = "$outputDir/$outputFileName"
 
                 BufferedWriter(FileWriter(outputFile)).use { output ->
@@ -106,7 +107,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
         } else {
             // Load in the HVCF
             val hvcfFileReader = VCFFileReader(File(hvcfFile), false)
-            val outputFileName = File(hvcfFile).name.replace(HVCF_PATTERN, ".fa")
+            val tempFileName = File(hvcfFile).name.replace(HVCF_PATTERN, ".fa")
+            val outputFileName = File(tempFileName).name.replace(".fa", "_${fastaType}.fa")
             //val outputFileName = "${fileHvcf.nameWithoutExtension}.fa"
             val outputFile = "$outputDir/$outputFileName"
 
