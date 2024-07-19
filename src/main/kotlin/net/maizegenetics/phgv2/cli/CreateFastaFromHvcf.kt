@@ -43,7 +43,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
 
-    val outputDir by option("-o", "--output-dir", help = "DIrectory where output fasta FIles will be written")
+    val outputDir by option("-o", "--output-dir", help = "Directory where output fasta Files will be written")
         .default("")
         .validate {
             require(it.isNotBlank()) {
@@ -82,21 +82,18 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
             // Loop through the directory and figure out which files are hvcf files
             // The gvcf and hvcf files may be in the same folder, so verify specific extension
             val hvcfFiles = File(hvcfDir).listFiles { file ->
-                file.name.endsWith("h.vcf") || file.name.endsWith("h.vcf.gz") || file.name.endsWith("hvcf") ||
-                        file.name.endsWith("hvcf.gz")
+                HVCF_PATTERN.containsMatchIn(file.name)
             }
 
             // Loop through each file and run the processSingleHVCF function
             hvcfFiles?.forEach { hvcfFile ->
-                val tempFileName = hvcfFile.name.replace(HVCF_PATTERN, ".fa")
-                val outputFileName = File(tempFileName).name.replace(".fa", "_${fastaType}.fa")
+                val outputFileName = File(hvcfFile.name.replace(HVCF_PATTERN, ".fa"))
+                    .name.replace(".fa", "_${fastaType}.fa")
                 val outputFile = "$outputDir/$outputFileName"
 
                 BufferedWriter(FileWriter(outputFile)).use { output ->
                     writeSequences(output,
-                        processSingleHVCF(VCFFileReader(hvcfFile, false), dbPath, condaEnvPrefix)
-                            .associate { it.id to it }
-                            .values.toList(),
+                        processSingleHVCF(VCFFileReader(hvcfFile, false), dbPath, condaEnvPrefix),
                         fastaType)
                 }
             }
@@ -107,9 +104,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
         } else {
             // Load in the HVCF
             val hvcfFileReader = VCFFileReader(File(hvcfFile), false)
-            val tempFileName = File(hvcfFile).name.replace(HVCF_PATTERN, ".fa")
-            val outputFileName = File(tempFileName).name.replace(".fa", "_${fastaType}.fa")
-            //val outputFileName = "${fileHvcf.nameWithoutExtension}.fa"
+            val outputFileName = File(File(hvcfFile).name.replace(HVCF_PATTERN, ".fa"))
+                .name.replace(".fa", "_${fastaType}.fa")
             val outputFile = "$outputDir/$outputFileName"
 
             BufferedWriter(FileWriter(outputFile)).use { output ->
