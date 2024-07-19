@@ -400,8 +400,8 @@ class CreateFastaFromHvcfTest {
         val hvcfDir = TestExtension.testOutputHVCFDir
         File(hvcfDir).mkdirs()
         // File(TestExtension.smallSeqLineAGvcfFile).copyTo(lineAGvcf, true)
-        File(TestExtension.testOutputHVCFDir+"/Ref.h.vcf").copyTo(File(refHVCFFileName), true)
-        File(TestExtension.testOutputHVCFDir+"/LineB.h.vcf").copyTo(File(lineBHvcfFileName),true)
+        File(refHVCFFileName).copyTo(File(TestExtension.testOutputHVCFDir+"/Ref.h.vcf"), true)
+        File(lineBHvcfFileName).copyTo(File(TestExtension.testOutputHVCFDir+"/LineB.h.vcf"),true)
 
         val outputFastaDir = TestExtension.testOutputFastaDir
         File(outputFastaDir).mkdirs()
