@@ -4,7 +4,7 @@ In this document, we will discuss the overall steps on how
 to download and set up the PHGv2 package.
 
 ## Quick start
-* Run on Linux (_Windows not currently tested_)
+* Run on Unix-style operating system (_Windows not currently tested_)
 * Make sure you have $\geq$ Java 17
 * Make sure you have [Miniconda](https://docs.conda.io/projects/miniconda/en/latest/index.html#quick-command-line-install) installed
 * Make sure you have the [libmamba]() solver installed:
