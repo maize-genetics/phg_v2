@@ -187,12 +187,14 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
                     // Only add to the alt header lines if the intervalHash is not already in the set.
                     // There are duplicate sequences in the reference file when splitting by gff defined genes
                     if (!currentSeqHashs.contains(intervalHash)) {
-                        val altHeaderLine = StringBuilder().apply {
-                            append("<ID=${intervalHash}, Description=\"haplotype data for line: ${refName}\",")
-                            append("Source=\"${refGenome}\",SampleName=\"${refName}\",Regions=\"${chr}:${anchorStart}-${anchorEnd}\",")
-                            append("Checksum=\"${intervalHash}\",RefChecksum=\"${intervalHash}\",RefRange=\"${chr}:${anchorStart}-${anchorEnd}\">")
-                        }.toString()
-                        altHeaderLines.add(VCFAltHeaderLine(altHeaderLine, VCFHeaderVersion.VCF4_2))
+                        altHeaderLines.add(
+                            VCFAltHeaderLine(
+                                "<ID=${intervalHash}, Description=\"haplotype data for line: ${refName}\"," +
+                                        "Source=\"${refGenome}\",SampleName=\"${refName}\",Regions=\"${chr}:${anchorStart}-${anchorEnd}\"," +
+                                        "Checksum=\"${intervalHash}\",RefChecksum=\"${intervalHash}\",RefRange=\"${chr}:${anchorStart}-${anchorEnd}\">",
+                                VCFHeaderVersion.VCF4_2
+                            )
+                        )
                         currentSeqHashs.add(intervalHash)
                     }
 
