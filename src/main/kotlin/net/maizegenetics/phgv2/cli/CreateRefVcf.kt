@@ -151,11 +151,8 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
                         prevChrom = chrom
                         chromAnchors = 0
                         //chrSeq = myRefSequence!![chr]
-                        if (myRefSequence!!.containsKey(chr)) {
-                            chrSeq = myRefSequence!![chr]
-                        } else {
-                            throw IllegalStateException("Error processing intervals file on line : ${line} . Chromosome ${chr} not found in reference file")
-                        }
+                        chrSeq = myRefSequence!![chr]
+                            ?: throw IllegalStateException("Error processing intervals file on line : ${line} . Chromosome ${chr} not found in reference file")
                     }
 
                     val anchorStart = tokens[1].toInt() + 1  // NucSeq is 0 based, bed file is 0 based, but VCF is 1 based
@@ -209,7 +206,7 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
             // Load to an hvcf file, write files to user specified outputDir
 
             val hvcfFileName = "${refName}.h.vcf"
-            val tiledbHvcfDir = "${dbPath}/hvcf_files"
+            val tiledbHvcfDir = "${outputDir}/hvcf_files"
 
             // Make a folder for the hvcf files
             // ALl hvcf files loaded to this tiledb dataset will be saved in this subfolder
@@ -224,16 +221,17 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
             myLogger.info("${bgzippedGVCFFileName} created and stored to ${tiledbHvcfDir}")
 
             // Create the tiledb datasets if they don't exist
-            File(dbPath).mkdirs()
-            Initdb().createDataSets(dbPath,"")
+            File(outputDir).mkdirs()
+            Initdb().createDataSets(outputDir,"")
 
             // Load the Ref hvcf file to tiledb
             val loadVcf = LoadVcf()
-            loadVcf.loadVcfFiles(tiledbHvcfDir,dbPath,"") // default the threads to "1" for the ref.
+            loadVcf.loadVcfFiles(tiledbHvcfDir,outputDir,"") // default the threads to "1" for the ref.
 
             // Store the bed file and the reference fasta file to the dbPath/reference folder
             // Create the dbPath/reference folder if it doesn't exist
-            val tiledbRefDir = "${dbPath}/reference"
+            // When CreateRefVcf is run as a CLI command, the "outputDir" is the dbPath
+            val tiledbRefDir = "${outputDir}/reference"
             Files.createDirectories(Paths.get(tiledbRefDir)) // skips folders that already exist
             val fileName = Paths.get(ranges).nameWithoutExtension
             val localBedFile = "${tiledbRefDir}/${fileName}.bed"

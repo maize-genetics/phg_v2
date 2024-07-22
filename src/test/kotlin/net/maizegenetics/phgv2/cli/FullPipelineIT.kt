@@ -140,12 +140,12 @@ class FullPipelineIT {
 
         //Create a fasta from the HVCF
         val createFastaFromHvcf = CreateFastaFromHvcf()
-        val createFastaFromHvcfRefResult = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type haplotype --hvcf-dir ${TestExtension.testOutputHVCFDir} -o ${TestExtension.testOutputHaplotypeFasta}")
+        val createFastaFromHvcfRefResult = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type haplotype --hvcf-dir ${TestExtension.testOutputHVCFDir} -o ${TestExtension.testOutputFastaDir}")
         println(createFastaFromHvcfRefResult.output)
 
         //Open the output fasta
-        //loop through the fasta file and take the sequence and compare its hash with the id in the header
-        NucSeqIO(TestExtension.testOutputHaplotypeFasta).readAll().forEach { chr, seq ->
+        //loop through the Ref fasta file and take the sequence and compare its hash with the id in the header
+        NucSeqIO("${TestExtension.testOutputFastaDir}/Ref_haplotype.fa").readAll().forEach { chr, seq ->
             val header = seq.id
             val headerParts = header.split(" ")
             val id = headerParts[0]
@@ -154,9 +154,9 @@ class FullPipelineIT {
         }
 
         //build a composite genome from the HVCFs
-        createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputHVCFDir}/Ref.h.vcf -o ${TestExtension.testOutputFastaDir}/Ref_composite.fa")
-        createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputHVCFDir}/LineA.h.vcf -o ${TestExtension.testOutputFastaDir}/LineA_composite.fa")
-        createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputHVCFDir}/LineB.h.vcf -o ${TestExtension.testOutputFastaDir}/LineB_composite.fa")
+        createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputHVCFDir}/Ref.h.vcf -o ${TestExtension.testOutputFastaDir}")
+        createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputHVCFDir}/LineA.h.vcf -o ${TestExtension.testOutputFastaDir}")
+        createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} --fasta-type composite --hvcf-file ${TestExtension.testOutputHVCFDir}/LineB.h.vcf -o ${TestExtension.testOutputFastaDir}")
         
         //Compare the outputs.
         val refDiff =  compareFastaSeqs(TestExtension.smallseqRefFile, "${TestExtension.testOutputFastaDir}/Ref_composite.fa")
