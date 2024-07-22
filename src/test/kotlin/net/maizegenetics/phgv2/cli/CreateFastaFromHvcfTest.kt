@@ -62,11 +62,24 @@ class CreateFastaFromHvcfTest {
                 "\n" +
                 "Error: invalid value for --fasta-type: --fasta-type must be either composite or haplotype\n",resultMissingFastaType.output)
 
-        val resultBadFastaType = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} -o ${TestExtension.tempDir} --fasta-type bad")
+        val resultBadFastaType = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} -o ${TestExtension.tempDir} --fasta-type bad --hvcf-file /test_file.h.vcf")
         assertEquals(resultBadFastaType.statusCode, 1)
         assertEquals("Usage: create-fasta-from-hvcf [<options>]\n" +
                 "\n" +
                 "Error: invalid value for --fasta-type: --fasta-type must be either composite or haplotype\n",resultBadFastaType.output)
+
+        // Only one of --hvcf-file or --hvcf-dir can be used.  THis test has both sent
+        val resultHvcfFileAndDir = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} -o ${TestExtension.tempDir} --fasta-type haplotype --hvcf-file /test_file.h.vcf --hvcf-dir /test_dir")
+        assertEquals(resultHvcfFileAndDir.statusCode, 1)
+        assertEquals("Usage: create-fasta-from-hvcf [<options>]\n" +
+                "\n" +
+                "Error: option --hvcf-file cannot be used with --hvcf-dir\n",resultHvcfFileAndDir.output)
+
+        val resultNoHvcfInput = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} -o ${TestExtension.tempDir} --fasta-type haplotype ")
+        assertEquals(resultNoHvcfInput.statusCode, 1)
+        assertEquals("Usage: create-fasta-from-hvcf [<options>]\n" +
+                "\n" +
+                "Error: must provide one of --hvcf-file, --hvcf-dir\n",resultNoHvcfInput.output)
     }
 
     @Test
@@ -350,7 +363,8 @@ class CreateFastaFromHvcfTest {
 
         val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
 
-        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}", "composite","",refHVCFFileName,"")
+        val hvcfInput = HvcfInput.HvcfFile(refHVCFFileName)
+        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}", "composite",hvcfInput,"")
 
         //Compare the composite against the truth input
         val truthFasta = NucSeqIO("data/test/smallseq/Ref.fa").readAll()
@@ -360,7 +374,7 @@ class CreateFastaFromHvcfTest {
         }
 
         //build a haplotype fasta as well
-        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}", "haplotype","",refHVCFFileName,"")
+        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}", "haplotype",hvcfInput,"")
 
         //get truth hashes:
         val truthHashes = altHeaders.values.map { it.id }.toSet()
@@ -398,6 +412,7 @@ class CreateFastaFromHvcfTest {
 
         // Write the Ref and LineB hvcf files to the output directory: TestExtension.testOutputHVCFDir
         val hvcfDir = TestExtension.testOutputHVCFDir
+        val hvcfInput = HvcfInput.HvcfDir(TestExtension.testOutputHVCFDir)
         File(hvcfDir).mkdirs()
         // File(TestExtension.smallSeqLineAGvcfFile).copyTo(lineAGvcf, true)
         File(refHVCFFileName).copyTo(File(TestExtension.testOutputHVCFDir+"/Ref.h.vcf"), true)
@@ -416,7 +431,7 @@ class CreateFastaFromHvcfTest {
 
         // Build fastas from the hvcf files
         val dbPath = "${TestExtension.testOutputFastaDir}/dbPath"
-        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}", "composite",hvcfDir,"","")
+        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}", "composite",hvcfInput,"")
 
         //Compare the ref composite against the truth input
         val refTruthFasta = NucSeqIO("data/test/smallseq/Ref.fa").readAll()
@@ -434,7 +449,7 @@ class CreateFastaFromHvcfTest {
         }
 
         //build the haplotype fastas as well
-        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}", "haplotype",hvcfDir,"","")
+        createFastaFromHvcf.buildFastaFromHVCF(dbPath, "${TestExtension.testOutputFastaDir}", "haplotype",hvcfInput,"")
 
         //get ref truth hashes:
         val truthHashes = refAltHeaders.values.map { it.id }.toSet()
