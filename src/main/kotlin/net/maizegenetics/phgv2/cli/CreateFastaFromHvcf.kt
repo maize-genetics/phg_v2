@@ -2,6 +2,10 @@ package net.maizegenetics.phgv2.cli
 
 import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
+import com.github.ajalt.clikt.parameters.groups.required
+import com.github.ajalt.clikt.parameters.groups.single
+import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
@@ -38,6 +42,11 @@ data class HaplotypeSequence(val id: String, val sequence: String, val refRangeI
  * Note as of now, the class only supports creating a fasta file from a hvcf file.  The TileDB functionality will be
  * added in the future.
  */
+
+sealed class HvcfInput {
+    data class HvcfFile(val hvcfFile: String): HvcfInput()
+    data class HvcfDir(val hvcfDir: String): HvcfInput()
+}
 class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.vcf file or TileDB directly") {
 
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
@@ -59,15 +68,19 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
             }
         }
 
-    val hvcfFile by option("--hvcf-file", help = "Path to hVCF file. Data will be pulled directly from this file instead of querying TileDB")
-        .default("")
-
-    val hvcfDir by option("--hvcf-dir", help = "Path to directory holding hVCF files. Data will be pulled directly from these files instead of querying TileDB")
-        .default("")
+    // Users may input either a single hvcf file or a directory with multiple hvcf files
+    // Currently one of the two options must be provided but this may change when we support
+    // processing directly from TileDB
+    val hvcfInput: HvcfInput? by mutuallyExclusiveOptions<HvcfInput>(
+        option("--hvcf-file", help = "Path to hVCF file. Data will be pulled directly from this file instead of querying TileDB")
+            .convert { HvcfInput.HvcfFile(it) },
+        option("--hvcf-dir", help = "Path to directory holding hVCF files. Data will be pulled directly from these files instead of querying TileDB")
+            .convert { HvcfInput.HvcfDir(it) }
+    ).single() // cannot provide both hvcf-file and hvcf-dir at the same time
+        .required() // one of the two options must be provided
 
     val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
-
 
     // Pre-compile the Regex pattern - used when creating the output fasta file names
     val HVCF_PATTERN = Regex("""(\.hvcf|\.h\.vcf|\.hvcf\.gz|\.h\.vcf\.gz)$""")
@@ -76,12 +89,12 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
      * Function to build the Fasta file from the HVCF and the agc record.
      * Right now it does not support pulling from TileDB, but will in the future.
      */
-    fun buildFastaFromHVCF(dbPath: String, outputDir: String, fastaType:String, hvcfDir: String ,hvcfFile : String, condaEnvPrefix:String) {
+    fun buildFastaFromHVCF(dbPath: String, outputDir: String, fastaType:String, hvcfInput:HvcfInput?, condaEnvPrefix:String) {
 
-        if (hvcfDir != "") {
+        if (hvcfInput is HvcfInput.HvcfDir) {
             // Loop through the directory and figure out which files are hvcf files
             // The gvcf and hvcf files may be in the same folder, so verify specific extension
-            val hvcfFiles = File(hvcfDir).listFiles { file ->
+            val hvcfFiles = File(hvcfInput.hvcfDir).listFiles { file ->
                 HVCF_PATTERN.containsMatchIn(file.name)
             }
 
@@ -97,14 +110,11 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
                         fastaType)
                 }
             }
-        }
-        else if (hvcfFile == "") {
-            // Load in the TileDB
-            TODO("TileDB VCF Reader Not implemented yet.  Please run with --hvcf-file")
-        } else {
+
+        } else if (hvcfInput is HvcfInput.HvcfFile){
             // Load in the HVCF
-            val hvcfFileReader = VCFFileReader(File(hvcfFile), false)
-            val outputFileName = File(File(hvcfFile).name.replace(HVCF_PATTERN, ".fa"))
+            val hvcfFileReader = VCFFileReader(File(hvcfInput.hvcfFile), false)
+            val outputFileName = File(File(hvcfInput.hvcfFile).name.replace(HVCF_PATTERN, ".fa"))
                 .name.replace(".fa", "_${fastaType}.fa")
             val outputFile = "$outputDir/$outputFileName"
 
@@ -112,6 +122,9 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
                 val records = processSingleHVCF(hvcfFileReader, dbPath, condaEnvPrefix)
                 writeSequences(output, records, fastaType)
             }
+        }  else {
+            // Load in the TileDB
+            TODO("TileDB VCF Reader Not implemented yet.  Please run with --hvcf-file or --hvcf-dir")
         }
 
     }
@@ -279,6 +292,6 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
         // If it doesn't an exception will be thrown
         val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
 
-        buildFastaFromHVCF(dbPath, outputDir, fastaType, hvcfDir, hvcfFile,condaEnvPrefix)
+        buildFastaFromHVCF(dbPath, outputDir, fastaType, hvcfInput, condaEnvPrefix)
     }
 }
