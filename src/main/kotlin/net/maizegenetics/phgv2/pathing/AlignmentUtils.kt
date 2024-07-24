@@ -141,15 +141,11 @@ class AlignmentUtils {
                                 val hash = hashOffset[0].toLong()
                                 val offset = refrangeLong or hashOffset[1].toLong()
 
-
-                                val offsetList = kmerToRefRangeAndOffsetMap.get(hash)
-                                if(offsetList == null) {
-                                    val newOffsetList = mutableListOf(RefRangeOffset(refrange, offset))
-                                    kmerToRefRangeAndOffsetMap.put(hash, newOffsetList)
+                                if(kmerToRefRangeAndOffsetMap.containsKey(hash)) {
+                                    kmerToRefRangeAndOffsetMap[hash]!!.add(RefRangeOffset(refrange, offset))
                                 } else {
-                                    offsetList.add(RefRangeOffset(refrange, offset))
+                                    kmerToRefRangeAndOffsetMap[hash] = mutableListOf(RefRangeOffset(refrange, offset))
                                 }
-
                             }
                         }
 
@@ -160,7 +156,7 @@ class AlignmentUtils {
                 }
             }
             myLogger.info("KmerMap read in ${(System.nanoTime() - readFileStartTime) / 1e9} seconds")
-            
+
             return KmerMapData(rangeToBitSetMap, kmerToRefRangeAndOffsetMap as Long2ObjectOpenHashMap<List<RefRangeOffset>>)
         }
 
