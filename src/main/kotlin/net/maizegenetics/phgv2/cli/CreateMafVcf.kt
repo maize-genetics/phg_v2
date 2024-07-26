@@ -111,7 +111,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                     val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
                     //convert the GVCF records into hvcf records
                     myLogger.info("createASMHvcfs: calling convertGVCFToHVCF for $sampleName")
-                    val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines)
+                    val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines,condaEnvPrefix)
                     val asmHeaderSet = asmHeaderLines.values.toSet()
                     //export the hvcfRecords
                     myLogger.info("createASMHvcfs: calling exportVariantContext for $sampleName")
@@ -129,7 +129,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                         bgzipAndIndexGVCFfile(outputNames[index])
                         val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
                         //convert the GVCF records into hvcf records
-                        val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, sortedVariants, refGenomeSequence, dbPath, asmHeaderLines)
+                        val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, sortedVariants, refGenomeSequence, dbPath, asmHeaderLines,condaEnvPrefix)
                         val asmHeaderSet = asmHeaderLines.values.toSet()
                         //export the hvcfRecords
                         exportVariantContext(sampleName, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, asmHeaderSet)
@@ -178,7 +178,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * Function to convert a GVCF file into an HCVF file
      */
     fun convertGVCFToHVCF(dbPath: String,sampleName: String, bedRanges : List<Pair<Position,Position>>, gvcfVariants: List<VariantContext>,
-                          refGenomeSequence : Map<String, NucSeq>, agcArchiveName: String, asmHeaders: MutableMap<String,VCFHeaderLine>) : List<VariantContext> {
+                          refGenomeSequence : Map<String, NucSeq>, agcArchiveName: String, asmHeaders: MutableMap<String,VCFHeaderLine>,condaEnvPrefix:String) : List<VariantContext> {
         // group the gvcfVariants by contig
         val gvcfVariantsByContig = gvcfVariants.groupBy { it.contig }
 
@@ -189,10 +189,10 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         return gvcfVariantsByContig.keys
             .sortedWith(compareBy(SeqRangeSort.alphaThenNumberSort){ name:String -> name}) //Need to do a sort here as we need to make sure we process the chromosomes in
             .filter { bedRegionsByContig.containsKey(it) }
-            .flatMap { convertGVCFToHVCFForChrom(dbPath, sampleName, bedRegionsByContig[it]!!, refGenomeSequence, agcArchiveName, gvcfVariantsByContig[it]!!, asmHeaders) }
+            .flatMap { convertGVCFToHVCFForChrom(dbPath, sampleName, bedRegionsByContig[it]!!, refGenomeSequence, agcArchiveName, gvcfVariantsByContig[it]!!, asmHeaders,condaEnvPrefix) }
     }
 
-    fun convertGVCFToHVCFForChrom(dbPath: String, sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, agcArchiveName: String, variantContexts: List<VariantContext>, asmHeaders: MutableMap<String,VCFHeaderLine> ) : List<VariantContext> {
+    fun convertGVCFToHVCFForChrom(dbPath: String, sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, agcArchiveName: String, variantContexts: List<VariantContext>, asmHeaders: MutableMap<String,VCFHeaderLine>,condaEnvPrefix:String ) : List<VariantContext> {
         
         /**
          * Loop through the bed file
@@ -283,7 +283,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
             }
         }
 
-        val metaDataWithSequence = addSequencesToMetaData(dbPath, outputVariantMetadata)
+        val metaDataWithSequence = addSequencesToMetaData(dbPath, outputVariantMetadata, condaEnvPrefix)
         val outputVariants = convertMetaDataToHVCFContexts(metaDataWithSequence, asmHeaders, dbPath)
 
         return outputVariants
@@ -493,7 +493,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * This function will bulk load sequences in from the AGC record and then will associate the returned sequences
      * with the metadata record which contains the coordiantes for the query and will add in the asmSeq.
      */
-    fun addSequencesToMetaData(dbPath: String, metadata: List<HVCFRecordMetadata>) : List<HVCFRecordMetadata> {
+    fun addSequencesToMetaData(dbPath: String, metadata: List<HVCFRecordMetadata>, condaEnvPrefix:String) : List<HVCFRecordMetadata> {
         //get out the assembly coordinates and build them into the regions
         val metaDataToRangeLookup = metadata.map {
             val queries = mutableListOf<String>()
@@ -515,7 +515,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
 
         val ranges = metaDataToRangeLookup.flatMap { it.second }
 
-        val seqs = retrieveAgcContigs(dbPath,ranges,"")
+        val seqs = retrieveAgcContigs(dbPath,ranges,condaEnvPrefix)
 
         return metaDataToRangeLookup.map { it.first.copy(asmSeq = buildSeq(seqs,it.third,it.first)) } //This is a useful way to keep things immutable
     }
