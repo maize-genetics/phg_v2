@@ -1,4 +1,4 @@
-# PHGv2 - Installation
+# Installation
 
 In this document, we will discuss the overall steps on how
 to download and set up the PHGv2 package.

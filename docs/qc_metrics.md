@@ -1,4 +1,4 @@
-# PHGv2 - Quality Control Metrics
+# Quality Control Metrics
 
 In this document, we will discuss the built-in quality control 
 metrics available from the PHG. Metrics accompany several steps
@@ -83,7 +83,7 @@ appropriate file type will be generated.
 
 For more "granular" inspection of our alignment data, we can also use 
 the complimentary [R package, `rPHG2`](https://rphg2.maizegenetics.net/).
-Check out the ["Load and visualize PHG metrics"](https://rphg2.maizegenetics.net/articles/metrics.html#visualize-metrics-data)
+Check out the ["Load and visualize PHG metrics"](https://rphg2.maizegenetics.net/articles/metrics.html)
 section for more information.
 
 
@@ -96,7 +96,7 @@ assemblies used to produce them. These metrics are useful for
 identifying low-quality assemblies which you may wish to exclude from 
 the PHG, or detecting problems with the assembly alignments.
 
-There are three methods to produce VCF metrics:
+There are three methods to produce or visualize VCF metrics:
 
 **1. As part of `create-maf-vcf`:**
 
@@ -144,6 +144,12 @@ parameters:
     `create-maf-vcf`, which are single-sample, haploid gVCFs and hVCFs.
     Metrics may not be accurate for VCF files that do not fit this 
     format.
+
+**3. Visualize gVCF metrics:**
+For more "granular" inspection of our gVCF data, we can also use 
+the complimentary [R package, `rPHG2`](https://rphg2.maizegenetics.net/).
+Check out the ["Load and visualize PHG metrics"](https://rphg2.maizegenetics.net/articles/metrics.html)
+section for more information.
 
 
 ### Output

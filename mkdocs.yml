@@ -97,8 +97,9 @@ nav:
       - Building and loading: build_and_load.md
       - Imputation: imputation.md
       - Resequencing: resequencing.md
-  - Reference:
       - Exporting data: export_data.md
+  - Reference:
+      - Convenience commands: convenience_commands.md
       - hVCF region handling: hvcf_region_handling.md
       - hVCF specifications: hvcf_specifications.md
       - Ktor specifications: ktor_specifications.md
