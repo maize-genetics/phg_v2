@@ -70,7 +70,7 @@ class Gvcf2Hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
     // This is the entry point for this class.  It creates ranges from the bed file, stores the reference genome
     // sequence into a data structure, and then processes the gvcf files in the gvcfDir.  The hvcf files that
     // are created are written to the same folder that contains the gvcf files.
-    fun createASMHvcfs(dbPath: String, bedFileName: String, referenceFileName: String, gvcfDirName: String, condaEnvPrefix: String) {
+    fun createASMHvcfs(dbPath: String, bedFileName: String, referenceFileName: String, gvcfDirName: String, condaEnvPrefix: String = "") {
         //load the bed file into a data structure
         val ranges = loadRanges(bedFileName)
         myLogger.info("CreateASMHvcfs: calling buildRefGenomeSeq")

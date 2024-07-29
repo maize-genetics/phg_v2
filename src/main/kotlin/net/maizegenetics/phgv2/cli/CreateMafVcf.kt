@@ -178,7 +178,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * Function to convert a GVCF file into an HCVF file
      */
     fun convertGVCFToHVCF(dbPath: String,sampleName: String, bedRanges : List<Pair<Position,Position>>, gvcfVariants: List<VariantContext>,
-                          refGenomeSequence : Map<String, NucSeq>, agcArchiveName: String, asmHeaders: MutableMap<String,VCFHeaderLine>,condaEnvPrefix:String) : List<VariantContext> {
+                          refGenomeSequence : Map<String, NucSeq>, agcArchiveName: String, asmHeaders: MutableMap<String,VCFHeaderLine>,condaEnvPrefix:String = "") : List<VariantContext> {
         // group the gvcfVariants by contig
         val gvcfVariantsByContig = gvcfVariants.groupBy { it.contig }
 
@@ -192,7 +192,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
             .flatMap { convertGVCFToHVCFForChrom(dbPath, sampleName, bedRegionsByContig[it]!!, refGenomeSequence, agcArchiveName, gvcfVariantsByContig[it]!!, asmHeaders,condaEnvPrefix) }
     }
 
-    fun convertGVCFToHVCFForChrom(dbPath: String, sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, agcArchiveName: String, variantContexts: List<VariantContext>, asmHeaders: MutableMap<String,VCFHeaderLine>,condaEnvPrefix:String ) : List<VariantContext> {
+    fun convertGVCFToHVCFForChrom(dbPath: String, sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, agcArchiveName: String, variantContexts: List<VariantContext>, asmHeaders: MutableMap<String,VCFHeaderLine>,condaEnvPrefix:String = "" ) : List<VariantContext> {
         
         /**
          * Loop through the bed file
@@ -493,7 +493,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * This function will bulk load sequences in from the AGC record and then will associate the returned sequences
      * with the metadata record which contains the coordiantes for the query and will add in the asmSeq.
      */
-    fun addSequencesToMetaData(dbPath: String, metadata: List<HVCFRecordMetadata>, condaEnvPrefix:String) : List<HVCFRecordMetadata> {
+    fun addSequencesToMetaData(dbPath: String, metadata: List<HVCFRecordMetadata>, condaEnvPrefix:String="") : List<HVCFRecordMetadata> {
         //get out the assembly coordinates and build them into the regions
         val metaDataToRangeLookup = metadata.map {
             val queries = mutableListOf<String>()
