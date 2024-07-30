@@ -24,9 +24,9 @@ phg export-vcf \
 * Create FASTA files from hVCF data or database
 ```shell
 phg create-fasta-from-hvcf \
-  --hvcf-file my_sample.h.vcf \
+  --hvcf-file my_sample.h.vcf \ # can also be 'hvcf-dir'
   --fasta-type composite \ # can also be 'haplotype'
-  -o my_sequence.fa
+  -o /path/to/outputFolder # folder to store the created FASTA files
 ```
 
 * Data retrieval using BrAPI endpoints and [rPHG2](https://maize-genetics.github.io/rPHG2/)
@@ -143,12 +143,16 @@ values using the `create-fasta-from-hvcf` command:
 phg create-fasta-from-hvcf \
   --hvcf-file my_sample.h.vcf \
   --fasta-type composite \
-  -o my_sequence.fa
+  -o /path/to/outputFolder
 ```
 
 As the name of this command implies, we are creating FASTA files
 of nucleotide sequence data from a single hVCF file or a collection
-of hVCF files by specifying a directory:
+of hVCF files by specifying a directory.  The output files will be:
+written, one per hvcf-file, to the specified output directory.  The 
+format of the file names will be `sample_name_type.fa` where `sample_name`
+is the name of the sample from the hvcf file name and `type` is the type of fasta file created
+(`composite` or `haplotype`).
 
 * `--hvcf-file` - path to an hVCF file. **Can be substituted with
   `--hvcf-dir`**.
@@ -162,7 +166,7 @@ of hVCF files by specifying a directory:
   + `haplotype` - generate a FASTA file where each haplotype is a
     seperate FASTA entry. **Useful for read mapping, imputation
     or simple haplotype sequence retrieval**.
-* `-o` - output path for generated FASTA file.
+* `-o` - output path to directory for the created fasta files.
 
 
 ### Data retrieval using BrAPI endpoints and rPHG
