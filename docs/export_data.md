@@ -1,4 +1,4 @@
-# PHGv2 - Exporting Data
+# Exporting Data
 
 In this document, we will discuss general strategies for exporting
 data from a PHG database.
@@ -11,32 +11,32 @@ data from a PHG database.
 ## Quickstart
 
 * Export hVCF files from database
-* NOTE: --sample-names can be replaced with --sample-file <fileName.txt> where fileName.txt is a file containing the sample names, one per line
-
 ```shell
 phg export-vcf \
-  --db-path /path/to/dbs \
-  --dataset-type hvcf \ # can also be 'gvcf'
-  --sample-names LineA,LineB \ # comma separated list of sample names
-  -o /path/to/output/directory
+    --db-path /path/to/dbs \
+    --dataset-type hvcf \ # can also be 'gvcf'
+    --sample-names LineA,LineB \ # comma separated list of sample names
+    -o /path/to/output/directory
 ```
+!!! note
+    `--sample-names` can be replaced with `--sample-file <file_name.txt>` 
+    where `file_name.txt` is a file containing the sample names, one 
+    per line.
 
 * Create FASTA files from hVCF data or database
 ```shell
 phg create-fasta-from-hvcf \
-  --hvcf-file my_sample.h.vcf \ # can also be 'hvcf-dir'
+  --hvcf-dir my/hvcf_dir \ # can also be an individual file ('--hvcf-file')
   --fasta-type composite \ # can also be 'haplotype'
-  -o /path/to/outputFolder # folder to store the created FASTA files
+  -o /path/to/output_folder
 ```
 
 * Data retrieval using BrAPI endpoints and [rPHG2](https://maize-genetics.github.io/rPHG2/)
-
 ```shell
 phg start-server \
-  --db-that /path/to/dbs \
-  --port 8080
+    --db-that /path/to/dbs \
+    --port 8080
 ```
-
 ``` r
 library(rPHG2)
 
@@ -64,10 +64,10 @@ If I want to export [hVCF](hvcf_specifications.md) files for a given set of samp
 
 ```shell
 phg export-vcf \
-  --db-path vcf_dbs \
-  --dataset-type hvcf \
-  --sample-names LineA,LineC \
-  -o output/hvcf_files
+    --db-path vcf_dbs \
+    --dataset-type hvcf \
+    --sample-names LineA,LineC \
+    -o output/hvcf_files
 ```
 
 This command uses several parameters:
@@ -79,10 +79,12 @@ This command uses several parameters:
   + gVCF (`gvcf`) data
 * `--sample-names` - a comma (`,`) separated list of sample IDs.
 * `-o` - output directory of VCF data.
-* `--regions-file` - a file of positions to be exported. Can be a bedfile or a vcf file.
+* `--regions-file` - a file of positions to be exported. Can be a 
+   BED file or a VCF file.
 
 !!! note
     Make sure there is no whitespace between sample IDs. For example:
+
     * `LineA,LineB` ✅
     * `LineA , LineB` ❌
 
@@ -100,10 +102,10 @@ LineB
 
 ```shell
 phg export-vcf \
-  --db-path vcf_dbs \
-  --dataset-type hvcf \
-  --sample-file sample_names.txt \
-  -o output/hvcf_files
+    --db-path vcf_dbs \
+    --dataset-type hvcf \
+    --sample-file sample_names.txt \
+    -o output/hvcf_files
 ```
 If input is specified for the `--regions-file` parameter, only 
 variants overlapping those positions will be exported. 
@@ -148,24 +150,26 @@ phg create-fasta-from-hvcf \
 
 As the name of this command implies, we are creating FASTA files
 of nucleotide sequence data from a single hVCF file or a collection
-of hVCF files by specifying a directory.  The output files will be:
-written, one per hvcf-file, to the specified output directory.  The 
-format of the file names will be `sample_name_type.fa` where `sample_name`
-is the name of the sample from the hvcf file name and `type` is the type of fasta file created
-(`composite` or `haplotype`).
+of hVCF files by specifying a directory. The output FASTA files will
+be written (one FASTA per hVCF file) to the specified output directory
+(`-o`). The format of the file names will be `sample_name_type.fa` 
+where `sample_name` is the name of the sample from the hVCF file name 
+and `type` is the type of fasta file created (`composite` or 
+`haplotype`). The following parameters may be used:
 
-* `--hvcf-file` - path to an hVCF file. **Can be substituted with
-  `--hvcf-dir`**.
-* `--hvcf-dir` - path to a directory containing hVCF files. **Can be
-  substituted with `--hvcf-file`**.
+* input type (**you can only select one**):
+    +`--hvcf-file` - path to an hVCF file. **Can be substituted with
+      `--hvcf-dir`**.
+    +`--hvcf-dir` - path to a directory containing hVCF files. **Can 
+      be substituted with `--hvcf-file`**.
 * `--fasta-type` - what type of FASTA format do you want to use?
-  + `composite` - generate a FASTA file that contains all haplotypes 
-    concatenated together by consecutive reference ranges. This 
-    composite or "pseudo" genome can be **used for rare allele 
-    discovery**.
-  + `haplotype` - generate a FASTA file where each haplotype is a
-    seperate FASTA entry. **Useful for read mapping, imputation
-    or simple haplotype sequence retrieval**.
+    + `composite` - generate a FASTA file that contains all haplotypes 
+      concatenated together by consecutive reference ranges. This 
+      composite or "pseudo" genome can be **used for the resequencing 
+      pipeline**.
+    + `haplotype` - generate a FASTA file where each haplotype is a
+      seperate FASTA entry. **Useful for read mapping, imputation
+      or simple haplotype sequence retrieval**.
 * `-o` - output path to directory for the created fasta files.
 
 
@@ -185,8 +189,8 @@ To create a web service for serving PHG data, we can use the
 
 ```shell
 phg start-server \
-  --db-path vcf_dbs \
-  --port 8080
+    --db-path vcf_dbs \
+    --port 8080
 ```
 
 This command takes only two arguments:
@@ -197,15 +201,14 @@ This command takes only two arguments:
 
 Once this command is run, a web service to `localhost` will start
 and data can be retrieved:
+
 * manually using 
 [BrAPI](https://brapi.org/specification) endpoints and 
 [cURL](https://en.wikipedia.org/wiki/CURL):
-
   ```shell
   # An example pointing to the 'samples' BrAPI endpoint
   $ curl http://localhost:8080/brapi/v2/samples
   ```
-
   ```shell
   # An example pointing to a composite hVCF file
   $ curl http://localhost:8080/brapi/v2/variantsets

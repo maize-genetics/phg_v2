@@ -1,4 +1,4 @@
-# PHG v2 Terminology
+# PHGv2 Terminology
 
 ## General terms
 | Term                | Definition                                                                                          |
