@@ -1,6 +1,10 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
+import htsjdk.variant.variantcontext.Allele
+import htsjdk.variant.variantcontext.GenotypeBuilder
+import htsjdk.variant.variantcontext.VariantContextBuilder
+import htsjdk.variant.variantcontext.*
 import net.maizegenetics.phgv2.utils.verifyURI
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
@@ -143,11 +147,11 @@ class Hvcf2GvcfTest {
         // These are not in the original LineB.vcf file, but are added by hvcf2gvcf to represent the beginning of the ref ranges as the
         // h.vcf files from which it is made shows those positions.  These entries are created as refBlocks from the beginning of the refRange
         assertTrue(lines.contains("1\t1001\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=1001;ASM_Start=1001;ASM_Strand=+;END=1001\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
-        assertTrue(lines.contains("1\t5501\t.\tC\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=5561;ASM_Start=5501;ASM_Strand=+;END=5561\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
-        assertTrue(lines.contains("1\t6501\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=6531;ASM_Start=6501;ASM_Strand=+;END=6531\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
-        assertTrue(lines.contains("2\t1001\t.\tC\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=1064;ASM_Start=1001;ASM_Strand=+;END=1064\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
-        assertTrue(lines.contains("2\t5501\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=5508;ASM_Start=5501;ASM_Strand=+;END=5508\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
-        assertTrue(lines.contains("2\t6501\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=6501;ASM_Start=6501;ASM_Strand=+;END=6501\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
+        assertTrue(lines.contains("1\t5501\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=5561;ASM_Start=5501;ASM_Strand=+;END=5561\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
+        assertTrue(lines.contains("1\t6501\t.\tC\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=6531;ASM_Start=6501;ASM_Strand=+;END=6531\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
+        assertTrue(lines.contains("2\t1001\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=1064;ASM_Start=1001;ASM_Strand=+;END=1064\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
+        assertTrue(lines.contains("2\t5501\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=5508;ASM_Start=5501;ASM_Strand=+;END=5508\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
+        assertTrue(lines.contains("2\t6501\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=6501;ASM_Start=6501;ASM_Strand=+;END=6501\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
 
         println("done !!")
 
@@ -235,6 +239,34 @@ class Hvcf2GvcfTest {
         assertTrue(lines.contains(chrom1entry))
         assertTrue(lines.contains(chom2entry))
         println("ref gvcf file created: $outputDir/$refName.vcf")
+    }
+
+    @Test
+    fun testResizeVcandASMPositions() {
+        // Build a couple variant context objects
+        // Make the simple, we don't care about depth or pl at this point,
+        // we just want to see if we resize correctly.  But we do need genotypes
+        val alleles = listOf(Allele.create("G",true), Allele.NON_REF_ALLELE)
+        val genotype = listOf(alleles[0])
+
+        val vc1 = VariantContextBuilder(".", "chr1", 1001, 1010, alleles)
+        val currentGenotype = GenotypeBuilder("LineA",genotype).make()
+        vc1.attribute("ASM_Chr", "1").attribute("ASM_Start", 1003).attribute("ASM_End", 1012).attribute("ASM_Strand", "+")
+        val firstVariant = vc1.genotypes(currentGenotype).make()
+
+        val vc2 = VariantContextBuilder(".", "chr1", 1001, 1020, alleles)
+
+        // First test sending in single variant context
+        // consider the ref range is position 1005-1015
+        // both the start and stop would be resized to 1005-1015
+        val resizedVc1 = Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant,firstVariant), Pair(1005,1015), Pair("+","+"))
+        println("resizedVc1 ref/asm start positions: ${resizedVc1[0].first} ${resizedVc1[0].second}")
+        println("resizedVc1 ref/asm end positions: ${resizedVc1[1].first} ${resizedVc1[1].second}")
+        assertEquals(1005, resizedVc1[0].first)
+        assertEquals(1015, resizedVc1[1].first)
+        assertEquals(1005, resizedVc1[0].second)
+        assertEquals(1015, resizedVc1[1].second)
+
     }
 
 }

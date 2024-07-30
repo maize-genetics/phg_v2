@@ -58,11 +58,11 @@ class VariantLoadingUtilsTest {
         //Create some simple VariantContext records into a list
         val refMap = mapOf("1" to NucSeq("AAAAAAAAAAA"), "2" to NucSeq("TTTTTTTTTT"))
         val variants = listOf(
-            createRefRangeVC(refMap, "Line1", Position("1",1), Position("1",1), Position("1",1), Position("1",1)),
-            createSNPVC("Line1", Position("1",2), Position("1",2), Pair("A","T"), Position("1",2), Position("1",2)),
-            createRefRangeVC(refMap,"Line1", Position("1",3), Position("1",6), Position("1",3), Position("1",6)),
-            createSNPVC("Line1", Position("1",7), Position("1",7), Pair("A","G"), Position("1",2), Position("1",2)),
-            createRefRangeVC(refMap,"Line1", Position("1",8), Position("1",10), Position("1",8), Position("1",10))
+            createRefRangeVC(refMap, "Line1", Position("1",1), Position("1",1), Position("1",1), Position("1",1),"+"),
+            createSNPVC("Line1", Position("1",2), Position("1",2), Pair("A","T"), Position("1",2), Position("1",2),"+"),
+            createRefRangeVC(refMap,"Line1", Position("1",3), Position("1",6), Position("1",3), Position("1",6),"+"),
+            createSNPVC("Line1", Position("1",7), Position("1",7), Pair("A","G"), Position("1",2), Position("1",2),"+"),
+            createRefRangeVC(refMap,"Line1", Position("1",8), Position("1",10), Position("1",8), Position("1",10),"+")
         )
 
         //Export the variants to a file
@@ -183,7 +183,7 @@ class VariantLoadingUtilsTest {
     fun testCreateSNPVC() {
         //createSNPVC(assemblyTaxon: String, startPosition: Position, endPosition: Position, calls: Pair<String, String>,
         //                asmStart: Position, asmEnd: Position)
-        val vc1 = createSNPVC("Line1", Position("1",2), Position("1",2), Pair("A","T"), Position("1",2), Position("1",2))
+        val vc1 = createSNPVC("Line1", Position("1",2), Position("1",2), Pair("A","T"), Position("1",2), Position("1",2),"+")
 
         assertEquals("1", vc1.contig)
         assertEquals(2, vc1.start)
@@ -198,11 +198,11 @@ class VariantLoadingUtilsTest {
 
         assertThrows<IllegalStateException> {
             //Check to make sure the reference Coords are not backwards
-            createSNPVC("Line1", Position("1",4), Position("1",2), Pair("A","T"), Position("1",3), Position("1",2))
+            createSNPVC("Line1", Position("1",4), Position("1",2), Pair("A","T"), Position("1",3), Position("1",2),"+")
         }
         assertThrows<IllegalStateException> {
             //Check to make sure the assembly coords exist on same ASM chrom
-            createSNPVC("Line1", Position("1",2), Position("1",2), Pair("A","T"), Position("1",2), Position("2",3))
+            createSNPVC("Line1", Position("1",2), Position("1",2), Pair("A","T"), Position("1",2), Position("2",3),"+")
         }
 
     }
@@ -210,7 +210,7 @@ class VariantLoadingUtilsTest {
     @Test
     fun testCreateRefRangeVC() {
         val refSeq = mapOf("1" to NucSeq("AAAAAAAAAAA"), "2" to NucSeq("TTTTTTTTTTT"))
-        val vc1 = createRefRangeVC(refSeq, "Line1", Position("1",2), Position("1",5), Position("1",3), Position("1",6))
+        val vc1 = createRefRangeVC(refSeq, "Line1", Position("1",2), Position("1",5), Position("1",3), Position("1",6),"+")
 
         assertEquals("1", vc1.contig)
         assertEquals(2, vc1.start)
@@ -222,11 +222,11 @@ class VariantLoadingUtilsTest {
 
         assertThrows<IllegalStateException> {
             //Check that it throws an error when the refCoordinates are backwards
-            createRefRangeVC(refSeq, "Line1", Position("1",10), Position("1",5), Position("1",10), Position("1",5))
+            createRefRangeVC(refSeq, "Line1", Position("1",10), Position("1",5), Position("1",10), Position("1",5),"+")
         }
         assertThrows<IllegalStateException> {
             //Check that it throws an error when the assembly coords span 2 chroms
-            createRefRangeVC(refSeq, "Line1", Position("1",2), Position("1",5), Position("1",10), Position("2",5))
+            createRefRangeVC(refSeq, "Line1", Position("1",2), Position("1",5), Position("1",10), Position("2",5),"+")
         }
 
     }
