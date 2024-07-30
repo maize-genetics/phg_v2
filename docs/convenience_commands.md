@@ -25,12 +25,13 @@ phg gvcf2hvcf \
 
 **Parameters**
 
-| Parameter name     | Description                                                                                                         | Default value         | Required?        |
-|--------------------|---------------------------------------------------------------------------------------------------------------------|-----------------------|------------------|
-| `--bed`            | BED file with entries that define the haplotype boundaries.                                                         | `""`                  | :material-check: |
-| `--gvcf-dir`       | Directory containing bgzipped and CSI indexed gVCF files.                                                           | `""`                  | :material-check: |
-| `--reference-file` | Path to local Reference FASTA file.                                                                                 | `""`                  | :material-check: |
-| `--db-path`        | Folder name where TileDB datasets and AGC record is stored. If not provided, the current working directory is used. | _Current working dir_ |                  |
+| Parameter name       | Description                                                                                                         | Default value                      | Required?        |
+|----------------------|---------------------------------------------------------------------------------------------------------------------|------------------------------------|------------------|
+| `--bed`              | BED file with entries that define the haplotype boundaries.                                                         | `""`                               | :material-check: |
+| `--gvcf-dir`         | Directory containing bgzipped and CSI indexed gVCF files.                                                           | `""`                               | :material-check: |
+| `--reference-file`   | Path to local Reference FASTA file.                                                                                 | `""`                               | :material-check: |
+| `--conda-env-prefix` | Prefix for the Conda environment to use. If provided, this should be the full path to the Conda environment.        | _Current active Conda environment_ |                  |
+| `--db-path`          | Folder name where TileDB datasets and AGC record is stored. If not provided, the current working directory is used. | _Current working dir_              |                  |
 
 
 ## Convert hVCF files to gVCF files
