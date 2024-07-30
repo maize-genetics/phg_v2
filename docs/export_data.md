@@ -26,9 +26,9 @@ phg export-vcf \
 * Create FASTA files from hVCF data or database
 ```shell
 phg create-fasta-from-hvcf \
-  --hvcf-file my_sample.h.vcf \ # can also be 'hvcf-dir'
+  --hvcf-dir my/hvcf_dir \ # can also be an individual file ('--hvcf-file')
   --fasta-type composite \ # can also be 'haplotype'
-  -o /path/to/outputFolder # folder to store the created FASTA files
+  -o /path/to/output_folder
 ```
 
 * Data retrieval using BrAPI endpoints and [rPHG2](https://maize-genetics.github.io/rPHG2/)
@@ -150,24 +150,26 @@ phg create-fasta-from-hvcf \
 
 As the name of this command implies, we are creating FASTA files
 of nucleotide sequence data from a single hVCF file or a collection
-of hVCF files by specifying a directory.  The output files will be:
-written, one per hvcf-file, to the specified output directory.  The 
-format of the file names will be `sample_name_type.fa` where `sample_name`
-is the name of the sample from the hvcf file name and `type` is the type of fasta file created
-(`composite` or `haplotype`).
+of hVCF files by specifying a directory. The output FASTA files will
+be written (one FASTA per hVCF file) to the specified output directory
+(`-o`). The format of the file names will be `sample_name_type.fa` 
+where `sample_name` is the name of the sample from the hVCF file name 
+and `type` is the type of fasta file created (`composite` or 
+`haplotype`). The following parameters may be used:
 
-* `--hvcf-file` - path to an hVCF file. **Can be substituted with
-  `--hvcf-dir`**.
-* `--hvcf-dir` - path to a directory containing hVCF files. **Can be
-  substituted with `--hvcf-file`**.
+* input type (**you can only select one**):
+    +`--hvcf-file` - path to an hVCF file. **Can be substituted with
+      `--hvcf-dir`**.
+    +`--hvcf-dir` - path to a directory containing hVCF files. **Can 
+      be substituted with `--hvcf-file`**.
 * `--fasta-type` - what type of FASTA format do you want to use?
-  + `composite` - generate a FASTA file that contains all haplotypes 
-    concatenated together by consecutive reference ranges. This 
-    composite or "pseudo" genome can be **used for rare allele 
-    discovery**.
-  + `haplotype` - generate a FASTA file where each haplotype is a
-    seperate FASTA entry. **Useful for read mapping, imputation
-    or simple haplotype sequence retrieval**.
+    + `composite` - generate a FASTA file that contains all haplotypes 
+      concatenated together by consecutive reference ranges. This 
+      composite or "pseudo" genome can be **used for the resequencing 
+      pipeline**.
+    + `haplotype` - generate a FASTA file where each haplotype is a
+      seperate FASTA entry. **Useful for read mapping, imputation
+      or simple haplotype sequence retrieval**.
 * `-o` - output path to directory for the created fasta files.
 
 
