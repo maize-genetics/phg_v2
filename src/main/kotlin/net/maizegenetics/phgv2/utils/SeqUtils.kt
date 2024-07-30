@@ -104,7 +104,7 @@ fun retrieveAgcContigs(dbPath: String, sampleName: String, ranges: List<Pair<Pos
  *     contig1 (this will error if there are more than 2 genome with "contig1" )
  *
  */
-fun retrieveAgcContigs(dbPath:String,ranges:List<String>,condaEnvPrefix:String):Map<Pair<String,String>,NucSeq> {
+fun retrieveAgcContigs(dbPath:String,ranges:List<String>,condaEnvPrefix:String=""):Map<Pair<String,String>,NucSeq> {
 
     val commands = buildAgcCommandFromList(dbPath, "getctg",ranges,condaEnvPrefix)
     val genomeChromNucSeqMap = queryAgc(commands)
