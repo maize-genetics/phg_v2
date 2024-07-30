@@ -45,9 +45,13 @@ class AlignmentUtils {
             limitSingleRefRange: Boolean = false,
             minSameReferenceRange: Double = 0.9,
         ) {
+            myLogger.info("Loading in Kmer Index Map")
+            val startTime = System.nanoTime()
             val kmerIndexMap = loadKmerMaps(kmerIndexFile, graph)
-
+            myLogger.info("Kmer Index Map loaded in ${(System.nanoTime() - startTime) / 1e9} seconds")
+            myLogger.info("Starting read mapping process")
             for (keyFileRecord in keyFileRecords) {
+                myLogger.info("Processing reads for sample ${keyFileRecord.sampleName}")
                 val hapIdMapping = processReadMappingForKeyFileRecord(
                     keyFileRecord,
                     kmerIndexMap,
@@ -94,6 +98,7 @@ class AlignmentUtils {
             var totalLineCount = 0
             var refrange = ReferenceRange("NULL", 0, 0)
 
+            val readFileStartTime = System.nanoTime()
             val refRangeToIdMap = graph.refRangeToIndexMap()
             getBufferedReader(filename).useLines {
                 it.forEach { inputStr ->
@@ -136,15 +141,11 @@ class AlignmentUtils {
                                 val hash = hashOffset[0].toLong()
                                 val offset = refrangeLong or hashOffset[1].toLong()
 
-
-                                val offsetList = kmerToRefRangeAndOffsetMap.get(hash)
-                                if(offsetList == null) {
-                                    val newOffsetList = mutableListOf(RefRangeOffset(refrange, offset))
-                                    kmerToRefRangeAndOffsetMap.put(hash, newOffsetList)
+                                if(kmerToRefRangeAndOffsetMap.containsKey(hash)) {
+                                    kmerToRefRangeAndOffsetMap[hash]!!.add(RefRangeOffset(refrange, offset))
                                 } else {
-                                    offsetList.add(RefRangeOffset(refrange, offset))
+                                    kmerToRefRangeAndOffsetMap[hash] = mutableListOf(RefRangeOffset(refrange, offset))
                                 }
-
                             }
                         }
 
@@ -154,14 +155,9 @@ class AlignmentUtils {
                     }
                 }
             }
+            myLogger.info("KmerMap read in ${(System.nanoTime() - readFileStartTime) / 1e9} seconds")
 
-            //convert kmerToRefRangeAndOffsetMap to be immutable
-            val immutableKmerToRefRangeMap = Long2ObjectOpenHashMap<List<RefRangeOffset>>()
-            for(key in kmerToRefRangeAndOffsetMap.keys) {
-                immutableKmerToRefRangeMap.put(key, kmerToRefRangeAndOffsetMap.get(key)!!.toList())
-            }
-
-            return KmerMapData(rangeToBitSetMap, immutableKmerToRefRangeMap)
+            return KmerMapData(rangeToBitSetMap, kmerToRefRangeAndOffsetMap as Long2ObjectOpenHashMap<List<RefRangeOffset>>)
         }
 
 
