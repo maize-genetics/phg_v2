@@ -270,7 +270,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
     private fun writeDiagnostics(adjacentHashCounts: Map<ReferenceRange, Int>) {
         val diagnosticFileName = "kmerIndexStatistics.txt"
-        val diagnosticFilePath = if (indexFile.isBlank()) {
+        val diagnosticFilePath = if (indexFile.isBlank() || File(indexFile).parentFile == null) {
             File(hvcfDir).resolve(diagnosticFileName).absolutePath
         } else {
             File(indexFile).parentFile.resolve(diagnosticFileName).absolutePath
