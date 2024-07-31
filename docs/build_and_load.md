@@ -1,6 +1,7 @@
 # Building and Loading
 
 In this document, we will discuss the steps needed to:
+
 1. Set up a working Conda environment containing the required
    external software
 2. Initialize a [TileDB-VCF](https://docs.tiledb.com/main/integrations-and-extensions/genomics/population-genomics) instance
@@ -10,7 +11,7 @@ In this document, we will discuss the steps needed to:
 ## Quick start
 * Set up the PHGv2 Conda environment:
     ```shell
-    phg setup-environment --env-file phg_environment.yml
+    phg setup-environment
     ```
   
 * Initialize TileDB instances:
@@ -160,13 +161,18 @@ Instead of setting this up manually, we can use the
 run, use the following command:
 
 ```shell
-phg setup-environment --env-file phg_environment.yml
+phg setup-environment
 ```
 
-This command takes one parameter, `--env-file`. This is a path to the 
-Conda environment file. You can create the file 
-from scratch (`phg_environment.yml`)  and copy over the contents in 
-the following block:
+By using the prior default example, the `setup-environment` command 
+will extract an internal Conda environment file with the necessary 
+libraries and programs (_see following code block for example file_). 
+_Optionally_, if you want to add additional libraries and programs 
+to your PHGv2 Conda environment, you may specify the _optional_ 
+parameter, `--env-file`. This will be a path to a _local_ Conda 
+environment file. You can create the file from scratch (for example, 
+I will call mine `phg_environment.yml`) and copy over the contents 
+in the following block:
 
 ```
 name: phgv2-conda
@@ -189,6 +195,13 @@ Another option is to pull in the environment file directly from the
 
 ```shell
 curl https://raw.githubusercontent.com/maize-genetics/phg_v2/main/src/main/resources/phg_environment.yml -o phg_environment.yml
+```
+
+Once the local YAML file is made, we can pass it to the `--env-file`
+parameter:
+
+```shell
+phg setup-environment --env-file phg_environment.yml
 ```
 
 After the setup step is complete, we can activate our environment

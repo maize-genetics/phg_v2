@@ -22,7 +22,7 @@ diversity across and between samples. It can be used to:
 
 The PHG also works well with community 
 standards including the Breeding API ([BrAPI](https://brapi.org)) and efficient 
-tools for R such as [rPHG](https://github.com/maize-genetics/rPHG) for pangenome extraction and 
+tools for R such as [rPHG2](https://github.com/maize-genetics/rPHG2) for pangenome extraction and 
 [rTASSEL](https://github.com/maize-genetics/rTASSEL) for connecting genotype to phenotype.
 
 
@@ -40,12 +40,12 @@ curl -s https://api.github.com/repos/maize-genetics/phg_v2/releases/latest \
 ```
 
 Untar and add the wrapper script to your `PATH` variable. Detailed
-information about these steps can be found [here](docs/installation.md).
+information about these steps can be found [here](https://phg.maizegenetics.net/installation/).
 ### Build and load data
 
 _Long-form documentation for this section can be found 
-[here](docs/build_and_load.md). Additional information about **QC 
-metrics** can be found [here](docs/qc_metrics.md)._
+[here](https://phg.maizegenetics.net/build_and_load/). Additional information about **QC 
+metrics** can be found [here](https://phg.maizegenetics.net/qc_metrics/)._
 
 ```shell
 ## Setup conda environment
@@ -73,7 +73,7 @@ metrics** can be found [here](docs/qc_metrics.md)._
 
 ### Imputation
 
-_Long-form documentation for this section can be found [here](docs/imputation.md)_
+_Long-form documentation for this section can be found [here](https://phg.maizegenetics.net/imputation/)_
 
 
 ```shell
@@ -157,22 +157,23 @@ may find are:
 | reference genome | A genome used for initial alignment and base coordinates. |
 | reference range  | A segment of the reference genome.                        |
 
-More commonly used terms can be found [here](docs/terminology.md).
+More commonly used terms can be found [here](https://phg.maizegenetics.net/terminology/).
 
 
 ## Long-form documentation
 
 ### PHG workflows
-1. [Installation](docs/installation.md)
-2. [Building and loading](docs/build_and_load.md)
-3. [Imputation](docs/imputation.md)
-4. [Export data](docs/export_data.md)
+1. [Installation](https://phg.maizegenetics.net/installation/)
+2. [Building and loading](https://phg.maizegenetics.net/build_and_load/)
+3. [Imputation](https://phg.maizegenetics.net/imputation/)
+4. [Export data](https://phg.maizegenetics.net/export_data/)
 
 ### Reference
-* [haplotype region handling](docs/hvcf_region_handling.md)
-* [hVCF format specifications](docs/hvcf_specifications.md)
-* [Ktor specifications](...)
-* [PHGv2 terminology](docs/terminology.md)
+* [Convenience methods](https://phg.maizegenetics.net/convenience_commands/)
+* [haplotype region handling](https://phg.maizegenetics.net/hvcf_region_handling/)
+* [hVCF format specifications](https://phg.maizegenetics.net/hvcf_specifications/)
+* [Ktor specifications](https://phg.maizegenetics.net/ktor_specifications/)
+* [PHGv2 terminology](https://phg.maizegenetics.net/terminology/)
 * [PHGv2 architecture](docs/img/architecture/phg_v2_architecture_20240411.svg)
-* [QC metrics](docs/qc_metrics.md)
-* [SLURM Usage with `align-assemblies`](docs/slurm_usage.md)
+* [QC metrics](https://phg.maizegenetics.net/qc_metrics/)
+* [SLURM Usage with `align-assemblies`](https://phg.maizegenetics.net/slurm_usage/)
