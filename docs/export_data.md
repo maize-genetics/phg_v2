@@ -75,8 +75,8 @@ This command uses several parameters:
 * `--db-path` - path to directory storing the TileDB instances.
 * `--dataset-type` - what type of data do you want to extract? This
   can either be:
-  + hVCF (`hvcf`) data (**_default parameter_**)
-  + gVCF (`gvcf`) data
+    + hVCF (`hvcf`) data (**_default parameter_**)
+    + gVCF (`gvcf`) data
 * `--sample-names` - a comma (`,`) separated list of sample IDs.
 * `-o` - output directory of VCF data.
 * `--regions-file` - a file of positions to be exported. Can be a 
@@ -158,9 +158,9 @@ and `type` is the type of fasta file created (`composite` or
 `haplotype`). The following parameters may be used:
 
 * input type (**you can only select one**):
-    +`--hvcf-file` - path to an hVCF file. **Can be substituted with
-      `--hvcf-dir`**.
-    +`--hvcf-dir` - path to a directory containing hVCF files. **Can 
+    + `--hvcf-file` - path to an hVCF file. **Can be substituted with
+       `--hvcf-dir`**.
+    + `--hvcf-dir` - path to a directory containing hVCF files. **Can
       be substituted with `--hvcf-file`**.
 * `--fasta-type` - what type of FASTA format do you want to use?
     + `composite` - generate a FASTA file that contains all haplotypes 
