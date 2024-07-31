@@ -3,9 +3,8 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.required
-import java.io.File
 import org.apache.logging.log4j.LogManager
+import java.io.File
 
 
 /**
@@ -25,30 +24,36 @@ class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG
     val envFile by option("-e", "--env-file", help = "File containing the conda environment definition")
         .default("")
 
-    // This function uses ProcssBuilder to setup the phgv2 conda environment
-    fun createEnvironment( envFile: String, outputDir:String) {
-
-        var selectedEnvFile = envFile
-        myLogger.info("begin run: selectedEnvFile = $selectedEnvFile")
+    // This function uses ProcessBuilder to setup the phgv2 conda environment
+    fun createEnvironment(envFile: String, outputDir: String) {
 
         // if no user defined environment file, use the default
-        if (selectedEnvFile == "") {
+        var resultEnvFile = if (envFile == "") {
 
-            selectedEnvFile = "${outputDir}/phg_environment.yml"
+            val selectedEnvFile = "${outputDir}/phg_environment.yml"
 
             val fileContent = this::class.java.classLoader.getResource("phg_environment.yml").readText()
             myLogger.info("writing default environment file to $selectedEnvFile")
             // This will overwrite an existing file
             File(selectedEnvFile).writeText(fileContent)
+
+            selectedEnvFile
+
+        } else {
+            if (!File(envFile).exists()) {
+                myLogger.error("The specified file $envFile does not exist.")
+                throw IllegalStateException("SetupEnvironment: create conda environment failed: file $envFile does not exist")
+            }
+            envFile
         }
 
         // call ProcessBuilder to execute the conda create env command
-        myLogger.info("Creating conda environment from file: $selectedEnvFile")
-        val builder = ProcessBuilder("conda", "env", "create","--solver=libmamba", "--file", selectedEnvFile)
+        myLogger.info("Creating conda environment from file: $resultEnvFile")
+        val builder = ProcessBuilder("conda", "env", "create", "--solver=libmamba", "--file", resultEnvFile)
         var redirectOutput = outputDir + "/condaCreate_output.log"
         var redirectError = outputDir + "/condaCreate_error.log"
-        builder.redirectOutput( File(redirectOutput))
-        builder.redirectError( File(redirectError))
+        builder.redirectOutput(File(redirectOutput))
+        builder.redirectError(File(redirectError))
         myLogger.info(" begin conda create Command:" + builder.command().joinToString(" "));
         var process = builder.start()
         var error = process.waitFor()
@@ -70,10 +75,10 @@ class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG
         }
     }
 
-        override fun run() {
-            val workingDir = System.getProperty("user.dir")
+    override fun run() {
+        val workingDir = System.getProperty("user.dir")
 
-            // call method to create the environment
-            createEnvironment(envFile,workingDir)
-        }
+        // call method to create the environment
+        createEnvironment(envFile, workingDir)
+    }
 }
