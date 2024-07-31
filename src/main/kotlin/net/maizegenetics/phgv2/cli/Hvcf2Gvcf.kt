@@ -450,10 +450,6 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
     // Is the variant is a SNP, we would not get into this function, as the SNP would be fully contained
     // in the region.  This function is only called when the variant is partially contained in the region.
 
-    //TODO use refSeq to get the updated reference allele.  How do I get the updated assembly allele?
-    // We have moved the assembly position by certain value.  If this is a ref block, then the allele
-    // is the same as the ref.  If is a snp, are we resizing?  Should be the same.  Otherwise we haven't
-    // resized.  So no need for assembly sequence here.
     fun fixPositions(sampleName:String, region: Pair<Position,Position>, variants: List<VariantContext>,refSeq:Map<String,NucSeq> ): List<VariantContext> {
         val fixedVariants = mutableListOf<VariantContext>()
 
@@ -565,15 +561,8 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                     // entry start equal to the current variant start
                     Pair(firstVariant.start,firstVariant.getAttributeAsInt("ASM_Start",firstVariant.start))
                 }
-                 positions.first > firstVariant.start -> {
-                    // The reference range start position is  beyond the start of the variant (but they overlap)
-                    // We need to offset both the ref start and ASM_Start, by the difference between the position
-                     // and the variant start
-
-                    val offset = positions.first - firstVariant.start
-                    Pair(firstVariant.start+offset,firstVariant.getAttributeAsInt("ASM_Start",firstVariant.start) + offset)}
                 strands.first == "+" -> {
-                    // LCJ - TODO - check if this is correct for + and - strands
+                    // This and the case below are hit when the ref start position is within the variant
                     val offset = positions.first - firstVariant.start
                     // We need to offset the ASM_Start, by the difference between the position and the variant start
                     // However, the ref position should be the same as the ref range start as it is equal to or
@@ -611,8 +600,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                     Pair(lastVariant.end,lastVariant.getAttributeAsInt("ASM_End",lastVariant.end))
                 }
                 strands.first == "+" -> {
-                    // ref range ends before the lastVariant.end and is forward stranc
-                    //val offset = positions.second - lastVariant.start //why is this lastVariant.start?
+                    // ref range ends before the lastVariant.end and is forward strand
                     val offset = positions.second - lastVariant.end
                     // RefRanges ends is before the lastVariant.end
                     // We need to offset the ASM_Start, by the difference between the position and the variant start
