@@ -478,64 +478,11 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         // is only 1, we change it based on newStartPositions and newEndPositions
         // If there are multiple, we change the first and last entries.  The first entry gets its start changed,
         // The last entry gets end values changed.
-        // TODO - we changed the reference start/end positions, so we need to also change the ref alleles
-        // and perhaps the alt alleles
         if (variants.size == 1) {
-            println("fixPositions: variantSize =1")
 
             try {
-                // From createRefRangeVC - in VariantLoadingUtils.kt.  The substring(0,1) removes the "*" for alleles e.g. G*
-                val firstRefAllele = Allele.create(refSeq[firstVariant.contig]!!.get(newGvcfPositions[0].first - 1).toString(),true)
-                //val firstRefAllele = Allele.create(refSequence[refRangeStart.contig]!!.get(refRangeStart.position).toString(),true)
-                val gt = GenotypeBuilder().name(sampleName).alleles(Arrays.asList(firstRefAllele)).DP(30).AD(intArrayOf(30, 0)).PL(intArrayOf(0, 90, 90)).make()
-                // if variantContext length  is 1, we keep the original alleles.  If it is greater than 1, we need to update the ref allele.
-                // Will I even get to resize if it is > 1?
-
-
-                // WHen I run with both alleles, it gives a genotype of 0/1, and I really want it to be just 0
-                //val alleles = listOf<Allele>(Allele.create(firstRefAllele, true), Allele.NON_REF_ALLELE)
-               // val alleles = listOf<Allele>(Allele.create(firstRefAllele, true))
-                //val firstRefAllele = Allele.create(firstVariant.alleles[0].toString().substring(0,1),true)
-
-                // Create new genotypes based on original, but update the sampleName
-                // to match our new gvcf file name
-//                val newGenotypes = firstVariant.genotypes.map { genotype ->
-//                    GenotypeBuilder(sampleName, genotype.alleles)
-//                        .DP(genotype.dp)
-//                        .AD(genotype.ad)
-//                        .PL(genotype.pl)
-//                        .GQ(genotype.gq)
-//                        .attributes(genotype.extendedAttributes)
-//                        .make()
-//                }
-//                val newGenotypes = firstVariant.genotypes.map { genotype ->
-//                    GenotypeBuilder(sampleName, alleles)
-//                        .DP(genotype.dp)
-//                        .AD(genotype.ad)
-//                        .PL(genotype.pl)
-//                        .GQ(genotype.gq)
-//                        .attributes(genotype.extendedAttributes)
-//                        .make()
-//                }
-
-
-//                val vcb = VariantContextBuilder()
-//                        .chr(firstVariant.contig)
-//                        .start(newGvcfPositions[0].first.toLong())
-//                        .stop(newGvcfPositions[1].first.toLong())
-//                        .attribute("END", newGvcfPositions[1].first)
-//                        .attribute("ASM_Chr", firstVariant.getAttributeAsString("ASM_Chr", ""))
-//                        .attribute("ASM_Start", newGvcfPositions[0].second)
-//                        .attribute("ASM_End", firstVariant.getAttributeAsInt("ASM_End", firstVariant.end))
-//                        .attribute("ASM_Strand", firstVariant.getAttributeAsString("ASM_Strand", "+"))
-//                        //.alleles(firstVariant.alleles)
-//                        .alleles(alleles) // TODO what about the alt alleles?
-//                        .genotypes(newGenotypes)
-//                        .make()
-
-                // Must subtract 1 from the ref start position as createRefRangeVCF pulls from refSeq,
-                // and refSeq is NucSeq which is 0-based.
-
+                // createRefRangeVC will update the positions of the variant as well as the ref allele
+                // value based on the adjusted ref position.
                 val vcb = createRefRangeVC(refSeq,sampleName,Position(firstVariant.contig,newGvcfPositions[0].first),Position(firstVariant.contig,newGvcfPositions[1].first),
                     Position(firstVariant.contig,newGvcfPositions[0].first),Position(firstVariant.contig,firstVariant.end),
                     firstVariant.getAttributeAsString("ASM_Strand", "+"))
@@ -550,47 +497,11 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         }
         else {
             // update the first and last variants, leaving those
-            // in the middle unchanged
+            // in the middle unchanged.  CreateRefRangeVC will update the positions of the variant
+            // as well as the ref allele
             println("fixPositions: variantSize >=2")
             try {
                 // update the first variant in the list
-                // Is the alt allele a substring of the previous alt allele? Based on how many bp's we adjusted by?
-                val firstRefAllele = refSeq[firstVariant.contig]?.get(newGvcfPositions[0].first - 1)?.toString() ?: throw IllegalStateException("Reference allele not found for ${firstVariant.contig} at position ${newGvcfPositions[0].first}")
-                //val alleles = listOf<Allele>(Allele.create(firstRefAllele, true), Allele.NON_REF_ALLELE)
-                val alleles = listOf<Allele>(Allele.create(firstRefAllele, true))
-                val newGenotypes = firstVariant.genotypes.map { genotype ->
-                    GenotypeBuilder(sampleName, alleles)
-                        .DP(genotype.dp)
-                        .AD(genotype.ad)
-                        .PL(genotype.pl)
-                        .GQ(genotype.gq)
-                        .attributes(genotype.extendedAttributes)
-                        .make()
-                }
-//                val newGenotypes = firstVariant.genotypes.map { genotype ->
-//                    GenotypeBuilder(sampleName, genotype.alleles)
-//                        .DP(genotype.dp)
-//                        .AD(genotype.ad)
-//                        .PL(genotype.pl)
-//                        .GQ(genotype.gq)
-//                        .attributes(genotype.extendedAttributes)
-//                        .make()
-//                }
-
-//                val vcb = VariantContextBuilder()
-//                    .chr(firstVariant.contig)
-//                    .start(newGvcfPositions[0].first.toLong())
-//                    .stop(firstVariant.end.toLong())
-//                    .attribute("END", firstVariant.end)
-//                    .attribute("ASM_Chr",firstVariant.getAttributeAsString("ASM_Chr",""))
-//                    .attribute("ASM_Start", newGvcfPositions[0].second)
-//                    .attribute("ASM_End", firstVariant.getAttributeAsInt("ASM_End",firstVariant.end))
-//                    .attribute("ASM_Strand",firstVariant.getAttributeAsString("ASM_Strand","+"))
-//                    //.alleles(firstVariant.alleles)
-//                    .alleles(alleles) // todo what about alt allele?
-//                    .genotypes(newGenotypes)
-//                    .make()
-
                 val vcb = createRefRangeVC(refSeq,sampleName,Position(firstVariant.contig,newGvcfPositions[0].first),Position(firstVariant.contig,firstVariant.end),
                     Position(firstVariant.contig,newGvcfPositions[0].second),Position(firstVariant.contig,firstVariant.end),
                     firstVariant.getAttributeAsString("ASM_Strand", "+"))
@@ -603,35 +514,6 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
             try {
                 // Update the last variant in the list
-                // ARe these changes correct?  Do we need to change the alleles?
-                // For the last variant, it is the end position that was updated, not the beginning,
-                // and the allele is for the first positions, so this can be left alone?
-                val lastRefAllele = refSeq[lastVariant.contig]?.get(newGvcfPositions[1].first - 1)?.toString() ?: throw IllegalStateException("Reference allele not found for ${lastVariant.contig} at position ${newGvcfPositions[1].first}")
-                //val alleles = listOf<Allele>(Allele.create(lastRefAllele, true), Allele.NON_REF_ALLELE)
-                val alleles = listOf<Allele>(Allele.create(lastRefAllele, true))
-                val newGenotypes = lastVariant.genotypes.map { genotype ->
-                    GenotypeBuilder(sampleName, alleles)
-                        .DP(genotype.dp)
-                        .AD(genotype.ad)
-                        .PL(genotype.pl)
-                        .GQ(genotype.gq)
-                        .attributes(genotype.extendedAttributes)
-                        .make()
-                }
-//                val vcb = VariantContextBuilder()
-//                    .chr(lastVariant.contig)
-//                    .start(lastVariant.start.toLong())
-//                    .stop(newGvcfPositions[1].first.toLong())
-//                    .attribute("END", newGvcfPositions[1].first)
-//                    .attribute("ASM_Chr",lastVariant.getAttributeAsString("ASM_Chr",""))
-//                    .attribute("ASM_Start", lastVariant.getAttributeAsInt("ASM_Start",lastVariant.start))
-//                    .attribute("ASM_End", newGvcfPositions[1].second)
-//                    .attribute("ASM_Strand",lastVariant.getAttributeAsString("ASM_Strand","+"))
-//                    .alleles(alleles)
-//                    //.alleles(lastRefAllele) // todo what about alt allele?
-//                    .genotypes(newGenotypes)
-//                    .make()
-
                 if (variants.size > 2) {
                     fixedVariants.addAll(variants.subList(1,variants.size-1))
                 }
@@ -657,6 +539,8 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
     // and the second Int is the ASM position.  This first pair is for the start of the first variant,
     // the second pair is for the end of the last variant.  If there is only 1 variant, the 2 should be
     // the same.
+    // NOTE: reversestrand processing is only relevant to the asm coordinates.
+    // The reference coordinates will always be based on the forward strand.
     fun resizeVCandASMpositions(variants: Pair<VariantContext,VariantContext>, positions: Pair<Int,Int>, strands : Pair<String,String>) : List<Pair<Int,Int>> {
         //check to see if the variant is either a RefBlock or is a SNP with equal lengths
         val updatedPositions = mutableListOf<Pair<Int,Int>>()

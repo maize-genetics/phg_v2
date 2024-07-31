@@ -242,7 +242,7 @@ class Hvcf2GvcfTest {
     }
 
     @Test
-    fun testResizeVcandASMPositions() {
+    fun testResizeVcandASMPositions_ForwardStrand() {
         // Build a couple variant context objects
         // Make the simple, we don't care about depth or pl at this point,
         // we just want to see if we resize correctly.  But we do need genotypes
@@ -254,18 +254,68 @@ class Hvcf2GvcfTest {
         vc1.attribute("ASM_Chr", "1").attribute("ASM_Start", 1003).attribute("ASM_End", 1012).attribute("ASM_Strand", "+")
         val firstVariant = vc1.genotypes(currentGenotype).make()
 
-        val vc2 = VariantContextBuilder(".", "chr1", 1001, 1020, alleles)
+
 
         // First test sending in single variant context
-        // consider the ref range is position 1005-1015
-        // both the start and stop would be resized to 1005-1015
+        // consider the ref range is position 1005-1015, but the variant is at 1001-1010
+        // The starts are adjusted, the ends remain the same
         val resizedVc1 = Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant,firstVariant), Pair(1005,1015), Pair("+","+"))
         println("resizedVc1 ref/asm start positions: ${resizedVc1[0].first} ${resizedVc1[0].second}")
         println("resizedVc1 ref/asm end positions: ${resizedVc1[1].first} ${resizedVc1[1].second}")
-        assertEquals(1005, resizedVc1[0].first)
-        assertEquals(1015, resizedVc1[1].first)
-        assertEquals(1005, resizedVc1[0].second)
-        assertEquals(1015, resizedVc1[1].second)
+        assertEquals(1005, resizedVc1[0].first) // ref start
+        assertEquals(1010, resizedVc1[1].first) // ref end
+        assertEquals(1007, resizedVc1[0].second) // asm start
+        assertEquals(1012, resizedVc1[1].second) // asm end
+
+        // Now test sending in both variant (ie last is different than first)
+        // consider the ref range is position 1005-1015, but the first variant is 1001-1010 and
+        // second variant is 1011-1020
+        // Both start and end are adjusted
+        val vc2 = VariantContextBuilder(".", "chr1", 1011, 1020, alleles)
+        val currentGenotype2 = GenotypeBuilder("LineA",genotype).make()
+        vc2.attribute("ASM_Chr", "1").attribute("ASM_Start", 1013).attribute("ASM_End", 1022).attribute("ASM_Strand", "+")
+        val secondVariant = vc2.genotypes(currentGenotype).make()
+        val resizedVc2 = Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant,secondVariant), Pair(1005,1015), Pair("+","+"))
+
+        println("resizedVc2 ref/asm start positions: ${resizedVc2[0].first} ${resizedVc2[0].second}")
+        println("resizedVc2 ref/asm end positions: ${resizedVc2[1].first} ${resizedVc2[1].second}")
+        assertEquals(1005, resizedVc2[0].first) // ref start
+        assertEquals(1015, resizedVc2[1].first) // ref end
+        assertEquals(1007, resizedVc2[0].second) // asm start
+        assertEquals(1017, resizedVc2[1].second) // asm end
+
+    }
+
+    @Test
+    fun testResizeVcandASMPositions_reverseStrand() {
+        // Only the asm values change differently?  Ref values are always
+        // on the forward strand.
+
+        //TODO this is copied from above, need to change most of it!
+
+        // Build a couple variant context objects
+        // Make the simple, we don't care about depth or pl at this point,
+        // we just want to see if we resize correctly.  But we do need genotypes
+        val alleles = listOf(Allele.create("G",true), Allele.NON_REF_ALLELE)
+        val genotype = listOf(alleles[0])
+
+        val vc1 = VariantContextBuilder(".", "chr1", 1001, 1010, alleles)
+        val currentGenotype = GenotypeBuilder("LineA",genotype).make()
+        vc1.attribute("ASM_Chr", "1").attribute("ASM_Start", 1003).attribute("ASM_End", 1012).attribute("ASM_Strand", "+")
+        val firstVariant = vc1.genotypes(currentGenotype).make()
+
+        val vc2 = VariantContextBuilder(".", "chr1", 1011, 1020, alleles)
+
+        // First test sending in single variant context
+        // consider the ref range is position 98-1015, but the variant is at 1001-1010
+        // The starts remain, the ends are adjusted
+        val resizedVc1 = Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant,firstVariant), Pair(98,1005), Pair("+","+"))
+        println("resizedVc1 ref/asm start positions: ${resizedVc1[0].first} ${resizedVc1[0].second}")
+        println("resizedVc1 ref/asm end positions: ${resizedVc1[1].first} ${resizedVc1[1].second}")
+        assertEquals(1001, resizedVc1[0].first) // ref start
+        assertEquals(1005, resizedVc1[1].first) // ref end
+        assertEquals(1003, resizedVc1[0].second) // asm start
+        assertEquals(1012, resizedVc1[1].second) // asm end
 
     }
 
