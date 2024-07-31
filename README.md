@@ -47,6 +47,11 @@ _Long-form documentation for this section can be found
 [here](docs/build_and_load.md). Additional information about **QC 
 metrics** can be found [here](docs/qc_metrics.md)._
 
+> [!NOTE]
+> As of version 2.4.X, the phg utilizes a new version of anchorwave(1.2.3).
+> This changes how ASM coordinates are handled.  If you are using old MAF files, 
+> please use the --legacy-maf-file flag for create-maf-vcf.  More information can be found [here](docs/build_and_load.md).
+
 ```shell
 ## Setup conda environment
 ./phg setup-environment

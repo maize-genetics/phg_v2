@@ -1,5 +1,11 @@
 # Building and Loading
 
+!!! note
+    As of version 2.4.X, the phg utilizes a new version of anchorwave(1.2.3).
+    This changes how ASM coordinates are handled.  If you are using old MAF files,
+    please use the --legacy-maf-file flag for create-maf-vcf.
+
+
 In this document, we will discuss the steps needed to:
 1. Set up a working Conda environment containing the required
    external software
@@ -1197,6 +1203,10 @@ further information_):
 In addition, `--conda-env-prefix` is an optional parameter that specifies the path
 to the Conda directory that contains the conda environment needed to run phg.
 If not set, conda env `phgv2-conda` in the defauilt location will be used.
+
+There is also an optional parameter: `--legacy-maf-file`.  This flag can be added to the command
+to be able to process MAF files created from anchorwave 1.2.2 or earlier.  If this is not set and 
+an old file is being processed, the Assembly coordinates in the GVCF will be incorrect.
 
 Once the command is complete, and you have navigated into the output
 directory (in my case, `output/vcf_files`), you will see a collection
