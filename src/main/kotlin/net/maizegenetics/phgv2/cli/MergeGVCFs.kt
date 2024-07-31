@@ -1,6 +1,7 @@
 package net.maizegenetics.phgv2.cli
 
-import biokotlin.util.mergeGVCFs
+
+import biokotlin.util.MergeGVCFUtils.mergeGVCFs
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
