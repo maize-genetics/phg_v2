@@ -21,7 +21,7 @@ hVCF files can be broken into 3 main components:
   * Haplotype fields
 
 ### An example
-The following code block illustrates a formatted example hVCF file:
+The following code block illustrates a formatted [and merged](convenience_commands.md#merge-hvcf-files) example hVCF file:
 
 ```
 ##fileformat=VCFv4.2

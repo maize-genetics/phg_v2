@@ -1067,7 +1067,7 @@ when determining the AnchorWave setup.
 
 
 ### Create VCF files
-Now that we have (1) created alignments of our ass  emblies against a
+Now that we have (1) created alignments of our assemblies against a
 single reference genome and (2) created compressed representations
 of our assembly genomes, we can now create VCF information to
 populate our TileDB instances. This process is performed using two
