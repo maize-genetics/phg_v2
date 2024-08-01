@@ -52,13 +52,6 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
     // way to handle this?  Perhaps in Biokotlin they shoudl be moved outside the class and thus
     // accewssible as is done with MAFToGVCF.kt:refDepth, which we import to this class?
 
-    //This array represents the PL(Phred-likelihood) tag in VCF.  Basically the lowest number is the most likely allele.
-    //In the case of refPL the first is the most likely and in the case of the altPL the first alternate allele is the most likely.
-    val refPL = intArrayOf(0, 90, 90)
-
-    //Value to set the DP tag for each of the variants.
-    val totalDP = 30
-
     val hvcfDir by option("--hvcf-dir", help = "Path to directory holding hVCF files. Data will be pulled directly from these files instead of querying TileDB")
         .default("")
         .validate {
@@ -98,7 +91,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         // read and store ref file data for later use when creating the vcf sequence dictionary
         var time = System.nanoTime()
         val refSeq = CreateMafVcf().buildRefGenomeSeq(referenceFile)
-        println("Time to build refSeq: ${(System.nanoTime() - time)/1e9} seconds")
+        myLogger.info("Time to build refSeq: ${(System.nanoTime() - time)/1e9} seconds")
         buildGvcfFromHvcf(dbPath, refSeq, outputDir, hvcfDir, condaEnvPrefix)
     }
 
@@ -113,14 +106,14 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                 var time = System.nanoTime()
                 val sample = hvcfFile.toString().substringAfterLast("/").substringBefore(".")
                 val records = processHVCFtoVariantContext(sample,refSeq, outputDir, hvcfFile, dbPath,condaEnvPrefix)
-                println("Time to processHVCFtoVariantContext: ${(System.nanoTime() - time)/1e9} seconds")
+                myLogger.info("Time to processHVCFtoVariantContext: ${(System.nanoTime() - time)/1e9} seconds")
 
 
                 val gvcfFile = "$outputDir/${sample}.g.vcf"
                 myLogger.info("buildGvcfFromHvcf: exporting VariantContexts to gvcf file: $gvcfFile")
                 time = System.nanoTime()
                 exportVariantContext(sample,records,gvcfFile, refSeq,setOf())
-                println("Time to exportVariantContext: ${(System.nanoTime() - time)/1e9} seconds")
+                myLogger.info("Time to exportVariantContext: ${(System.nanoTime() - time)/1e9} seconds")
             }
 
     }
@@ -128,7 +121,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
     fun processHVCFtoVariantContext(outputSampleName:String,refSeq:Map<String,NucSeq>, outputDir:String, hvcfFile: File, dbPath: String, condaEnvPrefix: String): List<VariantContext> {
 
         val reader = VCFFileReader(hvcfFile,false)
-        // We also need to print to the new gvcf all the headers from 1 of the accessed gvcf files
+
         val header = reader.fileHeader
         val altHeaders = parseALTHeader(header = header)
         val sampleNames = altHeaders.values.map { it.sampleName() }.toSet()
@@ -163,13 +156,10 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         }.groupBy({ it.first }, { it.second })
         reader.close()
 
-
         // There is no gvcf for the reference, so we need to create one if
         // the reference is in the sampleNames list.  The query below gets the
         // ref sample name from the agc file (which is <dbPath>/assemblies.agc)
-        time = System.nanoTime()
         val refSampleName = retrieveRefSampleName (dbPath, condaEnvPrefix)
-        myLogger.info("Time to retrieveRefSampleName: ${(System.nanoTime() - time)/1e9} seconds")
 
         // check if file outputDir/refSampleName.vcf exists
         val refGvcfFile = "$outputDir/${refSampleName}.vcf"
@@ -495,7 +485,6 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
             // update the first and last variants, leaving those
             // in the middle unchanged.  CreateRefRangeVC will update the positions of the variant
             // as well as the ref allele
-            println("fixPositions: variantSize >=2")
             try {
                 // update the first variant in the list
                 val vcb = createRefRangeVC(refSeq,sampleName,Position(firstVariant.contig,newGvcfPositions[0].first),Position(firstVariant.contig,firstVariant.end),
@@ -530,21 +519,22 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
 
     //  Based on CreateMafVcf:resizeVariantContext() - but this version deals with both
-    // the reference start/end as well as  the ASM_* positions
+    // the reference start/end as well as the ASM_* positions
     // This new version: returns a List of Pairs of Ints.  The first Int is the reference position
     // and the second Int is the ASM position.  This first pair is for the start of the first variant,
     // the second pair is for the end of the last variant.  If there is only 1 variant, the 2 should be
     // the same.
-    // NOTE: reversestrand processing is only relevant to the asm coordinates.
+    // NOTE: reverse-strand processing is only relevant to the asm coordinates.
     // The reference coordinates will always be based on the forward strand.
     fun resizeVCandASMpositions(variants: Pair<VariantContext,VariantContext>, positions: Pair<Int,Int>, strands : Pair<String,String>) : List<Pair<Int,Int>> {
-        //check to see if the variant is either a RefBlock or is a SNP with equal lengths
+
         val updatedPositions = mutableListOf<Pair<Int,Int>>()
         var refAsmPos_first = Pair<Int,Int>(-1,-1)
         var refAsmPos_last = Pair<Int,Int>(-1,-1)
         val firstVariant = variants.first
         val lastVariant = variants.second
 
+        //check to see if the variant is either a RefBlock or is a SNP with equal lengths
         if (CreateMafVcf().isVariantResizable(firstVariant) ) {
             // if the position is < the start of the variant, then we return <variant.start,asm_start>
 
@@ -557,6 +547,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                  // We are adjusting the reference position and the asm position based on how far
                  // away the reference position is from the variant start.
                 positions.first < firstVariant.start -> {
+                    println("firstVariant:positions.first < firstVariant.start")
                     // The reference position starts before the variant, so we keep the new gvcf
                     // entry start equal to the current variant start
                     Pair(firstVariant.start,firstVariant.getAttributeAsInt("ASM_Start",firstVariant.start))
@@ -564,6 +555,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                 strands.first == "+" -> {
                     // This and the case below are hit when the ref start position is within the variant
                     val offset = positions.first - firstVariant.start
+
                     // We need to offset the ASM_Start, by the difference between the position and the variant start
                     // However, the ref position should be the same as the ref range start as it is equal to or
                     // greater than the variant start
@@ -571,6 +563,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                 }
                 strands.first == "-" -> {
                     val offset = positions.first - firstVariant.start
+
                     // offset for reverse strand
                     Pair(positions.first,firstVariant.getAttributeAsInt("ASM_Start",firstVariant.end) - offset)
                 }
@@ -593,6 +586,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         // The updated values depend on whether the refRange overlaps the beginning of the
         // variant, the end, or is completely contained within the variant.
         if (CreateMafVcf().isVariantResizable(lastVariant)) {
+
             refAsmPos_last = when {
                 positions.second >= lastVariant.end -> {
                     // The end of the ref range is beyond the end of the variant, so
@@ -601,13 +595,16 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                 }
                 strands.first == "+" -> {
                     // ref range ends before the lastVariant.end and is forward strand
-                    val offset = positions.second - lastVariant.end
+                    val offset = positions.second - lastVariant.start
+
                     // RefRanges ends is before the lastVariant.end
-                    // We need to offset the ASM_Start, by the difference between the position and the variant start
-                    Pair(positions.second,lastVariant.getAttributeAsInt("ASM_End",lastVariant.start) + offset)
+                    // We need to offset the ASM_End, by the difference between the position and the variant start
+                    //Pair(positions.second,lastVariant.getAttributeAsInt("ASM_End",lastVariant.start) + offset)
+                    Pair(positions.second,lastVariant.getAttributeAsInt("ASM_Start",lastVariant.start) + offset)
                 }
                 strands.first == "-" -> {
                     val offset = positions.second - lastVariant.start
+
                     // variant end at or beyond the ref range end.  Move the ASM_Start by the offset
                     Pair(positions.second,lastVariant.getAttributeAsInt("ASM_Start",firstVariant.end) - offset)
                 }
