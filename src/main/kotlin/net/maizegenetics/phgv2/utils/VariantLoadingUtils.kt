@@ -253,7 +253,7 @@ fun createSNPVC(assemblyTaxon: String, startPosition: Position, endPosition: Pos
 
     //Need to add AD for Alt >0 here so that the API will work correctly.  Otherwise it is treated as missing as it thinks AD = 0,0.
     // When coming from an assembly it should always use the ALT in a SNP pos
-    val gt = GenotypeBuilder().name(assemblyTaxon).alleles(Arrays.asList(altCall)).DP(30).AD(intArrayOf(0, 2, 0)).make()
+    val gt = GenotypeBuilder().name(assemblyTaxon).alleles(Arrays.asList(altCall)).DP(30).AD(intArrayOf(0, 30, 0)).make()
     val vcb = VariantContextBuilder()
         .chr(startPosition.contig)
         .start(startPosition.position.toLong())
