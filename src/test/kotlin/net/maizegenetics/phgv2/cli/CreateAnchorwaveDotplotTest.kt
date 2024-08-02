@@ -50,7 +50,7 @@ class CreateAnchorwaveDotplotTest {
         assertEquals(
             "Usage: create-anchorwave-dotplot [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --output-file: --output-file must not be blank\n", resultMissingOutput.output
+                    "Error: missing option --output-file\n", resultMissingOutput.output
         )
 
         // test missing input file
@@ -60,7 +60,7 @@ class CreateAnchorwaveDotplotTest {
         assertEquals(
             "Usage: create-anchorwave-dotplot [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --input-file: --input-file must not be blank\n", resultMissingInput.output
+                    "Error: missing option --input-file\n", resultMissingInput.output
         )
 
     }

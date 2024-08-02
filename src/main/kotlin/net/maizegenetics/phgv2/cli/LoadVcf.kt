@@ -3,17 +3,15 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.options.required
 import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.utils.inputStreamProcessing
 import net.maizegenetics.phgv2.utils.verifyURI
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedInputStream
 import java.io.File
-import java.lang.Exception
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.util.stream.Collectors
 
 /**
  * This class will load gvcf and hvcf files into TileDB datasets.
@@ -32,12 +30,7 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
     private val myLogger = LogManager.getLogger(LoadVcf::class.java)
 
     val vcfDir by option(help = "Full path to VCF file directory")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--vcf-dir must not be blank"
-            }
-        }
+        .required()
 
     val dbPath by option(help = "Folder holding TileDB datasets")
         .default("")

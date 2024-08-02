@@ -42,14 +42,14 @@ class CreateRefVcfTest {
         assertEquals(resultMissingBed.statusCode, 1)
         assertEquals("Usage: create-ref-vcf [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --bed: --bed must not be blank\n",resultMissingBed.output)
+                "Error: missing option --bed\n",resultMissingBed.output)
 
         // Test missing reference file
         val resultMissingRef = createRefVCF.test("--bed ${TestExtension.testBEDFile} --reference-url ${TestExtension.refURL} --reference-name ${TestExtension.refLineName} --db-path ${TestExtension.testTileDBURI}")
         assertEquals(resultMissingRef.statusCode, 1)
         assertEquals("Usage: create-ref-vcf [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --reference-file: --reference-file must not be blank\n",resultMissingRef.output)
+                "Error: missing option --reference-file\n",resultMissingRef.output)
 
         // Test missing ref name parameter
         val resultMissingRefName = createRefVCF.test("--reference-file ${TestExtension.testRefFasta} --reference-url ${TestExtension.refURL} --bed ${TestExtension.testBEDFile} --db-path ${TestExtension.testTileDBURI}")
@@ -57,7 +57,7 @@ class CreateRefVcfTest {
         println("resultMissingRefName.output = \n${resultMissingRefName.output}")
         assertEquals("Usage: create-ref-vcf [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --reference-name: --reference-name must not be blank\n",resultMissingRefName.output)
+                "Error: missing option --reference-name\n",resultMissingRefName.output)
 
     }
 

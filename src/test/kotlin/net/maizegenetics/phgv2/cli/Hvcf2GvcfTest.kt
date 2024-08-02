@@ -4,8 +4,6 @@ import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.variantcontext.Allele
 import htsjdk.variant.variantcontext.GenotypeBuilder
 import htsjdk.variant.variantcontext.VariantContextBuilder
-import htsjdk.variant.variantcontext.*
-import net.maizegenetics.phgv2.utils.verifyURI
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -99,7 +97,7 @@ class Hvcf2GvcfTest {
         assertEquals(
             "Usage: hvcf2gvcf [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --reference-file: --reference-file must not be blank\n", resultMissingRef.output
+                    "Error: missing option --reference-file\n", resultMissingRef.output
         )
 
 
@@ -109,7 +107,7 @@ class Hvcf2GvcfTest {
         assertEquals(
             "Usage: hvcf2gvcf [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --hvcf-dir: --hvcf-dir must not be blank\n", resultMissingHvcfDir.output
+                    "Error: missing option --hvcf-dir\n", resultMissingHvcfDir.output
         )
 
     }

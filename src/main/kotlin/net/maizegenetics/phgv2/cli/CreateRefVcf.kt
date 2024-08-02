@@ -6,7 +6,7 @@ import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.options.required
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeaderLine
@@ -37,28 +37,13 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
         .default("")
 
     val bed by option(help = "BED file with entries that define the haplotype boundaries")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--bed must not be blank"
-            }
-        }
+        .required()
 
     val referenceFile by option(help = "Path to local Reference FASTA file.")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--reference-file must not be blank"
-            }
-        }
+        .required()
 
     val referenceName by option(help = "Sample name for reference to be used in hvcf ")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--reference-name must not be blank"
-            }
-        }
+        .required()
 
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")

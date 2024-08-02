@@ -3,7 +3,7 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.options.required
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeaderLine
@@ -28,28 +28,13 @@ class Gvcf2Hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
     private val myLogger = LogManager.getLogger(Gvcf2Hvcf::class.java)
 
     val bed by option(help = "BED file with entries that define the haplotype boundaries")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--bed must not be blank"
-            }
-        }
+        .required()
 
     val referenceFile by option(help = "Path to local Reference FASTA file")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--reference-file must not be blank"
-            }
-        }
+        .required()
 
     val gvcfDir by option(help = "GVCF file directory. gvcf files should be bgzipped and csi indexed")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--gvcf-dir must not be blank"
-            }
-        }
+        .required()
 
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")

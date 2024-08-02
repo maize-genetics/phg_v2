@@ -38,7 +38,7 @@ class AgcCompressTest {
         assertEquals(resultMissingFastaList.statusCode, 1)
         assertEquals("Usage: agc-compress [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --fasta-list: --fasta-list must not be blank\n",resultMissingFastaList.output)
+                "Error: missing option --fasta-list\n",resultMissingFastaList.output)
 
 
         // Test missing refFasta parameter
@@ -46,7 +46,7 @@ class AgcCompressTest {
         assertEquals(resultRefFasta.statusCode, 1)
         assertEquals("Usage: agc-compress [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --reference-file: --reference-file must not be blank\n",resultRefFasta.output)
+                "Error: missing option --reference-file\n",resultRefFasta.output)
     }
 
     @Test

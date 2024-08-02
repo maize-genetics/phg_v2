@@ -42,7 +42,7 @@ class LoadVCFTest {
         assertEquals(resultMissingVCFDir.statusCode, 1)
         assertEquals("Usage: load-vcf [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --vcf-dir: --vcf-dir must not be blank\n",resultMissingVCFDir.output)
+                "Error: missing option --vcf-dir\n",resultMissingVCFDir.output)
     }
 
     @Test

@@ -8,17 +8,14 @@ import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.validate
-import htsjdk.variant.variantcontext.*
-import htsjdk.variant.vcf.VCFEncoder
+import com.github.ajalt.clikt.parameters.options.required
+import htsjdk.variant.variantcontext.VariantContext
+import htsjdk.variant.variantcontext.VariantContextComparator
 import htsjdk.variant.vcf.VCFFileReader
-import htsjdk.variant.vcf.VCFHeader
-import htsjdk.variant.vcf.VCFHeaderLine
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.File
-import java.util.*
 
 /**
  * This class takes a phgv2 hvcf file that was created via path-finding, and
@@ -49,16 +46,11 @@ import java.util.*
 class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf using data from existing PHG created g.vcf files")  {
     private val myLogger = LogManager.getLogger(Hvcf2Gvcf::class.java)
     // These values come from BioKotlin:MAFToGVCF - they should remain consistent - what is a better
-    // way to handle this?  Perhaps in Biokotlin they shoudl be moved outside the class and thus
-    // accewssible as is done with MAFToGVCF.kt:refDepth, which we import to this class?
+    // way to handle this?  Perhaps in Biokotlin they should be moved outside the class and thus
+    // accessible as is done with MAFToGVCF.kt:refDepth, which we import to this class?
 
     val hvcfDir by option("--hvcf-dir", help = "Path to directory holding hVCF files. Data will be pulled directly from these files instead of querying TileDB")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--hvcf-dir must not be blank"
-            }
-        }
+        .required()
 
     val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
@@ -69,12 +61,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
     val referenceFile by option(help = "Path to local Reference FASTA file needed for sequence dictionary")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--reference-file must not be blank"
-            }
-        }
+        .required()
 
     override fun run() {
         val dbPath = if (dbPath.isBlank()) {

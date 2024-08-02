@@ -121,7 +121,7 @@ class AlignAssembliesTest {
         assertEquals(
             "Usage: align-assemblies [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --gff: --gff must not be blank\n", resultMissingGff.output
+                    "Error: missing option --gff\n", resultMissingGff.output
         )
 
         // Test missing reference file parameter,
@@ -131,7 +131,7 @@ class AlignAssembliesTest {
         assertEquals(
             "Usage: align-assemblies [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --reference-file: --reference-file must not be blank\n", resultMissingRef.output
+                    "Error: missing option --reference-file\n", resultMissingRef.output
         )
 
         // Test missing assemblies list file parameter,
@@ -145,7 +145,7 @@ class AlignAssembliesTest {
         )
 
         // Test both assembly-file and assembly-file-list parameters.  Should fail as only
-        // one should be previded
+        // one should be provided
         val resultBothAssemblies =
             alignAssemblies.test(" --gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${TestExtension.smallseqRefFile} " +
                     "--assembly-file ${TestExtension.smallseqLineAFile} --assembly-file-list ${TestExtension.smallseqAssembliesListFile} -o ${TestExtension.tempDir}")
@@ -163,7 +163,7 @@ class AlignAssembliesTest {
         assertEquals(
             "Usage: align-assemblies [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --output-dir: --output-dir must not be blank\n", resultMissingOutputDir.output
+                    "Error: missing option --output-dir\n", resultMissingOutputDir.output
         )
     }
 
