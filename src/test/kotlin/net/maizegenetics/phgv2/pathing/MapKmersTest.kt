@@ -78,7 +78,7 @@ class MapKmersTest {
         assertEquals(
             "Usage: map-kmers [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --hvcf-dir: --hvcf-dir must not be blank\n", testMissingHVCFDir.output
+                    "Error: missing option --hvcf-dir\n", testMissingHVCFDir.output
         )
     }
 
