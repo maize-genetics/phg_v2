@@ -51,7 +51,9 @@ metrics** can be found [here](docs/qc_metrics.md)._
 > As of version 2.4.X, the phg utilizes a new version of anchorwave(1.2.3).
 > This changes how ASM coordinates are handled. 
 > If you are using old MAF files generated either from anchorwave 1.2.2 or from PHGv2 version 2.3 or eariler, 
-> please use the --legacy-maf-file flag for create-maf-vcf.  More information can be found [here](docs/build_and_load.md).
+> please use the --legacy-maf-file flag for create-maf-vcf.  
+> It is recommended that you remove your phgv2-conda Conda environment and rerun the setup-environment command.
+> More information can be found [here](docs/build_and_load.md).
 
 ```shell
 ## Setup conda environment
