@@ -1,7 +1,9 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.subcommands
+import com.github.ajalt.clikt.output.MordantHelpFormatter
 import com.github.ajalt.clikt.parameters.options.versionOption
 import net.maizegenetics.phgv2.agc.PrepareAssemblies
 import net.maizegenetics.phgv2.pathing.BuildKmerIndex
@@ -14,6 +16,10 @@ class Phg : CliktCommand() {
 
     init {
         setupDebugLogging()
+
+        context {
+            helpFormatter = { MordantHelpFormatter(it, showRequiredTag = true) }
+        }
 
         // get version from version.properties file
         var majorVersion = 0
