@@ -70,7 +70,7 @@ class MapKmersTest {
         assertEquals(
             "Usage: map-kmers [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --output-dir: --output-dir/-o must not be blank\n", resultMissingOutputDir.output
+                    "Error: missing option --output-dir\n", resultMissingOutputDir.output
         )
 
         val testMissingHVCFDir = mapKmers.test("--kmer-index ${TestExtension.testKmerIndex} --read-files ${TestExtension.testReads} --output-dir ${TestExtension.testOutputDir}")

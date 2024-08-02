@@ -61,7 +61,7 @@ sealed class ReadInputFile {
 
 class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
 
-    private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.cli.MapKmers")
+    private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.pathing.MapKmers")
 
     //./phg map-kmers \
     //    --kmer-index kmer_index.map \
@@ -71,12 +71,7 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
     //    // consider batch interface here ^^
 
     val hvcfDir by option(help = "Directory containing hvcf files used to build the HaplotypeGraph. (Required)")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--hvcf-dir must not be blank"
-            }
-        }
+        .required()
 
     val kmerIndex by option(help = "Kmer index file created by build-kmer-index. Default is <hvcfDir>/kmerIndex.txt.")
         .default("")
@@ -88,12 +83,7 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
 
 
     val outputDir by option("-o", "--output-dir", help = "Name for output ReadMapping file Directory (Required)")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--output-dir/-o must not be blank"
-            }
-        }
+        .required()
 
     val threads by option(help = "Number of threads to use. Default is 5.")
         .int()
