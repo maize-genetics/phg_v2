@@ -130,7 +130,7 @@ class CreateRangesTest {
         assertEquals(result.statusCode, 1)
         assertEquals("Usage: create-ranges [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --gff: --gff must not be blank\n",result.output)
+                "Error: missing option --gff\n",result.output)
 
     }
 
@@ -142,7 +142,7 @@ class CreateRangesTest {
         assertEquals(result.statusCode, 1)
         assertEquals("Usage: create-ranges [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --reference-file: --reference-file must not be blank\n",result.output)
+                "Error: missing option --reference-file\n",result.output)
 
     }
 

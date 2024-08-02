@@ -5,10 +5,7 @@ import biokotlin.featureTree.Genome
 import biokotlin.seq.NucSeq
 import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.options.default
-import com.github.ajalt.clikt.parameters.options.flag
-import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.options.*
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.int
 import com.google.common.collect.Range
@@ -40,12 +37,7 @@ data class BedRecord(val contig: String, val start : Int, val end: Int, val name
  */
 class CreateRanges: CliktCommand(help="Create a BED file of reference ranges from a GFF file") {
     val gff by option(help = "GFF file")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--gff must not be blank"
-            }
-        }
+        .required()
     val boundary by option(help = "Reference range boundaries: either gene or cds")
         .choice("gene", "cds")
         .default("gene")
@@ -58,12 +50,7 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
         .flag()
 
     val referenceFile by option(help = "Full path to the reference fasta file for filling in the intergenic/interCDS regions.  If supplied a Bed region will be created between the last GFF region and the end of the chromosome. If not, this region will be left off..")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--reference-file must not be blank"
-            }
-        }
+        .required()
 
     val rangeMinSize by option(help = "Minimum size of a range to be included in the output BED file,  If not specified, a default of 500 bps will be used.")
         .int()
