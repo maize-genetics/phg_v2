@@ -1,4 +1,4 @@
-# PHGv2 - SLURM Usage Guidelines for `align-assemblies`
+# SLURM Usage Guidelines for `align-assemblies`
 
 When running `align-assemblies` on a single machine, 
 the `--total-threads` and `--in-parallel` parameters are used to 
@@ -101,30 +101,30 @@ This command uses several parameters:
   software will throw an exception.
 
 * `--assemblies` - A text file containing a list of **annotated**
-  assembly genomes (_see the 
-  ["Prepare Assembly FASTA files"](build_and_load.md#prepare-assembly-fasta-files) 
-  section for further details_). The contents of the assembly list 
-  file should be either full or relative paths to each uncompressed 
-  assembly you would like to align. For example, since I am following
-  the steps laid out in the 
-  ["Build and Load Documentation"](build_and_load.md#align-assemblies),
-  I can create a text file called `assemblies_list.txt` (placed in
-  the `data/` subdirectory) and populate it with the following lines:
+    assembly genomes (_see the 
+    ["Prepare Assembly FASTA files"](build_and_load.md#prepare-assembly-fasta-files) 
+    section for further details_). The contents of the assembly list 
+    file should be either full or relative paths to each uncompressed 
+    assembly you would like to align. For example, since I am following
+    the steps laid out in the 
+    ["Build and Load Documentation"](build_and_load.md#align-assemblies),
+    I can create a text file called `assemblies_list.txt` (placed in
+    the `data/` subdirectory) and populate it with the following lines:
 
-  ```
-  output/updated_assemblies/LineA.fa
-  output/updated_assemblies/LineB.fa
-  ```
-  
-  Here, I am planning on aligning two genomes called `LineA` and
-  `LineB`. Since these are created with the `prepare-assemblies` command
-  and the output is located in a subdirectory called
-  `output/updated_assemblies/` relative to my working directory, I 
-  will also add that to the path.
+    ```
+    output/updated_assemblies/LineA.fa
+    output/updated_assemblies/LineB.fa
+    ```
 
-  + > ⚠️ **Warning**  
-    This text list **should not** contain the path to the reference
-    genome since this is recognized in the `--reference-file` flag.
+    Here, I am planning on aligning two genomes called `LineA` and
+    `LineB`. Since these are created with the `prepare-assemblies` command
+    and the output is located in a subdirectory called
+    `output/updated_assemblies/` relative to my working directory, I 
+    will also add that to the path.
+
+    + > ⚠️ **Warning**  
+      This text list **should not** contain the path to the reference
+      genome since this is recognized in the `--reference-file` flag.
 
 * `--ref-max-align-cov` - The maximum reference genome alignment 
   coverage. This is used in the `proali` 
@@ -160,7 +160,7 @@ I have two samples:
 ```
 ./phg align-assemblies --gff data/anchors.gff --output-dir output/alignment_files --reference-file output/update_assemblies/Ref.fa --reference-sam output/alignment_files/Ref.sam --reference-cds-fasta output/alignment_files/ref.cds.fasta --assembly-file data/test/smallseq/LineA.fa --total-threads 20 in-parallel 1  --ref-max-align-cov 1 --query-max-align-cov 1
 ./phg align-assemblies --gff data/anchors.gff --output-dir output/alignment_files --reference-file output/update_assemblies/Ref.fa --reference-sam output/alignment_files/Ref.sam --reference-cds-fasta output/alignment_files/ref.cds.fasta --assembly-file data/test/smallseq/LineB.fa --total-threads 20 in-parallel 1  --ref-max-align-cov 1 --query-max-align-cov 1
-````
+```
 
 !!! note
     If the file specified by the `--assemblies` parameter contains _10_

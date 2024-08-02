@@ -1,4 +1,4 @@
-# PHGv2 - Imputation
+# Imputation
 
 In this document, we will discuss the steps needed to perform
 imputation using the PHG:
@@ -118,6 +118,7 @@ instance. This is done using the `export-vcf` command:
     --output-dir output/vcf_files
 ```
 This command takes in 4 parameters:
+
 * `--db-path` - path to directory storing the TileDB instances. The
   AGC compressed genomes will be placed here on completion.
 * `--dataset-type` - the type of dataset to export. In this case, we
@@ -200,6 +201,7 @@ file. This is performed using the `build-kmer-index` command:
 
 This command has **2** required parameters and **1** optional 
 parameter that I will specify for example purposes:
+
 * `--db-path` - path to directory storing the TileDB instances and
   `assemblies.agc` file made in the 
   "[Compress FASTA files](build_and_load.md#compress-fasta-files)"
@@ -340,42 +342,42 @@ This command has the following parameters:
 * `--hvcf-dir` - the directory containing the hVCF files.
 * `--key-file` - a tab-delimited list of FASTQ files for a collection
   of samples.
-  + In the above example, I have made a keyfile and placed it in a
-  subdirectory under the `data` folder called `key_files`.
-  + My example keyfile would look like the following:
-    ```
-    sampleName  filename  filename2
-    LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
-    ```
-  + If you have more than one sample, you would place additional
-  lines at the bottom of the keyfile. For example:
-    ```
-    sampleName  filename  filename2
-    LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
-    CrossC data/short_reads/cross_c_1.fq  data/short_reads/cross_c_2.fq
-    CrossD data/short_reads/cross_d_1.fq  data/short_reads/cross_d_2.fq
-    ```
-  + > ℹ️ **Note**  
-  The keyfile for this parameter needs **column names**. If you
-  are using single-reads, the column names would be:
-  `sampleName` and `filename`. If you have paired-end reads (like 
-  the example above), the column names would be `sampleName`, 
-  `filename`, and `filename2`.
-  + > ℹ️ **Note**  
-  File names must be of type "FASTQ". In other words, files must 
-  end in the permitted extensions: `.fq`, `.fq.gz`, `.fastq`, and 
-  `.fastq.gz`. 
+    + In the above example, I have made a keyfile and placed it in a
+    subdirectory under the `data` folder called `key_files`.
+    + My example keyfile would look like the following:
+      ```
+      sampleName  filename  filename2
+      LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
+      ```
+    + If you have more than one sample, you would place additional
+    lines at the bottom of the keyfile. For example:
+      ```
+      sampleName  filename  filename2
+      LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
+      CrossC data/short_reads/cross_c_1.fq  data/short_reads/cross_c_2.fq
+      CrossD data/short_reads/cross_d_1.fq  data/short_reads/cross_d_2.fq
+      ```
+    + > ℹ️ **Note**  
+    The keyfile for this parameter needs **column names**. If you
+    are using single-reads, the column names would be:
+    `sampleName` and `filename`. If you have paired-end reads (like 
+    the example above), the column names would be `sampleName`, 
+    `filename`, and `filename2`.
+    + > ℹ️ **Note**  
+    File names must be of type "FASTQ". In other words, files must 
+    end in the permitted extensions: `.fq`, `.fq.gz`, `.fastq`, and 
+    `.fastq.gz`. 
 * `--output-dir` - the directory to place the read-mapping files.
 * `--kmer-index` (_optional_) - the k-mer index file created by the
   `build-kmer-index` command.
-  + > ℹ️ **Note**  
-    The `--kmer-index` parameter should only be used if you
-    specify a given name and path for your k-mer index file
-    generated in the [last step](#k-mer-indexing). If you have
-    chosen the "default" option (i.e., leaving this blank), the 
-    `map-kmer` command will automatically detect the 
-    `kmerIndex.txt` file found in the directory specified by the 
-    `--hvcf-dir` parameter.
+    + > ℹ️ **Note**  
+      The `--kmer-index` parameter should only be used if you
+      specify a given name and path for your k-mer index file
+      generated in the [last step](#k-mer-indexing). If you have
+      chosen the "default" option (i.e., leaving this blank), the 
+      `map-kmer` command will automatically detect the 
+      `kmerIndex.txt` file found in the directory specified by the 
+      `--hvcf-dir` parameter.
 
 
 !!! tip
@@ -522,38 +524,38 @@ and will place imputed hVCF files there:
 This command has the following required parameters:
 
 * `--path-keyfile` **or** `--read-file` **but not both**: 
-  + `--path-keyfile` - name and path of a tab-delimited keyfile that 
-    contains a list of the read-mapping files or read files (FASTQ). 
-    + In the working example, I have made a keyfile and placed it in
-      the `key_files` folder under the `data` directory. The keyfile
-      looks something like this:
-      ```
-      sampleName  filename
-      LineA_B output/read_mappings/LineA_LineB_1_readMapping.txt
-      ```
-    + If you wish to skip the prior manual `map-kmers` step, the data
-      in the keyfile can also be paths to FASTQ data (_see the 
-      "[Read Mapping](#read-mapping)" section for further details_) 
-    + > ℹ️ **Note**  
-      The keyfile must have two columns labeled `sampleName` and 
-      `filename` if you are specifying paths to read-mapping files.
-      If you are using paths to FASTQ data, you may add another
-      column to your keyfile, labelled `filename2`, only if your 
-      FASTQ data is paired-end.
-    + > ℹ️ **Note**  
-      The samples in the `sampleName` must be unique and must match
-      prior keyfile data from the "[Read Mapping](#read-mapping)" 
-      steps.
-    + > ℹ️ **Note**  
-      If an output hVCF for a sample name already exists in the 
-      output directory, the sample will be skipped.
-  + `--read-file` - FASTQ samples or read-mapping files as a 
-    comma-separated list.
-    + If bypassing the manual `map-kmers` step, paths to FASTQ
-      files can be used. Either 1 (for single-end) or 2 (for 
-      paired-end) comma-separated files can be input this way.
-    + If specifying read-mapping files, comma-separated paths to
-      files must have the `_readMapping.txt` suffix to work.
+    + `--path-keyfile` - name and path of a tab-delimited keyfile that 
+      contains a list of the read-mapping files or read files (FASTQ). 
+        + In the working example, I have made a keyfile and placed it in
+          the `key_files` folder under the `data` directory. The keyfile
+          looks something like this:
+          ```
+          sampleName  filename
+          LineA_B output/read_mappings/LineA_LineB_1_readMapping.txt
+          ```
+        + If you wish to skip the prior manual `map-kmers` step, the data
+          in the keyfile can also be paths to FASTQ data (_see the 
+          "[Read Mapping](#read-mapping)" section for further details_) 
+        + > ℹ️ **Note**  
+          The keyfile must have two columns labeled `sampleName` and 
+          `filename` if you are specifying paths to read-mapping files.
+          If you are using paths to FASTQ data, you may add another
+          column to your keyfile, labelled `filename2`, only if your 
+          FASTQ data is paired-end.
+        + > ℹ️ **Note**  
+          The samples in the `sampleName` must be unique and must match
+          prior keyfile data from the "[Read Mapping](#read-mapping)" 
+          steps.
+        + > ℹ️ **Note**  
+          If an output hVCF for a sample name already exists in the 
+          output directory, the sample will be skipped.
+    + `--read-file` - FASTQ samples or read-mapping files as a 
+      comma-separated list.
+        + If bypassing the manual `map-kmers` step, paths to FASTQ
+          files can be used. Either 1 (for single-end) or 2 (for 
+          paired-end) comma-separated files can be input this way.
+        + If specifying read-mapping files, comma-separated paths to
+          files must have the `_readMapping.txt` suffix to work.
 * `--hvcf-dir` - The directory containing the hvcf used to build the 
   haplotype graph used for imputation.
 * `--reference-genome` -  The name and path to the reference genome 
@@ -690,7 +692,6 @@ Our imputed hVCF files provide data on a haplotype level. If desired we can take
 the hVCF files and create gVCF files. This provides SNP level data and is done using 
 the `hvcf2gvcf` command:
 
-
 ```shell
 ./phg hvcf2gvcf \
     --hvcf-dir output/vcf_files_imputed \
@@ -698,7 +699,9 @@ the `hvcf2gvcf` command:
     --reference-file output/updated_assemblies/Ref.fa \
     --output-dir output/gvcf_files
 ```
+
 This command takes 4 parameters:
+
 * `--hvcf-dir` - Directory containing hVCF data. Since I have imputed 
   data in a specific subdirectory, I will use the path
   `output/vcf_files_imputed`

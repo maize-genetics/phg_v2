@@ -1,6 +1,5 @@
 package net.maizegenetics.phgv2.cli
 
-import com.github.ajalt.clikt.testing.test
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -40,9 +39,9 @@ class SetupEnvironmentTest {
         val envFile = "src/test/resources/net/maizegenetics/phgv2/cli/test.yml"
 
         val setupEnv = SetupEnvironment()
-        val result = setupEnv.createEnvironment( envFile,tempDir)
+        val result = setupEnv.createEnvironment(envFile, tempDir)
         println("result = $result")
-         // To verify, we  check that the outputDir contains the expected files
+        // To verify, we  check that the outputDir contains the expected files
         val expectedFiles = listOf("condaCreate_error.log", "condaCreate_output.log")
         expectedFiles.forEach { assert(File(tempDir + it).exists()) }
     }
@@ -62,4 +61,22 @@ class SetupEnvironmentTest {
         val expectedFiles = listOf("condaCreate_error.log", "condaCreate_output.log")
         expectedFiles.forEach { assert(File(tempDir + it).exists()) }
     }
+
+    @Test
+    fun testEnvFileDoesNotExist() {
+
+        val envFile = "src/test/resources/net/maizegenetics/phgv2/cli/test_does_not_exist.yml"
+
+        val setupEnv = SetupEnvironment()
+        val exceptionThrow = try {
+            setupEnv.createEnvironment(envFile, tempDir)
+            false
+        } catch (e: IllegalStateException) {
+            assert(e.message!!.contains("file $envFile does not exist"))
+            true
+        }
+        assert(exceptionThrow)
+
+    }
+
 }

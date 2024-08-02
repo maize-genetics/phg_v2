@@ -1,4 +1,4 @@
-# hVCF - Haplotype Variant Call Format Specification
+# hVCF - **h**aplotype **V**ariant **C**all **F**ormat Specification
 
 * **_Specification version:_** `v2.2`
 * **_Date:_** 2023-12-07

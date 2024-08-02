@@ -1,6 +1,7 @@
-# PHGv2 - Building and Loading
+# Building and Loading
 
 In this document, we will discuss the steps needed to:
+
 1. Set up a working Conda environment containing the required
    external software
 2. Initialize a [TileDB-VCF](https://docs.tiledb.com/main/integrations-and-extensions/genomics/population-genomics) instance
@@ -10,7 +11,7 @@ In this document, we will discuss the steps needed to:
 ## Quick start
 * Set up the PHGv2 Conda environment:
     ```shell
-    phg setup-environment --env-file phg_environment.yml
+    phg setup-environment
     ```
   
 * Initialize TileDB instances:
@@ -160,13 +161,18 @@ Instead of setting this up manually, we can use the
 run, use the following command:
 
 ```shell
-phg setup-environment --env-file phg_environment.yml
+phg setup-environment
 ```
 
-This command takes one parameter, `--env-file`. This is a path to the 
-Conda environment file. You can create the file 
-from scratch (`phg_environment.yml`)  and copy over the contents in 
-the following block:
+By using the prior default example, the `setup-environment` command 
+will extract an internal Conda environment file with the necessary 
+libraries and programs (_see following code block for example file_). 
+_Optionally_, if you want to add additional libraries and programs 
+to your PHGv2 Conda environment, you may specify the _optional_ 
+parameter, `--env-file`. This will be a path to a _local_ Conda 
+environment file. You can create the file from scratch (for example, 
+I will call mine `phg_environment.yml`) and copy over the contents 
+in the following block:
 
 ```
 name: phgv2-conda
@@ -189,6 +195,13 @@ Another option is to pull in the environment file directly from the
 
 ```shell
 curl https://raw.githubusercontent.com/maize-genetics/phg_v2/main/src/main/resources/phg_environment.yml -o phg_environment.yml
+```
+
+Once the local YAML file is made, we can pass it to the `--env-file`
+parameter:
+
+```shell
+phg setup-environment --env-file phg_environment.yml
 ```
 
 After the setup step is complete, we can activate our environment
@@ -439,21 +452,24 @@ This command takes 3 parameters:
 * `--keyfile` - A [tab-delimited](https://en.wikipedia.org/wiki/Tab-separated_values)
   keyfile containing two columns:
 
-  | Column | Value                                                                                                                                                                                                                      |
-  |--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-  | `1`    | Path to FASTA file you would like annotated (this is similar to the text files used to point to the FASTA file paths in the [`agc-compress`](#compress-fasta-files) and [`align-assemblies`](#align-assemblies) commands). |
-  | `2`    | Name of the sample that will be (1) appended to each header line and (2) the name of the newly generated FASTA file.                                                                                                       |
+    | Column | Value                                                                                                                                                                                                                      |
+    |--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+    | `1`    | Path to FASTA file you would like annotated (this is similar to the text files used to point to the FASTA file paths in the [`agc-compress`](#compress-fasta-files) and [`align-assemblies`](#align-assemblies) commands). |
+    | `2`    | Name of the sample that will be (1) appended to each header line and (2) the name of the newly generated FASTA file.                                                                                                       |
 
-  + My example `annotation_keyfile.txt` (which is placed in the 
-    `data/` subdirectory) would look like this:
-      ```shell
-      data/Ref-v5.fa Ref
-      data/LineA-final-01.fa   LineA
-      data/LineB-final-04.fa   LineB
-      ```
-  + > ⚠️ **Warning**  
-    **All** sample assemblies (**including your reference assembly**)
-    that you would want processed need to be included in this keyfile.
+    + My example `annotation_keyfile.txt` (which is placed in the 
+      `data/` subdirectory) would look like this:
+
+        ```shell
+        data/Ref-v5.fa Ref
+        data/LineA-final-01.fa   LineA
+        data/LineB-final-04.fa   LineB
+        ```
+
+    + > ⚠️ **Warning**  
+      **All** sample assemblies (**including your reference assembly**)
+      that you would want processed need to be included in this keyfile.
+
 * `--threads` - Optional number of threads to update multiple
   FASTA files in parallel. _Defaults to `1`_.
 * `-o` - Output directory for the newly updated FASTA files
@@ -655,22 +671,23 @@ This command uses several parameters:
   reference ranges. Currently, these can be defined as either
   `gene` or `cds` regions:
 
-![](img/build_and_load/create_ranges_01.svg)
+    ![](img/build_and_load/create_ranges_01.svg)
 
-  + In the above figure, if `--boundary` is set to `gene`, the start
-    and end positions are at the UTR regions for each gene feature from
-    the GFF file, while `cds` will begin and end at the open reading 
-    frame. By default, the `cds` option will try to identify the
-    transcript with the longest open reading frame if there are
-    multiple transcript "children" for a gene "parent" in the GFF
-    file.
+    + In the above figure, if `--boundary` is set to `gene`, the start
+      and end positions are at the UTR regions for each gene feature from
+      the GFF file, while `cds` will begin and end at the open reading 
+      frame. By default, the `cds` option will try to identify the
+      transcript with the longest open reading frame if there are
+      multiple transcript "children" for a gene "parent" in the GFF
+      file.
+
 * `--pad` - The number of base pairs you would like to flank regions:
 
-![](img/build_and_load/create_ranges_02.svg)
+    ![](img/build_and_load/create_ranges_02.svg)
 
-  + For example, if we were to set the `--pad` parameter to `500`,
-    we would extend the region 500 base pairs upstream and downstream
-    of the defined boundary (in this case, `gene`).
+    + For example, if we were to set the `--pad` parameter to `500`,
+      we would extend the region 500 base pairs upstream and downstream
+      of the defined boundary (in this case, `gene`).
 
 !!! note
     There is a possibility that overlaps of regions will occur. If
@@ -786,13 +803,16 @@ To run the aligner step, we can call the `align-assemblies` command:
 #### Align-assemblies parameters
 
 This `align-assemblies` command uses several **required** parameters:
+
 * `--gff` - GFF file for the reference genome. This is used to
   identify full-length coding sequences to use as anchors
 * `--reference-file` - The reference genome in 
   [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format.
-  + > ℹ️ **Note**  
-    The path to the reference genome should be the **updated version**
-    that was created during the `prepare-assemblies` command.
+
+    + > ℹ️ **Note**  
+      The path to the reference genome should be the **updated version**
+      that was created during the `prepare-assemblies` command.
+
 * `--assembly-file-list` Or `--assembly-file` - Either a single 
   annotated file may be specified, or a text file containing a list 
   of **annotated** assembly genomes (_see the ["Prepare Assembly FASTA files"](#prepare-assembly-fasta-files) 
@@ -804,18 +824,19 @@ This `align-assemblies` command uses several **required** parameters:
   I can create a text file called `assemblies_list.txt` (placed in 
   the `data/` subdirectory) and populate it with the following lines:
 
-  ```
-  output/updated_assemblies/LineA.fa
-  output/updated_assemblies/LineB.fa
-  ```
-  Here, I am planning on aligning two genomes called `LineA` and 
-  `LineB`. Since these are created with the `prepare-assemblies` command 
-  and the output is located in a subdirectory called 
-  `output/updated_assemblies/` relative to my working directory, I 
-  will also add that to the path.
-  + > ⚠️ **Warning**  
-    This text list **should not** contain the path to the reference
-    genome since this is recognized in the `--reference-file` flag.
+    ```
+    output/updated_assemblies/LineA.fa
+    output/updated_assemblies/LineB.fa
+    ```
+    Here, I am planning on aligning two genomes called `LineA` and 
+    `LineB`. Since these are created with the `prepare-assemblies` command 
+    and the output is located in a subdirectory called 
+    `output/updated_assemblies/` relative to my working directory, I 
+    will also add that to the path.
+
+    + > ⚠️ **Warning**  
+      This text list **should not** contain the path to the reference
+      genome since this is recognized in the `--reference-file` flag.
 
 * `-o` - The name of the directory for the alignment outputs.
 
@@ -1059,7 +1080,7 @@ phg create-ref-vcf \
     --bed output/ref_ranges.bed \
     --reference-file output/updated_assemblies/Ref.fa \
     --reference-name Ref \
-    --db-path vcf_dbs |
+    --db-path vcf_dbs \
     --conda-env-prefix /path/to/conda/env
 ```
 
@@ -1108,10 +1129,10 @@ existing PHG created gVCF files to hVCF files:
   information guided by reference range positional data from the 
   BED file used in the `--bed` parameter.
 * `--reference-name` - the name of the reference sample. 
-  + > ℹ️ **Note**  
-    The name given here should be the same name given in the
-    keyfile during the [Prepare Assembly FASTA Files](#prepare-assembly-fasta-files)
-    step.
+    + > ℹ️ **Note**  
+      The name given here should be the same name given in the
+      keyfile during the [Prepare Assembly FASTA Files](#prepare-assembly-fasta-files)
+      step.
 * `--db-path` - path to PHG database directory for VCF storage.
 
 
@@ -1166,10 +1187,10 @@ reference hVCF file to the `hvcf_dataset` TileDB instance.
   positional data from the BED file used in the `--bed` parameter.
   hashed sequence data will place in the `##ALT` tag's `RefRange`
   key.
-  + > ℹ️ **Note**  
-    This should be the processed reference assembly generated from
-    the ["Prepare Assembly FASTA Files"](#prepare-assembly-fasta-files)
-    step.
+    + > ℹ️ **Note**  
+      This should be the processed reference assembly generated from
+      the ["Prepare Assembly FASTA Files"](#prepare-assembly-fasta-files)
+      step.
 * `--maf-dir` - Directory containing the MAF files generated using
   the `align-assemblies` command (_see the 
   ["Align assemblies"](#align-assemblies) section for further 

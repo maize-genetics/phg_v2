@@ -1,4 +1,4 @@
-# PHGv2 - haplotype region handling
+# Haplotype Region Handling
 
 In this document, we will go into further detail about how
 regions are reported in the alternative allele field of an hVCF file 
