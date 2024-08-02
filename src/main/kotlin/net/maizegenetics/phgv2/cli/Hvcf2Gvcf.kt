@@ -572,8 +572,6 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                 }
             }
         } else {
-            //  We are resizing here instead of outside of
-            // this call. Zack resized outside of the call.
             // not resizable, so only change the ASM_* values
             val newASMStart = if(strands.first == "+") firstVariant.getAttributeAsInt("ASM_Start",positions.first)
             else firstVariant.getAttributeAsInt("ASM_End",positions.first)
@@ -599,7 +597,6 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
                     // RefRanges ends is before the lastVariant.end
                     // We need to offset the ASM_End, by the difference between the position and the variant start
-                    //Pair(positions.second,lastVariant.getAttributeAsInt("ASM_End",lastVariant.start) + offset)
                     Pair(positions.second,lastVariant.getAttributeAsInt("ASM_Start",lastVariant.start) + offset)
                 }
                 strands.first == "-" -> {

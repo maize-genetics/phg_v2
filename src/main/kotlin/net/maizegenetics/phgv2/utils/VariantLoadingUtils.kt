@@ -209,7 +209,7 @@ fun verifyIntervalRanges(intervalFile: String): Set<String> {
  */
 fun createRefRangeVC(refSequence: Map<String,NucSeq>, assemblyTaxon: String, refRangeStart: Position, refRangeEnd: Position,
     asmStart: Position?, asmEnd: Position?, asmStrand:String): VariantContext {
-    // LCJ _ added -1 to refRangeStart.position to get the correct base in call below
+    // -1 added to refRangeStart.position to get the correct base in call below
     val firstRefAllele = Allele.create(refSequence[refRangeStart.contig]!!.get(refRangeStart.position-1).toString(),true)
     val gt = GenotypeBuilder().name(assemblyTaxon).alleles(Arrays.asList(firstRefAllele)).DP(30).AD(intArrayOf(30, 0)).PL(intArrayOf(0,90,90)).make()
     check(refRangeStart.position <= refRangeEnd.position) { "createRefRangeVC - start position greater than end: start=" +
