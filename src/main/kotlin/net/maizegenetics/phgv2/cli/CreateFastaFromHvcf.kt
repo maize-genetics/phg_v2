@@ -8,7 +8,8 @@ import com.github.ajalt.clikt.parameters.groups.single
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.types.enum
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.utils.*
@@ -53,20 +54,16 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
         .default("")
 
     val outputDir by option("-o", "--output-dir", help = "Directory where output fasta Files will be written")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--output-dir/-o must not be blank"
-            }
-        }
+        .required()
+
+    enum class FastaType {
+        composite,
+        haplotype
+    }
 
     val fastaType by option("--fasta-type", help = "Type of fasta exported.  Can be either composite or haplotype")
-        .default("")
-        .validate {
-            require(it == "composite" || it == "haplotype") {
-                "--fasta-type must be either composite or haplotype"
-            }
-        }
+        .enum<FastaType>()
+        .required()
 
     // Users may input either a single hvcf file or a directory with multiple hvcf files
     // Currently one of the two options must be provided but this may change when we support
@@ -89,7 +86,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
      * Function to build the Fasta file from the HVCF and the agc record.
      * Right now it does not support pulling from TileDB, but will in the future.
      */
-    fun buildFastaFromHVCF(dbPath: String, outputDir: String, fastaType:String, hvcfInput:HvcfInput?, condaEnvPrefix:String) {
+    fun buildFastaFromHVCF(dbPath: String, outputDir: String, fastaType: FastaType, hvcfInput: HvcfInput?, condaEnvPrefix:String) {
 
         if (hvcfInput is HvcfInput.HvcfDir) {
             // Loop through the directory and figure out which files are hvcf files
@@ -139,10 +136,10 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
         return samples.flatMap { sample -> createHaplotypeSequences(dbPath, sample, hvcfRecords, altHeaderMap,condaEnvPrefix) }
     }
 
-    fun writeSequences(outputWriter: BufferedWriter, haplotypeSequences: List<HaplotypeSequence>, fastaType: String) {
-        if(fastaType == "composite")
+    fun writeSequences(outputWriter: BufferedWriter, haplotypeSequences: List<HaplotypeSequence>, fastaType: FastaType) {
+        if(fastaType == FastaType.composite)
             writeCompositeSequence(outputWriter, haplotypeSequences)
-        else if(fastaType == "haplotype") {
+        else if(fastaType == FastaType.haplotype) {
             writeHaplotypeSequence(outputWriter, haplotypeSequences)
         }
     }
