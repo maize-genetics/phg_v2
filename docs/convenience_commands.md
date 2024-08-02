@@ -94,21 +94,21 @@ phg merge-gvcfs \
 ```shell
 phg merge-hvcfs \
     --input-dir my/hvcf/directory \
-    --output-file output/merged_gvcfs.g.vcf \
+    --output-file output/merged_hvcfs.h.vcf \
     --id-format CHECKSUM \
     --reference-file \
-    --range-bed-file 
+    --range-bedfile 
 ```
 
 **Parameters**
 
 | Parameter name     | Description                                                                                                   | Default value         | Required?        |
 |--------------------|---------------------------------------------------------------------------------------------------------------|-----------------------|------------------|
-| `--input-dir`      | Path to input gVCF file directory.                                                                            | `""`                  | :material-check: |
-| `--output-dir`     | Path and/or filename for merged gVCF file.                                                                    | `""`                  | :material-check: |
+| `--input-dir`      | Path to input hVCF file directory.                                                                            | `""`                  | :material-check: |
+| `--output-dir`     | Path and/or filename for merged hVCF file.                                                                    | `""`                  | :material-check: |
 | `--id-format`      | ID format for hVCF files. Options are: `CHECKSUM` or `RANGE_SAMPLE_GAMETE` (_see notes for further details_). | `RANGE_SAMPLE_GAMETE` |                  |
 | `--reference-file` | Path to reference FASTA file.                                                                                 | `""`                  |                  |
-| `--range-bed-file` | Path to [reference range BED file](build_and_load.md#create-reference-ranges).                                | `""`                  |                  |
+| `--range-bedfile`  | Path to [reference range BED file](build_and_load.md#create-reference-ranges).                                | `""`                  |                  |
 
 !!! note "Note - `id-fomat`"
     If you select `CHECKSUM` for the `--id-format` parameter, the `ID`

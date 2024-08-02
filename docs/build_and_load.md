@@ -212,7 +212,7 @@ conda activate phgv2-conda
 ```
 
 !!! note
-    It is imperative the conda environment you create is named 
+    It is imperative the Conda environment you create is named 
     `phgv2-conda`. This is the default environment name that PHGv2 uses 
     when executing shell commands from within the software.
 
@@ -224,13 +224,13 @@ error output from the PHGv2 command steps:
 * `condaCreate_output.log`
 
 !!! note
-    If you need or want to have the conda environment setup in a non-default
-    location, you must run the "conda env create" command manually
-    using the --prefix option to specify the name and location of the
+    If you need or want to have the Conda environment setup in a non-default
+    location, you must run the `conda env create` command manually
+    using the `--prefix` option to specify the name and location of the
     environment.  This created location should then be passed as the
-    "conda-env-prefix" parameter for all PHGv2 commands that have this optional
-    parameter.  For this scenario, the .yml file should not contain the "name"
-    section.  An example of the command to create the environment in a
+    `conda-env-prefix` parameter for all PHGv2 commands that have this optional
+    parameter.  For this scenario, the `.yml` file **should not contain the 
+    `name:`** section.  An example of the command to create the environment in a
     non-default location is:
     
     
@@ -1067,7 +1067,7 @@ when determining the AnchorWave setup.
 
 
 ### Create VCF files
-Now that we have (1) created alignments of our ass  emblies against a
+Now that we have (1) created alignments of our assemblies against a
 single reference genome and (2) created compressed representations
 of our assembly genomes, we can now create VCF information to
 populate our TileDB instances. This process is performed using two
