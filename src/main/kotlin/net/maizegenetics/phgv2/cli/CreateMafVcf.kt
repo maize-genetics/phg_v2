@@ -25,36 +25,16 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
 
     private val myLogger = LogManager.getLogger(CreateMafVcf::class.java)
     val bed by option(help = "BED file with entries that define the haplotype boundaries")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--bed must not be blank"
-            }
-        }
+        .required()
 
     val referenceFile by option(help = "Path to local Reference FASTA file")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--reference-file must not be blank"
-            }
-        }
+        .required()
 
     val mafDir by option(help = "MAF file directory")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--maf-dir must not be blank"
-            }
-        }
+        .required()
 
     val outputDir by option("-o", "--output-dir", help = "Name for output VCF file Directory")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--output-dir/-o must not be blank"
-            }
-        }
+        .required()
 
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")

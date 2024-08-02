@@ -32,7 +32,7 @@ class CreateMafVCFTest {
         assertEquals(
             "Usage: create-maf-vcf [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --bed: --bed must not be blank\n", resultMissingBed.output
+                    "Error: missing option --bed\n", resultMissingBed.output
         )
         val resultMissingRef =
             createMAFVCF.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} --maf-dir ${TestExtension.testMafDir} -o ${TestExtension.testVCFDir}")
@@ -40,7 +40,7 @@ class CreateMafVCFTest {
         assertEquals(
             "Usage: create-maf-vcf [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --reference-file: --reference-file must not be blank\n", resultMissingRef.output
+                    "Error: missing option --reference-file\n", resultMissingRef.output
         )
 
         val resultMissingOutput =
@@ -49,7 +49,7 @@ class CreateMafVCFTest {
         assertEquals(
             "Usage: create-maf-vcf [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --output-dir: --output-dir/-o must not be blank\n", resultMissingOutput.output
+                    "Error: missing option --output-dir\n", resultMissingOutput.output
         )
 
         val resultMissingMafDir =
@@ -58,7 +58,7 @@ class CreateMafVCFTest {
         assertEquals(
             "Usage: create-maf-vcf [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --maf-dir: --maf-dir must not be blank\n", resultMissingMafDir.output
+                    "Error: missing option --maf-dir\n", resultMissingMafDir.output
         )
 
     }
