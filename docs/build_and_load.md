@@ -2,7 +2,8 @@
 
 !!! note
     As of version 2.4.X, the phg utilizes a new version of anchorwave(1.2.3).
-    This changes how ASM coordinates are handled.  If you are using old MAF files,
+    This changes how ASM coordinates are handled.  
+    If you are using old MAF files generated either from anchorwave 1.2.2 or from PHGv2 version 2.3 or earlier,
     please use the --legacy-maf-file flag for create-maf-vcf.
 
 
