@@ -11,8 +11,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import net.maizegenetics.phgv2.pathing.KeyFileData
-import net.maizegenetics.phgv2.pathing.PathInputFile
 import org.apache.logging.log4j.LogManager
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.toMap
@@ -116,20 +114,10 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         ).default(false)
 
     val gff by option(help = "Full path to the reference gff file")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--gff must not be blank"
-            }
-        }
+        .required()
 
     val referenceFile by option(help = "Full path to reference fasta file")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--reference-file must not be blank"
-            }
-        }
+        .required()
 
     val referenceSam by option(help = "Full path to reference SAM file created by AlignAssemblies class when the just-ref-prep option is used")
         .default("")
@@ -148,12 +136,7 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
     ).single().required()
 
     val outputDir by option("-o", "--output-dir", help = "Directory where temporary and final files will be written")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--output-dir must not be blank"
-            }
-        }
+        .required()
 
     val totalThreads by option(help = "Number of threads available.  These will be split among the alignments that are run in parallel")
         .int()
