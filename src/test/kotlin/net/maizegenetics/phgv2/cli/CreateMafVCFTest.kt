@@ -221,7 +221,7 @@ class CreateMafVCFTest {
         val createMafVCF = CreateMafVcf()
         val variant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
             Position("chr1",5), Position("chr1",10),
-            Position("chr1",5), Position("chr1",10))
+            Position("chr1",5), Position("chr1",10),"+")
 
         val fullyContainedBed = Pair(Position("chr1", 3), Position("chr1", 15))
         val containedBed = Pair(Position("chr1",6),Position("chr1",9))
@@ -244,7 +244,7 @@ class CreateMafVCFTest {
         val createMafVCF = CreateMafVcf()
         val variant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
             Position("chr1",5), Position("chr1",10),
-            Position("chr1",5), Position("chr1",10))
+            Position("chr1",5), Position("chr1",10),"+")
 
         val fullyContainedBed = Pair(Position("chr1", 3), Position("chr1", 15))
         val containedBed = Pair(Position("chr1",6),Position("chr1",9))
@@ -267,7 +267,7 @@ class CreateMafVCFTest {
         val createMafVCF = CreateMafVcf()
         val variant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
             Position("chr1",5), Position("chr1",10),
-            Position("chr1",5), Position("chr1",10))
+            Position("chr1",5), Position("chr1",10),"+")
 
         val fullyContainedBed = Pair(Position("chr1", 3), Position("chr1", 15))
         val containedBed = Pair(Position("chr1",6),Position("chr1",9))
@@ -289,7 +289,7 @@ class CreateMafVCFTest {
         val createMafVCF = CreateMafVcf()
         val variant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
             Position("chr1",5), Position("chr1",10),
-            Position("chr1",5), Position("chr1",10))
+            Position("chr1",5), Position("chr1",10),"+")
 
         val fullyContainedBed = Pair(Position("chr1", 3), Position("chr1", 15))
         val containedBed = Pair(Position("chr1",6),Position("chr1",9))
@@ -311,7 +311,7 @@ class CreateMafVCFTest {
         val createMafVCF = CreateMafVcf()
         val variant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
             Position("chr1",5), Position("chr1",10),
-            Position("chr1",5), Position("chr1",10))
+            Position("chr1",5), Position("chr1",10),"+")
 
         val fullyContainedBed = Pair(Position("chr1", 3), Position("chr1", 15))
         val containedBed = Pair(Position("chr1",6),Position("chr1",9))
@@ -333,14 +333,14 @@ class CreateMafVCFTest {
         val createMafVCF = CreateMafVcf()
         val refBlockVariant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
             Position("chr1",5), Position("chr1",10),
-            Position("chr1",5), Position("chr1",10))
+            Position("chr1",5), Position("chr1",10),"+")
 
-        val multiAllelicSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",7), Pair("AAA", "TTT"), Position("chr1",10), Position("chr1",12))
+        val multiAllelicSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",7), Pair("AAA", "TTT"), Position("chr1",10), Position("chr1",12),"+")
 
-        val standardSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "T"), Position("chr1",10), Position("chr1",10))
+        val standardSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "T"), Position("chr1",10), Position("chr1",10),"+")
 
-        val insertionVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "TTT"), Position("chr1",10), Position("chr1",12))
-        val deletionVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",7), Pair("AAA", "T"), Position("chr1",10), Position("chr1",10))
+        val insertionVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "TTT"), Position("chr1",10), Position("chr1",12),"+")
+        val deletionVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",7), Pair("AAA", "T"), Position("chr1",10), Position("chr1",10),"+")
 
         assertTrue(createMafVCF.isVariantResizable(refBlockVariant))
         assertTrue(createMafVCF.isVariantResizable(multiAllelicSNPVariant))
@@ -359,12 +359,12 @@ class CreateMafVCFTest {
         //Testing refBlocks
         val refBlockVariant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
             Position("chr1",5), Position("chr1",10),
-            Position("chr1",15), Position("chr1",20))
+            Position("chr1",15), Position("chr1",20),"+")
 
         //Need to have reveresed asm coords because that is how it looks with GVCFs coming from Biokotlin
         val refBlockVariantNegativeStrand = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
             Position("chr1",5), Position("chr1",10),
-            Position("chr1",20), Position("chr1",15))
+            Position("chr1",20), Position("chr1",15),"+")
 
         assertEquals(15, createMafVCF.resizeVariantContext(refBlockVariant, 5, "+"))
         assertEquals(20, createMafVCF.resizeVariantContext(refBlockVariantNegativeStrand, 5, "-"))
@@ -384,9 +384,9 @@ class CreateMafVCFTest {
 
         //Testing MultiAllelicPolymorphisms
         val multiAllelicSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",10),
-                                                Pair("AAAAA", "TTTTT"), Position("chr1",10), Position("chr1",15))
+                                                Pair("AAAAA", "TTTTT"), Position("chr1",10), Position("chr1",15),"+")
         val multiAllelicSNPVariantNegativeStrand = createSNPVC("B97", Position("chr1",5),Position("chr1",10),
-                                                Pair("AAAAA", "TTTTT"), Position("chr1",15), Position("chr1",10))
+                                                Pair("AAAAA", "TTTTT"), Position("chr1",15), Position("chr1",10),"+")
         //Check that we can resize the variant to the correct start/end on the ASM
         assertEquals(10, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 5, "+"))
         assertEquals(15, createMafVCF.resizeVariantContext(multiAllelicSNPVariantNegativeStrand, 5, "-"))
@@ -399,7 +399,7 @@ class CreateMafVCFTest {
         assertEquals(10, createMafVCF.resizeVariantContext(multiAllelicSNPVariant, 2, "+"))
         assertEquals(15, createMafVCF.resizeVariantContext(multiAllelicSNPVariantNegativeStrand, 2, "-"))
 
-        val standardSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "T"), Position("chr1",10), Position("chr1",10))
+        val standardSNPVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "T"), Position("chr1",10), Position("chr1",10),"+")
         //no matter what we request it should return 10 as it is only one bp of size
         assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 5, "+"))
         assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 5, "-"))
@@ -410,7 +410,7 @@ class CreateMafVCFTest {
         assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 2, "+"))
         assertEquals(10, createMafVCF.resizeVariantContext(standardSNPVariant, 2, "-"))
 
-        val insertionVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "TTT"), Position("chr1",10), Position("chr1",12))
+        val insertionVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",5), Pair("A", "TTT"), Position("chr1",10), Position("chr1",12),"+")
         //Everything should return -1 as its not resizable
         assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 5, "+"))
         assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 5, "-"))
@@ -421,7 +421,7 @@ class CreateMafVCFTest {
         assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 2, "+"))
         assertEquals(-1, createMafVCF.resizeVariantContext(insertionVariant, 2, "-"))
 
-        val deletionVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",7), Pair("AAA", "T"), Position("chr1",10), Position("chr1",10))
+        val deletionVariant = createSNPVC("B97", Position("chr1",5),Position("chr1",7), Pair("AAA", "T"), Position("chr1",10), Position("chr1",10),"+")
         //Everything should return -1 as its not resizeable
         assertEquals(-1, createMafVCF.resizeVariantContext(deletionVariant, 5, "+"))
         assertEquals(-1, createMafVCF.resizeVariantContext(deletionVariant, 5, "-"))
@@ -443,20 +443,20 @@ class CreateMafVCFTest {
         val variantContexts = listOf(
             createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
                     Position("chr1",5), Position("chr1",10),
-                    Position("chr1",5), Position("chr1",10)),
+                    Position("chr1",5), Position("chr1",10),"+"),
             createSNPVC("B97", Position("chr1",11),Position("chr1",11), Pair("A", "T"),
-                Position("chr1",11), Position("chr1",11)),
+                Position("chr1",11), Position("chr1",11),"+"),
             createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
                     Position("chr1",12), Position("chr1",15),
-                    Position("chr1",12), Position("chr1",15)),
+                    Position("chr1",12), Position("chr1",15),"+"),
             createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
                     Position("chr1",19), Position("chr1",20),
-                    Position("chr1",19), Position("chr1",20)),
+                    Position("chr1",19), Position("chr1",20),"+"),
             createSNPVC("B97", Position("chr1",21),Position("chr1",21), Pair("A", "T"),
-                    Position("chr1",21), Position("chr1",21)),
+                    Position("chr1",21), Position("chr1",21),"+"),
             createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
                     Position("chr1",22), Position("chr1",25),
-                    Position("chr1",22), Position("chr1",25)),
+                    Position("chr1",22), Position("chr1",25),"+"),
             )
 
         val regionStrings = createMafVcf.buildNewAssemblyRegions(7,23,variantContexts)
@@ -471,7 +471,7 @@ class CreateMafVCFTest {
 
         val oneVariantContext = listOf(createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
             Position("chr1",60), Position("chr1",300),
-            Position("chr1",160), Position("chr1",400)))
+            Position("chr1",160), Position("chr1",400),"+"))
 
         val containedRegionStrings = createMafVcf.buildNewAssemblyRegions(180, 350, oneVariantContext)
             .map { "${it.first.contig}:${it.first.position}-${it.second.position}" }
@@ -634,7 +634,7 @@ class CreateMafVCFTest {
 
         val refBlockVariant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
             Position("chr1",5), Position("chr1",10),
-            Position("chr1",15), Position("chr1",20))
+            Position("chr1",15), Position("chr1",20),"+")
 
         val range = createMafVcf.convertVariantContextToPositionRange(refBlockVariant)
 
@@ -645,7 +645,7 @@ class CreateMafVCFTest {
         //test a reverse complimented variant
         val refBlockVariant2 = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
             Position("chr1",5), Position("chr1",10),
-            Position("chr1",20), Position("chr1",15))
+            Position("chr1",20), Position("chr1",15),"+")
 
         val range2 = createMafVcf.convertVariantContextToPositionRange(refBlockVariant2)
 
@@ -691,7 +691,7 @@ class CreateMafVCFTest {
 
         val refBlockVariantForward = createRefRangeVC(mapOf("Chromosome04" to NucSeq("A".repeat(35929999))),"cassava_test",
             Position("Chromosome04",35920437), Position("Chromosome04",35929999),
-            Position("chr8",4514), Position("chr8",14076))
+            Position("chr8",4514), Position("chr8",14076),"+")
 
         val resizedVariantStartForward = createMafVcf.resizeVariantContext(refBlockVariantForward, bedRange.first.position, "+")
         assertEquals(12731, resizedVariantStartForward)
@@ -705,7 +705,7 @@ class CreateMafVCFTest {
         //Need to have reversed asm coords because that is how it looks with GVCFs coming from Biokotlin
         val refBlockVariant = createRefRangeVC(mapOf("Chromosome04" to NucSeq("A".repeat(35929999))),"cassava_test",
             Position("Chromosome04",35920437), Position("Chromosome04",35929999),
-            Position("chr8",14076), Position("chr8",4514))
+            Position("chr8",14076), Position("chr8",4514),"+")
 
 
         val resizedVariantStart = createMafVcf.resizeVariantContext(refBlockVariant, bedRange.first.position, "-")

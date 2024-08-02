@@ -1,6 +1,10 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
+import htsjdk.variant.variantcontext.Allele
+import htsjdk.variant.variantcontext.GenotypeBuilder
+import htsjdk.variant.variantcontext.VariantContextBuilder
+import htsjdk.variant.variantcontext.*
 import net.maizegenetics.phgv2.utils.verifyURI
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
@@ -39,7 +43,7 @@ class Hvcf2GvcfTest {
             var result = CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $refFasta --reference-url ${refUrl} --db-path $dbPath")
             assertEquals(0, result.statusCode )
 
-            // RUn alignAssemblies test to get MAF files.
+            // Run alignAssemblies test to get MAF files.
             // Run createMAFVCf on the assemblies LineA and LIneB to get
             // data into the db.
 
@@ -55,7 +59,6 @@ class Hvcf2GvcfTest {
             assertEquals(result.statusCode, 0, "status code not 0: ${result.statusCode}")
 
             // Load assemblies using CreateMafVcf - creates and loads gvcf and hvcf
-            // remember - there is no gvcf for the ref
             println("testSimpleHvcf2Gvcf: running CreateMafVcf")
             val createMafVcf = CreateMafVcf()
             result = createMafVcf.test("--db-path ${dbPath} --bed ${ranges} --reference-file ${refFasta} --maf-dir ${TestExtension.tempDir} -o ${TestExtension.testVCFDir}")
@@ -143,11 +146,11 @@ class Hvcf2GvcfTest {
         // These are not in the original LineB.vcf file, but are added by hvcf2gvcf to represent the beginning of the ref ranges as the
         // h.vcf files from which it is made shows those positions.  These entries are created as refBlocks from the beginning of the refRange
         assertTrue(lines.contains("1\t1001\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=1001;ASM_Start=1001;ASM_Strand=+;END=1001\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
-        assertTrue(lines.contains("1\t5501\t.\tC\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=5561;ASM_Start=5501;ASM_Strand=+;END=5561\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
-        assertTrue(lines.contains("1\t6501\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=6531;ASM_Start=6501;ASM_Strand=+;END=6531\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
-        assertTrue(lines.contains("2\t1001\t.\tC\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=1064;ASM_Start=1001;ASM_Strand=+;END=1064\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
-        assertTrue(lines.contains("2\t5501\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=5508;ASM_Start=5501;ASM_Strand=+;END=5508\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
-        assertTrue(lines.contains("2\t6501\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=6501;ASM_Start=6501;ASM_Strand=+;END=6501\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
+        assertTrue(lines.contains("1\t5501\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=5561;ASM_Start=5501;ASM_Strand=+;END=5561\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
+        assertTrue(lines.contains("1\t6501\t.\tC\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=6531;ASM_Start=6501;ASM_Strand=+;END=6531\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
+        assertTrue(lines.contains("2\t1001\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=1064;ASM_Start=1001;ASM_Strand=+;END=1064\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
+        assertTrue(lines.contains("2\t5501\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=5508;ASM_Start=5501;ASM_Strand=+;END=5508\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
+        assertTrue(lines.contains("2\t6501\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=6501;ASM_Start=6501;ASM_Strand=+;END=6501\tGT:AD:DP:PL\t0:30,0:30:0,90,90"))
 
         println("done !!")
 
@@ -237,4 +240,95 @@ class Hvcf2GvcfTest {
         println("ref gvcf file created: $outputDir/$refName.vcf")
     }
 
+    @Test
+    fun testResizeVcandASMPositions_ForwardStrand() {
+        // Build a couple variant context objects
+        // Make the simple, we don't care about depth or pl at this point,
+        // we just want to see if we resize correctly.  But we do need genotypes
+        val alleles = listOf(Allele.create("G",true), Allele.NON_REF_ALLELE)
+        val genotype = listOf(alleles[0])
+
+        val vc1 = VariantContextBuilder(".", "chr1", 1001, 1010, alleles)
+        val currentGenotype = GenotypeBuilder("LineA",genotype).make()
+        vc1.attribute("ASM_Chr", "1").attribute("ASM_Start", 1003).attribute("ASM_End", 1012).attribute("ASM_Strand", "+")
+        val firstVariant = vc1.genotypes(currentGenotype).make()
+
+        // First test sending in single variant context
+        // consider the ref range is position 1005-1015, but the variant is at 1001-1010
+        // The starts are adjusted, the ends remain the same
+        val resizedVc1 = Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant,firstVariant), Pair(1005,1015), Pair("+","+"))
+        println("resizedVc1 ref/asm start positions: ${resizedVc1[0].first} ${resizedVc1[0].second}")
+        println("resizedVc1 ref/asm end positions: ${resizedVc1[1].first} ${resizedVc1[1].second}")
+        assertEquals(1005, resizedVc1[0].first) // ref start
+        assertEquals(1010, resizedVc1[1].first) // ref end
+        assertEquals(1007, resizedVc1[0].second) // asm start
+        assertEquals(1012, resizedVc1[1].second) // asm end
+
+        // Now test sending in two variants (ie last is different than first)
+        // consider the ref range is position 1005-1015, but the first variant is 1001-1010 and
+        // second variant is 1011-1020
+        // Both start and end are adjusted
+        val vc2 = VariantContextBuilder(".", "chr1", 1011, 1020, alleles)
+        val currentGenotype2 = GenotypeBuilder("LineA",genotype).make()
+        vc2.attribute("ASM_Chr", "1").attribute("ASM_Start", 1013).attribute("ASM_End", 1022).attribute("ASM_Strand", "+")
+        val secondVariant = vc2.genotypes(currentGenotype2).make()
+        val resizedVc2 = Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant,secondVariant), Pair(1005,1015), Pair("+","+"))
+
+        println("resizedVc2 ref/asm start positions: ${resizedVc2[0].first} ${resizedVc2[0].second}")
+        println("resizedVc2 ref/asm end positions: ${resizedVc2[1].first} ${resizedVc2[1].second}")
+        assertEquals(1005, resizedVc2[0].first) // variant start
+        assertEquals(1015, resizedVc2[1].first) // variant end
+        assertEquals(1007, resizedVc2[0].second) // asm start
+        assertEquals(1017, resizedVc2[1].second) // asm end
+
+    }
+
+    @Test
+    fun testResizeVcandASMPositions_reverseStrand() {
+        // Note the BioKotlin created gvcfs have the ASM_Start value greater
+        // than the ASM_End value when the strand is reverse.
+
+        // Build a couple variant context objects
+        // Make it simple, we don't care about depth or pl at this point,
+        // we just want to see if we resize correctly.  But we do need genotypes
+        val alleles = listOf(Allele.create("G",true), Allele.NON_REF_ALLELE)
+        val genotype = listOf(alleles[0])
+
+        val vc1 = VariantContextBuilder(".", "chr1", 1001, 1010, alleles)
+        val currentGenotype = GenotypeBuilder("LineA",genotype).make()
+        // WHen the strand is reverse, the start and end are reversed
+        vc1.attribute("ASM_Chr", "1").attribute("ASM_Start", 1022).attribute("ASM_End", 1013).attribute("ASM_Strand", "-")
+        val firstVariant = vc1.genotypes(currentGenotype).make()
+
+        // Test a single variant context
+        // consider the ref range is position 1005-1010, but the variant is at 1001-1010
+        // The starts remain, the ends are adjusted
+        println("\nReverse strand test")
+        val resizedVc1 = Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant,firstVariant), Pair(1005,1010), Pair("-","-"))
+
+        println("resizedVc1 ref/asm start positions: ${resizedVc1[0].first} ${resizedVc1[0].second}")
+        println("resizedVc1 ref/asm end positions: ${resizedVc1[1].first} ${resizedVc1[1].second}")
+
+        assertEquals(1005, resizedVc1[0].first) // variant start changes
+        assertEquals(1010, resizedVc1[1].first) // variant end
+        assertEquals(1018, resizedVc1[0].second) // asm start changes
+        assertEquals(1013, resizedVc1[1].second) // asm end
+
+        val vc2 = VariantContextBuilder(".", "chr1", 1011, 1020, alleles)
+        val currentGenotype2 = GenotypeBuilder("LineA",genotype).make()
+        // NOTE: The ASM_Start for the second variant is less than the ASM_Start for the first variant.
+        // This is how these sequences would appear in a real file, and is necessary for the
+        // string of reverse strand entries to have their positions adjusted correctly.
+        vc2.attribute("ASM_Chr", "1").attribute("ASM_Start", 1012).attribute("ASM_End", 1003).attribute("ASM_Strand", "-")
+        val secondVariant = vc2.genotypes(currentGenotype2).make()
+        val resizedVc2 = Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant,secondVariant), Pair(1005,1015), Pair("-","-"))
+
+        println("\nresizedVc2 ref/asm start positions: ${resizedVc2[0].first} ${resizedVc2[0].second}")
+        println("resizedVc2 ref/asm end positions: ${resizedVc2[1].first} ${resizedVc2[1].second}")
+        assertEquals(1005, resizedVc2[0].first) // variant start
+        assertEquals(1015, resizedVc2[1].first) // variant end
+        assertEquals(1018, resizedVc2[0].second) // asm start
+        assertEquals(1008, resizedVc2[1].second) // asm end
+
+    }
 }

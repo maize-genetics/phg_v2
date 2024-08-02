@@ -194,6 +194,11 @@ fun verifyIntervalRanges(intervalFile: String): Set<String> {
  * is defaulted to 0 for assemblies.  If this is not set, -1 is used as default in
  * GenotypeBuilder.   That causes assembly problems down the line when storing the
  * value as a byte in a long.
+ *
+ * The AD (ref depth) is consistent with what BioKotlin uses for refDepth in MAFToGVCF
+ * The PL (Phred-scaled likelihoods) are consistent with what BioKotlin uses for refPL in MAFToGVCF
+ * The Depth is set to 30 to match BioKotlin's MAFToGVCF totalDP variable
+ *
  * @param refSequence
  * @param assemblyTaxon
  * @param refRangeStart
@@ -203,9 +208,10 @@ fun verifyIntervalRanges(intervalFile: String): Set<String> {
  * @return
  */
 fun createRefRangeVC(refSequence: Map<String,NucSeq>, assemblyTaxon: String, refRangeStart: Position, refRangeEnd: Position,
-    asmStart: Position?, asmEnd: Position?): VariantContext {
-    val firstRefAllele = Allele.create(refSequence[refRangeStart.contig]!!.get(refRangeStart.position).toString(),true)
-    val gt = GenotypeBuilder().name(assemblyTaxon).alleles(Arrays.asList(firstRefAllele)).DP(2).AD(intArrayOf(2, 0)).make()
+    asmStart: Position?, asmEnd: Position?, asmStrand:String): VariantContext {
+    // -1 added to refRangeStart.position to get the correct base in call below
+    val firstRefAllele = Allele.create(refSequence[refRangeStart.contig]!!.get(refRangeStart.position-1).toString(),true)
+    val gt = GenotypeBuilder().name(assemblyTaxon).alleles(Arrays.asList(firstRefAllele)).DP(30).AD(intArrayOf(30, 0)).PL(intArrayOf(0,90,90)).make()
     check(refRangeStart.position <= refRangeEnd.position) { "createRefRangeVC - start position greater than end: start=" +
                 refRangeStart.position + " end=" + refRangeEnd.position
     }
@@ -219,7 +225,7 @@ fun createRefRangeVC(refSequence: Map<String,NucSeq>, assemblyTaxon: String, ref
 
     // Add assembly coordinates as attributes
     // If the asmStart and asmEnd position are null, nothing will be added.
-    val vcbWithASMAnnos = addASMCoordsToVariantContextBuilder(vcb, asmStart, asmEnd)
+    val vcbWithASMAnnos = addASMCoordsToVariantContextBuilder(vcb, asmStart, asmEnd,asmStrand)
     return vcbWithASMAnnos.make()
 }
 
@@ -237,7 +243,7 @@ fun createRefRangeVC(refSequence: Map<String,NucSeq>, assemblyTaxon: String, ref
  * @return
  */
 fun createSNPVC(assemblyTaxon: String, startPosition: Position, endPosition: Position, calls: Pair<String, String>,
-                asmStart: Position?, asmEnd: Position?): VariantContext {
+                asmStart: Position?, asmEnd: Position?,asmStrand: String?): VariantContext {
     val refCall = Allele.create(calls.first, true)
     val altCall = Allele.create(calls.second, false)
     check(startPosition.position <= endPosition.position) {
@@ -247,7 +253,7 @@ fun createSNPVC(assemblyTaxon: String, startPosition: Position, endPosition: Pos
 
     //Need to add AD for Alt >0 here so that the API will work correctly.  Otherwise it is treated as missing as it thinks AD = 0,0.
     // When coming from an assembly it should always use the ALT in a SNP pos
-    val gt = GenotypeBuilder().name(assemblyTaxon).alleles(Arrays.asList(altCall)).DP(2).AD(intArrayOf(0, 2, 0)).make()
+    val gt = GenotypeBuilder().name(assemblyTaxon).alleles(Arrays.asList(altCall)).DP(30).AD(intArrayOf(0, 30, 0)).make()
     val vcb = VariantContextBuilder()
         .chr(startPosition.contig)
         .start(startPosition.position.toLong())
@@ -256,7 +262,7 @@ fun createSNPVC(assemblyTaxon: String, startPosition: Position, endPosition: Pos
         .genotypes(gt)
 
     // Add assembly coordinates as attributes
-    val vcbWithASMAnnos = addASMCoordsToVariantContextBuilder(vcb, asmStart, asmEnd)
+    val vcbWithASMAnnos = addASMCoordsToVariantContextBuilder(vcb, asmStart, asmEnd,asmStrand)
     return vcbWithASMAnnos.make()
 }
 
@@ -315,7 +321,7 @@ fun createDiploidHVCFRecord(sampleName: String, startPosition: Position, endPosi
 fun symbolicAllele(allele: String): String {
     return "<${allele}>"
 }
-fun addASMCoordsToVariantContextBuilder(vcb: VariantContextBuilder, asmStart: Position?, asmEnd: Position?) :VariantContextBuilder {
+fun addASMCoordsToVariantContextBuilder(vcb: VariantContextBuilder, asmStart: Position?, asmEnd: Position?, asmStrand:String?) :VariantContextBuilder {
     var newVCB = vcb
     //Only add in the Assembly start and end if they exist
     if (asmStart != null && asmEnd != null) {
@@ -326,6 +332,7 @@ fun addASMCoordsToVariantContextBuilder(vcb: VariantContextBuilder, asmStart: Po
         newVCB = vcb.attribute("ASM_Chr", asmStart.contig)
             .attribute("ASM_Start", asmStart.position)
             .attribute("ASM_End", asmEnd.position)
+            .attribute("ASM_Strand", asmStrand)
     }
     return newVCB
 }
