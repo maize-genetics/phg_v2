@@ -1,19 +1,15 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.options.required
 import com.google.common.collect.DiscreteDomain
 import com.google.common.collect.Range
 import com.google.common.collect.TreeRangeSet
-import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFFileReader
-import htsjdk.variant.vcf.VCFHeader
 import org.apache.logging.log4j.LogManager
 import java.io.File
-import java.lang.Exception
 import kotlin.math.abs
 
 // values calculated for GVCF files
@@ -88,20 +84,10 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
     private val myLogger = LogManager.getLogger(CalcVcfMetrics::class.java)
 
     val vcfDir by option("--vcf-dir", help = "Full path to VCF file directory")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--vcf-dir must not be blank"
-            }
-        }
+        .required()
 
     val outFile by option( "-o", "--output", help = "Path to the output .tsv file")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--output must not be blank"
-            }
-        }
+        .required()
 
     override fun run() {
         calculateVcfMetrics(vcfDir, outFile)

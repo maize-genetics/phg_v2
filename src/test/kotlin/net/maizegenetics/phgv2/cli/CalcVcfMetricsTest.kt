@@ -21,7 +21,7 @@ class CalcVcfMetricsTest {
         assertEquals(
             "Usage: calc-vcf-metrics [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --output: --output must not be blank\n", resultMissingOut.output
+                    "Error: missing option --output\n", resultMissingOut.output
         )
 
         val resultMissingDir =
@@ -30,7 +30,7 @@ class CalcVcfMetricsTest {
         assertEquals(
             "Usage: calc-vcf-metrics [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --vcf-dir: --vcf-dir must not be blank\n", resultMissingDir.output
+                    "Error: missing option --vcf-dir\n", resultMissingDir.output
         )
 
 
