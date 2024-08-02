@@ -42,7 +42,7 @@ class Gvcf2HvcfTest {
         assertEquals(
             "Usage: gvcf2hvcf [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --bed: --bed must not be blank\n", resultMissingBed.output
+                    "Error: missing option --bed\n", resultMissingBed.output
         )
         val resultMissingRef =
             gvcf2hvcf.test("--db-path ${TestExtension.testTileDBURI} --bed ${TestExtension.testBEDFile} --gvcf-dir ${TestExtension.testMafDir}")
@@ -50,7 +50,7 @@ class Gvcf2HvcfTest {
         assertEquals(
             "Usage: gvcf2hvcf [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --reference-file: --reference-file must not be blank\n", resultMissingRef.output
+                    "Error: missing option --reference-file\n", resultMissingRef.output
         )
 
 
@@ -60,7 +60,7 @@ class Gvcf2HvcfTest {
         assertEquals(
             "Usage: gvcf2hvcf [<options>]\n" +
                     "\n" +
-                    "Error: invalid value for --gvcf-dir: --gvcf-dir must not be blank\n", resultMissingGvcfDir.output
+                    "Error: missing option --gvcf-dir\n", resultMissingGvcfDir.output
         )
 
     }
