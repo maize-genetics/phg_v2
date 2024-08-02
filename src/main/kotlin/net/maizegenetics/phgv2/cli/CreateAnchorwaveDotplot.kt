@@ -1,9 +1,8 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.options.required
 import org.apache.logging.log4j.LogManager
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.io.readDelim
@@ -23,19 +22,9 @@ class CreateAnchorwaveDotplot: CliktCommand(help = "create a dot plot stored in 
 
     private val myLogger = LogManager.getLogger(CreateAnchorwaveDotplot::class.java)
     val inputFile by option(help = "Full path to the anchorwave generated anchorspro file that will be analyzed.")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--input-file must not be blank"
-            }
-        }
+        .required()
     val outputFile by option(help = "Full path to the SVG file where the dotplot data will be stored - should end with .svg or .png")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--output-file must not be blank"
-            }
-        }
+        .required()
     override fun run() {
         val startTime = System.nanoTime()
 
