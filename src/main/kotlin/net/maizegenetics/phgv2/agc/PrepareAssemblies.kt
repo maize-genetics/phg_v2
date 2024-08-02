@@ -4,7 +4,7 @@ import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.int
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -38,23 +38,12 @@ class PrepareAssemblies : CliktCommand(help = "Annotate FASTA file Id lines with
     private val myLogger = LogManager.getLogger(PrepareAssemblies::class.java)
 
     val keyfile by option(help = "Tab-delimited file containing 2 columns name Fasta and SampleName.  Fasta column contains full path name for the fasta files.  SampleName contains the sample name for that assembly, e.g. B73 or CML247. ")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--keyfile must not be blank"
-            }
-        }
-
+        .required()
 
     // This is the folder where the output files are written.  They will have the same
     // name as the original fasta files.
     val outputDir by option(help = "Folder where updated fastas will be written.")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--output-dir must not be blank"
-            }
-        }
+        .required()
 
     val threads by option(help = "number of threads for running concurrently")
         .int()

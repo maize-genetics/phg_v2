@@ -40,19 +40,19 @@ class PrepareAssembliesTest {
     fun testCliktParams() {
         val prepareAssemblies = PrepareAssemblies()
 
-        // Test missing fasta-list parameter
+        // Test missing keyfile parameter
         val resultMissingKeyfile = prepareAssemblies.test(" --output-dir ${TestExtension.testOutputFastaDir}")
         assertEquals(resultMissingKeyfile.statusCode, 1)
         assertEquals("Usage: prepare-assemblies [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --keyfile: --keyfile must not be blank\n",resultMissingKeyfile.output)
+                "Error: missing option --keyfile\n",resultMissingKeyfile.output)
 
         // Test missing output-dir parameter
         val resultMissingOutDir = prepareAssemblies.test("--keyfile ${TestExtension.testInputFastaDir} ")
         assertEquals(resultMissingOutDir.statusCode, 1)
         assertEquals("Usage: prepare-assemblies [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --output-dir: --output-dir must not be blank\n",resultMissingOutDir.output)
+                "Error: missing option --output-dir\n",resultMissingOutDir.output)
 
     }
 
