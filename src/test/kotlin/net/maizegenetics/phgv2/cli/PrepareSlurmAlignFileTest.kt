@@ -45,42 +45,42 @@ class PrepareSlurmAlignFileTest {
         assertEquals(1, resultMissingGFF.statusCode )
         assertEquals("Usage: prepare-slurm-align-file [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --gff: --gff must not be blank\n", resultMissingGFF.output)
+                "Error: missing option --gff\n", resultMissingGFF.output)
 
         // Test missing reference-file parameter
         val resultMissingRefFile = prepareAssemblies.test("--gff ${TestExtension.smallseqAnchorsGffFile} --reference-sam ${refSam} --reference-cds-fasta ${refCDSfasta} --assemblies ${assembliesList} --slurm-command-file ${slurmCommandFile} -o ${TestExtension.tempDir}")
         assertEquals(1, resultMissingRefFile.statusCode )
         assertEquals("Usage: prepare-slurm-align-file [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --reference-file: --reference-file must not be blank\n", resultMissingRefFile.output)
+                "Error: missing option --reference-file\n", resultMissingRefFile.output)
 
         // Test missing reference-sam parameter
         val resultMissingRefSam = prepareAssemblies.test("--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${refFasta} --reference-cds-fasta ${refCDSfasta} --assemblies ${assembliesList} --slurm-command-file ${slurmCommandFile} -o ${TestExtension.tempDir}")
         assertEquals(1, resultMissingRefSam.statusCode )
         assertEquals("Usage: prepare-slurm-align-file [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --reference-sam: --reference-sam must not be blank\n", resultMissingRefSam.output)
+                "Error: missing option --reference-sam\n", resultMissingRefSam.output)
 
         // Test missing reference-cds-fasta parameter
         val resultMissingRefCdsFasta = prepareAssemblies.test("--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${refFasta} --reference-sam ${refSam} --assemblies ${assembliesList} --slurm-command-file ${slurmCommandFile} -o ${TestExtension.tempDir}")
         assertEquals(1, resultMissingRefSam.statusCode )
         assertEquals("Usage: prepare-slurm-align-file [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --reference-cds-fasta: --reference-cds-fasta must not be blank\n", resultMissingRefCdsFasta.output)
+                "Error: missing option --reference-cds-fasta\n", resultMissingRefCdsFasta.output)
 
-        // Test missing reference-cds-fasta parameter
+        // Test missing slurm-command-file parameter
         val resultMissingSlurm = prepareAssemblies.test("--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${refFasta} --reference-cds-fasta ${refCDSfasta} --reference-sam ${refSam} --assemblies ${assembliesList}  -o ${TestExtension.tempDir}")
         assertEquals(1, resultMissingSlurm.statusCode )
         assertEquals("Usage: prepare-slurm-align-file [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --slurm-command-file: --slurm-command-file must not be blank\n", resultMissingSlurm.output)
+                "Error: missing option --slurm-command-file\n", resultMissingSlurm.output)
 
-        // Test missing output file
+        // Test missing output-dir parameter
         val resultMissingOutput = prepareAssemblies.test("--gff ${TestExtension.smallseqAnchorsGffFile} --reference-file ${refFasta} --reference-cds-fasta ${refCDSfasta} --reference-sam ${refSam} --assemblies ${assembliesList}  --slurm-command-file ${slurmCommandFile}")
         assertEquals(1, resultMissingOutput.statusCode )
         assertEquals("Usage: prepare-slurm-align-file [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --output-dir: --output-dir must not be blank\n", resultMissingOutput.output)
+                "Error: missing option --output-dir\n", resultMissingOutput.output)
     }
     @Test
     fun testPrepareSlurmAlignFile() {

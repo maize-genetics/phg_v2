@@ -3,7 +3,7 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
 
@@ -31,37 +31,17 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
         .default("./phg")
 
     val gff by option(help = "Full path to the reference gff file")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--gff must not be blank"
-            }
-        }
+        .required()
 
     val referenceFile by option(help = "Full path to reference file")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--reference-file must not be blank"
-            }
-        }
+        .required()
 
     val referenceSam by option(help = "Full path to reference SAM file created by align-assemblies command when the just-ref-prep option is used." +
     "This is the SAM file created when aligning the reference fasta to the reference CDS regions.")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--reference-sam must not be blank"
-            }
-        }
+        .required()
 
     val referenceCdsFasta by option(help = "Full path to reference fasta file created by AlignAssemblies class when aligning to CDS regions")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--reference-cds-fasta must not be blank"
-            }
-        }
+        .required()
 
 
     // THis is a list of assemblies vs the option of a single file because the output
@@ -71,28 +51,13 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
         "--assemblies",
         help = "File containing list of assemblies to align, 1 per line, full path to updated file created via the phg prepare-assemblies command."
     )
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--assemblies must not be blank"
-            }
-        }
+        .required()
 
     val slurmCommandFile by option( help = "Full path and name for a file where the individual align-assembly commands will be printed")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--slurm-command-file must not be blank"
-            }
-        }
+        .required()
 
     val outputDir by option("-o", "--output-dir", help = "Directory where temporary and final files from anchorwave alignment will be written")
-        .default("")
-        .validate {
-            require(it.isNotBlank()) {
-                "--output-dir must not be blank"
-            }
-        }
+        .required()
 
     val totalThreads by option(help = "Number of threads available.  These will be split among the alignments that are run in parallel")
         .int()
