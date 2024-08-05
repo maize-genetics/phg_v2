@@ -186,7 +186,7 @@ dependencies:
   - python=3.8
   - tiledb-py=0.22
   - tiledbvcf-py=0.25
-  - anchorwave
+  - anchorwave=1.2.3
   - bcftools
   - samtools
   - agc
@@ -210,6 +210,12 @@ conda activate phgv2-conda
     It is imperative the conda environment you create is named 
     `phgv2-conda`. This is the default environment name that PHGv2 uses 
     when executing shell commands from within the software.
+
+!!! note
+    This environment will change as new versions of the software are
+    released. It is recommended to delete any existing phgv2-conda
+    environments and recreate it using the `setup-environment` 
+    command.  In particular with PHGv2.4, `anchorwave` is updated to 1.2.3 which represents a fundamental shift in how ASM coordinates are handled. 
 
 If we look in our example project directory, you will also see two
 new logging (`.log`) files which will record all the logging and
