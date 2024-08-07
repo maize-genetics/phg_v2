@@ -7,7 +7,7 @@ dependencies:
   - python=3.8
   - tiledb-py=0.22
   - tiledbvcf-py=0.25
-  - anchorwave=1.2.2
+  - anchorwave=1.2.3
   - bcftools
   - samtools
   - agc=3.1

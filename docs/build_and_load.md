@@ -1,5 +1,13 @@
 # Building and Loading
 
+!!! note
+    As of version 2.4.X, the phg utilizes a new version of anchorwave(1.2.3).
+    This changes how ASM coordinates are handled.  
+    If you are using old MAF files generated either from anchorwave 1.2.2 or from PHGv2 version 2.3 or earlier,
+    please use the --legacy-maf-file flag for create-maf-vcf. 
+    It is recommended that you remove your phgv2-conda Conda environment and rerun the setup-environment command.
+
+
 In this document, we will discuss the steps needed to:
 
 1. Set up a working Conda environment containing the required
@@ -184,7 +192,7 @@ dependencies:
   - python=3.8
   - tiledb-py=0.22
   - tiledbvcf-py=0.25
-  - anchorwave
+  - anchorwave=1.2.3
   - bcftools
   - samtools
   - agc
@@ -215,6 +223,12 @@ conda activate phgv2-conda
     It is imperative the Conda environment you create is named 
     `phgv2-conda`. This is the default environment name that PHGv2 uses 
     when executing shell commands from within the software.
+
+!!! note
+    This environment will change as new versions of the software are
+    released. It is recommended to delete any existing phgv2-conda
+    environments and recreate it using the `setup-environment` 
+    command.  In particular with PHGv2.4, `anchorwave` is updated to 1.2.3 which represents a fundamental shift in how ASM coordinates are handled. 
 
 If we look in our example project directory, you will also see two
 new logging (`.log`) files which will record all the logging and
@@ -1210,6 +1224,10 @@ further information_):
 In addition, `--conda-env-prefix` is an optional parameter that specifies the path
 to the Conda directory that contains the conda environment needed to run phg.
 If not set, conda env `phgv2-conda` in the defauilt location will be used.
+
+There is also an optional parameter: `--legacy-maf-file`.  This flag can be added to the command
+to be able to process MAF files created from anchorwave 1.2.2 or earlier.  If this is not set and 
+an old file is being processed, the Assembly coordinates in the GVCF will be incorrect.
 
 Once the command is complete, and you have navigated into the output
 directory (in my case, `output/vcf_files`), you will see a collection
