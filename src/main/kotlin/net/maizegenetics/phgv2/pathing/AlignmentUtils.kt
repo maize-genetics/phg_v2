@@ -65,8 +65,14 @@ class AlignmentUtils {
                 //export the read mapping to disk
                 //Use the first file name as the readmapping output name
                 val inputFile1 = File(keyFileRecord.file1)
-                //Todo does this need to work with .fastq.gz files?
-                val outputFileName = "${outputDir}/${inputFile1.nameWithoutExtension}_readMapping.txt"
+
+                val outputFileName = if(inputFile1.name.endsWith(".gz")) {
+                    val nameWithoutGz = inputFile1.nameWithoutExtension.substringBeforeLast(".")
+                    "${outputDir}/${nameWithoutGz}_readMapping.txt"
+                }
+                else {
+                    "${outputDir}/${inputFile1.nameWithoutExtension}_readMapping.txt"
+                }
 
 
                 exportReadMapping(
@@ -452,6 +458,29 @@ class AlignmentUtils {
                     else hapidList.addAll(entry.value)
                 }
             }
+        }
+
+        /**
+         * Function that builds a set of minHashes from a sequence.
+         * This will work by doing a single pass over the read sequence and building the kmer hash set.
+         */
+        fun extractMinHash(sequence: String) : Set<Long> {
+            var previousHash = Pair(0L, 0L)
+
+            val minHashSet = mutableSetOf<Long>()
+
+            //for first 31 nucleotides just update the hash
+            for (nucleotide in sequence.subSequence(0..30)) {
+                previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+            }
+
+            for (nucleotide in sequence.subSequence(31 until sequence.length)) {
+                previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+                val minHash = min(previousHash.first, previousHash.second)
+                minHashSet.add(minHash)
+            }
+
+            return minHashSet
         }
 
         /**
