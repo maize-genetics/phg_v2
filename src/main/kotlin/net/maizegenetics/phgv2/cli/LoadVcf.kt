@@ -4,7 +4,9 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.types.boolean
 import htsjdk.variant.vcf.VCFFileReader
+import net.maizegenetics.phgv2.utils.condaPrefix
 import net.maizegenetics.phgv2.utils.inputStreamProcessing
 import net.maizegenetics.phgv2.utils.verifyURI
 import org.apache.logging.log4j.LogManager
@@ -44,6 +46,10 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
     val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
 
+    val condaEnvNeeded by option (help = "Flag to indicate if a conda environment is needed.")
+        .boolean()
+        .default(true)
+
     override fun run() {
 
         val dbPath = if (dbPath.isBlank()) {
@@ -52,12 +58,12 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
             dbPath
         }
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
-        val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
+        val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix,condaEnvNeeded)
 
-        loadVcfFiles(vcfDir,dbPath,condaEnvPrefix,threads)
+        loadVcfFiles(vcfDir,dbPath,condaEnvPrefix,condaEnvNeeded,threads)
     }
 
-    fun loadVcfFiles(vcfDir:String,dbPath:String,condaEnvPrefix:String,threads:String="1") {
+    fun loadVcfFiles(vcfDir:String,dbPath:String,condaEnvPrefix:String,condaEnvNeeded:Boolean,threads:String="1") {
 
         // Check the type of files in the vcfDir
         // anything with h.vcf.gz or hvcf.gz is a hvcf file
@@ -89,7 +95,7 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
             // Load the gvcf files!
             myLogger.info("No overlap between tiledb and vcf files.  Loading gvcf files.")
             val datasetURI = "${dbPath}/gvcf_dataset"
-            loadVCFToTiledb(fileLists.first, dbPath,"gvcf_dataset", threads,condaEnvPrefix)
+            loadVCFToTiledb(fileLists.first, dbPath,"gvcf_dataset", threads,condaEnvPrefix,condaEnvNeeded)
         }
         if (fileLists.second.isNotEmpty()) {
             // look for duplicate sample names - tiledb uri was verified at start of run()
@@ -115,7 +121,7 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
                 myLogger.warn("Tiledb will not load duplicate positions for these samples.")
             }
             // Load the hvcf files!
-            loadVCFToTiledb(fileLists.second, dbPath, "hvcf_dataset", threads,condaEnvPrefix)
+            loadVCFToTiledb(fileLists.second, dbPath, "hvcf_dataset", threads,condaEnvPrefix, condaEnvNeeded)
 
             // Copy the hvcf files to the hvcf_files folder, omitting any that are duplicates
             // of those already loaded
@@ -184,7 +190,7 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
     // we must explicitly pass dbPath as otherwise the parameter will not be known
     // when coming from CreateRefVcf, resulting in the error:
     //    Cannot read from option delegate before parsing command line
-    fun loadVCFToTiledb(vcfList:List<String>, dbPath:String, dataSet:String, threads:String,condaEnvPrefix:String) {
+    fun loadVCFToTiledb(vcfList:List<String>, dbPath:String, dataSet:String, threads:String,condaEnvPrefix:String, condaEnvNeeded:Boolean) {
 
         // declare tne temp folder
         // This will be used to write output files from ProcessBuilder commands
@@ -200,8 +206,7 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
         // print the vcfListFile contents
         myLogger.info("vcfListFile contents: ${File(vcfListFile).readText()}")
 
-        val command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix,"tiledbvcf","store","--uri",uri,"-t",threads,"-f",vcfListFile,"--remove-sample-file")
-        else mutableListOf("conda","run","-n","phgv2-conda","tiledbvcf","store","--uri",uri,"-t",threads,"-f",vcfListFile,"--remove-sample-file")
+        val command = condaPrefix(condaEnvPrefix,condaEnvNeeded) + mutableListOf("tiledbvcf","store","--uri",uri,"-t",threads,"-f",vcfListFile,"--remove-sample-file")
         // Store the files to tiledb
         var builder = ProcessBuilder(command)
         var redirectOutput = tempDir + "/tiledb_store_output.log"

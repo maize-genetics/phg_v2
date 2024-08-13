@@ -8,10 +8,12 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.types.boolean
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.variantcontext.writer.Options
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder
 import htsjdk.variant.vcf.VCFFileReader
+import net.maizegenetics.phgv2.utils.condaPrefix
 import net.maizegenetics.phgv2.utils.verifyURI
 import net.maizegenetics.phgv2.utils.writeBedfileFromVcf
 import org.apache.logging.log4j.LogManager
@@ -87,6 +89,10 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
     val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
 
+    val condaEnvNeeded by option (help = "Flag to indicate if a conda environment is needed.")
+        .boolean()
+        .default(true)
+
     override fun run() {
 
         //if using a regions file, the output vcfs can contain duplicate sequential reference blocks which need to be deleted
@@ -107,7 +113,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         }
 
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
-        val validDB = verifyURI(dbPath, "hvcf_dataset",condaEnvPrefix)
+        val validDB = verifyURI(dbPath, "hvcf_dataset",condaEnvPrefix,condaEnvNeeded)
 
         // This is the tiledbvcf command we want to run:
         // Doing this with a ProcessBuilder and using the phg_v2 conda environment
@@ -118,15 +124,11 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         val dtype = if (datasetType == "gvcf") "gvcf_dataset" else "hvcf_dataset"
 
         // Setup the conda enviroment portion of the command
-        var command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix) else mutableListOf("conda","run","-n","phgv2-conda")
+        var command = condaPrefix(condaEnvPrefix, condaEnvNeeded)
 
         // Tiledbvcf can take either a file with samplenames, or a comma-separated list of sample names
         // setup the command based on user input type.
         var dataCommand = if (samples.getExportCommand()[0] == SampleFormatEnum.FILE.toString()) mutableListOf(
-            "conda",
-            "run",
-            "-n",
-            "phgv2-conda",
             "tiledbvcf",
             "export",
             "--uri",
@@ -138,10 +140,6 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
             "--output-dir",
             workingOutputDirectory.absolutePath
         ) else mutableListOf(
-            "conda",
-            "run",
-            "-n",
-            "phgv2-conda",
             "tiledbvcf",
             "export",
             "--uri",

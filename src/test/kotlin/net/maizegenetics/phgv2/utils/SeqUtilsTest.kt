@@ -57,7 +57,7 @@ class SeqUtilsTest {
 
             val refFasta = File(fastaOutputDir, "Ref.fa").toString()
 
-            Initdb().createDataSets(TestExtension.testTileDBURI,"")
+            Initdb().createDataSets(TestExtension.testTileDBURI,"", false)
             // contain fastas with the sampleName, and once when it does contain the sampleName
             val agcCompress = AgcCompress()
             // Create the initial compressed file
@@ -83,7 +83,7 @@ class SeqUtilsTest {
         var rangeList = mutableListOf<String>()
         val range1 = "1@LineA:20-40"
         rangeList.add(range1)
-        var command = buildAgcCommandFromList(dbPath, "getctg",rangeList,"")
+        var command = buildAgcCommandFromList(dbPath, "getctg",rangeList,"", true)
 
         //The command should look like:
         val expectedCommand =
@@ -101,7 +101,7 @@ class SeqUtilsTest {
 
         rangeList.add(range2)
         rangeList.add(range3)
-        command = buildAgcCommandFromList(dbPath, "getctg",rangeList,"")
+        command = buildAgcCommandFromList(dbPath, "getctg",rangeList,"", true)
         val expectedCommand2 = arrayOf(
             "conda",
             "run",
@@ -134,7 +134,7 @@ class SeqUtilsTest {
         val fastaCreateFileNamesFile = File(dbPath, "fastaBadNames.txt")
         fastaCreateFileNamesFile.writeText("data/test/agcTestBad/LineD_someSNMissing.fa\n")
 
-        Initdb().createDataSets(TestExtension.tempDir,"")
+        Initdb().createDataSets(TestExtension.tempDir,"", false)
         val agcCompress = AgcCompress()
         // Create the initial compressed file
         val agcCompressResult = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")
@@ -149,7 +149,7 @@ class SeqUtilsTest {
 
         assertThrows<IllegalStateException> {
             //Check that an exception is thrown when the idline does not contain "sampleName="
-            var agcResult = retrieveAgcContigs(dbPath, rangeList,"")
+            var agcResult = retrieveAgcContigs(dbPath, rangeList,"", false)
         }
 
     }
@@ -164,7 +164,7 @@ class SeqUtilsTest {
         var rangeList = mutableListOf<String>()
         val range1 = "1@LineA:0-19" // AGC queries are 0-based !!
         rangeList.add(range1)
-        var agcResult = retrieveAgcContigs(dbPath, rangeList,"")
+        var agcResult = retrieveAgcContigs(dbPath, rangeList,"", false)
 
         // this has only a single query, so the result should have 1 entry: 1 key and 1 sequence
         assertEquals(1, agcResult.size)
@@ -181,7 +181,7 @@ class SeqUtilsTest {
 
         rangeList.add(range2)
         rangeList.add(range3)
-        agcResult = retrieveAgcContigs(dbPath, rangeList,"")
+        agcResult = retrieveAgcContigs(dbPath, rangeList,"", false)
         // this has 3 queries, so the result should have 3 entries: 3 keys and 3 sequences
         assertEquals(3, agcResult.size)
         assertEquals(3, agcResult.keys.size)
@@ -209,7 +209,7 @@ class SeqUtilsTest {
         val chr2 = "2@LineA"
         rangeList.add(chr1)
         rangeList.add(chr2)
-        var agcResult = retrieveAgcContigs(dbPath, rangeList,"")
+        var agcResult = retrieveAgcContigs(dbPath, rangeList,"", false)
 
         assertEquals(2, agcResult.size)
         assertEquals(2, agcResult.keys.size)
@@ -235,7 +235,7 @@ class SeqUtilsTest {
 
         assertThrows<IllegalArgumentException> {
             //Check that an error is thrown when a bad genome is passed.
-            retrieveAgcContigs(dbPath, rangeList,"")
+            retrieveAgcContigs(dbPath, rangeList,"", false)
         }
     }
 
@@ -251,7 +251,7 @@ class SeqUtilsTest {
         rangeList.add(range1)
         assertThrows<IllegalStateException> {
             //Check that an error is thrown when the dbPath is not a directory that contains the assemblies.agc file
-            retrieveAgcContigs(dbPath, rangeList,"")
+            retrieveAgcContigs(dbPath, rangeList,"", false)
         }
 
         // Test with a valid directory name, but the assemblies.agc file does not exist
@@ -259,7 +259,7 @@ class SeqUtilsTest {
         dbPath = testOutputFastaDir
         assertThrows<IllegalStateException> {
             //Check that an error is thrown when the dbPath is not a directory that contains the assemblies.agc file
-            retrieveAgcContigs(dbPath, rangeList,"")
+            retrieveAgcContigs(dbPath, rangeList,"", false)
         }
     }
 
@@ -280,7 +280,7 @@ class SeqUtilsTest {
         val gn1 = "LineA"
 
         genomeList.add(gn1)
-        var agcResult = retrieveAgcGenomes(dbPath, genomeList,"")
+        var agcResult = retrieveAgcGenomes(dbPath, genomeList,"", false)
 
         assertEquals(2, agcResult.size)
         assertEquals(2, agcResult.keys.size)
@@ -295,7 +295,7 @@ class SeqUtilsTest {
         // as we have updated the idline to contain the samplename
         val gn2 ="LineC"
         genomeList.add(gn2)
-        agcResult = retrieveAgcGenomes(dbPath, genomeList,"")
+        agcResult = retrieveAgcGenomes(dbPath, genomeList,"", false)
         assertEquals(4, agcResult.size)
         assertEquals(4, agcResult.keys.size)
 
@@ -314,14 +314,14 @@ class SeqUtilsTest {
         val dbPath = "${TestExtension.testTileDBURI}" // just the path, code appends "assemblies.agc"
         val commands = mutableListOf<String>("listset")
 
-        var agcResult = retrieveAgcData(dbPath, commands,"")
+        var agcResult = retrieveAgcData(dbPath, commands,"", false)
         val expectedResult = listOf("LineA", "LineB","LineC","Ref")
         assertEquals(expectedResult, agcResult)
 
         // Verify an exception is thrown is an invalid command is sent to retrieveAgcData()
         assertThrows<IllegalStateException> {
             //Check that an error is thrown if the command is invalid
-            retrieveAgcData(dbPath, listOf("happy"),"")
+            retrieveAgcData(dbPath, listOf("happy"),"", false)
         }
     }
 
@@ -333,7 +333,7 @@ class SeqUtilsTest {
         val badDbPath = "/my/bad/dbPath"
         assertThrows<IllegalStateException> {
             //Check that an error is thrown if the dbPath is invalid
-            retrieveAgcData(badDbPath, listOf("listctg"),"")
+            retrieveAgcData(badDbPath, listOf("listctg"),"", false)
         }
 
         // First, test without a geomome list
@@ -343,19 +343,19 @@ class SeqUtilsTest {
         // Verify an exception is thrown if no commands are on the list
         assertThrows<IllegalStateException> {
             //Check that an error is thrown if no cammand  is given
-            retrieveAgcData(dbPath, commands,"")
+            retrieveAgcData(dbPath, commands,"", false)
         }
 
         commands.add("listctg")
         assertThrows<IllegalStateException> {
             //Check that an error is thrown if no genomes are included in the query.
-            retrieveAgcData(dbPath, commands,"")
+            retrieveAgcData(dbPath, commands,"", false)
         }
 
         // Now test with a genome list
         commands.add("LineA")
         commands.add("LineB")
-        val agcResult = retrieveAgcData(dbPath, commands,"")
+        val agcResult = retrieveAgcData(dbPath, commands,"", false)
         println(" agcResult = $agcResult")
         assertEquals(2, agcResult!!.size)
 

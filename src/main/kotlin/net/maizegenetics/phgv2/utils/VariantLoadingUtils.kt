@@ -103,7 +103,7 @@ fun createGenericHeaderLineSet(): Set<VCFHeaderLine> {
  * it is still required to have the non-bzipped file present.
  * @return the filename of the bgzipped gvcf
  */
-fun bgzipAndIndexGVCFfile(gvcfFileName: String): String {
+fun bgzipAndIndexGVCFfile(gvcfFileName: String, condaEnvPrefix: String, condaEnvNeeded: Boolean): String {
 
     try {
         // First bgzip the file
@@ -112,8 +112,7 @@ fun bgzipAndIndexGVCFfile(gvcfFileName: String): String {
         // use the -f option to overwrite any existing file
         myLogger.info("bgzipping  file ${gvcfFileName}")
         val gvcfGzippedFile = gvcfFileName + ".gz"
-        var builder = ProcessBuilder("conda","run","-n","phgv2-conda",
-            "bgzip", "-f", gvcfFileName)
+        var builder = ProcessBuilder(condaPrefix(condaEnvPrefix, condaEnvNeeded) + mutableListOf("bgzip", "-f", gvcfFileName))
 
         var process = builder.start()
         var error: Int = process.waitFor()
@@ -127,7 +126,7 @@ fun bgzipAndIndexGVCFfile(gvcfFileName: String): String {
         // We will use bcftools to create the csi index
         // ORiginal PHG used tabix, we wnat csi indexes to allow for large genomes e.g wheat.
         // TileDB supports .csi indexed files.
-        builder = ProcessBuilder("conda","run","-n","phgv2-conda","bcftools", "index", "-c",gvcfGzippedFile)
+        builder = ProcessBuilder(condaPrefix(condaEnvPrefix, condaEnvNeeded) + mutableListOf("bcftools", "index", "-c", gvcfGzippedFile))
         process = builder.start()
         error = process.waitFor()
         if (error != 0) {
@@ -366,7 +365,7 @@ fun getChecksumForString(seq: String, protocol: String="Md5"): String {
  *  The actual tiledb dataset names are constant and are either gvcf_dataset or hvcf_dataset
  */
 
-fun verifyURI(dbPath:String,uri:String,condaEnvPrefix:String): Boolean {
+fun verifyURI(dbPath:String,uri:String,condaEnvPrefix:String, condaEnvNeeded: Boolean): Boolean {
     // Check that the user supplied db folder exists
     check(File(dbPath).exists()) { "Folder $dbPath does not exist - please send a valid path that indicates the parent folder for your tiledb datasets." }
 
@@ -386,8 +385,7 @@ fun verifyURI(dbPath:String,uri:String,condaEnvPrefix:String): Boolean {
 
     if (File(dataset).exists()  && Files.isDirectory(Paths.get(dataset))){
         // check if is a tiledb dataset
-        var command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix,"tiledbvcf","stat","--uri",dataset)
-        else mutableListOf("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri",dataset)
+        val command = condaPrefix(condaEnvPrefix, condaEnvNeeded) + mutableListOf("tiledbvcf","stat","--uri",dataset)
 
         var builder = ProcessBuilder(command)
         var redirectOutput = tempDir + "/tiledb_statURI_output.log"

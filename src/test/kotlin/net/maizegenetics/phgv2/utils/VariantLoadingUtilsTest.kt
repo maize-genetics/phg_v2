@@ -42,7 +42,7 @@ class VariantLoadingUtilsTest {
         Files.copy(File(origGvcfFile), File(testGvcfFile))
 
         // call bgzipAndIndexGVCFfile to zip and index the file
-        bgzipAndIndexGVCFfile(testGvcfFile)
+        bgzipAndIndexGVCFfile(testGvcfFile, "", false)
 
         // check that the compressed file exists
         val gvcfFileZipped = File(testGvcfFile + ".gz")

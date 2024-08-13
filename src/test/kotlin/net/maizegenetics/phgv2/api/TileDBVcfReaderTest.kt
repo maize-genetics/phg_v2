@@ -29,8 +29,8 @@ class TileDBVcfReaderTest {
         File(TestExtension.smallseqGvcfFile).copyTo(sampleGvcf, true)
 
         println("bgzipping and indexing files")
-        bgzipAndIndexGVCFfile(sampleGvcf.absolutePath)
-        bgzipAndIndexGVCFfile(lineAGvcf.absolutePath)
+        bgzipAndIndexGVCFfile(sampleGvcf.absolutePath, "", false)
+        bgzipAndIndexGVCFfile(lineAGvcf.absolutePath, "", false)
 
         val dbPath = TestExtension.testTileDBURI
 
@@ -41,7 +41,7 @@ class TileDBVcfReaderTest {
         }
 
         //create the database
-        Initdb().createDataSets(dbPath,"")
+        Initdb().createDataSets(dbPath,"",false)
         val loader = LoadVcf()
 
         val command = "--vcf-dir ${TestExtension.testVCFDir} --db-path $dbPath"

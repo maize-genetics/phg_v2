@@ -53,7 +53,7 @@ class LoadVCFTest {
         //Test non-existant dbPath
         assertThrows<IllegalStateException> {
             //Check that an error is thrown when the dbPath folder does not exist
-            verifyURI(badPath, URI,"")
+            verifyURI(badPath, URI,"", false)
         }
 
         // Test tiledb URI is a file, not a tiledb array
@@ -66,7 +66,7 @@ class LoadVCFTest {
         }
         assertThrows<IllegalArgumentException> {
             //Check that an error is thrown when the dbPath is good, but the URI is a regular file, not a tiledb array
-            verifyURI(goodPath, fileURI,"")
+            verifyURI(goodPath, fileURI,"", false)
         }
 
         // Test tiledbURI is a directory, but not a tiledb array
@@ -78,7 +78,7 @@ class LoadVCFTest {
         File(dirURI).mkdirs()
         assertThrows<IllegalArgumentException> {
             //Check that an error is thrown when the dbPath is good, but the URI is a regular directory file, not a tiledb array
-            verifyURI(goodPath, fileURI,"")
+            verifyURI(goodPath, fileURI,"", false)
         }
     }
 
@@ -96,8 +96,8 @@ class LoadVCFTest {
         Files.copy(File(origHvcfFile), File(testHvcfFile))
 
         // call bgzipAndIndexGVCFfile to zip and index the file
-        bgzipAndIndexGVCFfile(testGvcfFile)
-        bgzipAndIndexGVCFfile(testHvcfFile)
+        bgzipAndIndexGVCFfile(testGvcfFile, "", false)
+        bgzipAndIndexGVCFfile(testHvcfFile, "", false)
 
         // Folder with both g.vcf.gz and h.vcf.gz files, and other files
         // verify the g.vcf.gz is returned in lists.first, and h.vcf.gz is returned in lists.second
@@ -123,7 +123,7 @@ class LoadVCFTest {
         val dbPath = "${TestExtension.testTileDBURI}"
         // make the dbPath directory if it does not exist
         File(dbPath).mkdirs()
-        Initdb().createDataSets(dbPath,"")
+        Initdb().createDataSets(dbPath,"", false)
 
         // verify the dbPath directory exists with subdirectories hvcf_dataset and gvcf_dataset
         val dbDir = File(dbPath)
@@ -154,8 +154,8 @@ class LoadVCFTest {
         Files.copy(File(origHvcfFile), File(testHvcfFile))
 
         // call bgzipAndIndexGVCFfile to zip and index the file
-        bgzipAndIndexGVCFfile(testGvcfFile)
-        bgzipAndIndexGVCFfile(testHvcfFile)
+        bgzipAndIndexGVCFfile(testGvcfFile, "", false)
+        bgzipAndIndexGVCFfile(testHvcfFile, "", false)
 
         // load the vcf files stored in the data/test/smallseq folder
         // This will load LineA.gvcf to the gvcf_dataset and Ref.hvcf to the hvcf_dataset

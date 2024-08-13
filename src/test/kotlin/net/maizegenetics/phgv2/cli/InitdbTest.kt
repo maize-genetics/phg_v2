@@ -1,6 +1,7 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.utils.condaPrefix
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -36,7 +37,7 @@ class InitdbTest {
 
         val dbPath = tempDir + "tiledb_datasets/"
         val initdb = Initdb()
-        val result = initdb.createDataSets( dbPath,"")
+        val result = initdb.createDataSets( dbPath,"", false)
         println("result = $result")
         // To verify, we  check that the outputDir contains the expected files
         val expectedFiles = listOf("${dbPath}gvcf_dataset", "${dbPath}hvcf_dataset", "${dbPath}temp/tiledb_gvcf_createURI_error.log", "${dbPath}temp/tiledb_gvcf_createURI_output.log", "${dbPath}temp/tiledb_hvcf_createURI_error.log", "${dbPath}temp/tiledb_hvcf_createURI_output.log")
@@ -49,7 +50,7 @@ class InitdbTest {
         expectedLogFiles.forEach { File(it).delete() }
 
         // Run this again to verify that the datasets are not overwritten.
-        val result2 = initdb.createDataSets( dbPath,"")
+        val result2 = initdb.createDataSets( dbPath,"", false)
         println("result2 = $result2")
 
         // The output and error log files are not recreated because the
@@ -77,7 +78,7 @@ class InitdbTest {
         assertEquals(result.statusCode, 0)
 
         // get stats to show that anchor-gap was set correctly for gvcf
-        var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri", "$dbPath/gvcf_dataset/")
+        var builder = ProcessBuilder(condaPrefix("", false) + mutableListOf("tiledbvcf","stat","--uri", "$dbPath/gvcf_dataset/"))
         var process = builder.start()
         var stats = process.inputStream.readAllBytes().decodeToString()
         process.waitFor()
@@ -86,7 +87,7 @@ class InitdbTest {
         assertEquals(gGap_truth, gGap)
 
         // get stats to show that anchor-gap was set correctly for hvcf
-        builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri", "$dbPath/hvcf_dataset/")
+        builder = ProcessBuilder(condaPrefix("", false) + mutableListOf("tiledbvcf","stat","--uri", "$dbPath/hvcf_dataset/"))
         process = builder.start()
         stats = process.inputStream.readAllBytes().decodeToString()
         process.waitFor()

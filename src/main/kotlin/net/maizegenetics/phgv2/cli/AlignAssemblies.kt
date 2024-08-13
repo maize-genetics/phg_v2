@@ -5,12 +5,14 @@ import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
 import com.github.ajalt.clikt.parameters.groups.required
 import com.github.ajalt.clikt.parameters.groups.single
 import com.github.ajalt.clikt.parameters.options.*
+import com.github.ajalt.clikt.parameters.types.boolean
 import com.github.ajalt.clikt.parameters.types.int
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import net.maizegenetics.phgv2.utils.condaPrefix
 import org.apache.logging.log4j.LogManager
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.toMap
@@ -162,6 +164,10 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
     val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
 
+    val condaEnvNeeded by option (help = "Flag to indicate if a conda environment is needed.")
+        .boolean()
+        .default(true)
+
     data class InputChannelData(
         val refFasta: String,
         val asmFasta: String,
@@ -188,7 +194,7 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
 
         // If referenceCdsFasta and referenceSam are not provided, we need to create them
         if (referenceCdsFasta == "" ) {
-            anchorwaveRefFiles = processRefFiles(referenceFile, gff, outputDir, runsAndThreads, condaEnvPrefix)
+            anchorwaveRefFiles = processRefFiles(referenceFile, gff, outputDir, runsAndThreads, condaEnvPrefix, condaEnvNeeded)
         }
 
         val cdsFasta = anchorwaveRefFiles.first
@@ -205,19 +211,17 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
     }
 
     fun processRefFiles( referenceFile:String,  gff:String,   outputDir:String,
-                         runsAndThreads:Pair<Int, Int>, condaEnvPrefix:String): Pair<String,String>{
+                         runsAndThreads:Pair<Int, Int>, condaEnvPrefix:String, condaEnvNeeded:Boolean): Pair<String,String>{
 
         val cdsFasta = "$outputDir/ref.cds.fasta"
-        createCDSfromRefData(referenceFile, gff, cdsFasta, outputDir,condaEnvPrefix)
+        createCDSfromRefData(referenceFile, gff, cdsFasta, outputDir,condaEnvPrefix, condaEnvNeeded)
 
         // run minimap2 for ref to refcds
         val justNameRef = File(referenceFile).nameWithoutExtension
         val samOutFile = "${justNameRef}.sam"
         val refSamOutFile = "${outputDir}/${samOutFile}"
 
-        val command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix, "minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
-            "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile)
-        else mutableListOf("conda","run","-n","phgv2-conda","minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
+        val command = condaPrefix(condaEnvPrefix, condaEnvNeeded) + mutableListOf("minimap2", "-x", "splice", "-t", runsAndThreads.second.toString(), "-k", "12",
             "-a", "-p", "0.4", "-N20", referenceFile, cdsFasta, "-o", refSamOutFile)
         val builder = ProcessBuilder(command)
 
@@ -431,27 +435,12 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         }
     }
 
-    private fun createCDSfromRefData(refFasta: String, gffFile: String, cdsFasta: String, outputDir: String, condaEnvPrefix:String): Boolean {
+    private fun createCDSfromRefData(refFasta: String, gffFile: String, cdsFasta: String, outputDir: String, condaEnvPrefix:String, condaEnvNeeded: Boolean): Boolean {
 
         // val command = "anchorwave gff2seq -r ${refFasta} -i ${gffFile} -o ${cdsFasta} "
         // Need to set the conda environment here to access anchorwave
 
-        val command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix, "anchorwave",
-            "gff2seq",
-            "-r",
-            refFasta,
-            "-i",
-            gffFile,
-            "-o",
-            cdsFasta)
-        else mutableListOf("conda","run","-n","phgv2-conda","anchorwave",
-            "gff2seq",
-            "-r",
-            refFasta,
-            "-i",
-            gffFile,
-            "-o",
-            cdsFasta)
+        val command = condaPrefix(condaEnvPrefix, condaEnvNeeded) + mutableListOf("anchorwave", "gff2seq", "-r", refFasta, "-i", gffFile, "-o", cdsFasta)
         val builder = ProcessBuilder(command)
 
         val redirectOutput = "$outputDir/anchorwave_gff2seq_output.log"
@@ -532,36 +521,8 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
 
                 myLogger.info("alignAssembly: asmFileFull: ${assemblyEntry.asmFasta}, outputFile: $asmSamFile , threadsPerRun: ${assemblyEntry.threadsPerRun}")
 
-                val command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix,"minimap2",
-                    "-x",
-                    "splice",
-                    "-t",
-                    assemblyEntry.threadsPerRun.toString(),
-                    "-k",
-                    "12",
-                    "-a",
-                    "-p",
-                    "0.4",
-                    "-N20",
-                    assemblyEntry.asmFasta,
-                    cdsFasta,
-                    "-o",
-                    asmSamFile)
-                else mutableListOf("conda","run","-n","phgv2-conda","minimap2",
-                    "-x",
-                    "splice",
-                    "-t",
-                    assemblyEntry.threadsPerRun.toString(),
-                    "-k",
-                    "12",
-                    "-a",
-                    "-p",
-                    "0.4",
-                    "-N20",
-                    assemblyEntry.asmFasta,
-                    cdsFasta,
-                    "-o",
-                    asmSamFile)
+                val command = condaPrefix(condaEnvPrefix, condaEnvNeeded) + mutableListOf("minimap2", "-x", "splice", "-t", assemblyEntry.threadsPerRun.toString(),
+                    "-k", "12", "-a", "-p", "0.4", "-N20", assemblyEntry.asmFasta, cdsFasta, "-o", asmSamFile)
                 val builder = ProcessBuilder(command)
                 val redirectError = "${assemblyEntry.outputDir}/minimap2_${justName}_error.log"
                 val redirectOutput = "${assemblyEntry.outputDir}/minimap2_${justName}_output.log"
@@ -607,31 +568,7 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
         // a GVCF keyfile from the maf keyfiles.  It will be understood that the maf
         // file name is <assemblyFastaNoExtension>.maf
         val outputFile = "${outputDir}/${justNameAsm}.maf"
-        val command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix,"anchorwave",
-            "proali",
-            "-i",
-            gffFile,
-            "-r",
-            refFasta,
-            "-as",
-            cdsFasta,
-            "-a",
-            asmSam,
-            "-ar",
-            refSam,
-            "-s",
-            asmFasta,
-            "-n",
-            anchorsproFile,
-            "-R",
-            refMaxAlignCov.toString(),
-            "-Q",
-            queryMaxAlignCov.toString(),
-            "-t",
-            threadsPerRun,
-            "-o",
-            outputFile)
-        else mutableListOf("conda","run","-n","phgv2-conda","anchorwave",
+        val command = condaPrefix(condaEnvPrefix, condaEnvNeeded) + mutableListOf("anchorwave",
             "proali",
             "-i",
             gffFile,

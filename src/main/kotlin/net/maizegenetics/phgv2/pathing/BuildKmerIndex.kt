@@ -145,7 +145,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             val agcRequestLists = rangeListsForAgcCommand(graph, contigRangesMap, chr)
             val agcChromSequence = if (agcRequestLists.sampleContigList.isNotEmpty()) {
                 myLogger.info("sampleContigList size = ${agcRequestLists.sampleContigList.size}, first element = ${agcRequestLists.sampleContigList[0]}")
-                retrieveAgcContigs(dbPath, agcRequestLists.sampleContigList,"")
+                retrieveAgcContigs(dbPath, agcRequestLists.sampleContigList,"",false)
             }
             else emptyMap()
             val agcOtherRegionSequence: Map<Pair<String,String>, NucSeq> = if (agcRequestLists.otherRegionsList.isNotEmpty()) getAgcSequenceForRanges(agcRequestLists.otherRegionsList)
@@ -306,7 +306,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         val sequenceMap = mutableMapOf<Pair<String,String>, NucSeq>()
         ranges.windowed(maxArgs, maxArgs, true).forEach {
             myLogger.debug("getting sequence for $it")
-            sequenceMap.putAll(retrieveAgcContigs(dbPath, it,""))
+            sequenceMap.putAll(retrieveAgcContigs(dbPath, it,"",false))
         }
         return sequenceMap
     }

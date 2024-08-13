@@ -9,6 +9,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.types.boolean
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.variantcontext.VariantContextComparator
 import htsjdk.variant.vcf.VCFFileReader
@@ -55,6 +56,10 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
     val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
 
+    val condaEnvNeeded by option (help = "Flag to indicate if a conda environment is needed.")
+        .boolean()
+        .default(true)
+
     val outputDir by option (help = "Output directory for the gVCF files.  If not provided, the current working directory is used.")
         .default("")
 
@@ -70,19 +75,19 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
             dbPath
         }
 
-        myLogger.info("Hvcf2Gvcf: dbPath = $dbPath, hvcfDir = $hvcfDir, outputDir = $outputDir, condaEnvPrefix = $condaEnvPrefix")
+        myLogger.info("Hvcf2Gvcf: dbPath = $dbPath, hvcfDir = $hvcfDir, outputDir = $outputDir, condaEnvPrefix = $condaEnvPrefix, condaEnvNeeded = $condaEnvNeeded")
 
         // Verify the tiledbURI - verifyURI will throw an exception if the URI is not valid
-        val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
+        val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix,condaEnvNeeded)
 
         // read and store ref file data for later use when creating the vcf sequence dictionary
         var time = System.nanoTime()
         val refSeq = CreateMafVcf().buildRefGenomeSeq(referenceFile)
         myLogger.info("Time to build refSeq: ${(System.nanoTime() - time)/1e9} seconds")
-        buildGvcfFromHvcf(dbPath, refSeq, outputDir, hvcfDir, condaEnvPrefix)
+        buildGvcfFromHvcf(dbPath, refSeq, outputDir, hvcfDir, condaEnvPrefix,condaEnvNeeded)
     }
 
-    fun buildGvcfFromHvcf(dbPath: String, refSeq: Map<String, NucSeq>, outputDir: String, hvcfDir: String, condaEnvPrefix: String) {
+    fun buildGvcfFromHvcf(dbPath: String, refSeq: Map<String, NucSeq>, outputDir: String, hvcfDir: String, condaEnvPrefix: String,condaEnvNeeded:Boolean) {
         // get list of hvcf files
         // walk the gvcf directory process files with g.vcf.gz extension
 
@@ -92,7 +97,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                 myLogger.info("buildGvcfFromHvcf: Processing hvcf file: ${hvcfFile.name}")
                 var time = System.nanoTime()
                 val sample = hvcfFile.toString().substringAfterLast("/").substringBefore(".")
-                val records = processHVCFtoVariantContext(sample,refSeq, outputDir, hvcfFile, dbPath,condaEnvPrefix)
+                val records = processHVCFtoVariantContext(sample,refSeq, outputDir, hvcfFile, dbPath,condaEnvPrefix,condaEnvNeeded)
                 myLogger.info("Time to processHVCFtoVariantContext: ${(System.nanoTime() - time)/1e9} seconds")
 
 
@@ -105,7 +110,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
     }
 
-    fun processHVCFtoVariantContext(outputSampleName:String,refSeq:Map<String,NucSeq>, outputDir:String, hvcfFile: File, dbPath: String, condaEnvPrefix: String): List<VariantContext> {
+    fun processHVCFtoVariantContext(outputSampleName:String,refSeq:Map<String,NucSeq>, outputDir:String, hvcfFile: File, dbPath: String, condaEnvPrefix: String,condaEnvNeeded:Boolean): List<VariantContext> {
 
         val reader = VCFFileReader(hvcfFile,false)
 
@@ -116,7 +121,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
         // This checks for existing gvcf files, and if they don't exist, exports them
         var time = System.nanoTime()
-        val exportSuccess = exportGvcfFiles(sampleNames, outputDir, dbPath, condaEnvPrefix)
+        val exportSuccess = exportGvcfFiles(sampleNames, outputDir, dbPath, condaEnvPrefix,condaEnvNeeded)
         myLogger.info("Time to exportGvcfFiles: ${(System.nanoTime() - time)/1e9} seconds")
 
         // Using the hvcfdFileReader, walk the hvcf file and for each entry create
@@ -146,7 +151,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         // There is no gvcf for the reference, so we need to create one if
         // the reference is in the sampleNames list.  The query below gets the
         // ref sample name from the agc file (which is <dbPath>/assemblies.agc)
-        val refSampleName = retrieveRefSampleName (dbPath, condaEnvPrefix)
+        val refSampleName = retrieveRefSampleName (dbPath, condaEnvPrefix,condaEnvNeeded)
 
         // check if file outputDir/refSampleName.vcf exists
         val refGvcfFile = "$outputDir/${refSampleName}.vcf"
@@ -188,7 +193,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                 }
             }
             gvcfReader.close()
-            val rangeToGvcfRecords = findOverlappingRecordsForSample(outputSampleName,ranges, gvcfVariants,refSeq,dbPath,condaEnvPrefix)
+            val rangeToGvcfRecords = findOverlappingRecordsForSample(outputSampleName,ranges, gvcfVariants,refSeq,dbPath,condaEnvPrefix,condaEnvNeeded)
 
             //Add the rangeToGvcfRecords to the refRangeToVariantContext map
             // we can use "plus" but it creates a new map containing the combined entries
@@ -263,7 +268,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
     // function to export from tiledb the gvcf files if they don't exist
     // If we get the tiledb-java API working for MAC, we can hold these in memory
     // while processing and skip the export.
-    fun exportGvcfFiles(sampleNames:Set<String>, outputDir:String, dbPath:String, condaEnvPrefix:String):Boolean {
+    fun exportGvcfFiles(sampleNames:Set<String>, outputDir:String, dbPath:String, condaEnvPrefix:String, condaEnvNeeded:Boolean):Boolean {
         val success = true
         // Check if the files listed in gvcfFIles already exist
         val gvcfFiles = mutableListOf<String>()
@@ -284,14 +289,10 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         val missingSampleNames = missingFiles.map { it.substringAfterLast("/").substringBeforeLast(".") }
 
         // Setup the conda enviroment portion of the command
-        var command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix) else mutableListOf("conda","run","-n","phgv2-conda")
+        var command = condaPrefix(condaEnvPrefix, condaEnvNeeded)
         // Call ExportVcf with the outputDir and the missingSamleNames list
         // to create the gvcf files
         var dataCommand = mutableListOf(
-            "conda",
-            "run",
-            "-n",
-            "phgv2-conda",
             "tiledbvcf",
             "export",
             "--uri",
@@ -325,7 +326,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
     // Process the gvcf records for a sample, and return a map of ReferenceRange to VariantContext
     // These are processed per-sample, then per-chromosome, to reduce memory usage
-    fun findOverlappingRecordsForSample(outputSampleName:String,ranges:List<ReferenceRange>, variantContexts:List<VariantContext>,refSeq:Map<String,NucSeq>,dbPath:String,condaEnvPrefix:String):MutableMap<ReferenceRange,MutableList<VariantContext>> {
+    fun findOverlappingRecordsForSample(outputSampleName:String,ranges:List<ReferenceRange>, variantContexts:List<VariantContext>,refSeq:Map<String,NucSeq>,dbPath:String,condaEnvPrefix:String,condaEnvNeeded: Boolean):MutableMap<ReferenceRange,MutableList<VariantContext>> {
         // Query AGC to get sequence for the sample
         println("findOverlappingRecordsForSample: outputSampleName = $outputSampleName")
         // split ranges and variantContexts by chromosome
