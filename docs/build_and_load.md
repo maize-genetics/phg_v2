@@ -747,6 +747,25 @@ file contains 6 columns of information:
     separated string of all the genes/CDS features included in this BED 
     region.
 
+!!! note
+    While a BED file of reference ranges is required for this 
+    pipeline, it does not have to be created via the `create-ranges` 
+    command as long as it is reflective of the features found within 
+    the reference genome used in the pipeline:
+
+    * Same contig/chromosome IDs
+    * Coordinates are [**0-based, inclusive/exclusive**](https://tidyomics.com/blog/2018/12/09/2018-12-09-the-devil-0-and-1-coordinate-system-in-genomics/)
+    * Coordinates do not exceed contig boundaries
+    * Contains the first three BED columns:
+        + `1` - Sequence name
+        + `2` - Start position (bp)
+        + `3` - End position (bp)
+   
+    While we only need the first three columns, columns `4` through
+    `6` provide additional biologically relevant information that
+    you _may_ also want to include!
+    
+
 Now that we have a BED file, our example working directory now
 looks like the following:
 
