@@ -29,7 +29,7 @@ class Hvcf2GvcfTest {
 
             File(TestExtension.testVCFDir).mkdirs()
             File(TestExtension.testTileDBURI).mkdirs()
-            Initdb().createDataSets(dbPath,"")
+            Initdb().createDataSets(dbPath,"", false)
 
             // Create the agc compressed file
             println("testSimpleHvcf2Gvcf:running agcCompress")

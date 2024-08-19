@@ -18,7 +18,7 @@ class Gvcf2HvcfTest {
         fun setup() {
             File(TestExtension.testVCFDir).mkdirs()
             File(TestExtension.testTileDBURI).mkdirs()
-            Initdb().createDataSets(TestExtension.testTileDBURI,"")
+            Initdb().createDataSets(TestExtension.testTileDBURI,"", false)
         }
 
         @JvmStatic
@@ -93,7 +93,7 @@ class Gvcf2HvcfTest {
         val fastaCreateFileNamesFile = File(dbPath, "agcFileList.txt")
         fastaCreateFileNamesFile.writeText(fileList.joinToString("\n"))
 
-        Initdb().createDataSets(TestExtension.testTileDBURI,"") // this got cleared in tests above
+        Initdb().createDataSets(TestExtension.testTileDBURI,"", false) // this got cleared in tests above
         val agcCompress = AgcCompress()
         // Create the compressed file
         val agcResult =
@@ -167,7 +167,7 @@ class Gvcf2HvcfTest {
         val dbPath = TestExtension.testTileDBURI
         val refFasta = "data/test/buildMAFVCF/B73_Test.fa"
 
-        Initdb().createDataSets(TestExtension.testTileDBURI,"") // this got cleared in tests above
+        Initdb().createDataSets(TestExtension.testTileDBURI,"", false) // this got cleared in tests above
         val agcCompress = AgcCompress()
         // Create the initial compressed file
         val agcResult = agcCompress.test("--fasta-list ${fastaCreateFileNamesFile} --db-path ${dbPath} --reference-file ${refFasta}")

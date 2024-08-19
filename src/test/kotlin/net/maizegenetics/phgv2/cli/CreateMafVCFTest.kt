@@ -118,7 +118,7 @@ class CreateMafVCFTest {
         val refFasta = "data/test/buildMAFVCF/B73_Test.fa"
 
         //Create the tileDB datasets - these are verified in AgcCompress()
-        Initdb().createDataSets(TestExtension.testTileDBURI,"")
+        Initdb().createDataSets(TestExtension.testTileDBURI,"", false)
 
         val agcCompress = AgcCompress()
         // Create the initial compressed file

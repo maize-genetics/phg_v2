@@ -7,6 +7,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.types.boolean
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeaderLine
@@ -51,6 +52,10 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
     val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
 
+    val condaEnvNeeded by option (help = "Flag to indicate if a conda environment is needed.")
+        .boolean()
+        .default(true)
+
     override fun run() {
         myLogger.info("begin CreateRefVcf: validate dpPath URI")
         val dbPath = if (dbPath.isBlank()) {
@@ -59,7 +64,7 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
             dbPath
         }
         // Verify the dbPath is a valid tiledb URI
-        val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
+        val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix,condaEnvNeeded)
 
         createRefHvcf(bed,referenceFile,referenceName,referenceUrl,dbPath)
     }
@@ -202,16 +207,16 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
             // Include the VCF ALT Header lines created in the loop above
             exportVariantContext(refName, fullRefVCList, localRefHVCFFile, myRefSequence!!,altHeaderLines)
             //bgzip and csi index the file
-            val bgzippedGVCFFileName = bgzipAndIndexGVCFfile(localRefHVCFFile)
+            val bgzippedGVCFFileName = bgzipAndIndexGVCFfile(localRefHVCFFile, condaEnvPrefix, condaEnvNeeded)
             myLogger.info("${bgzippedGVCFFileName} created and stored to ${tiledbHvcfDir}")
 
             // Create the tiledb datasets if they don't exist
             File(outputDir).mkdirs()
-            Initdb().createDataSets(outputDir,"")
+            Initdb().createDataSets(outputDir,"",false)
 
             // Load the Ref hvcf file to tiledb
             val loadVcf = LoadVcf()
-            loadVcf.loadVcfFiles(tiledbHvcfDir,outputDir,"") // default the threads to "1" for the ref.
+            loadVcf.loadVcfFiles(tiledbHvcfDir,outputDir,"",false) // default the threads to "1" for the ref.
 
             // Store the bed file and the reference fasta file to the dbPath/reference folder
             // Create the dbPath/reference folder if it doesn't exist

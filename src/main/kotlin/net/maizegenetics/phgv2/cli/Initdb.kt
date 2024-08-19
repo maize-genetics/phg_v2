@@ -5,7 +5,9 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.types.boolean
 import com.github.ajalt.clikt.parameters.types.int
+import net.maizegenetics.phgv2.utils.condaPrefix
 import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.lang.Exception
@@ -42,7 +44,11 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
     val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
 
-    fun createDataSets(dbpath:String, condaEnvPrefix:String,gvcfAnchorGap: Int = 1000000, hvcfAnchorGap: Int = 1000) {
+    val condaEnvNeeded by option (help = "Flag to indicate if a conda environment is needed.")
+        .boolean()
+        .default(true)
+
+    fun createDataSets(dbpath:String, condaEnvPrefix:String, condaEnvNeeded:Boolean, gvcfAnchorGap: Int = 1000000, hvcfAnchorGap: Int = 1000) {
         // Check that the user supplied folder exists
         val dbfolder = File(dbpath)
 
@@ -68,8 +74,7 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
         // this environment.
         var logFile = "${tempDir}/tiledbvcf_createHvcf.log"
 
-        val condaCommand = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix)
-        else mutableListOf("conda","run","-n","phgv2-conda")
+        val condaCommand = condaPrefix(condaEnvPrefix, condaEnvNeeded)
         val hvcfCommand = mutableListOf("tiledbvcf","create","--uri",hvcf_dataset,"-n","--log-level","debug","--log-file",logFile,"--anchor-gap",hvcfAnchorGap.toString())
         var command = condaCommand + hvcfCommand
 
@@ -131,7 +136,7 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
         }
 
         // call method to create the environment
-        createDataSets(dbPath, condaEnvPrefix,gvcfAnchorGap, hvcfAnchorGap)
+        createDataSets(dbPath, condaEnvPrefix, condaEnvNeeded, gvcfAnchorGap, hvcfAnchorGap)
     }
 
 }

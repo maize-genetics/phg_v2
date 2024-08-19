@@ -11,6 +11,27 @@ import kotlin.math.ceil
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.GeneralUtilities")
 
 /**
+ * This function returns a prefix for running a command line command.  If a conda environment is
+ * specified, the prefix is "conda run -n <env>".  If no conda environment is specified, "phgv2-conda"
+ * is used as environment name.  Alternatively, if no conda environment is needed, an empty string is returned.
+ */
+fun condaPrefix(condaEnvPrefix: String, condaEnvNeeded: Boolean): MutableList<String> {
+    val prefix = mutableListOf<String>()
+    if (condaEnvPrefix != "") {
+        prefix.add("conda")
+        prefix.add("run")
+        prefix.add("-n")
+        prefix.add(condaEnvPrefix)
+    } else if (condaEnvNeeded) {
+        prefix.add("conda")
+        prefix.add("run")
+        prefix.add("-n")
+        prefix.add("phgv2-conda")
+    }
+    return prefix
+}
+
+/**
  * This function reads the output from a ProcessBuilder cammond.
  * The input is a BufferedInputStream.  This is read one line at a time
  * returning the results as a List<String>.   It is used to process output

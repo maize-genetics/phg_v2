@@ -77,7 +77,7 @@ fun loadVcfFiles(tiledbURI:String = TestExtension.testTileDBURI) {
     Files.copy(File(origHvcfFile), File(testHvcfFile))
 
     // call bgzipAndIndexGVCFfile to zip and index the file
-    bgzipAndIndexGVCFfile(testHvcfFile)
+    bgzipAndIndexGVCFfile(testHvcfFile, "", false)
 
     // Copy LineA h.vcf
     origHvcfFile = "data/test/smallseq/LineA.h.vcf"
@@ -85,7 +85,7 @@ fun loadVcfFiles(tiledbURI:String = TestExtension.testTileDBURI) {
     Files.copy(File(origHvcfFile), File(testHvcfFile))
 
     // call bgzipAndIndexGVCFfile to zip and index the file
-    bgzipAndIndexGVCFfile(testHvcfFile)
+    bgzipAndIndexGVCFfile(testHvcfFile, "", false)
 
     // Copy LineB h.vcf
     origHvcfFile = "data/test/smallseq/LineB.h.vcf"
@@ -93,7 +93,7 @@ fun loadVcfFiles(tiledbURI:String = TestExtension.testTileDBURI) {
     Files.copy(File(origHvcfFile), File(testHvcfFile))
 
     // call bgzipAndIndexGVCFfile to zip and index the file
-    bgzipAndIndexGVCFfile(testHvcfFile)
+    bgzipAndIndexGVCFfile(testHvcfFile, "", false)
 
     // load the vcf files stored in the data/test/smallseq folder
     // This will load LineA.gvcf to the gvcf_dataset and Ref.hvcf to the hvcf_dataset
