@@ -59,6 +59,7 @@ fun main(args: Array<String>) = Phg()
         SetupEnvironment(), Initdb(), CreateRanges(), PrepareAssemblies(), AgcCompress(), AlignAssemblies(), PrepareSlurmAlignFile(),
         CreateAnchorwaveDotplot(), CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), Hvcf2Gvcf(), LoadVcf(), ExportVcf(),
         BuildKmerIndex(), MapKmers(), FindPaths(), // Imputation
-        CreateFastaFromHvcf(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer // Utilities
+        CreateFastaFromHvcf(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer, // Utilities
+        CreateResequencedVCF() // resequencing pipeline
     )
     .main(args)
