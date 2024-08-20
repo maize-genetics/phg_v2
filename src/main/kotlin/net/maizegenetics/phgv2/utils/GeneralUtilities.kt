@@ -4,6 +4,7 @@ import biokotlin.seq.NucSeq
 import com.google.common.collect.Range
 import com.google.common.collect.RangeMap
 import com.google.common.collect.TreeRangeMap
+import net.maizegenetics.phgv2.cli.Phg
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedInputStream
 import kotlin.math.ceil
@@ -180,3 +181,60 @@ fun findFlankingEndPos(geneRange:RangeMap<Position,String>, data:Range<Position>
     }
     return newUpperPos
 }
+
+/**
+ * Retrieves PHGv2 version information from the `version.properties`
+ * file.
+ *
+ * The version is composed of four components: major version, minor
+ * version, patch version, and build number.
+ *
+ * The function first attempts to read the `version.properties` file
+ * from within the JAR file, using the resource stream. If that fails,
+ * it will try to read the file from the current working directory.
+ *
+ * The `version.properties` file is expected to have the following
+ * format:
+ *
+ * ```
+ * majorVersion=<integer>
+ * minorVersion=<integer>
+ * patchVersion=<integer>
+ * buildNumber=<integer>
+ * ```
+ *
+ * @return A `String` representing the full version in the format "major.minor.patch.build".
+ *         For example, "1.0.0.123".
+ *
+ * @throws RuntimeException if the `version.properties` file cannot be found or is incorrectly formatted.
+ */
+fun phgVersion(): String {
+    // get version from version.properties file
+    var majorVersion = 0
+    var minorVersion = 0
+    var patchVersion = 0
+    var buildNumber = 0
+
+    // Try to get the version.properties file from the jar file
+    // If that fails, try to get it from the current working directory
+    val reader = try {
+        Phg::class.java.getResourceAsStream("/version.properties").bufferedReader()
+    } catch (e: Exception) {
+        val path = System.getProperty("user.dir")
+        println("Getting version from: ${path}/version.properties")
+        getBufferedReader("${path}/version.properties")
+    }
+
+    reader.readLines().forEach {
+        val (key, value) = it.split("=")
+        when (key) {
+            "majorVersion" -> majorVersion = value.toInt()
+            "minorVersion" -> minorVersion = value.toInt()
+            "patchVersion" -> patchVersion = value.toInt()
+            "buildNumber" -> buildNumber = value.toInt()
+        }
+    }
+
+    return("$majorVersion.$minorVersion.$patchVersion.$buildNumber")
+}
+
