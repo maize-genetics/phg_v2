@@ -140,7 +140,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
         if(fastaType == FastaType.composite)
             writeCompositeSequence(outputWriter, haplotypeSequences)
         else if(fastaType == FastaType.haplotype) {
-            writeHaplotypeSequence(outputWriter, haplotypeSequences)
+            writeHaplotypeSequence(outputWriter, haplotypeSequences.toSet())
         }
     }
 
@@ -262,7 +262,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
      * Function to output haplotype sequences to a fasta file.  Here each haplotype is exported as its own fasta record without concatenating things together.
      * This is almost identical to how fastas were exported in the original version of the pipeline.
      */
-    fun writeHaplotypeSequence(outputFileWriter: BufferedWriter, haplotypeSequences: List<HaplotypeSequence>, exportFullIdLine : Boolean = true) {
+    fun writeHaplotypeSequence(outputFileWriter: BufferedWriter, haplotypeSequences: Set<HaplotypeSequence>, exportFullIdLine : Boolean = true) {
         for(hapSeq in haplotypeSequences) {
             outputFileWriter.write(">${hapSeq.id}")
             if(exportFullIdLine) {
