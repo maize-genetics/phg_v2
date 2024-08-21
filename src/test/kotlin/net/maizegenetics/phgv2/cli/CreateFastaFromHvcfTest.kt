@@ -217,13 +217,22 @@ class CreateFastaFromHvcfTest {
         )
 
         //Build some simple Haplotype Sequences
+        // THere is a duplicate here - it will be removed when writing the file
         val haplotypeSequences =  listOf(
             HaplotypeSequence(getChecksumForString(seqs[0]), seqs[0], getChecksumForString(seqs[0]), "1", 1, 300, listOf(Pair(Position("1", 1), Position("1", 300)))),
             HaplotypeSequence(getChecksumForString(seqs[1]), seqs[1], getChecksumForString(seqs[1]), "1", 301, 600, listOf(Pair(Position("1", 301), Position("1", 600)))),
+            HaplotypeSequence(getChecksumForString(seqs[3]), seqs[3], getChecksumForString(seqs[3]), "2", 1, 300, listOf(Pair(Position("2", 1), Position("1",300)))),
             HaplotypeSequence(getChecksumForString(seqs[2]), seqs[2], getChecksumForString(seqs[2]), "1", 601, 900, listOf(Pair(Position("1", 601), Position("1",900)))),
             HaplotypeSequence(getChecksumForString(seqs[3]), seqs[3], getChecksumForString(seqs[3]), "2", 1, 300, listOf(Pair(Position("2", 1), Position("1",300)))),
             HaplotypeSequence(getChecksumForString(seqs[4]), seqs[4], getChecksumForString(seqs[4]), "2", 301, 600, listOf(Pair(Position("2", 301), Position("1", 600))))
         )
+
+
+        // toSet() applied here to remove the duplicate
+        // This is how the function is called in the source code
+        // Because writeHaplotypeSequence is called from the same parent function as writeCompositeSequence,
+        // and the latter needs the duplicates to remain,
+        // the haplotypeSequences are passed in as a set, so the duplicate is removed
 
         BufferedWriter(FileWriter(outputFile)).use { writer ->
             createFastaFromHvcf.writeHaplotypeSequence(writer, haplotypeSequences)
@@ -236,19 +245,22 @@ class CreateFastaFromHvcfTest {
         //load in the file and check that the sequences are correct
         val importedSeqs = NucSeqIO(outputFile).readAll()
 
+        // Verify there are only 5 sequences in the file (the duplicate was removed)
+        assertEquals(5, importedSeqs.size)
+
         assertEquals(seqs[0], importedSeqs[getChecksumForString(seqs[0])]!!.seq())
         assertEquals(seqs[1], importedSeqs[getChecksumForString(seqs[1])]!!.seq())
         assertEquals(seqs[2], importedSeqs[getChecksumForString(seqs[2])]!!.seq())
         assertEquals(seqs[3], importedSeqs[getChecksumForString(seqs[3])]!!.seq())
         assertEquals(seqs[4], importedSeqs[getChecksumForString(seqs[4])]!!.seq())
 
-        //Check to make sure the metadata is correct
-        compareFastaDescriptions(importedSeqs[getChecksumForString(seqs[0])]!!.description?:"", haplotypeSequences[0])
-        compareFastaDescriptions(importedSeqs[getChecksumForString(seqs[1])]!!.description?:"", haplotypeSequences[1])
-        compareFastaDescriptions(importedSeqs[getChecksumForString(seqs[2])]!!.description?:"", haplotypeSequences[2])
-        compareFastaDescriptions(importedSeqs[getChecksumForString(seqs[3])]!!.description?:"", haplotypeSequences[3])
-        compareFastaDescriptions(importedSeqs[getChecksumForString(seqs[4])]!!.description?:"", haplotypeSequences[4])
-
+        // writeHaplotypeSequences processed the list as a set, and orders are not maintained in a set.
+        // Verify that each value exists at some place in the file.
+        compareFastaDescriptions(importedSeqs[getChecksumForString(seqs[0])]!!.description?:"", haplotypeSequences.firstOrNull { it.id == getChecksumForString(seqs[0]) }!!)
+        compareFastaDescriptions(importedSeqs[getChecksumForString(seqs[1])]!!.description?:"", haplotypeSequences.firstOrNull { it.id == getChecksumForString(seqs[1]) }!!)
+        compareFastaDescriptions(importedSeqs[getChecksumForString(seqs[2])]!!.description?:"", haplotypeSequences.firstOrNull { it.id == getChecksumForString(seqs[2]) }!!)
+        compareFastaDescriptions(importedSeqs[getChecksumForString(seqs[3])]!!.description?:"", haplotypeSequences.firstOrNull { it.id == getChecksumForString(seqs[3]) }!!)
+        compareFastaDescriptions(importedSeqs[getChecksumForString(seqs[4])]!!.description?:"", haplotypeSequences.firstOrNull { it.id == getChecksumForString(seqs[4]) }!!)
 
     }
     fun compareFastaDescriptions(description : String, hapSequence: HaplotypeSequence) {
