@@ -227,13 +227,7 @@ class CreateFastaFromHvcfTest {
             HaplotypeSequence(getChecksumForString(seqs[4]), seqs[4], getChecksumForString(seqs[4]), "2", 301, 600, listOf(Pair(Position("2", 301), Position("1", 600))))
         )
 
-
-        // toSet() applied here to remove the duplicate
-        // This is how the function is called in the source code
-        // Because writeHaplotypeSequence is called from the same parent function as writeCompositeSequence,
-        // and the latter needs the duplicates to remain,
-        // the haplotypeSequences are passed in as a set, so the duplicate is removed
-
+        // Write the haplotype fasta
         BufferedWriter(FileWriter(outputFile)).use { writer ->
             createFastaFromHvcf.writeHaplotypeSequence(writer, haplotypeSequences)
         }
