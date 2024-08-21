@@ -57,7 +57,10 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
     fun reseqVCFHeader(reader:VCFFileReader, hapidToLength:Map<String,Int>,sampleNames:List<String>): VCFHeader {
         // create the headers
         // From the variantVCF, which is a composite genome VCF file, get all the headers
-        // EXCEPT the contig headers.  This includes "other" e.g.
+        // EXCEPT the contig headers.  This includes "other" e.g. fileformat=VCFv4.2,
+        // ##DeepVariant_version=1.6.0 and lines the show commands run to filter the vcf, etc, which
+        // indicate how the vcf was made.  We want to preserve all of these headers, just not the contigs
+        // as those now become the hapids.
         val header = reader.fileHeader
         val newHeaderLines = mutableSetOf<VCFHeaderLine>()
         newHeaderLines.addAll(header.filterLines)
