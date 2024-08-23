@@ -31,7 +31,8 @@ import kotlin.math.abs
  *
  *
  */
-
+data class HaplotypeData(val id: String, val refContig: String, val refStart: Int, val hapLen: Int,
+                             val asmRegions:List<Pair<Position, Position>>)
 class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf using data from existing PHG created g.vcf files")  {
     private val myLogger = LogManager.getLogger(CreateResequencedVCF::class.java)
     val pathHvcf by option(help = "Full path to the hvcf file created by the find-paths command ")
@@ -49,7 +50,12 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
 
     override fun run() {
         val (hapidToLength,pathingVCFRangeMap) = processPathVCF(pathHvcf)
+        // The pathingVCFRangeMap is to identify the haplotype in which the
+        // variantVCF's POS is located.  The haplotype ID is used in the CHROM field
+        // of the new VCF file.
         val hapVCs = createHaplotypeVariantContexts(variantVcf, pathingVCFRangeMap)
+        // hapid length is needed when creating the "contig" headers in the VCF file
+        // we need the length of each.
         writeHaplotypeVCF(variantVcf,hapidToLength, hapVCs, sampleName,outputFile)
 
     }
@@ -77,6 +83,8 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
     }
 
     // Function to write the haplotype VCF file
+    // The sample name here is the sample name we want used for the NEW haplotype based
+    // vcf file.  This is the name that will show up in the sample column of the VCF file.
     fun writeHaplotypeVCF(variantVCF:String, hapidToLength:Map<String,Int>,hapVCs:List<VariantContext>,sampleName:String, outputFileName:String) {
         // setup the writer
         val writer = VariantContextWriterBuilder()
@@ -119,7 +127,12 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
                 // and the rest of the fields as they are in the record
                 val hapStart = entry.key.lowerEndpoint().position
                 val hapId = entry.value
-                val newPos = pos - hapStart
+                // If this haplotype is the first one for the chrom, and it has positions 1-25
+                // and the variant is at position 20, then the new position is 20-1+1 = 20
+                // We are off-by-1 if we don't add the 1 at the end.
+                // or, if the haplotype starts at position 57 in the file, and the SNP is at
+                // position 60, then the new position is 60-57+1 = 4 in the haplotype.
+                val newPos = pos - hapStart +1
                 // Create a VariantContext record that has the haplotype id in the CHROM field
                 // and the newPos in the POS field
                 // and the rest of the fields as they are in the record
@@ -148,15 +161,59 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
         // get the header information from the path hvcf file
         val reader = VCFFileReader(File(pathHvcf), false)
         val altHeaders = parseALTHeader(reader.header)
+        val chromToHapData = mutableMapOf<String, MutableList<HaplotypeData>>()
+        val haplotypeVariants = reader.iterator().asSequence().toList()
+
+        val headerIDtoRegionLengthMap = mutableMapOf<String,Int>() // This is the length of the haplotype
+        // should only be 1 sample in this file.
+        val sampleName = reader.header.sampleNamesInOrder[0]
+
+        haplotypeVariants.filter{it.getGenotype(sampleName).getAllele(0).displayString.replace("<","").replace(">","") != ""}
+            .map{
+                val hapId = it.getGenotype(sampleName).getAllele(0).displayString.replace("<","").replace(">","")
+                // If the hapId from the variants is a non-blank value that is not in the ALT header, throw an exception
+                check(altHeaders.containsKey(hapId)) { "Haplotype ID $hapId not found in ALT Header" }
+                val altMetaData = altHeaders[hapId]
+                // We aren't getting sequence, so I shouldn't need the hapSampleName
+                //val hapSampleName = altMetaData!!.sampleName()
+
+                val regions =  altMetaData!!.regions
+                //Add the haplotype data to the list of haplotype sequences for this chromosome
+                val chromList = chromToHapData.getOrDefault(it.contig, mutableListOf())
+                val hapLen = regions.map{abs(it.second.position-it.first.position)+1}.sum()
+                chromList.add(HaplotypeData(hapId,it.contig,it.start,hapLen,regions))
+                chromToHapData[it.contig] = chromList
+                headerIDtoRegionLengthMap[hapId] = hapLen
+            }
+
+        // Craete a map of haplotype IDs to their positions in the composite genome.
+        val hapidToGenomePositions = createHapPositionMap(chromToHapData)
+        return Pair(headerIDtoRegionLengthMap,hapidToGenomePositions)
+    }
+
+    fun processPathVCFORIG(pathHvcf: String): Pair<Map<String,Int>,RangeMap<Position, String>> {
+        // get the header information from the path hvcf file
+        val reader = VCFFileReader(File(pathHvcf), false)
+        val altHeaders = parseALTHeader(reader.header)
         // You want altHeaders: map of alt header id to len(AltHeaderMetaData.regions)
         // create a map of altHeader.id to the sum of the length of the regions in the altHeaderMetaData
 
         val headerIDtoRegionLengthMap = mutableMapOf<String,Int>()
+        var reverseStrandCount = 0
         for (altHeader in altHeaders) {
-            // Why are there some haplotypes with size=1?  In some cases, the start > end - for reverse strand?
-            val regionLength = altHeader.value.regions.map { abs(it.second.position - it.first.position) + 1 }.sum()
+            // Why are there some haplotypes with size=1?  In some cases, the start > end: this is reverse strand
+            val regionLength = altHeader.value.regions.map {
+                val start = it.first.position
+                val end = it.second.position
+                if (start > end) {
+                    reverseStrandCount++
+                    //println("LCJ: Reverse strand found in altHeader: ${altHeader.key}")
+                }
+                abs(it.second.position - it.first.position) + 1 }.sum()
+
             headerIDtoRegionLengthMap[altHeader.key] = regionLength
         }
+        println("LCJ: processPathVCF: Reverse strand count: $reverseStrandCount")
 
 
         val hvcfRecords = reader.iterator().asSequence().toList()
@@ -166,6 +223,8 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
         // must be in the order that the ALT values show up in the file.  These are the haplotypes
         // whose sequence make up the composite genome at each chromosome.
         val chromToAltMap = mutableMapOf<String, List<String>>()
+        // We are processing the hvcf records in order, so the order of the haplotypes in the
+        // chromToAltMap will be the order they appear in the hvcf file.
         for (record in hvcfRecords) {
             val chrom = record.contig
             // set val alt to the first value in the ALT field, and to "." if there is no value
@@ -186,12 +245,42 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
         }
 
         // Craete a map of haplotype IDs to their positions in the composite genome.
-        val hapidToGenomePositions = createHapPositionMap(chromToAltMap,headerIDtoRegionLengthMap)
+        val hapidToGenomePositions = createHapPositionMapORIG(chromToAltMap,headerIDtoRegionLengthMap)
 
         return Pair(headerIDtoRegionLengthMap,hapidToGenomePositions)
     }
 
-    fun createHapPositionMap(chromToAltMap:Map<String,List<String>>,headerIdToRegionLengthMap:Map<String,Int>):RangeMap<Position,String> {
+    /**
+     * This method splits the chromosome into the haplotypes that make it up.
+     * We want to know where each haplotype starts and ends in the composite genome for that chromosome.
+     */
+    fun createHapPositionMap(chromToAltMap:Map<String,List<HaplotypeData>>):RangeMap<Position,String> {
+
+        // Create a RangeMap of POS to haplotypeID, where POS is a Position object with 1-based start and end
+        // coordinates.  The start coordinate is the sum of the lengths of the haplotypes that come before it.
+        // The end coordinate is the start coordinate plus the length of the haplotype.
+        // This gives us the positions in the composite genome that each haplotype covers.
+        val hapidToGenomePositions:RangeMap<Position,String> = TreeRangeMap.create()
+
+        for (chrom in chromToAltMap.keys) {
+            var accumulated = 0
+            // Need the haplotypes sorted by refStart to ensure the order they appear
+            // in the composite fasta for this chromosome is correct
+            val haplotypes = chromToAltMap[chrom]!!.sortedBy {it.refStart} // get all the haplotypes for this chrom
+            for (hap in haplotypes) {
+                // create a range from accumulated to accumulated + headerIDtoRegionLengthMap[hap]
+                // put this range in the hapidToGenomePositions map with the hap as the value
+                // Positions will be 1-based as the vcf file is 1-based
+                accumulated++ // start at 1 past the last position
+                val range = Range.closed(Position(chrom,accumulated), Position(chrom,accumulated + hap.hapLen))
+                hapidToGenomePositions.put(range,hap.id)
+                accumulated += hap.hapLen
+            }
+        }
+        return hapidToGenomePositions
+    }
+
+    fun createHapPositionMapORIG(chromToAltMap:Map<String,List<String>>,headerIdToRegionLengthMap:Map<String,Int>):RangeMap<Position,String> {
 
         // Create a RangeMap of POS to haplotypeID, where POS is a Position object with 1-based start and end
         // coordinates.  The start coordinate is the sum of the lengths of the haplotypes that come before it.
@@ -200,7 +289,7 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
         val hapidToGenomePositions:RangeMap<Position,String> = TreeRangeMap.create()
         for (chrom in chromToAltMap.keys) {
             var accumulated = 0
-            val haplotypes = chromToAltMap[chrom]!!
+            val haplotypes = chromToAltMap[chrom]!! // get all the haplotypes for this chrom
             for (hap in haplotypes) { // Does this process them in order?
                 // create a range from accumulated to accumulated + headerIDtoRegionLengthMap[hap]
                 // put this range in the hapidToGenomePositions map with the hap as the value
