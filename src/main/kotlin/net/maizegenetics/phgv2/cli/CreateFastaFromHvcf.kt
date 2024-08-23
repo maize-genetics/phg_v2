@@ -263,7 +263,8 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
      * This is almost identical to how fastas were exported in the original version of the pipeline.
      */
     fun writeHaplotypeSequence(outputFileWriter: BufferedWriter, haplotypeSequences: List<HaplotypeSequence>, exportFullIdLine : Boolean = true) {
-        for(hapSeq in haplotypeSequences) {
+        // Make this a set to remove duplicates.  A LinkedHashSet to maintain the order
+        for(hapSeq in haplotypeSequences.toCollection(LinkedHashSet())) {
             outputFileWriter.write(">${hapSeq.id}")
             if(exportFullIdLine) {
                 outputFileWriter.write(" Ref_Range_Id=${hapSeq.refRangeId} " +
