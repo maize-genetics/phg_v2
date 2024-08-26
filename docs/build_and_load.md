@@ -54,7 +54,7 @@ In this document, we will discuss the steps needed to:
     phg align-assemblies \
         --gff anchors.gff \
         --reference-file /my/updated/ref.fasta \
-        --assemblies /updated/assemblies_list.txt \
+        --assembly-file-list /updated/assemblies_list.txt \
         -o /path/for/generated_files
     ```
 
@@ -755,7 +755,8 @@ file contains 6 columns of information:
 
     * Same contig/chromosome IDs
     * Coordinates are [**0-based, inclusive/exclusive**](https://tidyomics.com/blog/2018/12/09/2018-12-09-the-devil-0-and-1-coordinate-system-in-genomics/)
-    * Coordinates do not exceed contig boundaries
+    * Coordinates do **not** exceed contig boundaries
+    * Coordinates do **not** overlap
     * Contains the first three BED columns:
         + `1` - Sequence name
         + `2` - Start position (bp)
