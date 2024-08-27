@@ -79,6 +79,7 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
         val vcfHeader = VCFHeader(newHeaderLines, sampleNames)
 
         // Add the hapids from the pathVCF
+        // These are the ##contig headers
         val sequenceRecordList = hapidToLength.keys.map { SAMSequenceRecord(it,
             hapidToLength[it]!!) }
         vcfHeader.setSequenceDictionary(SAMSequenceDictionary(sequenceRecordList))
@@ -118,13 +119,12 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
         val reader = VCFFileReader(File(variantVcf), false)
         val records = reader.iterator().asSequence().toList()
         val haplotypeVariantContexts = mutableListOf<VariantContext>()
-        println("\nLCJ createHaplotypeVariantContexts: Number of records in the variant VCF file: ${records.size}")
+        println("\ncreateHaplotypeVariantContexts: Number of records in the variant VCF file: ${records.size}")
         for (record in records) {
             val chrom = record.contig
             val pos = record.start
             val range = Position(chrom,pos)
             val entry = pathingVCFRangeMap.getEntry(range)
-
             if (entry != null) {
                 // create a new record with the haplotype id in the CHROM field
                 // and the position in the POS field
@@ -141,6 +141,7 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
                 // and the newPos in the POS field
                 // and the rest of the fields as they are in the record
 
+                //println("CreateHapVariants: Chrom: $chrom  Pos: $pos Entry: $entry hapStart = $hapStart newPos = $newPos")
                 // Create a new VariantContext with the updated CHROM and POS
                 val newRecord = VariantContextBuilder(record)
                     .chr(hapId)   // Set the new CHROM value
@@ -149,7 +150,7 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
                     .make()
 
                 haplotypeVariantContexts.add(newRecord)
-                println("LCJ: createHaplotypeVariantContexts: Chrom: $chrom  Pos: $pos  HapId: $hapId  NewPos: $newPos")
+                //println("createHaplotypeVariantContexts: Chrom: $chrom  Pos: $pos  HapId: $hapId  NewPos: $newPos")
 
             }
         }
