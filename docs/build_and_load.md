@@ -62,7 +62,7 @@ In this document, we will discuss the steps needed to:
     ```shell
     phg agc-compress \
         --db-path /path/to/dbs \
-        --reference-file \
+        --reference-file /my/updated/ref.fasta \
         --fasta-list /my/updated/assembly_fasta_list.txt
     ```
 * Create VCF files
