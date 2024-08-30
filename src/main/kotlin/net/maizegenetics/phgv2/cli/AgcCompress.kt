@@ -132,38 +132,27 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
     // if it doesn't, we assume the file is not annotated
     // we are only checking the first idline of the fasta file, assuming all or none are annotated.
     // The code throws an exception on the first fasta file that is not annotated.
-    fun verifyFileAnnotation(fastaFiles:List<String>): Boolean {
-        // This function will verify that the fasta files are annotated
-        // This is done by finding the first line of each fasta file that begins with ">"
-        // and checking if that line contains "sampleName="
-        // If it does not, the file is not annotated and an exception is thrown
-        myLogger.info("Verifying fasta files id lines are annotated")
+    fun verifyFileAnnotation(fastaFiles: List<String>): Boolean {
+        // This function verifies that the FASTA files are annotated
+        // by checking if the first line that begins with ">" contains "sampleName="
+        myLogger.info("Verifying FASTA files id lines are annotated")
 
-        fastaFiles.forEach {
-            // find the first line that begins with ">"
-            bufferedReader(it).use { reader ->
-                val line = reader.readLine()
-                while (line != null) {
-                    if (line.startsWith(">")) {
-                        if (!line.contains("sampleName=")) {
-                            myLogger.error("Fasta file ${it} id lines are not updated with sampleName.  Please use the phg prepare-assemblies command to update the fasta files.")
-                            throw IllegalStateException("Fasta file ${it} id lines are not updated with sampleName.  Please use the phg prepare-assemblies command to update the fasta files.")
-                        }
-                        else {
-                            // go to next fasta file
-                            break
-                        }
-                    } else {
-                        // read next line
-                        reader.readLine()
-                    }
+        fastaFiles.forEach { file ->
+            bufferedReader(file).use { reader ->
+                val annotated = reader.lineSequence()
+                    .firstOrNull { it.startsWith(">") }
+                    ?.contains("sampleName=") ?: false
+
+                if (!annotated) {
+                    val errorMessage = "FASTA file $file id lines are not updated with sampleName. Please use the phg prepare-assemblies command to update the FASTA files."
+                    myLogger.error(errorMessage)
+                    throw IllegalStateException(errorMessage)
                 }
             }
         }
 
         return true
     }
-
 
     fun loadAGCFiles(fastaFiles: String, loadOption: String, dbPath:String, refFasta:String, tempDir:String, condaEnvPrefix:String): Boolean {
 
