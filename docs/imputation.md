@@ -418,7 +418,7 @@ The Map Kmers  command can take the following optional parameters:
 
 !!! note
     We have removed `--limit-single-ref-range` as it introduces a very high error rate.
-    By default `map-kmers` will only use kmers from a single reference range for each read.
+    `map-kmers` will only use kmers from a single reference range for each read.
 
 
 
