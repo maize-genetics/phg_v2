@@ -413,19 +413,12 @@ The Map Kmers  command can take the following optional parameters:
 |-----------------------------------------|---------------------------------------------------------------------------------------------------------------------|---------------|
 | `--threads`                             | Number of threads used for mapping                                                                                  | `5`           |
 | `--min-proportion-of-max-count`         | Minimum proportion of the maximum kmer count for a read to be considered a match                                    | `1.0`         |
-| `--limit-single-ref-range`              | Flag.  Enable this option to force reads to only count haplotypeIds from kmers coming from a single Reference Range | false         |
 | `--min-proportion-same-reference-range` | Minimum proportion of the read that must align to the same reference range                                          | `0.9`         |
 
 
 !!! note
-    If `--limit-single-ref-range` is set to true, reads that map to 
-    multiple reference ranges will be discarded based on the 
-    `--min-proportion-same-reference-range` parameter. If left off 
-    or set to false, `--min-proportion-same-reference-range` will be 
-    ignored. By limiting reads to only map to a single reference 
-    range, your imputation accuracy could improve at the expense 
-    of not using as many reads. You will need to test this out for 
-    your specific use case.
+    We have removed `--limit-single-ref-range` as it introduces a very high error rate.
+    By default `map-kmers` will only use kmers from a single reference range for each read.
 
 
 
