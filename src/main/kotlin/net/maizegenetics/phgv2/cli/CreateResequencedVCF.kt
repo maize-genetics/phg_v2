@@ -23,8 +23,9 @@ import java.io.File
 import kotlin.math.abs
 
 /**
- * this command takes a pathing hvcf file and a vcf file created by aligning reads to a composite genome and creates a
- * vcf file in hapotype coordinates.
+ * this command takes a pathing hvcf file and a vcf file created by aligning reads to a composite genome
+ * (the latter from a program e.g. DeepVariant or Octopus) and creates a
+ * vcf file in haplotype coordinates.
  * The incoming variantVCF file is in composite genome coordinates.
  * The incoming path hvcf file is in reference coordinates.
  * The output file will be in haplotype coordinates, calculated from the Regions information
@@ -32,8 +33,8 @@ import kotlin.math.abs
  *
  *
  */
-data class HaplotypeData(val id: String, val refContig: String, val refStart: Int, val hapLen: Int,
-                             val asmRegions:List<Pair<Position, Position>>)
+data class HaplotypeData(val id: String, val refContig: String, val refStart: Int, val hapLen: Int)
+
 class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf using data from existing PHG created g.vcf files")  {
     private val myLogger = LogManager.getLogger(CreateResequencedVCF::class.java)
     val pathHvcf by option(help = "Full path to the hvcf file created by the find-paths command ")
@@ -54,9 +55,11 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
         // The pathingVCFRangeMap is to identify the haplotype in which the
         // variantVCF's POS is located.  The haplotype ID is used in the CHROM field
         // of the new VCF file.
+        myLogger.info("Calling createHaplotypeVariantContexts")
         val hapVCs = createHaplotypeVariantContexts(variantVcf, pathingVCFRangeMap)
         // hapid length is needed when creating the "contig" headers in the VCF file
         // we need the length of each.
+        myLogger.info("Calling writeHaplotypeVCF")
         writeHaplotypeVCF(variantVcf,hapidToLength, hapVCs, sampleName,outputFile)
         // create new outputfile which is the parent of the outputFile parameter with
         // a file name of chromLengths.txt
@@ -107,6 +110,7 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
         for (vc in hapVCs) {
             writer.add(vc)
         }
+        myLogger.info("Haplotype VCF file written to: $outputFileName")
         writer.close()
     }
 
@@ -141,7 +145,6 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
                 // and the newPos in the POS field
                 // and the rest of the fields as they are in the record
 
-                //println("CreateHapVariants: Chrom: $chrom  Pos: $pos Entry: $entry hapStart = $hapStart newPos = $newPos")
                 // Create a new VariantContext with the updated CHROM and POS
                 val newRecord = VariantContextBuilder(record)
                     .chr(hapId)   // Set the new CHROM value
@@ -150,8 +153,6 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
                     .make()
 
                 haplotypeVariantContexts.add(newRecord)
-                //println("createHaplotypeVariantContexts: Chrom: $chrom  Pos: $pos  HapId: $hapId  NewPos: $newPos")
-
             }
         }
         return haplotypeVariantContexts
@@ -185,7 +186,7 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
                 //Add the haplotype data to the list of haplotype sequences for this chromosome
                 val chromList = chromToHapData.getOrDefault(it.contig, mutableListOf())
                 val hapLen = regions.map{abs(it.second.position-it.first.position)+1}.sum()
-                chromList.add(HaplotypeData(hapId,it.contig,it.start,hapLen,regions))
+                chromList.add(HaplotypeData(hapId,it.contig,it.start,hapLen))
                 chromToHapData[it.contig] = chromList
                 headerIDtoRegionLengthMap[hapId] = hapLen
             }
@@ -207,15 +208,12 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
         // This gives us the positions in the composite genome that each haplotype covers.
         val hapidToGenomePositions:RangeMap<Position,String> = TreeRangeMap.create()
 
-        println("\nLCJ: createHapPositionMap: ChromToAltMap chrom/positions order")
         for (chrom in chromToAltMap.keys) {
             var accumulated = 0
             // Need the haplotypes sorted by refStart to ensure the order they appear
             // in the composite fasta for this chromosome is correct
             val haplotypes = chromToAltMap[chrom]!!.sortedBy {it.refStart} // get all the haplotypes for this chrom
-            if (chrom == "chr9") {
-                println("LCJ: createHapPositionMap: Chrom: $chrom  Haplotypes: ${haplotypes.size}")
-            }
+
             for (hap in haplotypes) {
                 // create a range from accumulated to accumulated + headerIDtoRegionLengthMap[hap]
                 // put this range in the hapidToGenomePositions map with the hap as the value
@@ -223,15 +221,9 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
                 accumulated // start at 1 past the last position
                 val range = Range.closed(Position(chrom,accumulated+1), Position(chrom,accumulated + hap.hapLen))
                 hapidToGenomePositions.put(range,hap.id)
-                if (chrom == "chr9") {
-                    println("${hap.id}: Chrom: $chrom  Positions = ${accumulated+1}-${accumulated + hap.hapLen}")
-                }
                 accumulated += hap.hapLen
-
             }
-            //println("LCJ: createHapPositionMap: Chrom: $chrom  Accumulated: $accumulated")
         }
-        println()
         return hapidToGenomePositions
     }
 
