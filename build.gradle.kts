@@ -45,7 +45,7 @@ dependencies {
     implementation("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.7.0")
     implementation("org.jetbrains.lets-plot:lets-plot-image-export:4.3.0")
     implementation("org.jetbrains.lets-plot:lets-plot-batik:4.3.0")
-    implementation("org.biokotlin:biokotlin:0.19")
+    implementation("org.biokotlin:biokotlin:0.21")
     implementation("com.github.ajalt.clikt:clikt:4.2.0")
 
     implementation("com.github.samtools:htsjdk:4.0.1")

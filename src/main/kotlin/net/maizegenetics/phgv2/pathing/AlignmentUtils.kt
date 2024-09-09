@@ -42,7 +42,7 @@ class AlignmentUtils {
             outputDir: String,
             numThreads: Int = 5,
             minProportionOfMaxCount: Double = 1.0,
-            limitSingleRefRange: Boolean = false,
+            limitSingleRefRange: Boolean = true,
             minSameReferenceRange: Double = 0.9,
         ) {
             myLogger.info("Loading in Kmer Index Map")
@@ -177,7 +177,7 @@ class AlignmentUtils {
             graph: HaplotypeGraph,
             numThreads: Int = 5,
             minProportionOfMaxCount: Double = 1.0,
-            limitSingleRefRange: Boolean = false,
+            limitSingleRefRange: Boolean = true,
             minSameReferenceRange: Double = 0.9,
         ): Map<List<String>, Int> {
             val fastqFiles = Pair(keyFileRecord.file1, keyFileRecord.file2)
@@ -287,7 +287,7 @@ class AlignmentUtils {
             refrangeToBitSet: Map<Int, BitSet>,
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>,
             minProportionOfMaxCount: Double = 1.0,
-            limitSingleRefRange: Boolean = false,
+            limitSingleRefRange: Boolean = true,
             minSameReferenceRange: Double = 0.9
         ) {
             for (pairOfReads in reads) {
@@ -337,7 +337,7 @@ class AlignmentUtils {
             refrangeToBitSet: Map<Int, BitSet>,
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>,
             minProportionOfMaxCount: Double = 1.0,
-            limitSingleRefRange: Boolean = false,
+            limitSingleRefRange: Boolean = true,
             minSameReferenceRange: Double = 0.9
         ): Pair<Map<Int, Set<String>>, Map<Int, Set<String>>> {
             val result1 = readToHapIdSetMultipleRefRanges(
@@ -376,7 +376,7 @@ class AlignmentUtils {
             refrangeToBitSet: Map<Int, BitSet>,
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>,
             minProportionOfMaxCount: Double = 1.0,
-            limitSingleRefRange: Boolean = false,
+            limitSingleRefRange: Boolean = true,
             minSameReferenceRange: Double = 0.9
         ): Map<Int, Set<String>> {
             //generate kmer hash from the read
