@@ -83,7 +83,7 @@ In this document, we will discuss the steps needed to:
 * Load data into DBs
     ```shell
     phg load-vcf \
-        --vcf /path/to/vcf_files \
+        --vcf-dir /path/to/vcf_files \
         --db-path /path/to/dbs \
         --threads 10
     ```
