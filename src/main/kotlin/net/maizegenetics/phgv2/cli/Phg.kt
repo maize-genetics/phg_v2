@@ -5,11 +5,9 @@ import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.output.MordantHelpFormatter
 import com.github.ajalt.clikt.parameters.options.versionOption
-import net.maizegenetics.phgv2.agc.PrepareAssemblies
 import net.maizegenetics.phgv2.pathing.BuildKmerIndex
 import net.maizegenetics.phgv2.pathing.FindPaths
 import net.maizegenetics.phgv2.pathing.MapKmers
-import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.phgVersion
 import net.maizegenetics.phgv2.utils.setupDebugLogging
 
