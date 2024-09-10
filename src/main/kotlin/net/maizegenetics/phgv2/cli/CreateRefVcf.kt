@@ -207,7 +207,10 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
 
             // Create the tiledb datasets if they don't exist
             File(outputDir).mkdirs()
-            Initdb().createDataSets(outputDir,"")
+            val dbExists = checkDbExists(outputDir)
+            if (!dbExists) {
+                return
+            }
 
             // Load the Ref hvcf file to tiledb
             val loadVcf = LoadVcf()
@@ -234,5 +237,24 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
         }
 
     } // end createRefRanges()
+
+    fun checkDbExists(dbpath:String):Boolean {
+        // Check that the user supplied folder exists
+        val dbfolder = File(dbpath)
+        if (!dbfolder.exists()) {
+            myLogger.severe("Folder $dbpath does not exist. Please run initdb to setup the tiledb datasets.")
+            return false
+        }
+
+        // check if tiledb datasets already exist.  If so, do not overwrite them.
+        val gvcf_dataset = dbpath + "/gvcf_dataset"
+        val hvcf_dataset = dbpath + "/hvcf_dataset"
+
+        if (!File(gvcf_dataset).exists() || !File(hvcf_dataset).exists()) {
+            myLogger.severe("TileDB datasets do not exist in folder $dbpath.\nPlease run initdb to setup the tiledb datasets.")
+            return false
+        }
+        return true
+    }
 
 }
