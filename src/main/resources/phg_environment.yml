@@ -5,8 +5,8 @@ channels:
   - tiledb
 dependencies:
   - python=3.8
-  - tiledb-py=0.31.1
-  - tiledbvcf-py=0.34.2
+  - tiledb-py=0.22
+  - tiledbvcf-py=0.25
   - anchorwave=1.2.3
   - bcftools
   - samtools

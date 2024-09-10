@@ -56,13 +56,7 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
         val hvcf_dataset = dbpath + "/hvcf_dataset"
 
         if (File(gvcf_dataset).exists() || File(hvcf_dataset).exists()) {
-            // This was previously a warning.  When this code is hit due to the
-            // user running initdb, it should be a warning.  But this code is also
-            // hit when the user runs create-ref-vcf, and in that case it should be
-            // an info message as they have most likely already run initdb.  A warning
-            // is too severe a message for the latter, but info may not be warning enough
-            // for the former.
-            myLogger.info("Using existing TileDB datasets in folder $dbpath. ")
+            myLogger.warn("TileDB datasets already exist in folder $dbpath.  \nIf $gvcf_dataset or $hvcf_dataset are not tiledb datasets, then delete and run again or chose a different base folder to house your tiledb data.")
             return
         }
 
