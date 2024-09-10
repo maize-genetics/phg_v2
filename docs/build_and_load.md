@@ -25,9 +25,7 @@ In this document, we will discuss the steps needed to:
 * Initialize TileDB instances:
     ```shell
     phg initdb \
-        --db-path /path/to/dbs \
-        --gvcf-anchor-gap 1000000 \
-        --hvcf-anchor-gap 1000
+        --db-path /path/to/dbs
     ```
 
 * Update FASTA headers with sample information:
