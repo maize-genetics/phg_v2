@@ -7,6 +7,7 @@ import com.github.ajalt.clikt.output.MordantHelpFormatter
 import com.github.ajalt.clikt.parameters.options.versionOption
 import net.maizegenetics.phgv2.pathing.BuildKmerIndex
 import net.maizegenetics.phgv2.pathing.FindPaths
+import net.maizegenetics.phgv2.pathing.ImputationMetrics
 import net.maizegenetics.phgv2.pathing.MapKmers
 import net.maizegenetics.phgv2.utils.phgVersion
 import net.maizegenetics.phgv2.utils.setupDebugLogging
@@ -32,7 +33,8 @@ fun main(args: Array<String>) = Phg()
     .subcommands(
         SetupEnvironment(), Initdb(), CreateRanges(), PrepareAssemblies(), AgcCompress(), AlignAssemblies(), PrepareSlurmAlignFile(),
         CreateAnchorwaveDotplot(), CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), Hvcf2Gvcf(), LoadVcf(), ExportVcf(),
-        BuildKmerIndex(), MapKmers(), FindPaths(), // Imputation
-        CreateFastaFromHvcf(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer // Utilities
+        BuildKmerIndex(), MapKmers(), FindPaths(), ImputationMetrics(),// Imputation
+        CreateFastaFromHvcf(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer, // Utilities
+        CreateHaplotypeVCF() // resequencing pipeline
     )
     .main(args)
