@@ -85,16 +85,16 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
     val outputDir by option("-o", "--output-dir", help = "Name for output ReadMapping file Directory (Required)")
         .required()
 
-    val threads by option(help = "Number of threads to use. Default is 5.")
+    val threads by option(help = "Number of threads to use.")
         .int()
         .default(5)
 
-    val minProportionOfMaxCount by option(help = "Minimum proportion of the maximum count for a read to be considered a match. Default is 1.0.")
+    val minProportionOfMaxCount by option(help = "Minimum proportion of the maximum count for a read to be considered a match.")
         .double()
         .default(1.0)
 
 
-    val minProportionSameReferenceRange by option(help = "Minimum proportion of the read that must align to the same reference range.  Default is 0.9.")
+    val minProportionSameReferenceRange by option(help = "Minimum proportion of the read that must align to the same reference range.")
         .double()
         .default(0.9)
 

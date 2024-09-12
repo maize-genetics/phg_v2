@@ -60,7 +60,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
 
-    val datasetType by option(help = "Type of dataset to export: choices are gvcf or hvcf, defaults to hvcf")
+    val datasetType by option(help = "Type of dataset to export: choices are gvcf or hvcf")
         .default("hvcf")
 
 

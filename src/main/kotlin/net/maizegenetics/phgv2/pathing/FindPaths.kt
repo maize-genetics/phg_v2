@@ -27,7 +27,6 @@ import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.nio.file.Files
 import kotlin.io.path.absolutePathString
-import kotlin.io.path.listDirectoryEntries
 
 sealed class PathInputFile {
     abstract fun getReadFiles() : List<KeyFileData>
@@ -114,56 +113,56 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
     val kmerIndex by option(help = "The name and path to the kmerIndex. Default = <hvcfDir>/kmerIndex.txt")
         .default("")
 
-    val probCorrect by option(help = "The probability that a mapped read was mapped correctly. Default = 0.99")
+    val probCorrect by option(help = "The probability that a mapped read was mapped correctly.")
         .double()
         .default(0.99)
         .validate { require(it in 0.5..1.0) {"prob-correct must be between 0.5 and 1.0"} }
 
-    val probSameGamete by option(help = "The probability of transitioning to the same gamete (sample) in the next reference range. Default = 0.99")
+    val probSameGamete by option(help = "The probability of transitioning to the same gamete (sample) in the next reference range.")
         .double()
         .default(0.99)
         .validate { require(it in 0.01..1.0) {"prob-correct must be between 0.01 and 1.0"} }
 
     val minGametes by option(help = "The minimum number of gametes with a haplotype in a reference range. " +
-            "Reference ranges with fewer gametes will not be imputed. Default = 1")
+            "Reference ranges with fewer gametes will not be imputed.")
         .int()
         .default(1)
         .validate { require(it > -1) {"min-gametes must be a positive integer"} }
 
     val minReads by option(help = "The minimum number of reads per ReferenceRange. Reference ranges with fewer reads " +
-            "will not be imputed. If minReads = 0, all ReferenceRanges will be imputed. Default = 0")
+            "will not be imputed. If minReads = 0, all ReferenceRanges will be imputed.")
         .int()
         .default(0)
         .validate { require(it > -1) {"min-reads must be a positive integer."} }
 
     val inbreedingCoefficient by option(help = "The estimated coefficient of inbreeding for the samples being evaluated. " +
-            "Only used for diploid path type. Default = 0.0")
+            "Only used for diploid path type.")
         .double()
         .default(0.0)
         .validate { require(it in 0.0..1.0) {"inbreeding-coefficient must be between 0.0 and 1.0"} }
 
-    val maxReadsPerKb by option(help = "ReferenceRanges with more than max-reads-per-kb will not be imputed. Default = 1000.")
+    val maxReadsPerKb by option(help = "ReferenceRanges with more than max-reads-per-kb will not be imputed.")
         .int()
         .default(1000)
         .validate { require(it > -1) {"max-reads-per-kb must be a positive integer."} }
 
-    val useLikelyAncestors by option(help="Use only the most likely ancestors of each sample for path finding. Default = false")
+    val useLikelyAncestors by option(help="Use only the most likely ancestors of each sample for path finding.")
         .boolean()
         .default(false)
 
-    val maxAncestors by option(help = "If use-likely-ancestors = true, use at most max-ancestors. Default = Int.MAX_VALUE.")
+    val maxAncestors by option(help = "If use-likely-ancestors = true, use at most max-ancestors.")
         .int()
         .default(Int.MAX_VALUE)
 
-    val minCoverage by option(help = "If use-likely-ancestors = true, use the fewest number of ancestors that together have this proportion of mappable reads. Default = 1.0")
+    val minCoverage by option(help = "If use-likely-ancestors = true, use the fewest number of ancestors that together have this proportion of mappable reads.")
         .double()
         .default(1.0)
         .validate { require(it in 0.5..1.0) {"min-coverage must be between 0.5 and 1.0"} }
 
-    val likelyAncestorFile by option(help="If useLikelyAncestors is true, a record of the ancestors used for each sample will be written to this file. Default = ''")
+    val likelyAncestorFile by option(help="If useLikelyAncestors is true, a record of the ancestors used for each sample will be written to this file.")
         .default("")
 
-    val threads by option(help = "number of threads used to find paths. Default = 3.").int().default(3)
+    val threads by option(help = "number of threads used to find paths.").int().default(3)
 
     private val myLogger = LogManager.getLogger(FindPaths::class.java)
 

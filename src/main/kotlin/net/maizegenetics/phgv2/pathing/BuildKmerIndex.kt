@@ -50,25 +50,25 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         .default("")
 
     val maxHaplotypeProportion by option("-p", "--maxHapProportion", help = "only kmers mapping to less than or " +
-            "equal to maxHapProportion of haplotypes in a reference range will be retained.Default = 0.75")
+            "equal to maxHapProportion of haplotypes in a reference range will be retained.")
         .double()
         .default(0.75)
 
     val hashMask by option("-m", "--hashMask", help = "with hashFilter, used to mask kmers for filtering. " +
-            "Default uses only the last kmer nucleotide. Only change this if you know what you are doing. Default = 3")
+            "Default uses only the last kmer nucleotide. Only change this if you know what you are doing.")
         .long()
         .default(3)
 
     val hashFilterValue by option("-f", "--hashFilter", help = "Only hashes that pass the filter" +
             " ((hashValue and hashMask) == hashFilter) will be considered. Do not change this value unless you know " +
-            "what you are doing. Default = 1")
+            "what you are doing.")
         .long()
         .default(1)
 
     val hvcfDir by option("--hvcf-dir", help = "Path to directory holding hVCF files. Data will be pulled directly from these files instead of querying TileDB")
         .required()//Todo: make this optional by adding .default("")
 
-    val maxArgLength by option(help="The maximum argument length for a call to agc. This defaults to 200000. " +
+    val maxArgLength by option(help="The maximum argument length for a call to agc." +
             "If you get an error caused by a call to agc being too long try reducing this value.")
         .int()
         .default(200000)

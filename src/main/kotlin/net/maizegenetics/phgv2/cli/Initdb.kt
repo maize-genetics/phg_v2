@@ -1,10 +1,8 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
 import org.apache.logging.log4j.LogManager
 import java.io.File
@@ -31,11 +29,11 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
     val dbPath by option(help = "Folder name under which TileDB datasets will be created. If this folder does not exist, it will be created.")
         .default("")
 
-    val gvcfAnchorGap by option("-g", "--gvcf-anchor-gap", help = "tiledbvcf --anchor-gap for gvcf database (default: 1000000)")
+    val gvcfAnchorGap by option("-g", "--gvcf-anchor-gap", help = "tiledbvcf --anchor-gap for gvcf database")
         .int()
         .default(1000000)
 
-    val hvcfAnchorGap by option("-h", "--hvcf-anchor-gap", help = "tiledbvcf --anchor-gap for hvcf database (default: 1000)")
+    val hvcfAnchorGap by option("-h", "--hvcf-anchor-gap", help = "tiledbvcf --anchor-gap for hvcf database")
         .int()
         .default(1000)
 
