@@ -17,7 +17,7 @@ class Phg : CliktCommand() {
         setupDebugLogging()
 
         context {
-            helpFormatter = { MordantHelpFormatter(it, showRequiredTag = true) }
+            helpFormatter = { MordantHelpFormatter(it, showRequiredTag = true, showDefaultValues = true) }
         }
 
         val version = phgVersion()
