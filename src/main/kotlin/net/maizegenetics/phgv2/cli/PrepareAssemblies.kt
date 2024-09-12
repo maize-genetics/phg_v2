@@ -1,4 +1,4 @@
-package net.maizegenetics.phgv2.agc
+package net.maizegenetics.phgv2.cli
 
 import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.core.CliktCommand

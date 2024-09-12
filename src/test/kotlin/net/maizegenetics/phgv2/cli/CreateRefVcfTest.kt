@@ -2,6 +2,7 @@ package net.maizegenetics.phgv2.cli
 
 import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.utils.verifyURI
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -60,6 +61,7 @@ class CreateRefVcfTest {
                 "Error: missing option --reference-name\n",resultMissingRefName.output)
 
     }
+
 
     @Test
     fun testBuildRefVCF_badIntervals() {
@@ -234,6 +236,33 @@ class CreateRefVcfTest {
         File("${referenceDir}/anchors.bed").delete()
         File("${referenceDir}/Ref.fa").delete()
     }
+
+    @Test
+    fun testNoTiledbDatasets() {
+        var tiledbURI = "/my/fake/path"
+        val refName = "Ref"
+        val refUrl = TestExtension.refURL
+
+        val ranges = "data/test/smallseq/anchors.bed"
+        val genome = "data/test/smallseq/Ref.fa"
+
+        assertThrows<IllegalStateException> {
+            //Check that an error is thrown when the dbPath folder does not exist
+            CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $genome --reference-url ${refUrl} --db-path $tiledbURI")
+        }
+
+        // test the folder exists, but not the datasets
+        tiledbURI = TestExtension.readMappingDir
+        // make the readMappingdirs if they don't exist
+        File(tiledbURI).mkdirs()
+
+        assertThrows<IllegalArgumentException> {
+            //Check that an error is thrown when the hvcf_datasetr does not exist
+            CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $genome --reference-url ${refUrl} --db-path $tiledbURI")
+        }
+
+    }
+
     @Test
     fun testBuildRefVCF() {
         println("\nLCJ - running testBuildRefVCF")

@@ -52,7 +52,7 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
     val referenceFile by option(help = "Full path to the reference fasta file for filling in the intergenic/interCDS regions.  If supplied a Bed region will be created between the last GFF region and the end of the chromosome. If not, this region will be left off..")
         .required()
 
-    val rangeMinSize by option(help = "Minimum size of a range to be included in the output BED file,  If not specified, a default of 500 bps will be used.")
+    val rangeMinSize by option(help = "Minimum size of a range to be included in the output BED file.")
         .int()
         .default(500)
 

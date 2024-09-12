@@ -29,7 +29,7 @@ object StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
     val dbPath by option(help = "Full path to folder where TileDB datasets are stored.  \nThis must be run at least once before starting the server. \nIf you have already run it for this server instance you do not need to supply this again.")
         .default("")
 
-    val port by option(help = "The port on which the server will listen.  \nDefault is 8080.")
+    val port by option(help = "The port on which the server will listen.")
         .int()
         .default(8080)
 

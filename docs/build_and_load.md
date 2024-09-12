@@ -25,9 +25,7 @@ In this document, we will discuss the steps needed to:
 * Initialize TileDB instances:
     ```shell
     phg initdb \
-        --db-path /path/to/dbs \
-        --gvcf-anchor-gap 1000000 \
-        --hvcf-anchor-gap 1000
+        --db-path /path/to/dbs
     ```
 
 * Update FASTA headers with sample information:
@@ -41,58 +39,51 @@ In this document, we will discuss the steps needed to:
 * Create BED file from GFF for reference range coordinates:
     ```shell
     phg create-ranges \
-        --reference-file /my/updated/ref.fasta \
-        --gff my.gff \
+        --reference-file /path/to/updated/fastas/ref.fasta \
+        --gff /path/to/my.gff \
         --boundary gene \
         --pad 500 \
         --range-min-size 500 \
-        -o /path/to/bed_file.bed
+        -o /path/to/ranges.bed
     ```
 
 * Align assemblies:
     ```shell
     phg align-assemblies \
-        --gff anchors.gff \
-        --reference-file /my/updated/ref.fasta \
-        --assembly-file-list /updated/assemblies_list.txt \
-        -o /path/for/generated_files
+        --gff /path/to/my.gff \
+        --reference-file /path/to/updated/fastas/ref.fasta \
+        --assembly-file-list /path/to/assemblies_list.txt \
+        -o /path/to/maf_files
     ```
 
 * Compress FASTA files
     ```shell
     phg agc-compress \
         --db-path /path/to/dbs \
-        --reference-file \
-        --fasta-list /my/updated/assembly_fasta_list.txt
+        --reference-file /path/to/updated/fastas/ref.fasta \
+        --fasta-list /path/to/assemblies_list.txt
     ```
 * Create VCF files
     ```shell
     # Reference VCF
     phg create-ref-vcf \
-        --bed /path/to/bed_file.bed \
-        --reference-file /my/updated/ref.fasta \
+        --bed /path/to/ranges.bed \
+        --reference-file /path/to/updated/ref.fasta \
         --reference-name B73 \
         --db-path /path/to/dbs
   
-    # MAF alignments VCF
+    # MAF alignments to VCF
     phg create-maf-vcf \
         --db-path /path/to/dbs \
-        --bed /path/to/bed_file.bed \
-        --reference-file /my/updated/ref.fasta \
-        --maf-dir /output/for/alignment_files \
-        -o /path/for/generated_files \
-  
-    # hVCF from PHGv1 created gVCF (OPTIONAL)
-    phg gvcf2hvcf \
-        --db-path /path/to/dbs \
-        --bed /path/to/bed_file.bed \
-        --reference-file /my/updated/ref.fasta \
-        --gvcf-dir /my/gvcf/files 
+        --bed /path/to/ranges.bed \
+        --reference-file /path/to/updated/ref.fasta \
+        --maf-dir /path/to/maf_files \
+        -o /path/to/vcf_files
     ```
 * Load data into DBs
     ```shell
     phg load-vcf \
-        --vcf /my/vcf/dir \
+        --vcf-dir /path/to/vcf_files \
         --db-path /path/to/dbs \
         --threads 10
     ```
