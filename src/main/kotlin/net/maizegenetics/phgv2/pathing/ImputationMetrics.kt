@@ -32,7 +32,7 @@ import java.io.File
 
 class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read mappings.")   {
     private val myLogger = LogManager.getLogger(ImputationMetrics::class.java)
-    val sampleHvcf by option(help = "Path to hvcf file loaded to tiledb for the Parent sample of your short reads. If your reads are P39, this would be the P39.h.vcf.Required parameter.")
+    val sampleHvcf by option(help = "Path to hvcf file loaded to tiledb for the Parent sample of your short reads. For example: If your reads are from P39, this would be the P39.h.vcf.Required parameter.")
         .required()
         .validate { require(File(it).exists()) {"$it is not a valid file"} }
 
@@ -62,6 +62,10 @@ class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read ma
         // create a List of chromosomes from the chrom string, which is a comma separated string
         val chromList = chrom?.split(",")?.toList()
         val parentChromPosToHapid = mutableMapOf<Position,String>()
+
+        // Get just the name for the sampleHvcf file, and remove any h.vcf or hvcf extension
+        val sampleHvcfName = File(sampleHvcf).name.replace(Regex("\\.hvcf$"), "").replace(Regex("\\.h.vcf$"), "")
+
 
         // Iterate through the sampleHvcf file and create a map of chrom/pos to hapid,
         // skipping positions on chromosomes not in the chromList
@@ -119,22 +123,23 @@ class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read ma
             val refRange = entry.value.refRange //  Get the refRange from the AltHeaderMetaData
             val parts = refRange.split(":")
             val contig = parts[0]
-            if (contig == "chr9") {
+            if (chromList.isNullOrEmpty() || chromList.contains(contig)) {
                 val start = parts[1].split("-")[0].toInt()
                 val position = Position(contig, start)
                 wgsPosToHapid[position] = hapid
                 hapidToSampleName[hapid] = sampleName
             }
+
         }
         val imputationMissingRanges = bedRanges.keys.filter { !wgsPosToHapid.keys.contains(it) }
-        myLogger.info("Number of chr9 positions in P39wgs: ${wgsPosToHapid.keys.size}, number of P39wgs missing ranges: ${imputationMissingRanges.size}")
+        myLogger.info("Number of positions in filtered imputation file: ${wgsPosToHapid.keys.size}, number of Imputation missing ranges: ${imputationMissingRanges.size}")
 
 
         // Create map of haplotype Id to read counts
         val hapidCounts = readCountsFromFiles(readMappingFiles)
 
         // Create header line for tab-delimited output file
-        val headerLine = "refRange\tHapotypeId\tImputationSampleName\tIn_ImputationHvcf\tIn_ParentSamplehvcf\tParentHaplotypeId\tImputationSampleRdCount\tParentSampleRdCt\tHapidsMatch\n"
+        val headerLine = "refRange\tHapotypeId\tImputationSampleName\tIn_ImputationHvcf\tIn_${sampleHvcfName}\t${sampleHvcfName}_HaplotypeId\tImputationSampleRdCount\t${sampleHvcfName}SampleRdCt\tHapidsMatch\n"
 
         bufferedWriter(outputFile).use {writer ->
             writer.write(headerLine)
@@ -154,10 +159,10 @@ class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read ma
                 val sampleName = hapidToSampleName.getOrDefault(hapid, "NA")
                 // get readCount for the hapid
                 val sampleRdCount = hapidCounts.getOrDefault(hapid, 0)
-                // get readCount for P39
+                // get readCount for parentSampleHapid
                 val parentSampleHapid = parentChromPosToHapid.getOrDefault(pos, "NA")
                 val parentSampleRdCt = if (parentSampleHapid == "NA") 0 else hapidCounts.getOrDefault(parentSampleHapid, 0)
-                // check if the hapid and paretnSampleHapid are the same
+                // check if the hapid and parentSampleHapid are the same
                 val hapidMatch = if (hapid != "NA" && parentSampleHapid != "NA" && hapid == parentSampleHapid) "true" else "false"
 
                 writer.write("$refRange\t$hapid\t$sampleName\t$inImpuptation\t$inP39\t$parentSampleHapid\t$sampleRdCount\t$parentSampleRdCt\t$hapidMatch\n")
@@ -184,7 +189,6 @@ class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read ma
                 bufferedReader(line).useLines { fileLines ->
                     fileLines.forEach { fileLine ->
                         // If line begins with # or HapIds then skip
-                        //if (fileLine.startsWith("#") || fileLine.startsWith("HapIds")) return@forEach
                         if (!fileLine.startsWith("#") && !fileLine.startsWith("HapIds")) {
                             val parts = fileLine.split("\t")
                             val hapids = parts[0].split(",")
