@@ -1,7 +1,5 @@
 package net.maizegenetics.phgv2.cli
 
-import biokotlin.util.bufferedReader
-import biokotlin.util.bufferedWriter
 import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.brapi.resetDirs
@@ -9,15 +7,12 @@ import org.junit.jupiter.api.Test
 import java.io.File
 import kotlin.test.assertEquals
 import net.maizegenetics.phgv2.utils.Position
-import net.maizegenetics.phgv2.utils.parseALTHeader
-import org.apache.logging.log4j.LogManager
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.extension.ExtendWith
-import kotlin.math.abs
 
 @ExtendWith(TestExtension::class)
-class CreateResequencedVCFTest {
+class CreateHaplotypeVCFTest {
     companion object {
         private val haplotypeHvcfDir = "${TestExtension.tempDir}haplotype-vcfs/"
 
@@ -37,7 +32,7 @@ class CreateResequencedVCFTest {
     }
 
     @Test
-    fun testFullCreateResequenceVCF() {
+    fun testFullCreateHaplotypeVCF() {
 
         // The pathVCF file reflects the h.vcf created from running imputation.
         // From this file, in normal processing, a composite fasta would be created
@@ -45,14 +40,14 @@ class CreateResequencedVCFTest {
         // The deepVariantVCF is simulated output from a deepVariant run based on a composite
         // fasta created from the pathVCF file.  The  deepVariantVCF file is used
         // to create a hapltoype vcf.  The pathVCF and deepVariantVCF were manually created for testing.
-        // The objective of the test below is to verify the haplotypeVCF created from CreateResequencedVCF
+        // The objective of the test below is to verify the haplotypeVCF created from CreateHaplotypeVCF
         // is correct in terms of where the SNPs fall within each haplotype.
         val pathVCF = "data/test/resequenceHaplotypeVCF/TestSample.h.vcf"
         val deepVariantVCF = "data/test/resequenceHaplotypeVCF/TestSampleDV.vcf"
         val haplotypeVCF = "$haplotypeHvcfDir/sampleDV_RESQ.vcf"
         val sampleName = "TestSampleReseqHaplotype"
 
-        val result = CreateResequencedVCF().test("--path-hvcf $pathVCF --variant-vcf $deepVariantVCF --output-file $haplotypeVCF --sample-name $sampleName")
+        val result = CreateHaplotypeVCF().test("--path-hvcf $pathVCF --variant-vcf $deepVariantVCF --output-file $haplotypeVCF --sample-name $sampleName")
         assertEquals(0, result.statusCode )
 
         // Verify:  There should be as many lines in the haplotype resequenced VCF as there are in the
@@ -104,7 +99,7 @@ class CreateResequencedVCFTest {
         truthSNPOffsets.add(Position("13417ecbb38b9a159e3ca8c9dade7088", 98))
         truthSNPOffsets.add(Position("90248144d7173c1f1481008c43e65129", 30))
 
-        // Verify the SNP offsets in the haplotype VCF created by CreateResequencedVCF() match the expected values
+        // Verify the SNP offsets in the haplotype VCF created by CreateHaplotypeVCF() match the expected values
         for (idx in hapVCFRecords.indices) {
             val hapId = hapVCFRecords[idx].contig
             val start = hapVCFRecords[idx].start
@@ -124,7 +119,7 @@ class CreateResequencedVCFTest {
         hapidToLengthMap["hap2"] = 1045
         val truthHeaders = reader.fileHeader
 
-        val createResequenceVcf = CreateResequencedVCF()
+        val createResequenceVcf = CreateHaplotypeVCF()
         val vcfHeader = createResequenceVcf.reseqVCFHeader(reader, hapidToLengthMap, sampleNames)
 
         // Get INFO lines from vcfHeader
@@ -187,7 +182,7 @@ class CreateResequencedVCFTest {
         chrom2DataList.add(hapData)
         chromToHapData["chr2"] = chrom2DataList
 
-        val createReseqVCF = CreateResequencedVCF()
+        val createReseqVCF = CreateHaplotypeVCF()
         val hapToLengthMap = createReseqVCF.createHapPositionMap(chromToHapData)
 
         assertEquals(6, hapToLengthMap.asMapOfRanges().size)

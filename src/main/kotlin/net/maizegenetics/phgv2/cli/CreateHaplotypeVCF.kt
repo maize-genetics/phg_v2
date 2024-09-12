@@ -1,6 +1,5 @@
 package net.maizegenetics.phgv2.cli
 
-import biokotlin.util.bufferedWriter
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
@@ -35,8 +34,8 @@ import kotlin.math.abs
  */
 data class HaplotypeData(val id: String, val refContig: String, val refStart: Int, val hapLen: Int)
 
-class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf using data from existing PHG created g.vcf files")  {
-    private val myLogger = LogManager.getLogger(CreateResequencedVCF::class.java)
+class CreateHaplotypeVCF: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf using data from existing PHG created g.vcf files")  {
+    private val myLogger = LogManager.getLogger(CreateHaplotypeVCF::class.java)
     val pathHvcf by option(help = "Full path to the hvcf file created by the find-paths command ")
         .required()
 
@@ -123,7 +122,7 @@ class CreateResequencedVCF: CliktCommand(help = "Create g.vcf file for a PHG pat
         val reader = VCFFileReader(File(variantVcf), false)
         val records = reader.iterator().asSequence().toList()
         val haplotypeVariantContexts = mutableListOf<VariantContext>()
-        println("\ncreateHaplotypeVariantContexts: Number of records in the variant VCF file: ${records.size}")
+        myLogger.info("\ncreateHaplotypeVariantContexts: Number of records in the variant VCF file: ${records.size}")
         for (record in records) {
             val chrom = record.contig
             val pos = record.start
