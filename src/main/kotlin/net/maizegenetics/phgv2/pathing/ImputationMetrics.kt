@@ -32,24 +32,24 @@ import java.io.File
 
 class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read mappings.")   {
     private val myLogger = LogManager.getLogger(ImputationMetrics::class.java)
-    val sampleHvcf by option(help = "Path to hvcf file loaded to tiledb for the Parent sample of your short reads. For example: If your reads are from P39, this would be the P39.h.vcf.Required parameter.")
+    val sampleHvcf by option(help = "Path to hvcf file loaded to tiledb for the Parent sample of your short reads. For example: If your reads are from P39, this would be the P39.h.vcf.")
         .required()
         .validate { require(File(it).exists()) {"$it is not a valid file"} }
 
-    val imputationHvcf by option(help = "Path to the hvcf file created from the imputation pipeline. Required parameter.")
+    val imputationHvcf by option(help = "Path to the hvcf file created from the imputation pipeline. ")
         .required()
         .validate { require(File(it).exists()) {"$it is not a valid file"} }
 
-    val bedFile by option(help = "Path to the bed file used to create ranges for the tiledb data storage. Required parameter.")
+    val bedFile by option(help = "Path to the bed file used to create ranges for the tiledb data storage. ")
         .required()
         .validate { require(File(it).exists()) {"$it is not a valid file"} }
 
-    val chrom by option(help = "Comma separated list of chromosome to use for filtering output.  Only data for these chromosomes will be processed. Optional parameter.")
+    val chrom by option(help = "Comma separated list of chromosome to use for filtering output.  Only data for these chromosomes will be processed.")
 
-    val outputFile by option(help = "Path to a file where the output data will be written.  Required parameter.")
+    val outputFile by option(help = "Path to a file where the output data will be written. ")
         .required()
 
-    val readMappingFiles by option(help = "Path to file containing a list of readMapping files created by PHG, 1 file per line. Required parameter.")
+    val readMappingFiles by option(help = "Path to file containing a list of readMapping files created by PHG, 1 file per line.")
         .required()
         .validate { require(File(it).exists()) {"$it is not a valid file"} }
 
