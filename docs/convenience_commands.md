@@ -125,3 +125,32 @@ phg merge-hvcfs \
     ##ALT=<ID=R000001_LineA_G01, ...>
     ```
     
+## Imputation Metrics
+
+> Calculate imputation metrics for an hvcf file created by the Imputation pipeline
+ 
+**Command** - `imputation-metrics`
+
+**Example**
+
+```shell
+phg imputation-metrics \
+    --sample-hvcf my/parent/hvcf/from/create-maf-vcf \
+    --imputation-hvcf my/imputation/h.vcf \
+    --bed-file path/to/ranges.bed \
+    --read-mapping-files my/readMappingList.txt \
+    --output-file output/imputation_metrics.txt 
+```
+
+**Parameters**
+
+
+| Parameter name         | Description                                                                               | Default value | Required?        |
+|------------------------|-------------------------------------------------------------------------------------------|---------------|------------------|
+| `--sample-hvcf`        | Path to hvcf for the sample expected to be selected most often.                           | `""`          | :material-check: |
+| `--imputation-hvcf`    | Path to hvcf created from imputation pipeline.                                            | `""`          | :material-check: |
+| `--bed-file`           | Path to bed file created in create-ranges.                                                | `""`          |                  |
+| `--read-mapping-files` | Path to a file that contains a list of read-mapping files, one per line, full path names. | `""`          |                  |
+| `--output-file`        | Path to a file where metrics will be printed.                                             | `""`          |                  |
+
+
