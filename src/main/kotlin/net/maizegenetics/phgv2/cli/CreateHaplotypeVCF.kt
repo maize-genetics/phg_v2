@@ -39,7 +39,7 @@ class CreateHaplotypeVCF: CliktCommand(help = "Create g.vcf file for a PHG pathi
     val pathHvcf by option(help = "Full path to the hvcf file created by the find-paths command ")
         .required()
 
-    val variantVcf by option(help = "Full path to the vcf file created by aligning the reads to the composite genome.  " +
+    val variantVcf by option(help = "Full path to the vcf file created by aligning the reads to the composite genome, then running a variant caller e.g. DeepVariant.  " +
             "\nThe composite genome should have been created by running create-fasta-from-hvcf om the path hvcf file.")
         .required()
 
