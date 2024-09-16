@@ -69,6 +69,11 @@ dependencies {
     implementation(files("repo/tiledb-vcf-java-0.25.2.jar"))
     implementation(files("repo/tiledb-java-0.19.6-SNAPSHOT.jar"))
 
+    // Sept 16, 2024 - LCJ Test for branch update_tiledbJars:
+    // these are linux jars - will test via CI run on branch
+    implementation(files("repo/tiledb-vcf-java-0.34.2-2-gade7a50e.jar"))
+    implementation(files("repo/tiledb-java-0.28.0-SNAPSHOT.jar"))
+
     // Use these jar files when compiling for Mac with Intel chip
     // Keep the Linux and Mac ARM jar inclusions commented out
 //    implementation(files("repo/MacIntel_tiledb-vcf-java-0.28.0.jar"))
