@@ -8,7 +8,7 @@ From the imputation h.vcf file, a composite fasta can be created.  The rare alle
 by re-aligning the WGS reads used in the imputation pipeline against the composite fasta derived above.
 The BAM file created by this second alignment is filtered, then run through a variant caller.  We suggest using
 DeepVariant (https://github.com/google/deepvariant) or Octopus (https://github.com/luntergroup/octopus)
-for this purpose.  The output of the variant caller is a VCF file that contains the variants called
+for this purpose.  (BRANDON - SHOULD WE LINK THE PAGE TO THE VARIANT CALLER COMPARISONS HERE ??) The output of the variant caller is a VCF file that contains the variants called
 against the composite fasta.
 
 Additional filtering is then performed to select variants based on VCF quality scores, depth or other measures. This 
