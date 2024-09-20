@@ -211,7 +211,8 @@ class AlignmentUtils {
                 //Setting up the channels for the coroutines
                 val readStringChannel = Channel<ReadIdAndSeq>(100)
                 val sortedHapidListChannel = Channel<List<String>>(100)
-                val diagnosticChannel = Channel<String>(100) //This channel will be used to handle output of diagnostic information
+                val diagnosticChannel = if(diagnosticFileName.isNotEmpty()) Channel<String>(100) //This channel will be used to handle output of diagnostic information
+                                        else null
                 val numberOfMappingThreads = max(1, numThreads - 2)
 
                 //Run the blocking coroutine to read the fastq files and process the reads
@@ -262,7 +263,7 @@ class AlignmentUtils {
                     processReadsJobList.joinAll()
                     sortedHapidListChannel.close()
                     addListsToMapJob.join()
-                    diagnosticChannel.close()
+                    diagnosticChannel?.close()
                     diagnosticJob?.join()
                 }
                 //Need to close the reader2 if it exists
@@ -304,8 +305,10 @@ class AlignmentUtils {
         /**
          * Function to handle diagnostic output lines so we don't have any multithreading writing issues as only 1 thread has the writer
          */
-        suspend fun writeDiagnosticFile(diagnosticFileName: String, diagnosticChannel:ReceiveChannel<String>) {
+        suspend fun writeDiagnosticFile(diagnosticFileName: String, diagnosticChannel:ReceiveChannel<String>?) {
+            if(diagnosticChannel == null) return
             getBufferedWriter(diagnosticFileName).use { writer ->
+                writer.write("ReadName\tMapped\tReferenceRange\tHapIds\tReason\n")
                 for (line in diagnosticChannel) {
                     writer.write(line)
                     writer.newLine()
@@ -320,7 +323,7 @@ class AlignmentUtils {
         private suspend fun processReadsMultipleRefRanges(
             reads: ReceiveChannel<ReadIdAndSeq>,
             sortedLists: SendChannel<List<String>>,
-            diagnosticChannel: SendChannel<String>,
+            diagnosticChannel: SendChannel<String>?,
             kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
             refrangeToBitSet: Map<Int, BitSet>,
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>,
@@ -340,7 +343,7 @@ class AlignmentUtils {
                 )
 
                 //Process the mappings for each reference range
-                processHapIdHits(result1, result2, sortedLists)
+                processHapIdHits(pairOfReads.readId, result1, result2, sortedLists, diagnosticChannel)
             }
         }
 
@@ -349,9 +352,11 @@ class AlignmentUtils {
          * If the second read is empty, then it will be treated as a single ended read and will return only 1 set of hapids
          */
         private suspend fun processHapIdHits(
+            readName: String,
             result1: Map<Int, Set<String>>,
             result2: Map<Int, Set<String>>,
-            sortedLists: SendChannel<List<String>>
+            sortedLists: SendChannel<List<String>>,
+            diagnosticChannel: SendChannel<String>?,
         ) {
             for (entry in result1) {
                 val rangeId = entry.key
@@ -363,6 +368,10 @@ class AlignmentUtils {
                     hapIds
                 }
                 if (intersectResult.isNotEmpty()) sortedLists.send(intersectResult.sorted())
+                else if(diagnosticChannel != null) {
+                    //if it is empty and we are outputting diagnostics
+                    diagnosticChannel.send("$readName\tfalse\tNA\tNA\tNoSharedHapsInPair")
+                }
             }
         }
 
