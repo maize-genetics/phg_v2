@@ -27,6 +27,8 @@ data class RefRangeOffset(val refRange: ReferenceRange, val offset: Long)
 
 data class KeyFileData(val sampleName: String, val file1: String, val file2: String = "")
 
+data class ReadIdAndSeq(val readId: String, val seq1: String, val seq2: String = "")
+
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.pathing.AlignmentUtils")
 
 class AlignmentUtils {
@@ -44,6 +46,7 @@ class AlignmentUtils {
             minProportionOfMaxCount: Double = 1.0,
             limitSingleRefRange: Boolean = true,
             minSameReferenceRange: Double = 0.9,
+            runDiagnostic: Boolean = false
         ) {
             myLogger.info("Loading in Kmer Index Map")
             val startTime = System.nanoTime()
@@ -51,6 +54,25 @@ class AlignmentUtils {
             myLogger.info("Kmer Index Map loaded in ${(System.nanoTime() - startTime) / 1e9} seconds")
             myLogger.info("Starting read mapping process")
             for (keyFileRecord in keyFileRecords) {
+
+                //Build the output file names
+                //Use the first file name as the readmapping output name
+                val inputFile1 = File(keyFileRecord.file1)
+
+                val inputFile1NoExt = if(inputFile1.name.endsWith(".gz")) {
+                    inputFile1.nameWithoutExtension.substringBeforeLast(".")
+                } else {
+                    inputFile1.nameWithoutExtension
+                }
+
+                val outputFileName = "${outputDir}/${inputFile1NoExt}_readMapping.txt"
+
+                val diagnosticFileName = if(runDiagnostic) {
+                    "${outputDir}/${inputFile1.nameWithoutExtension}_diagnostic.txt"
+                } else {
+                    ""
+                }
+
                 myLogger.info("Processing reads for sample ${keyFileRecord.sampleName}")
                 val hapIdMapping = processReadMappingForKeyFileRecord(
                     keyFileRecord,
@@ -59,22 +81,10 @@ class AlignmentUtils {
                     numThreads,
                     minProportionOfMaxCount,
                     limitSingleRefRange,
-                    minSameReferenceRange
+                    minSameReferenceRange,
+                    diagnosticFileName
                 )
-
                 //export the read mapping to disk
-                //Use the first file name as the readmapping output name
-                val inputFile1 = File(keyFileRecord.file1)
-
-                val outputFileName = if(inputFile1.name.endsWith(".gz")) {
-                    val nameWithoutGz = inputFile1.nameWithoutExtension.substringBeforeLast(".")
-                    "${outputDir}/${nameWithoutGz}_readMapping.txt"
-                }
-                else {
-                    "${outputDir}/${inputFile1.nameWithoutExtension}_readMapping.txt"
-                }
-
-
                 exportReadMapping(
                     outputFileName,
                     hapIdMapping,
@@ -179,6 +189,7 @@ class AlignmentUtils {
             minProportionOfMaxCount: Double = 1.0,
             limitSingleRefRange: Boolean = true,
             minSameReferenceRange: Double = 0.9,
+            diagnosticFileName: String = ""
         ): Map<List<String>, Int> {
             val fastqFiles = Pair(keyFileRecord.file1, keyFileRecord.file2)
 
@@ -198,18 +209,20 @@ class AlignmentUtils {
                 }
 
                 //Setting up the channels for the coroutines
-                val readStringChannel = Channel<Pair<String, String>>(100)
+                val readStringChannel = Channel<ReadIdAndSeq>(100)
                 val sortedHapidListChannel = Channel<List<String>>(100)
+                val diagnosticChannel = Channel<String>(100) //This channel will be used to handle output of diagnostic information
                 val numberOfMappingThreads = max(1, numThreads - 2)
 
                 //Run the blocking coroutine to read the fastq files and process the reads
                 runBlocking {
                     launch(Dispatchers.IO) {
                         while (reader1.hasNext() && reader2?.hasNext() ?: true) {
-                            val seq1 = reader1.next().readString
+                            val reader1CurrentRecord = reader1.next()
+                            val seq1 = reader1CurrentRecord.readString
                             val seq2 = reader2?.next()?.readString ?: ""
 
-                            readStringChannel.send(Pair(seq1, seq2))
+                            readStringChannel.send(ReadIdAndSeq(reader1CurrentRecord.readName,seq1, seq2))
                             readCount++
 
                         }
@@ -222,6 +235,7 @@ class AlignmentUtils {
                             processReadsMultipleRefRanges(
                                 readStringChannel,
                                 sortedHapidListChannel,
+                                diagnosticChannel,
                                 kmerIndexMap.kmerHashToLongMap,
                                 rangeIdToBitsetMap,
                                 graph.refRangeIdToHapIdMap(),
@@ -236,9 +250,20 @@ class AlignmentUtils {
                         addListsToMap(hapidSetCount, sortedHapidListChannel)
                     }
 
+                    val diagnosticJob = if(diagnosticFileName.isNotEmpty()) {
+                        //call diagnostic file writer
+                        launch {
+                            writeDiagnosticFile(diagnosticFileName, diagnosticChannel)
+                        }
+                    } else {
+                        null
+                    }
+
                     processReadsJobList.joinAll()
                     sortedHapidListChannel.close()
                     addListsToMapJob.join()
+                    diagnosticChannel.close()
+                    diagnosticJob?.join()
                 }
                 //Need to close the reader2 if it exists
                 reader2?.close()
@@ -277,12 +302,25 @@ class AlignmentUtils {
         }
 
         /**
+         * Function to handle diagnostic output lines so we don't have any multithreading writing issues as only 1 thread has the writer
+         */
+        suspend fun writeDiagnosticFile(diagnosticFileName: String, diagnosticChannel:ReceiveChannel<String>) {
+            getBufferedWriter(diagnosticFileName).use { writer ->
+                for (line in diagnosticChannel) {
+                    writer.write(line)
+                    writer.newLine()
+                }
+            }
+        }
+
+        /**
          * Function to process the reads for multiple ReferenceRanges.  This will work with both paired and single ended reads.
          * To Work with single ended reads, the second String in the Pair should be an empty String.
          */
         private suspend fun processReadsMultipleRefRanges(
-            reads: ReceiveChannel<Pair<String, String>>,
+            reads: ReceiveChannel<ReadIdAndSeq>,
             sortedLists: SendChannel<List<String>>,
+            diagnosticChannel: SendChannel<String>,
             kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
             refrangeToBitSet: Map<Int, BitSet>,
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>,
@@ -332,7 +370,7 @@ class AlignmentUtils {
          * Function to extract the hapIdHits for a read pair.  This will work with both paired and single ended reads.
          */
         private fun extractHapIdHitsForReadPair(
-            pairOfReads: Pair<String, String>,
+            pairOfReads: ReadIdAndSeq,
             kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
             refrangeToBitSet: Map<Int, BitSet>,
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>,
@@ -341,7 +379,7 @@ class AlignmentUtils {
             minSameReferenceRange: Double = 0.9
         ): Pair<Map<Int, Set<String>>, Map<Int, Set<String>>> {
             val result1 = readToHapIdSetMultipleRefRanges(
-                pairOfReads.first,
+                pairOfReads.seq1,
                 kmerHashOffsetMap,
                 refrangeToBitSet,
                 rangeToHapidIndexMap,
@@ -349,9 +387,9 @@ class AlignmentUtils {
                 limitSingleRefRange,
                 minSameReferenceRange
             )
-            val result2 = if (pairOfReads.second.isNotEmpty()) {
+            val result2 = if (pairOfReads.seq2.isNotEmpty()) {
                 readToHapIdSetMultipleRefRanges(
-                    pairOfReads.second,
+                    pairOfReads.seq2,
                     kmerHashOffsetMap,
                     refrangeToBitSet,
                     rangeToHapidIndexMap,
