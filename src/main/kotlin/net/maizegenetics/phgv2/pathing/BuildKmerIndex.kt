@@ -457,7 +457,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             //this line encodes a haplotype set (hapset)
             for (hapid in entry.key) {
                 if(hapidIndex.containsKey(hapid)) encodedHapSets.set(offset + hapidIndex[hapid]!!)
-                else myLogger.warn("BuildKmerIndex.buildEncodedHapSetsAndHashOffsets: ndx = null for hapid = $hapid.")
             }
 
             //this line stores a pair of kmerHash, offset for each kmer mapping to this haplotype set

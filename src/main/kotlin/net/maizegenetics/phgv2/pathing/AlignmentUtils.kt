@@ -401,9 +401,6 @@ class AlignmentUtils {
                 //all hapids should be from the same reference range,
                 //but if some are not then only those from the majority reference range should be used, so...
                 rangeToHapIdMap = filterHapIdsToOneReferenceRange(rangeToHapIdMap, minSameReferenceRange)
-                if(rangeToHapIdMap.isEmpty()) {
-                    myLogger.warn("No haplotypes found for read. No haplotypes will be counted.")
-                }
             }
 
             //hapIds are already grouped by refRange so we just need to process each ranges hapIds and make sure that we
