@@ -339,7 +339,8 @@ class AlignmentUtils {
                     rangeToHapidIndexMap,
                     minProportionOfMaxCount,
                     limitSingleRefRange,
-                    minSameReferenceRange
+                    minSameReferenceRange,
+                    diagnosticChannel
                 )
 
                 //Process the mappings for each reference range
@@ -368,43 +369,45 @@ class AlignmentUtils {
                     hapIds
                 }
                 if (intersectResult.isNotEmpty()) sortedLists.send(intersectResult.sorted())
-                else if(diagnosticChannel != null) {
-                    //if it is empty and we are outputting diagnostics
-                    diagnosticChannel.send("$readName\tfalse\tNA\tNA\tNoSharedHapsInPair")
-                }
+                else diagnosticChannel?.send("$readName\tfalse\tNA\tNA\tNoSharedHapsInPair")
             }
         }
 
         /**
          * Function to extract the hapIdHits for a read pair.  This will work with both paired and single ended reads.
          */
-        private fun extractHapIdHitsForReadPair(
+        private suspend fun extractHapIdHitsForReadPair(
             pairOfReads: ReadIdAndSeq,
             kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
             refrangeToBitSet: Map<Int, BitSet>,
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>,
             minProportionOfMaxCount: Double = 1.0,
             limitSingleRefRange: Boolean = true,
-            minSameReferenceRange: Double = 0.9
+            minSameReferenceRange: Double = 0.9,
+            diagnosticChannel: SendChannel<String>?
         ): Pair<Map<Int, Set<String>>, Map<Int, Set<String>>> {
             val result1 = readToHapIdSetMultipleRefRanges(
+                pairOfReads.readId,
                 pairOfReads.seq1,
                 kmerHashOffsetMap,
                 refrangeToBitSet,
                 rangeToHapidIndexMap,
                 minProportionOfMaxCount,
                 limitSingleRefRange,
-                minSameReferenceRange
+                minSameReferenceRange,
+                diagnosticChannel
             )
             val result2 = if (pairOfReads.seq2.isNotEmpty()) {
                 readToHapIdSetMultipleRefRanges(
+                    pairOfReads.readId,
                     pairOfReads.seq2,
                     kmerHashOffsetMap,
                     refrangeToBitSet,
                     rangeToHapidIndexMap,
                     minProportionOfMaxCount,
                     limitSingleRefRange,
-                    minSameReferenceRange
+                    minSameReferenceRange,
+                    diagnosticChannel
                 )
             } else {
                 emptyMap()
@@ -417,14 +420,17 @@ class AlignmentUtils {
          * reference ranges. If no kmers map or if fewer than [minSameReferenceRange] of the kmers map to a single
          * reference range an empty Set will be returned.
          */
-        fun readToHapIdSetMultipleRefRanges(
+        suspend fun readToHapIdSetMultipleRefRanges(
+            readId: String,
             read: String,
             kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
             refrangeToBitSet: Map<Int, BitSet>,
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>,
             minProportionOfMaxCount: Double = 1.0,
             limitSingleRefRange: Boolean = true,
-            minSameReferenceRange: Double = 0.9
+            minSameReferenceRange: Double = 0.9,
+            diagnosticChannel: SendChannel<String>?,
+
         ): Map<Int, Set<String>> {
             //generate kmer hash from the read
             var rangeToHapIdMap = mutableMapOf<Int, MutableList<String>>()
@@ -441,7 +447,10 @@ class AlignmentUtils {
                 )
             }
             //if no hapids map to this read, return an empty set
-            if (rangeToHapIdMap.isEmpty()) return emptyMap()
+            if (rangeToHapIdMap.isEmpty()) {
+                diagnosticChannel?.send("$readId\tfalse\tNA\tNA\tNoHapIdsMapped")
+                return emptyMap()
+            }
 
             //If the user requests singleRefRange Mode we filter down using the [minSameReferenceRange] parameter
             if(limitSingleRefRange) {
@@ -450,11 +459,21 @@ class AlignmentUtils {
                 rangeToHapIdMap = filterHapIdsToOneReferenceRange(rangeToHapIdMap, minSameReferenceRange)
             }
 
+            if(rangeToHapIdMap.isEmpty()) {
+                diagnosticChannel?.send("$readId\tfalse\tNA\tNA\tKmersFilteredByRefRange")
+            }
+
             //hapIds are already grouped by refRange so we just need to process each ranges hapIds and make sure that we
             // have good enough coverage
-            return rangeToHapIdMap.map { (rangeId, hapIds) ->
+            val rangeIdToHapIdSet = rangeToHapIdMap.map { (rangeId, hapIds) ->
                Pair(rangeId, filterHapIdsByKmerCount(hapIds, minProportionOfMaxCount))
             }.toMap()
+
+            if(rangeIdToHapIdSet.isEmpty()) {
+                diagnosticChannel?.send("$readId\tfalse\tNA\tNA\tHapIdsFilteredByKmerCount")
+            }
+
+            return rangeIdToHapIdSet
         }
 
         /**
