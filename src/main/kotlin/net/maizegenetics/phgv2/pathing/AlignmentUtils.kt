@@ -368,7 +368,11 @@ class AlignmentUtils {
                 } else {
                     hapIds
                 }
-                if (intersectResult.isNotEmpty()) sortedLists.send(intersectResult.sorted())
+                if (intersectResult.isNotEmpty()) {
+                    val result = intersectResult.sorted()
+                    sortedLists.send(result)
+                    diagnosticChannel?.send("$readName\ttrue\t$rangeId\t${result.joinToString(",")}\tMapped")
+                }
                 else diagnosticChannel?.send("$readName\tfalse\tNA\tNA\tNoSharedHapsInPair")
             }
         }
