@@ -78,7 +78,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
     ).single().required()
 
 
-    val outputDir by option("-o", "--outputDir", help = "Directory where temporary and final files will be written")
+    val outputDir by option("-o", "--output-dir", help = "Directory where temporary and final files will be written")
         .required()
 
     val regionsFile by option(help = "A bedfile or vcf file containing the regions to be exported. Regions can be single base pair positions. File extension must be either .bed or .vcf.")
