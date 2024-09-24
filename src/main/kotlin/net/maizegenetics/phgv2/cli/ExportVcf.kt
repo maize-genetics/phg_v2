@@ -69,11 +69,11 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
     val samples: SampleProcessing by mutuallyExclusiveOptions(
         option(
             "--sample-names",
-            help = "Comma separated list of Sample names to export. Either sampleNames or samplesFile must be provided"
+            help = "Comma separated list of Sample names to export. Either --sample-names or --samples-file must be provided"
         ).convert { SampleProcessing.SampleList(it) },
         option(
             "--sample-file",
-            help = "Text file with list of sample names to export, one per line. Either sampleNames or samplesFile must be provided"
+            help = "Text file with list of sample names to export, one per line. Either --sample-names or --samples-file must be provided"
         ).convert { SampleProcessing.SampleFile(it) }
     ).single().required()
 
@@ -117,7 +117,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
 
         val dtype = if (datasetType == "gvcf") "gvcf_dataset" else "hvcf_dataset"
 
-        // Setup the conda enviroment portion of the command
+        // Setup the conda environment portion of the command
         var command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix) else mutableListOf("conda","run","-n","phgv2-conda")
 
         // Tiledbvcf can take either a file with samplenames, or a comma-separated list of sample names
