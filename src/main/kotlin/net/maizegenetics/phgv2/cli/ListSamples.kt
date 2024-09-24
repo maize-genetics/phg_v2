@@ -7,6 +7,7 @@ import com.github.ajalt.clikt.parameters.options.required
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.retrieveAgcData
 import net.maizegenetics.phgv2.utils.verifyURI
+import org.apache.logging.log4j.LogManager
 
 /**
  * This class is used to list the sample names in both the AGC compressed file and the tiledb datasets.
@@ -15,9 +16,11 @@ import net.maizegenetics.phgv2.utils.verifyURI
  *
  * It takes as input a path to the tiledb datasets and an output file.  Data on sample names
  * is written to a tab-delimited file with columns for the sample name, and whether the sample
- * is in the AGC file, the gvcf dataset and the hvcf dataset.
+ * is in the AGC file, the gvcf dataset and/or the hvcf dataset.
  */
 class ListSamples: CliktCommand(help = "List the sample names in both the AGC compressed file and the tiledb datasets.") {
+    private val myLogger = LogManager.getLogger(ListSamples::class.java)
+
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
 
@@ -28,12 +31,12 @@ class ListSamples: CliktCommand(help = "List the sample names in both the AGC co
         .required()
 
     override fun run() {
-        println("ListSamples")
         val tileDb = if (dbPath.isBlank()) System.getProperty("user.dir") else dbPath
 
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
         verifyURI(tileDb, "hvcf_dataset",condaEnvPrefix)
 
+        myLogger.info("URI verified: $tileDb , calling createSampleLists")
         // call command to get list of samples from the AGC file and both tiledb datasets
         createSampleLists(tileDb, condaEnvPrefix, outputFile)
     }
@@ -44,13 +47,16 @@ class ListSamples: CliktCommand(help = "List the sample names in both the AGC co
     // is possible users have only loaded a portion of each type vcf.
     fun createSampleLists(dbPath: String, condaEnvPrefix: String, outputFile: String) {
         // call command to get list of samples from the AGC file
+        myLogger.info("Getting agc sample list")
         val agcSamples = retrieveAgcData(dbPath,listOf("listset"),condaEnvPrefix).sorted()
 
         // call command to get list of samples from the TileDB datasets, first from hvcf_dataset
         var uri = dbPath + "/gvcf_dataset"
+        myLogger.info("Getting gvcf sample list")
         val gvcfSamples = LoadVcf().getTileDBSampleLists(uri).sorted()
 
         uri = dbPath + "/hvcf_dataset"
+        myLogger.info("Getting hvcf sample list")
         val hvcfSamples = LoadVcf().getTileDBSampleLists(uri).sorted()
 
         // take the agcSamples, gvcfSamples and hvcfSamples and create a union of the three lists
@@ -68,5 +74,6 @@ class ListSamples: CliktCommand(help = "List the sample names in both the AGC co
             }
         }
 
+        myLogger.info("Sample list data written to $outputFile")
     }
 }
