@@ -520,25 +520,30 @@ class MapKmersTest {
             kmerHashOffsetMap[kmerHash] =listOf(RefRangeOffset(ReferenceRange("1",200,300), (2.toLong() shl 32) or offset.toLong()))
         }
 
-        val hapIdsSameRefRange90 = AlignmentUtils.readToHapIdSetMultipleRefRanges(read, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap, 1.0, true, .9)
-        //should be an empty set
-        assertEquals(0, hapIdsSameRefRange90.size)
+        runBlocking {
+            val hapIdsSameRefRange90 = AlignmentUtils.readToHapIdSetMultipleRefRanges("readId1",read, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap, 1.0, true, .9,null)
+            //should be an empty set
+            assertEquals(0, hapIdsSameRefRange90.size)
 
-        val hapIdsSameRefRange50 = AlignmentUtils.readToHapIdSetMultipleRefRanges(read, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap,1.0, true, .5)
-        //Should just have hap2 in it
-        //Have to set this lower as we have less than 100 kmers after we turn into a set
-        assertEquals(1, hapIdsSameRefRange50.size)
-        assertTrue(hapIdsSameRefRange50[hapIdsSameRefRange50.keys.first()]?.contains("2")!!)
-        //Try a kmer not found in the map
-        val simpleSeq = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        //build hash for this seq
-        var hashValue = Pair(0L, 0L)
-        for (i in 0..31) {
-            hashValue = BuildKmerIndex.updateKmerHashAndReverseCompliment(hashValue, simpleSeq[i])
+
+            val hapIdsSameRefRange50 = AlignmentUtils.readToHapIdSetMultipleRefRanges("readId1",read, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap,1.0, true, .5,null)
+            //Should just have hap2 in it
+            //Have to set this lower as we have less than 100 kmers after we turn into a set
+            assertEquals(1, hapIdsSameRefRange50.size)
+            assertTrue(hapIdsSameRefRange50[hapIdsSameRefRange50.keys.first()]?.contains("2")!!)
+            //Try a kmer not found in the map
+            val simpleSeq = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            //build hash for this seq
+            var hashValue = Pair(0L, 0L)
+            for (i in 0..31) {
+                hashValue = BuildKmerIndex.updateKmerHashAndReverseCompliment(hashValue, simpleSeq[i])
+            }
+
+            val hapIdsSameRefRange50MissingKmer = AlignmentUtils.readToHapIdSetMultipleRefRanges("readId1",simpleSeq, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap,1.0,true, .5,null)
+            assertEquals(0, hapIdsSameRefRange50MissingKmer.size)
         }
 
-        val hapIdsSameRefRange50MissingKmer = AlignmentUtils.readToHapIdSetMultipleRefRanges(simpleSeq, kmerHashOffsetMap, rangeToBitSetMap, rangeToHapidIndexMap,1.0,true, .5)
-        assertEquals(0, hapIdsSameRefRange50MissingKmer.size)
+
 
     }
 
