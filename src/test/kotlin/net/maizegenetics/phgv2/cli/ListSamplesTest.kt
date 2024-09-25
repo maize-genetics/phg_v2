@@ -131,6 +131,21 @@ class ListSamplesTest {
     }
 
     @Test
+    fun testListSamplesForAGC() {
+        val outputFile = "${TestExtension.tempDir}listAGCSamples.txt"
+        var result = ListSamples().test(
+            "--db-path ${TestExtension.testTileDBURI} --output-file $outputFile --data-set agc"
+        )
+        assertEquals(0,result.statusCode)
+
+        val outFileLines = File(outputFile).readLines()
+        assertEquals(outFileLines.size, 3)
+        assertEquals(outFileLines[0], "LineA")
+        assertEquals(outFileLines[1], "LineB")
+        assertEquals(outFileLines[2], "Ref")
+    }
+
+    @Test
     fun testListSamplesDefault() {
         val outputFile = "${TestExtension.tempDir}listHvcfSamples.txt"
         var result = ListSamples().test(
