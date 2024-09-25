@@ -44,7 +44,6 @@ class AlignmentUtils {
             outputDir: String,
             numThreads: Int = 5,
             minProportionOfMaxCount: Double = 1.0,
-            limitSingleRefRange: Boolean = true,
             minSameReferenceRange: Double = 0.9,
             runDiagnostic: Boolean = false
         ) {
@@ -80,7 +79,6 @@ class AlignmentUtils {
                     graph,
                     numThreads,
                     minProportionOfMaxCount,
-                    limitSingleRefRange,
                     minSameReferenceRange,
                     diagnosticFileName
                 )
@@ -187,7 +185,6 @@ class AlignmentUtils {
             graph: HaplotypeGraph,
             numThreads: Int = 5,
             minProportionOfMaxCount: Double = 1.0,
-            limitSingleRefRange: Boolean = true,
             minSameReferenceRange: Double = 0.9,
             diagnosticFileName: String = ""
         ): Map<List<String>, Int> {
@@ -241,7 +238,6 @@ class AlignmentUtils {
                                 rangeIdToBitsetMap,
                                 graph.refRangeIdToHapIdMap(),
                                 minProportionOfMaxCount,
-                                limitSingleRefRange,
                                 minSameReferenceRange
                             )
                         })
@@ -328,23 +324,26 @@ class AlignmentUtils {
             refrangeToBitSet: Map<Int, BitSet>,
             rangeToHapidIndexMap: Map<Int, Map<String, Int>>,
             minProportionOfMaxCount: Double = 1.0,
-            limitSingleRefRange: Boolean = true,
             minSameReferenceRange: Double = 0.9
         ) {
             for (pairOfReads in reads) {
-                val (result1, result2) = extractHapIdHitsForReadPair(
-                    pairOfReads,
+                val result = readToHapIdSetForPairedReads(
+                    pairOfReads.readId,
+                    Pair(pairOfReads.seq1, pairOfReads.seq2),
                     kmerHashOffsetMap,
                     refrangeToBitSet,
                     rangeToHapidIndexMap,
                     minProportionOfMaxCount,
-                    limitSingleRefRange,
                     minSameReferenceRange,
                     diagnosticChannel
                 )
 
                 //Process the mappings for each reference range
-                processHapIdHits(pairOfReads.readId, result1, result2, sortedLists, diagnosticChannel)
+                for(entry in result) {
+                    val sortedIds = entry.value.sorted()
+                    sortedLists.send(sortedIds)
+                    diagnosticChannel?.send("${pairOfReads.readId}\ttrue\t${entry.key}\t${sortedIds.joinToString(",")}\tMapped")
+                }
             }
         }
 
@@ -390,6 +389,7 @@ class AlignmentUtils {
             minSameReferenceRange: Double = 0.9,
             diagnosticChannel: SendChannel<String>?
         ): Pair<Map<Int, Set<String>>, Map<Int, Set<String>>> {
+            println("File1")
             val result1 = readToHapIdSetMultipleRefRanges(
                 pairOfReads.readId,
                 pairOfReads.seq1,
@@ -402,6 +402,7 @@ class AlignmentUtils {
                 diagnosticChannel
             )
             val result2 = if (pairOfReads.seq2.isNotEmpty()) {
+                println("File2")
                 readToHapIdSetMultipleRefRanges(
                     pairOfReads.readId,
                     pairOfReads.seq2,
@@ -438,20 +439,18 @@ class AlignmentUtils {
         ): Map<Int, Set<String>> {
             //generate kmer hash from the read
             var rangeToHapIdMap = mutableMapOf<Int, MutableList<String>>()
-            val splitList = read
-                .split("[^ACGT]+".toRegex())
-                .filter { it.length > 31 }
-            for (sequence in splitList) {
-                extractKmersFromSequence(
-                    sequence,
-                    kmerHashOffsetMap,
-                    refrangeToBitSet,
-                    rangeToHapidIndexMap,
-                    rangeToHapIdMap
-                )
-            }
+            extractKmersForSingleRead(
+                read,
+                kmerHashOffsetMap,
+                refrangeToBitSet,
+                rangeToHapidIndexMap,
+                rangeToHapIdMap
+            )
+
+            println("RangeToHapIdMap Outer: $rangeToHapIdMap IsEmpty: ${rangeToHapIdMap.isEmpty()}")
             //if no hapids map to this read, return an empty set
             if (rangeToHapIdMap.isEmpty()) {
+                println("RangeToHapIdMap If Statement: $rangeToHapIdMap IsEmpty: ${rangeToHapIdMap.isEmpty()}")
                 diagnosticChannel?.send("$readId\tfalse\tNA\tNA\tNoHapIdsMapped")
                 return emptyMap()
             }
@@ -479,6 +478,101 @@ class AlignmentUtils {
 
             return rangeIdToHapIdSet
         }
+
+        /**
+         * Takes a [read] and generates a list of hapids to which its kmers map. Returns hapids from multiple
+         * reference ranges. If no kmers map or if fewer than [minSameReferenceRange] of the kmers map to a single
+         * reference range an empty Set will be returned.
+         */
+        suspend fun readToHapIdSetForPairedReads(
+            readId: String,
+            reads: Pair<String,String?>,
+            kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
+            refrangeToBitSet: Map<Int, BitSet>,
+            rangeToHapidIndexMap: Map<Int, Map<String, Int>>,
+            minProportionOfMaxCount: Double = 1.0,
+            minSameReferenceRange: Double = 0.9,
+            diagnosticChannel: SendChannel<String>?
+        ): Map<Int, Set<String>> {
+            //generate kmer hash from the read
+            var rangeToHapIdMap = mutableMapOf<Int, MutableList<String>>()
+
+            //Extract out the kmer hashes from the pair of reads
+            extractKmersForPairedReads(reads, kmerHashOffsetMap, refrangeToBitSet, rangeToHapidIndexMap, rangeToHapIdMap)
+
+            //if no hapids map to this read, return an empty set
+            if (rangeToHapIdMap.isEmpty()) {
+                diagnosticChannel?.send("$readId\tfalse\tNA\tNA\tNoHapIdsMapped")
+                return emptyMap()
+            }
+
+            //all hapids should be from the same reference range,
+            //but if some are not then only those from the majority reference range should be used, so...
+            rangeToHapIdMap = filterHapIdsToOneReferenceRange(rangeToHapIdMap, minSameReferenceRange)
+
+            if(rangeToHapIdMap.isEmpty()) {
+                diagnosticChannel?.send("$readId\tfalse\tNA\tNA\tKmersFilteredByRefRange")
+                return emptyMap()
+            }
+
+            //hapIds are already grouped by refRange so we just need to process each ranges hapIds and make sure that we
+            // have good enough coverage
+            val rangeIdToHapIdSet = rangeToHapIdMap.map { (rangeId, hapIds) ->
+                Pair(rangeId, filterHapIdsByKmerCount(hapIds, minProportionOfMaxCount))
+            }.toMap()
+
+            if(rangeIdToHapIdSet.isEmpty()) {
+                diagnosticChannel?.send("$readId\tfalse\tNA\tNA\tHapIdsFilteredByKmerCount")
+            }
+
+            return rangeIdToHapIdSet
+        }
+
+        /**
+         * Function to extract out the kmers for a single or Pair of reads
+         * If reads.second is null we skip it.
+         * This allows for simple processing of the read pair
+         */
+        private fun extractKmersForPairedReads(
+            reads: Pair<String, String?>,
+            kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
+            refrangeToBitSet: Map<Int, BitSet>,
+            rangeToHapidIndexMap: Map<Int, Map<String, Int>>,
+            rangeToHapIdMap: MutableMap<Int, MutableList<String>>
+        ) {
+            val (read1, read2) = reads
+            extractKmersForSingleRead(read1, kmerHashOffsetMap, refrangeToBitSet, rangeToHapidIndexMap, rangeToHapIdMap)
+            if(read2!=null) {
+                extractKmersForSingleRead(read2, kmerHashOffsetMap, refrangeToBitSet, rangeToHapidIndexMap, rangeToHapIdMap)
+            }
+        }
+
+        /**
+         * Extract out the kmers for a single read.
+         * It first splits the read sequence by Ns and filters out any subsequence smaller than 32 bps
+         * Then it extracts the kmers and minHashes.
+         */
+        private fun extractKmersForSingleRead(
+            read1: String,
+            kmerHashOffsetMap: Long2ObjectOpenHashMap<List<RefRangeOffset>>,
+            refrangeToBitSet: Map<Int, BitSet>,
+            rangeToHapidIndexMap: Map<Int, Map<String, Int>>,
+            rangeToHapIdMap: MutableMap<Int, MutableList<String>>
+        ) {
+            val splitList = read1
+                .split("[^ACGT]+".toRegex())
+                .filter { it.length > 31 }
+            for (sequence in splitList) {
+                extractKmersFromSequence(
+                    sequence,
+                    kmerHashOffsetMap,
+                    refrangeToBitSet,
+                    rangeToHapidIndexMap,
+                    rangeToHapIdMap
+                )
+            }
+        }
+
 
         /**
          * Function to filter hapIds by the kmer count.  This will return a set of hapIds that have a count greater than
@@ -570,9 +664,13 @@ class AlignmentUtils {
                 val (rangeId, offset) = decodeRangeIdAndOffset(encodedOffset.offset)
                 val hapidIndex = rangeToHapidIndexMap[rangeId]
                 val hapidBitSet = refrangeToBitSet[rangeId]
-                if (hapidIndex == null || hapidBitSet == null) continue
+                if (hapidIndex == null || hapidBitSet == null) {
+                    continue
+                }
 
-                val hapidList = hapidIndex.entries.filter { (_, index) -> hapidBitSet.get(offset + index) }
+                val hapidList = hapidIndex.entries.filter { (entry, index) ->
+                    hapidBitSet.get(offset + index)
+                }
                     .map { it.key }.toMutableList()
                 rangeToHapidMap[rangeId] = hapidList
             }

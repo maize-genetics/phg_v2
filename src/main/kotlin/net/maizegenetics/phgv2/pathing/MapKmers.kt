@@ -116,6 +116,6 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
 
         //create a HaplotypeGraph from the list of hvcf files
         val graph = HaplotypeGraph(hvcfFiles)
-        AlignmentUtils.alignReadsToHaplotypes(graph, kmerIndexFilename, readInputFiles.getReadFiles(), outputDir, threads, minProportionOfMaxCount, true, minProportionSameReferenceRange, diagnosticMode)
+        AlignmentUtils.alignReadsToHaplotypes(graph, kmerIndexFilename, readInputFiles.getReadFiles(), outputDir, threads, minProportionOfMaxCount, minProportionSameReferenceRange, diagnosticMode)
     }
 }

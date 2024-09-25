@@ -10,11 +10,8 @@ import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.cli.AgcCompress
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.getBufferedWriter
-import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.BufferedWriter
 import java.io.File
@@ -22,6 +19,7 @@ import java.io.FileWriter
 import java.util.*
 import kotlin.math.min
 import kotlin.test.assertTrue
+import kotlin.test.fail
 
 @ExtendWith(TestExtension::class)
 class MapKmersTest {
@@ -749,6 +747,18 @@ class MapKmersTest {
 
 
     }
+
+    @Test
+    fun testExtractKmersForPairedReads() {
+        fail("Not implemented")
+    }
+
+    @Test
+    fun testExtractKmersForSingleRead() {
+        fail("Not implemented")
+    }
+
+
 
 
     //TODO move this to a utility
