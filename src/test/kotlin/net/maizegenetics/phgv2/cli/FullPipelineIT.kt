@@ -133,6 +133,18 @@ class FullPipelineIT {
         val loadVCFResult = loadVCF.test("--vcf-dir ${TestExtension.testVCFDir} --db-path ${TestExtension.testTileDBURI}")
         println(loadVCFResult.output)
 
+        // List the Samples from AGC, GVCF, HVCF
+        val listSamples = ListSamples()
+        val listSamplesResult = listSamples.test("--db-path ${TestExtension.testTileDBURI} --output-file ${TestExtension.tempDir}list_samples.txt --data-set all")
+        println(listSamplesResult.output)
+        //read the list_samples.txt file and check the contents
+        val listSamplesLines = File("${TestExtension.tempDir}list_samples.txt").readLines()
+        assertEquals(listSamplesLines.size, 4)
+        assertEquals("SampleName\tInAGC\tInGVCF\tInHVCF",listSamplesLines[0])
+        assertEquals("LineA\tY\tY\tY",listSamplesLines[1])
+        assertEquals( "LineB\tY\tY\tY",listSamplesLines[2])
+        assertEquals( "Ref\tY\tN\tY",listSamplesLines[3])
+
         //Pull out the HVCF from TileDB
         val exportHVCF = ExportVcf()
         val exportHVCFRefResult = exportHVCF.test("--db-path ${TestExtension.testTileDBURI} --sample-names Ref,LineA,LineB -o ${TestExtension.testOutputHVCFDir}")

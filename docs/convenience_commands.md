@@ -124,4 +124,27 @@ phg merge-hvcfs \
     ```
     ##ALT=<ID=R000001_LineA_G01, ...>
     ```
-    
+
+## List Sample names from datasets
+
+> List the sample names from the AGC compressed file, the tileDB gVCF dataset, and/or the tileDB hVCF dataset
+> 
+**Command** - `list-samples`
+
+**Example**
+
+```shell
+phg list-samples \
+    --db-path my/phg/db \
+    --output-file output/hvcfSamples.txt \
+    --data-set hvcf 
+```
+
+**Parameters**
+
+| Parameter name       | Description                                                                                                         | Default value | Required?        |
+|----------------------|---------------------------------------------------------------------------------------------------------------------|---------------|------------------|
+| `--dp-path`          | Folder name where TileDB datasets and AGC record is stored. If not provided, the current working directory is used. | `""`          | :material-check: |
+| `--output-file`      | Path and/or filename for the samples list file.                                                                     | `""`          | :material-check: |
+| `--data-set`         | Storage from which to pull sample names. Must be one of 'all','agc','gvcf','hvcf'                                    | `hvcf`        |                  |
+| `--conda-env-prefix` | Prefix for the Conda environment to use. If provided, this should be the full path to the Conda environment.          | _Current active Conda environment_         |
