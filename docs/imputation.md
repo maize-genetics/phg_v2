@@ -15,6 +15,14 @@ imputation using the PHG:
 
 ## Quick start
 
+* Get list of samples to export:
+  ```shell
+  phg list-samples \
+      --db-path /my/db/uri \
+      --data-set hvcf \
+      --output-file /my/sample_names.txt
+  ```
+
 * Export hVCF data:
   ```shell
   phg export-vcf \
@@ -23,6 +31,7 @@ imputation using the PHG:
       --sample-file /my/sample_names.txt \
       --output-dir /my/hvcf/dir
   ```
+  
 * Index k-mers:
   ```shell
   phg build-kmer-index \
