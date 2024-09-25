@@ -153,13 +153,9 @@ class ListSamplesTest {
             "--db-path ${TestExtension.testTileDBURI} --output-file $outputFile --data-set bad"
         )
         assertEquals(1,result.statusCode)
-
-        // Cannot get this error message correct !!!!
-//        assertEquals("Usage: list-samples [<options>]\n" +
-//                "\n" ,result.output)
-//        assertEquals("Usage: list-samples [<options>]\n" +
-//                "\n" +
-//                "Error: invalid value for --data-set: Invalid dataset option. Available options are: agc, gvcf, hvcf, all\n",result.output)
+        assertEquals("Usage: list-samples [<options>]\n" +
+                "\n" +
+                "Error: invalid value for --data-set: invalid choice: bad. (choose from agc, gvcf, hvcf, all)\n",result.output)
 
 
     }

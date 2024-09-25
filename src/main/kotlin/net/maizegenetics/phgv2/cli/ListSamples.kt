@@ -5,6 +5,7 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.types.enum
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.retrieveAgcData
 import net.maizegenetics.phgv2.utils.verifyURI
@@ -40,15 +41,9 @@ class ListSamples: CliktCommand(help = "List the sample names in both the AGC co
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
 
-    // Verify the dataset option is one of the four options
-    val dataSet by option(help = "Name of the dataset to list the samples from. Options are: all, agc, gvcf, hvcf. Default is hvcf.")
-        .convert {
-            try {
-                DatasetOptions.valueOf(it)
-            } catch (IAE: IllegalArgumentException) {
-                fail("Invalid dataset option. Available options are: ${DatasetOptions.values().joinToString(", ")}")
-            }
-        }
+    // Datset option must be one from the enum, default to hvcf
+    val dataSet by option(help = "Name of the dataset from which to list the samples. Options are: all, agc, gvcf, hvcf.")
+        .enum<DatasetOptions>()
         .default(DatasetOptions.hvcf)
 
     val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
