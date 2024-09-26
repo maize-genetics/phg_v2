@@ -20,7 +20,7 @@ transformation, the user can use the craete-haplotype-vcf command.
 
 * From the imputation h.vcf file, create a composite fasta file
 ```shell
-phg create-fasta-from-hvcf \
+phg composite-to-haplotype-coords \
   --hvcf-file my/imputation/h.vcf \ 
   --fasta-type composite \ 
   -o /path/to/output_folder

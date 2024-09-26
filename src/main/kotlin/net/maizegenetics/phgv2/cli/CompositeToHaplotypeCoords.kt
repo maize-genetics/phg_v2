@@ -34,8 +34,8 @@ import kotlin.math.abs
  */
 data class HaplotypeData(val id: String, val refContig: String, val refStart: Int, val hapLen: Int)
 
-class CreateHaplotypeVCF: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf using data from existing PHG created g.vcf files")  {
-    private val myLogger = LogManager.getLogger(CreateHaplotypeVCF::class.java)
+class CompositeToHaplotypeCoords: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf using data from existing PHG created g.vcf files")  {
+    private val myLogger = LogManager.getLogger(CompositeToHaplotypeCoords::class.java)
     val pathHvcf by option(help = "Full path to the hvcf file created by the find-paths command ")
         .required()
 

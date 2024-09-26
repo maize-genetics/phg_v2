@@ -12,7 +12,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.extension.ExtendWith
 
 @ExtendWith(TestExtension::class)
-class CreateHaplotypeVCFTest {
+class CompositeToHaplotypeCoordsTest {
     companion object {
         private val haplotypeHvcfDir = "${TestExtension.tempDir}haplotype-vcfs/"
 
@@ -40,14 +40,14 @@ class CreateHaplotypeVCFTest {
         // The deepVariantVCF is simulated output from a deepVariant run based on a composite
         // fasta created from the pathVCF file.  The  deepVariantVCF file is used
         // to create a hapltoype vcf.  The pathVCF and deepVariantVCF were manually created for testing.
-        // The objective of the test below is to verify the haplotypeVCF created from CreateHaplotypeVCF
+        // The objective of the test below is to verify the haplotypeVCF created from CompositeToHaplotypeCoords
         // is correct in terms of where the SNPs fall within each haplotype.
         val pathVCF = "data/test/resequenceHaplotypeVCF/TestSample.h.vcf"
         val deepVariantVCF = "data/test/resequenceHaplotypeVCF/TestSampleDV.vcf"
         val haplotypeVCF = "$haplotypeHvcfDir/sampleDV_RESQ.vcf"
         val sampleName = "TestSampleReseqHaplotype"
 
-        val result = CreateHaplotypeVCF().test("--path-hvcf $pathVCF --variant-vcf $deepVariantVCF --output-file $haplotypeVCF --sample-name $sampleName")
+        val result = CompositeToHaplotypeCoords().test("--path-hvcf $pathVCF --variant-vcf $deepVariantVCF --output-file $haplotypeVCF --sample-name $sampleName")
         assertEquals(0, result.statusCode )
 
         // Verify:  There should be as many lines in the haplotype resequenced VCF as there are in the
@@ -99,7 +99,7 @@ class CreateHaplotypeVCFTest {
         truthSNPOffsets.add(Position("13417ecbb38b9a159e3ca8c9dade7088", 98))
         truthSNPOffsets.add(Position("90248144d7173c1f1481008c43e65129", 30))
 
-        // Verify the SNP offsets in the haplotype VCF created by CreateHaplotypeVCF() match the expected values
+        // Verify the SNP offsets in the haplotype VCF created by CompositeToHaplotypeCoords() match the expected values
         for (idx in hapVCFRecords.indices) {
             val hapId = hapVCFRecords[idx].contig
             val start = hapVCFRecords[idx].start
@@ -119,7 +119,7 @@ class CreateHaplotypeVCFTest {
         hapidToLengthMap["hap2"] = 1045
         val truthHeaders = reader.fileHeader
 
-        val createResequenceVcf = CreateHaplotypeVCF()
+        val createResequenceVcf = CompositeToHaplotypeCoords()
         val vcfHeader = createResequenceVcf.reseqVCFHeader(reader, hapidToLengthMap, sampleNames)
 
         // Get INFO lines from vcfHeader
@@ -182,7 +182,7 @@ class CreateHaplotypeVCFTest {
         chrom2DataList.add(hapData)
         chromToHapData["chr2"] = chrom2DataList
 
-        val createReseqVCF = CreateHaplotypeVCF()
+        val createReseqVCF = CompositeToHaplotypeCoords()
         val hapToLengthMap = createReseqVCF.createHapPositionMap(chromToHapData)
 
         assertEquals(6, hapToLengthMap.asMapOfRanges().size)
