@@ -12,7 +12,6 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 @ExtendWith(TestExtension::class)
 class ExportVcfTest {
@@ -160,7 +159,7 @@ class ExportVcfTest {
         assertEquals(
             "Usage: export-vcf [<options>]\n" +
                     "\n" +
-                    "Error: missing option --outputDir\n",
+                    "Error: missing option --output-dir\n",
             resultMissingOutputDir.output
         )
 
