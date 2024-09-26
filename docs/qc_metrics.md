@@ -200,3 +200,44 @@ format.
   range. A large number of missing ranges may indicate a problem with 
   the assembly or the alignment.
 
+## Imputation Metrics
+
+> Calculate imputation metrics for an hvcf file created by the Imputation pipeline
+
+**Command** - `imputation-metrics`
+
+**Example**
+
+```shell
+phg imputation-metrics \
+    --sample-hvcf my/parent/hvcf/from/create-maf-vcf \
+    --imputation-hvcf my/imputation/h.vcf \
+    --bed-file path/to/ranges.bed \
+    --read-mapping-files my/readMappingList.txt \
+    --output-file output/imputation_metrics.txt 
+```
+
+**Parameters**
+
+
+| Parameter name         | Description                                                                               | Default value | Required?        |
+|------------------------|-------------------------------------------------------------------------------------------|---------------|------------------|
+| `--sample-hvcf`        | Path to hvcf for the sample expected to be selected most often.                           | `""`          | :material-check: |
+| `--imputation-hvcf`    | Path to hvcf created from imputation pipeline.                                            | `""`          | :material-check: |
+| `--bed-file`           | Path to bed file created in create-ranges.                                                | `""`          |                  |
+| `--read-mapping-files` | Path to a file that contains a list of read-mapping files, one per line, full path names. | `""`          |                  |
+| `--output-file`        | Path to a file where metrics will be printed.                                             | `""`          |                  |
+| `--chrom'              | Comma-separated list of contigs to include in output (optional)                           |               |                  |
+
+The `imputation-metrics` command calculates metrics for a given h.vcf file created as the output of find-paths.
+It requires input that is not available to the find-paths command, so must be run separately from
+that command.
+
+The intent of this command is to provide a way to evaluate the quality of the imputation process.  The metrics
+allow the user to see the path the imputation has taken, where it has diverged from the parent (sample)
+haplotype, and shows the read counts from the read mappings files that support each transition.
+The output is a tab-delimited file with data arranged in reference range order that can be opened in a 
+spreadsheet program for further analysis.
+
+
+

@@ -1,0 +1,1 @@
+data/test/resequenceHaplotypeVCF/test_readMapping.txt
