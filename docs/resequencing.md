@@ -20,7 +20,7 @@ transformation, the user can use the craete-haplotype-vcf command.
 
 * From the imputation h.vcf file, create a composite fasta file
 ```shell
-phg composite-to-haplotype-coords \
+phg create-fasta-from-hvcf \
   --hvcf-file my/imputation/h.vcf \ 
   --fasta-type composite \ 
   -o /path/to/output_folder
@@ -112,7 +112,7 @@ bcftools view -m2 -M2 -v snps -i 'QUAL>20 && GT="1/1" && DP>4' /path/to/merged.s
 
 Convert the VCF file created above to haplotype coordinates, using the create-haplotype-vcf command as shown below:
   ```shell
-  phg create-haplotype-vcf \
+  phg composite-to-haplotype-coords \
       --path-hvcf /path/to/imputation.hvcf \
       --variant-vcf /path/to/vcf/from/DeepVariant \ // vcf created in filtered step above
       --sample-name nameForNewSample \ // samplename to use in the haplotype coordinates vcf
