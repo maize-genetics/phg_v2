@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.parameters.options.required
 import htsjdk.samtools.SAMRecord
 import htsjdk.samtools.SamReaderFactory
 import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.ReferenceRange
 import java.io.File
 
 enum class AlignmentClass {
@@ -45,11 +46,14 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         val iterator = samReader.iterator()
         var currentReadId = ""
         var recordsForRead = mutableListOf<SAMRecord>()
+
+        val hapIdToRefRangeMap = graph.hapIdToRefRangeMap()
+
         while(iterator.hasNext()) {
             val currentRecord = iterator.next()
             if(currentRecord.readName != currentReadId) {
                 //process the reads
-                processReads(recordsForRead, graph)
+                processReads(recordsForRead, hapIdToRefRangeMap)
                 //reset the records
                 recordsForRead = mutableListOf()
                 currentReadId = currentRecord.readName
@@ -57,17 +61,31 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
             recordsForRead.add(currentRecord)
         }
         //process the last read alignments
-        processReads(recordsForRead, graph)
+        processReads(recordsForRead, hapIdToRefRangeMap)
     }
 
-    fun processReads(recordsForRead: List<SAMRecord>, graph: HaplotypeGraph) {
+    fun processReads(recordsForRead: List<SAMRecord>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>) {
         //Pair off the reads by their alignment to haplotype ids
+        val recordsGroupedByContig = recordsForRead.groupBy { record -> record.contig }.map { filterAlignmentToPair(it.value) }
         //For the pair only keep track of the best ones based on edit distance
         //We are looking for various edge cases
+        classifyAlignments(recordsGroupedByContig)
     }
 
-    fun classifyAlignments(records: List<Pair<SAMRecord,SAMRecord>>): AlignmentClass {
+    fun filterAlignmentToPair(records: List<SAMRecord>): Pair<SAMRecord?,SAMRecord?> {
+        //these records are all hitting the same contig.  Need to split them by first in pair and second in pair
+        val bestAlignments = records.groupBy { it.firstOfPairFlag }.map { keepBestAlignment(it.value) }
+        return Pair(bestAlignments[0], bestAlignments[1])
+    }
+
+    fun keepBestAlignment(records : List<SAMRecord>) : SAMRecord? {
+        return records.minByOrNull { it.getIntegerAttribute("NM") }
+    }
+
+    fun classifyAlignments(records: List<Pair<SAMRecord?,SAMRecord?>>): AlignmentClass {
         return when {
+            records.size == 1 && records.first().first == null && records.first().second == null -> AlignmentClass.PAIRUNALIGN
+            records.size == 1 && (records.first().first == null || records.first().second == null) -> AlignmentClass.UNIQUE_UNALIGN
             records.size == 1 -> AlignmentClass.PAIRUNIQUE
 
             else -> AlignmentClass.PAIRUNALIGN
