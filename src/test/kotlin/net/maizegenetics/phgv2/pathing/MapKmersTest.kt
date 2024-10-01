@@ -18,6 +18,7 @@ import java.io.File
 import java.io.FileWriter
 import java.util.*
 import kotlin.math.min
+import kotlin.test.Ignore
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
@@ -748,11 +749,13 @@ class MapKmersTest {
 
     }
 
+    @Ignore
     @Test
     fun testExtractKmersForPairedReads() {
         fail("Not implemented")
     }
 
+    @Ignore
     @Test
     fun testExtractKmersForSingleRead() {
         fail("Not implemented")

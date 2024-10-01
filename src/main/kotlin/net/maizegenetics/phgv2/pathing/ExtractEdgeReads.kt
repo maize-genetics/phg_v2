@@ -19,6 +19,12 @@ enum class AlignmentClass {
     OFFASM_UNALIGN
 
 }
+
+/**
+ * This class is to find edge case reads for use as integration tests for the read mapping pipeline
+ *
+ * IT IS CURRENTLY A WIP AND IS UNDER ACTIVE DEVELOPMENT
+ */
 class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from SAMs/BAMs") {
     val bamDir by option(help = "Folder name where The BAM/SAM files are")
         .required()

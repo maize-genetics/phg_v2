@@ -235,6 +235,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         return keepMap
     }
 
+    /**
+     * Function to extract out the sequence for a current list of haplotype ids
+     */
     private fun extractSequenceForCurrentHapIds(
         hapidToSampleMap: Map<String, List<SampleGamete>>,
         graph: HaplotypeGraph,
@@ -250,6 +253,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         return hapIdToSequenceMap
     }
 
+    /**
+     * Function to pull the needed sequences from AGC
+     */
     private fun getSeqListForHapId(
         altHeader: AltHeaderMetaData,
         agcChromSequence: Map<Pair<String, String>, NucSeq>,
