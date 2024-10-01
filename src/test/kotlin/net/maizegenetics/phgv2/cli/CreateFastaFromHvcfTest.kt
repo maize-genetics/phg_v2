@@ -66,7 +66,7 @@ class CreateFastaFromHvcfTest {
         assertEquals(resultBadFastaType.statusCode, 1)
         assertEquals("Usage: create-fasta-from-hvcf [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --fasta-type: invalid choice: bad. (choose from composite, haplotype)\n",resultBadFastaType.output)
+                "Error: invalid value for --fasta-type: invalid choice: bad. (choose from composite, haplotype, pangenomeHaplotype)\n",resultBadFastaType.output)
 
         // Only one of --hvcf-file or --hvcf-dir can be used.  THis test has both sent
         val resultHvcfFileAndDir = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} -o ${TestExtension.tempDir} --fasta-type haplotype --hvcf-file /test_file.h.vcf --hvcf-dir /test_dir")
