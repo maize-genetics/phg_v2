@@ -1,8 +1,13 @@
 package net.maizegenetics.phgv2.api
 
+import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.cli.CreateRefVcf
 import net.maizegenetics.phgv2.cli.TestExtension
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -22,6 +27,16 @@ class HaplotypeGraphTest {
 
     }
 
+    @Test
+    fun testphgv2Common_hvcfFiles() {
+        val hvcfFolder = "/Users/lcj34/notes_files/phg_v2/debug/haplotypGraph_tooSlow/hvcfs"
+        // get a list of files from the hvcfFolder
+        val hvcfFiles = File(hvcfFolder).listFiles().map { it.absolutePath }
+        val startTime = System.nanoTime()
+        val graph = HaplotypeGraph(hvcfFiles)
+        val timeToExecute = (System.nanoTime() - startTime) / 1e9
+        println("Time to execute: $timeToExecute")
+    }
     @Test
     fun testMultipleFilesHaplotypeGraph() {
         //include RefHvcf to test what happens when a sample has no haplotype in at least one ReferenceRange
@@ -94,6 +109,7 @@ class HaplotypeGraphTest {
 
     @Test
     fun testBadInputHaplotypeGraph() {
+        // ALT tag does not contain sample name
         val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFileBadAltTag))
         assert(graph == null || graph.numberOfRanges() == 0) { "graph not null or empty" }
     }

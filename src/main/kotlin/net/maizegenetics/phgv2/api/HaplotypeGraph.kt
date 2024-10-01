@@ -36,8 +36,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     // Map<ID (checksum), AltHeaderMetaData>
     private lateinit var altHeaderMap: Map<String, AltHeaderMetaData>
 
-    private val processingFiles = Channel<Deferred<Job>>(100)
-    private val processingChannel = Channel<RangeInfo>(10)
+   // private val processingFiles = Channel<Deferred<Job>>(100)
+    private val processingChannel = Channel<RangeInfo>(100)
 
     init {
 
@@ -165,8 +165,10 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         val readers = mutableListOf<VCFFileReader>()
         val sampleNamesSet = mutableSetOf<String>()
         val sampleNamesList = mutableListOf<String>()
-
         val mutableAltHeaderMap: MutableMap<String, AltHeaderMetaData> = mutableMapOf()
+
+        myLogger.info("processFiles: ${hvcfFiles.size} hvcf files")
+        // Step 1: Collect sample names and check for duplicates (non-parallel)
         hvcfFiles.forEach { hvcfFile ->
 
             myLogger.info("processFiles: $hvcfFile")
@@ -183,7 +185,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
                 mutableAltHeaderMap.putAll(parseALTHeader(reader.header))
             } catch (exc: Exception) {
                 myLogger.error("processFiles: $hvcfFile: ${exc.message}")
-                processingFiles.close()
+               // processingFiles.close()
                 processingChannel.close()
                 readers.forEach { it.close() }
                 throw IllegalArgumentException("processFiles: $hvcfFile: ${exc.message}")
@@ -193,33 +195,24 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         //make the alt header map immutable
         altHeaderMap = mutableAltHeaderMap.toMap()
 
+        // Step 2: check for duplicate sample names
         sampleNamesSet.forEach { sampleNamesList.remove(it) }
         if (sampleNamesList.isNotEmpty()) {
             throw IllegalArgumentException("processFiles: duplicate sample names: $sampleNamesList")
         }
 
+        // Initialize sampleNameToIdMap and sampleNames after validation
         sampleNames = sampleNamesSet.sorted().toTypedArray()
         sampleNameToIdMap = sampleNames.mapIndexed { index, sampleName ->
             Pair(sampleName, index)
         }.toMap()
 
+        // Step 3: Process the files sequentially, but ranges for each file in parallel
         readers.forEach { reader ->
-
-            processingFiles.send(CoroutineScope(Dispatchers.IO).async {
-
-                reader.use { reader ->
-
-                    CoroutineScope(Dispatchers.IO).launch {
-                        processRanges(reader)
-                    }
-
-                }
-
-            })
-
+            processRanges(reader)
         }
 
-        processingFiles.close()
+       // processingFiles.close()
 
     }
 
@@ -227,9 +220,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      * Wait for all file processing to complete.
      */
     private suspend fun closeChannel() {
-        for (deferred in processingFiles) {
-            deferred.await().join()
-        }
+//        for (deferred in processingFiles) {
+//            deferred.await().join()
+//        }
         processingChannel.close()
     }
 
