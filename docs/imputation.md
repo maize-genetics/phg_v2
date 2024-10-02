@@ -15,14 +15,23 @@ imputation using the PHG:
 
 ## Quick start
 
+* Get list of samples to export:
+  ```shell
+  phg list-samples \
+      --db-path /my/db/uri \
+      --data-set hvcf \
+      --output-file /my/sample_names.txt
+  ```
+
 * Export hVCF data:
   ```shell
   phg export-vcf \
       --db-path /my/db/uri \
       --dataset-type hvcf \
-      --sample-names LineA,LineB \
+      --sample-file /my/sample_names.txt \
       --output-dir /my/hvcf/dir
   ```
+  
 * Index k-mers:
   ```shell
   phg build-kmer-index \
@@ -114,7 +123,7 @@ instance. This is done using the `export-vcf` command:
 ./phg export-vcf \
     --db-path vcf_dbs \
     --dataset-type hvcf \
-    --sample-names LineA,LineB \
+    --sample-file /my/sample_names.txt \
     --output-dir output/vcf_files
 ```
 This command takes in 4 parameters:
@@ -123,17 +132,12 @@ This command takes in 4 parameters:
   AGC compressed genomes will be placed here on completion.
 * `--dataset-type` - the type of dataset to export. In this case, we
   are exporting the hVCF data.
-* `--sample-names` - a comma-separated list of sample names to export.
+* `--sample-file` - text file with list of sample names to export, one per line.
 * `--output-dir` - the directory to place the exported hVCF files.
 
-In our above example, we can use the `--sample-names` parameter, but
-for certain scenarios this may become inefficient (e.g., exporting
-hundreds of samples). To remedy this, we can bypass the 
-`--sample-names` parameter and replace it with the `--sample-file`
-parameter. This can take in a file that contains a list of samples
-you would like to export from the database. For example, if we would
-want to export the sample samples from above but in file form, the
-file would look like the following:
+In our above example, we use the `--sample-file` parameter, but if
+your sample list is small, you can use the `--sample-names` parameter.
+An example of a sample file is as follows:
 
 ```
 $ cat sample_names.txt
@@ -142,13 +146,13 @@ LineA
 LineB
 ```
 
-Now, our command input looks like the following:
+Example command using --sample-names parameter:
 
 ```shell
 ./phg export-vcf \
     --db-path vcf_dbs \
     --dataset-type hvcf \
-    --sample-file sample_names.txt \
+    --sample-names LineA,LineB \
     --output-dir output/vcf_files
 ```
 
