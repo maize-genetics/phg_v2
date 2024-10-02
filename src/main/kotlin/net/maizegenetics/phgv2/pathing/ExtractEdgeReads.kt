@@ -8,7 +8,9 @@ import htsjdk.samtools.SamReaderFactory
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
+import java.io.BufferedWriter
 import java.io.File
+import java.io.FileWriter
 
 enum class AlignmentClass {
     PAIRUNIQUE, PAIRRARE, PAIRCOMMON, PAIRSPLIT, PAIROFFASM, PAIRUNALIGN,
@@ -106,5 +108,30 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
 
     fun classifyRareAlignments(sampleName: String, records: List<Pair<SAMRecord?,SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>): AlignmentClass {
         TODO("Finish implementing this.")
+    }
+
+    /**
+     * Function that exports the filtered down fastq files and a table of [readID] -> [HapID hits] to outputFileName
+     */
+    fun outputReadsAndHapIdSets(
+        outputFileName: String,
+        // key = readId, values = alignments paired off by the correct strand that we want to export
+        alignments: Map<String, List<Pair<SAMRecord, SAMRecord>>>
+    ) {
+        // Write the table to the file as tab-delimited text
+        BufferedWriter(FileWriter(outputFileName)).use { writer ->
+            writer.write("readID\tHapID hits")
+            for ((readID, samlist) in alignments) {
+                // add all HapIDs to hits
+                val hits : MutableSet<String> = mutableSetOf<String>()
+                for (pair in samlist) {
+                    // SAMRecord.getContig() gets HapID
+                    hits.add(pair.first.getContig())
+                    hits.add(pair.second.getContig())
+                }
+                writer.write("$readID\t${hits.joinToString(separator = "\t")}\n")
+            }
+        }
+        TODO("export filtered down fastq files")
     }
 }
