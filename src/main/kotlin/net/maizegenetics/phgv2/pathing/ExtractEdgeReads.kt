@@ -173,6 +173,17 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         TODO()
     }
 
+    private fun writeFastq(fastqFileName : String, fastq : List<SAMRecord>, order : String) {
+        BufferedWriter(FileWriter("$order$fastqFileName")).use { writer ->
+            for (record in fastq) {
+                writer.write("@${record.readName}\n")
+                writer.write("${record.readString}\n")
+                writer.write("+\n")
+                writer.write("${record.baseQualityString}\n")
+            }
+        }
+    }
+
     /**
      * Function that exports the filtered down fastq files and a table of [readID] -> [HapID hits] to outputFileName
      */
@@ -188,13 +199,13 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
 
         // Write the table to the file as tab-delimited text
         BufferedWriter(FileWriter(tableFileName)).use { writer ->
-            writer.write("readID\tHapID hits")
+            writer.write("readID\tHapID hits\n")
             for ((readID, samlist) in alignments) {
                 // add all HapIDs to hits
                 val hits : MutableSet<String> = mutableSetOf<String>()
                 for (pair in samlist) {
-                    // if pair has quality score, add to the fastq file list
-                    if (pair.first.hasAttribute("MQ") && pair.second.hasAttribute("MQ")) {
+                    // if pair has base quality string, add to the fastq file list
+                    if (pair.first.baseQualityString.isNotEmpty() && pair.second.baseQualityString.isNotEmpty()) {
                         fastq1.add(pair.first)
                         fastq2.add(pair.second)
                     }
@@ -202,19 +213,11 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
                     hits.add(pair.first.contig)
                     hits.add(pair.second.contig)
                 }
-                writer.write("$readID\t${hits.joinToString(separator = "\t")}\n")
+                writer.write("$readID\t${hits.joinToString(separator = ", ")}\n")
             }
         }
-        // write fastq files with readID, quality score, and sequence
-        BufferedWriter(FileWriter("1$fastqFileName")).use { writer ->
-            for (record in fastq1) {
-                writer.write("${record.readName}\t${record.mappingQuality}\t${record.readString}\n")
-            }
-        }
-        BufferedWriter(FileWriter("2$fastqFileName")).use { writer ->
-            for (record in fastq2) {
-                writer.write("${record.readName}\t${record.mappingQuality}\t${record.readString}\n")
-            }
-        }
+        // write fastq files
+        writeFastq(fastqFileName, fastq1, "1")
+        writeFastq(fastqFileName, fastq2, "2")
     }
 }
