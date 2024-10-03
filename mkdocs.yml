@@ -107,6 +107,7 @@ nav:
       - SLURM usage: slurm_usage.md
       - Terminology: terminology.md
   - Community:
+      - References: citations.md
       - Contributing: CONTRIBUTING.md
       - Code of Conduct: CODE_OF_CONDUCT.md
 
