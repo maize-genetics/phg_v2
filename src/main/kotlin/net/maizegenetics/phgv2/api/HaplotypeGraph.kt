@@ -111,6 +111,14 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     }
 
     /**
+     * Simple function to make a map of all the haplotypeIds and all the SampleGametes which have that haplotypeId.
+     */
+    fun hapIdsToSampleGametes(): Map<String, List<SampleGamete>> {
+        return ranges().map { hapIdToSampleGametes(it) }
+            .reduce { acc, map -> acc + map }
+    }
+
+    /**
      * Creates a map of each SampleGamete in range to its haplotype id.
      * @param range a reference range in this graph
      *

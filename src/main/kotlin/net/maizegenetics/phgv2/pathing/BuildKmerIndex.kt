@@ -14,6 +14,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedWriter
@@ -163,44 +164,10 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                 else ceil(hapidToSampleMap.size * maxHaplotypeProportion)
 
                 //map haplotype ids to the sequence for that hapid
-                val hapidToSequencMap = mutableMapOf<String, List<String>>()
-                for (hapid in hapidToSampleMap.keys) {
-                    //checked for altHeader existence already
-                    val altHeader = graph.altHeader(hapid)!!
+                val hapidToSequenceMap = extractSequenceForCurrentHapIds(hapidToSampleMap, graph, agcChromSequence, agcOtherRegionSequence)
 
-                    val sequenceList = altHeader.regions.map { region ->
-                        //Regions need to be corrected for any inversions. That is, when requesting sequence
-                        // make sure that  range.start < range.end.
-                        // Note that agc positions are 1-based but nucseq positions are 0-based.
-                        // Because chromosome names can vary between assemblies, for any given assembly
-                        // the chromosome name in agcChromSequence may be specific to that assembly.
-                        // To deal with that, first check whether a needed sampleName, contig is in agcChromSequence.
-                        // If so, use that. If not, get the sequence from afcOtherRegionSequence
-
-                        //when requesting from agc, use this range
-                        val seqRangeStr =
-                            if (region.first.position <= region.second.position) "${region.first.position}-${region.second.position}"
-                            else "${region.second.position}-${region.first.position}"
-                        //when requesting from a NucSeq use this range
-                        val nucseqRange =
-                            if (region.first.position <= region.second.position) (region.first.position - 1..<region.second.position)
-                            else (region.second.position - 1..<region.first.position)
-
-                        val contigNuqseq = agcChromSequence[Pair(altHeader.sampleName(), region.first.contig)]
-
-                        val regionNucSeq = if (contigNuqseq != null) contigNuqseq[nucseqRange] else {
-                            agcOtherRegionSequence[Pair(altHeader.sampleName(), "${region.first.contig}:$seqRangeStr")]
-                        }
-
-                        //regionNucSeq should always be found. If it is not, throw an error because something has gone wrong somewhere.
-                        check(regionNucSeq != null) { "No sequence for ${altHeader.sampleName()} at ${region.first.contig}:$seqRangeStr; hapid $hapid, sample ${hapidToSampleMap[hapid]}" }
-                        regionNucSeq.seq()
-                    }
-
-                    hapidToSequencMap[hapid] = sequenceList
-                }
-
-                val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidToSequencMap, hashMask, hashFilterValue)
+                //Count Kmer Hashes for the Haplotype Sequences
+                val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidToSequenceMap, hashMask, hashFilterValue)
                 for (hashCount in kmerHashCounts.entries) {
                     val hashValue = hashCount.key
 
@@ -266,6 +233,65 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         }
         myLogger.info("$numberInDiscardSet kmers in the keepMap are also in the discardSet.")
         return keepMap
+    }
+
+    /**
+     * Function to extract out the sequence for a current list of haplotype ids
+     */
+    private fun extractSequenceForCurrentHapIds(
+        hapidToSampleMap: Map<String, List<SampleGamete>>,
+        graph: HaplotypeGraph,
+        agcChromSequence: Map<Pair<String, String>, NucSeq>,
+        agcOtherRegionSequence: Map<Pair<String, String>, NucSeq>
+    ): Map<String, List<String>> {
+
+        val hapIdToSequenceMap = hapidToSampleMap.keys.associateWith {
+            val altHeader = graph.altHeader(it)!!
+            getSeqListForHapId(altHeader, agcChromSequence, agcOtherRegionSequence, it, hapidToSampleMap)
+        }
+
+        return hapIdToSequenceMap
+    }
+
+    /**
+     * Function to pull the needed sequences from AGC
+     */
+    private fun getSeqListForHapId(
+        altHeader: AltHeaderMetaData,
+        agcChromSequence: Map<Pair<String, String>, NucSeq>,
+        agcOtherRegionSequence: Map<Pair<String, String>, NucSeq>,
+        hapid: String,
+        hapidToSampleMap: Map<String, List<SampleGamete>>
+    ): List<String> {
+        val sequenceList = altHeader.regions.map { region ->
+            //Regions need to be corrected for any inversions. That is, when requesting sequence
+            // make sure that  range.start < range.end.
+            // Note that agc positions are 1-based but nucseq positions are 0-based.
+            // Because chromosome names can vary between assemblies, for any given assembly
+            // the chromosome name in agcChromSequence may be specific to that assembly.
+            // To deal with that, first check whether a needed sampleName, contig is in agcChromSequence.
+            // If so, use that. If not, get the sequence from afcOtherRegionSequence
+
+            //when requesting from agc, use this range
+            val seqRangeStr =
+                if (region.first.position <= region.second.position) "${region.first.position}-${region.second.position}"
+                else "${region.second.position}-${region.first.position}"
+            //when requesting from a NucSeq use this range
+            val nucseqRange =
+                if (region.first.position <= region.second.position) (region.first.position - 1..<region.second.position)
+                else (region.second.position - 1..<region.first.position)
+
+            val contigNuqseq = agcChromSequence[Pair(altHeader.sampleName(), region.first.contig)]
+
+            val regionNucSeq = if (contigNuqseq != null) contigNuqseq[nucseqRange] else {
+                agcOtherRegionSequence[Pair(altHeader.sampleName(), "${region.first.contig}:$seqRangeStr")]
+            }
+
+            //regionNucSeq should always be found. If it is not, throw an error because something has gone wrong somewhere.
+            check(regionNucSeq != null) { "No sequence for ${altHeader.sampleName()} at ${region.first.contig}:$seqRangeStr; hapid $hapid, sample ${hapidToSampleMap[hapid]}" }
+            regionNucSeq.seq()
+        }
+        return sequenceList
     }
 
     private fun writeDiagnostics(adjacentHashCounts: Map<ReferenceRange, Int>) {
@@ -457,7 +483,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             //this line encodes a haplotype set (hapset)
             for (hapid in entry.key) {
                 if(hapidIndex.containsKey(hapid)) encodedHapSets.set(offset + hapidIndex[hapid]!!)
-                else myLogger.warn("BuildKmerIndex.buildEncodedHapSetsAndHashOffsets: ndx = null for hapid = $hapid.")
             }
 
             //this line stores a pair of kmerHash, offset for each kmer mapping to this haplotype set
