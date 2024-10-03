@@ -113,8 +113,9 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
 
 
     fun isPaired(records: List<Pair<SAMRecord?, SAMRecord?>>): Boolean {
-        //check to see if all the records are paired ended
-        return records.map { it.first != null && it.second != null }.all { it }
+        //check to see if  there is a  record are paired ended
+        //If we have one we have enough, As long as we have 1 paired we ignore the rest
+        return records.map { it.first != null && it.second != null }.any { it }
     }
 
     //SINGLEUNIQUE, SINGLERARE, SINGLECOMMON, SINGLEALIGNSPLIT, SINGLEALIGNSPLITCONSEC,SINGLEOFFASM
@@ -133,7 +134,17 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
 
 
     fun classifyPairedAlignments(sampleName: String, numSampleGametes: Int, records: List<Pair<SAMRecord?,SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, hapIdToSampleGamete: Map<String, List<SampleGamete>>, refRangeToIndexMap: Map<String, Int>) :AlignmentClass {
-        TODO()
+        //Check unique first then the splits and offASM and then rare vs common
+        return when{
+            records.size == 1 -> AlignmentClass.PAIRUNIQUE
+            isPairedAlignConsec(records,hapIdToRefRangeMap, refRangeToIndexMap) -> AlignmentClass.PAIRALIGNSPLITCONSEC //Check consec first as its a subclass of AlignSplit
+            isPairedAlignSplit(records,hapIdToRefRangeMap) -> AlignmentClass.PAIRALIGNSPLIT
+            isPairedOffASM(sampleName, records, hapIdToSampleGamete) -> AlignmentClass.PAIROFFASM
+            isPairedReadSplitConsec(records, hapIdToRefRangeMap, refRangeToIndexMap) -> AlignmentClass.PAIRREADSPLITCONSEC
+            isPairedReadSplit(records, hapIdToRefRangeMap) -> AlignmentClass.PAIRREADSPLIT
+            records.size in 2 .. numSampleGametes/2 -> AlignmentClass.PAIRRARE
+            else -> AlignmentClass.PAIRCOMMON
+        }
     }
 
     fun isSingleAlignSplit(records: List<Pair<SAMRecord?, SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>) : Boolean {
@@ -153,8 +164,8 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
 
             val currentRangeSet = mutableSetOf<ReferenceRange>()
             //Need to check nulls here
-            if (readOneHapId != null) currentRangeSet.addAll(hapIdToRefRangeMap[readOneHapId]!!)
-            if (readTwoHapId != null) currentRangeSet.addAll(hapIdToRefRangeMap[readTwoHapId]!!)
+            if (readOneHapId != null ) currentRangeSet.addAll(hapIdToRefRangeMap[readOneHapId]!!)
+            if (readTwoHapId != null ) currentRangeSet.addAll(hapIdToRefRangeMap[readTwoHapId]!!)
 
             refRangeSet.addAll(currentRangeSet)
 
@@ -180,6 +191,7 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
 
 
     fun isSingleOffASM(sampleName: String, records: List<Pair<SAMRecord?, SAMRecord?>>, hapIdToSampleGamete: Map<String, List<SampleGamete>> ) :Boolean {
+        check(records.isNotEmpty()) { "Records must not be empty" }
         //loop through the records and get out the hapIds
         val samplesHit = mutableSetOf<String>()
         for (record in records) {
@@ -193,6 +205,44 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         //If that set does not contain the Sample Name return true as no alignment has our sample
         return !samplesHit.contains(sampleName)
     }
+
+    fun isPairedAlignConsec(records: List<Pair<SAMRecord?, SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, refRangeToIndexMap: Map<String, Int>) : Boolean {
+//        //get all the referenceRanges
+//        val refRangesHit = getRefRangesHit(records, hapIdToRefRangeMap)
+//        //if we have more than 2 refRanges then we are not consecutive
+//        return when {
+//            (refRangesHit.size > 2) -> false
+//            (refRangesHit.size == 1) -> false
+//            (refRangesHit.size == 2) -> {
+//                val refRangeIndexes = refRangesHit.map { refRangeToIndexMap[it.toString()]!! }
+//                (refRangeIndexes[0] + 1 == refRangeIndexes[1] || refRangeIndexes[0] - 1 == refRangeIndexes[1])
+//            }
+//            else -> false
+//        }
+
+        TODO()
+    }
+
+    fun isPairedAlignSplit(records: List<Pair<SAMRecord?, SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>) : Boolean {
+//        //If one record has a different refRange than the others then it is an align split
+//        val refRangeSet = getRefRangesHit(records, hapIdToRefRangeMap)
+//        return refRangeSet.size > 1
+        TODO()
+    }
+
+    fun isPairedOffASM(sampleName: String, records: List<Pair<SAMRecord?, SAMRecord?>>, hapIdToSampleGamete: Map<String, List<SampleGamete>> ) :Boolean {
+        TODO()
+    }
+
+    fun isPairedReadSplitConsec(records: List<Pair<SAMRecord?, SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, refRangeToIndexMap: Map<String, Int>) : Boolean {
+        TODO()
+    }
+
+    fun isPairedReadSplit(records: List<Pair<SAMRecord?, SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>) : Boolean {
+        TODO()
+    }
+
+
 
     //    fun isReadSplit(records: List<Pair<SAMRecord?,SAMRecord?>>): Boolean {
     //        //If each pair of records hit different haplotypes then it is a read split
