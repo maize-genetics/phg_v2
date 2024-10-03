@@ -13,12 +13,8 @@ import java.io.File
 import java.io.FileWriter
 
 enum class AlignmentClass {
-    PAIRUNIQUE, PAIRRARE, PAIRCOMMON, PAIRSPLIT, PAIROFFASM, PAIRUNALIGN,
-    UNIQUE_RARE, UNIQUE_COMMON, UNIQUE_SPLIT, UNIQUE_OFFASM, UNIQUE_UNALIGN,
-    RARE_COMMON, RARE_SPLIT, RARE_OFFASM, RARE_UNALIGN,
-    COMMON_SPLIT, COMMON_OFFASM, COMMON_UNALIGN,
-    SPLIT_OFFASM, SPLIT_UNALIGN,
-    OFFASM_UNALIGN
+    PAIRUNIQUE, PAIRRARE, PAIRCOMMON, PAIRREADSPLIT, PAIRREADSPLITCONSEC, PAIRALIGNSPLIT, PAIRALIGNSPLITCONSEC, PAIROFFASM, UNALIGN,
+    SINGLEUNIQUE, SINGLERARE, SINGLECOMMON, SINGLEALIGNSPLIT, SINGLEALIGNSPLITCONSEC,SINGLEOFFASM
 
 }
 
@@ -61,11 +57,13 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         val hapIdToRefRangeMap = graph.hapIdToRefRangeMap()
         val hapIdsToSampleGametes = graph.hapIdsToSampleGametes()
 
+        val numSampleGametes = graph.numSampleGametes()
+
         while(iterator.hasNext()) {
             val currentRecord = iterator.next()
             if(currentRecord.readName != currentReadId) {
                 //process the reads
-                processReads(sampleName, recordsForRead, hapIdToRefRangeMap, hapIdsToSampleGametes)
+                processReads(sampleName, numSampleGametes, recordsForRead, hapIdToRefRangeMap, hapIdsToSampleGametes)
                 //reset the records
                 recordsForRead = mutableListOf()
                 currentReadId = currentRecord.readName
@@ -73,15 +71,15 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
             recordsForRead.add(currentRecord)
         }
         //process the last read alignments
-        processReads(sampleName, recordsForRead, hapIdToRefRangeMap, hapIdsToSampleGametes)
+        processReads(sampleName, numSampleGametes, recordsForRead, hapIdToRefRangeMap, hapIdsToSampleGametes)
     }
 
-    fun processReads(sampleName:String, recordsForRead: List<SAMRecord>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, hapIdToSampleGamete: Map<String,List<SampleGamete>>) {
+    fun processReads(sampleName:String, numSampleGametes: Int, recordsForRead: List<SAMRecord>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, hapIdToSampleGamete: Map<String,List<SampleGamete>>) {
         //Pair off the reads by their alignment to haplotype ids
         val recordsGroupedByContig = recordsForRead.groupBy { record -> hapIdToSampleGamete[record.contig]!! }.map { filterAlignmentToPair(it.value) }
         //For the pair only keep track of the best ones based on edit distance
         //We are looking for various edge cases
-        classifyAlignments(sampleName, recordsGroupedByContig, hapIdToRefRangeMap)
+        classifyAlignments(sampleName, numSampleGametes,recordsGroupedByContig, hapIdToRefRangeMap)
     }
 
     fun filterAlignmentToPair(records: List<SAMRecord>): Pair<SAMRecord?,SAMRecord?> {
@@ -94,20 +92,85 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         return records.minByOrNull { it.getIntegerAttribute("NM") }
     }
 
-    fun classifyAlignments(sampleName: String, records: List<Pair<SAMRecord?,SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>): AlignmentClass {
+    fun classifyAlignments(sampleName: String, numSampleGametes: Int ,records: List<Pair<SAMRecord?,SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>): AlignmentClass {
         return when {
-            records.size == 1 && records.first().first == null && records.first().second == null -> AlignmentClass.PAIRUNALIGN
-            records.size == 1 && (records.first().first == null || records.first().second == null) -> AlignmentClass.UNIQUE_UNALIGN
-            records.size == 1 -> AlignmentClass.PAIRUNIQUE
-            records.size in 2 .. 5 -> classifyRareAlignments(sampleName, records, hapIdToRefRangeMap )
+            records.size == 1 -> classifyUniqueAlignments(records)
+            isReadSplit(records) -> classifyReadSplitAlignments(records)
+            isAlignSplit(records, hapIdToRefRangeMap) -> classifyAlignSplitAlignments(records)
+            records.size in 2 .. numSampleGametes/2 -> classifyRareAlignments(sampleName, numSampleGametes ,records, hapIdToRefRangeMap )
 
-            else -> AlignmentClass.PAIRUNALIGN
+            else -> AlignmentClass.UNALIGN
         }
 
     }
 
-    fun classifyRareAlignments(sampleName: String, records: List<Pair<SAMRecord?,SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>): AlignmentClass {
-        TODO("Finish implementing this.")
+    fun isReadSplit(records: List<Pair<SAMRecord?,SAMRecord?>>): Boolean {
+        //If each pair of records hit different haplotypes then it is a read split
+        var isReadSplit = false
+        for(recordPair in records) {
+            //Skip if one of the records is null
+            if(recordPair.first == null || recordPair.second == null) {
+                continue
+            }
+            if(recordPair.first?.contig != recordPair.second?.contig) {
+                isReadSplit = true
+                break
+            }
+        }
+        return isReadSplit
+    }
+
+    fun isAlignSplit(records: List<Pair<SAMRecord?,SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>): Boolean {
+        //Check to see if all the records have a common refRange  if not its an align split
+        var refRangeSet = setOf<ReferenceRange>()
+        for(record in records) {
+            val readOneHapId = record.first?.contig
+            val readTwoHapId = record.second?.contig
+
+            val currentRangeSet = mutableSetOf<ReferenceRange>()
+            //Need to check nulls here
+            if(readOneHapId != null) currentRangeSet.addAll(hapIdToRefRangeMap[readOneHapId]!!)
+            if(readTwoHapId != null) currentRangeSet.addAll(hapIdToRefRangeMap[readTwoHapId]!!)
+
+            if(currentRangeSet.isNotEmpty()) {
+                refRangeSet = if(refRangeSet.isEmpty()) {
+                    currentRangeSet
+                } else {
+                    refRangeSet.intersect(currentRangeSet)
+                }
+            }
+            else {
+                continue
+            }
+
+            if(refRangeSet.isEmpty()) {
+                return true
+            }
+        }
+        return false
+    }
+
+
+    fun classifyUniqueAlignments(records: List<Pair<SAMRecord?,SAMRecord?>>): AlignmentClass {
+        return when {
+            records.first().first == null && records.first().second == null -> AlignmentClass.UNALIGN
+            (records.first().first == null || records.first().second == null) -> AlignmentClass.SINGLEUNIQUE
+            else -> AlignmentClass.PAIRUNIQUE
+        }
+    }
+
+    fun classifyRareAlignments(sampleName: String, numSampleGametes: Int, records: List<Pair<SAMRecord?,SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>): AlignmentClass {
+        return when {
+            //PAIRRARE
+            //
+            else -> AlignmentClass.UNALIGN
+        }
+    }
+    fun classifyReadSplitAlignments(records: List<Pair<SAMRecord?,SAMRecord?>>): AlignmentClass {
+        TODO()
+    }
+    fun classifyAlignSplitAlignments(records: List<Pair<SAMRecord?,SAMRecord?>>): AlignmentClass {
+        TODO()
     }
 
     /**

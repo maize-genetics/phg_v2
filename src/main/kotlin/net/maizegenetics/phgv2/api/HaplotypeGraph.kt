@@ -95,6 +95,10 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         return gameteSet
     }
 
+    fun numSampleGametes() : Int {
+        return sampleGametesInGraph().size
+    }
+
     /**
      * Returns a map of hapid -> SampleGamete(s) for the specified ReferenceRange.
      */
