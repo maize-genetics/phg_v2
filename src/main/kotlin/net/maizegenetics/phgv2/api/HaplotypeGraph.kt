@@ -255,6 +255,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     fun processRanges(reader: VCFFileReader):List<RangeInfo> {
         val rangeInfoList = mutableListOf<RangeInfo>()
         reader.forEach { context ->
+            // NOTE: This can throw an exception if there are blank lines in the VCF file
+            // THe problem seems to occur in the VCFReader processing - checking for blank
+            // at this stage does not help.
             rangeInfoList.add(contextToRange(context))
         }
         return rangeInfoList
