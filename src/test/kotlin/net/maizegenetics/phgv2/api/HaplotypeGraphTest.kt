@@ -27,16 +27,6 @@ class HaplotypeGraphTest {
 
     }
 
-//    @Test
-//    fun testphgv2Common_hvcfFiles() {
-//        val hvcfFolder = "/Users/lcj34/notes_files/phg_v2/debug/haplotypGraph_tooSlow/hvcfs"
-//        // get a list of files from the hvcfFolder
-//        val hvcfFiles = File(hvcfFolder).listFiles().map { it.absolutePath }
-//        val startTime = System.nanoTime()
-//        val graph = HaplotypeGraph(hvcfFiles)
-//        val timeToExecute = (System.nanoTime() - startTime) / 1e9
-//        println("Time to execute: $timeToExecute")
-//    }
     @Test
     fun testMultipleFilesHaplotypeGraph() {
         //include RefHvcf to test what happens when a sample has no haplotype in at least one ReferenceRange
@@ -110,8 +100,12 @@ class HaplotypeGraphTest {
     @Test
     fun testBadInputHaplotypeGraph() {
         // ALT tag does not contain sample name
+        assertThrows<IllegalArgumentException> {
+            HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFileBadAltTag))
+        }
+        // This is the assert needed if we switch back to co-routines in HaplotypGraph
+        // Coroutines suppress the exception, hence we need to check the graph for null
         //val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFileBadAltTag))
-        assertThrows<IllegalArgumentException> { HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFileBadAltTag)) }
         //assert(graph == null || graph.numberOfRanges() == 0) { "graph not null or empty" }
     }
 
