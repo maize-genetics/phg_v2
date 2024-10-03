@@ -14,6 +14,11 @@ import java.util.*
  * Class to create a HaplotypeGraph from a list of hvcf files.
  * The HaplotypeGraph is a data structure that allows for fast
  * lookup of haplotype sequences for a given ReferenceRange.
+ *
+ * Current version is re-worked to removed co-routines and use
+ * single-threaded.  The computation for convering variant context
+ * to refRange is very quick.  Co-routine overhead caused major
+ * delays in processing - this is much faster.
  */
 class HaplotypeGraph(hvcfFiles: List<String>) {
 
@@ -36,17 +41,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     // Map<ID (checksum), AltHeaderMetaData>
     private lateinit var altHeaderMap: Map<String, AltHeaderMetaData>
 
-   // private val processingFiles = Channel<Deferred<Job>>(100)
-    private val processingChannel = Channel<RangeInfo>(100)
-
     init {
-
-        CoroutineScope(Dispatchers.IO).launch {
-            processFiles(hvcfFiles)
-            closeChannel()
-        }
-
-        runBlocking { addSites() }
+        processFiles(hvcfFiles)
 
         if (rangeByGameteIdToHapid.isNotEmpty()) {
             myLogger.info("rangeToSampleToChecksum: ${rangeByGameteIdToHapid.size} x ${rangeByGameteIdToHapid[0].size}")
@@ -160,7 +156,12 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      */
     fun altHeaders() = altHeaderMap
 
-    private suspend fun processFiles(hvcfFiles: List<String>) {
+    fun processFiles(hvcfFiles:List<String>) {
+
+        // rangeIdToSampleToChecksum[refRangeId][sampleId][gameteId] -> Checksum / hapid
+        val rangeIdToSampleToChecksum = mutableListOf<Array<MutableList<String?>>>()
+
+        val rangeMap = mutableMapOf<ReferenceRange, Int>()
 
         val readers = mutableListOf<VCFFileReader>()
         val sampleNamesSet = mutableSetOf<String>()
@@ -169,6 +170,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         myLogger.info("processFiles: ${hvcfFiles.size} hvcf files")
         // Step 1: Collect sample names and check for duplicates (non-parallel)
+        var time = System.nanoTime()
         hvcfFiles.forEach { hvcfFile ->
 
             myLogger.info("processFiles: $hvcfFile")
@@ -185,56 +187,70 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
                 mutableAltHeaderMap.putAll(parseALTHeader(reader.header))
             } catch (exc: Exception) {
                 myLogger.error("processFiles: $hvcfFile: ${exc.message}")
-               // processingFiles.close()
-                processingChannel.close()
                 readers.forEach { it.close() }
                 throw IllegalArgumentException("processFiles: $hvcfFile: ${exc.message}")
             }
         }
 
+        // print time to process from above
+        myLogger.info("Time to process files: ${((System.nanoTime() - time) / 1e9)}")
+
         //make the alt header map immutable
         altHeaderMap = mutableAltHeaderMap.toMap()
 
         // Step 2: check for duplicate sample names
+        myLogger.info("Finished creating readers, parsing ALT headers, now checking for duplicate sample names.")
         sampleNamesSet.forEach { sampleNamesList.remove(it) }
         if (sampleNamesList.isNotEmpty()) {
             throw IllegalArgumentException("processFiles: duplicate sample names: $sampleNamesList")
         }
 
         // Initialize sampleNameToIdMap and sampleNames after validation
+        myLogger.info("processFiles: initializing sampleNameToIdMap")
         sampleNames = sampleNamesSet.sorted().toTypedArray()
         sampleNameToIdMap = sampleNames.mapIndexed { index, sampleName ->
             Pair(sampleName, index)
         }.toMap()
 
-        // Step 3: Process the files sequentially, but ranges for each file in parallel
+
+        // Step 3: Process the files sequentially
+        myLogger.info("HaplotypeGraph:ProcessFiles: calling readers to processRanges")
         readers.forEach { reader ->
-            processRanges(reader)
-        }
+            val rangeInfoList = processRanges(reader)
+            for (rangeInfo in rangeInfoList) {
+                val rangeId = rangeMap.getOrPut(rangeInfo.range) { rangeMap.size }
 
-       // processingFiles.close()
-
-    }
-
-    /**
-     * Wait for all file processing to complete.
-     */
-    private suspend fun closeChannel() {
-//        for (deferred in processingFiles) {
-//            deferred.await().join()
-//        }
-        processingChannel.close()
-    }
-
-    private suspend fun processRanges(reader: VCFFileReader) =
-        withContext(Dispatchers.IO) {
-
-            reader.forEach { context ->
-                processingChannel.send(contextToRange(context))
+                if (rangeId < rangeIdToSampleToChecksum.size) {
+                    rangeIdToSampleToChecksum[rangeId] =
+                        mergeStringArrays(rangeIdToSampleToChecksum.getOrNull(rangeId), rangeInfo.rangeSampleToChecksum)
+                } else {
+                    rangeIdToSampleToChecksum.add(
+                        rangeId,
+                        mergeStringArrays(rangeIdToSampleToChecksum.getOrNull(rangeId), rangeInfo.rangeSampleToChecksum)
+                    )
+                }
             }
-
         }
+        myLogger.info("Finished with readers loop to process ranges.")
 
+        refRangeMap = rangeMap.toSortedMap()
+
+        // rangeByGameteIdToHapid[refRangeId][sampleId][gameteID] -> checksum / hapid
+        rangeByGameteIdToHapid = rangeIdToSampleToChecksum.map { sampleGameteHapid ->
+            sampleGameteHapid.map { gameteHapid ->
+                gameteHapid.map { it ?: "" }.toTypedArray()
+            }.toTypedArray()
+        }.toTypedArray()
+
+    }
+
+    fun processRanges(reader: VCFFileReader):List<RangeInfo> {
+        val rangeInfoList = mutableListOf<RangeInfo>()
+        reader.forEach { context ->
+            rangeInfoList.add(contextToRange(context))
+        }
+        return rangeInfoList
+    }
     /**
      * ReferenceRange Information
      *
@@ -268,43 +284,6 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         }
 
         return RangeInfo(rangeSampleToChecksum, range)
-
-    }
-
-    /**
-     * Add reference ranges from the processingChannel to data structures.
-     */
-    private suspend fun addSites() {
-
-        // rangeIdToSampleToChecksum[refRangeId][sampleId][gameteId] -> Checksum / hapid
-        val rangeIdToSampleToChecksum = mutableListOf<Array<MutableList<String?>>>()
-
-        val rangeMap = mutableMapOf<ReferenceRange, Int>()
-
-        for (rangeInfo in processingChannel) {
-
-            val rangeId = rangeMap.getOrPut(rangeInfo.range) { rangeMap.size }
-
-            if (rangeId < rangeIdToSampleToChecksum.size) {
-                rangeIdToSampleToChecksum[rangeId] =
-                    mergeStringArrays(rangeIdToSampleToChecksum.getOrNull(rangeId), rangeInfo.rangeSampleToChecksum)
-            } else {
-                rangeIdToSampleToChecksum.add(
-                    rangeId,
-                    mergeStringArrays(rangeIdToSampleToChecksum.getOrNull(rangeId), rangeInfo.rangeSampleToChecksum)
-                )
-            }
-
-        }
-
-        refRangeMap = rangeMap.toSortedMap()
-
-        // rangeByGameteIdToHapid[refRangeId][sampleId][gameteID] -> checksum / hapid
-        rangeByGameteIdToHapid = rangeIdToSampleToChecksum.map { sampleGameteHapid ->
-            sampleGameteHapid.map { gameteHapid ->
-                gameteHapid.map { it ?: "" }.toTypedArray()
-            }.toTypedArray()
-        }.toTypedArray()
 
     }
 
