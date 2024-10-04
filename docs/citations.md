@@ -19,7 +19,7 @@
 
         Bradbury, P J and Casstevens, T and Jensen, S E and Johnson, L C and Miller, Z R and Monier, B and Romay, M C and Song, B and Buckler, E S (2022). **The Practical Haplotype Graph, a platform for storing and using pangenomes for imputation.** *Bioinformatics*. DOI: [10.1093/bioinformatics/btac410](https://doi.org/10.1093/bioinformatics/btac410)
 
-    === ":material-account-school: Citation (BibTeX)"
+    === ":simple-latex: Citation (BibTeX)"
 
         ```
         @article{10.1093/bioinformatics/btac410,
@@ -55,7 +55,7 @@
 
         Long, Evan M and Bradbury, Peter J and Romay, M Cinta and Buckler, Edward S and Robbins, Kelly R (2021). **Genome-wide imputation using the practical haplotype graph in the heterozygous crop cassava.** *G3 Genes|Genomes|Genetics*. DOI: [10.1093/g3journal/jkab383](https://doi.org/10.1093/g3journal/jkab383)
 
-    === ":material-account-school: Citation (BibTeX)"
+    === ":simple-latex: Citation (BibTeX)"
 
         ```
         @article{10.1093/g3journal/jkab383,
@@ -95,8 +95,8 @@
 
         Franco, Jose A. Valdes and Gage, Joseph L. and Bradbury, Peter J. and Johnson, Lynn C. and Miller, Zachary R. and Buckler, Edward S. and Romay, M. Cinta (2020). **A Maize Practical Haplotype Graph Leverages Diverse NAM Assemblies.** *bioRxiv*. DOI: [10.1101/2020.08.31.268425](https://doi.org/10.1101/2020.08.31.268425)
 
-    === ":material-account-school: Citation (BibTeX)"
-        
+    === ":simple-latex: Citation (BibTeX)"
+
         ```
         @article {Franco2020.08.31.268425,
         	author = {Franco, Jose A. Valdes and Gage, Joseph L. and Bradbury, Peter J. and Johnson, Lynn C. and Miller, Zachary R. and Buckler, Edward S. and Romay, M. Cinta},
@@ -135,7 +135,7 @@
 
         Jensen, Sarah E. and Charles, Jean Rigaud and Muleta, Kebede and Bradbury, Peter J. and Casstevens, Terry and Deshpande, Santosh P. and Gore, Michael A. and Gupta, Rajeev and Ilut, Daniel C. and Johnson, Lynn and Lozano, Roberto and Miller, Zachary and Ramu, Punna and Rathore, Abhishek and Romay, M. Cinta and Upadhyaya, Hari D. and Varshney, Rajeev K. and Morris, Geoffrey P. and Pressoir, Gael and Buckler, Edward S. and Ramstein, Guillaume P. (2020). **A sorghum practical haplotype graph facilitates genome‐wide imputation and cost‐effective genomic prediction.** *The Plant Genome*. DOI: [10.1002/tpg2.20009](https://doi.org/10.1002/tpg2.20009)
 
-    === ":material-account-school: Citation (BibTeX)"
+    === ":simple-latex: Citation (BibTeX)"
 
         ```
         @article{https://doi.org/10.1002/tpg2.20009,
@@ -230,7 +230,6 @@
     * **Bhat, Javaid Akhter and Yu, Deyue and Bohra, Abhishek and Ganie, Showkat Ahmad and Varshney, Rajeev K.** (2021). Features and applications of haplotypes in crop breeding. *Communications Biology*. DOI: [10.1038/s42003-021-02782-y](https://doi.org/10.1038/s42003-021-02782-y)
     * **Böndel, Katharina B. and Schmid, Karl J.** (2021). Quinoa Diversity and Its Implications for Breeding. *NA*. DOI: [10.1007/978-3-030-65237-1_7](https://doi.org/10.1007/978-3-030-65237-1_7)
     * **Richards, Chris** (2021). Genomics of Plant Gene Banks: Prospects for Managing and Delivering Diversity in the Digital Age. *NA*. DOI: [10.1007/13836_2021_95](https://doi.org/10.1007/13836_2021_95)
-
 
 
 
