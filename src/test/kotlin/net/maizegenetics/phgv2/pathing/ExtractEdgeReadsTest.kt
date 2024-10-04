@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.pathing
 
+import biokotlin.util.bufferedReader
 import htsjdk.samtools.*
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
@@ -54,13 +55,13 @@ class ExtractEdgeReadsTest {
         extractEdgeReads.outputReadsAndHapIdSets(tableFileName = "table.txt", fastqFileName = "fastq.fq", alignments)
 
         // read in data from output files and check if correct
-        BufferedReader(FileReader("table.txt")).use { reader ->
+        bufferedReader("table.txt").use { reader ->
             val header : String = reader.readLine()
             assertEquals(header, "readID\tHapIDHits")
             val line1 : String = reader.readLine()
             assertEquals(line1, "readID1\tchr1, chr2, chr3, chr4")
         }
-        BufferedReader(FileReader("1fastq.fq")).use { reader ->
+        bufferedReader("1fastq.fq").use { reader ->
             val name1 : String = reader.readLine()
             assertEquals(name1, "@read1")
             val seq1 : String = reader.readLine()
@@ -79,7 +80,7 @@ class ExtractEdgeReadsTest {
             val score2 : String = reader.readLine()
             assertEquals(score2, "IIII")
         }
-        BufferedReader(FileReader("2fastq.fq")).use { reader ->
+        bufferedReader("2fastq.fq").use { reader ->
 
             val name1 : String = reader.readLine()
             assertEquals(name1, "@read2")
@@ -104,8 +105,6 @@ class ExtractEdgeReadsTest {
         File("2fastq.fq").delete()
     }
 
-//reateSAMRecord(factory: SAMRecordFactory, header: SAMFileHeader, readName : String,
-//                                readString : String, mappingQuality : Int, contig : String, BS : String)
     @Test
     fun testIsSingleAndPaired() {
         val extractEdgeReads = ExtractEdgeReads()
