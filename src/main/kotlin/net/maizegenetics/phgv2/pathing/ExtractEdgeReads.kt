@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.pathing
 
+import biokotlin.util.bufferedWriter
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
@@ -246,7 +247,7 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
 
 
     private fun writeFastq(fastqFileName : String, fastq : List<SAMRecord>, order : String) {
-        BufferedWriter(FileWriter("$order$fastqFileName")).use { writer ->
+        bufferedWriter("$order$fastqFileName").use { writer ->
             for (record in fastq) {
                 writer.write("@${record.readName}\n")
                 writer.write("${record.readString}\n")
@@ -256,7 +257,7 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         }
     }
 
-    
+
     //    fun isReadSplit(records: List<Pair<SAMRecord?,SAMRecord?>>): Boolean {
     //        //If each pair of records hit different haplotypes then it is a read split
     //        var isReadSplit = false
@@ -340,8 +341,8 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         val fastq2 : MutableList<SAMRecord> = mutableListOf()
 
         // Write the table to the file as tab-delimited text
-        BufferedWriter(FileWriter(tableFileName)).use { writer ->
-            writer.write("readID\tHapID hits\n")
+        bufferedWriter(tableFileName).use { writer ->
+            writer.write("readID\tHapIDHits\n")
             for ((readID, samlist) in alignments) {
                 // add all HapIDs to hits
                 val hits : MutableSet<String> = mutableSetOf<String>()
