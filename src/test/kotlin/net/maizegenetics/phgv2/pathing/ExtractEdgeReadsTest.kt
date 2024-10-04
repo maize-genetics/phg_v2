@@ -2,6 +2,7 @@ package net.maizegenetics.phgv2.pathing
 
 import biokotlin.util.bufferedReader
 import htsjdk.samtools.*
+import io.kotest.matchers.collections.beStrictlyDecreasing
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
 import org.junit.jupiter.api.Test
@@ -489,6 +490,50 @@ class ExtractEdgeReadsTest {
     @Test
     fun testClassifyAlignments() {
         TODO("Implement this test")
+    }
+
+    @Test
+    fun testFilterAlignmentToPair() {
+        val extractEdgeReads = ExtractEdgeReads()
+        val factory = DefaultSAMRecordFactory()
+        val header = SAMFileHeader()
+        val sam1 = createSAMRecord(factory, header, "first", "AAAA", 30, "chr1", "IIII", firstInPair = true, startPos = 10)
+        val sam2 = createSAMRecord(factory, header, "second", "TTTT", 30, "chr1", "IIII", firstInPair = false, startPos = 20)
+
+        sam1.readPairedFlag = true
+        sam1.mateReferenceName = "chr1"
+        sam1.mateAlignmentStart = 20
+        sam1.mateUnmappedFlag = false
+
+        sam2.readPairedFlag = true
+        sam2.mateReferenceName = "chr1"
+        sam2.mateAlignmentStart = 10
+        sam2.mateUnmappedFlag = false
+
+        val bestAlignments = extractEdgeReads.filterAlignmentToPair(listOf(sam1, sam2))
+
+        assertEquals(bestAlignments, Pair(sam1, sam2))
+
+    }
+
+    @Test
+    fun testKeepBestAlignments() {
+
+        val extractEdgeReads = ExtractEdgeReads()
+        val factory = DefaultSAMRecordFactory()
+        val header = SAMFileHeader()
+        val sam1 = createSAMRecord(factory, header, "first", "AAAA", 30, "chr1", "IIII", firstInPair = true, startPos = 10)
+        val sam2 = createSAMRecord(factory, header, "second", "TTTT", 30, "chr1", "IIII", firstInPair = false, startPos = 20)
+        val sam3 = createSAMRecord(factory, header, "third", "TTTT", 30, "chr1", "IIII", firstInPair = false, startPos = 20)
+
+        sam1.setAttribute("NM", 10)
+        sam2.setAttribute("NM", 20)
+        sam3.setAttribute("NM", 0)
+
+        assertEquals(extractEdgeReads.keepBestAlignment(listOf(sam1, sam2)), sam1)
+        assertEquals(extractEdgeReads.keepBestAlignment(listOf(sam2, sam3)), sam3)
+        assertEquals(extractEdgeReads.keepBestAlignment(listOf(sam1, sam3)), sam3)
+
     }
 
     @Test
