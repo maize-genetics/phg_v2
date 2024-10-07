@@ -153,9 +153,9 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         //We cant have readSplit as these are all single ended reads
         return when{
             records.size == 1 -> AlignmentClass.SINGLEUNIQUE
+            isSingleOffASM(sampleName, records, hapIdToSampleGamete) -> AlignmentClass.SINGLEOFFASM
             isSingleAlignConsec(records,hapIdToRefRangeMap, refRangeToIndexMap) -> AlignmentClass.SINGLEALIGNSPLITCONSEC //Check consec first as its a subclass of AlignSplit
             isSingleAlignSplit(records,hapIdToRefRangeMap) -> AlignmentClass.SINGLEALIGNSPLIT
-            isSingleOffASM(sampleName, records, hapIdToSampleGamete) -> AlignmentClass.SINGLEOFFASM
             records.size in 2 .. numSampleGametes/2 -> AlignmentClass.SINGLERARE
             else -> AlignmentClass.SINGLECOMMON
         }
