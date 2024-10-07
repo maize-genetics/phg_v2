@@ -133,7 +133,9 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
 
     fun filterAlignmentToPair(records: List<SAMRecord>): Pair<SAMRecord?,SAMRecord?> {
         //these records are all hitting the same contig.  Need to split them by first in pair and second in pair
+
         val bestAlignments = records.groupBy { it.firstOfPairFlag }.map { keepBestAlignment(it.value) }
+        if (bestAlignments.size == 1) { return Pair(bestAlignments[0], null)}
         return Pair(bestAlignments[0], bestAlignments[1])
     }
 
