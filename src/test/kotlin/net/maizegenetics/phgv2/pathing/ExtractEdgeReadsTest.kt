@@ -1,20 +1,29 @@
 package net.maizegenetics.phgv2.pathing
 
 import biokotlin.util.bufferedReader
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.types.int
+import com.github.ajalt.clikt.testing.test
 import htsjdk.samtools.*
 import io.kotest.matchers.collections.beStrictlyDecreasing
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.cli.TestExtension
+import org.apache.logging.log4j.LogManager
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.extension.ExtendWith
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+@ExtendWith(TestExtension::class)
 class ExtractEdgeReadsTest {
 
     private fun createSAMRecord(factory: SAMRecordFactory, header: SAMFileHeader, readName : String,
@@ -697,5 +706,18 @@ class ExtractEdgeReadsTest {
         val paired = extractEdgeReads.classifyAlignments("sample1", 4, readSplitRecords,
             refRangeMap, gameteMap, nonconsecSplit)
         assertEquals(AlignmentClass.PAIRREADSPLIT, paired, "failed paired classify alignments")
+    }
+
+    @Test
+    fun testCliktParams() {
+        val extractEdgeReads = ExtractEdgeReads()
+        val missingAll = extractEdgeReads.test("")
+        assertEquals(missingAll.statusCode, 1)
+        assertEquals("Usage: extract-edge-reads [<options>]\n" +
+                "\n" +
+                "Error: missing option --bam-dir\n" +
+                "Error: missing option --hvcf-dir\n" +
+                "Error: missing option --sample-name\n" +
+                "Error: missing option --output-file-dir\n", missingAll.output)
     }
 }
