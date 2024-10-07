@@ -640,7 +640,7 @@ class ExtractEdgeReadsTest {
         val refRange2 = ReferenceRange("2", 1, 10)
         val refRangeMap = mapOf("hap1" to listOf(refRange1), "hap2" to listOf(refRange2))
         val gameteMap = mapOf("hap1" to listOf(SampleGamete("sample1", 1)),
-            "hap2" to listOf(SampleGamete("sample2", 2)))
+            "hap2" to listOf(SampleGamete("sample1", 1)))
         val nonconsecSplit = mapOf(refRange1.toString() to 0, refRange2.toString() to 2) // non consecutive ref ranges
         val pairAlignSplit = extractEdgeReads.classifyPairedAlignments("sample1", 2,
             records, refRangeMap, gameteMap, nonconsecSplit)
@@ -720,4 +720,54 @@ class ExtractEdgeReadsTest {
                 "Error: missing option --sample-name\n" +
                 "Error: missing option --output-file-dir\n", missingAll.output)
     }
+
+    @Test
+    fun testProcessReads() {
+        val extractEdgeReads = ExtractEdgeReads()
+        val samRecordFactory = DefaultSAMRecordFactory()
+        val samHeader = SAMFileHeader()
+
+        // unaligned classes
+        val emptyReads = extractEdgeReads.processReads("empty", 0, emptyList<SAMRecord>(),
+            emptyMap<String, List<ReferenceRange>>(), emptyMap<String, List<SampleGamete>>(), emptyMap<String, Int>())
+        assertEquals((Pair(AlignmentClass.UNALIGN, listOf(Pair(null,null)))), emptyReads)
+
+        // both reads are either null or are unaligned
+        val samRecord1_1 = createSAMRecord(samRecordFactory, samHeader, "read1",  "AAAAAAAAAA",60, "hap1", "IIIIIIIIII", firstInPair = true, startPos = 1)
+        val samRecord1_2 = createSAMRecord(samRecordFactory, samHeader, "read2",  "AAAAAAAAAA",60, "hap2", "IIIIIIIIII", firstInPair = false, startPos = 30)
+        samRecord1_1.readPairedFlag = true
+        samRecord1_2.readPairedFlag = true
+        samRecord1_1.readUnmappedFlag = true
+        samRecord1_1.mateUnmappedFlag = true
+        val unalignedRecords = listOf(samRecord1_1, samRecord1_2)
+        val refRange1 = ReferenceRange("1", 1, 10)
+        val refRange2 = ReferenceRange("2", 1, 10)
+        val hapIdToRefRangeMap = mapOf("hap1" to listOf(refRange1), "hap2" to listOf(refRange2))
+        val hapIdToSampleGamete = mapOf("hap1" to listOf(SampleGamete("sample1", 1)),
+            "hap2" to listOf(SampleGamete("sample2", 2)))
+        val refRangeToIndexMap = mapOf(refRange1.toString() to 0, refRange2.toString() to 2) // non consecutive ref ranges
+        val unmapped = extractEdgeReads.processReads("unmapped", 2, unalignedRecords, hapIdToRefRangeMap, hapIdToSampleGamete, refRangeToIndexMap)
+        assertEquals(
+            (Pair(AlignmentClass.UNALIGN, listOf(Pair(unalignedRecords[0],unalignedRecords[1])))),
+            unmapped)
+
+        // classify reads
+        val samRecord4_1 = createSAMRecord(samRecordFactory, samHeader, "read2",  "AAAAAAAAAA",60, "hap2", "IIIIIIIIII", 1, true, "10M")
+        val samRecord4_2 = createSAMRecord(samRecordFactory, samHeader, "read2",  "AAAAAAAAAA",60, "hap1", "IIIIIIIIII", 1, false, "10M")
+        samRecord4_1.readPairedFlag = true
+        samRecord4_2.readPairedFlag = true
+        val recordsForRead = listOf(samRecord4_1, samRecord4_2)
+        val refRangeMap = mapOf("hap1" to listOf(refRange1), "hap2" to listOf(refRange2))
+        val gameteMap = mapOf("hap1" to listOf(SampleGamete("sample1", 1)),
+            "hap2" to listOf(SampleGamete("sample1", 1)))
+        val consecSplit = mapOf(refRange1.toString() to 0, refRange2.toString() to 1) // consecutive ref ranges
+        val processedReads = extractEdgeReads.processReads("sample1", 2, recordsForRead,
+            refRangeMap, gameteMap, consecSplit)
+        println(processedReads)
+        val recordsGroupedByContig = listOf(Pair(samRecord4_1, samRecord4_2))
+        assertEquals(extractEdgeReads.filterAlignmentToPair(recordsForRead), Pair(samRecord4_1, samRecord4_2))
+        assertEquals(Pair(AlignmentClass.PAIRREADSPLITCONSEC, recordsGroupedByContig), processedReads)
+
+    }
+
 }
