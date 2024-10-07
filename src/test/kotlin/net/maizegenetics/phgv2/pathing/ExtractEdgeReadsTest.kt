@@ -5,6 +5,7 @@ import htsjdk.samtools.*
 import io.kotest.matchers.collections.beStrictlyDecreasing
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
+import net.maizegenetics.phgv2.api.HaplotypeGraph
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.assertThrows
@@ -488,11 +489,6 @@ class ExtractEdgeReadsTest {
     }
 
     @Test
-    fun testClassifyAlignments() {
-        TODO("Implement this test")
-    }
-
-    @Test
     fun testFilterAlignmentToPair() {
         val extractEdgeReads = ExtractEdgeReads()
         val factory = DefaultSAMRecordFactory()
@@ -511,14 +507,11 @@ class ExtractEdgeReadsTest {
         sam2.mateUnmappedFlag = false
 
         val bestAlignments = extractEdgeReads.filterAlignmentToPair(listOf(sam1, sam2))
-
         assertEquals(bestAlignments, Pair(sam1, sam2))
-
     }
 
     @Test
     fun testKeepBestAlignments() {
-
         val extractEdgeReads = ExtractEdgeReads()
         val factory = DefaultSAMRecordFactory()
         val header = SAMFileHeader()
@@ -533,16 +526,176 @@ class ExtractEdgeReadsTest {
         assertEquals(extractEdgeReads.keepBestAlignment(listOf(sam1, sam2)), sam1)
         assertEquals(extractEdgeReads.keepBestAlignment(listOf(sam2, sam3)), sam3)
         assertEquals(extractEdgeReads.keepBestAlignment(listOf(sam1, sam3)), sam3)
-
     }
 
     @Test
     fun testClassifySingleAlignments() {
-        TODO("Implement this test")
+        val extractEdgeReads = ExtractEdgeReads()
+        val samRecordFactory = DefaultSAMRecordFactory()
+        val samHeader = SAMFileHeader()
+
+        // test SINGLEUNIQUE
+        val sam1 = createSAMRecord(samRecordFactory, samHeader, "read1", "AAAA", 30, "hap1", "IIII")
+        val ref1 = ReferenceRange("1", 1, 10)
+        val gam1 = SampleGamete("gam1", 1)
+        val singleUnique = extractEdgeReads.classifySingleAlignments("gam1", 1,
+            listOf(Pair(sam1, null)), mapOf("hap1" to listOf(ref1)), mapOf("hap1" to listOf(gam1)), mapOf("hap1" to 0))
+        assertEquals(AlignmentClass.SINGLEUNIQUE, singleUnique, "fail SINGLEUNIQUE")
+
+        // SINGLEALIGNSPLIT
+        val samRecord1 = createSAMRecord(samRecordFactory, samHeader, "read1",  "AAAAAAAAAA",60, "hap1", "IIIIIIIIII", 1, true, "10M")
+        val samRecord2 = createSAMRecord(samRecordFactory, samHeader, "read2",  "AAAAAAAAAA",60, "hap2", "IIIIIIIIII", 1, true, "10M")
+        val samRecord3 = createSAMRecord(samRecordFactory, samHeader, "read3",  "AAAAAAAAAA",60, "hap1", "IIIIIIIIII", 1, false, "10M")
+        val records = listOf(Pair(samRecord1, null), Pair(samRecord2, null), Pair(null,samRecord3))
+        val refRange1 = ReferenceRange("1", 1, 10)
+        val refRange2 = ReferenceRange("2", 1, 10)
+        val refRangeMap = mapOf("hap1" to listOf(refRange1), "hap2" to listOf(refRange2))
+        val gameteMap = mapOf("hap1" to listOf(SampleGamete("1", 1)),
+            "hap2" to listOf(SampleGamete("2", 2)))
+        val indexMap = mapOf(refRange1.toString() to 0, refRange2.toString() to 2) // non consecutive ref ranges
+        val singleAlignSplit = extractEdgeReads.classifySingleAlignments("1", 2,
+            records, refRangeMap, gameteMap, indexMap)
+        assertEquals(AlignmentClass.SINGLEALIGNSPLIT, singleAlignSplit, "fail SINGLEALIGNSPLIT")
+
+        // SINGLEALIGNSPLITCONSEC
+        val refRange4 = ReferenceRange("1", 11, 20)
+        val refRange3 = ReferenceRange("2", 1, 10)
+        val refRangeToIndexMap = mapOf(refRange1.toString() to 0, refRange4.toString() to 1, refRange3.toString() to 2) // consecutive
+        val hapIdToRefRange = mapOf("hap1" to listOf(refRange1), "hap2" to listOf(refRange4))
+        val singleAlignSplitConsec = extractEdgeReads.classifySingleAlignments("1",
+            2, records, hapIdToRefRange, mapOf("hap1" to listOf(SampleGamete("1", 1)),
+                "hap2" to listOf(SampleGamete("2", 2))), refRangeToIndexMap)
+        assertEquals(AlignmentClass.SINGLEALIGNSPLITCONSEC, singleAlignSplitConsec, "fail SINGLEALIGNSPLITCONSEC")
+
+        // SINGLEOFFASM
+        val hapIdToSampleGameteOffASM = mapOf("hap1" to listOf(SampleGamete("sample1", 0)),
+            "hap2" to listOf(SampleGamete("sample2", 0)), "hap3" to listOf(SampleGamete("sample3", 0)))
+        val recordsOffASM = listOf(Pair(samRecord1, null), Pair(samRecord2, null))
+        val refRangeMapOffASM = mapOf("hap1" to listOf(refRange1), "hap2" to listOf(refRange1))
+        val indexOffASM = mapOf(refRange1.toString() to 0, refRange2.toString() to 0)
+        val singleOffASM = extractEdgeReads.classifySingleAlignments("sample3", 2,
+            recordsOffASM, refRangeMapOffASM, hapIdToSampleGameteOffASM, indexOffASM)
+        assertEquals(AlignmentClass.SINGLEOFFASM, singleOffASM, "fail SINGLEOFFASM")
+
+        // SINGLERARE
+        val rareRecords = listOf(Pair(samRecord1, null), Pair(samRecord2, null), Pair(null,samRecord3))
+        val rareRefRanges = mapOf("hap1" to listOf(refRange1), "hap2" to listOf(refRange1), "hap3" to listOf(refRange1))
+        val rareSampleGametes = mapOf("hap1" to listOf(SampleGamete("rare1", 1)),
+            "hap2" to listOf(SampleGamete("rare1", 1)), "hap3" to listOf(SampleGamete("rare1", 1)))
+        val rareIndexMap = mapOf(refRange1.toString() to 0, refRange2.toString() to 0, refRange3.toString() to 0)
+        val singleRare = extractEdgeReads.classifySingleAlignments("rare1", 100,
+            rareRecords, rareRefRanges, rareSampleGametes, rareIndexMap)
+        assertEquals(AlignmentClass.SINGLERARE, singleRare, "fail SINGLERARE")
+
+        // SINGLECOMMON
+        val singleCommon = extractEdgeReads.classifySingleAlignments("rare1", 4,
+            rareRecords, rareRefRanges, rareSampleGametes, rareIndexMap)
+        assertEquals(AlignmentClass.SINGLECOMMON, singleCommon, "fail SINGLECOMMON")
     }
 
     @Test
     fun testClassifyPairedAlignments() {
-        TODO("Implement this test")
+        val extractEdgeReads = ExtractEdgeReads()
+        val samRecordFactory = DefaultSAMRecordFactory()
+        val samHeader = SAMFileHeader()
+
+        // PAIRUNIQUE
+        val samRecord1_1 = createSAMRecord(samRecordFactory, samHeader, "read1",  "AAAAAAAAAA",60, "hap1", "IIIIIIIIII", 1, true, "10M")
+        val samRecord1_2 = createSAMRecord(samRecordFactory, samHeader, "read1",  "AAAAAAAAAA",60, "hap1", "IIIIIIIIII", 1, false, "10M")
+        val uniqueRecords = listOf(Pair(samRecord1_1, samRecord1_2))
+        val refRange1 = ReferenceRange("1", 1, 10)
+        val pairUnique = extractEdgeReads.classifyPairedAlignments("sample1", 2, uniqueRecords,
+            mapOf("hap1" to listOf(refRange1)), mapOf("hap1" to listOf(SampleGamete("sample1", 0))), mapOf(refRange1.toString() to 0))
+        assertEquals(AlignmentClass.PAIRUNIQUE, pairUnique, "fail PAIRUNIQUE")
+
+        // PAIRRARE
+        val samRecord2_1 = createSAMRecord(samRecordFactory, samHeader, "read2",  "AAAAAAAAAA",60, "hap2", "IIIIIIIIII", 1, true, "10M")
+        val samRecord2_2 = createSAMRecord(samRecordFactory, samHeader, "read2",  "AAAAAAAAAA",60, "hap2", "IIIIIIIIII", 1, false, "10M")
+        val samRecord3_1 = createSAMRecord(samRecordFactory, samHeader, "read3",  "AAAAAAAAAA",60, "hap1", "IIIIIIIIII", 1, true, "10M")
+        val samRecord3_2 = createSAMRecord(samRecordFactory, samHeader, "read3",  "AAAAAAAAAA",60, "hap1", "IIIIIIIIII", 1, false, "10M")
+        val rareRecords = listOf(Pair(samRecord1_1, samRecord1_2), Pair(samRecord2_1, samRecord2_2), Pair(samRecord3_1, samRecord3_2))
+        val rareRefRanges = mapOf("hap1" to listOf(refRange1), "hap2" to listOf(refRange1))
+        val rareSampleGametes = mapOf("hap1" to listOf(SampleGamete("sample1", 1)),
+            "hap2" to listOf(SampleGamete("sample1", 1)))
+        val rareIndexMap = mapOf(refRange1.toString() to 0)
+        val pairRare = extractEdgeReads.classifyPairedAlignments("sample1", 100, rareRecords, rareRefRanges, rareSampleGametes, rareIndexMap)
+        assertEquals(AlignmentClass.PAIRRARE, pairRare, "fail PAIRRARE")
+
+        // PAIRCOMMON
+        val pairCommon = extractEdgeReads.classifyPairedAlignments("sample1", 3,
+            rareRecords, rareRefRanges, rareSampleGametes, rareIndexMap)
+        assertEquals(AlignmentClass.PAIRCOMMON, pairCommon, "fail PAIRCOMMON")
+
+        // PAIRALIGNSPLIT
+        val records = listOf(Pair(samRecord1_1, samRecord1_2), Pair(samRecord2_1, samRecord2_2), Pair(samRecord3_1, samRecord3_2))
+        val refRange2 = ReferenceRange("2", 1, 10)
+        val refRangeMap = mapOf("hap1" to listOf(refRange1), "hap2" to listOf(refRange2))
+        val gameteMap = mapOf("hap1" to listOf(SampleGamete("sample1", 1)),
+            "hap2" to listOf(SampleGamete("sample2", 2)))
+        val nonconsecSplit = mapOf(refRange1.toString() to 0, refRange2.toString() to 2) // non consecutive ref ranges
+        val pairAlignSplit = extractEdgeReads.classifyPairedAlignments("sample1", 2,
+            records, refRangeMap, gameteMap, nonconsecSplit)
+        assertEquals(AlignmentClass.PAIRALIGNSPLIT, pairAlignSplit, "fail PAIRALIGNSPLIT")
+
+        // PAIRALIGNSPLITCONSEC
+        val consecSplit = mapOf(refRange1.toString() to 0, refRange2.toString() to 1) // consecutive ref ranges
+        val pairAlignSplitConsec = extractEdgeReads.classifyPairedAlignments("sample1", 2,
+            records, refRangeMap, gameteMap, consecSplit)
+        assertEquals(AlignmentClass.PAIRALIGNSPLITCONSEC, pairAlignSplitConsec, "fail PAIRALIGNSPLITCONSEC")
+
+        // PAIROFFASM
+        val hapIdToSampleGameteOffASM = mapOf("hap1" to listOf(SampleGamete("sample1", 0)),
+            "hap2" to listOf(SampleGamete("sample2", 0)), "hap3" to listOf(SampleGamete("sample3", 0)))
+        val recordsOffASM = listOf(Pair(samRecord1_1, samRecord1_2), Pair(samRecord2_1, samRecord2_2))
+        val refRangeMapOffASM = mapOf("hap1" to listOf(refRange1), "hap2" to listOf(refRange1))
+        val indexOffASM = mapOf(refRange1.toString() to 0, refRange2.toString() to 0)
+        val pairOffASM = extractEdgeReads.classifyPairedAlignments("sample3", 2,
+            recordsOffASM, refRangeMapOffASM, hapIdToSampleGameteOffASM, indexOffASM)
+        assertEquals(AlignmentClass.PAIROFFASM, pairOffASM, "fail PAIROFFASM")
+
+        // PAIRREADSPLIT
+        val samRecord4_1 = createSAMRecord(samRecordFactory, samHeader, "read2",  "AAAAAAAAAA",60, "hap2", "IIIIIIIIII", 1, true, "10M")
+        val samRecord4_2 = createSAMRecord(samRecordFactory, samHeader, "read2",  "AAAAAAAAAA",60, "hap1", "IIIIIIIIII", 1, false, "10M")
+        val readSplitRecords = listOf(Pair(samRecord4_1, samRecord4_2))
+        val pairReadSplit = extractEdgeReads.classifyPairedAlignments("sample1", 4, readSplitRecords,
+            refRangeMap, gameteMap, nonconsecSplit)
+        assertEquals(AlignmentClass.PAIRREADSPLIT, pairReadSplit, "fail PAIRREADSPLIT")
+
+        // PAIRREADSPLITCONSEC
+        val pairReadSplitConsec = extractEdgeReads.classifyPairedAlignments("sample1", 4, readSplitRecords,
+            refRangeMap, gameteMap, consecSplit)
+        assertEquals(AlignmentClass.PAIRREADSPLITCONSEC, pairReadSplitConsec, "fail PAIRREADSPLITCONSEC")
+
+    }
+
+    @Test
+    fun testClassifyAlignments() {
+        val extractEdgeReads = ExtractEdgeReads()
+        val samRecordFactory = DefaultSAMRecordFactory()
+        val samHeader = SAMFileHeader()
+
+        val refRange1 = ReferenceRange("1", 1, 10)
+        val refRange2 = ReferenceRange("2", 1, 10)
+        val samRecord1 = createSAMRecord(samRecordFactory, samHeader, "read1",  "AAAAAAAAAA",60, "hap1", "IIIIIIIIII", 1, true, "10M")
+        val samRecord2 = createSAMRecord(samRecordFactory, samHeader, "read2",  "AAAAAAAAAA",60, "hap2", "IIIIIIIIII", 1, true, "10M")
+        val hapIdToSampleGameteOffASM = mapOf("hap1" to listOf(SampleGamete("sample1", 0)),
+            "hap2" to listOf(SampleGamete("sample2", 0)), "hap3" to listOf(SampleGamete("sample3", 0)))
+        val recordsOffASM = listOf(Pair(samRecord1, null), Pair(samRecord2, null))
+        val refRangeMapOffASM = mapOf("hap1" to listOf(refRange1), "hap2" to listOf(refRange1))
+        val indexOffASM = mapOf(refRange1.toString() to 0, refRange2.toString() to 0)
+        val single = extractEdgeReads.classifyAlignments("sample3", 2,
+            recordsOffASM, refRangeMapOffASM, hapIdToSampleGameteOffASM, indexOffASM)
+        assertEquals(AlignmentClass.SINGLEOFFASM, single, "failed single classify alignments")
+
+        val samRecord4_1 = createSAMRecord(samRecordFactory, samHeader, "read2",  "AAAAAAAAAA",60, "hap2", "IIIIIIIIII", 1, true, "10M")
+        val samRecord4_2 = createSAMRecord(samRecordFactory, samHeader, "read2",  "AAAAAAAAAA",60, "hap1", "IIIIIIIIII", 1, false, "10M")
+        val readSplitRecords = listOf(Pair(samRecord4_1, samRecord4_2))
+        val refRangeMap = mapOf("hap1" to listOf(refRange1), "hap2" to listOf(refRange2))
+        val gameteMap = mapOf("hap1" to listOf(SampleGamete("sample1", 1)),
+            "hap2" to listOf(SampleGamete("sample2", 2)))
+        val nonconsecSplit = mapOf(refRange1.toString() to 0, refRange2.toString() to 2) // non consecutive ref ranges
+        val paired = extractEdgeReads.classifyAlignments("sample1", 4, readSplitRecords,
+            refRangeMap, gameteMap, nonconsecSplit)
+        assertEquals(AlignmentClass.PAIRREADSPLIT, paired, "failed paired classify alignments")
     }
 }
