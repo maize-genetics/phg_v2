@@ -111,6 +111,18 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
     }
 
     fun processReads(sampleName:String, numSampleGametes: Int, recordsForRead: List<SAMRecord>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, hapIdToSampleGamete: Map<String,List<SampleGamete>>, refRangeToIndexMap: Map<String, Int>) : Pair<AlignmentClass, List<Pair<SAMRecord?,SAMRecord?>>> {
+        //Before we pair off the reads we should pull out all the truely unaligned classes
+        //This should never happen but we should check for it
+        if(recordsForRead.isEmpty()) {
+            return Pair(AlignmentClass.UNALIGN, listOf(Pair(null,null)))
+        }
+
+        //check to see that both reads are either null or are unaligned
+        if( recordsForRead.size == 2 && recordsForRead[0].readUnmappedFlag && recordsForRead[0].mateUnmappedFlag) {
+            //Its unaligned
+            return Pair(AlignmentClass.UNALIGN, listOf(Pair(recordsForRead[0],recordsForRead[1])))
+        }
+
         //Pair off the reads by their alignment to haplotype ids
         val recordsGroupedByContig = recordsForRead.groupBy { record -> hapIdToSampleGamete[record.contig]!! }.map { filterAlignmentToPair(it.value) }
         //For the pair only keep track of the best ones based on edit distance
