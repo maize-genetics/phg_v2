@@ -1,25 +1,16 @@
 package net.maizegenetics.phgv2.pathing
 
 import biokotlin.util.bufferedReader
-import com.github.ajalt.clikt.parameters.options.default
-import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.required
-import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.testing.test
 import htsjdk.samtools.*
-import io.kotest.matchers.collections.beStrictlyDecreasing
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
-import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.cli.TestExtension
-import org.apache.logging.log4j.LogManager
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
-import java.io.BufferedReader
 import java.io.File
-import java.io.FileReader
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -498,7 +489,7 @@ class ExtractEdgeReadsTest {
     }
 
     @Test
-    fun testFilterAlignmentToPair() {
+    fun testPairOffAlignments() {
         val extractEdgeReads = ExtractEdgeReads()
         val factory = DefaultSAMRecordFactory()
         val header = SAMFileHeader()
@@ -515,7 +506,7 @@ class ExtractEdgeReadsTest {
         sam2.mateAlignmentStart = 10
         sam2.mateUnmappedFlag = false
 
-        val bestAlignments = extractEdgeReads.filterAlignmentToPair(listOf(sam1, sam2))
+        val bestAlignments = extractEdgeReads.pairOffAlignments(listOf(sam1, sam2))
         assertEquals(bestAlignments, Pair(sam1, sam2))
     }
 
@@ -765,7 +756,7 @@ class ExtractEdgeReadsTest {
             refRangeMap, gameteMap, consecSplit)
         println(processedReads)
         val recordsGroupedByContig = listOf(Pair(samRecord4_1, samRecord4_2))
-        assertEquals(extractEdgeReads.filterAlignmentToPair(recordsForRead), Pair(samRecord4_1, samRecord4_2))
+        assertEquals(extractEdgeReads.pairOffAlignments(recordsForRead), Pair(samRecord4_1, samRecord4_2))
         assertEquals(Pair(AlignmentClass.PAIRREADSPLITCONSEC, recordsGroupedByContig), processedReads)
 
     }

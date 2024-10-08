@@ -12,9 +12,7 @@ import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
 import org.apache.logging.log4j.LogManager
-import java.io.BufferedWriter
 import java.io.File
-import java.io.FileWriter
 
 enum class AlignmentClass {
     PAIRUNIQUE, PAIRRARE, PAIRCOMMON, PAIRREADSPLIT, PAIRREADSPLITCONSEC, PAIRALIGNSPLIT, PAIRALIGNSPLITCONSEC, PAIROFFASM, UNALIGN,
@@ -83,8 +81,14 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         val countMap = AlignmentClass.entries.associateWith { 0 }.toMutableMap()
         val recordsToExport = mutableMapOf<String, List<Pair<SAMRecord?,SAMRecord?>>>()
 
+        var readCounter = 0
         while(iterator.hasNext()) {
             val currentRecord = iterator.next()
+
+            if(currentReadId == "") {
+                currentReadId = currentRecord.readName
+            }
+
             if(currentRecord.readName != currentReadId) {
                 //process the reads
                 val (classification, records) = processReads(sampleName, numSampleGametes, recordsForRead, hapIdToRefRangeMap, hapIdsToSampleGametes,refRangeToIndexMap)
@@ -92,6 +96,16 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
                 countMap[classification] = countMap[classification]!! + 1
                 if(countMap[classification]!! < maxClassNum) {
                     recordsToExport[currentReadId] = records
+                }
+
+//                if(classification == AlignmentClass.PAIROFFASM && readCounter < 50000) {
+//                    println(recordsForRead.first().readName)
+//                }
+
+
+                readCounter++
+                if(readCounter % 10000 == 0) {
+                    myLogger.info("Processed $readCounter reads")
                 }
 
                 //reset the records
@@ -123,24 +137,36 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
             return Pair(AlignmentClass.UNALIGN, listOf(Pair(recordsForRead[0],recordsForRead[1])))
         }
 
-        //Pair off the reads by their alignment to haplotype ids
-        val recordsGroupedByContig = recordsForRead.groupBy { record -> hapIdToSampleGamete[record.contig]!! }.map { filterAlignmentToPair(it.value) }
+        //Then need to group by sampleGamete by hapId
+        //Then need to pair off correctly
         //For the pair only keep track of the best ones based on edit distance
+        val recordsGroupedByContig = filterAlignmentByPairFlag(recordsForRead)
+            .groupBy { record -> hapIdToSampleGamete[record.contig]!! }
+            .map { pairOffAlignments(it.value) }
+
         //We are looking for various edge cases
         val classification = classifyAlignments(sampleName, numSampleGametes,recordsGroupedByContig, hapIdToRefRangeMap, hapIdToSampleGamete, refRangeToIndexMap)
         return Pair(classification, recordsGroupedByContig)
     }
 
-    fun filterAlignmentToPair(records: List<SAMRecord>): Pair<SAMRecord?,SAMRecord?> {
-        //these records are all hitting the same contig.  Need to split them by first in pair and second in pair
+    fun filterAlignmentByPairFlag(records: List<SAMRecord>): List<SAMRecord> {
+        return records.filter{!it.readUnmappedFlag}.groupBy { it.firstOfPairFlag }.filter{ it.value.isNotEmpty() }.map { keepBestAlignments(it.value) }.flatten()
+    }
 
-        val bestAlignments = records.groupBy { it.firstOfPairFlag }.map { keepBestAlignment(it.value) }
+    fun pairOffAlignments(records: List<SAMRecord>): Pair<SAMRecord?,SAMRecord?> {
+        //these records are all hitting the same contig.  Need to split them by first in pair and second in pair
+        val bestAlignments = records.groupBy { it.firstOfPairFlag }.map { keepBestAlignment(it.value) } //Group and filter just to be safe
         if (bestAlignments.size == 1) { return Pair(bestAlignments[0], null)}
         return Pair(bestAlignments[0], bestAlignments[1])
     }
 
     fun keepBestAlignment(records : List<SAMRecord>) : SAMRecord? {
         return records.minByOrNull { it.getIntegerAttribute("NM") }
+    }
+
+    fun keepBestAlignments(records: List<SAMRecord>) : List<SAMRecord> {
+        val bestAlignmentScore = records.minOf { it.getIntegerAttribute("NM") }
+        return records.filter { it.getIntegerAttribute("NM") == bestAlignmentScore }
     }
 
     fun classifyAlignments(sampleName: String, numSampleGametes: Int ,records: List<Pair<SAMRecord?,SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, hapIdToSampleGamete: Map<String, List<SampleGamete>>, refRangeToIndexMap: Map<String, Int>): AlignmentClass {
