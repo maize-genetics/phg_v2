@@ -1,3 +1,18 @@
+On this page, we highlight articles referencing the use of the
+Practical Haplotype Graph system. This page is separatated into
+three sections:
+
+* [**Core Publications**](#core-publications) - publications from the
+  [Buckler Lab](https://www.maizegenetics.net) detailing the use and
+  creation of the PHG in various plant systems.
+* [**Publications leveraging PHG resources**](#publications-leveraging-phg-resources) - publications that
+  utilize the PHG or resources generated from the PHG in various
+  plant systems.
+* [**Publications discussing the PHG**](#publications-discussing-the-phg) - publications that discuss
+  the PHG in various article formats (e.g., book chapters, reviews,
+  etc.)
+
+
 ## Core Publications
 
 
@@ -8,14 +23,14 @@
         * Details the overview, architecture, and use-cases of **version 1** of the Practical
           Haplotype Graph
         * Highlights data compression and imputation capabilities with low coverage sequence data
-        * Highlights expandability with open source tools such as the [Breeding API](https://www.brapi.org) 
+        * Highlights expandability with open source tools such as the [Breeding API](https://www.brapi.org)
           and [rPHG](https://rphg2.maizegenetics.net)
 
-    === ":material-sprout: Plant Species" 
+    === ":material-sprout: Plant Species"
 
         $\quad$ **Maize ([_Zea mays_](https://en.wikipedia.org/wiki/Maize))**
 
-    === ":material-account-school: Citation" 
+    === ":material-account-school: Citation"
 
         Bradbury, P J and Casstevens, T and Jensen, S E and Johnson, L C and Miller, Z R and Monier, B and Romay, M C and Song, B and Buckler, E S (2022). **The Practical Haplotype Graph, a platform for storing and using pangenomes for imputation.** *Bioinformatics*. DOI: [10.1093/bioinformatics/btac410](https://doi.org/10.1093/bioinformatics/btac410)
 
@@ -80,11 +95,11 @@
 
     === ":octicons-telescope-16: Summary"
 
-        * The PHG was used to create a pangenome representation of maize by leveraging 27 high-quality 
+        * The PHG was used to create a pangenome representation of maize by leveraging 27 high-quality
           genome assemblies, capturing substantial structural diversity in maize.
-        * Successfully imputed genotypes with high accuracy. For related lines, the accuracy was over 
+        * Successfully imputed genotypes with high accuracy. For related lines, the accuracy was over
           99%, while for unrelated lines, it reached up to 95% using whole-genome sequencing (WGS).
-        * Highly space-efficient, storing data in a manner **30,000 times smaller** than typical genotype 
+        * Highly space-efficient, storing data in a manner **30,000 times smaller** than typical genotype
           files, making it a powerful tool for handling large-scale genomic data.
 
     === ":material-sprout: Plant Species"
@@ -99,16 +114,16 @@
 
         ```
         @article {Franco2020.08.31.268425,
-        	author = {Franco, Jose A. Valdes and Gage, Joseph L. and Bradbury, Peter J. and Johnson, Lynn C. and Miller, Zachary R. and Buckler, Edward S. and Romay, M. Cinta},
-        	title = {A Maize Practical Haplotype Graph Leverages Diverse NAM Assemblies},
-        	elocation-id = {2020.08.31.268425},
-        	year = {2020},
-        	doi = {10.1101/2020.08.31.268425},
-        	publisher = {Cold Spring Harbor Laboratory},
-        	abstract = {As a result of millions of years of transposon activity, multiple rounds of ancient polyploidization, and large populations that preserve diversity, maize has an extremely structurally diverse genome, evidenced by high-quality genome assemblies that capture substantial levels of both tropical and temperate diversity. We generated a pangenome representation (the Practical Haplotype Graph, PHG) of these assemblies in a database, representing the pangenome haplotype diversity and providing an initial estimate of structural diversity. We leveraged the pangenome to accurately impute haplotypes and genotypes of taxa using various kinds of sequence data, ranging from WGS to extremely-low coverage GBS. We imputed the genotypes of the recombinant inbred lines of the NAM population with over 99\% mean accuracy, while unrelated germplasm attained a mean imputation accuracy of 92 or 95\% when using GBS or WGS data, respectively. Most of the imputation errors occur in haplotypes within European or tropical germplasm, which have yet to be represented in the maize PHG database. Also, the PHG stores the imputation data in a 30,000-fold more space-efficient manner than a standard genotype file, which is a key improvement when dealing with large scale data.Competing Interest StatementThe authors have declared no competing interest.},
-        	URL = {https://www.biorxiv.org/content/early/2020/09/28/2020.08.31.268425},
-        	eprint = {https://www.biorxiv.org/content/early/2020/09/28/2020.08.31.268425.full.pdf},
-        	journal = {bioRxiv}
+            author = {Franco, Jose A. Valdes and Gage, Joseph L. and Bradbury, Peter J. and Johnson, Lynn C. and Miller, Zachary R. and Buckler, Edward S. and Romay, M. Cinta},
+            title = {A Maize Practical Haplotype Graph Leverages Diverse NAM Assemblies},
+            elocation-id = {2020.08.31.268425},
+            year = {2020},
+            doi = {10.1101/2020.08.31.268425},
+            publisher = {Cold Spring Harbor Laboratory},
+            abstract = {As a result of millions of years of transposon activity, multiple rounds of ancient polyploidization, and large populations that preserve diversity, maize has an extremely structurally diverse genome, evidenced by high-quality genome assemblies that capture substantial levels of both tropical and temperate diversity. We generated a pangenome representation (the Practical Haplotype Graph, PHG) of these assemblies in a database, representing the pangenome haplotype diversity and providing an initial estimate of structural diversity. We leveraged the pangenome to accurately impute haplotypes and genotypes of taxa using various kinds of sequence data, ranging from WGS to extremely-low coverage GBS. We imputed the genotypes of the recombinant inbred lines of the NAM population with over 99\% mean accuracy, while unrelated germplasm attained a mean imputation accuracy of 92 or 95\% when using GBS or WGS data, respectively. Most of the imputation errors occur in haplotypes within European or tropical germplasm, which have yet to be represented in the maize PHG database. Also, the PHG stores the imputation data in a 30,000-fold more space-efficient manner than a standard genotype file, which is a key improvement when dealing with large scale data.Competing Interest StatementThe authors have declared no competing interest.},
+            URL = {https://www.biorxiv.org/content/early/2020/09/28/2020.08.31.268425},
+            eprint = {https://www.biorxiv.org/content/early/2020/09/28/2020.08.31.268425.full.pdf},
+            journal = {bioRxiv}
         }
         ```
 
@@ -116,15 +131,15 @@
 
     === ":octicons-telescope-16: Summary"
 
-        * The PHG successfully imputed genome-wide variants from only 0.01x 
-          sequence coverage with minimal loss in accuracy, making it highly 
+        * The PHG successfully imputed genome-wide variants from only 0.01x
+          sequence coverage with minimal loss in accuracy, making it highly
           cost-effective for genomic prediction.
-        * The PHG can combine data from different sequencing platforms, 
-          unifying genotype calls, and facilitating easier comparison across 
+        * The PHG can combine data from different sequencing platforms,
+          unifying genotype calls, and facilitating easier comparison across
           breeding programs.
-        * The PHG enables cost-effective genomic selection, with prediction 
-          accuracies comparable to higher-cost methods like 
-          genotyping-by-sequencing (GBS) or rhAmpSeq, thus supporting faster 
+        * The PHG enables cost-effective genomic selection, with prediction
+          accuracies comparable to higher-cost methods like
+          genotyping-by-sequencing (GBS) or rhAmpSeq, thus supporting faster
           and cheaper breeding programs.
 
     === ":material-sprout: Plant Species"
@@ -156,6 +171,7 @@
 ## Publications leveraging PHG resources
 
 === "Cassava"
+
     * Long, Evan M and Bradbury, Peter J and Romay, M Cinta and Buckler, Edward S and Robbins, Kelly R (2021). **Genome-wide imputation using the practical haplotype graph in the heterozygous crop cassava.** *G3 Genes|Genomes|Genetics*. DOI: [10.1093/g3journal/jkab383](https://doi.org/10.1093/g3journal/jkab383)
 
 === "Maize"
@@ -180,6 +196,7 @@
 ## Publications discussing the PHG
 
 === "General Discussion"
+
     * **Song, Baoxing and Buckler, Edward S. and Stitzer, Michelle C.** (2024). New whole-genome alignment tools are needed for tapping into plant diversity. *Trends in Plant Science*. DOI: [10.1016/j.tplants.2023.08.013](https://doi.org/10.1016/j.tplants.2023.08.013)
     * **Coletta, Rafael Della and Fernandes, Samuel B. and Monnahan, Patrick J. and Mikel, Mark A. and Bohn, Martin O. and Lipka, Alexander E. and Hirsch, Candice N.** (2023). Importance of genetic architecture in marker selection decisions for genomic prediction. *bioRxiv*. DOI: [10.1101/2023.02.28.530521](https://doi.org/10.1101/2023.02.28.530521)
     * **da Costa Lima Moraes, Aline and Mollinari, Marcelo and Ferreira, Rebecca Caroline Ulbricht and Aono, Alexandre and de Castro Lara, Letícia Aparecida and Pessoa-Filho, Marco and Barrios, Sanzio Carvalho Lima and Garcia, Antonio Augusto Franco and do Valle, Cacilda Borges and de Souza, Anete Pereira and Vigna, Bianca Baccili Zanotto** (2023). Advances in genomic characterization ofUrochloa humidicola: exploring polyploid inheritance and apomixis. *bioRxiv*. DOI: [10.1101/2023.08.31.555743](https://doi.org/10.1101/2023.08.31.555743)
@@ -210,6 +227,7 @@
     * **Torkamaneh, Davoud and Laroche, Jérôme and Valliyodan, Babu and O’Donoughue, Louise and Cober, Elroy and Rajcan, Istvan and Vilela Abdelnoor, Ricardo and Sreedasyam, Avinash and Schmutz, Jeremy and Nguyen, Henry T. and Belzile, François** (2020). Soybean (Glycine max) Haplotype Map (GmHapMap): a universal resource for soybean translational and functional genomics. *Plant Biotechnology Journal*. DOI: [10.1111/pbi.13466](https://doi.org/10.1111/pbi.13466)
 
 === "Book Chapters"
+
     * **Naik, Yogesh Dashrath and Zhao, Chuanzhi and Channale, Sonal and Nayak, Spurthi N. and Bhutia, Karma L. and Gautam, Ashish and Kumar, Rakesh and Niranjan, Vidya and Shah, Trushar M. and Mott, Richard and Punnuri, Somashekhar and Pandey, Manish K. and Wang, Xingjun and Varshney, Rajeev K. and Thudi, Mahendar** (2024). Bioinformatics for Plant Genetics and Breeding Research. *Frontiers Technologies for Crop Improvement*. DOI: [10.1007/978-981-99-4673-0_3](https://doi.org/10.1007/978-981-99-4673-0_3)
     * **Kaur, Ishveen and Relan, Ashima and Saini, Dinesh Kumar and Kaur, Gurleen and Biswas, Anju and Singh, Lovepreet and Kaur, Shivreet and Sandhu, Karansher Singh** (2023). Revisiting the Genomic Approaches in the Cereals and the Path Forward. *Smart Plant Breeding for Field Crops in Post-genomics Era*. DOI: [10.1007/978-981-19-8218-7_1](https://doi.org/10.1007/978-981-19-8218-7_1)
     * **Joukhadar, Reem and Daetwyler, Hans D.** (2022). Data Integration, Imputation, and Meta-analysis for Genome-Wide Association Studies. *Data Integration, Imputation, and Meta-analysis for Genome-Wide Association Studies*. DOI: [10.1007/978-1-0716-2237-7_11](https://doi.org/10.1007/978-1-0716-2237-7_11)
@@ -218,6 +236,7 @@
     * **Ruperao, Pradeep and Gandham, Prasad and Rathore, Abhishek** (2022). Construction of Practical Haplotype Graph (PHG) with the Whole-Genome Sequence Data. *NA*. DOI: [10.1007/978-1-0716-2067-0_15](https://doi.org/10.1007/978-1-0716-2067-0_15)
 
 === "Reviews"
+
     * **Schreiber, Mona and Jayakodi, Murukarthick and Stein, Nils and Mascher, Martin** (2024). Plant pangenomes for crop improvement, biodiversity and evolution. *Nature Reviews Genetics*. DOI: [10.1038/s41576-024-00691-4](https://doi.org/10.1038/s41576-024-00691-4)
     * **Ruperao, Pradeep and Rangan, Parimalan and Shah, Trushar and Thakur, Vivek and Kalia, Sanjay and Mayes, Sean and Rathore, Abhishek** (2023). The Progression in Developing Genomic Resources for Crop Improvement. *Life*. DOI: [10.3390/life13081668](https://doi.org/10.3390/life13081668)
     * **Jha, Uday Chand and Nayyar, Harsh and von Wettberg, Eric J. B. and Naik, Yogesh Dashrath and Thudi, Mahendar and Siddique, Kadambot H. M.** (2022). Legume Pangenome: Status and Scope for Crop Improvement. *Plants*. DOI: [10.3390/plants11223041](https://doi.org/10.3390/plants11223041)
