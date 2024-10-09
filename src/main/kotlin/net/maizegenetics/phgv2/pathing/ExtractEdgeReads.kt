@@ -56,16 +56,16 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         //extract the edge reads
         for(bamFile in bamFiles) {
             myLogger.info("Extracting reads from $bamFile")
-            val (countMap, recordsToExport) = extractReads(sampleName, bamFile, graph, maxClassNum)
+            val (countMap, recordsToExport, readToClassificaiton) = extractReads(sampleName, bamFile, graph, maxClassNum)
             //Print out the countMap
             printCountMap(countMap)
             val outputFileName = "${outputFileDir}/${File(bamFile).nameWithoutExtension}"
             myLogger.info("Writing output to $outputFileName")
-            outputReadsAndHapIdSets("${outputFileName}_table.txt", "${outputFileName}.fastq", recordsToExport)
+            outputReadsAndHapIdSets("${outputFileName}_table.txt", "${outputFileName}.fastq", recordsToExport, readToClassificaiton)
         }
     }
 
-    fun extractReads(sampleName: String, bamFile: String, graph: HaplotypeGraph, maxClassNum : Int = 10) : Pair<Map<AlignmentClass,Int>, Map<String, List<Pair<SAMRecord?,SAMRecord?>>>> {
+    fun extractReads(sampleName: String, bamFile: String, graph: HaplotypeGraph, maxClassNum : Int = 10) : Triple<Map<AlignmentClass,Int>, Map<String, List<Pair<SAMRecord?,SAMRecord?>>>, Map<String,AlignmentClass>> {
         //load in the reads
         val samReader = SamReaderFactory.makeDefault().open(File(bamFile))
         val iterator = samReader.iterator()
@@ -80,7 +80,7 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
 
         val countMap = AlignmentClass.entries.associateWith { 0 }.toMutableMap()
         val recordsToExport = mutableMapOf<String, List<Pair<SAMRecord?,SAMRecord?>>>()
-
+        val readToClassification = mutableMapOf<String, AlignmentClass>()
         var readCounter = 0
         while(iterator.hasNext()) {
             val currentRecord = iterator.next()
@@ -96,6 +96,7 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
                 countMap[classification] = countMap[classification]!! + 1
                 if(countMap[classification]!! < maxClassNum) {
                     recordsToExport[currentReadId] = records
+                    readToClassification[currentReadId] = classification
                 }
 
 //                if(classification == AlignmentClass.PAIROFFASM && readCounter < 50000) {
@@ -119,9 +120,10 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         countMap[classification] = countMap[classification]!! + 1
         if(countMap[classification]!! < maxClassNum) {
             recordsToExport[currentReadId] = records
+            readToClassification[currentReadId] = classification
         }
 
-        return Pair(countMap, recordsToExport)
+        return Triple(countMap, recordsToExport, readToClassification)
     }
 
     fun processReads(sampleName:String, numSampleGametes: Int, recordsForRead: List<SAMRecord>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, hapIdToSampleGamete: Map<String,List<SampleGamete>>, refRangeToIndexMap: Map<String, Int>) : Pair<AlignmentClass, List<Pair<SAMRecord?,SAMRecord?>>> {
@@ -144,9 +146,15 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
             .groupBy { record -> hapIdToSampleGamete[record.contig]!! }
             .map { pairOffAlignments(it.value) }
 
+
+
         //We are looking for various edge cases
         val classification = classifyAlignments(sampleName, numSampleGametes,recordsGroupedByContig, hapIdToRefRangeMap, hapIdToSampleGamete, refRangeToIndexMap)
+
+        val primaryAlignments = listOf(getPrimaryAlignments(recordsForRead))
+
         return Pair(classification, recordsGroupedByContig)
+//        return Pair(classification, primaryAlignments)
     }
 
     fun filterAlignmentByPairFlag(records: List<SAMRecord>): List<SAMRecord> {
@@ -167,6 +175,22 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
     fun keepBestAlignments(records: List<SAMRecord>) : List<SAMRecord> {
         val bestAlignmentScore = records.minOf { it.getIntegerAttribute("NM") }
         return records.filter { it.getIntegerAttribute("NM") == bestAlignmentScore }
+    }
+
+    fun getPrimaryAlignments(records: List<SAMRecord>) : Pair<SAMRecord?,SAMRecord?> {
+        val primaryAlignments = records.filter { !it.isSecondaryOrSupplementary }
+
+        if(primaryAlignments.size == 0) {
+            println(records.first().readName)
+            val secondary = records.first().isSecondaryAlignment
+            val readName = records.first().readName
+            println(1234)
+        }
+
+        if(primaryAlignments.size == 1) {
+            return Pair(primaryAlignments[0], null)
+        }
+        return Pair(primaryAlignments[0], primaryAlignments[1])
     }
 
     fun classifyAlignments(sampleName: String, numSampleGametes: Int ,records: List<Pair<SAMRecord?,SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, hapIdToSampleGamete: Map<String, List<SampleGamete>>, refRangeToIndexMap: Map<String, Int>): AlignmentClass {
@@ -376,8 +400,8 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
 
 
 
-    private fun writeFastq(fastqFileName : String, fastq : List<SAMRecord>, order : String) {
-        bufferedWriter("$order$fastqFileName").use { writer ->
+    private fun writeFastq(fastqFileName : String, fastq : List<SAMRecord>, readNumber : String) {
+        bufferedWriter("${fastqFileName}_$readNumber.fastq").use { writer ->
             for (record in fastq) {
                 writer.write("@${record.readName}\n")
                 writer.write("${record.readString}\n")
@@ -394,7 +418,8 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         tableFileName: String,
         fastqFileName: String,
         // key = readId, values = alignments paired off by the correct strand that we want to export
-        alignments: Map<String, List<Pair<SAMRecord?, SAMRecord?>>>
+        alignments: Map<String, List<Pair<SAMRecord?, SAMRecord?>>>,
+        readToClassification: Map<String, AlignmentClass>
     ) {
 
         val fastq1 : MutableList<SAMRecord> = mutableListOf()
@@ -402,28 +427,38 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
 
         // Write the table to the file as tab-delimited text
         bufferedWriter(tableFileName).use { writer ->
-            writer.write("readID\tHapIDHits\n")
+            writer.write("readID\tHapIDHits\tClass\n")
             for ((readID, samlist) in alignments) {
                 // add all HapIDs to hits
                 val hits : MutableSet<String> = mutableSetOf<String>()
                 for (pair in samlist) {
                     // if pair has base quality string, add to the fastq file list
-                    if(pair.first != null && pair.first!!.baseQualityString.isNotEmpty()) {
-                        fastq1.add(pair.first!!)
+                    if(pair.first != null) {
                         // SAMRecord.contig gets HapID
-                        hits.add(pair.first!!.contig)
+                        if(!pair.first!!.readUnmappedFlag) { //The first read might be unmapped which means we would not have a contig hit
+                            hits.add(pair.first!!.contig)
+                        }
+
+                        if(pair.first!!.baseQualityString.isNotEmpty()) {
+                            fastq1.add(pair.first!!)
+                        }
                     }
-                    if(pair.second != null && pair.second!!.baseQualityString.isNotEmpty()) {
-                        fastq2.add(pair.second!!)
-                        hits.add(pair.second!!.contig)
+                    if(pair.second != null) {
+                        if(!pair.second!!.readUnmappedFlag) { //The second read might be unmapped which means we would not have a contig hit
+                            hits.add(pair.second!!.contig)
+                        }
+
+                        if(pair.second!!.baseQualityString.isNotEmpty()) {
+                            fastq2.add(pair.second!!)
+                        }
                     }
                 }
-                writer.write("$readID\t${hits.joinToString(separator = ", ")}\n")
+                writer.write("$readID\t${hits.joinToString(separator = ", ")}\t${readToClassification[readID]}\n")
             }
         }
         // write fastq files
-        writeFastq(fastqFileName, fastq1, "1")
-        writeFastq(fastqFileName, fastq2, "2")
+        writeFastq(fastqFileName, fastq1, "0")
+        writeFastq(fastqFileName, fastq2, "1")
     }
 
     fun printCountMap(countMap: Map<AlignmentClass, Int>) {

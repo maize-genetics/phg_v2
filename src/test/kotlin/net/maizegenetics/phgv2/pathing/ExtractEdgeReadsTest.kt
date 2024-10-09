@@ -53,8 +53,9 @@ class ExtractEdgeReadsTest {
         val alignments : Map<String, List<Pair<SAMRecord, SAMRecord>>> = mapOf("readID1" to list)
 
         val extractEdgeReads = ExtractEdgeReads()
+        TODO("Implement readToClass map")
         // create output files
-        extractEdgeReads.outputReadsAndHapIdSets(tableFileName = "table.txt", fastqFileName = "fastq.fq", alignments)
+        extractEdgeReads.outputReadsAndHapIdSets(tableFileName = "table.txt", fastqFileName = "fastq", alignments, mapOf())
 
         // read in data from output files and check if correct
         bufferedReader("table.txt").use { reader ->
@@ -63,7 +64,7 @@ class ExtractEdgeReadsTest {
             val line1 : String = reader.readLine()
             assertEquals(line1, "readID1\tchr1, chr2, chr3, chr4")
         }
-        bufferedReader("1fastq.fq").use { reader ->
+        bufferedReader("fastq_0.fastq").use { reader ->
             val name1 : String = reader.readLine()
             assertEquals(name1, "@read1")
             val seq1 : String = reader.readLine()
@@ -82,7 +83,7 @@ class ExtractEdgeReadsTest {
             val score2 : String = reader.readLine()
             assertEquals(score2, "IIII")
         }
-        bufferedReader("2fastq.fq").use { reader ->
+        bufferedReader("fastq_1.fastq").use { reader ->
 
             val name1 : String = reader.readLine()
             assertEquals(name1, "@read2")
@@ -103,8 +104,8 @@ class ExtractEdgeReadsTest {
             assertEquals(score2, "IIII")
         }
         File("table.txt").delete()
-        File("1fastq.fq").delete()
-        File("2fastq.fq").delete()
+        File("fastq_0.fastq").delete()
+        File("fastq_1.fastq").delete()
     }
 
     @Test
