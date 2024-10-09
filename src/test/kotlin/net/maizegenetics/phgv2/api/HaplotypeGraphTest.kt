@@ -1,13 +1,9 @@
 package net.maizegenetics.phgv2.api
 
-import com.github.ajalt.clikt.testing.test
-import net.maizegenetics.phgv2.cli.CreateRefVcf
 import net.maizegenetics.phgv2.cli.TestExtension
-import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
-import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -30,7 +26,13 @@ class HaplotypeGraphTest {
     @Test
     fun testMultipleFilesHaplotypeGraph() {
         //include RefHvcf to test what happens when a sample has no haplotype in at least one ReferenceRange
-        val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFile, TestExtension.smallseqLineBHvcfFile, TestExtension.smallseqRefHvcfFile))
+        val graph = HaplotypeGraph(
+            listOf(
+                TestExtension.smallseqLineAHvcfFile,
+                TestExtension.smallseqLineBHvcfFile,
+                TestExtension.smallseqRefHvcfFile
+            )
+        )
 
         assertEquals(40, graph.numberOfRanges(), "numOfRanges not 40: ${graph.numberOfRanges()}")
 
@@ -100,13 +102,13 @@ class HaplotypeGraphTest {
     @Test
     fun testBadInputHaplotypeGraph() {
         // ALT tag does not contain sample name
-        assertThrows<IllegalArgumentException> {
+        assertThrows<IllegalStateException> {
             HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFileBadAltTag))
         }
         // This is the assert needed if we switch back to co-routines in HaplotypGraph
         // Coroutines suppress the exception, hence we need to check the graph for null
-        //val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFileBadAltTag))
-        //assert(graph == null || graph.numberOfRanges() == 0) { "graph not null or empty" }
+        // val graph = HaplotypeGraph(listOf(TestExtension.smallseqLineAHvcfFileBadAltTag))
+        // assert(graph == null || graph.numberOfRanges() == 0) { "graph not null or empty" }
     }
 
     @Test
@@ -119,12 +121,20 @@ class HaplotypeGraphTest {
             val refRangeLineA = hapIdToRefRangeMap[hapIdLineA]
             assertTrue(refRangeLineA != null, "$hapIdLineA does not map to a reference range")
             assertEquals(1, refRangeLineA.size)
-            assertEquals(range, refRangeLineA[0], "hapIdToRefRangeMap does not contain correct range $refRangeLineA for LineA")
+            assertEquals(
+                range,
+                refRangeLineA[0],
+                "hapIdToRefRangeMap does not contain correct range $refRangeLineA for LineA"
+            )
             val hapIdLineB = graph.sampleToHapId(range, SampleGamete("LineB"))
             val refRangeLineB = hapIdToRefRangeMap[hapIdLineB]
             assertTrue(refRangeLineB != null, "$hapIdLineB does not map to a reference range")
             assertEquals(1, refRangeLineB.size)
-            assertEquals(range, refRangeLineB[0], "hapIdToRefRangeMap does not contain correct range $refRangeLineB for LineB")
+            assertEquals(
+                range,
+                refRangeLineB[0],
+                "hapIdToRefRangeMap does not contain correct range $refRangeLineB for LineB"
+            )
         }
     }
 
@@ -134,7 +144,7 @@ class HaplotypeGraphTest {
         val refRangeToHapidMap = graph.refRangeToHapIdMap()
 
         assertEquals(38, refRangeToHapidMap.size, "refRangeToHapidMap size not 38: ${refRangeToHapidMap.size}")
-        for(range in graph.ranges()) {
+        for (range in graph.ranges()) {
             val hapIds = refRangeToHapidMap[range]!!.keys
             val hapIdLineA = graph.sampleToHapId(range, SampleGamete("LineA"))
             assertTrue(hapIdLineA in hapIds, "refRangeToHapidMap does not contain correct hapId $hapIdLineA for LineA")
@@ -151,9 +161,13 @@ class HaplotypeGraphTest {
         val refRangeToIndexMap = graph.refRangeToIndexMap()
 
         assertEquals(38, refRangeToIndexMap.size, "refRangeToIndexMap size not 38: ${refRangeToIndexMap.size}")
-        for((index,range) in graph.ranges().withIndex()) {
+        for ((index, range) in graph.ranges().withIndex()) {
             val mappedIndex = refRangeToIndexMap[range]
-            assertEquals(index, mappedIndex, "refRangeToIndexMap does not contain correct index $index for range $range")
+            assertEquals(
+                index,
+                mappedIndex,
+                "refRangeToIndexMap does not contain correct index $index for range $range"
+            )
         }
     }
 
@@ -163,12 +177,18 @@ class HaplotypeGraphTest {
         val refRangeIdToHapIdMap = graph.refRangeIdToHapIdMap()
 
         assertEquals(38, refRangeIdToHapIdMap.size, "refRangeIdToHapIdMap size not 38: ${refRangeIdToHapIdMap.size}")
-        for((index, range) in graph.ranges().withIndex()) {
+        for ((index, range) in graph.ranges().withIndex()) {
             val hapIdLineA = graph.sampleToHapId(range, SampleGamete("LineA"))
             val hapIdLineB = graph.sampleToHapId(range, SampleGamete("LineB"))
             val hapIds = refRangeIdToHapIdMap[index]!!
-            assertTrue(hapIdLineA in hapIds, "refRangeIdToHapIdMap does not contain correct hapId $hapIdLineA for LineA")
-            assertTrue(hapIdLineB in hapIds, "refRangeIdToHapIdMap does not contain correct hapId $hapIdLineB for LineB")
+            assertTrue(
+                hapIdLineA in hapIds,
+                "refRangeIdToHapIdMap does not contain correct hapId $hapIdLineA for LineA"
+            )
+            assertTrue(
+                hapIdLineB in hapIds,
+                "refRangeIdToHapIdMap does not contain correct hapId $hapIdLineB for LineB"
+            )
         }
     }
 
