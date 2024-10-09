@@ -2,8 +2,6 @@ package net.maizegenetics.phgv2.api
 
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
-import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
 import net.maizegenetics.phgv2.utils.AltHeaderMetaData
 import net.maizegenetics.phgv2.utils.parseALTHeader
 import org.apache.logging.log4j.LogManager
@@ -164,50 +162,39 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      */
     fun altHeaders() = altHeaderMap
 
-    fun processFiles(hvcfFiles:List<String>) {
+    fun processFiles(hvcfFiles: List<String>) {
 
-        // rangeIdToSampleToChecksum[refRangeId][sampleId][gameteId] -> Checksum / hapid
         val rangeIdToSampleToChecksum = mutableListOf<Array<MutableList<String?>>>()
 
         val rangeMap = mutableMapOf<ReferenceRange, Int>()
 
-        val readers = mutableListOf<VCFFileReader>()
         val sampleNamesSet = mutableSetOf<String>()
         val sampleNamesList = mutableListOf<String>()
         val mutableAltHeaderMap: MutableMap<String, AltHeaderMetaData> = mutableMapOf()
 
         myLogger.info("processFiles: ${hvcfFiles.size} hvcf files")
-        // Step 1: Collect sample names and check for duplicates (non-parallel)
-        var time = System.nanoTime()
+
+        // Step 1: Get sample names and parse ALT headers
         hvcfFiles.forEach { hvcfFile ->
 
             myLogger.info("processFiles: $hvcfFile")
 
-            val reader = VCFFileReader(File(hvcfFile), false)
-            readers.add(reader)
-            // sampleNames are being added to both a Set and List so that they can be compared to detect and report
-            // duplicate sample names
-            sampleNamesSet.addAll(reader.header.sampleNamesInOrder)
-            sampleNamesList.addAll(reader.header.sampleNamesInOrder)
+            VCFFileReader(File(hvcfFile), false).use { reader ->
+                // sampleNames are being added to both a Set and List so that they can be compared to detect and report
+                // duplicate sample names
+                sampleNamesSet.addAll(reader.header.sampleNamesInOrder)
+                sampleNamesList.addAll(reader.header.sampleNamesInOrder)
 
-            try {
-                // extract out the haplotype sequence boundaries for each haplotype from the hvcf
-                mutableAltHeaderMap.putAll(parseALTHeader(reader.header))
-            } catch (exc: Exception) {
-                myLogger.error("processFiles: $hvcfFile: ${exc.message}")
-                readers.forEach { it.close() }
-                throw IllegalArgumentException("processFiles: $hvcfFile: ${exc.message}")
+                parseALTHeader(reader.header, mutableAltHeaderMap)
             }
+
         }
 
-        // print time to process from above
-        myLogger.info("Time to process files: ${((System.nanoTime() - time) / 1e9)}")
-
-        //make the alt header map immutable
+        // make the alt header map immutable
         altHeaderMap = mutableAltHeaderMap.toMap()
 
         // Step 2: check for duplicate sample names
-        myLogger.info("Finished creating readers, parsing ALT headers, now checking for duplicate sample names.")
+        myLogger.info("Parsing ALT headers, now checking for duplicate sample names.")
         sampleNamesSet.forEach { sampleNamesList.remove(it) }
         if (sampleNamesList.isNotEmpty()) {
             throw IllegalArgumentException("processFiles: duplicate sample names: $sampleNamesList")
@@ -220,30 +207,42 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
             Pair(sampleName, index)
         }.toMap()
 
-
         // Step 3: Process the files sequentially
-        myLogger.info("HaplotypeGraph:ProcessFiles: calling readers to processRanges")
-        readers.forEach { reader ->
-            val rangeInfoList = processRanges(reader)
-            for (rangeInfo in rangeInfoList) {
-                val rangeId = rangeMap.getOrPut(rangeInfo.range) { rangeMap.size }
+        hvcfFiles.forEach { hvcfFile ->
 
-                if (rangeId < rangeIdToSampleToChecksum.size) {
-                    rangeIdToSampleToChecksum[rangeId] =
-                        mergeStringArrays(rangeIdToSampleToChecksum.getOrNull(rangeId), rangeInfo.rangeSampleToChecksum)
-                } else {
-                    rangeIdToSampleToChecksum.add(
-                        rangeId,
-                        mergeStringArrays(rangeIdToSampleToChecksum.getOrNull(rangeId), rangeInfo.rangeSampleToChecksum)
-                    )
+            myLogger.info("processFiles: $hvcfFile")
+
+            VCFFileReader(File(hvcfFile), false).use { reader ->
+
+                val rangeInfoList = processRanges(reader)
+                for (rangeInfo in rangeInfoList) {
+                    val rangeId = rangeMap.getOrPut(rangeInfo.range) { rangeMap.size }
+
+                    if (rangeId < rangeIdToSampleToChecksum.size) {
+                        rangeIdToSampleToChecksum[rangeId] =
+                            mergeStringArrays(
+                                rangeIdToSampleToChecksum.getOrNull(rangeId),
+                                rangeInfo.rangeSampleToChecksum
+                            )
+                    } else {
+                        rangeIdToSampleToChecksum.add(
+                            rangeId,
+                            mergeStringArrays(
+                                rangeIdToSampleToChecksum.getOrNull(rangeId),
+                                rangeInfo.rangeSampleToChecksum
+                            )
+                        )
+                    }
                 }
+
             }
+
         }
+
         myLogger.info("Finished with readers loop to process ranges.")
 
         refRangeMap = rangeMap.toSortedMap()
 
-        // rangeByGameteIdToHapid[refRangeId][sampleId][gameteID] -> checksum / hapid
         rangeByGameteIdToHapid = rangeIdToSampleToChecksum.map { sampleGameteHapid ->
             sampleGameteHapid.map { gameteHapid ->
                 gameteHapid.map { it ?: "" }.toTypedArray()
@@ -252,16 +251,17 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
     }
 
-    fun processRanges(reader: VCFFileReader):List<RangeInfo> {
+    private fun processRanges(reader: VCFFileReader): List<RangeInfo> {
         val rangeInfoList = mutableListOf<RangeInfo>()
         reader.forEach { context ->
             // NOTE: This can throw an exception if there are blank lines in the VCF file
-            // THe problem seems to occur in the VCFReader processing - checking for blank
+            // The problem seems to occur in the VCFReader processing - checking for blank
             // at this stage does not help.
             rangeInfoList.add(contextToRange(context))
         }
         return rangeInfoList
     }
+
     /**
      * ReferenceRange Information
      *
