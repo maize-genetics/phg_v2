@@ -717,7 +717,7 @@ class ExtractEdgeReadsTest {
         assertEquals(missingAll.statusCode, 1)
         assertEquals("Usage: extract-edge-reads [<options>]\n" +
                 "\n" +
-                "Error: missing option --bam-dir\n" +
+                "Error: missing option --bam-file\n" +
                 "Error: missing option --hvcf-dir\n" +
                 "Error: missing option --sample-name\n" +
                 "Error: missing option --output-file-dir\n", missingAll.output)

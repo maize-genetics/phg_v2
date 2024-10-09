@@ -26,8 +26,9 @@ enum class AlignmentClass {
  * IT IS CURRENTLY A WIP AND IS UNDER ACTIVE DEVELOPMENT
  */
 class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from SAMs/BAMs") {
-    val bamDir by option(help = "Folder name where The BAM/SAM files are")
+    val bamFile by option(help = "BAM/SAM file to use")
         .required()
+
     val hvcfDir by option(help = "Folder name where the HVCFS are")
         .required()
     val sampleName by option(help = "Sample name to use for the reads")
@@ -51,18 +52,13 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         //load the graph in
         val graph = HaplotypeGraph(hvcfFiles)
 
-        val bamFiles = File(bamDir).listFiles { file -> file.name.endsWith(".bam") || file.name.endsWith(".sam") }.map { it.path }
-
-        //extract the edge reads
-        for(bamFile in bamFiles) {
-            myLogger.info("Extracting reads from $bamFile")
-            val (countMap, recordsToExport, readToClassificaiton) = extractReads(sampleName, bamFile, graph, maxClassNum)
-            //Print out the countMap
-            printCountMap(countMap)
-            val outputFileName = "${outputFileDir}/${File(bamFile).nameWithoutExtension}"
-            myLogger.info("Writing output to $outputFileName")
-            outputReadsAndHapIdSets("${outputFileName}_table.txt", "${outputFileName}.fastq", recordsToExport, readToClassificaiton)
-        }
+        myLogger.info("Extracting reads from $bamFile")
+        val (countMap, recordsToExport, readToClassificaiton) = extractReads(sampleName, bamFile, graph, maxClassNum)
+        //Print out the countMap
+        printCountMap(countMap)
+        val outputFileName = "${outputFileDir}/${File(bamFile).nameWithoutExtension}"
+        myLogger.info("Writing output to $outputFileName")
+        outputReadsAndHapIdSets("${outputFileName}_table.txt", "${outputFileName}.fastq", recordsToExport, readToClassificaiton)
     }
 
     fun extractReads(sampleName: String, bamFile: String, graph: HaplotypeGraph, maxClassNum : Int = 10) : Triple<Map<AlignmentClass,Int>, Map<String, List<Pair<SAMRecord?,SAMRecord?>>>, Map<String,AlignmentClass>> {
@@ -98,11 +94,6 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
                     recordsToExport[currentReadId] = records
                     readToClassification[currentReadId] = classification
                 }
-
-//                if(classification == AlignmentClass.PAIROFFASM && readCounter < 50000) {
-//                    println(recordsForRead.first().readName)
-//                }
-
 
                 readCounter++
                 if(readCounter % 10000 == 0) {
@@ -179,13 +170,6 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
 
     fun getPrimaryAlignments(records: List<SAMRecord>) : Pair<SAMRecord?,SAMRecord?> {
         val primaryAlignments = records.filter { !it.isSecondaryOrSupplementary }
-
-        if(primaryAlignments.size == 0) {
-            println(records.first().readName)
-            val secondary = records.first().isSecondaryAlignment
-            val readName = records.first().readName
-            println(1234)
-        }
 
         if(primaryAlignments.size == 1) {
             return Pair(primaryAlignments[0], null)
