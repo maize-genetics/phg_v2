@@ -84,6 +84,7 @@ fun parseALTHeader(header: VCFHeader, result: MutableMap<String, AltHeaderMetaDa
 fun parseALTHeader(headers: List<VCFHeader>): Map<String, AltHeaderMetaData> {
 
     return headers.asSequence().map { header -> header.metaDataInInputOrder.asSequence().filter { it.key == "ALT" } }
+        .flatten()
         .map { it as VCFAltHeaderLine }
         .distinctBy { it.id }
         .map { it.genericFields }
