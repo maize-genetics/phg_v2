@@ -427,7 +427,7 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
 
         // Write the table to the file as tab-delimited text
         bufferedWriter(tableFileName).use { writer ->
-            writer.write("readID\tHapIDHits\tClass\n")
+            writer.write("readID\tClass\tHapIDHits\n")
             for ((readID, samlist) in alignments) {
                 // add all HapIDs to hits
                 val hits : MutableSet<String> = mutableSetOf<String>()
@@ -438,8 +438,9 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
                         if(!pair.first!!.readUnmappedFlag) { //The first read might be unmapped which means we would not have a contig hit
                             hits.add(pair.first!!.contig)
                         }
-
-                        if(pair.first!!.baseQualityString.isNotEmpty()) {
+                        pair
+                        val baseQualString = pair.first!!.baseQualityString
+                        if(baseQualString.isNotEmpty() && baseQualString != "*") {
                             fastq1.add(pair.first!!)
                         }
                     }
@@ -448,12 +449,13 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
                             hits.add(pair.second!!.contig)
                         }
 
-                        if(pair.second!!.baseQualityString.isNotEmpty()) {
+                        val baseQualString = pair.second!!.baseQualityString
+                        if(baseQualString.isNotEmpty() && baseQualString != "*") {
                             fastq2.add(pair.second!!)
                         }
                     }
                 }
-                writer.write("$readID\t${hits.joinToString(separator = ", ")}\t${readToClassification[readID]}\n")
+                writer.write("$readID\t${readToClassification[readID]}\t${hits.joinToString(separator = ",")}\n")
             }
         }
         // write fastq files

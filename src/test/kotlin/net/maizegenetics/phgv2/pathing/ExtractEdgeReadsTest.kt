@@ -43,26 +43,36 @@ class ExtractEdgeReadsTest {
         // Create a SAMRecordFactory to generate SAM records
         val samRecordFactory = DefaultSAMRecordFactory()
         // Generate four SAMRecords
-        val sam1 = createSAMRecord(samRecordFactory, samHeader, "read1", "AAAA", 30, "chr1", "IIII")
-        val sam2 = createSAMRecord(samRecordFactory, samHeader, "read2", "TTTT", 40, "chr2", "IIII")
-        val sam3 = createSAMRecord(samRecordFactory, samHeader, "read3", "CCCC", 0, "chr3", "IIII")
-        val sam4 = createSAMRecord(samRecordFactory, samHeader, "read4", "GGGG", 50, "chr4", "IIII")
+        val sam1 = createSAMRecord(samRecordFactory, samHeader, "read1", "AAAA", 30, "hap1", "IIII")
+        val sam2 = createSAMRecord(samRecordFactory, samHeader, "read1", "TTTT", 40, "hap1", "IIII")
+        val sam3 = createSAMRecord(samRecordFactory, samHeader, "read1", "*", 60, "hap2", "*")
+        val sam4 = createSAMRecord(samRecordFactory, samHeader, "read1", "*", 50, "hap2", "*")
+
+        val sam5 = createSAMRecord(samRecordFactory, samHeader, "read2", "CCCC", 0, "hap6", "IIII")
+        val sam6 = createSAMRecord(samRecordFactory, samHeader, "read2", "GGGG", 50, "hap6", "IIII")
+
+
 
         // construct input data
-        val list : List<Pair<SAMRecord, SAMRecord>> = listOf(Pair(sam1, sam2), Pair(sam3, sam4))
-        val alignments : Map<String, List<Pair<SAMRecord, SAMRecord>>> = mapOf("readID1" to list)
+        val alignments : Map<String, List<Pair<SAMRecord, SAMRecord>>> = mapOf(
+            "read1" to listOf(Pair(sam1, sam2), Pair(sam3, sam4)),
+            "read2" to listOf(Pair(sam5, sam6))
+        )
+
+        val classifications = mapOf("read1" to AlignmentClass.SINGLECOMMON, "read2" to AlignmentClass.SINGLEUNIQUE)
 
         val extractEdgeReads = ExtractEdgeReads()
-        TODO("Implement readToClass map")
         // create output files
-        extractEdgeReads.outputReadsAndHapIdSets(tableFileName = "table.txt", fastqFileName = "fastq", alignments, mapOf())
+        extractEdgeReads.outputReadsAndHapIdSets(tableFileName = "table.txt", fastqFileName = "fastq", alignments, classifications )
 
         // read in data from output files and check if correct
         bufferedReader("table.txt").use { reader ->
             val header : String = reader.readLine()
-            assertEquals(header, "readID\tHapIDHits")
+            assertEquals(header, "readID\tClass\tHapIDHits")
             val line1 : String = reader.readLine()
-            assertEquals(line1, "readID1\tchr1, chr2, chr3, chr4")
+            assertEquals(line1, "read1\tSINGLECOMMON\thap1,hap2")
+            val line2 : String = reader.readLine()
+            assertEquals(line2, "read2\tSINGLEUNIQUE\thap6")
         }
         bufferedReader("fastq_0.fastq").use { reader ->
             val name1 : String = reader.readLine()
@@ -75,7 +85,7 @@ class ExtractEdgeReadsTest {
             assertEquals(score1, "IIII")
 
             val name2 : String = reader.readLine()
-            assertEquals(name2, "@read3")
+            assertEquals(name2, "@read2")
             val seq2 : String = reader.readLine()
             assertEquals(seq2, "CCCC")
             val plus2 : String = reader.readLine()
@@ -86,7 +96,7 @@ class ExtractEdgeReadsTest {
         bufferedReader("fastq_1.fastq").use { reader ->
 
             val name1 : String = reader.readLine()
-            assertEquals(name1, "@read2")
+            assertEquals(name1, "@read1")
             val seq1 : String = reader.readLine()
             assertEquals(seq1, "TTTT")
             val plus1 : String = reader.readLine()
@@ -95,7 +105,7 @@ class ExtractEdgeReadsTest {
             assertEquals(score1, "IIII")
 
             val name2 : String = reader.readLine()
-            assertEquals(name2, "@read4")
+            assertEquals(name2, "@read2")
             val seq2 : String = reader.readLine()
             assertEquals(seq2, "GGGG")
             val plus2 : String = reader.readLine()
