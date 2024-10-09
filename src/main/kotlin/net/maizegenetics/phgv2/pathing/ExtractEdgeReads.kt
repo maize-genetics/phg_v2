@@ -16,6 +16,7 @@ import java.io.File
 
 enum class AlignmentClass {
     PAIRUNIQUE, PAIRRARE, PAIRCOMMON, PAIRREADSPLIT, PAIRREADSPLITCONSEC, PAIRALIGNSPLIT, PAIRALIGNSPLITCONSEC, PAIROFFASM, UNALIGN,
+    SINGLEPARTIALUNIQUE, SINGLEPARTIALRARE, SINGLEPARTIALCOMMON, SINGLEPARTIALALIGNSPLIT, SINGLEPARTIALALIGNSPLITCONSEC, SINGLEPARTIALOFFASM,
     SINGLEUNIQUE, SINGLERARE, SINGLECOMMON, SINGLEALIGNSPLIT, SINGLEALIGNSPLITCONSEC,SINGLEOFFASM
 
 }
@@ -58,7 +59,7 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         printCountMap(countMap)
         val outputFileName = "${outputFileDir}/${File(bamFile).nameWithoutExtension}"
         myLogger.info("Writing output to $outputFileName")
-        outputReadsAndHapIdSets("${outputFileName}_table.txt", "${outputFileName}.fastq", recordsToExport, readToClassificaiton)
+        outputReadsAndHapIdSets("${outputFileName}_table.txt", "${outputFileName}", recordsToExport, readToClassificaiton)
     }
 
     fun extractReads(sampleName: String, bamFile: String, graph: HaplotypeGraph, maxClassNum : Int = 10) : Triple<Map<AlignmentClass,Int>, Map<String, List<Pair<SAMRecord?,SAMRecord?>>>, Map<String,AlignmentClass>> {
@@ -96,7 +97,7 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
                 }
 
                 readCounter++
-                if(readCounter % 10000 == 0) {
+                if(readCounter % 100000 == 0) {
                     myLogger.info("Processed $readCounter reads")
                 }
 
@@ -136,27 +137,97 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         val recordsGroupedByContig = filterAlignmentByPairFlag(recordsForRead)
             .groupBy { record -> hapIdToSampleGamete[record.contig]!! }
             .map { pairOffAlignments(it.value) }
-
-
+            .flatten()
 
         //We are looking for various edge cases
         val classification = classifyAlignments(sampleName, numSampleGametes,recordsGroupedByContig, hapIdToRefRangeMap, hapIdToSampleGamete, refRangeToIndexMap)
 
         val primaryAlignments = listOf(getPrimaryAlignments(recordsForRead))
 
-        return Pair(classification, recordsGroupedByContig)
-//        return Pair(classification, primaryAlignments)
+//        return Pair(classification, recordsGroupedByContig)
+        return Pair(classification, primaryAlignments)
     }
 
     fun filterAlignmentByPairFlag(records: List<SAMRecord>): List<SAMRecord> {
         return records.filter{!it.readUnmappedFlag}.groupBy { it.firstOfPairFlag }.filter{ it.value.isNotEmpty() }.map { keepBestAlignments(it.value) }.flatten()
     }
 
-    fun pairOffAlignments(records: List<SAMRecord>): Pair<SAMRecord?,SAMRecord?> {
+    fun pairOffAlignments(records: List<SAMRecord>): List<Pair<SAMRecord?,SAMRecord?>> {
         //these records are all hitting the same contig.  Need to split them by first in pair and second in pair
-        val bestAlignments = records.groupBy { it.firstOfPairFlag }.map { keepBestAlignment(it.value) } //Group and filter just to be safe
-        if (bestAlignments.size == 1) { return Pair(bestAlignments[0], null)}
-        return Pair(bestAlignments[0], bestAlignments[1])
+        val bestAlignments = records.groupBy { it.firstOfPairFlag }.map { Pair(it.key,keepBestAlignments(it.value)) }.toMap()//Group and filter just to be safe
+
+        //Go through best alignments and try to match them up by hapId
+        val trueHaps = bestAlignments[true]?.groupBy { it.contig } ?: mapOf()
+        val falseHaps = bestAlignments[false]?.groupBy { it.contig } ?: mapOf()
+
+        //loop through trueHaps and try to match them up with falseHaps
+        val pairedBestAlignments = mutableListOf<Pair<SAMRecord?,SAMRecord?>>()
+        buildFirstPairs(trueHaps, falseHaps, pairedBestAlignments)
+        buildSecondPairs(trueHaps, falseHaps, pairedBestAlignments)
+
+        return pairedBestAlignments
+//        if (bestAlignments.size == 1) { return Pair(bestAlignments[0], null)}
+//        return Pair(bestAlignments[0], bestAlignments[1])
+    }
+
+    fun buildFirstPairs(trueHaps: Map<String, List<SAMRecord>>, falseHaps: Map<String, List<SAMRecord>>, pairedBestAlignments: MutableList<Pair<SAMRecord?,SAMRecord?>>) {
+        for(key in trueHaps.keys) {
+            val trueRecords = trueHaps[key]!!
+            val falseRecords = falseHaps[key] ?: listOf()
+            //Find the primary alignments in both the true and false records
+            val truePrimaryOrNull = getPrimaryAlignments(trueRecords)
+            val falsePrimaryOrNull = getPrimaryAlignments(falseRecords)
+
+            val trueAlignment = if(truePrimaryOrNull == Pair(null,null)) {
+                trueRecords.first()
+            }
+            else {
+                truePrimaryOrNull.first
+            }
+
+            val falseAlignment = if(falseRecords.isEmpty()) {
+                null
+            }
+            else if(falsePrimaryOrNull == Pair(null,null)) {
+                falseRecords.first()
+            }
+            else {
+                falsePrimaryOrNull.first
+            }
+
+            //If we have a list of true records it does not matter we just need one of them
+            pairedBestAlignments.add(Pair(trueAlignment, falseAlignment))
+        }
+    }
+
+    fun buildSecondPairs(trueHaps: Map<String, List<SAMRecord>>, falseHaps: Map<String, List<SAMRecord>>, pairedBestAlignments: MutableList<Pair<SAMRecord?,SAMRecord?>>) {
+        for(key in falseHaps.keys) {
+            val trueRecords = trueHaps[key] ?: listOf()
+            val falseRecords = falseHaps[key]!!
+            //Find the primary alignments in both the true and false records
+            val truePrimaryOrNull = getPrimaryAlignments(trueRecords)
+            val falsePrimaryOrNull = getPrimaryAlignments(falseRecords)
+
+            val trueAlignment = if(trueRecords.isEmpty()) {
+                null
+            }
+            else if(truePrimaryOrNull == Pair(null,null)) {
+                trueRecords.first()
+            }
+            else {
+                truePrimaryOrNull.first
+            }
+
+            val falseAlignment = if(falsePrimaryOrNull == Pair(null,null)) {
+                falseRecords.first()
+            }
+            else {
+                falsePrimaryOrNull.first
+            }
+
+            //If we have a list of true records it does not matter we just need one of them
+            pairedBestAlignments.add(Pair(trueAlignment, falseAlignment))
+        }
     }
 
     fun keepBestAlignment(records : List<SAMRecord>) : SAMRecord? {
@@ -171,18 +242,47 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
     fun getPrimaryAlignments(records: List<SAMRecord>) : Pair<SAMRecord?,SAMRecord?> {
         val primaryAlignments = records.filter { !it.isSecondaryOrSupplementary }
 
-        if(primaryAlignments.size == 1) {
-            return Pair(primaryAlignments[0], null)
+        return when {
+            primaryAlignments.isEmpty() -> Pair(null,null)
+            primaryAlignments.size == 1 -> Pair(primaryAlignments[0], null)
+            else -> {
+                val firstInPair = primaryAlignments.filter { it.firstOfPairFlag }
+                val secondInPair = primaryAlignments.filter { !it.firstOfPairFlag }
+//                Pair(primaryAlignments[0], primaryAlignments[1])
+                Pair(firstInPair.first(), secondInPair.first())
+            }
         }
-        return Pair(primaryAlignments[0], primaryAlignments[1])
     }
 
     fun classifyAlignments(sampleName: String, numSampleGametes: Int ,records: List<Pair<SAMRecord?,SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, hapIdToSampleGamete: Map<String, List<SampleGamete>>, refRangeToIndexMap: Map<String, Int>): AlignmentClass {
+        if(records.first().first?.readName == "ST-E00317:129:HVMFTCCXX:7:1101:11160:1309" || records.first().second?.readName == "ST-E00317:129:HVMFTCCXX:7:1101:11160:1309") {
+            println("Here")
+        }
+
         return when {
-            isSingle(records) -> classifySingleAlignments(sampleName, numSampleGametes, records, hapIdToRefRangeMap, hapIdToSampleGamete, refRangeToIndexMap)
+            isPartialSingle(records) -> classifySingleAlignments(true, sampleName, numSampleGametes, records, hapIdToRefRangeMap, hapIdToSampleGamete, refRangeToIndexMap)
+            isSingle(records) -> classifySingleAlignments(false, sampleName, numSampleGametes, records, hapIdToRefRangeMap, hapIdToSampleGamete, refRangeToIndexMap)
             isPaired(records) -> classifyPairedAlignments(sampleName, numSampleGametes, records, hapIdToRefRangeMap, hapIdToSampleGamete, refRangeToIndexMap)
             else -> AlignmentClass.UNALIGN
         }
+    }
+
+    /**
+     * Function to see if we have one of the reads hitting a set of haplotypes and the other hitting a different set
+     * of haplotypes where neither of the two sets share sample names.  We are calling this a partial alignment as it is
+     * different from a normal single alignment where only one read is aligning.
+     */
+    fun isPartialSingle(records: List<Pair<SAMRecord?, SAMRecord?>>): Boolean {
+        if (isSingle(records)) {
+            //Split the records first or second in pair
+            val firstInPair = records.filter { it.first != null }
+            val secondInPair = records.filter { it.second != null }
+            return !(firstInPair.isEmpty() || secondInPair.isEmpty()) //If its single and each of the 2 reads have single alignments but not just one of the reads it is a partial
+        }
+        else {
+            return false
+        }
+
     }
 
     fun isSingle(records: List<Pair<SAMRecord?, SAMRecord?>>): Boolean {
@@ -196,16 +296,23 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         return records.map { it.first != null && it.second != null }.any { it }
     }
 
-    fun classifySingleAlignments(sampleName: String, numSampleGametes: Int, records: List<Pair<SAMRecord?,SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, hapIdToSampleGamete: Map<String, List<SampleGamete>>, refRangeToIndexMap: Map<String, Int>) :AlignmentClass {
+    fun classifySingleAlignments(isPartial: Boolean, sampleName: String, numSampleGametes: Int, records: List<Pair<SAMRecord?,SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, hapIdToSampleGamete: Map<String, List<SampleGamete>>, refRangeToIndexMap: Map<String, Int>) :AlignmentClass {
         //Check unique first then the splits and offASM and then rare vs common
         //We cant have readSplit as these are all single ended reads
         return when{
-            records.size == 1 -> AlignmentClass.SINGLEUNIQUE
-            isSingleOffASM(sampleName, records, hapIdToSampleGamete) -> AlignmentClass.SINGLEOFFASM
-            isSingleAlignConsec(records,hapIdToRefRangeMap, refRangeToIndexMap) -> AlignmentClass.SINGLEALIGNSPLITCONSEC //Check consec first as its a subclass of AlignSplit
-            isSingleAlignSplit(records,hapIdToRefRangeMap) -> AlignmentClass.SINGLEALIGNSPLIT
-            records.size in 2 .. numSampleGametes/2 -> AlignmentClass.SINGLERARE
-            else -> AlignmentClass.SINGLECOMMON
+            !isPartial && records.size == 1 -> AlignmentClass.SINGLEUNIQUE
+            !isPartial && isSingleOffASM(sampleName, records, hapIdToSampleGamete) -> AlignmentClass.SINGLEOFFASM
+            !isPartial && isSingleAlignConsec(records,hapIdToRefRangeMap, refRangeToIndexMap) -> AlignmentClass.SINGLEALIGNSPLITCONSEC //Check consec first as its a subclass of AlignSplit
+            !isPartial && isSingleAlignSplit(records,hapIdToRefRangeMap) -> AlignmentClass.SINGLEALIGNSPLIT
+            !isPartial && records.size in 2 .. numSampleGametes/2 -> AlignmentClass.SINGLERARE
+            !isPartial -> AlignmentClass.SINGLECOMMON
+            isPartial && records.size == 1 -> AlignmentClass.SINGLEPARTIALUNIQUE
+            isPartial && isSingleOffASM(sampleName, records, hapIdToSampleGamete) -> AlignmentClass.SINGLEPARTIALOFFASM
+            isPartial && isSingleAlignConsec(records,hapIdToRefRangeMap, refRangeToIndexMap) -> AlignmentClass.SINGLEPARTIALALIGNSPLITCONSEC //Check consec first as its a subclass of AlignSplit
+            isPartial && isSingleAlignSplit(records,hapIdToRefRangeMap) -> AlignmentClass.SINGLEPARTIALALIGNSPLIT
+            isPartial && records.size in 2 .. numSampleGametes/2 -> AlignmentClass.SINGLEPARTIALRARE
+            else -> AlignmentClass.SINGLEPARTIALCOMMON
+
         }
     }
 
@@ -406,8 +513,10 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         readToClassification: Map<String, AlignmentClass>
     ) {
 
-        val fastq1 : MutableList<SAMRecord> = mutableListOf()
-        val fastq2 : MutableList<SAMRecord> = mutableListOf()
+        val fastq1 = mutableListOf<SAMRecord>()
+        val fastq2 = mutableListOf<SAMRecord>()
+        val readProcessedFastq1 = mutableSetOf<String>()
+        val readProcessedFastq2 = mutableSetOf<String>()
 
         // Write the table to the file as tab-delimited text
         bufferedWriter(tableFileName).use { writer ->
@@ -422,10 +531,10 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
                         if(!pair.first!!.readUnmappedFlag) { //The first read might be unmapped which means we would not have a contig hit
                             hits.add(pair.first!!.contig)
                         }
-                        pair
                         val baseQualString = pair.first!!.baseQualityString
-                        if(baseQualString.isNotEmpty() && baseQualString != "*") {
+                        if(baseQualString.isNotEmpty() && baseQualString != "*" && !readProcessedFastq1.contains(readID)) {
                             fastq1.add(pair.first!!)
+                            readProcessedFastq1.add(readID)
                         }
                     }
                     if(pair.second != null) {
@@ -434,17 +543,30 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
                         }
 
                         val baseQualString = pair.second!!.baseQualityString
-                        if(baseQualString.isNotEmpty() && baseQualString != "*") {
+                        if(baseQualString.isNotEmpty() && baseQualString != "*" && !readProcessedFastq2.contains(readID)) {
                             fastq2.add(pair.second!!)
+                            readProcessedFastq2.add(readID)
                         }
                     }
                 }
                 writer.write("$readID\t${readToClassification[readID]}\t${hits.joinToString(separator = ",")}\n")
             }
         }
+
         // write fastq files
         writeFastq(fastqFileName, fastq1, "0")
         writeFastq(fastqFileName, fastq2, "1")
+
+        for(readID in readProcessedFastq1) {
+            if(!readProcessedFastq2.contains(readID)) {
+                println("Read $readID was only processed in the first read")
+            }
+        }
+        for(readID in readProcessedFastq2) {
+            if(!readProcessedFastq1.contains(readID)) {
+                println("Read $readID was only processed in the second read")
+            }
+        }
     }
 
     fun printCountMap(countMap: Map<AlignmentClass, Int>) {
