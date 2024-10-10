@@ -2,12 +2,10 @@
 
 package net.maizegenetics.phgv2.utils
 
-import biokotlin.util.bufferedReader
 import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeader
 import htsjdk.variant.vcf.VCFHeaderVersion
-import htsjdk.variant.vcf.VCFReader
 import net.maizegenetics.phgv2.api.SampleGamete
 import org.apache.logging.log4j.LogManager
 import java.nio.file.Paths
@@ -33,7 +31,7 @@ data class AltHeaderMetaData(
 }
 
 /**
- * Helper function to parse out the ALT headers from the VCF file.
+ * Helper function to parse out the ALT headers from a VCF file.
  *
  * We need to do a bit more involved parsing in this function as we cannot use the .getOtherHeaders() call from HTSJDK.
  * For some reason this only returns the first header when called, and we need all of them.
@@ -41,9 +39,54 @@ data class AltHeaderMetaData(
  * To make this easy, we just parse each piece of metadata into a key-value pair and then store in a map.
  */
 fun parseALTHeader(header: VCFHeader): Map<String, AltHeaderMetaData> {
+    return parseALTHeader(listOf(header))
+}
 
-    return header.metaDataInInputOrder.asSequence().filter { it.key == "ALT" }
+/**
+ * Helper function to parse out the ALT headers from a VCF file.
+ *
+ * This function is used when we have multiple VCF headers to parse.
+ * And the results are added to an existing map.
+ */
+fun parseALTHeader(header: VCFHeader, result: MutableMap<String, AltHeaderMetaData>) {
+
+    header.metaDataInInputOrder.asSequence().filter { it.key == "ALT" }
         .map { it as VCFAltHeaderLine }
+        .filter { !result.containsKey(it.id) }
+        .map { it.genericFields }
+        .associateBy { it["ID"]!! }
+        .forEach {
+            check(it.value.containsKey("ID")) { "ALT Header does not contain ID" }
+            check(it.value.containsKey("Description")) { "ALT Header does not contain Description" }
+            // These are optional header fields, so we check these in the unit test.
+            check(it.value.containsKey("Source")) { "ALT Header does not contain Source" }
+            check(it.value.containsKey("SampleName")) { "ALT Header does not contain SampleName" }
+            check(it.value.containsKey("Regions")) { "ALT Header does not contain Regions" }
+            check(it.value.containsKey("Checksum")) { "ALT Header does not contain Checksum" }
+            check(it.value.containsKey("RefRange")) { "ALT Header does not contain RefRange" }
+            result[it.key] = AltHeaderMetaData(
+                it.value["ID"]!!,
+                it.value["Description"]!!,
+                it.value["Source"]!!,
+                SampleGamete(it.value["SampleName"]!!, it.value["Gamete"]?.toInt() ?: 0),
+                parseRegions(it.value["Regions"]!!),
+                it.value["Checksum"]!!,
+                it.value["RefRange"]!!,
+                it.value["RefChecksum"] ?: ""
+            )
+        }
+
+}
+
+/**
+ * Helper function to parse out the ALT headers from multiple VCF files.
+ */
+fun parseALTHeader(headers: List<VCFHeader>): Map<String, AltHeaderMetaData> {
+
+    return headers.asSequence().map { header -> header.metaDataInInputOrder.asSequence().filter { it.key == "ALT" } }
+        .flatten()
+        .map { it as VCFAltHeaderLine }
+        .distinctBy { it.id }
         .map { it.genericFields }
         .associateBy { it["ID"]!! }
         .map {
@@ -65,8 +108,8 @@ fun parseALTHeader(header: VCFHeader): Map<String, AltHeaderMetaData> {
                 it.value["RefRange"]!!,
                 it.value["RefChecksum"] ?: ""
             )
-        }.toList()
-        .toMap()
+        }.toMap()
+
 }
 
 /**
@@ -102,13 +145,13 @@ fun altHeaderMetadataToVCFHeaderLine(altHeaderData: AltHeaderMetaData, altHeader
 /**
  * Converts a VCF file to a bedfile containing the positions in the VCF.
  */
-fun writeBedfileFromVcf(vcfName: String, bedName: String, bedfileHeader:String = "") {
+fun writeBedfileFromVcf(vcfName: String, bedName: String, bedfileHeader: String = "") {
     val vcfReader = VCFFileReader(Paths.get(vcfName), false)
     getBufferedWriter(bedName).use { bedWriter ->
         if (bedfileHeader.isNotBlank()) bedWriter.write(bedfileHeader + "\n")
 
         //subtract 1 from the start of each vcf feature to convert to bed format
-        for(varctxt in vcfReader) {
+        for (varctxt in vcfReader) {
             bedWriter.write("${varctxt.contig}\t${varctxt.start - 1}\t${varctxt.end}\n")
         }
     }
