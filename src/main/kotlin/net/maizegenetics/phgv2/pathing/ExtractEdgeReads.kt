@@ -92,7 +92,7 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
                 val (classification, records) = processReads(sampleName, numSampleGametes, recordsForRead, hapIdToRefRangeMap, hapIdsToSampleGametes,refRangeToIndexMap)
 
                 countMap[classification] = countMap[classification]!! + 1
-                if(countMap[classification]!! < maxClassNum) {
+                if(countMap[classification]!! <= maxClassNum) {
                     recordsToExport[currentReadId] = records
                     readToClassification[currentReadId] = classification
                 }
@@ -111,7 +111,7 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         //process the last read alignments
         val (classification, records) =  processReads(sampleName, numSampleGametes, recordsForRead, hapIdToRefRangeMap, hapIdsToSampleGametes, refRangeToIndexMap)
         countMap[classification] = countMap[classification]!! + 1
-        if(countMap[classification]!! < maxClassNum) {
+        if(countMap[classification]!! <= maxClassNum) {
             recordsToExport[currentReadId] = records
             readToClassification[currentReadId] = classification
         }
