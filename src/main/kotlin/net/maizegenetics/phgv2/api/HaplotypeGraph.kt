@@ -186,6 +186,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
                 sampleNamesList.addAll(reader.header.sampleNamesInOrder)
 
                 parseALTHeader(reader.header, mutableAltHeaderMap)
+
+                reader.close()
             }
 
         }
@@ -234,6 +236,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
                         )
                     }
                 }
+
+                reader.close()
 
             }
 
