@@ -25,6 +25,13 @@ standards including the Breeding API ([BrAPI](https://brapi.org)) and efficient
 tools for R such as [rPHG2](https://github.com/maize-genetics/rPHG2) for pangenome extraction and 
 [rTASSEL](https://github.com/maize-genetics/rTASSEL) for connecting genotype to phenotype.
 
+## Table of contents
+* [Quick start](#quick-start)
+* [Referencing the PHG](#referencing-the-phg)
+* [Design and history](#design-and-history)
+* [Terminology](#terminology)
+* [Long-form documentation](#long-form-documentation)
+
 
 ## Quick start
 
@@ -48,12 +55,12 @@ _Long-form documentation for this section can be found
 metrics** can be found [here](https://phg.maizegenetics.net/qc_metrics/)._
 
 > [!NOTE]
-> As of version 2.4.X, the phg utilizes a new version of anchorwave(1.2.3).
+> As of version `2.4.X`, the PHG utilizes a new version of AnchorWave (`1.2.3`).
 > This changes how ASM coordinates are handled. 
-> If you are using old MAF files generated either from anchorwave 1.2.2 or from PHGv2 version 2.3 or eariler, 
-> please use the --legacy-maf-file flag for create-maf-vcf.  
-> It is recommended that you remove your phgv2-conda Conda environment and rerun the setup-environment command.
-> More information can be found [here](docs/build_and_load.md).
+> If you are using old MAF files generated either from AnchorWave `1.2.2` or from PHGv2 version `2.3` or eariler, 
+> please use the `--legacy-maf-file flag` for the `create-maf-vcf` command.
+> It is recommended that you remove your `phgv2-conda` Conda environment and rerun the `setup-environment` command.
+> More information can be found [here](https://phg.maizegenetics.net/build_and_load/).
 
 ```shell
 ## Setup conda environment
@@ -112,6 +119,13 @@ _Long-form documentation for this section can be found [here](https://phg.maizeg
 ## Export from Tiledb
 ./phg export-vcf --db-path /my/db/uri --dataset-type hvcf --sample-Names LineA,LineB --output-dir /my/output/dir
 ```
+
+## Referencing the PHG
+To reference the PHG, please use the following citation:
+
+> Bradbury, P J and Casstevens, T and Jensen, S E and Johnson, L C and Miller, Z R and Monier, B and Romay, M C and Song, B and Buckler, E S (2022). **The Practical Haplotype Graph, a platform for storing and using pangenomes for imputation.** *Bioinformatics*. DOI: [10.1093/bioinformatics/btac410](https://doi.org/10.1093/bioinformatics/btac410)
+
+More references to other PHG articles can be found [here](https://phg.maizegenetics.net/citations/).
 
 
 ## Design and history
@@ -174,7 +188,8 @@ More commonly used terms can be found [here](https://phg.maizegenetics.net/termi
 1. [Installation](https://phg.maizegenetics.net/installation/)
 2. [Building and loading](https://phg.maizegenetics.net/build_and_load/)
 3. [Imputation](https://phg.maizegenetics.net/imputation/)
-4. [Export data](https://phg.maizegenetics.net/export_data/)
+4. [Resequencing](https://phg.maizegenetics.net/resequencing/)
+5. [Export data](https://phg.maizegenetics.net/export_data/)
 
 ### Reference
 * [Convenience methods](https://phg.maizegenetics.net/convenience_commands/)
@@ -185,3 +200,8 @@ More commonly used terms can be found [here](https://phg.maizegenetics.net/termi
 * [PHGv2 architecture](docs/img/architecture/phg_v2_architecture_20240411.svg)
 * [QC metrics](https://phg.maizegenetics.net/qc_metrics/)
 * [SLURM Usage with `align-assemblies`](https://phg.maizegenetics.net/slurm_usage/)
+* [Terminology](https://phg.maizegenetics.net/terminology/)
+
+
+
+
