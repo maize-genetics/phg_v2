@@ -305,7 +305,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
 
             // Write the buffered sequence in chunks of 80 characters
             // Not chunking until the end to avoid the issue of "short" lines
-            // in the middle of the chrom sequence.  Only the last line may be shorted than 80 bps.
+            // in the middle of the chrom sequence.  Only the last line may be shorter than 80 bps.
             sequenceBuffer.chunked(80).forEach { chunk ->
                 outputFileWriter.write(chunk + "\n")
             }
