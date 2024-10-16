@@ -141,13 +141,11 @@ class ExtractEdgeReadsTest {
 
         pairedRecords.add(Pair(samRecord3, samRecord4))
 
-        assertFalse(extractEdgeReads.isPartialSingle(pairedRecords), "Paired records are being called as single")
         assertFalse(extractEdgeReads.isSingle(pairedRecords), "Fully paired records are being called as single")
         assertTrue(extractEdgeReads.isPaired(pairedRecords), "Fully paired records are not being called as paired")
 
         pairedRecords.add(Pair(samRecord1, null))
 
-        assertFalse(extractEdgeReads.isPartialSingle(pairedRecords), "Partially paired records are being called as single")
         assertFalse(extractEdgeReads.isSingle(pairedRecords), "Partially paired records are being called as single")
         assertTrue(extractEdgeReads.isPaired(pairedRecords), "Partially paired records are not being called as paired")
 
@@ -155,14 +153,12 @@ class ExtractEdgeReadsTest {
         val singleParitalSamRecords = mutableListOf<Pair<SAMRecord?,SAMRecord?>>()
         singleParitalSamRecords.add(Pair(samRecord1, null))
         singleParitalSamRecords.add(Pair(null, samRecord4))
-        assertTrue(extractEdgeReads.isPartialSingle(singleParitalSamRecords), "Single ended records are not being called as single")
         assertTrue(extractEdgeReads.isSingle(singleParitalSamRecords), "Single ended records are not being called as single")
         assertFalse(extractEdgeReads.isPaired(singleParitalSamRecords), "Single ended records are being called as paired")
 
         val singleRecords = mutableListOf<Pair<SAMRecord?,SAMRecord?>>()
         singleRecords.add(Pair(samRecord1, null))
         singleRecords.add(Pair(samRecord3, null))
-        assertFalse(extractEdgeReads.isPartialSingle(singleRecords), "Single ended records are not being called as single")
         assertTrue(extractEdgeReads.isSingle(singleRecords), "Single ended records are not being called as single")
         assertFalse(extractEdgeReads.isPaired(singleRecords), "Single ended records are being called as paired")
 
@@ -480,7 +476,7 @@ class ExtractEdgeReadsTest {
         val samHeader = SAMFileHeader()
 
         //Test null first  Should be false as the set will be empty
-        assertFalse(extractEdgeReads.isPairedReadSplit(listOf(), mapOf()), "Empty list is being called as split")
+        assertFalse(extractEdgeReads.isPairedReadSplit(listOf()), "Empty list is being called as split")
 
         //Assuming we only have single reads
         val samRecord1_1 = createSAMRecord(samRecordFactory, samHeader, "read1",  "AAAAAAAAAA",60, "hap1", "IIIIIIIIII", 1, true, "10M")
@@ -500,16 +496,16 @@ class ExtractEdgeReadsTest {
             "hap2" to listOf(refRange1)
         )
 
-        assertFalse(extractEdgeReads.isPairedReadSplit(records, hapIdToRefRangeSameRefRange), "Paired align split is not being called correctly")
+        assertFalse(extractEdgeReads.isPairedReadSplit(records), "Paired align split is not being called correctly")
 
         val hapIdToRefRangeDiffRefRange = mapOf("hap1" to listOf(refRange1),
             "hap2" to listOf(refRange2)
         )
 
-        assertFalse(extractEdgeReads.isPairedReadSplit(records, hapIdToRefRangeDiffRefRange), "Paired align split is not being called correctly")
+        assertFalse(extractEdgeReads.isPairedReadSplit(records), "Paired align split is not being called correctly")
 
         val records2 = listOf(Pair(samRecord1_1, samRecord1_2), Pair(samRecord2_1, samRecord1_2), Pair(samRecord3_1,samRecord3_2))
-        assertTrue(extractEdgeReads.isPairedReadSplit(records2, hapIdToRefRangeDiffRefRange), "Paired align split is not being called correctly")
+        assertTrue(extractEdgeReads.isPairedReadSplit(records2), "Paired align split is not being called correctly")
 
     }
 
@@ -536,7 +532,7 @@ class ExtractEdgeReadsTest {
     }
 
     @Test
-    fun testKeepBestAlignments() {
+    fun testGetBestAlignments() {
         val extractEdgeReads = ExtractEdgeReads()
         val factory = DefaultSAMRecordFactory()
         val header = SAMFileHeader()
@@ -548,9 +544,9 @@ class ExtractEdgeReadsTest {
         sam2.setAttribute("NM", 20)
         sam3.setAttribute("NM", 0)
 
-        assertEquals(extractEdgeReads.keepBestAlignment(listOf(sam1, sam2)), sam1)
-        assertEquals(extractEdgeReads.keepBestAlignment(listOf(sam2, sam3)), sam3)
-        assertEquals(extractEdgeReads.keepBestAlignment(listOf(sam1, sam3)), sam3)
+        assertEquals(extractEdgeReads.getBestAlignment(listOf(sam1, sam2)), sam1)
+        assertEquals(extractEdgeReads.getBestAlignment(listOf(sam2, sam3)), sam3)
+        assertEquals(extractEdgeReads.getBestAlignment(listOf(sam1, sam3)), sam3)
     }
 
     @Test
@@ -563,7 +559,7 @@ class ExtractEdgeReadsTest {
         val sam1 = createSAMRecord(samRecordFactory, samHeader, "read1", "AAAA", 30, "hap1", "IIII")
         val ref1 = ReferenceRange("1", 1, 10)
         val gam1 = SampleGamete("gam1", 1)
-        val singleUnique = extractEdgeReads.classifySingleAlignments(false, "gam1", 1,
+        val singleUnique = extractEdgeReads.classifySingleAlignments( "gam1", 1,
             listOf(Pair(sam1, null)), mapOf("hap1" to listOf(ref1)), mapOf("hap1" to listOf(gam1)), mapOf("hap1" to 0))
         assertEquals(AlignmentClass.SINGLEUNIQUE, singleUnique, "fail SINGLEUNIQUE")
 
@@ -578,7 +574,7 @@ class ExtractEdgeReadsTest {
         val gameteMap = mapOf("hap1" to listOf(SampleGamete("1", 1)),
             "hap2" to listOf(SampleGamete("2", 2)))
         val indexMap = mapOf(refRange1.toString() to 0, refRange2.toString() to 2) // non consecutive ref ranges
-        val singleAlignSplit = extractEdgeReads.classifySingleAlignments(false,"1", 2,
+        val singleAlignSplit = extractEdgeReads.classifySingleAlignments("1", 2,
             records, refRangeMap, gameteMap, indexMap)
         assertEquals(AlignmentClass.SINGLEALIGNSPLIT, singleAlignSplit, "fail SINGLEALIGNSPLIT")
 
@@ -587,7 +583,7 @@ class ExtractEdgeReadsTest {
         val refRange3 = ReferenceRange("2", 1, 10)
         val refRangeToIndexMap = mapOf(refRange1.toString() to 0, refRange4.toString() to 1, refRange3.toString() to 2) // consecutive
         val hapIdToRefRange = mapOf("hap1" to listOf(refRange1), "hap2" to listOf(refRange4))
-        val singleAlignSplitConsec = extractEdgeReads.classifySingleAlignments(false, "1",
+        val singleAlignSplitConsec = extractEdgeReads.classifySingleAlignments("1",
             2, records, hapIdToRefRange, mapOf("hap1" to listOf(SampleGamete("1", 1)),
                 "hap2" to listOf(SampleGamete("2", 2))), refRangeToIndexMap)
         assertEquals(AlignmentClass.SINGLEALIGNSPLITCONSEC, singleAlignSplitConsec, "fail SINGLEALIGNSPLITCONSEC")
@@ -598,7 +594,7 @@ class ExtractEdgeReadsTest {
         val recordsOffASM = listOf(Pair(samRecord1, null), Pair(samRecord2, null))
         val refRangeMapOffASM = mapOf("hap1" to listOf(refRange1), "hap2" to listOf(refRange1))
         val indexOffASM = mapOf(refRange1.toString() to 0, refRange2.toString() to 0)
-        val singleOffASM = extractEdgeReads.classifySingleAlignments(false, "sample3", 2,
+        val singleOffASM = extractEdgeReads.classifySingleAlignments( "sample3", 2,
             recordsOffASM, refRangeMapOffASM, hapIdToSampleGameteOffASM, indexOffASM)
         assertEquals(AlignmentClass.SINGLEOFFASM, singleOffASM, "fail SINGLEOFFASM")
 
@@ -608,12 +604,12 @@ class ExtractEdgeReadsTest {
         val rareSampleGametes = mapOf("hap1" to listOf(SampleGamete("rare1", 1)),
             "hap2" to listOf(SampleGamete("rare1", 1)), "hap3" to listOf(SampleGamete("rare1", 1)))
         val rareIndexMap = mapOf(refRange1.toString() to 0, refRange2.toString() to 0, refRange3.toString() to 0)
-        val singleRare = extractEdgeReads.classifySingleAlignments(false, "rare1", 100,
+        val singleRare = extractEdgeReads.classifySingleAlignments( "rare1", 100,
             rareRecords, rareRefRanges, rareSampleGametes, rareIndexMap)
         assertEquals(AlignmentClass.SINGLERARE, singleRare, "fail SINGLERARE")
 
         // SINGLECOMMON
-        val singleCommon = extractEdgeReads.classifySingleAlignments(false, "rare1", 4,
+        val singleCommon = extractEdgeReads.classifySingleAlignments( "rare1", 4,
             rareRecords, rareRefRanges, rareSampleGametes, rareIndexMap)
         assertEquals(AlignmentClass.SINGLECOMMON, singleCommon, "fail SINGLECOMMON")
     }
