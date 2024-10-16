@@ -208,10 +208,10 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         val pairedRecords = mutableListOf<Pair<SAMRecord?,SAMRecord?>>()
 
         for(sampleGamete in sampleGametesToRecords.keys) {
-            val records = sampleGametesToRecords[sampleGamete]!!
+            val recordsFromGamete = sampleGametesToRecords[sampleGamete]!!
 
             //filter out paired records and add to list
-            val pairedByHapId = pairOffAlignmentsByHapId(records)
+            val pairedByHapId = pairOffAlignmentsByHapId(recordsFromGamete)
             val onlyPaired = pairedByHapId.filter { isPaired(listOf(it)) }
             if(onlyPaired.isNotEmpty()) {
                 pairedRecords.addAll(onlyPaired)
