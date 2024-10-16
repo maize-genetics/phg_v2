@@ -24,10 +24,14 @@ enum class AlignmentClass {
 
 /**
  * This class is to find edge case reads for use as integration tests for the read mapping pipeline
+ * It will collect alignments for each read and then tries to optimally pair off the reads and classify the pairs into different classes of alignments.
+ * Counts are kept for each class and the reads are output to a file.
+ * A pair of Fastq files are exported as well with --max-class-num reads kept per class.
  *
- * IT IS CURRENTLY A WIP AND IS UNDER ACTIVE DEVELOPMENT
  */
 class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from SAMs/BAMs") {
+    private val myLogger = LogManager.getLogger(ExtractEdgeReads::class.java)
+
     val bamFile by option(help = "BAM/SAM file to use")
         .required()
 
@@ -42,11 +46,11 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
     val maxClassNum by option(help = "Maximum number of classes to use")
         .int()
         .default(10)
+    
 
-
-    private val myLogger = LogManager.getLogger(ExtractEdgeReads::class.java)
-
-
+    /**
+     * Function to run the CLI command
+     */
     override fun run() {
 
         val hvcfFiles = File(hvcfDir).listFiles { file -> file.name.endsWith(".h.vcf") || file.name.endsWith(".h.vcf.gz") }.map { it.path }
@@ -63,6 +67,9 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         outputReadsAndHapIdSets("${outputFileName}_table.txt", "${outputFileName}", recordsToExport, readToClassificaiton)
     }
 
+    /**
+     * Function to extract alignments by the read name and collect the classification results and keep track of how many of each class we see.
+     */
     fun extractReads(sampleName: String, bamFile: String, graph: HaplotypeGraph, maxClassNum : Int = 10) : Triple<Map<AlignmentClass,Int>, Map<String, List<Pair<SAMRecord?,SAMRecord?>>>, Map<String,AlignmentClass>> {
         //load in the reads
         val samReader = SamReaderFactory.makeDefault().open(File(bamFile))
@@ -119,10 +126,12 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         return Triple(countMap, recordsToExport, readToClassification)
     }
 
+    /**
+     * Function to process the alignments for a given read and classify the alignments into the various classes and return the results
+     */
     fun processReads(sampleName:String, numSampleGametes: Int, recordsForRead: List<SAMRecord>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, hapIdToSampleGamete: Map<String,List<SampleGamete>>, refRangeToIndexMap: Map<String, Int>) : Pair<AlignmentClass, List<Pair<SAMRecord?,SAMRecord?>>> {
 
         val primaryAlignments = listOf(getPrimaryAlignments(recordsForRead))
-
 
         //Before we pair off the reads we should pull out all the truely unaligned classes
         //This should never happen but we should check for it
@@ -158,10 +167,23 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         return Pair(classification, recordsGroupedByContig + primaryAlignments)
     }
 
+    /**
+     * Function to take a list of records for the same read, filter out any unmapped, and clipped reads.
+     * Then Group the reads by if they are first or 2nd in the pair.
+     * We then remove non-optimal alignments by edit distance.
+     */
     fun filterAlignmentByPairFlag(records: List<SAMRecord>): List<SAMRecord> {
-        return records.filter{!it.readUnmappedFlag}.filter { !it.cigar.isClipped }.groupBy { it.firstOfPairFlag }.filter{ it.value.isNotEmpty() }.map { keepBestAlignments(it.value) }.flatten()
+        return records.filter{!it.readUnmappedFlag}
+            .filter { !it.cigar.isClipped }
+            .groupBy { it.firstOfPairFlag }
+            .filter{ it.value.isNotEmpty() }
+            .map { keepBestAlignments(it.value) }.
+            flatten()
     }
 
+    /**
+     * Function to pair off the alignments if their hapIds match
+     */
     fun pairOffAlignmentsByHapId(records: List<SAMRecord>): List<Pair<SAMRecord?,SAMRecord?>> {
         //these records are all hitting the same contig.  Need to split them by first in pair and second in pair
         val bestAlignments = records.groupBy { it.firstOfPairFlag }.map { Pair(it.key,keepBestAlignments(it.value)) }.toMap()//Group and filter just to be safe
@@ -178,34 +200,23 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         return pairedBestAlignments
     }
 
+    /**
+     * Function to pair off alignments based on the sample gamete
+     * This is somewhat complex as there are a number of edge cases we can run into with the alignments
+     */
     fun pairOffAlignmentsBySample(records: List<Pair<SAMRecord?,SAMRecord?>>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>,
                                   hapIdToSampleGamete: Map<String, List<SampleGamete>>, refRangeToIndexMap: Map<String, Int> ): List<Pair<SAMRecord?,SAMRecord?>> {
 
         val allRecords = records.map { listOf(it.first,it.second) }.flatten().filterNotNull()
 
-        val sampleGametesToRecords = mutableMapOf<SampleGamete,MutableList<SAMRecord>>()
-
-        for(record in allRecords) {
-            if(record.contig !in hapIdToSampleGamete.keys) {
-                continue
-            }
-
-            val sampleGametes = hapIdToSampleGamete[record.contig]
-            for(sampleGamete in sampleGametes!!) {
-                if (sampleGametesToRecords.containsKey(sampleGamete)) {
-                    sampleGametesToRecords[sampleGamete]!!.add(record)
-                } else {
-                    sampleGametesToRecords[sampleGamete] = mutableListOf(record)
-                }
-            }
-        }
+        val sampleGametesToRecords = mapSampleGametesToAlignments(allRecords, hapIdToSampleGamete)
 
         val pairedRecords = mutableListOf<Pair<SAMRecord?,SAMRecord?>>()
 
         for(sampleGamete in sampleGametesToRecords.keys) {
             val recordsFromGamete = sampleGametesToRecords[sampleGamete]!!
 
-            //filter out paired records and add to list
+            //filter out single records and add to list
             val pairedByHapId = pairOffAlignmentsByHapId(recordsFromGamete)
             val onlyPaired = pairedByHapId.filter { isPaired(listOf(it)) }
             if(onlyPaired.isNotEmpty()) {
@@ -230,30 +241,73 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
                 }
                 else {
                     //If we have both we need to decide how to pair them off
-                    var pairedOff = false
-                    for(firstHit in firstHits) {
-                        val firstRefRange = hapIdToRefRangeMap[firstHit.first!!.contig]!!
-                        val firstRefRangeIdx = refRangeToIndexMap[firstRefRange[0].toString()]!!
-                        for(secondHit in secondHits) {
-                            val secondRefRange = hapIdToRefRangeMap[secondHit.second!!.contig]!!
-                            val secondRefRangeIdx = refRangeToIndexMap[secondRefRange[0].toString()]!!
-                            if(abs(firstRefRangeIdx - secondRefRangeIdx) == 1) {
-                                pairedRecords.add(Pair(firstHit.first, secondHit.second))
-                                pairedOff = true
-                                break
-                            }
-                        }
-                    }
-                    if(!pairedOff) {
-                        //If we have not paired off any of the records we just add the first one from each
-                        pairedRecords.add(Pair(firstHits[0].first, secondHits[0].second))
-                    }
+                    pairOffAlignments(firstHits, hapIdToRefRangeMap, refRangeToIndexMap, secondHits, pairedRecords)
                 }
             }
         }
         return pairedRecords
     }
 
+    /**
+     * Function to pair off the alignments based on the reference range
+     * TODO Unit test this rigorously
+     */
+    private fun pairOffAlignments(
+        firstHits: List<Pair<SAMRecord?, SAMRecord?>>,
+        hapIdToRefRangeMap: Map<String, List<ReferenceRange>>,
+        refRangeToIndexMap: Map<String, Int>,
+        secondHits: List<Pair<SAMRecord?, SAMRecord?>>,
+        pairedRecords: MutableList<Pair<SAMRecord?, SAMRecord?>>
+    ) {
+        var pairedOff = false
+        for (firstHit in firstHits) {
+            val firstRefRange = hapIdToRefRangeMap[firstHit.first!!.contig]!!
+            val firstRefRangeIdx = refRangeToIndexMap[firstRefRange[0].toString()]!!
+            for (secondHit in secondHits) {
+                val secondRefRange = hapIdToRefRangeMap[secondHit.second!!.contig]!!
+                val secondRefRangeIdx = refRangeToIndexMap[secondRefRange[0].toString()]!!
+                if (abs(firstRefRangeIdx - secondRefRangeIdx) == 1) {
+                    pairedRecords.add(Pair(firstHit.first, secondHit.second))
+                    pairedOff = true
+                    break
+                }
+            }
+        }
+        if (!pairedOff) {
+            //If we have not paired off any of the records we just add the first one from each
+            pairedRecords.add(Pair(firstHits[0].first, secondHits[0].second))
+        }
+    }
+
+    /**
+     * Function to build a map of SampleGametes -> List<SAMRecord>
+     * This makes it easier to pair off alignments later on
+     */
+    private fun mapSampleGametesToAlignments(
+        allRecords: List<SAMRecord>,
+        hapIdToSampleGamete: Map<String, List<SampleGamete>>
+    ): MutableMap<SampleGamete, MutableList<SAMRecord>> {
+        val sampleGametesToRecords = mutableMapOf<SampleGamete, MutableList<SAMRecord>>()
+
+        for (record in allRecords) {
+            if (record.contig !in hapIdToSampleGamete.keys) {
+                continue
+            }
+
+            val sampleGametes = hapIdToSampleGamete[record.contig]
+            for (sampleGamete in sampleGametes!!) {
+                if(!sampleGametesToRecords.containsKey(sampleGamete)) {
+                    sampleGametesToRecords[sampleGamete] = mutableListOf()
+                }
+                sampleGametesToRecords[sampleGamete]!!.add(record)
+            }
+        }
+        return sampleGametesToRecords
+    }
+
+    /**
+     * Function to build pairs based on the alignments where the firstInPair flag is set to true
+     */
     fun buildFirstPairs(trueHaps: Map<String, List<SAMRecord>>, falseHaps: Map<String, List<SAMRecord>>, pairedBestAlignments: MutableList<Pair<SAMRecord?,SAMRecord?>>) {
         for(key in trueHaps.keys) {
             val trueRecords = trueHaps[key]!!
@@ -287,6 +341,10 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         }
     }
 
+    /**
+     * This will build pairs from the alignments where it is the second alignment by the first in pair alignment.
+     * This is needed as we could have second in pair  pairings that is not found when we buildFirstPairs
+     */
     fun buildSecondPairs(trueHaps: Map<String, List<SAMRecord>>, falseHaps: Map<String, List<SAMRecord>>, pairedBestAlignments: MutableList<Pair<SAMRecord?,SAMRecord?>>) {
         for(key in falseHaps.keys) {
             val trueRecords = trueHaps[key] ?: listOf()
