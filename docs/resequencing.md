@@ -1,31 +1,134 @@
-# Rare Alleles Pipeline
+# Resequencing / Rare Alleles Pipeline
 
-In this document, we will discuss a proposed pipeline to identify rare alleles in a population. 
-This pipeline is invoked once a user has successfully run the PHG imputation pipeline and has
-secured a haplotype VCF (hVCF) file. 
+In this document, we will discuss the proposed pipeline to identify 
+rare alleles in a PHG population. This pipeline is invoked once a user 
+has successfully run the [PHG imputation pipeline](imputation.md) and 
+has secured a haplotype VCF ([hVCF](hvcf_specifications.md)) file. 
 
-From the imputation h.vcf file, a composite fasta can be created.  The rare alleles pipeline begins
-by re-aligning the WGS reads used in the imputation pipeline against the composite fasta derived above.
-The BAM file created by this second alignment is filtered, then run through a variant caller.  We suggest using
-DeepVariant (https://github.com/google/deepvariant) or Octopus (https://github.com/luntergroup/octopus)
-for this purpose.  (BRANDON - SHOULD WE LINK THE PAGE TO THE VARIANT CALLER COMPARISONS HERE ??) The output of the variant caller is a VCF file that contains the variants called
-against the composite fasta.
+From the imputation hVCF file, a composite FASTA can be created. The 
+pipeline begins by re-aligning the WGS reads used in the imputation 
+pipeline against the composite FASTA derived above. The BAM file 
+created by this second alignment is filtered, then run through a 
+variant caller. We suggest using
+[DeepVariant](https://github.com/google/deepvariant) or 
+[Octopus](https://github.com/luntergroup/octopus) for this purpose. 
+The output of the variant caller is a VCF file that contains the 
+variants called against the composite fasta.
 
-Additional filtering is then performed to select variants based on VCF quality scores, depth or other measures. This 
-final VCF provides a list of SNPs that may be translated to haplotype coordinates.  To perfom this
-transformation, the user can use the craete-haplotype-vcf command.
-
+Additional filtering is then performed to select variants based on 
+VCF quality scores, depth or other measures. This final VCF provides 
+a list of SNPs that may be translated to haplotype coordinates. To 
+perform this transformation, the user can use the 
+`composite-to-haplotype-coords` command.
 
 ## Quick start
 
-* From the imputation h.vcf file, create a composite fasta file
+## Detailed walkthrough
+
+### Create a composite FASTA file
+
+Using the [prior example outputs from the imputation section](imputation.md#find-paths),
+we can first convert the hVCF output from the `find-paths` command
+to a FASTA format via the `create-fasta-from-hvcf` command:
+
 ```shell
 phg create-fasta-from-hvcf \
-  --hvcf-file my/imputation/h.vcf \ 
-  --fasta-type composite \ 
-  -o /path/to/output_folder
+    --hvcf-file output/vcf_files_imputed/LineA_B.h.vcf \ 
+    --fasta-type composite \ 
+    -o output/composite_assemblies/
 ```
-* Align the reads you used in the imputation pipeline against the composite fasta using minimap2 or other aligner
+
+This command takes 3 necessary parameters:
+
+* `--hvcf-file` - an hVCF file from the imputation pipeline
+* `--fasta-type` - how should the output for the FASTA file look like?
+    + `composite` - concatenates haplotype sequences together at the
+      chromosome level (**needed for this pipeline**)
+    + `haplotype` - each FASTA entry is a haplotype sequence
+* `-o` or `--output-dir` - an _existing_ output directory for the 
+  FASTA file
+
+After running this command, our example directory (based on the
+prior pipelines) will now have a FASTA file (`LineA_B_composite.h.vcf`) 
+in the `composite_assemblies/` directory:
+
+```
+phg_v2_example/
+├── data
+│   └── short_reads
+│   │   ├── LineA_LineB_1.fq
+│   │   └── LineA_LineB_2.fq
+│   ├── anchors.gff
+│   ├── Ref-v5.fa
+│   ├── LineA-final-01.fa
+│   └── LineB-final-04.fa
+├── output
+│   ├── alignment_files/
+│   ├── composite_assemblies *
+│   │   └── LineA_B_composite.fa *
+│   ├── ref_ranges.bed
+│   ├── updated_assemblies/
+│   ├── vcf_files/
+│   │   vcf_files_imputed
+│   │   └── LineA_B.h.vcf 
+│   └── read_mappings/
+└── vcf_dbs
+    ├── assemblies.agc
+    ├── gvcf_dataset/
+    ├── hvcf_dataset/
+    ├── hvcf_files/
+    ├── reference/
+    └── temp/
+```
+
+
+
+
+
+### Alignment to composite
+
+After creating the composite FASTA, we can re-align the WGS reads used
+for the imputation steps to this new composite assembly. This can
+be accomplished using a short-read aligner such as 
+[minimap2](https://github.com/lh3/minimap2) (_recommended_) or other 
+comparable software. Since this step is dependent on the choices made 
+by the end-user or group, we will provide an example of how to run 
+this via minimap2 in the following code block:
+
+```shell
+# Run minimap2 to align the reads with the composite genome
+minimap2 -a -x sr -t 20 --secondary=no --eqx \
+    -R '@RG\tID:READ_GRP1\tSM:LineA_B' \
+    output/composite_assemblies/LineA_B_composite.fa \
+    data/short_reads/LineA_LineB_1.fq \
+    data/short_reads/LineA_LineB_2.fq | \
+    samtools view -b > output/minimap2/LineA_B_composite_align.bam
+```
+
+In summary, this command is using the following `minimap2` parameters:
+
+* `-a` - output **a**lignments in [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf)
+  format
+* `-x sr` - alignment mode is **s**hort-**r**ead alignment
+* `-t 20` - run this alignment using **20 threads** on our example
+  machine (_this can be modified to leverage the full potential of
+  your machine_)
+* `--secondary=no` - suppress secondary alignments and report only
+  the primary alignment
+* `--eqx` - output the [CIGAR](https://timd.one/blog/genomics/cigar.php)
+  string in "extended" format (`=` for matches and `X` for mismatches)
+* `-R` - add read group information to the SAM file (useful if you
+  have reads coming from multiple libraries)
+
+This minimap2 procedure will create a SAM file that is piped (`|`)
+into the `samtools` program which is converted (`view -b`) and
+saved (`> output/minimap2/LineA_B_composite_align.bam`) as a BAM
+format for more efficient storage and downstream procedures.
+
+
+!!! todo
+    Should we keep the following code block:
+
 ```shell
 # Run minimap2 to align the reads with the composite genome
 FASTA_DIR=/workdir/lcj34/phg_v2/testing/fastas
@@ -52,6 +155,7 @@ time minimap2 -a -x sr -t 20 --secondary=no --eqx -R '@RG\tID:READ_GRP3\tSM:P39'
 
 ```
 
+### BAM filtration
 * Filter the bam files
 
 Bam files can be filtered using samtools or other tools.  We suggest running "samtools fixmate", to fill in mate coordinates,
