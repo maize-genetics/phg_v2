@@ -74,7 +74,7 @@ class ExtractEdgeReadsTest {
             val line2 : String = reader.readLine()
             assertEquals(line2, "read2\tSINGLEUNIQUE\thap6")
         }
-        bufferedReader("fastq_0.fastq").use { reader ->
+        bufferedReader("fastq_1.fastq").use { reader ->
             val name1 : String = reader.readLine()
             assertEquals(name1, "@read1")
             val seq1 : String = reader.readLine()
@@ -93,7 +93,7 @@ class ExtractEdgeReadsTest {
             val score2 : String = reader.readLine()
             assertEquals(score2, "IIII")
         }
-        bufferedReader("fastq_1.fastq").use { reader ->
+        bufferedReader("fastq_2.fastq").use { reader ->
 
             val name1 : String = reader.readLine()
             assertEquals(name1, "@read1")
@@ -114,8 +114,8 @@ class ExtractEdgeReadsTest {
             assertEquals(score2, "IIII")
         }
         File("table.txt").delete()
-        File("fastq_0.fastq").delete()
         File("fastq_1.fastq").delete()
+        File("fastq_2.fastq").delete()
     }
 
     @Test

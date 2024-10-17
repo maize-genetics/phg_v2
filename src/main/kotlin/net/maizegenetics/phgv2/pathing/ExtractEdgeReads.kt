@@ -17,7 +17,6 @@ import kotlin.math.abs
 
 enum class AlignmentClass {
     PAIRUNIQUE, PAIRRARE, PAIRCOMMON, PAIRREADSPLIT, PAIRREADSPLITCONSEC, PAIRALIGNSPLIT, PAIRALIGNSPLITCONSEC, PAIROFFASM, UNALIGN,
-    SINGLEPARTIALUNIQUE, SINGLEPARTIALRARE, SINGLEPARTIALCOMMON, SINGLEPARTIALALIGNSPLIT, SINGLEPARTIALALIGNSPLITCONSEC, SINGLEPARTIALOFFASM,
     SINGLEUNIQUE, SINGLERARE, SINGLECOMMON, SINGLEALIGNSPLIT, SINGLEALIGNSPLITCONSEC,SINGLEOFFASM
 
 }
@@ -46,7 +45,7 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
     val maxClassNum by option(help = "Maximum number of classes to use")
         .int()
         .default(10)
-    
+
 
     /**
      * Function to run the CLI command
@@ -734,8 +733,8 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
         }
 
         // write fastq files
-        writeFastq(fastqFileName, fastq1, "0")
-        writeFastq(fastqFileName, fastq2, "1")
+        writeFastq(fastqFileName, fastq1, "1")
+        writeFastq(fastqFileName, fastq2, "2")
 
         for(readID in readProcessedFastq1) {
             if(!readProcessedFastq2.contains(readID)) {
