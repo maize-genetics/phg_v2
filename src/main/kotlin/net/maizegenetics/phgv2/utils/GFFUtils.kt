@@ -408,6 +408,7 @@ fun getOverlappingEntriesFromGff(contig: String, haplotypeRange:IntRange, asmCen
  * there are multiple regions.  We just add up the sizes, but make sure
  * we are doing that correctly in that code vs what is passed in here.
  */
+
 fun getPseudoGFFCoordsMultipleRegions( asmGffRange: IntRange, regions:List<IntRange>, offset: Int):IntRange {
     val pseudoGenomeRegions = mutableListOf<IntRange>()
     var gapSize = 0
@@ -465,6 +466,9 @@ fun getPseudoGFFCoordsMultipleRegions( asmGffRange: IntRange, regions:List<IntRa
  *
  * Return: IntRange holding the new start/end pseudo-genome coordinates.
  */
+
+// OBSOLETE - this function is not used
+// DEPRECATED _ NEED TO USE getPseudoGFFCoordsMultipleRegions()
 fun getPseudoGenomeGFFCoordinates(asmGffRange: IntRange, hapNodeRange: IntRange, offset: Int):IntRange {
 
     // Because the range is inclusive/inclusive, the size is actually + 1
