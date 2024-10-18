@@ -38,16 +38,20 @@ class PathsToGff: CliktCommand( help = "Create a GFF file from a PHG imputation 
     val HVCF_PATTERN = Regex("""(\.hvcf|\.h\.vcf|\.hvcf\.gz|\.h\.vcf\.gz)$""")
 
     override fun run() {
-
         val resultsTreeCenter = loadGFFsToGff3Feature(keyFile)
         myLogger.info("Calling makeGffFromPath for file ${hvcfFile}")
         val time = System.nanoTime()
-        // makeGffFromHvcf will return a Set<Gff3Feature> , but will also write a file
-        // This flexibility is to allow for user to use the results in a jupyter notebook
-        // or other environment where the results can be used in memory for further analysis.
+        // makeGffFromHvcf will return a Set<Gff3Feature> , but will also write a file if an
+        // output file is specified.
+        // This flexibility is to allow for user to store the results in memory for further
+        // analysis from a jupyter notebook or other environment.
         val taxonPathGFF = makeGffFromHvcf(hvcfFile, resultsTreeCenter,outputFile)
         val endingTime = (System.nanoTime() - time)/1e9
-        myLogger.info("finished makeGffFromHvcf for file ${hvcfFile}  in ${endingTime} seconds")
+        if (outputFile == "") {
+            myLogger.info("makeGffFromHvcf for file ${hvcfFile} took ${endingTime} seconds, no output file written")
+        } else {
+            myLogger.info("makeGffFromHvcf for file ${hvcfFile} took ${endingTime} seconds, file written to ${taxonPathGFF}")
+        }
 
     }
 }

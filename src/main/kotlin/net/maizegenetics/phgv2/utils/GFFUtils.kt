@@ -451,6 +451,11 @@ fun findRegionsOverlappingGFF(asmGffRange: IntRange, regions:List<IntRange>):Tri
  *
  * The colling procedure must ensure all region entries are converted to the forward strand
  * coordinates.
+ *
+ * Not all regions in the list may overlap the GFF entry.  The function handles
+ * overlapping with the initial regions, just regions in the middle, or just the end region.
+ * If more than 1 region in the list overlaps the GFF entry coordinates, those regiones
+ * should be consecutive in the list.
  */
 fun getPseudoGFFCoordsMultipleRegions(asmGffRange: IntRange, regions:List<IntRange>, baseOffset: Int):IntRange {
     // Because the range is inclusive/inclusive, the size is actually + 1
@@ -489,53 +494,6 @@ fun getPseudoGFFCoordsMultipleRegions(asmGffRange: IntRange, regions:List<IntRan
     // between regions that comprise the haplotype node.
     val pgEnd = if (startDiff == 0 || pgStart > 1) pgStart + featureSize + endAdjust - gapSize
         else pgStart + featureSize + endAdjust + startDiff - gapSize
-    val returnStart = pgStart+offset
-    val returnEnd = pgEnd+offset
-
-    return pgStart+offset..pgEnd+offset
-}
-
-/**
- * Creates new start/end coordinates based on the parts of the haplotype node that intersect
- * with the range for an assembly GFF3 entry.  When calculating the new coordinates, the range
- * overlaps and the offset from the start of the pseudo-genome are considered.
- *
- * Return: IntRange holding the new start/end pseudo-genome coordinates.
- */
-
-// OBSOLETE - this function is not used
-// DEPRECATED _ NEED TO USE getPseudoGFFCoordsMultipleRegions()
-fun getPseudoGenomeGFFCoordinates(asmGffRange: IntRange, hapNodeRange: IntRange, offset: Int):IntRange {
-
-    // Because the range is inclusive/inclusive, the size is actually + 1
-    // But the value we need to add is just the difference between the start and end.
-    val featureSize = asmGffRange.endInclusive - asmGffRange.start
-    // startDiff is negative if the haplotype start coordinate begins after
-    // the assembly gff entry start value.
-    var hapStart = hapNodeRange.start
-    var hapEnd = hapNodeRange.endInclusive
-    if (hapStart > hapEnd) {
-        hapStart = hapEnd
-        hapEnd = hapNodeRange.start
-    }
-    val startDiff = asmGffRange.start - hapStart
-    val endDiff = hapEnd - asmGffRange.endInclusive
-    // endDiff and endAdjust are negative if the haplotype node coordinate end value
-    // is less than the assembly gff end value, meaning it doesn't cover the full GFF entry
-    val endAdjust = if (endDiff > 0) 0 else endDiff
-
-    // pgStart is > 1 if the haplotypeNode starts  prior to the gff entry
-    val pgStart = if (startDiff > 0) startDiff else 1
-
-    // If startDiff is 0, or pgStart > 1, the haplotype node includes the beginning
-    // of the assembly gff entry.  The end is then the size of this feature, minus
-    // any part of the end that is not included in the haplotype node.
-    // Otherwise, if pgStart == 1, it means the beginning of the feature was not included.
-    // The end is then adjusted by subtracting a count of the missing bps from both
-    // ends from the feature size.
-
-    val pgEnd = if (startDiff == 0 || pgStart > 1) pgStart + featureSize + endAdjust
-                else pgStart + featureSize + endAdjust + startDiff
     val returnStart = pgStart+offset
     val returnEnd = pgEnd+offset
 

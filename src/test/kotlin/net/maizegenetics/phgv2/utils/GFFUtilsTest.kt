@@ -277,61 +277,6 @@ class GFFUtilsTest {
 
     }
 
-
-    // LCJ - this one is testing the OLD code, you need a new test
-    // that handles multiple regions for the haplotype
-    //OBSOLETE !!! - DEPRECATED !! - create new one
-    @Test
-    fun testGetPseudoGenomeGFFCoordinates() {
-
-        // haplotype asm starts before the gff entry, asm ends before gff entry, 0 offset
-        var gffCoords = 134374229..134374722
-        var hapAsmCoords = 134370278..134374620
-        var offset = 0
-
-        var expectedResult = 3951..4342
-        var pseudoGenomeCoords = getPseudoGenomeGFFCoordinates(gffCoords, hapAsmCoords, offset)
-        assertEquals(expectedResult, pseudoGenomeCoords)
-
-        // same as above, but offset from start of chrom is 1000
-        offset = 1000
-        expectedResult = 4951..5342
-        pseudoGenomeCoords = getPseudoGenomeGFFCoordinates(gffCoords, hapAsmCoords, offset)
-        assertEquals(expectedResult, pseudoGenomeCoords)
-
-        // haplotype asm start is after the gff entry, ends after the gff entry (beginning
-        // is chopped off, but includes all the end).  no offset
-        offset = 0
-        gffCoords = 155822773..155823423
-        hapAsmCoords = 155823019..155827364
-        expectedResult = 1..405
-        pseudoGenomeCoords = getPseudoGenomeGFFCoordinates(gffCoords, hapAsmCoords, offset)
-        assertEquals(expectedResult, pseudoGenomeCoords)
-
-
-        // full gff entry is embedded in the haplotype node sequence (haplotype start is
-        // less than gff start, and haplotype end is greated than gff end)
-        gffCoords = 142564613..142564838
-        hapAsmCoords = 142564609..142570362
-        expectedResult = 4..229
-        pseudoGenomeCoords = getPseudoGenomeGFFCoordinates(gffCoords, hapAsmCoords, offset)
-        assertEquals(expectedResult, pseudoGenomeCoords)
-
-        // asm gff and haplotype asm coordinates are the same
-        gffCoords = 183334395..183338622
-        hapAsmCoords = 183334395..183338622
-        expectedResult = 1..4228
-        pseudoGenomeCoords = getPseudoGenomeGFFCoordinates(gffCoords, hapAsmCoords, offset)
-        assertEquals(expectedResult, pseudoGenomeCoords)
-
-        // as above, offset is 250
-        offset = 250
-        expectedResult = 251..4478
-        pseudoGenomeCoords = getPseudoGenomeGFFCoordinates(gffCoords, hapAsmCoords, offset)
-        assertEquals(expectedResult, pseudoGenomeCoords)
-
-    }
-
     @Test
     fun testGetPseudoGFFCoordsSingleRegion() {
         // ALl of the test cases here have only a single region for the haplotype.
