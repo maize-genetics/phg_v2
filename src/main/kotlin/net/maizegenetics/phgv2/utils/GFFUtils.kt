@@ -15,7 +15,6 @@ import net.maizegenetics.phgv2.api.ReferenceRange
 import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.util.*
-import java.util.regex.Pattern
 import kotlin.Comparator
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
@@ -208,6 +207,7 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
 
         // Create a region list, flipping any negative strand entries
         // This is needed for the getPseudoGFFCoordsMultipleRegions() function
+        // where all the regions need to be on the forward strand.
         val regionList = mutableListOf<IntRange>()
         for (region in regions){
             if (region.first > region.second) {
@@ -403,35 +403,53 @@ fun getOverlappingEntriesFromGff(contig: String, haplotypeRange:IntRange, asmCen
 }
 
 /**
- * LCJ - v2 getPsyduGenomeMUltipleRegions -\
- * Need to deteremin in calling procedure how to update the offSet when
- * there are multiple regions.  We just add up the sizes, but make sure
- * we are doing that correctly in that code vs what is passed in here.
+ * This function determines which regions in a set overlap
+ * a specific GFF entry.  The regions are a list of IntRanges
+ * that comprise a haplotype.  Only some of them may overlap
+ * the GFF entry.
+ *
+ * It returns a list of regions that overlap and the gap size between the regions.
+ * If there is only 1 region that overlaps, the gapSize will be 0.
  */
-
-fun getPseudoGFFCoordsMultipleRegions( asmGffRange: IntRange, regions:List<IntRange>, offset: Int):IntRange {
-    val pseudoGenomeRegions = mutableListOf<IntRange>()
-    var gapSize = 0
-    // calculate the difference between the end of the first range in the region file
-    // and the start os the next region in the file.  Do this for all regions in the
-    // file and add up the total, store in gapSize variable
-    for (i in 0 until regions.size-1) {
-        // if we have 1..5 and 8..10, the gap is 2. (8-5-1)
-        gapSize += regions[i+1].start - regions[i].endInclusive -1 // -1 because the ranges are inclusive
+fun findRegionsOverlappingGFF(asmGffRange: IntRange, regions:List<IntRange>):Pair<List<IntRange>,Int> {
+    // this function is used to determine which of the regions
+    // in the haplotype node overlap with the GFF entries.
+    var gapSize=0
+    val overlappingRegions = mutableListOf<IntRange>()
+    for (region in regions) {
+        if ((asmGffRange.start <= region.endInclusive) && (asmGffRange.endInclusive >= region.start)) {
+            overlappingRegions.add(region)
+        }
     }
+    // if there is more than 1 region, calculate the gap size
+    if (overlappingRegions.size > 1) {
+        for (idx in 0 until overlappingRegions.size-1) {
+            gapSize += overlappingRegions[idx+1].start - overlappingRegions[idx].endInclusive -1
+        }
+    }
+    return Pair(overlappingRegions,gapSize)
+}
 
-    // Now the problem is if the regions are negative.  WE'll have to assume the
-    // user has passed in something that works?  If some are on forward stranc and
-    // some on reverse, we need them all to be in forward strand coordiantes.
-    // OK - let's require them all to be in forward strand coordinates., calling
-    // method will do the conversion if needed.
+/**
+ * This function takes a GFF3 entry,  list of Assembly regions and a pseudo assembly
+ * fasta offset to determine coordinates for a pseudo assembly GFF entry.
+ *
+ * The colling procedure must ensure all region entries are converted to the forward strand
+ * coordinates.
+ */
+fun getPseudoGFFCoordsMultipleRegions(asmGffRange: IntRange, regions:List<IntRange>, offset: Int):IntRange {
     // Because the range is inclusive/inclusive, the size is actually + 1
     // But the value we need to add is just the difference between the start and end.
     val featureSize = asmGffRange.endInclusive - asmGffRange.start
+
+    val overlappingData = findRegionsOverlappingGFF(asmGffRange,regions)
+    val overlappingRegions = overlappingData.first
+    val gapSize = overlappingData.second
+
     // startDiff is negative if the haplotype start coordinate begins after
     // the assembly gff entry start value.
-    var hapStart = regions[0].start
-    var hapEnd = regions[regions.size-1].endInclusive
+    var hapStart = overlappingRegions[0].start
+    var hapEnd = overlappingRegions[overlappingRegions.size-1].endInclusive
 
     val startDiff = asmGffRange.start - hapStart
     val endDiff = hapEnd - asmGffRange.endInclusive

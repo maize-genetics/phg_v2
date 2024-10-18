@@ -23,6 +23,8 @@ import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
 
+private const val i = 134374722
+
 @ExtendWith(TestExtension::class)
 class GFFUtilsTest {
 
@@ -192,7 +194,7 @@ class GFFUtilsTest {
         // The test gff created here has 96 data entries
         val features = readGFFtoGff3Feature(gffFileWithHeadersB73)
         assertEquals(96,features.size)
-        // THis returns TreeMap<Position,ArrayList<Gff3Feature>>
+        // This returns TreeMap<Position,ArrayList<Gff3Feature>>
         val featureTreeMap = createTreeMapFromFeaturesCenter(features)
 
         // featureTreeMap will have fewer entries than features, as some of the features are
@@ -331,6 +333,75 @@ class GFFUtilsTest {
     }
 
     @Test
+    fun testGetPseudoGFFCoordsSingleRegion() {
+        // ALl of the test cases here have only a single region for the haplotype.
+        // Verify getPseudoGFFCoordsMultipleRegions() works with a single region
+
+        // haplotype asm starts before the gff entry, asm ends before gff entry, 0 offset
+        var gffCoords = 134374229..134374722
+        var hapAsmCoords = 134370278..134374620
+        var regions = mutableListOf(hapAsmCoords)
+        var offset = 0
+
+        var expectedResult = 3951..4342
+        var pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
+        assertEquals(expectedResult, pseudoGenomeCoords)
+
+        // same as above, but offset from start of chrom is 1000
+        offset = 1000
+        expectedResult = 4951..5342
+        pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
+        assertEquals(expectedResult, pseudoGenomeCoords)
+
+        // haplotype asm start is after the gff entry, ends after the gff entry (beginning
+        // is chopped off, but includes all the end).  no offset
+        offset = 0
+        gffCoords = 155822773..155823423
+        hapAsmCoords = 155823019..155827364
+        regions = mutableListOf(hapAsmCoords)
+        expectedResult = 1..405
+        pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
+        assertEquals(expectedResult, pseudoGenomeCoords)
+
+
+        // full gff entry is embedded in the haplotype node sequence (haplotype start is
+        // less than gff start, and haplotype end is greated than gff end)
+        gffCoords = 142564613..142564838
+        hapAsmCoords = 142564609..142570362
+        regions = mutableListOf(hapAsmCoords)
+        expectedResult = 4..229
+        pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
+        assertEquals(expectedResult, pseudoGenomeCoords)
+
+        // asm gff and haplotype asm coordinates are the same
+        gffCoords = 183334395..183338622
+        hapAsmCoords = 183334395..183338622
+        regions = mutableListOf(hapAsmCoords)
+        expectedResult = 1..4228
+        pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
+        assertEquals(expectedResult, pseudoGenomeCoords)
+
+        // as above, offset is 250
+        offset = 250
+        expectedResult = 251..4478
+        pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
+        assertEquals(expectedResult, pseudoGenomeCoords)
+
+    }
+
+    @Test
+    fun testGetPseudoGFFCoordsMultipleRegions() {
+        var gffCoords = 134374229..134374722
+        var hapAsmCoords = 134370278..134374620
+        var regions = mutableListOf(hapAsmCoords)
+        var offset = 0
+
+        var expectedResult = 3951..4342
+        var pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
+        assertEquals(expectedResult, pseudoGenomeCoords)
+    }
+
+        @Test
     fun testCountGffEntriesPerChrom() {
 
         // Michelle would like to create the gff's in memory, then count
