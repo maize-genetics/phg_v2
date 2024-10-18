@@ -146,7 +146,12 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         val sampleId = sampleNameToIdMap[sample.name]
         require(sampleId != null) { "sampleToHapId: sample: $sample not found" }
         val sampleHapids = rangeByGameteIdToHapid[rangeId][sampleId]
-        return if (sampleHapids.size > sample.gameteId) sampleHapids[sample.gameteId] else null
+        val result = runCatching { sampleHapids[sample.gameteId] }.getOrNull()
+        return if (result == "") {
+            null
+        } else {
+            result
+        }
     }
 
     /**
