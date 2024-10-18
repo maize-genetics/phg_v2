@@ -494,7 +494,8 @@ fun getPseudoGFFCoordsMultipleRegions(asmGffRange: IntRange, regions:List<IntRan
     // between regions that comprise the haplotype node.
     val pgEnd = if (startDiff == 0 || pgStart > 1) pgStart + featureSize + endAdjust - gapSize
         else pgStart + featureSize + endAdjust + startDiff - gapSize
-    val returnStart = pgStart+offset
+    val
+            returnStart = pgStart+offset
     val returnEnd = pgEnd+offset
 
     return pgStart+offset..pgEnd+offset
