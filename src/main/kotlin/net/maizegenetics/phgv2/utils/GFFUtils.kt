@@ -408,26 +408,41 @@ fun getOverlappingEntriesFromGff(contig: String, haplotypeRange:IntRange, asmCen
  * that comprise a haplotype.  Only some of them may overlap
  * the GFF entry.
  *
- * It returns a list of regions that overlap and the gap size between the regions.
+ * It returns a list of regions that overlap, the gap size between the regions,
+ * and an offset from the start of the haplotype regions if the initial regions
+ * in the list do not over lap the GFF entry.
+ *
  * If there is only 1 region that overlaps, the gapSize will be 0.
+ *
  */
-fun findRegionsOverlappingGFF(asmGffRange: IntRange, regions:List<IntRange>):Pair<List<IntRange>,Int> {
+fun findRegionsOverlappingGFF(asmGffRange: IntRange, regions:List<IntRange>):Triple<List<IntRange>,Int,Int> {
     // this function is used to determine which of the regions
     // in the haplotype node overlap with the GFF entries.
     var gapSize=0
     val overlappingRegions = mutableListOf<IntRange>()
-    for (region in regions) {
-        if ((asmGffRange.start <= region.endInclusive) && (asmGffRange.endInclusive >= region.start)) {
-            overlappingRegions.add(region)
+    var offSet = 0
+    // check each region to see if it overlaps the GFF entry
+    // Until you reach the first region that overlaps, count both the
+    // number of bases in the region and the number in the gap before
+    // the next region.  Add these values to the "offSet" value.
+    for (idx in 0 until  regions.size ) {
+        if ((asmGffRange.start <= regions[idx].endInclusive) && (asmGffRange.endInclusive >= regions[idx].start)) {
+            overlappingRegions.add(regions[idx])
+        } else {
+            if (overlappingRegions.size == 0) {
+                // add the size of the non-overlapping region to the initial offset
+                offSet += regions[idx].endInclusive - regions[idx].start +1 // plus 1 as is inclusive/inclusive
+                // We don't need to calculate gap size as they are not part of the sequence.
+            }
         }
     }
-    // if there is more than 1 region, calculate the gap size
+    // if there is more than 1 overlapping region, calculate the gap size
     if (overlappingRegions.size > 1) {
         for (idx in 0 until overlappingRegions.size-1) {
             gapSize += overlappingRegions[idx+1].start - overlappingRegions[idx].endInclusive -1
         }
     }
-    return Pair(overlappingRegions,gapSize)
+    return Triple(overlappingRegions,gapSize,offSet)
 }
 
 /**
@@ -437,14 +452,17 @@ fun findRegionsOverlappingGFF(asmGffRange: IntRange, regions:List<IntRange>):Pai
  * The colling procedure must ensure all region entries are converted to the forward strand
  * coordinates.
  */
-fun getPseudoGFFCoordsMultipleRegions(asmGffRange: IntRange, regions:List<IntRange>, offset: Int):IntRange {
+fun getPseudoGFFCoordsMultipleRegions(asmGffRange: IntRange, regions:List<IntRange>, baseOffset: Int):IntRange {
     // Because the range is inclusive/inclusive, the size is actually + 1
     // But the value we need to add is just the difference between the start and end.
     val featureSize = asmGffRange.endInclusive - asmGffRange.start
 
-    val overlappingData = findRegionsOverlappingGFF(asmGffRange,regions)
-    val overlappingRegions = overlappingData.first
-    val gapSize = overlappingData.second
+    val (overlappingRegions,gapSize,regionStartOffset) = findRegionsOverlappingGFF(asmGffRange,regions)
+    // The regionStartOffset returned above indicates number of basepairs in the regions
+    // on the list that do not overlap the GFF entry.  This is only regions prior to the
+    // first region that overlaps the GFF entry.  This value is added to the offset indicating
+    // haplotype sequence start position in the pseudo-genome.
+    val offset = baseOffset + regionStartOffset
 
     // startDiff is negative if the haplotype start coordinate begins after
     // the assembly gff entry start value.

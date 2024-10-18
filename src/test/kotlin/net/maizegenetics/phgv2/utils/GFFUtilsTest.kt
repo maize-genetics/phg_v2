@@ -391,14 +391,41 @@ class GFFUtilsTest {
 
     @Test
     fun testGetPseudoGFFCoordsMultipleRegions() {
-        var gffCoords = 134374229..134374722
-        var hapAsmCoords = 134370278..134374620
-        var regions = mutableListOf(hapAsmCoords)
-        var offset = 0
 
-        var expectedResult = 3951..4342
+        // simple example where first 2 in region list overlap asm,
+        // but 3rd one is outside the gene boundaries.
+        var gffCoords = 871..1000
+        var regions = mutableListOf(800..900, 950..1100, 1200..1300)
+        var offset = 0
+        // Total number of bps in the gff entry is 1000 - 871 + 1  = 130 (because is inclusive/inclusive)
+        // The start will be 71 (offset=0 means this is the start of the haplotype sequence) and
+        // the gene starts 71 bps into this sequence.
+        // The first 2 regions overlap the gff entry, so the end range of the pseudo genome entry
+        // should be 100 (900-800+1) + 51 (1000-950+1) = 151
+        var expectedResult = 71..151  //
         var pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
         assertEquals(expectedResult, pseudoGenomeCoords)
+
+        // same as above, but offset is 50
+        offset = 50
+        expectedResult = 121..201
+        pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
+        assertEquals(expectedResult, pseudoGenomeCoords)
+
+        // only the last region is within the gffCoords
+        regions = mutableListOf(50..100, 150..300, 800..1300)
+        offset = 0
+        // The last region is the only one that overlaps the gffCoords and it overlaps
+        // all of it.  So the size will be 1000-871+1 = 130
+        // There is no offset (this is the beginning of the haplotype equence) but there
+        // are 2 regions of sequence before the gene starts.
+        // SO the start is 100-50+1 = 51, plus 300-150 + 1 = 151 = 202, plus 871-800 = 71 (it starts on 871 so don't add 1)
+        // Start is hence 51+151+71 = 273
+        // end is 273+130(size of gene) -1 = 402
+        expectedResult = 273..402
+        pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
+        assertEquals(expectedResult, pseudoGenomeCoords)
+
     }
 
         @Test
