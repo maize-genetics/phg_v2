@@ -118,8 +118,6 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     fun hapIdsToSampleGametes(): Map<String, List<SampleGamete>> {
        return ranges().map { hapIdToSampleGametes(it) }
             .flatMap { it.toList() }.toMap()
-//        return ranges().map { hapIdToSampleGametes(it) }
-//            .reduce { acc, map -> acc + map }
     }
 
     /**
