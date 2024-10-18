@@ -129,8 +129,10 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         val result = mutableMapOf<SampleGamete, String>()
         for (sampleId in rangeByGameteIdToHapid[rangeId].indices) {
             for (gameteId in rangeByGameteIdToHapid[rangeId][sampleId].indices) {
-                result[SampleGamete(sampleNames[sampleId], gameteId)] =
-                    rangeByGameteIdToHapid[rangeId][sampleId][gameteId]
+                val hapid = rangeByGameteIdToHapid[rangeId][sampleId][gameteId]
+                if (hapid != "") {
+                    result[SampleGamete(sampleNames[sampleId], gameteId)] = hapid
+                }
             }
         }
         return result
