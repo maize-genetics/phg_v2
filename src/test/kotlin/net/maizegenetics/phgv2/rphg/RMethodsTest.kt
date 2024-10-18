@@ -248,7 +248,7 @@ class RMethodsTest {
         assertEquals("phgv2_string_matrix", testHapId.toString())
         assertEquals(40, testHapId.matrixData!![0].size)
         assertEquals(3, testHapId.matrixData!!.size)
-        assertEquals("", testHapId.matrixData!![0][39])
+        assertEquals("null", testHapId.matrixData!![0][39])
         assert(testHapId.matrixData!![0].isArrayOf<String>())
     }
 }
