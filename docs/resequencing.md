@@ -82,10 +82,7 @@ phg_v2_example/
 ```
 
 
-
-
-
-### Alignment to composite
+### Align short reads to composite FASTA
 
 After creating the composite FASTA, we can re-align the WGS reads used
 for the imputation steps to this new composite assembly. This can
@@ -121,13 +118,108 @@ In summary, this command is using the following `minimap2` parameters:
   have reads coming from multiple libraries)
 
 This minimap2 procedure will create a SAM file that is piped (`|`)
-into the `samtools` program which is converted (`view -b`) and
+into the [SAMtools](https://github.com/samtools/samtools) program which is converted (`view -b`) and
 saved (`> output/minimap2/LineA_B_composite_align.bam`) as a BAM
 format for more efficient storage and downstream procedures.
 
 
+### Filter BAM files
+
+BAM files can be filtered using SAMtools (_recommended_) or other 
+SAM/BAM processing tools. We suggest running the following SAMtools
+commands: 
+
+* Fix potential issues in paired-end reads of a BAM file by adjusting
+  and correcting mate information by ensuring each pair of reads has
+  accurate information about its mate score (`-m`):
+
+    ```shell
+    samtools fixmate -m LineA_B_composite_align.bam LineA_B_composite_fm.bam
+    ```
+
+* Sort alignments by reference sequence coordinates which is
+  necessary before deduplication and indexing:
+
+    ```shell
+    samtools sort --threads 8 -T ./tmp -o LineA_B_composite_sorted_fm.bam LineA_B_composite_fm.bam
+    ```
+
+* Identify and remove duplicate reads:
+
+    ```shell
+    samtools markdup -r LineA_B_composite_sorted_fm.bam LineA_B_composite_dedup.bam
+    ```
+
+* Exclude unmapped reads or those that are not properly paired:
+
+    ```shell
+    samtools view -F 4 -f 2 -b LineA_B_composite_dedup.bam > LineA_B_composite_filtered.bam
+    ```
+
+* Index alignments for fast random access:
+
+    ```shell
+    samtools index LineA_B_composite_filtered.bam
+    ```
+
+
+
+### Perform variant calling
+
+Here we show an example of running DeepVariant on the merged bam file 
+created above. The output of DeepVariant is a VCF file that contains 
+the variants called against the composite fasta. The following 
+command will run DeepVariant from a Docker container:
+
+```shell
+INPUT_DIR=/path/to/input/files
+OUTPUT_DIR=/path/to/output/files
+
+docker run \
+    -v ${INPUT_DIR}:/input \
+    -v ${OUTPUT_DIR}:/output \
+    google/deepvariant:1.6.1 \
+    /opt/deepvariant/bin/run_deepvariant \
+    --model_type=WGS \
+    --ref=/input/Composite.fa \ // from the create-fasta-from-hvcf command above
+    --reads=/input/merged.sorted.bam \
+    --output_vcf=/output/merged.sorted.vcf
+    --output_gvcf=/output/merged.sorted.g.vcf
+    --intermediate_results_dir=/output/intermediate_results
+    --num_shards=4
+```
+
+
+### Filter variants
+
+To identify rare alleles, the VCF file output by the variant caller should be filtered to select variants based on 
+quality scores, depth or other measures.  The following is an example of how to filter the VCF file created above.
+It filters for biallelic SNPs with a depth greater than 4 and a quality score greater than 20.
+
+```shell
+bcftools view -m2 -M2 -v snps -i 'QUAL>20 && GT="1/1" && DP>4' /path/to/merged.sorted.vcf -o /path/to/deepVariantFiltered.vcf
+```
+
+
+### Create final VCF in haplotype coordinates
+
+Convert the VCF file created above to haplotype coordinates, using the create-haplotype-vcf command as shown below:
+  ```shell
+  phg composite-to-haplotype-coords \
+      --path-hvcf /path/to/imputation.hvcf \
+      --variant-vcf /path/to/vcf/from/DeepVariant \ // vcf created in filtered step above
+      --sample-name nameForNewSample \ // samplename to use in the haplotype coordinates vcf
+      --output-file /path/to/output.vcf
+  ```
+
+
+
+## Extra materials
+
 !!! todo
-    Should we keep the following code block:
+    Should we keep the following code blocks:
+
+### Multiple libraries:
 
 ```shell
 # Run minimap2 to align the reads with the composite genome
@@ -140,87 +232,30 @@ time minimap2 -a -x sr -t 20 --secondary=no   --eqx -R '@RG\tID:READ_GRP1\tSM:P3
     ${FASTQ_DIR}/P39/P39_HBEN2ADXX_GTGAAA_R1.fastq.gz \
     ${FASTQ_DIR}/P39/P39_HBEN2ADXX_GTGAAA_R2.fastq.gz | \
     samtools view -b > ${WORK_DIR}/p39top39composite_bams/P39_HBEN2ADXX_GTGAAA.ori.bam
+    
 time minimap2 -a -x sr -t 20 --secondary=no   --eqx -R '@RG\tID:READ_GRP2\tSM:P39' \
     ${FASTA_DIR}/P39wgs_composite.fa \
     ${FASTQ_DIR}/P39/P39__HFFGKADXX_GTGAAA_R1.fastq.gz \
     ${FASTQ_DIR}/P39/P39__HFFGKADXX_GTGAAA_R2.fastq.gz | \
     samtools view -b > ${WORK_DIR}/p39top39composite_bams/P39_HFFGKADXX_GTGAAA.ori.bam
+    
 time minimap2 -a -x sr -t 20 --secondary=no --eqx -R '@RG\tID:READ_GRP3\tSM:P39'
     ${FASTA_DIR}/P39wgs_composite.fa \
     ${FASTQ_DIR}/P39/P39_HL5WNCCXX_GTGAAA_R1.fastq.gz \
     ${FASTQ_DIR}/P39/P39_HL5WNCCXX_GTGAAA_R2.fastq.gz | \
     samtools view -b > ${WORK_DIR}/p39top39composite_bams/P39_HL5WNCCXX_GTGAAA.ori.bam
-
-
-
 ```
 
-### BAM filtration
-* Filter the bam files
 
-Bam files can be filtered using samtools or other tools.  We suggest running "samtools fixmate", to fill in mate coordinates,
-"samtools markdup -r" to remove duplicates and "samtools view -F 4 -f 2" to exclude unmapped reads or those that are not
-properly paired.  The following is an example of how to filter the bam files created above.  These commands should be
-run on each bam file created by the alignment step above.
-
-```shell
-samtools fixmate -m <sample>.ori.bam <sample>.fm.bam
-samtools sort --threads 8 -T ./tmp -o <sample>.sortedFM.bam <sample>.fm.bam
-samtools markdup -r <sample>.sortedFM.bam <sample>.dedup.bam
-samtools view -F 4 -f 2 -b <sample>.dedup.bam > <sample>.filtered.bam
-samtools index <sample>.filtered.bam
-```
-
+### Merge
 
 * Merge the bam files into 1
 
-Before running the variant caller, merge the bam files into a single bam file, then index using the commands below:
+Before running the variant caller, merge the bam files into a single 
+BAM file, then index using the commands below:
+
 ```shell
 samtools merge -b /path/to/bam.list /path/to/merged.bam
 samtools sort --threads 8 -T ./tmp -o /path/to/merged.sorted.bam /path/to/merged.bam
 samtools index /path/to/merged.sorted.bam
 ```
-* Run DeepVariant, Octopus or some other caller on the aligned reads
-
-Here we show an example of running DeepVariant on the merged bam file created above.  The output of DeepVariant is a VCF file
-that contains the variants called against the composite fasta.  The following command will run DeepVariant 
-from a Docker container.
-  ```shell
-  INPUT_DIR=/path/to/input/files
-  OUTPUT_DIR=/path/to/output/files
-  
-  docker run \
-        -v ${INPUT_DIR}:/input \
-        -v ${OUTPUT_DIR}:/output \
-        google/deepvariant:1.6.1 \
-        /opt/deepvariant/bin/run_deepvariant \
-        --model_type=WGS \
-        --ref=/input/Composite.fa \ // from the create-fasta-from-hvcf command above
-        --reads=/input/merged.sorted.bam \
-        --output_vcf=/output/merged.sorted.vcf
-        --output_gvcf=/output/merged.sorted.g.vcf
-        --intermediate_results_dir=/output/intermediate_results
-        --num_shards=4
-  ```
-* Filter the VCF file created by the variant caller.
-
-To identify rare alleles, the VCF file output by the variant caller should be filtered to select variants based on 
-quality scores, depth or other measures.  The following is an example of how to filter the VCF file created above.
-It filters for biallelic SNPs with a depth greater than 4 and a quality score greater than 20.
-
-```shell
-bcftools view -m2 -M2 -v snps -i 'QUAL>20 && GT="1/1" && DP>4' /path/to/merged.sorted.vcf -o /path/to/deepVariantFiltered.vcf
-```
-
-* Create a vcf in haplotype coordinates
-
-Convert the VCF file created above to haplotype coordinates, using the create-haplotype-vcf command as shown below:
-  ```shell
-  phg composite-to-haplotype-coords \
-      --path-hvcf /path/to/imputation.hvcf \
-      --variant-vcf /path/to/vcf/from/DeepVariant \ // vcf created in filtered step above
-      --sample-name nameForNewSample \ // samplename to use in the haplotype coordinates vcf
-      --output-file /path/to/output.vcf
-  ```
-
-*** WHAT TO DO WITH THIS HAPLOTYPE VCF FILE? ***
