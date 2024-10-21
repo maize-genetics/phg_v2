@@ -610,7 +610,7 @@ class AlignmentUtils {
             //lookup hapids and add to the list
             for (nucleotide in sequence.subSequence(31 until sequence.length)) {
                 previousHash = BuildKmerIndex.updateKmerHashAndReverseCompliment(previousHash, nucleotide)
-                val minHash = min(previousHash.first, previousHash.second)
+                val minHash = min(previousHash.first.toULong(), previousHash.second.toULong()).toLong()
                 val hapidsMatched =
                     rangeHapidMapFromKmerHash(minHash, kmerHashOffsetMap, refrangeToBitSet, rangeToHapidIndexMap)
                 for (entry in hapidsMatched) {

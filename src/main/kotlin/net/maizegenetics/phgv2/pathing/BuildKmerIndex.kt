@@ -367,7 +367,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
                     //start using kmers starting with the 32nd nucleotide
                     for (nucleotide in sequence.subSequence(31 until sequence.length)) {
                         previousHash = updateKmerHashAndReverseCompliment(previousHash, nucleotide)
-                        val minHash = min(previousHash.first, previousHash.second)
+                        val minHash = min(previousHash.first.toULong(), previousHash.second.toULong()).toLong()
                         // Use only kmers with a specific ending nucleotide(s)
                         // hashMask determines how many positions will be used
                         // hashFilterValue determines which nucleotide will be kept at that position
