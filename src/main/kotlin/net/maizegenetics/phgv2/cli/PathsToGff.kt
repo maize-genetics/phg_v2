@@ -31,7 +31,7 @@ class PathsToGff: CliktCommand( help = "Create a GFF file from a PHG imputation 
     val hvcfFile by option(help = "Full path to the H.vcf file")
         .required()
 
-    val outputFile by option("-o", "--output-dir", help = "Directory where pseudo GFF file will be written")
+    val outputFile by option("-o", "--output-file", help = "Path to where pseudo GFF file will be written")
         .default("")
 
     // Pre-compile the Regex pattern - used when creating the output fasta file names
@@ -45,6 +45,7 @@ class PathsToGff: CliktCommand( help = "Create a GFF file from a PHG imputation 
         // output file is specified.
         // This flexibility is to allow for user to store the results in memory for further
         // analysis from a jupyter notebook or other environment.
+        println("PathsToGff: calling makeGffFromHvcf for file ${hvcfFile}")
         val taxonPathGFF = makeGffFromHvcf(hvcfFile, resultsTreeCenter,outputFile)
         val endingTime = (System.nanoTime() - time)/1e9
         if (outputFile == "") {

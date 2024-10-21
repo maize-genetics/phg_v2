@@ -177,6 +177,7 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
     var count = 0
     var total = 0
 
+    println("LCJ - makeGffFromHvcf: number of hvcf records: ${hvcfRecords.size}")
     // traverse the hvcf records, creating the entries
     for (hvcfRecord in hvcfRecords) {
         val hapId = hvcfRecord.alternateAlleles.first().displayString.removeSurrounding("<", ">")
@@ -233,7 +234,9 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
             // Grab the gff entries that overlap with the asm region used to create this haplotype
             // there may be multiple entries that overlap, and there may be multiple regions from
             // this Aseembly which make up the haplotype.
+            println("LCJ - makeGffFromHvcf: getting overlapping entries for region ${refRange}")
             val regionGffEntries = getOverlappingEntriesFromGff(hvcfRecord.contig, refRange.start..refRange.end, asmCenterGffEntries)
+            println("LCJ - makeGffFromHvcf: number of overlapping entries for region ${refRange}: ${regionGffEntries.size}")
             regionOverlapLists.addAll(regionGffEntries)
         }
 
@@ -252,6 +255,7 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
             }
         })
 
+        println("LCJ - makeGffFromHvcf: number of sortedGffEntries: ${sortedGffEntries.size}")
         // Create the Gff3Feature entry, add to list
         for (entry in sortedGffEntries) {
             val newRange = getPseudoGFFCoordsMultipleRegions( entry.start..entry.end, regionList, offset)
@@ -286,13 +290,16 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
     }
 
     // Create the last "chromosome" entry for this file
+    println("LCJ - creating last chromosome entry for the file")
     val gff3FeatureEntry = createGffChromosomeEntry(curChrom, offset)
     pseudoGenomeGff3Features.add(gff3FeatureEntry)
 
     if (count > 0) total += count
     myLogger.info("makeGffFromPath: all entries finished, total: ${total}")
+    println("makeGffFromPath: all entries finished, total: ${total}")
     if (outputFile != null && outputFile !="") {
         myLogger.info("makeGffFromPath: writing pseudo gff file to ${outputFile}")
+        println("makeGffFromPath: writing pseudo gff file to ${outputFile}")
         writeGffFile(outputFile, pseudoGenomeGff3Features,null,null)
     }
     val endingTime = (System.nanoTime() - time)/1e9
@@ -313,24 +320,32 @@ fun writeGffFile(outputFile: String, features: Set<Gff3Feature>, comments: List<
 
     try {
 
+        println("LCJ - writeGffFile: writing to file ${outputFile}")
         Gff3Writer(Paths.get(outputFile)).use { writer ->
+            println("LCJ - writeGffFile - writing comments")
             // comments are optional
             comments?.forEach {
                 writer.addComment(it)
             }
 
+            println("LCJ - writeGffFile - writing regions")
             // regions are optional
             regions?.forEach {
                 writer.addDirective(Gff3Codec.Gff3Directive.SEQUENCE_REGION_DIRECTIVE, it)
             }
             // There should be features!
+            println("LCJ - writeGffFile - writing features")
             features.forEach {
                 writer.addFeature(it)
             }
 
         }
     } catch (ioe: IOException) {
+        println("LCJ - writeGffFile - IOException!")
         throw TribbleException("Error writing to file $outputFile", ioe)
+    } catch (exc: Exception) {
+        println("LCJ - writeGffFile - Exception!")
+        throw IllegalStateException("Error writing to file $outputFile", exc)
     }
 }
 
@@ -364,7 +379,9 @@ fun getOverlappingEntriesFromGff(contig: String, haplotypeRange:IntRange, asmCen
     var floorKeyTemp = asmCenterGffs.floorKey(hapStartPos)
     var floorKey = floorKeyTemp
     if (floorKeyTemp != null) {
-        floorKey = Position(floorKeyTemp.contig, floorKeyTemp.position-1)
+        if (floorKeyTemp.position <= 1) floorKey = Position(floorKeyTemp.contig, 1)
+        else
+          floorKey = Position(floorKeyTemp.contig, floorKeyTemp.position-1)
     }
 
     // Because submap below grabs the values in an inclusive/exclusive manner,

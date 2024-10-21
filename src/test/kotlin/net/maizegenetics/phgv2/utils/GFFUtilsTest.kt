@@ -1,6 +1,7 @@
 package net.maizegenetics.phgv2.utils
 
 import biokotlin.util.bufferedWriter
+import com.github.ajalt.clikt.testing.test
 import com.google.common.collect.Range
 import com.google.common.collect.RangeSet
 import com.google.common.collect.TreeRangeSet
@@ -8,6 +9,7 @@ import htsjdk.tribble.annotation.Strand
 import htsjdk.tribble.gff.Gff3Feature
 import htsjdk.tribble.gff.SequenceRegion
 import junit.framework.TestCase
+import net.maizegenetics.phgv2.cli.PathsToGff
 import net.maizegenetics.phgv2.cli.TestExtension
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
@@ -63,6 +65,29 @@ class GFFUtilsTest {
         }
     }
 
+
+    @Test
+    fun testPathsToGff() {
+        // This is testing the actual clikt class.  Everything below here are tests of
+        // the individual functions that are called by the clikt class.
+        // THis is the keyfile we had fortesting with Michelle's data in phgv1:
+        //    /Users/lcj34/notes_files/phg_2018/new_features/phg493_GFF_plugin_fromAsmCoords/testing/keyFile.txt
+        // TODO: LCJ - remove hard coding - store files somewhere
+        // TODO : this test still fails, and it doesn't pick up the early genes - debug that !
+        // It isn't finindht them in getOverlappingEntriesFromGff()
+        val keyFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGFF/testKeyFile.txt"
+        val hvcfFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGFF/Imputation.h.vcf"
+        val outputFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGff/junit_tests/testPathsToGffOutput.gff3"
+
+        val pathsToGff = PathsToGff()
+        //val goodParamsTest = pathsToGff.test("--key-file ${keyFile} --hvcf-file ${hvcfFile} --output-file ${testOutputFile}")
+        val goodParamsTest = pathsToGff.test("--key-file ${keyFile} --hvcf-file ${hvcfFile} --output-file ${outputFile}")
+
+        assertEquals(goodParamsTest.statusCode, 1)
+        println("Finished testPathsToGff")
+
+
+    }
     @Test
     fun loadGffsToGFFFeatureTest() {
         // this returns a Map<String, TreeMap<Position,ArrayList<Gff3Feature>>> where
@@ -253,7 +278,7 @@ class GFFUtilsTest {
             val featureTreeMapCenter = createTreeMapFromFeaturesCenter(features)
             centerGffs.put(taxon, featureTreeMapCenter)
             val endTime = (System.nanoTime() - time)/1e9
-            println("loadGffsToGff3Feature: time to load ${taxon} gff file: ${endTime}")
+            println("createTreeMapFromFeaturesCenter: time to load ${taxon} gff file: ${endTime}")
         }
 
         val name = "B73"
@@ -506,7 +531,6 @@ class GFFUtilsTest {
 
 fun createGFFKeyfile(gffKeyFile:String, gffFileWithHeadersB73:String, gffFileWithHeadersCML103:String) {
     // write a keyfile to go with the gff file for these tests
-    // Will this be a problem that it has 2 files?
     try {
         bufferedWriter(gffKeyFile).use { bw ->
             bw.write("B73\t${gffFileWithHeadersB73}\n")
