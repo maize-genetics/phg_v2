@@ -285,19 +285,33 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
      * Note no Ns are added between the haplotype sequences.
      */
     fun writeCompositeSequence(outputFileWriter: BufferedWriter, haplotypeSequences: List<HaplotypeSequence>) {
-        //group the sequences by chromosome
+        // Group sequences by chromosome
         val sequencesByChr = haplotypeSequences.groupBy { it.refContig }
-        for(chr in sequencesByChr.keys.sorted()) {
+        for (chr in sequencesByChr.keys.sorted()) {
             outputFileWriter.write(">$chr\n")
-            //sort the sequences by startPos
+
+            // Sort the sequences by start position
             val sequencesByStartPos = sequencesByChr[chr]!!.sortedBy { it.refStart }
-            //merge and output the sequences
-            sequencesByStartPos.map { it.sequence }
-                .joinToString("")
-                .chunked(80)//Chunking into 80 character lines
-                .forEach { outputFileWriter.write(it + "\n") }
+
+            // Initialize a buffer to store the merged sequence
+            // Using StringBuilder to avoid the large intermediate strings used by joinToString
+            // which caused memory issues when users had large genomes and lots of haplotypes/chrom
+            val sequenceBuffer = StringBuilder()
+
+            // Append sequences to the buffer
+            sequencesByStartPos.forEach { haplotypeSeq ->
+                sequenceBuffer.append(haplotypeSeq.sequence)
+            }
+
+            // Write the buffered sequence in chunks of 80 characters
+            // Not chunking until the end to avoid the issue of "short" lines
+            // in the middle of the chrom sequence.  Only the last line may be shorter than 80 bps.
+            sequenceBuffer.chunked(80).forEach { chunk ->
+                outputFileWriter.write(chunk + "\n")
+            }
         }
     }
+
 
     /**
      * Function to output haplotype sequences to a fasta file.  Here each haplotype is exported as its own fasta record without concatenating things together.
