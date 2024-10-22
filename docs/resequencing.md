@@ -69,7 +69,7 @@ phg_v2_example/
 │   ├── ref_ranges.bed
 │   ├── updated_assemblies/
 │   ├── vcf_files/
-│   │   vcf_files_imputed
+│   ├── vcf_files_imputed
 │   │   └── LineA_B.h.vcf 
 │   └── read_mappings/
 └── vcf_dbs
@@ -95,7 +95,6 @@ this via minimap2 in the following code block:
 ```shell
 # Run minimap2 to align the reads with the composite genome
 minimap2 -a -x sr -t 20 --secondary=no --eqx \
-    -R '@RG\tID:READ_GRP1\tSM:LineA_B' \
     output/composite_assemblies/LineA_B_composite.fa \
     data/short_reads/LineA_LineB_1.fq \
     data/short_reads/LineA_LineB_2.fq | \
@@ -114,8 +113,6 @@ In summary, this command is using the following `minimap2` parameters:
   the primary alignment
 * `--eqx` - output the [CIGAR](https://timd.one/blog/genomics/cigar.php)
   string in "extended" format (`=` for matches and `X` for mismatches)
-* `-R` - add read group information to the SAM file (useful if you
-  have reads coming from multiple libraries)
 
 This minimap2 procedure will create a SAM file that is piped (`|`)
 into the [SAMtools](https://github.com/samtools/samtools) program which is converted (`view -b`) and
@@ -165,61 +162,165 @@ commands:
 
 
 ### Perform variant calling
+After the BAM files have been filtered, we can now run variant
+calling. Since there are many different variant callers available,
+this step can become "highly opinionated" for various groups and
+users. In our current tests, we have found the results produced by
+[DeepVariant](https://github.com/google/deepvariant) to be of high
+quality.
 
-Here we show an example of running DeepVariant on the merged bam file 
-created above. The output of DeepVariant is a VCF file that contains 
-the variants called against the composite fasta. The following 
-command will run DeepVariant from a Docker container:
+Here we show an example of running DeepVariant on the prior BAM file. 
+The output of DeepVariant is a VCF file that contains 
+the variants called against the composite fasta made in the
+[first step](#create-a-composite-fasta-file). Assuming you have
+retrieved the [Docker image](https://github.com/google/deepvariant/blob/r1.6.1/docs/deepvariant-quick-start.md#get-docker-image)
+for DeepVariant, the following command is an example of the
+recommended parameters to use for the program:
 
 ```shell
-INPUT_DIR=/path/to/input/files
-OUTPUT_DIR=/path/to/output/files
+PHG_DIR=phg_v2_example/
 
 docker run \
-    -v ${INPUT_DIR}:/input \
-    -v ${OUTPUT_DIR}:/output \
+    -v ${PHG_DIR}:/workdir \
     google/deepvariant:1.6.1 \
     /opt/deepvariant/bin/run_deepvariant \
     --model_type=WGS \
-    --ref=/input/Composite.fa \ // from the create-fasta-from-hvcf command above
-    --reads=/input/merged.sorted.bam \
-    --output_vcf=/output/merged.sorted.vcf
-    --output_gvcf=/output/merged.sorted.g.vcf
-    --intermediate_results_dir=/output/intermediate_results
+    --ref=/workdir/output/composite_assemblies/LineA_B_composite.fa \
+    --reads=/workdir/output/minimap2/LineA_B_composite_filtered.bam \
+    --output_vcf=/workdir/output/vcf_files/LineA_B_composite_reseq.vcf \
+    --output_gvcf=/workdir/output/vcf_files/LineA_B_composite_reseq.g.vcf \
+    --intermediate_results_dir=/workdir/intermediate_results \
     --num_shards=4
 ```
+
+If you have limited experience in what Docker and/or DeepVariant 
+commands are, here we explain in further detail the rationale for
+each of these parameters:
+
+**Docker commands**:
+
+* `docker run`: base Docker command to run a container
+* `-v ${PHG_DIR}:/workdir`: This mounts the **host system's** (i.e., 
+  your machine) working PHG directory (specified as the variable, `PHG_DIR`) 
+  to the `/workdir` directory inside the container. This would be
+  the path on your machine that contains the necessary files 
+  (_discussed below_). Here, I am mounting it to the "example" PHG
+  directory that was used previously.
+
+**DeepVariant commands**:
+
+* `google/deepvariant:1.6.1`: This specifies the version of the
+  DeepVariant Docker image to use (`1.6.1` in this case since this is
+  the latest version as of writing this documentation).
+* `/opt/deepvariant/bin/run_deepvariant`: This specifies the path
+  inside the Docker container to the DeepVariant executable script
+  that orchestrates the variant calling pipeline.
+
+**DeepVariant input parameters**:
+
+* `--model_type=WGS`: Specifies the model type to use for variant
+  calling. In this case, `WGS` stands for "**W**hole **G**enome 
+  **S**equencing".
+* `--ref=/workdir/output/composite_assemblies/LineA_B_composite.fa`:
+  The reference genome in FASTA format that DeepVariant will use for
+  alignment and variant calling. The reference file in this case
+  **will be the composite FASTA file created earlier**.
+* `--reads=/workdir/output/minimap2/LineA_B_composite_filtered.bam`:
+  Specifies the prior **sorted and indexed BAM file** containing the
+  aligned sequencing reads.
+* `--output_vcf=/workdir/output/vcf_files/LineA_B_composite_reseq.vcf`:
+  The output VCF file path where DeepVariant will write the called
+  variants.
+* `--output_gvcf=/workdir/output/vcf_files/LineA_B_composite_reseq.g.vcf`:
+  The output gVCF file path.
+* `--intermediate_results_dir=/workdir/intermediate_results`: The
+  directory where DeepVariant will write intermediate files generated
+  during the analysis. These files are useful for debugging or
+  optimizing performance, but can be deleted after run if not needed.
+* `--num_shards=4`: This specifies the number of CPU cores or threads
+  to parallelize the job across. In this case, we are using `4` CPU
+  threads. The higher number of shards, the faster the job, but will
+  require more computational resources.
+
 
 
 ### Filter variants
 
-To identify rare alleles, the VCF file output by the variant caller should be filtered to select variants based on 
-quality scores, depth or other measures.  The following is an example of how to filter the VCF file created above.
-It filters for biallelic SNPs with a depth greater than 4 and a quality score greater than 20.
+To identify rare alleles, the VCF file output by the variant caller 
+should be filtered to select variants based on quality scores, depth, 
+or other measures. The following is an example of how to use 
+[bcftools](https://github.com/samtools/bcftools) to filter the VCF 
+file created above:
 
 ```shell
-bcftools view -m2 -M2 -v snps -i 'QUAL>20 && GT="1/1" && DP>4' /path/to/merged.sorted.vcf -o /path/to/deepVariantFiltered.vcf
+bcftools view -m2 -M2 -v snps \
+    -i 'QUAL>20 && GT="1/1" && DP>4' \
+    output/vcf_files/LineA_B_composite_reseq.vcf \
+    -o output/vcf_files/LineA_B_composite_reseq_filt.vcf
 ```
+In summary, this command is using the following bcftools parameters:
+
+* `-m2`: Specifies that only **diploid variants** should be included.
+  The value `2` represents the ploidy level (diploid).
+* `-M2`: Ensures that variants with more than two alleles are
+  excluded. Using this in conjunction with `-m2` ensures that only
+  **biallelic diploid variants** are retained.
+* `-v snps`: This option restricts the output to only **SNPs**.
+* `-i 'QUAL>20 && GT="1/1" && DP>4'`: This specifies the filtering
+  conditions in which variants have the qualities:
+    + `QUAL>20`: only include variants with a **quality score greater
+      than 20**. The quality score indicates the confidence of the
+      variant call, and this filter ensures that only high-confidence
+      variants are retained.
+    + `GT="1/1"`: this ensures that only **homozygous alternate
+      variants** are included (where the genotype is `1/1`, 
+      indicating) both alleles are the alternate allele).
+    + `DP>4`: retain only variants with a **depth of coverage
+      greater than 4**. The depth of coverage (`DP`) indicates the
+      number of reads covering the variant position.
+* `output/vcf_files/LineA_B_composite_reseq.vcf`: the
+  input VCF file that contains the variants to be filtered.
+* `-o output/vcf_files/LineA_B_composite_reseq_filt.vcf`: 
+  the output file where the filtered variants will be saved.
+
 
 
 ### Create final VCF in haplotype coordinates
+Now that we have retained "high quality" variants, we can finally
+convert the coordinates from the composite FASTA file to coordinates
+found in the haplotypes within PHG population. To perform this, we
+can use a PHGv2 command called `composite-to-haplotype-coords`:
 
-Convert the VCF file created above to haplotype coordinates, using the create-haplotype-vcf command as shown below:
-  ```shell
-  phg composite-to-haplotype-coords \
-      --path-hvcf /path/to/imputation.hvcf \
-      --variant-vcf /path/to/vcf/from/DeepVariant \ // vcf created in filtered step above
-      --sample-name nameForNewSample \ // samplename to use in the haplotype coordinates vcf
-      --output-file /path/to/output.vcf
-  ```
+```shell
+phg composite-to-haplotype-coords \
+    --path-hvcf output/vcf_files_imputed/LineA_B.h.vcf \
+    --variant-vcf output/vcf_files/LineA_B_composite_reseq_filt.vcf \
+    --sample-name LineA_B \
+    --output-file output/vcf_files/LineA_B_reseq_hap_coords.vcf
+```
+
+In summary, this command takes 4 parameters:
+
+* `--path-hvcf`: path to the imputed hVCF file created during the
+  [imputation steps](imputation.md).
+* `--variant-vcf`: path to the filter VCF file created by the
+  prior variant caller (e.g., DeepVariant).
+* `--sample-name`: sample ID to include in the VCF file.
+* `--output-file`: path and name of coordinate converted VCF file.
 
 
 
-## Extra materials
+## Miscellaneous
 
-!!! todo
-    Should we keep the following code blocks:
+In the following sections, we present possible alternate workflows
+that may arise due to the attributes of your starting data:
 
-### Multiple libraries:
+### WGS reads coming from multiple libraries:
+
+In certain cases, you may have reads that come from multiple flowcell
+or sequencing libraries. To align short reads to the composite, you
+can add read grouping information (`-R`) to minimap2. In the
+following example, we have three WGS libraries for the sample `P39`:
 
 ```shell
 # Run minimap2 to align the reads with the composite genome
@@ -227,35 +328,53 @@ FASTA_DIR=/workdir/lcj34/phg_v2/testing/fastas
 FASTQ_DIR=/workdir/lcj34/phg_v2/testing/fastqFiles
 WORK_DIR=/workdir/lcj34/phg_v2/testing
 
-time minimap2 -a -x sr -t 20 --secondary=no   --eqx -R '@RG\tID:READ_GRP1\tSM:P39' \
+minimap2 -a -x sr -t 20 --secondary=no --eqx -R '@RG\tID:READ_GRP1\tSM:P39' \
     ${FASTA_DIR}/P39wgs_composite.fa \
     ${FASTQ_DIR}/P39/P39_HBEN2ADXX_GTGAAA_R1.fastq.gz \
     ${FASTQ_DIR}/P39/P39_HBEN2ADXX_GTGAAA_R2.fastq.gz | \
     samtools view -b > ${WORK_DIR}/p39top39composite_bams/P39_HBEN2ADXX_GTGAAA.ori.bam
     
-time minimap2 -a -x sr -t 20 --secondary=no   --eqx -R '@RG\tID:READ_GRP2\tSM:P39' \
+minimap2 -a -x sr -t 20 --secondary=no --eqx -R '@RG\tID:READ_GRP2\tSM:P39' \
     ${FASTA_DIR}/P39wgs_composite.fa \
     ${FASTQ_DIR}/P39/P39__HFFGKADXX_GTGAAA_R1.fastq.gz \
     ${FASTQ_DIR}/P39/P39__HFFGKADXX_GTGAAA_R2.fastq.gz | \
     samtools view -b > ${WORK_DIR}/p39top39composite_bams/P39_HFFGKADXX_GTGAAA.ori.bam
     
-time minimap2 -a -x sr -t 20 --secondary=no --eqx -R '@RG\tID:READ_GRP3\tSM:P39'
+minimap2 -a -x sr -t 20 --secondary=no --eqx -R '@RG\tID:READ_GRP3\tSM:P39'
     ${FASTA_DIR}/P39wgs_composite.fa \
     ${FASTQ_DIR}/P39/P39_HL5WNCCXX_GTGAAA_R1.fastq.gz \
     ${FASTQ_DIR}/P39/P39_HL5WNCCXX_GTGAAA_R2.fastq.gz | \
     samtools view -b > ${WORK_DIR}/p39top39composite_bams/P39_HL5WNCCXX_GTGAAA.ori.bam
 ```
 
+In the above example, read groupings are added using the `-R` 
+parameter found in minimap2. Each WGS library will get its own
+read group:
 
-### Merge
+* `ID:READ_GRP1` - `ID:READ_GRP3`: specifies that the read group
+  identifier is `READ_GRP1` through `READ_GRP3`
+* `SM:P39`: The sample name. In this case, it is `P39`
 
-* Merge the bam files into 1
+After alignment, the BAM files can be merged into one using the 
+`merge` command from samtools:
 
-Before running the variant caller, merge the bam files into a single 
-BAM file, then index using the commands below:
-
-```shell
+```
 samtools merge -b /path/to/bam.list /path/to/merged.bam
+```
+
+* `-b`: A list of BAM files to merge. This would be a plain-text
+  list of file paths. For example:
+
+    ```
+    /path/to/sample1.bam
+    /path/to/sample2.bam
+    /path/to/sample3.bam
+    ```
+
+After merging, the BAM file can be sorted and indexed using the
+prior guidelines:
+
+```
 samtools sort --threads 8 -T ./tmp -o /path/to/merged.sorted.bam /path/to/merged.bam
 samtools index /path/to/merged.sorted.bam
 ```
