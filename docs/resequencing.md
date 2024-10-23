@@ -23,6 +23,75 @@ perform this transformation, the user can use the
 
 ## Quick start
 
+* Create a composite FASTA file
+
+    ```shell
+    phg create-fasta-from-hvcf \
+        --hvcf-file output/vcf_files_imputed/LineA_B.h.vcf \ 
+        --fasta-type composite \ 
+        -o output/composite_assemblies/
+    ```
+
+* Align short reads to composite FASTA
+
+    ```shell
+    # Run minimap2 to align the reads with the composite genome
+    minimap2 -a -x sr -t 20 --secondary=no --eqx \
+        output/composite_assemblies/LineA_B_composite.fa \
+        data/short_reads/LineA_LineB_1.fq \
+        data/short_reads/LineA_LineB_2.fq | \
+        samtools view -b > output/minimap2/LineA_B_composite_align.bam
+    ```
+
+* Filter BAM files
+
+    ```shell
+    samtools fixmate -m LineA_B_composite_align.bam LineA_B_composite_fm.bam
+    samtools sort --threads 8 -T ./tmp -o LineA_B_composite_sorted_fm.bam LineA_B_composite_fm.bam
+    samtools markdup -r LineA_B_composite_sorted_fm.bam LineA_B_composite_dedup.bam
+    samtools view -F 4 -f 2 -b LineA_B_composite_dedup.bam > LineA_B_composite_filtered.bam
+    samtools index LineA_B_composite_filtered.bam
+    ```
+
+* Perform variant calling
+
+    ```shell
+    PHG_DIR=phg_v2_example/
+    
+    docker run \
+    -v ${PHG_DIR}:/workdir \
+    google/deepvariant:1.6.1 \
+    /opt/deepvariant/bin/run_deepvariant \
+    --model_type=WGS \
+    --ref=/workdir/output/composite_assemblies/LineA_B_composite.fa \
+    --reads=/workdir/output/minimap2/LineA_B_composite_filtered.bam \
+    --output_vcf=/workdir/output/vcf_files/LineA_B_composite_reseq.vcf \
+    --output_gvcf=/workdir/output/vcf_files/LineA_B_composite_reseq.g.vcf \
+    --intermediate_results_dir=/workdir/intermediate_results \
+    --num_shards=4
+    ```
+
+
+* Filter variants
+
+    ```shell
+    bcftools view -m2 -M2 -v snps \
+        -i 'QUAL>20 && GT="1/1" && DP>4' \
+        output/vcf_files/LineA_B_composite_reseq.vcf \
+        -o output/vcf_files/LineA_B_composite_reseq_filt.vcf
+    ```
+
+* Create final VCF in haplotype coordinates
+
+    ```shell
+    phg composite-to-haplotype-coords \
+        --path-hvcf output/vcf_files_imputed/LineA_B.h.vcf \
+        --variant-vcf output/vcf_files/LineA_B_composite_reseq_filt.vcf \
+        --sample-name LineA_B \
+        --output-file output/vcf_files/LineA_B_reseq_hap_coords.vcf
+    ```
+
+
 ## Detailed walkthrough
 
 ### Create a composite FASTA file
@@ -49,7 +118,7 @@ This command takes 3 necessary parameters:
   FASTA file
 
 After running this command, our example directory (based on the
-prior pipelines) will now have a FASTA file (`LineA_B_composite.h.vcf`) 
+prior pipelines) will now have a FASTA file (`LineA_B_composite.fa`) 
 in the `composite_assemblies/` directory:
 
 ```
@@ -245,7 +314,6 @@ each of these parameters:
 
 
 ### Filter variants
-
 To identify rare alleles, the VCF file output by the variant caller 
 should be filtered to select variants based on quality scores, depth, 
 or other measures. The following is an example of how to use 
@@ -291,6 +359,12 @@ convert the coordinates from the composite FASTA file to coordinates
 found in the haplotypes within PHG population. To perform this, we
 can use a PHGv2 command called `composite-to-haplotype-coords`:
 
+!!! note
+    The VCF coordinates created in this step will **not** be based on
+    reference coordinates or coordinates relative to any single
+    assembly. They will be relative to the haplotypes used to make
+    the composite assembly!
+
 ```shell
 phg composite-to-haplotype-coords \
     --path-hvcf output/vcf_files_imputed/LineA_B.h.vcf \
@@ -303,8 +377,8 @@ In summary, this command takes 4 parameters:
 
 * `--path-hvcf`: path to the imputed hVCF file created during the
   [imputation steps](imputation.md).
-* `--variant-vcf`: path to the filter VCF file created by the
-  prior variant caller (e.g., DeepVariant).
+* `--variant-vcf`: path to the [filtered VCF file](#filter-variants) 
+  created by the prior variant caller (e.g., DeepVariant).
 * `--sample-name`: sample ID to include in the VCF file.
 * `--output-file`: path and name of coordinate converted VCF file.
 
