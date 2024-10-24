@@ -2,6 +2,8 @@ package net.maizegenetics.phgv2.api
 
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import net.maizegenetics.phgv2.utils.AltHeaderMetaData
 import net.maizegenetics.phgv2.utils.parseALTHeader
 import org.apache.logging.log4j.LogManager
@@ -217,14 +219,22 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         // rangeIdToSampleToChecksum[rangeId][gameteId][sampleId] -> checksum
         val rangeIdToSampleToChecksum = mutableListOf<MutableList<Array<String?>>>()
 
-        // Step 3: Process the files sequentially
-        hvcfFiles.forEach { hvcfFile ->
+        val rangeInfoChannel = Channel<Deferred<List<RangeInfo>>>(5)
 
-            myLogger.info("processFiles: $hvcfFile")
+        CoroutineScope(Dispatchers.IO).launch {
+            hvcfFiles.forEach { hvcfFile ->
+                myLogger.info("processFile: $hvcfFile")
+                rangeInfoChannel.send(async { processHVCF(hvcfFile) })
+            }
+            rangeInfoChannel.close()
+        }
 
-            VCFFileReader(File(hvcfFile), false).use { reader ->
+        val rangeMap = mutableMapOf<ReferenceRange, Int>()
 
-                val rangeInfoList = processRanges(reader)
+        runBlocking {
+
+            for (deferred in rangeInfoChannel) {
+                val rangeInfoList = deferred.await()
                 for (rangeInfo in rangeInfoList) {
                     val rangeId = rangeMap.getOrPut(rangeInfo.range) { rangeMap.size }
 
@@ -244,9 +254,6 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
                         )
                     }
                 }
-
-                reader.close()
-
             }
 
         }
@@ -256,6 +263,14 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         refRangeMap = rangeMap.toSortedMap()
 
         rangeByGameteIdToHapid = convert(rangeIdToSampleToChecksum)
+
+    }
+
+    private fun processHVCF(hvcfFile: String): List<RangeInfo> {
+
+        return VCFFileReader(File(hvcfFile), false).use { reader ->
+            processRanges(reader)
+        }
 
     }
 
