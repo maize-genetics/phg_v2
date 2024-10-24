@@ -173,28 +173,46 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
     private fun processFiles(hvcfFiles: List<String>) {
 
-        val rangeMap = mutableMapOf<ReferenceRange, Int>()
+        myLogger.info("processFiles: ${hvcfFiles.size} hvcf files")
+
+        val sampleChannel = Channel<Deferred<Pair<List<String>, Map<String, AltHeaderMetaData>>>>(15)
+
+        // Step 1: Get sample names and parse ALT headers
+        CoroutineScope(Dispatchers.IO).launch {
+
+            hvcfFiles.forEach { hvcfFile ->
+
+                myLogger.info("processFiles: get samples and headers: $hvcfFile")
+
+                sampleChannel.send(async {
+                    VCFFileReader(File(hvcfFile), false).use { reader ->
+                        Pair(
+                            reader.header.sampleNamesInOrder,
+                            parseALTHeader(reader.header)
+                        )
+                    }
+                })
+
+            }
+
+            sampleChannel.close()
+
+        }
 
         val sampleNamesSet = mutableSetOf<String>()
         val sampleNamesList = mutableListOf<String>()
         val mutableAltHeaderMap: MutableMap<String, AltHeaderMetaData> = mutableMapOf()
 
-        myLogger.info("processFiles: ${hvcfFiles.size} hvcf files")
+        runBlocking {
 
-        // Step 1: Get sample names and parse ALT headers
-        hvcfFiles.forEach { hvcfFile ->
-
-            myLogger.info("processFiles: $hvcfFile")
-
-            VCFFileReader(File(hvcfFile), false).use { reader ->
+            for (deferred in sampleChannel) {
+                val sampleHeader = deferred.await()
                 // sampleNames are being added to both a Set and List so that they can be compared to detect and report
                 // duplicate sample names
-                sampleNamesSet.addAll(reader.header.sampleNamesInOrder)
-                sampleNamesList.addAll(reader.header.sampleNamesInOrder)
+                sampleNamesSet.addAll(sampleHeader.first)
+                sampleNamesList.addAll(sampleHeader.first)
 
-                parseALTHeader(reader.header, mutableAltHeaderMap)
-
-                reader.close()
+                mutableAltHeaderMap.putAll(sampleHeader.second)
             }
 
         }
