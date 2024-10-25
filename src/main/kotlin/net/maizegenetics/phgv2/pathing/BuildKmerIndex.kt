@@ -1,6 +1,7 @@
 package net.maizegenetics.phgv2.pathing
 
 import biokotlin.seq.NucSeq
+import biokotlin.util.bufferedWriter
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
@@ -51,6 +52,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
     val indexFile by option(help = "The full path of the kmer index file. Default = <hvcf-dir>/kmerIndex.txt")
         .default("")
 
+    val discardFile by option(help = "The full path of the discard set file. If Left blank no file will be written out.")
+        .default("")
+
     val maxHaplotypeProportion by option("-p", "--maxHapProportion", help = "only kmers mapping to less than or " +
             "equal to maxHapProportion of haplotypes in a reference range will be retained.")
         .double()
@@ -85,13 +89,23 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         myLogger.info("Start of BuildKmerIndex...")
         val graph = buildHaplotypeGraph()
 
+
 //        val hashToHapidMap = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
-        val hashToHapidMap = processGraphKmersNew(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
+        val (hashToHapidMap, discardSet) = processGraphKmersNew(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
 
         val kmerIndexFilename = if (indexFile == "") "${hvcfDir}/kmerIndex.txt" else indexFile
 
+
         //save the kmerIndex
         saveKmerHashesAndHapids(graph, kmerIndexFilename, hashToHapidMap)
+
+        if(discardFile.isNotEmpty()) {
+            bufferedWriter(discardFile).use { writer ->
+                for (element in discardSet) {
+                    writer.write("$element\n")
+                }
+            }
+        }
 
         if (noDiagnostics) {
             runDiagnostics = false
@@ -247,7 +261,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
      */
     fun processGraphKmersNew(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75,
-                          hashMask: Long = 3, hashFilterValue:Long = 1) : Long2ObjectOpenHashMap<Set<String>> {
+                          hashMask: Long = 3, hashFilterValue:Long = 1) : Pair<Long2ObjectOpenHashMap<Set<String>>,LongOpenHashBigSet> {
         //keepMap is a map of hash -> Set of haplotype ids
 //        val keepMap = Long2ObjectOpenHashMap<Set<String>>(500_000_000)
         val keepMap = Long2ObjectOpenHashMap<MutableSet<String>>(500_000_000)
@@ -313,7 +327,11 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             if (discardSet.contains(element.longKey)) numberInDiscardSet++
         }
         myLogger.info("$numberInDiscardSet kmers in the keepMap are also in the discardSet.")
-        return keepMap as Long2ObjectOpenHashMap<Set<String>>
+
+        //Save the discard Set here as well:
+
+
+        return Pair(keepMap as Long2ObjectOpenHashMap<Set<String>>, discardSet)
     }
 
     /**
