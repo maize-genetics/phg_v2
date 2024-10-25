@@ -197,6 +197,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         val sampleNamesList = mutableListOf<String>()
         val mutableAltHeaderMap: MutableMap<String, AltHeaderMetaData> = mutableMapOf()
 
+        // Single thread to process the sampleChannel
+        // This collects the sample names and ALT headers
+        // from the HVCF files
         runBlocking {
 
             for (deferred in sampleChannel) {
@@ -248,6 +251,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         val rangeMap = mutableMapOf<ReferenceRange, Int>()
 
+        // Single thread to process the rangeInfoChannel
+        // This is needed because the rangeMap and rangeIdToSampleToChecksum
+        // are shared data structures
         runBlocking {
 
             for (deferred in rangeInfoChannel) {
@@ -462,6 +468,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         return ranges().mapIndexed { index, range -> range to index }.toMap()
     }
 
+    /**
+     * Creates a map of ReferenceRange Strings -> index for this [HaplotypeGraph].
+     */
     fun refRangeStrToIndexMap(): Map<String, Int> {
         return ranges().mapIndexed { index, range -> range.toString() to index }.toMap()
     }
