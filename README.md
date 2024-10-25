@@ -1,8 +1,15 @@
 # PHG version 2
 [![PHGv2 CI](https://github.com/maize-genetics/phg_v2/actions/workflows/phgv2_ci.yml/badge.svg)](https://github.com/maize-genetics/phg_v2/actions/workflows/phgv2_ci.yml) [![codecov](https://codecov.io/gh/maize-genetics/phg_v2/graph/badge.svg?token=4BVD2QXQ1A)](https://codecov.io/gh/maize-genetics/phg_v2) [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-## Imputation Disclaimer: Currently we are noticing issues related to the imputation process. We are noticing for some PHGs there are very low mapping rates(~20% WGS reads).  These low mapping rates are likely contributing to some severe errors during the path finding steps. We believe we have an idea of some initial fixes and are working to implement.  We will update the documentation as soon as we have a solution.  Users can still build a PHG without running into this issue. We apologize for any inconvenience this may cause.
-
+> ![CAUTION]
+> **Imputation disclaimer**: We are experiencing issues with imputation, where
+> some PHGs have low mapping rates (~20% with WGS reads), causing errors
+> in the path-finding steps. We are working on fixes and will update the
+> documentation once a solution is available.
+> You can still build a PHG without encountering this issue. We apologize
+> for the inconvenience.
+> PHGv2 is under active development and we expect to encounter bugs.
+> We aim to report bugs as soon as they are discovered.
 
 The Practical Haplotype Graph (PHG) is a powerful tool for 
 representing pangenomes. The PHG is optimized for plant breeding 
