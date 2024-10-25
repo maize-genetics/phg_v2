@@ -282,26 +282,6 @@ class Hvcf2GvcfTest {
     }
 
     @Test
-    fun testGetSampleNameToVCFMap() {
-
-        var sampleNameList = listOf("Oh43", "CML247", "MO17", "b73", "P39")
-        val outputDir = "/Users/lcj34/notes_files/phg_v2/debug/hvcf2gvcf_performance/gvcfFilesTest"
-        var sampleNameToVCFMap = Hvcf2Gvcf().getSampleNameToVCFMap(sampleNameList, outputDir)
-        var missingSamples = sampleNameList - sampleNameToVCFMap.keys
-        println("sampleNameToVCFMap keys: $sampleNameToVCFMap.keys")
-        println("MissingSamples = $missingSamples")
-        assertEquals(2, missingSamples.size)
-
-        sampleNameList =  listOf("Oh43", "B97", "b73", "P39")
-        sampleNameToVCFMap = Hvcf2Gvcf().getSampleNameToVCFMap(sampleNameList, outputDir)
-        missingSamples = sampleNameList - sampleNameToVCFMap.keys
-        println("sampleNameToVCFMap keys: $sampleNameToVCFMap.keys")
-        println("MissingSamples = $missingSamples")
-        assertEquals(0, missingSamples.size)
-
-
-    }
-    @Test
     fun testCreateRefGvcf() {
         // This is a test of the Hvcf2Gvcf:createRefGvcf function.  We create a reference gvcf file
         // and verify it has data for all reference ranges in the bed file.
@@ -319,6 +299,7 @@ class Hvcf2GvcfTest {
         // read the file and verify that it has data for all reference ranges in the bed file
         val lines = File("$outputDir/$refName.vcf").readLines()
         val refRanges = File(ranges).readLines()
+
 
         // Verify there are 17 lines in the file that begin with "#" (header lines)
         assertEquals(17, lines.filter { it.startsWith("#") }.size)
