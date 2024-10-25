@@ -1,5 +1,8 @@
 # Imputation
 
+## Imputation Disclaimer: Currently we are noticing issues related to the imputation process. We are noticing that we have very low mapping rates in some cases which is causing some severe errors during the path finding steps.  We believe we have an idea of some initial fixes and are working to resolve these issues and will update the documentation as soon as we have a solution. We apologize for any inconvenience this may cause.
+
+
 In this document, we will discuss the steps needed to perform
 imputation using the PHG:
 

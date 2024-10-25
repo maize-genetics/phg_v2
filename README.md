@@ -1,6 +1,9 @@
 # PHG version 2
 [![PHGv2 CI](https://github.com/maize-genetics/phg_v2/actions/workflows/phgv2_ci.yml/badge.svg)](https://github.com/maize-genetics/phg_v2/actions/workflows/phgv2_ci.yml) [![codecov](https://codecov.io/gh/maize-genetics/phg_v2/graph/badge.svg?token=4BVD2QXQ1A)](https://codecov.io/gh/maize-genetics/phg_v2) [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
+## Imputation Disclaimer: Currently we are noticing issues related to the imputation process. We are noticing that we have very low mapping rates in some cases which is causing some severe errors during the path finding steps.  We believe we have an idea of some initial fixes and are working to resolve these issues and will update the documentation as soon as we have a solution. We apologize for any inconvenience this may cause.
+
+
 The Practical Haplotype Graph (PHG) is a powerful tool for 
 representing pangenomes. The PHG is optimized for plant breeding 
 and genetics, where genomic diversity can be high, phased haplotypes 
