@@ -1,14 +1,15 @@
 # Imputation
 
-> ![CAUTION]
-> **Imputation disclaimer**: We are experiencing issues with imputation, where
-> some PHGs have low mapping rates (~20% with WGS reads), causing errors
-> in the path-finding steps. We are working on fixes and will update the
-> documentation once a solution is available.
-> You can still build a PHG without encountering this issue. We apologize
-> for the inconvenience.
-> PHGv2 is under active development and we expect to encounter bugs.
-> We aim to report bugs as soon as they are discovered.
+
+!!! danger "Imputation disclaimer"
+    We are experiencing issues with imputation, where some PHGs have low mapping rates (~20% with WGS reads), 
+    causing errors in the path-finding steps. We are working on fixes and will update the documentation once 
+    a solution is available.
+
+    You can still build a PHG without encountering this issue. We apologize for the inconvenience.
+    
+    PHGv2 is under active development and we expect to encounter bugs. We aim to report bugs as soon as they are discovered.
+
 
 In this document, we will discuss the steps needed to perform
 imputation using the PHG:
