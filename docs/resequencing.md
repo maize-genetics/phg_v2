@@ -238,6 +238,11 @@ users. In our current tests, we have found the results produced by
 [DeepVariant](https://github.com/google/deepvariant) to be of high
 quality.
 
+!!! note
+    For more information on comparisons between different variant
+    callers we have tested, please refer to the notes found
+    [on this page](variant_comparisons.md).
+
 Here we show an example of running DeepVariant on the prior BAM file. 
 The output of DeepVariant is a VCF file that contains 
 the variants called against the composite fasta made in the

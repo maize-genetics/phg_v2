@@ -1,11 +1,14 @@
 # Building and Loading
 
 !!! note
-    As of version 2.4.X, the phg utilizes a new version of anchorwave(1.2.3).
-    This changes how ASM coordinates are handled.  
-    If you are using old MAF files generated either from anchorwave 1.2.2 or from PHGv2 version 2.3 or earlier,
-    please use the --legacy-maf-file flag for create-maf-vcf. 
-    It is recommended that you remove your phgv2-conda Conda environment and rerun the setup-environment command.
+    As of version 2.4.X, the PHG utilizes a new version of AnchorWave
+    ([1.2.3](https://github.com/baoxingsong/AnchorWave/releases/tag/v1.2.3)). 
+    This changes how ASM coordinates are handled. If you are using old 
+    MAF files generated either from AnchorWave 1.2.2 or from PHGv2 
+    version 2.3 or earlier, please use the `--legacy-maf-file` flag 
+    for the `create-maf-vcf` command. **It is recommended** that you 
+    remove your `phgv2-conda` Conda environment and rerun the 
+    `setup-environment` command.
 
 
 In this document, we will discuss the steps needed to:
