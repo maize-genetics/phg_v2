@@ -116,8 +116,49 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
         // This checks for existing gvcf files, and if they don't exist, exports them
         var time = System.nanoTime()
-        val exportSuccess = exportGvcfFiles(sampleNames, outputDir, dbPath, condaEnvPrefix)
-        myLogger.info("Time to exportGvcfFiles: ${(System.nanoTime() - time)/1e9} seconds")
+        // Get list of sample names and the gvcf file names for each sample
+        val sampleNameToVCFMap = getSampleNameToVCFMap(sampleNames.toList(), outputDir).toMutableMap()
+
+        // There is no gvcf for the reference, so we need to create one if
+        // the reference is in the sampleNames list.  The query below gets the
+        // ref sample name from the agc file (which is <dbPath>/assemblies.agc)
+        val refSampleName = retrieveRefSampleName (dbPath, condaEnvPrefix)
+
+        val refFileExists = listOf(
+            File(outputDir, "$refSampleName.vcf"),
+            File(outputDir, "$refSampleName.g.vcf"),
+            File(outputDir, "$refSampleName.g.vcf.gz")
+        ).any { it.exists() }
+
+        // If the refSampleName is in the sampleNames list, and the refGvcfFile does not exist,
+        // create a gvcf of ref blocks for all reference ranges. Because there may be multiple
+        // hvcf files, and each one may have different reference ranges, we need to create a
+        // gvcf file for the reference sample that contains all the reference ranges from the bed file
+        if (sampleNames.contains(refSampleName) && !refFileExists ){
+            // find the bed file.  When the reference was loaded, the bed file was copied
+            // to the dbPath/reference folder.  Look for any file with extension .bed in
+            // folder.
+            val bedFile = File("$dbPath/reference").walk().filter { it.name.endsWith(".bed") }.toList().firstOrNull()?.absolutePath
+            check(bedFile != null) { "No bed file found in $dbPath/reference, cannot pull ref haplotypes" }
+
+            // create a gvcf of ref blocks for all reference ranges
+            createRefGvcf(refSampleName, bedFile, refSeq, outputDir)
+            sampleNameToVCFMap[refSampleName] = "$outputDir/$refSampleName.vcf"
+        }
+        val missingSamples = sampleNames - sampleNameToVCFMap.keys
+
+        if (missingSamples.isNotEmpty()) {
+            myLogger.info("calling exportGvcfFiles with ${missingSamples.size} missing samples")
+            val exportSuccess = exportGvcfFiles(missingSamples, outputDir, dbPath, condaEnvPrefix)
+            if (!exportSuccess) {
+                myLogger.error("Failed to export gvcf files for missing samples")
+                return emptyList()
+           }
+            // Add missing samples to the map - should be MissingSample -> <outputDir>/<MissingSample>.vcf
+            missingSamples.forEach { sampleName ->
+                sampleNameToVCFMap[sampleName] = "$outputDir/$sampleName.vcf"
+            }
+        }
 
         // Using the hvcfdFileReader, walk the hvcf file and for each entry create
         // a ReferenceRange object and add that to a list of Reference Range objects
@@ -143,29 +184,6 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         }.groupBy({ it.first }, { it.second })
         reader.close()
 
-        // There is no gvcf for the reference, so we need to create one if
-        // the reference is in the sampleNames list.  The query below gets the
-        // ref sample name from the agc file (which is <dbPath>/assemblies.agc)
-        val refSampleName = retrieveRefSampleName (dbPath, condaEnvPrefix)
-
-        // check if file outputDir/refSampleName.vcf exists
-        val refGvcfFile = "$outputDir/${refSampleName}.vcf"
-
-        // If the refSampleName is in the sampleNames list, and the refGvcfFile does not exist,
-        // create a gvcf of ref blocks for all reference ranges. Because there may be multiple
-        // hvcf files, and each one may have different reference ranges, we need to create a
-        // gvcf file for the reference sample that contains all the reference ranges from the bed file
-        if (sampleNames.contains(refSampleName) && !File(refGvcfFile).exists()) {
-            // find the bed file.  When the reference was loaded, the bed file was copied
-            // to the dbPath/reference folder.  Look for any file with extension .bed in
-            // folder.
-            val bedFile = File("$dbPath/reference").walk().filter { it.name.endsWith(".bed") }.toList().firstOrNull()?.absolutePath
-            check(bedFile != null) { "No bed file found in $dbPath/reference, cannot pull ref haplotypes" }
-
-            // create a gvcf of ref blocks for all reference ranges
-            createRefGvcf(refSampleName, bedFile, refSeq, outputDir)
-        }
-
         myLogger.info("Hvcf2Gvcf:processHVCFtoVariantContext: rangesSkipped = $rangesSkipped, totalHvcfVariants = $totalHvcfVariants")
 
         // For each sample, read the gvcf file and pull the gvcf records that overlap the ReferenceRanges
@@ -178,7 +196,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         sampleToRefRanges.forEach { sample, ranges ->
             myLogger.info("processHVCFtoVariantContext: processing sample: $sample")
             val time = System.nanoTime()
-            val gvcfFile = "$outputDir/${sample}.vcf" // tiledb wrote with extension .vcf
+            val gvcfFile = sampleNameToVCFMap[sample] // tiledb wrote with extension .vcf
             val gvcfReader = VCFFileReader(File(gvcfFile),false)
 
             val gvcfVariants  = mutableListOf<VariantContext>()
@@ -206,6 +224,28 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         val variants = allRecords.sortedWith(VariantContextComparator(contigNames))
 
         return variants
+    }
+
+    // get the vcf file name for all samples in the list.  Should be a map<SampleName,fileName>
+    fun getSampleNameToVCFMap(sampleNames: List<String>, outputDir: String): Map<String, String> {
+        val directory = File(outputDir)
+
+        // Return a map of sampleName to the actual VCF file found
+        return sampleNames.mapNotNull { sampleName ->
+            // Check if any of the expected files exist
+            val vcfFile = listOf(
+                File(directory, "$sampleName.vcf"),
+                File(directory, "$sampleName.g.vcf"),
+                File(directory, "$sampleName.g.vcf.gz")
+            ).firstOrNull { it.exists() } // Get the first file that exists
+
+            // If a file exists, return the pair (sampleName, vcfFile name), otherwise return null
+            if (vcfFile != null) {
+                sampleName to vcfFile.absolutePath
+            } else {
+                null
+            }
+        }.toMap() // Convert the list of pairs to a map
     }
 
     // This function creates a gvcf of refBlocks based on the ReferenceRanges for the ref sample
