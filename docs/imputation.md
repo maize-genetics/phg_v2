@@ -1,6 +1,6 @@
 # Imputation
 
-## Imputation Disclaimer: Currently we are noticing issues related to the imputation process. We are noticing that we have very low mapping rates in some cases which is causing some severe errors during the path finding steps.  We believe we have an idea of some initial fixes and are working to resolve these issues and will update the documentation as soon as we have a solution. We apologize for any inconvenience this may cause.
+## Imputation Disclaimer: Currently we are noticing issues related to the imputation process. We are noticing for some PHGs there are very low mapping rates(~20% WGS reads).  These low mapping rates are likely contributing to some severe errors during the path finding steps. We believe we have an idea of some initial fixes and are working to implement.  We will update the documentation as soon as we have a solution.  Users can still build a PHG without running into this issue. We apologize for any inconvenience this may cause.
 
 
 In this document, we will discuss the steps needed to perform
