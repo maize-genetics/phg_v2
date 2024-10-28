@@ -2,6 +2,8 @@ package net.maizegenetics.phgv2.api
 
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import net.maizegenetics.phgv2.utils.AltHeaderMetaData
 import net.maizegenetics.phgv2.utils.parseALTHeader
 import org.apache.logging.log4j.LogManager
@@ -12,11 +14,6 @@ import java.util.*
  * Class to create a HaplotypeGraph from a list of hvcf files.
  * The HaplotypeGraph is a data structure that allows for fast
  * lookup of haplotype sequences for a given ReferenceRange.
- *
- * Current version is re-worked to removed co-routines and use
- * single-threaded.  The computation for convering variant context
- * to refRange is very quick.  Co-routine overhead caused major
- * delays in processing - this is much faster.
  */
 class HaplotypeGraph(hvcfFiles: List<String>) {
 
@@ -175,28 +172,49 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
     private fun processFiles(hvcfFiles: List<String>) {
 
-        val rangeMap = mutableMapOf<ReferenceRange, Int>()
+        myLogger.info("processFiles: ${hvcfFiles.size} hvcf files")
+
+        // Step 1: Get sample names and ALT headers
+        val sampleChannel = Channel<Deferred<Pair<List<String>, Map<String, AltHeaderMetaData>>>>(15)
+        CoroutineScope(Dispatchers.IO).launch {
+
+            hvcfFiles.forEach { hvcfFile ->
+
+                myLogger.info("processFiles: get samples and ALT headers: $hvcfFile")
+
+                sampleChannel.send(async {
+                    VCFFileReader(File(hvcfFile), false).use { reader ->
+                        Pair(
+                            reader.header.sampleNamesInOrder,
+                            parseALTHeader(reader.header)
+                        )
+                    }
+                })
+
+            }
+
+            sampleChannel.close()
+
+        }
 
         val sampleNamesSet = mutableSetOf<String>()
         val sampleNamesList = mutableListOf<String>()
         val mutableAltHeaderMap: MutableMap<String, AltHeaderMetaData> = mutableMapOf()
 
-        myLogger.info("processFiles: ${hvcfFiles.size} hvcf files")
+        // Single thread to process the sampleChannel
+        // This collects the sample names and ALT headers
+        // from the HVCF files
+        runBlocking {
 
-        // Step 1: Get sample names and parse ALT headers
-        hvcfFiles.forEach { hvcfFile ->
+            for (deferred in sampleChannel) {
+                val sampleHeader = deferred.await()
 
-            myLogger.info("processFiles: $hvcfFile")
+                // sampleNames are being added to both a Set and List so that they can be
+                // compared to detect and report duplicate sample names
+                sampleNamesSet.addAll(sampleHeader.first)
+                sampleNamesList.addAll(sampleHeader.first)
 
-            VCFFileReader(File(hvcfFile), false).use { reader ->
-                // sampleNames are being added to both a Set and List so that they can be compared to detect and report
-                // duplicate sample names
-                sampleNamesSet.addAll(reader.header.sampleNamesInOrder)
-                sampleNamesList.addAll(reader.header.sampleNamesInOrder)
-
-                parseALTHeader(reader.header, mutableAltHeaderMap)
-
-                reader.close()
+                mutableAltHeaderMap.putAll(sampleHeader.second)
             }
 
         }
@@ -211,7 +229,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
             throw IllegalArgumentException("processFiles: duplicate sample names: $sampleNamesList")
         }
 
-        // Initialize sampleNameToIdMap and sampleNames after validation
+        // Step 3: Initialize sampleNameToIdMap and sampleNames after validation
         myLogger.info("processFiles: initializing sampleNameToIdMap")
         sampleNames = sampleNamesSet.sorted().toTypedArray()
         sampleNameToIdMap = sampleNames.mapIndexed { index, sampleName ->
@@ -221,14 +239,29 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         // rangeIdToSampleToChecksum[rangeId][gameteId][sampleId] -> checksum
         val rangeIdToSampleToChecksum = mutableListOf<MutableList<Array<String?>>>()
 
-        // Step 3: Process the files sequentially
-        hvcfFiles.forEach { hvcfFile ->
+        // Step 4: Process the context variants of each HVCF file
+        val rangeInfoChannel = Channel<Deferred<List<RangeInfo>>>(5)
+        CoroutineScope(Dispatchers.IO).launch {
+            hvcfFiles.forEach { hvcfFile ->
+                myLogger.info("processFile: $hvcfFile")
+                rangeInfoChannel.send(async {
+                    VCFFileReader(File(hvcfFile), false).use { reader ->
+                        processRanges(reader)
+                    }
+                })
+            }
+            rangeInfoChannel.close()
+        }
 
-            myLogger.info("processFiles: $hvcfFile")
+        val rangeMap = mutableMapOf<ReferenceRange, Int>()
 
-            VCFFileReader(File(hvcfFile), false).use { reader ->
+        // Single thread to process the rangeInfoChannel
+        // This is needed because the rangeMap and rangeIdToSampleToChecksum
+        // are shared data structures
+        runBlocking {
 
-                val rangeInfoList = processRanges(reader)
+            for (deferred in rangeInfoChannel) {
+                val rangeInfoList = deferred.await()
                 for (rangeInfo in rangeInfoList) {
                     val rangeId = rangeMap.getOrPut(rangeInfo.range) { rangeMap.size }
 
@@ -248,14 +281,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
                         )
                     }
                 }
-
-                reader.close()
-
             }
 
         }
-
-        myLogger.info("Finished with readers loop to process ranges.")
 
         refRangeMap = rangeMap.toSortedMap()
 
@@ -263,6 +291,15 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
     }
 
+    /**
+     * Converts
+     * rangeIdToSampleToChecksum[rangeId][gameteId][sampleId] -> checksum
+     * to
+     * rangeByGameteIdToHapid[refRangeId][sampleId][gameteID] -> checksum
+     *
+     * First data structure is for faster processing, and
+     * the second data structure is for use of the built graph.
+     */
     private fun convert(
         rangeIdToSampleToChecksum: MutableList<MutableList<Array<String?>>>
     ): Array<Array<Array<String>>> {
@@ -435,6 +472,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         return ranges().mapIndexed { index, range -> range to index }.toMap()
     }
 
+    /**
+     * Creates a map of ReferenceRange Strings -> index for this [HaplotypeGraph].
+     */
     fun refRangeStrToIndexMap(): Map<String, Int> {
         return ranges().mapIndexed { index, range -> range.toString() to index }.toMap()
     }
