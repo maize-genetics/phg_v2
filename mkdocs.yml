@@ -108,6 +108,7 @@ nav:
       - QC metrics: qc_metrics.md
       - SLURM usage: slurm_usage.md
       - Terminology: terminology.md
+      - Variant caller comparisons: variant_comparisons.md
   - Community:
       - References: citations.md
       - Contributing: CONTRIBUTING.md

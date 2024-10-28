@@ -1,4 +1,4 @@
-# Convenience commands
+# Convenience Commands
 
 In addition to the primary commands for the build, imputation, and
 resequencing pipelines, PHGv2 also provides a suite of "convenience
