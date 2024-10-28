@@ -282,6 +282,34 @@ class Hvcf2GvcfTest {
     }
 
     @Test
+    fun testExportGvcfs() {
+        // THis test verifies batching of the export files from tiledb
+        // val exportSuccess = exportGvcfFiles(missingSamples, outputDir, dbPath, condaEnvPrefix, 5)
+        val dbPath = TestExtension.testTileDBURI
+        val outputDir = TestExtension.tempDir + "/vcfDir/exportedFiles"
+        // make the exporedFiles folder
+        File(outputDir).mkdirs()
+        val condaEnvPrefix = ""
+        val missingSamples = setOf("LineA","LineB")
+        val batchSize = 1 // using 1 as there are only 2 samples in the test tiledbURI
+        val exportSuccess = Hvcf2Gvcf().exportGvcfFiles(missingSamples, outputDir, dbPath, condaEnvPrefix, batchSize)
+        // verify the gvcf files exist in the outputDir
+        assertTrue(File("$outputDir/LineA.vcf").exists())
+        assertTrue(File("$outputDir/LineB.vcf").exists())
+
+        //remove the files written to the outputDir
+        File("$outputDir/LineA.vcf").delete()
+        File("$outputDir/LineB.vcf").delete()
+
+        //  export with all in the same batch, batch size =5
+        val exportSuccess2 = Hvcf2Gvcf().exportGvcfFiles(missingSamples, outputDir, dbPath, condaEnvPrefix, 5)
+        // verify the gvcf files exist in the outputDir
+        assertTrue(File("$outputDir/LineA.vcf").exists())
+        assertTrue(File("$outputDir/LineB.vcf").exists())
+
+
+    }
+    @Test
     fun testCreateRefGvcf() {
         // This is a test of the Hvcf2Gvcf:createRefGvcf function.  We create a reference gvcf file
         // and verify it has data for all reference ranges in the bed file.

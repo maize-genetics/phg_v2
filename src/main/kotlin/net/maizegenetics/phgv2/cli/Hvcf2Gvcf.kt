@@ -9,6 +9,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.types.int
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.variantcontext.VariantContextComparator
 import htsjdk.variant.vcf.VCFFileReader
@@ -57,6 +58,9 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
     val outputDir by option (help = "Output directory for the gVCF files.  If not provided, the current working directory is used.")
         .default("")
+    val batchSize by option(help= "Number of samples to export at a time.  Default is 5")
+        .int()
+        .default(5)
 
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
@@ -79,10 +83,10 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         var time = System.nanoTime()
         val refSeq = CreateMafVcf().buildRefGenomeSeq(referenceFile)
         myLogger.info("Time to build refSeq: ${(System.nanoTime() - time)/1e9} seconds")
-        buildGvcfFromHvcf(dbPath, refSeq, outputDir, hvcfDir, condaEnvPrefix)
+        buildGvcfFromHvcf(dbPath, refSeq, outputDir, hvcfDir, condaEnvPrefix, batchSize)
     }
 
-    fun buildGvcfFromHvcf(dbPath: String, refSeq: Map<String, NucSeq>, outputDir: String, hvcfDir: String, condaEnvPrefix: String) {
+    fun buildGvcfFromHvcf(dbPath: String, refSeq: Map<String, NucSeq>, outputDir: String, hvcfDir: String, condaEnvPrefix: String, batchSize:Int) {
         // get list of hvcf files
         // walk the gvcf directory process files with g.vcf.gz extension
 
@@ -92,7 +96,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                 myLogger.info("buildGvcfFromHvcf: Processing hvcf file: ${hvcfFile.name}")
                 var time = System.nanoTime()
                 val sample = hvcfFile.toString().substringAfterLast("/").substringBefore(".")
-                val records = processHVCFtoVariantContext(sample,refSeq, outputDir, hvcfFile, dbPath,condaEnvPrefix)
+                val records = processHVCFtoVariantContext(sample,refSeq, outputDir, hvcfFile, dbPath,condaEnvPrefix,batchSize)
                 myLogger.info("Time to processHVCFtoVariantContext: ${(System.nanoTime() - time)/1e9} seconds")
 
 
@@ -105,7 +109,8 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
     }
 
-    fun processHVCFtoVariantContext(outputSampleName:String,refSeq:Map<String,NucSeq>, outputDir:String, hvcfFile: File, dbPath: String, condaEnvPrefix: String): List<VariantContext> {
+    fun processHVCFtoVariantContext(outputSampleName:String,refSeq:Map<String,NucSeq>, outputDir:String, hvcfFile: File,
+                                    dbPath: String, condaEnvPrefix: String, batchSize:Int): List<VariantContext> {
 
         val reader = VCFFileReader(hvcfFile,false)
 
@@ -149,7 +154,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
 
         if (missingSamples.isNotEmpty()) {
             myLogger.info("calling exportGvcfFiles with ${missingSamples.size} missing samples")
-            val exportSuccess = exportGvcfFiles(missingSamples, outputDir, dbPath, condaEnvPrefix)
+            val exportSuccess = exportGvcfFiles(missingSamples, outputDir, dbPath, condaEnvPrefix, batchSize)
             if (!exportSuccess) {
                 myLogger.error("Failed to export gvcf files for missing samples")
                 return emptyList()
@@ -303,65 +308,64 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
     // function to export from tiledb the gvcf files if they don't exist
     // If we get the tiledb-java API working for MAC, we can hold these in memory
     // while processing and skip the export.
-    fun exportGvcfFiles(sampleNames:Set<String>, outputDir:String, dbPath:String, condaEnvPrefix:String):Boolean {
+    fun exportGvcfFiles(sampleNames:Set<String>, outputDir:String, dbPath:String, condaEnvPrefix:String, batchSize:Int):Boolean {
         val success = true
-        // Check if the files listed in gvcfFIles already exist
-        val gvcfFiles = mutableListOf<String>()
-        sampleNames.forEach { sampleName ->
-            val gvcfFile = "$outputDir/${sampleName}.vcf"
-            gvcfFiles.add(gvcfFile)
-        }
 
-        myLogger.info("exportGvcfFiles: gvcfFiles= ${gvcfFiles}")
-        val missingFiles = gvcfFiles.filter { !File(it).exists() }
-        if (missingFiles.isEmpty()) {
-            myLogger.info("exportGvcfFiles: All gvcf files exist, skipping export")
-            return success
-        }
-        // For the entries in the missingFiles list, create a list of sampleNames.
-        // The sampleNames are the entry in the missingFiles list, remove up to and
-        // including the first "/" and remove the ".vcf" extension
-        val missingSampleNames = missingFiles.map { it.substringAfterLast("/").substringBeforeLast(".") }
+        // Samples were filtered to only those that are missing a gvcf file
+        // Batch the remaining sampleNames and send to tiledbvcf export command, 5 at a time.
 
         // Setup the conda enviroment portion of the command
-        var command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix) else mutableListOf("conda","run","-n","phgv2-conda")
-        // Call ExportVcf with the outputDir and the missingSamleNames list
-        // to create the gvcf files
-        var dataCommand = mutableListOf(
-            "conda",
-            "run",
-            "-n",
-            "phgv2-conda",
-            "tiledbvcf",
-            "export",
-            "--uri",
-            "$dbPath/gvcf_dataset",
-            "-O",
-            "v",
-            "--sample-names",
-            missingSampleNames.joinToString(","),
-            "--output-dir",
-            outputDir
-        )
+        val condaCommandPrefix = if (condaEnvPrefix.isNotBlank()) {
+            mutableListOf("conda", "run", "-p", condaEnvPrefix)
+        } else {
+            mutableListOf("conda", "run", "-n", "phgv2-conda")
+        }
 
-        // join the conda and data portion of the commands
-        command.addAll(dataCommand)
-        val builder = ProcessBuilder(command)
+        val batches = sampleNames.chunked(batchSize)
+        batches.forEach { batch ->
+            // Create the data portion of the command for this batch
+            val dataCommand = mutableListOf(
+                "conda",
+                "run",
+                "-n",
+                "phgv2-conda",
+                "tiledbvcf",
+                "export",
+                "--uri",
+                "$dbPath/gvcf_dataset",
+                "-O",
+                "v",
+                "--sample-names",
+                batch.joinToString(","),  // Send only this batch of sample names
+                "--output-dir",
+                outputDir
+            )
+            // Join the conda and data portions of the command
+            val command = condaCommandPrefix + dataCommand
+            val builder = ProcessBuilder(command)
 
-        val redirectError = "$outputDir/export_gvcf_error.log"
-        val redirectOutput = "$outputDir/export_gvcf_output.log"
-        builder.redirectOutput(File(redirectOutput))
-        builder.redirectError(File(redirectError))
+            val redirectError = "$outputDir/export_gvcf_error_${batch.first()}.log"  // Log file per batch
+            val redirectOutput = "$outputDir/export_gvcf_output_${batch.first()}.log"
+            builder.redirectOutput(File(redirectOutput))
+            builder.redirectError(File(redirectError))
 
-        myLogger.info("ExportVcf Command: " + builder.command().joinToString(" "))
-        val process = builder.start()
-        val error = process.waitFor()
-        if (error != 0) {
-            myLogger.error("tiledbvcf export for: $missingSampleNames run via ProcessBuilder returned error code $error")
-            throw IllegalStateException("Error running tiledbvcf export of dataset $dbPath/gvcf_dataset for: $missingSampleNames. error: $error")
+            // Log the command
+            myLogger.info("ExportVcf Command for batch: ${batch.joinToString(",")}")
+            myLogger.info("Command: " + builder.command().joinToString(" "))
+
+            // Start the process
+            val process = builder.start()
+            val error = process.waitFor()
+
+            // Handle error if the process fails
+            if (error != 0) {
+                myLogger.error("tiledbvcf export for batch: ${batch.joinToString(",")} returned error code $error")
+                throw IllegalStateException("Error running tiledbvcf export of dataset $dbPath/gvcf_dataset for batch: ${batch.joinToString(",")}. error: $error")
+            }
         }
         return success
     }
+
 
     // Process the gvcf records for a sample, and return a map of ReferenceRange to VariantContext
     // These are processed per-sample, then per-chromosome, to reduce memory usage
