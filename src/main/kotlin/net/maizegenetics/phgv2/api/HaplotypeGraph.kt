@@ -6,8 +6,10 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import net.maizegenetics.phgv2.utils.AltHeaderMetaData
 import net.maizegenetics.phgv2.utils.parseALTHeader
+import net.maizegenetics.phgv2.utils.retrieveRefSampleName
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.nio.file.Files
 import java.util.*
 
 /**
@@ -299,6 +301,62 @@ class HaplotypeGraph(hvcfFiles: List<String>, dbPath: String? = null) {
         refRangeMap = rangeMap.toSortedMap()
 
         rangeByGameteIdToHapid = convert(rangeIdToSampleToChecksum)
+
+    }
+
+    private fun getRanges(dbPath: String): Array<MutableList<Array<String?>>> {
+
+        val sampleName = retrieveRefSampleName(dbPath, "")
+
+        val tmpDir = {
+            val tmpDir = Files.createTempDirectory("haplotypeGraphTemp").toFile()
+            tmpDir.deleteOnExit()
+            tmpDir
+        }
+
+        val outputFile = "$tmpDir/all-ranges.txt"
+
+        // conda run -n phgv2-conda tiledbvcf export
+        // --uri /workdir/lcj34/phgv2_commonSept2024/tiledb_maize/hvcf_dataset
+        // -Ot --tsv-fields "CHR,POS" --sample-names B73 -o all-ranges.txt
+        val command = mutableListOf(
+            "conda",
+            "run",
+            "-n",
+            "phgv2-conda",
+            "tiledbvcf",
+            "export",
+            "--uri",
+            "$dbPath/hvcf_dataset",
+            "-Ot",
+            "--tsv-fields",
+            "CHR,POS",
+            "--sample-names",
+            sampleName,
+            "-o",
+            outputFile
+        )
+
+        val builder = ProcessBuilder(command)
+
+        val redirectError = "$tmpDir/haplotype-graph_error.log"
+        val redirectOutput = "$tmpDir/haplotype-graph_output.log"
+        builder.redirectOutput(File(redirectOutput))
+        builder.redirectError(File(redirectError))
+
+        myLogger.info("HaploytpeGraph Command: " + builder.command().joinToString(" "))
+        val process = builder.start()
+        val error = process.waitFor()
+        if (error != 0) {
+            myLogger.error("tiledbvcf export for reference: $sampleName run via ProcessBuilder returned error code $error")
+            throw IllegalStateException("tiledbvcf export for reference: $sampleName run via ProcessBuilder returned error code $error")
+        }
+
+        val rangeMap = mutableMapOf<ReferenceRange, Int>()
+
+        refRangeMap = rangeMap.toSortedMap()
+
+        TODO()
 
     }
 
