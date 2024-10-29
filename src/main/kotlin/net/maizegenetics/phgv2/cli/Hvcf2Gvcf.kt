@@ -325,10 +325,6 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         batches.forEach { batch ->
             // Create the data portion of the command for this batch
             val dataCommand = mutableListOf(
-                "conda",
-                "run",
-                "-n",
-                "phgv2-conda",
                 "tiledbvcf",
                 "export",
                 "--uri",
