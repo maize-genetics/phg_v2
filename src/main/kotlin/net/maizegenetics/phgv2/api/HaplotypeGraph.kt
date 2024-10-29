@@ -15,7 +15,7 @@ import java.util.*
  * The HaplotypeGraph is a data structure that allows for fast
  * lookup of haplotype sequences for a given ReferenceRange.
  */
-class HaplotypeGraph(hvcfFiles: List<String>) {
+class HaplotypeGraph(hvcfFiles: List<String>, dbPath: String? = null) {
 
     private val myLogger = LogManager.getLogger(HaplotypeGraph::class.java)
 
@@ -37,7 +37,14 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     private lateinit var altHeaderMap: Map<String, AltHeaderMetaData>
 
     init {
-        processFiles(hvcfFiles)
+
+        getSampleNamesALTHeaders(hvcfFiles)
+
+        if (dbPath == null) {
+            processFiles(hvcfFiles)
+        } else {
+            processFiles(hvcfFiles, dbPath)
+        }
 
         if (rangeByGameteIdToHapid.isNotEmpty()) {
             myLogger.info("rangeToSampleToChecksum: ${rangeByGameteIdToHapid.size} x ${rangeByGameteIdToHapid[0].size}")
@@ -86,7 +93,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         return gameteSet
     }
 
-    fun numSampleGametes() : Int {
+    fun numSampleGametes(): Int {
         return sampleGametesInGraph().size
     }
 
@@ -113,7 +120,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      * Simple function to make a map of all the haplotypeIds and all the SampleGametes which have that haplotypeId.
      */
     fun hapIdsToSampleGametes(): Map<String, List<SampleGamete>> {
-       return ranges().map { hapIdToSampleGametes(it) }
+        return ranges().map { hapIdToSampleGametes(it) }
             .flatMap { it.toList() }.toMap()
     }
 
@@ -170,9 +177,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      */
     fun altHeaders() = altHeaderMap
 
-    private fun processFiles(hvcfFiles: List<String>) {
-
-        myLogger.info("processFiles: ${hvcfFiles.size} hvcf files")
+    private fun getSampleNamesALTHeaders(hvcfFiles: List<String>) {
 
         // Step 1: Get sample names and ALT headers
         val sampleChannel = Channel<Deferred<Pair<List<String>, Map<String, AltHeaderMetaData>>>>(15)
@@ -235,6 +240,71 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         sampleNameToIdMap = sampleNames.mapIndexed { index, sampleName ->
             Pair(sampleName, index)
         }.toMap()
+
+    }
+
+    private fun processFiles(hvcfFiles: List<String>) {
+
+        myLogger.info("processFiles: ${hvcfFiles.size} hvcf files")
+
+        // rangeIdToSampleToChecksum[rangeId][gameteId][sampleId] -> checksum
+        val rangeIdToSampleToChecksum = mutableListOf<MutableList<Array<String?>>>()
+
+        // Step 4: Process the context variants of each HVCF file
+        val rangeInfoChannel = Channel<Deferred<List<RangeInfo>>>(5)
+        CoroutineScope(Dispatchers.IO).launch {
+            hvcfFiles.forEach { hvcfFile ->
+                myLogger.info("processFile: $hvcfFile")
+                rangeInfoChannel.send(async {
+                    VCFFileReader(File(hvcfFile), false).use { reader ->
+                        processRanges(reader)
+                    }
+                })
+            }
+            rangeInfoChannel.close()
+        }
+
+        val rangeMap = mutableMapOf<ReferenceRange, Int>()
+
+        // Single thread to process the rangeInfoChannel
+        // This is needed because the rangeMap and rangeIdToSampleToChecksum
+        // are shared data structures
+        runBlocking {
+
+            for (deferred in rangeInfoChannel) {
+                val rangeInfoList = deferred.await()
+                for (rangeInfo in rangeInfoList) {
+                    val rangeId = rangeMap.getOrPut(rangeInfo.range) { rangeMap.size }
+
+                    if (rangeId < rangeIdToSampleToChecksum.size) {
+                        rangeIdToSampleToChecksum[rangeId] =
+                            mergeStringArrays(
+                                rangeIdToSampleToChecksum.getOrNull(rangeId),
+                                rangeInfo.rangeSampleToChecksum
+                            )
+                    } else {
+                        rangeIdToSampleToChecksum.add(
+                            rangeId,
+                            mergeStringArrays(
+                                rangeIdToSampleToChecksum.getOrNull(rangeId),
+                                rangeInfo.rangeSampleToChecksum
+                            )
+                        )
+                    }
+                }
+            }
+
+        }
+
+        refRangeMap = rangeMap.toSortedMap()
+
+        rangeByGameteIdToHapid = convert(rangeIdToSampleToChecksum)
+
+    }
+
+    private fun processFiles(hvcfFiles: List<String>, dbPath: String) {
+
+        myLogger.info("processFiles: ${hvcfFiles.size} hvcf files")
 
         // rangeIdToSampleToChecksum[rangeId][gameteId][sampleId] -> checksum
         val rangeIdToSampleToChecksum = mutableListOf<MutableList<Array<String?>>>()
