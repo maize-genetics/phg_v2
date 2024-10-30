@@ -165,7 +165,7 @@ class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read ma
                 val refRange = bedRanges[pos]
                 val hapid = wgsPosToHapid.getOrDefault(pos, "NA")
                 val inImpuptation = if (hapid == "NA") "No" else "Yes"
-                val inP39 = if (parentChromPosToHapid.containsKey(pos)) "Yes" else "No"
+                val inParent = if (parentChromPosToHapid.containsKey(pos)) "Yes" else "No"
                 // hapid always has a value: NA if not present, and NA won't be in hapidToSampleName, so this works
                 val sampleName = hapidToSampleName.getOrDefault(hapid, "NA")
                 // get readCount for the hapid
@@ -178,7 +178,7 @@ class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read ma
                 val refLen = hapidToSeqSize.getOrDefault(hapid, Pair(0,0)).second
                 val hapLen = hapidToSeqSize.getOrDefault(hapid, Pair(0,0)).first
 
-                writer.write("$refRange\t$refLen\t$hapLen\t$hapid\t$sampleName\t$inImpuptation\t$inP39\t$parentSampleHapid\t$sampleRdCount\t$parentSampleRdCt\t$hapidMatch\n")
+                writer.write("$refRange\t$refLen\t$hapLen\t$hapid\t$sampleName\t$inImpuptation\t$inParent\t$parentSampleHapid\t$sampleRdCount\t$parentSampleRdCt\t$hapidMatch\n")
             }
         }
     }
