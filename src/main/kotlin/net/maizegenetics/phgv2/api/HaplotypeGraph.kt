@@ -304,7 +304,7 @@ class HaplotypeGraph(hvcfFiles: List<String>, dbPath: String? = null) {
 
     }
 
-    private fun getRanges(dbPath: String): Array<MutableList<Array<String?>>> {
+    private fun getRanges(dbPath: String): Map<ReferenceRange, Int> {
 
         val sampleName = retrieveRefSampleName(dbPath, "")
 
@@ -354,68 +354,25 @@ class HaplotypeGraph(hvcfFiles: List<String>, dbPath: String? = null) {
 
         val rangeMap = mutableMapOf<ReferenceRange, Int>()
 
-        refRangeMap = rangeMap.toSortedMap()
-
-        TODO()
-
-    }
-
-    private fun processFiles(hvcfFiles: List<String>, dbPath: String) {
-
-        myLogger.info("processFiles: ${hvcfFiles.size} hvcf files")
-
-        // rangeIdToSampleToChecksum[rangeId][gameteId][sampleId] -> checksum
-        val rangeIdToSampleToChecksum = mutableListOf<MutableList<Array<String?>>>()
-
-        // Step 4: Process the context variants of each HVCF file
-        val rangeInfoChannel = Channel<Deferred<List<RangeInfo>>>(5)
-        CoroutineScope(Dispatchers.IO).launch {
-            hvcfFiles.forEach { hvcfFile ->
-                myLogger.info("processFile: $hvcfFile")
-                rangeInfoChannel.send(async {
-                    VCFFileReader(File(hvcfFile), false).use { reader ->
-                        processRanges(reader)
-                    }
-                })
-            }
-            rangeInfoChannel.close()
-        }
-
-        val rangeMap = mutableMapOf<ReferenceRange, Int>()
-
-        // Single thread to process the rangeInfoChannel
-        // This is needed because the rangeMap and rangeIdToSampleToChecksum
-        // are shared data structures
-        runBlocking {
-
-            for (deferred in rangeInfoChannel) {
-                val rangeInfoList = deferred.await()
-                for (rangeInfo in rangeInfoList) {
-                    val rangeId = rangeMap.getOrPut(rangeInfo.range) { rangeMap.size }
-
-                    if (rangeId < rangeIdToSampleToChecksum.size) {
-                        rangeIdToSampleToChecksum[rangeId] =
-                            mergeStringArrays(
-                                rangeIdToSampleToChecksum.getOrNull(rangeId),
-                                rangeInfo.rangeSampleToChecksum
-                            )
-                    } else {
-                        rangeIdToSampleToChecksum.add(
-                            rangeId,
-                            mergeStringArrays(
-                                rangeIdToSampleToChecksum.getOrNull(rangeId),
-                                rangeInfo.rangeSampleToChecksum
-                            )
-                        )
-                    }
+        // SAMPLE  CHR     POS
+        // B73     chr1    1
+        // B73     chr1    34617
+        // B73     chr1    40205
+        // B73     chr1    41214
+        bufferedReader(outputFile).useLines { lines ->
+            lines
+                .drop(1)
+                .forEach { line ->
+                    val tokens = line.split("\t")
+                    val start = tokens[2].toInt()
+                    val range = ReferenceRange(tokens[1], start, start)
+                    rangeMap[range] = rangeMap.size
                 }
-            }
-
         }
 
-        refRangeMap = rangeMap.toSortedMap()
+        val rangeIdToSampleToChecksum = Array<MutableList<Array<String?>>>(rangeMap.size) { mutableListOf() }
 
-        rangeByGameteIdToHapid = convert(rangeIdToSampleToChecksum)
+        return rangeMap
 
     }
 
