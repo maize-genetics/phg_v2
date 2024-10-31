@@ -90,7 +90,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         val graph = buildHaplotypeGraph()
 
 
-//        val hashToHapidMap = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
         val (hashToHapidMap, discardSet) = processGraphKmersNew(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
 
         val kmerIndexFilename = if (indexFile == "") "${hvcfDir}/kmerIndex.txt" else indexFile
@@ -130,127 +129,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         myLogger.info("HaplotypeGraph built in ${timedValue.duration.toDouble(DurationUnit.MILLISECONDS)} ms.")
         return timedValue.value
     }
-
-    /**
-     * Finds the set of kmers meeting the conditions set by [maxHaplotypeProportion], the maximum proportion of
-     * haplotypes in a reference range, and [hashMask] and [hashFilterValue], which determine which nucleotide(s)
-     * are required to be in the final postion(s) of a kmer.
-     *
-     * This returns a HashMap of hash -> hapid list for all the kmers in the keep set.
-     * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
-     */
-    fun processGraphKmers(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75,
-                                        hashMask: Long = 3, hashFilterValue:Long = 1) : Long2ObjectOpenHashMap<Set<String>> {
-        //keepMap is a map of hash -> Set of haplotype ids
-        val keepMap = Long2ObjectOpenHashMap<Set<String>>()
-
-        //discardSet is a Set of hashes
-        val discardSet = LongOpenHashSet()
-        val startTime = System.nanoTime()
-        val sampleGametes = graph.sampleGametesInGraph()
-
-        val contigRangesMap = graph.rangesByContig()
-
-        //needed for diagnostics
-        val refRangeToIndexMap = graph.refRangeToIndexMap()
-        val hapidToRefrangeMap = graph.hapIdToRefRangeMap()
-
-        val maxHapsToKeep = sampleGametes.size * 2
-
-        for (chr in contigRangesMap.keys) {
-            //get all sequence for this chromosome
-            val agcRequestLists = rangeListsForAgcCommand(graph, contigRangesMap, chr)
-            val agcChromSequence = if (agcRequestLists.sampleContigList.isNotEmpty()) {
-//                myLogger.info("sampleContigList size = ${agcRequestLists.sampleContigList.size}, first element = ${agcRequestLists.sampleContigList[0]}")
-                retrieveAgcContigs(dbPath, agcRequestLists.sampleContigList,"")
-            }
-            else emptyMap()
-            val agcOtherRegionSequence: Map<Pair<String,String>, NucSeq> = if (agcRequestLists.otherRegionsList.isNotEmpty()) getAgcSequenceForRanges(agcRequestLists.otherRegionsList)
-            else emptyMap()
-
-            //iterate through refranges, generate kmers from the sequence
-            for (refrange in contigRangesMap[chr]!!) {
-                val hapidToSampleMap = graph.hapIdToSampleGametes(refrange)
-
-                //if there are any null haplotypes add 1 to the number of hapids (hapidToSampleMap.size)
-                //The reason is that if a read maps to all non-null haplotypes, it is still informative if there are null haplotypes
-                val numberOfSampleGametesWithHapids = hapidToSampleMap.values.sumOf { it.size }
-                val hasNullHaplotypes = numberOfSampleGametesWithHapids < sampleGametes.size
-                val maxHaplotypes = if (hasNullHaplotypes) ceil((hapidToSampleMap.size + 1) * maxHaplotypeProportion)
-                else ceil(hapidToSampleMap.size * maxHaplotypeProportion)
-
-                //map haplotype ids to the sequence for that hapid
-                val hapidToSequenceMap = extractSequenceForCurrentHapIds(hapidToSampleMap, graph, agcChromSequence, agcOtherRegionSequence)
-
-                //Count Kmer Hashes for the Haplotype Sequences
-                val (kmerHashCounts, longToHapIdMap) = countKmerHashesForHaplotypeSequence(hapidToSequenceMap, hashMask, hashFilterValue)
-                for (hashCount in kmerHashCounts.entries) {
-                    val hashValue = hashCount.key
-
-                    //if the hash is in the discard set skip it
-                    if (discardSet.contains(hashValue)) continue
-
-                    when {
-                        //if hash count >= numberOfHaplotype add it to the discard set
-                        hashCount.value >= maxHaplotypes ->  {
-                            if(keepMap.containsKey(hashValue)) {
-                                keepMap.remove(hashValue)
-                            }
-                            discardSet.add(hashValue)
-                        }
-
-                        //if the hash is already in the keepSet, it has been seen in a previous reference range
-                        //was this hash seen in the range immediately preceeding this one?
-                        // so, remove it from the keep set and add it to the discard set
-                        keepMap.containsKey(hashValue) && (keepMap[hashValue].size + longToHapIdMap[hashValue]!!.size) > maxHapsToKeep -> {
-                            val hapIdSet = keepMap.remove(hashValue)
-
-                            if (runDiagnostics) {
-                                val hapidRefrangeIndexSet = hapIdSet.mapNotNull { hapidToRefrangeMap[it] }.flatten()
-                                    .map { refRangeToIndexMap[it] }.toSet()
-                                val wasPreviousRange = hapidRefrangeIndexSet.contains((refRangeToIndexMap[refrange] ?: 0)  - 1)
-                                if (wasPreviousRange) {
-                                    val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
-                                    refrangeToAdjacentHashCount[refrange] = oldCount + 1
-                                }
-                            }
-                            discardSet.add(hashValue)
-                        }
-                        keepMap.containsKey(hashValue) && (keepMap[hashValue].size + longToHapIdMap[hashValue]!!.size) <= maxHapsToKeep -> {
-                            val hapIdSet = keepMap[hashValue]
-                            if (runDiagnostics) {
-                                val hapidRefrangeIndexSet = hapIdSet.mapNotNull { hapidToRefrangeMap[it] }.flatten()
-                                    .map { refRangeToIndexMap[it] }.toSet()
-                                val wasPreviousRange = hapidRefrangeIndexSet.contains((refRangeToIndexMap[refrange] ?: 0)  - 1)
-                                if (wasPreviousRange) {
-                                    val oldCount = refrangeToAdjacentHashCount.getOrElse(refrange) {0}
-                                    refrangeToAdjacentHashCount[refrange] = oldCount + 1
-                                }
-                            }
-
-
-                            keepMap[hashValue] = keepMap[hashValue]!!.union(longToHapIdMap[hashValue]!!)
-
-                        }
-                        else -> {
-                            keepMap[hashValue] = longToHapIdMap[hashValue]
-                        }
-                    }
-                }
-
-            }
-
-        }
-        myLogger.debug("Finished building kmer keep set, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
-        //make sure no hashes in the keepMap are also in discard
-        var numberInDiscardSet = 0
-        for (element in keepMap.long2ObjectEntrySet()) {
-            if (discardSet.contains(element.longKey)) numberInDiscardSet++
-        }
-        myLogger.info("$numberInDiscardSet kmers in the keepMap are also in the discardSet.")
-        return keepMap
-    }
-
 
     /**
      * Finds the set of kmers meeting the conditions set by [maxHaplotypeProportion], the maximum proportion of
@@ -412,59 +290,6 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
             sequenceMap.putAll(retrieveAgcContigs(dbPath, it,""))
         }
         return sequenceMap
-    }
-
-    /**
-     * Function to count the kmerHashes for a single reference range's haplotype nodes.
-     * This gets put in 2 sets of maps.
-     * One for the hash counts and one for a hash to a list of hapIds which contain that hash.
-     * The sequenceList input is a map of hapidId -> list of sequences
-     */
-    private fun countKmerHashesForHaplotypeSequence(sequenceMap: Map<String, List<String>>, hashMask: Long, hashFilterValue: Long) : Pair<Map<Long,Int>,Map<Long,Set<String>>> {
-        //start by splitting sequence into subsequences without N's
-        //mapOfHashes is a map of hash -> count of occurrences
-        val mapOfHashes = Long2IntOpenHashMap()
-        //mapOfHapIds is a map of hash -> Set of haplotype ids
-        val mapOfHapIds = Long2ObjectOpenHashMap<MutableSet<String>>()
-
-        for ((hapid, seqList) in sequenceMap) {
-            for (sequenceWithNs in seqList) {
-                //split sequence on N's then filter on length > 31 because we are looking for 32-mers
-                val splitList = sequenceWithNs
-                    .split("N+".toRegex())
-                    .filter{it.length > 31}
-                for (sequence in splitList) {
-                    var previousHash = Pair(0L, 0L)
-
-                    //for first 31 nucleotides just update the hash
-                    for (nucleotide in sequence.subSequence(0..30)) {
-                        previousHash = updateKmerHashAndReverseCompliment(previousHash, nucleotide)
-                    }
-
-                    //start using kmers starting with the 32nd nucleotide
-                    for (nucleotide in sequence.subSequence(31 until sequence.length)) {
-                        previousHash = updateKmerHashAndReverseCompliment(previousHash, nucleotide)
-                        //Do a quick cast to ULong so the min will be computed correctly
-                        val minHash = min(previousHash.first.toULong(), previousHash.second.toULong()).toLong()
-                        // Use only kmers with a specific ending nucleotide(s)
-                        // hashMask determines how many positions will be used
-                        // hashFilterValue determines which nucleotide will be kept at that position
-                        if ((minHash and hashMask) == hashFilterValue) {
-                            mapOfHashes.addTo(minHash,1)
-                            if(mapOfHapIds.containsKey(minHash)) {
-                                mapOfHapIds[minHash].add(hapid)
-                            }
-                            else {
-                                mapOfHapIds[minHash] = mutableSetOf(hapid)
-                            }
-                        }
-                    }
-                }
-            }
-
-
-        }
-        return Pair(mapOfHashes,mapOfHapIds)
     }
 
     /**
