@@ -34,7 +34,7 @@ fun main(args: Array<String>) = Phg()
         SetupEnvironment(), Initdb(), CreateRanges(), PrepareAssemblies(), AgcCompress(), AlignAssemblies(), PrepareSlurmAlignFile(),
         CreateAnchorwaveDotplot(), CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), Hvcf2Gvcf(), LoadVcf(), ExportVcf(),
         BuildKmerIndex(), MapKmers(), FindPaths(), // Imputation
-        CreateFastaFromHvcf(), ListSamples(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer, ExtractEdgeReads(), // Utilities
+        CreateFastaFromHvcf(), ListSamples(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer, ExtractEdgeReads(), PathsToGff(), // Utilities
         CompositeToHaplotypeCoords() // resequencing pipeline
     )
     .main(args)
