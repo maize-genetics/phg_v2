@@ -1,4 +1,4 @@
-# Convenience commands
+# Convenience Commands
 
 In addition to the primary commands for the build, imputation, and
 resequencing pipelines, PHGv2 also provides a suite of "convenience
@@ -59,6 +59,7 @@ phg hvcf2gvcf \
 | `--conda-env-prefix` | Prefix for the Conda environment to use. If provided, this should be the full path to the Conda environment.        | _Current active Conda environment_ |                  |
 | `--db-path`          | Folder name where TileDB datasets and AGC record is stored. If not provided, the current working directory is used. | _Current working dir_              |                  |
 | `--output-dir`       | Output directory for the gVCF files. If not provided, the current working directory is used.                        | _Current working dir_              |                  |
+| `--batch-size`       | Number of sample vcf files to export in a single batch from tiledb                                                  | `5`                                |                  |
 
 
 ## Merge gVCF files

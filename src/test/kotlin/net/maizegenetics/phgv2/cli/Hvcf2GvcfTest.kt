@@ -177,11 +177,21 @@ class Hvcf2GvcfTest {
         val line2Hvcf = "data/test/smallseq/TestLine2.h.vcf.gz"
         File(line2Hvcf).copyTo(File(testLine2Hvcf))
 
+        // Initial verification that neither LineA.vcf nor LineB.vcf exist in the testGVCFdir
+        // THese files will be exported and added after the hvcf2gvcf run
+        assertTrue(!File("${testGVCFdir}/LineA.vcf").exists())
+        assertTrue(!File("${testGVCFdir}/LineB.vcf").exists())
+
         // Run hvcf2gvcf on the copied file
         val hvcf2gvcf = Hvcf2Gvcf()
         val result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
         // verify the output file exists, which will be LineBPath.g.vcf
         assertTrue(File("${testGVCFdir}/TestLine2.g.vcf").exists())
+
+        // verify the vcfs for LineA and LineB were exported
+        assertTrue(File("${testGVCFdir}/LineA.vcf").exists())
+        assertTrue(File("${testGVCFdir}/LineB.vcf").exists())
+
         // Verify header lines
         val lines = File("${testGVCFdir}/TestLine2.g.vcf").readLines()
         assertEquals(17, lines.filter { it.startsWith("#") }.size)
@@ -199,6 +209,105 @@ class Hvcf2GvcfTest {
         CreateMafVCFTest().compareTwoGVCFFiles("data/test/hvcfToGvcf/TestLine2_truth.g.vcf", "${testGVCFdir}/TestLine2.g.vcf")
 
         println("testPathHvcf2Gvcf done !!")
+    }
+
+    @Test
+    fun testPathHvcf2Gvcf_withExports() {
+        // This is a test of the Hvcf2Gvcf:run function.  An hvcf file created from the
+        // smallSeq FindPathsTest is copied to a new location and run through hvcf2gvcf.
+
+        val dbPath = TestExtension.testTileDBURI
+        val refFasta = "data/test/smallseq/Ref.fa"
+
+        // The tiledb datasets have been created and populated in the setup functions.
+        // Using hvcf file TestLine2.h.vcf, created from the FindPathsTest junit
+        // This has been stored to test/smallseq folder.  Its contents represent sequence
+        // from 2 assemblies, LineA and LineB.
+
+
+        println("\ntestPathHvcf2Gvcf... running hvcf2gvcf")
+        val testGVCFdir = "${TestExtension.testVCFDir}/testOutputGVCFDir"
+        File(testGVCFdir).deleteRecursively() // make sure folder is clean
+        File(testGVCFdir).mkdirs() // start fresh
+        val testLine2Hvcf = "${testGVCFdir}/TestLine2.h.vcf.gz"
+        val line2Hvcf = "data/test/smallseq/TestLine2.h.vcf.gz"
+        File(line2Hvcf).copyTo(File(testLine2Hvcf))
+
+        // export LineA.vcf.  This is to test the code does not export
+        // when the file exists.  If the -O v option is used in the call to
+        //  tiledb export, the extension from tiledb is .vcf.
+        // If it os NOT used, the extension seems to be
+        // what was used in the original file.  In this case, the extension is .g.vcf
+        // In the hvcf2gvcf code I call tiledb with the -O v option.  But the
+        // ExportVCF() clikt command does not, so we get extension .g.vcf
+        // THis ends up being useful for determining at which point the files
+        // were exported.
+        val resultExport = ExportVcf().test(
+            "--db-path ${dbPath} --sample-names LineA  --dataset-type gvcf -o ${testGVCFdir}"
+        )
+        println("Export LineA.vcf result: ${resultExport.output}")
+
+        // Initial verification after export that LineA.vcf exist but LineB.vcf does not exist in the testGVCFdir
+        // LineB should be exported
+        assertTrue(File("${testGVCFdir}/LineA.g.vcf").exists())
+        assertTrue(!File("${testGVCFdir}/LineB.vcf").exists())
+
+        // Run hvcf2gvcf on the copied file
+        val hvcf2gvcf = Hvcf2Gvcf()
+        val result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
+        // verify the output file exists, which will be LineBPath.g.vcf
+        assertTrue(File("${testGVCFdir}/TestLine2.g.vcf").exists())
+
+        // verify the vcfs for LineA and LineB were exported
+        assertTrue(File("${testGVCFdir}/LineA.g.vcf").exists())
+        assertTrue(File("${testGVCFdir}/LineB.vcf").exists())
+
+        // Verify header lines
+        val lines = File("${testGVCFdir}/TestLine2.g.vcf").readLines()
+        assertEquals(17, lines.filter { it.startsWith("#") }.size)
+        assertEquals("##fileformat=VCFv4.2", lines[0])
+        assertTrue(`lines`.contains("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tTestLine2"))
+
+        // compare to the "truth" file
+        // Regarding the truth file: Because the LineA.vcf and LineB.vcf files have no data past position 50300
+        // in them, the TestLine2.g.vcf file will have no data past position 50300 in it.
+        // The entries for positions between 1-27500 on both chrosomes 1 and 2 all come from LineA.vcf
+        // The entries for positions between 27501-50300 on both chromosomes 1 and 2 all come from LineB.vcf.
+        // In additiona, the TestLine2.g.vcf file has entries at the beginning of each reference range as the
+        // hvcf file lists the region beginning with the refRange beginning. RefBLocks were created for these
+        // positions from refBLock beginning to first variant in the vcf file.
+        CreateMafVCFTest().compareTwoGVCFFiles("data/test/hvcfToGvcf/TestLine2_truth.g.vcf", "${testGVCFdir}/TestLine2.g.vcf")
+
+        println("testPathHvcf2Gvcf done !!")
+    }
+
+    @Test
+    fun testExportGvcfs() {
+        // THis test verifies batching of the export files from tiledb
+        // val exportSuccess = exportGvcfFiles(missingSamples, outputDir, dbPath, condaEnvPrefix, 5)
+        val dbPath = TestExtension.testTileDBURI
+        val outputDir = TestExtension.tempDir + "/vcfDir/exportedFiles"
+        // make the exporedFiles folder
+        File(outputDir).mkdirs()
+        val condaEnvPrefix = ""
+        val missingSamples = setOf("LineA","LineB")
+        val batchSize = 1 // using 1 as there are only 2 samples in the test tiledbURI
+        val exportSuccess = Hvcf2Gvcf().exportGvcfFiles(missingSamples, outputDir, dbPath, condaEnvPrefix, batchSize)
+        // verify the gvcf files exist in the outputDir
+        assertTrue(File("$outputDir/LineA.vcf").exists())
+        assertTrue(File("$outputDir/LineB.vcf").exists())
+
+        //remove the files written to the outputDir
+        File("$outputDir/LineA.vcf").delete()
+        File("$outputDir/LineB.vcf").delete()
+
+        //  export with all in the same batch, batch size =5
+        val exportSuccess2 = Hvcf2Gvcf().exportGvcfFiles(missingSamples, outputDir, dbPath, condaEnvPrefix, 5)
+        // verify the gvcf files exist in the outputDir
+        assertTrue(File("$outputDir/LineA.vcf").exists())
+        assertTrue(File("$outputDir/LineB.vcf").exists())
+
+
     }
     @Test
     fun testCreateRefGvcf() {
@@ -218,6 +327,7 @@ class Hvcf2GvcfTest {
         // read the file and verify that it has data for all reference ranges in the bed file
         val lines = File("$outputDir/$refName.vcf").readLines()
         val refRanges = File(ranges).readLines()
+
 
         // Verify there are 17 lines in the file that begin with "#" (header lines)
         assertEquals(17, lines.filter { it.startsWith("#") }.size)
