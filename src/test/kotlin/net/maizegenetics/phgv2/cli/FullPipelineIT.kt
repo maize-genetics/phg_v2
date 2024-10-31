@@ -207,10 +207,11 @@ class FullPipelineIT {
 
         //build a kmer index
         println("building kmer index")
-        val buildKmerIndexArgs = "--db-path ${TestExtension.testTileDBURI} --hvcf-dir ${TestExtension.testVCFDir}"
+        val buildKmerIndexArgs = "--db-path ${TestExtension.testTileDBURI} --hvcf-dir ${TestExtension.testVCFDir} --initial-keep-size 10000"
         val indexResult = BuildKmerIndex().test(buildKmerIndexArgs)
-        assertEquals(0, indexResult.statusCode, "Kmer Indexing failed")
         println(indexResult.output)
+        assertEquals(0, indexResult.statusCode, "Kmer Indexing failed")
+
 
         //create some reads with fairly high coverage to make sure mapping results are consistent so that they can be tested.
         val lineAFastqFilename = TestExtension.testInputFastaDir + "readsLineA.fastq"

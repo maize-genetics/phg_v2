@@ -79,6 +79,10 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
     val noDiagnostics by option("-n", "--no-diagnostics", help = "Flag that will suppress writing of diagnostics.").flag()
 
+    val initialKeepSize by option(help="Initial size of the keep map.  Default is 500,000,000")
+        .int()
+        .default(500_000_000)
+
     private val refrangeToAdjacentHashCount = mutableMapOf<ReferenceRange, Int>()
     private var runDiagnostics = true
 
@@ -88,7 +92,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         val graph = buildHaplotypeGraph()
 
 
-        val (hashToHapidMap, discardSet) = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
+        val (hashToHapidMap, discardSet) = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue, initialKeepSize)
 
         val kmerIndexFilename = if (indexFile == "") "${hvcfDir}/kmerIndex.txt" else indexFile
 
@@ -137,14 +141,14 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
      */
     fun processGraphKmers(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75,
-                          hashMask: Long = 3, hashFilterValue:Long = 1) : Pair<Long2ObjectOpenHashMap<Set<String>>,LongOpenHashSet> {
+                          hashMask: Long = 3, hashFilterValue:Long = 1, initialKeepSize: Int = 500_000_000) : Pair<Long2ObjectOpenHashMap<Set<String>>,LongOpenHashSet> {
         //keepMap is a map of hash -> Set of haplotype ids
         //TODO Change this to be more RAM efficient.  Probably need something like this:
         // Map<Long, Set<Pair<refRangeIdx, hapIdBitset>>
-        val keepMap = Long2ObjectOpenHashMap<MutableSet<String>>(500_000_000)
+        val keepMap = Long2ObjectOpenHashMap<MutableSet<String>>(initialKeepSize)
 
         //discardSet is a Set of hashes
-        val discardSet = LongOpenHashSet(500_000_000)
+        val discardSet = LongOpenHashSet(initialKeepSize)
         val startTime = System.nanoTime()
         val sampleGametes = graph.sampleGametesInGraph()
 
