@@ -14,6 +14,10 @@ import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.rangeHapidMapFro
 import java.io.File
 import kotlin.math.min
 
+/**
+ * Function that will take a pair of fastqs and will extract out the kmers and map those to the haplotypes in the graph.
+ * This will output a pair of files where we show each kmer and how well they map to the haplotypes.
+ */
 class QcReadMapping  : CliktCommand(help="Error check reads against a kmer index") {
     val hvcfDir by option(help = "Directory containing hvcf files used to build the HaplotypeGraph.")
         .required()

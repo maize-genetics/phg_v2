@@ -10,7 +10,6 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
-import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.longs.LongOpenHashBigSet
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
@@ -25,7 +24,6 @@ import java.nio.file.Files
 import java.util.*
 
 
-import kotlin.math.ceil
 import kotlin.math.min
 import kotlin.time.DurationUnit
 import kotlin.time.measureTimedValue
@@ -90,7 +88,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         val graph = buildHaplotypeGraph()
 
 
-        val (hashToHapidMap, discardSet) = processGraphKmersNew(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
+        val (hashToHapidMap, discardSet) = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue)
 
         val kmerIndexFilename = if (indexFile == "") "${hvcfDir}/kmerIndex.txt" else indexFile
 
@@ -138,21 +136,22 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * This returns a HashMap of hash -> hapid list for all the kmers in the keep set.
      * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
      */
-    fun processGraphKmersNew(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75,
-                          hashMask: Long = 3, hashFilterValue:Long = 1) : Pair<Long2ObjectOpenHashMap<Set<String>>,LongOpenHashBigSet> {
+    fun processGraphKmers(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75,
+                          hashMask: Long = 3, hashFilterValue:Long = 1) : Pair<Long2ObjectOpenHashMap<Set<String>>,LongOpenHashSet> {
         //keepMap is a map of hash -> Set of haplotype ids
         //TODO Change this to be more RAM efficient.  Probably need something like this:
         // Map<Long, Set<Pair<refRangeIdx, hapIdBitset>>
         val keepMap = Long2ObjectOpenHashMap<MutableSet<String>>(500_000_000)
 
         //discardSet is a Set of hashes
-        val discardSet = LongOpenHashBigSet(500_000_000)
+        val discardSet = LongOpenHashSet(500_000_000)
         val startTime = System.nanoTime()
         val sampleGametes = graph.sampleGametesInGraph()
 
         val contigRangesMap = graph.rangesByContig()
 
-        //This is a parameter we are currently testing
+        //We set this to be numSampleGametes * .5 so we only keep track of informative kmers
+        //We originally tried 2 * numSampleGametes but that was too high as we had too much repetitive mappings
         val maxHapsToKeep = sampleGametes.size * .5
 
         for (chr in contigRangesMap.keys) {
@@ -299,7 +298,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * The sequenceList input is a map of hapidId -> list of sequences
      * Note this will likely need to be heavily updated to keep track of relative position in the hapId due to the splitting on N's code
      */
-    private fun countKmerHashesForHaplotypeSequenceSimplified(sequenceMap: Map<String, List<String>>, hashMask: Long, hashFilterValue: Long, keepMap:Long2ObjectOpenHashMap<MutableSet<String>>, discardSet: LongOpenHashBigSet, maxHapsToKeep: Double) {
+    private fun countKmerHashesForHaplotypeSequenceSimplified(sequenceMap: Map<String, List<String>>, hashMask: Long, hashFilterValue: Long, keepMap:Long2ObjectOpenHashMap<MutableSet<String>>, discardSet: LongOpenHashSet, maxHapsToKeep: Double) {
         for ((hapid, seqList) in sequenceMap) {
             for (sequenceWithNs in seqList) {
                 //split sequence on N's then filter on length > 31 because we are looking for 32-mers
