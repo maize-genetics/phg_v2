@@ -15,7 +15,7 @@ import java.util.*
  * The HaplotypeGraph is a data structure that allows for fast
  * lookup of haplotype sequences for a given ReferenceRange.
  */
-class HaplotypeGraph(hvcfFiles: List<String>, dbPath: String? = null) {
+class HaplotypeGraph(hvcfFiles: List<String>) {
 
     private val myLogger = LogManager.getLogger(HaplotypeGraph::class.java)
 
@@ -355,8 +355,8 @@ class HaplotypeGraph(hvcfFiles: List<String>, dbPath: String? = null) {
      * one Reference Range indexed by gameteId and sampleId
      * @param range This is the ReferenceRange
      */
-    data class RangeInfo(
-        val rangeSampleToChecksum: MutableList<Array<String?>>,
+    private data class RangeInfo(
+        val rangeSampleToChecksum: MutableList<MutableList<Pair<Int, String>>>,
         val range: ReferenceRange
     )
 
@@ -370,7 +370,8 @@ class HaplotypeGraph(hvcfFiles: List<String>, dbPath: String? = null) {
         val range = ReferenceRange(context.contig, context.start, context.end)
 
         // rangeSampleToChecksum[gameteID][sampleID] -> Checksum
-        val rangeSampleToChecksum: MutableList<Array<String?>> = mutableListOf()
+        //val rangeSampleToChecksum: MutableList<Array<String?>> = mutableListOf()
+        val rangeSampleToChecksum: MutableList<MutableList<Pair<Int, String>>> = mutableListOf()
 
         context.genotypes.forEach { genotype ->
 
@@ -379,10 +380,12 @@ class HaplotypeGraph(hvcfFiles: List<String>, dbPath: String? = null) {
             genotype.alleles.forEachIndexed { gameteId, allele ->
                 var checksumsForSamples = rangeSampleToChecksum.getOrNull(gameteId)
                 if (checksumsForSamples == null) {
-                    checksumsForSamples = arrayOfNulls(numberOfSamples())
+                    // checksumsForSamples = arrayOfNulls(numberOfSamples())
+                    checksumsForSamples = mutableListOf()
                     rangeSampleToChecksum.add(gameteId, checksumsForSamples)
                 }
-                checksumsForSamples[sampleId] = allele.displayString.substringAfter("<").substringBefore(">")
+                // checksumsForSamples[sampleId] = allele.displayString.substringAfter("<").substringBefore(">")
+                checksumsForSamples.add(sampleId to allele.displayString.substringAfter("<").substringBefore(">"))
             }
 
         }
@@ -396,31 +399,33 @@ class HaplotypeGraph(hvcfFiles: List<String>, dbPath: String? = null) {
      * This is needed since the input files are processed in
      * multiple threads. This aggregates the results.
      *
-     * sampleGameteHapid[gameteId][sampleId] -> Checksum / hapid
+     * gameteSampleHapid1[gameteId][sampleId] -> Checksum / hapid
+     * gameteSampleHapid2[gameteId] -> List<Pair<sampleId, Checksum>>
      */
     private fun mergeStringArrays(
         gameteSampleHapid1: MutableList<Array<String?>>?,
-        gameteSampleHapid2: MutableList<Array<String?>>
+        gameteSampleHapid2: MutableList<MutableList<Pair<Int, String>>>
     ): MutableList<Array<String?>> {
 
-        return if (gameteSampleHapid1 == null) {
-            gameteSampleHapid2
-        } else {
-            gameteSampleHapid2.forEachIndexed { gameteId, sampleList ->
-                var sampleHapid1 = gameteSampleHapid1.getOrNull(gameteId)
-                if (sampleHapid1 == null) {
-                    sampleHapid1 = arrayOfNulls(sampleList.size)
-                    gameteSampleHapid1.add(gameteId, sampleHapid1)
-                }
-                sampleList.forEachIndexed { sampleId, checksum ->
-                    if (sampleHapid1[sampleId] == null) {
-                        sampleHapid1[sampleId] = checksum
-                    }
-                }
+        val result = gameteSampleHapid1 ?: mutableListOf()
+
+        gameteSampleHapid2.forEachIndexed { gameteId, sampleList ->
+            //var sampleHapid1 = gameteSampleHapid1.getOrNull(gameteId)
+            var sampleHapid1 = result.getOrNull(gameteId)
+            if (sampleHapid1 == null) {
+                sampleHapid1 = arrayOfNulls(numberOfSamples())
+                //sampleHapid1 = arrayOfNulls(sampleList.size)
+                //gameteSampleHapid1.add(gameteId, sampleHapid1)
+                result.add(gameteId, sampleHapid1)
             }
 
-            gameteSampleHapid1
+            sampleList.forEach { (sampleId, checksum) ->
+                sampleHapid1[sampleId] = checksum
+            }
+
         }
+
+        return result
 
     }
 
