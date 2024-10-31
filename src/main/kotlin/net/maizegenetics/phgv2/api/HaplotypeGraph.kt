@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.api
 
+import biokotlin.util.bufferedReader
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 import kotlinx.coroutines.*
@@ -42,11 +43,7 @@ class HaplotypeGraph(hvcfFiles: List<String>, dbPath: String? = null) {
 
         getSampleNamesALTHeaders(hvcfFiles)
 
-        if (dbPath == null) {
-            processFiles(hvcfFiles)
-        } else {
-            processFiles(hvcfFiles, dbPath)
-        }
+        processFiles(hvcfFiles)
 
         if (rangeByGameteIdToHapid.isNotEmpty()) {
             myLogger.info("rangeToSampleToChecksum: ${rangeByGameteIdToHapid.size} x ${rangeByGameteIdToHapid[0].size}")
@@ -252,8 +249,8 @@ class HaplotypeGraph(hvcfFiles: List<String>, dbPath: String? = null) {
         // rangeIdToSampleToChecksum[rangeId][gameteId][sampleId] -> checksum
         val rangeIdToSampleToChecksum = mutableListOf<MutableList<Array<String?>>>()
 
-        // Step 4: Process the context variants of each HVCF file
-        val rangeInfoChannel = Channel<Deferred<List<RangeInfo>>>(5)
+        // Process the context variants of each HVCF file
+        val rangeInfoChannel = Channel<Deferred<List<RangeInfo>>>(10)
         CoroutineScope(Dispatchers.IO).launch {
             hvcfFiles.forEach { hvcfFile ->
                 myLogger.info("processFile: $hvcfFile")
