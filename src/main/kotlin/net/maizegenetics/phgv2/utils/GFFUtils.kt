@@ -274,7 +274,8 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
             val taxonList = listOf("${sampleName}") // the taxon from which these entries came.
             annotations.put("taxon",taxonList)
             // regions is a List<Pair<Position,Position>> - convert to List<String>, add to annotations
-            val annoList = regions.map { "${it.first.contig}:${it.first.position}-${it.second.position}" }
+            //val annoList = regions.map { "${it.first.contig}:${it.first.position}-${it.second.position}" }
+            val annoList = regions.map { "${it.first.position}-${it.second.position}" }
             annotations.put("halotypeAsmCoordinates", annoList)
 
             // Create the Gff3Feature entry, add to list
@@ -315,8 +316,6 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
 fun writeGffFile(outputFile: String, features: Set<Gff3Feature>, comments: List<String>?, regions: Set<SequenceRegion>?) {
 
     try {
-
-        println("LCJ - writeGffFile: writing to file ${outputFile}")
         Gff3Writer(Paths.get(outputFile)).use { writer ->
             // comments are optional
             comments?.forEach {
@@ -390,19 +389,6 @@ fun getOverlappingEntriesFromGff(contig: String, haplotypeRange:IntRange, asmCen
         ceilingKey = Position(contig,haplotypeRange.endInclusive)
     }
 
-//    if (floorKey == null) {
-//        // LCJ - if this is null, why don't we set floorKey to start pos?
-//        // ANd why is setting it dependent on whether ceiling key has a value?
-//        if (ceilingKey != null) {
-//            floorKey = Position(ceilingKey.contig,ceilingKey.position-1)
-//        }
-//    }
-//    if (ceilingKey == null) {
-//        // If ceilingKey is null, why doesn't it default to end position?
-//        if (floorKey != null) {
-//            ceilingKey = Position(floorKey.contig,floorKey.position+1)
-//        }
-//    }
 
     // The reason we're using floorKey and ceilingKey is we need values that exist in the map.
     // "subMap" expects the given keys to be in the map.
@@ -474,7 +460,7 @@ fun findRegionsOverlappingGFF(asmGffRange: IntRange, regions:List<IntRange>):Tri
  *
  * Not all regions in the list may overlap the GFF entry.  The function handles
  * overlapping with the initial regions, just regions in the middle, or just the end region.
- * If more than 1 region in the list overlaps the GFF entry coordinates, those regiones
+ * If more than 1 region in the list overlaps the GFF entry coordinates, those regions
  * should be consecutive in the list.
  */
 fun getPseudoGFFCoordsMultipleRegions(asmGffRange: IntRange, regions:List<IntRange>, baseOffset: Int):IntRange {
@@ -492,10 +478,10 @@ fun getPseudoGFFCoordsMultipleRegions(asmGffRange: IntRange, regions:List<IntRan
     // startDiff is negative if the haplotype start coordinate begins after
     // the assembly gff entry start value.
     var hapStart = overlappingRegions[0].start
-    var hapEnd = overlappingRegions[overlappingRegions.size-1].endInclusive
+    var hapEnd = overlappingRegions[overlappingRegions.size-1].last
 
-    val startDiff = asmGffRange.start - hapStart
-    val endDiff = hapEnd - asmGffRange.endInclusive
+    val startDiff = asmGffRange.start - hapStart + 1
+    val endDiff = hapEnd - asmGffRange.endInclusive + 1
     // endDiff and endAdjust are negative if the haplotype node coordinate end value
     // is less than the assembly gff end value, meaning it doesn't cover the full GFF entry
     val endAdjust = if (endDiff > 0) 0 else endDiff
@@ -514,8 +500,7 @@ fun getPseudoGFFCoordsMultipleRegions(asmGffRange: IntRange, regions:List<IntRan
     // between regions that comprise the haplotype node.
     val pgEnd = if (startDiff == 0 || pgStart > 1) pgStart + featureSize + endAdjust - gapSize
         else pgStart + featureSize + endAdjust + startDiff - gapSize
-    val
-            returnStart = pgStart+offset
+    val returnStart = pgStart+offset
     val returnEnd = pgEnd+offset
 
     return pgStart+offset..pgEnd+offset

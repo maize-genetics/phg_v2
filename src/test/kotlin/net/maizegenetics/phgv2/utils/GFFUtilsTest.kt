@@ -96,22 +96,29 @@ class GFFUtilsTest {
         // Because there may be offset differences in the composite genome, we cannot check based on the position alone
         // so we're checking based on the attribute string, which will contain either a LineA or LineB identifier
 
-        // verify there is a line in the file that contains "ID=TE:LineB_TE22;Name=Copia_LineB" in the line
-        val lineWithTE = newGff.filter { it.contains("ID=TE:LineB_TE22;Name=Copia_LineB") }
+        // verify there is a line in the file that contains "LineB_TE22;Name=Copia_LineB" in the line
+        val lineWithTE = newGff.filter { it.contains("LineB_TE22;Name=Copia_LineB") }
         assertTrue(lineWithTE.size > 0)
-        //verify there is no line in the file that contains "ID=TE:LineA_TE22;Name=Copia_LineA"
-        val lineWithTEA = newGff.filter { it.contains("ID=TE:LineA_TE22;Name=Copia_LineA") }
+        //verify there is no line in the file that contains "LineA_TE22;Name=Copia_LineA"
+        val lineWithTEA = newGff.filter { it.contains("LineA_TE22;Name=Copia_LineA") }
         assertTrue(lineWithTEA.size == 0)
 
         // Check beginning entries are lineA specific not lineB
         // this gff's mikado gene is in the 300 range, so should show LIneA_mikado_gene,
         // and not LineB_mikado_gene
-        val lineAEntries = newGff.filter { it.contains("LineA_mikado_gene") }
+        var lineAEntries = newGff.filter { it.contains("LineA_mikado_gene") }
         assertTrue(lineAEntries.size > 0)
-        val lineBEntries = newGff.filter { it.contains("LineB_mikado_gene") }
+        var lineBEntries = newGff.filter { it.contains("LineB_mikado_gene") }
         assertTrue(lineBEntries.size == 0)
 
         // TODO - finish this
+        // Verify entries for positions earlier than 2700 come from lineA, not lineB
+        // Verify entries for positions later than 2700 come from lineB, not lineA
+        lineAEntries = newGff.filter { it.contains("LineA_astro_gene") }
+        assertTrue(lineAEntries.size == 0)
+        lineBEntries = newGff.filter { it.contains("LineB_astro_gene") }
+        assertTrue(lineBEntries.size > 0)
+
 
         // Need to add some assertions.  How many entries do I expect? etc
         // Verify specific entries are in the output file.
