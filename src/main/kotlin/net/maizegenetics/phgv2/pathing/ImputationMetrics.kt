@@ -11,6 +11,7 @@ import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.parseALTHeader
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import kotlin.math.abs
 
 /**
  * This class provides metrics on the h.vcf file created from the imputation pipeline.
@@ -44,7 +45,7 @@ class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read ma
         .required()
         .validate { require(File(it).exists()) {"$it is not a valid file"} }
 
-    val chrom by option(help = "Comma separated list of chromosome to use for filtering output.  Only data for these chromosomes will be processed.")
+    val chrom by option(help = "Comma separated list of chromosome to use for filtering output.  Only data for these chromosomes will be processed. If not present, all chroms will be used.")
 
     val outputFile by option(help = "Path to a file where the output data will be written. ")
         .required()
@@ -114,6 +115,8 @@ class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read ma
         // Create a map of Position -> SampleName from the imputationHvcf file
         val wgsPosToHapid = mutableMapOf<Position, String>()
         val hapidToSampleName = mutableMapOf<String,String>()
+        // THis is a map of  the hapid to a pair of <hapSIze,refHapSize>
+        val hapidToSeqSize = mutableMapOf<String,Pair<Int,Int>>()
         for (entry in altHeaderMap) {
             val hapid = entry.key
             val sampleName = entry.value.sampleName()
@@ -123,11 +126,19 @@ class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read ma
             val refRange = entry.value.refRange //  Get the refRange from the AltHeaderMetaData
             val parts = refRange.split(":")
             val contig = parts[0]
+            // Ref length is end-start+1
+            val startEnd = parts[1].split("-")
+            val refLen = startEnd[1].toInt() - startEnd[0].toInt() + 1
+            // Hapid size is the size of all the regions in the hapid
+            val regions = entry.value.regions
+            val hapLen = regions.map{ abs(it.second.position-it.first.position) +1}.sum()
+
             if (chromList.isNullOrEmpty() || chromList.contains(contig)) {
                 val start = parts[1].split("-")[0].toInt()
                 val position = Position(contig, start)
                 wgsPosToHapid[position] = hapid
                 hapidToSampleName[hapid] = sampleName
+                hapidToSeqSize[hapid] = Pair(hapLen,refLen)
             }
 
         }
@@ -139,7 +150,7 @@ class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read ma
         val hapidCounts = readCountsFromFiles(readMappingFiles)
 
         // Create header line for tab-delimited output file
-        val headerLine = "refRange\tHapotypeId\tImputationSampleName\tIn_ImputationHvcf\tIn_${sampleHvcfName}\t${sampleHvcfName}_HaplotypeId\tImputationSampleRdCount\t${sampleHvcfName}SampleRdCt\tHapidsMatch\n"
+        val headerLine = "refRange\tRefLen\tHaplotypeLen\tHapotypeId\tImputationSampleName\tIn_ImputationHvcf\tIn_${sampleHvcfName}\t${sampleHvcfName}_HaplotypeId\tImputationSampleRdCount\t${sampleHvcfName}SampleRdCt\tHapidsMatch\n"
 
         bufferedWriter(outputFile).use {writer ->
             writer.write(headerLine)
@@ -154,7 +165,7 @@ class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read ma
                 val refRange = bedRanges[pos]
                 val hapid = wgsPosToHapid.getOrDefault(pos, "NA")
                 val inImpuptation = if (hapid == "NA") "No" else "Yes"
-                val inP39 = if (parentChromPosToHapid.containsKey(pos)) "Yes" else "No"
+                val inParent = if (parentChromPosToHapid.containsKey(pos)) "Yes" else "No"
                 // hapid always has a value: NA if not present, and NA won't be in hapidToSampleName, so this works
                 val sampleName = hapidToSampleName.getOrDefault(hapid, "NA")
                 // get readCount for the hapid
@@ -164,8 +175,10 @@ class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read ma
                 val parentSampleRdCt = if (parentSampleHapid == "NA") 0 else hapidCounts.getOrDefault(parentSampleHapid, 0)
                 // check if the hapid and parentSampleHapid are the same
                 val hapidMatch = if (hapid != "NA" && parentSampleHapid != "NA" && hapid == parentSampleHapid) "true" else "false"
+                val refLen = hapidToSeqSize.getOrDefault(hapid, Pair(0,0)).second
+                val hapLen = hapidToSeqSize.getOrDefault(hapid, Pair(0,0)).first
 
-                writer.write("$refRange\t$hapid\t$sampleName\t$inImpuptation\t$inP39\t$parentSampleHapid\t$sampleRdCount\t$parentSampleRdCt\t$hapidMatch\n")
+                writer.write("$refRange\t$refLen\t$hapLen\t$hapid\t$sampleName\t$inImpuptation\t$inParent\t$parentSampleHapid\t$sampleRdCount\t$parentSampleRdCt\t$hapidMatch\n")
             }
         }
     }
