@@ -8,9 +8,15 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
+import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.buildHaplotypeGraph
 import org.apache.logging.log4j.LogManager
+import java.io.File
+import kotlin.time.DurationUnit
+import kotlin.time.measureTimedValue
 
+data class IndexedKmerData(val chr: String, val pos: UInt, val gameteLong0 : ULong, val gameteLong1 : ULong)
 class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGraph. By default the file will be written " +
         "to <hvcfDir>/kmerIndex.txt") {
 
@@ -58,6 +64,12 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
     private val refrangeToAdjacentHashCount = mutableMapOf<ReferenceRange, Int>()
     private var runDiagnostics = true
     override fun run() {
-        TODO("Not yet implemented")
+
+        //build the haplotypeGraph
+        myLogger.info("Start of BuildRamEfficientKmerIndex...")
+        val graph = buildHaplotypeGraph(hvcfDir)
+
+        //TODO("Not yet implemented")
     }
+
 }

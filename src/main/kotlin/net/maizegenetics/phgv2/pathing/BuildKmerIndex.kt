@@ -16,6 +16,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
+import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.buildHaplotypeGraph
 import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedWriter
@@ -89,7 +90,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
     override fun run() {
         //build the haplotypeGraph
         myLogger.info("Start of BuildKmerIndex...")
-        val graph = buildHaplotypeGraph()
+        val graph = buildHaplotypeGraph(hvcfDir)
 
 
         val (hashToHapidMap, discardSet) = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue, initialKeepSize)
@@ -116,21 +117,21 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
     }
 
-    private fun buildHaplotypeGraph(): HaplotypeGraph {
-        val timedValue = measureTimedValue {
-            if(hvcfDir != "") {
-                val pathList = File(hvcfDir).listFiles { file -> file.name.endsWith(".h.vcf") || file.name.endsWith(".h.vcf.gz") }.map { it.path }
-                HaplotypeGraph(pathList)
-            }
-            else {
-                //Load in the TileDB
-                TODO("TileDB VCF Reader Not implemented yet.  Please run with --hvcf-dir")
-            }
-        }
-
-        myLogger.info("HaplotypeGraph built in ${timedValue.duration.toDouble(DurationUnit.MILLISECONDS)} ms.")
-        return timedValue.value
-    }
+//    private fun buildHaplotypeGraph(): HaplotypeGraph {
+//        val timedValue = measureTimedValue {
+//            if(hvcfDir != "") {
+//                val pathList = File(hvcfDir).listFiles { file -> file.name.endsWith(".h.vcf") || file.name.endsWith(".h.vcf.gz") }.map { it.path }
+//                HaplotypeGraph(pathList)
+//            }
+//            else {
+//                //Load in the TileDB
+//                TODO("TileDB VCF Reader Not implemented yet.  Please run with --hvcf-dir")
+//            }
+//        }
+//
+//        myLogger.info("HaplotypeGraph built in ${timedValue.duration.toDouble(DurationUnit.MILLISECONDS)} ms.")
+//        return timedValue.value
+//    }
 
     /**
      * Finds the set of kmers meeting the conditions set by [maxHaplotypeProportion], the maximum proportion of

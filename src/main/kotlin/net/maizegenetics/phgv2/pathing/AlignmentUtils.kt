@@ -17,6 +17,8 @@ import java.util.*
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.time.DurationUnit
+import kotlin.time.measureTimedValue
 
 /**
  * data class to hold the KmerMap information.  From the PHGv1 source code:
@@ -756,6 +758,22 @@ class AlignmentUtils {
                 }
             }
             return mergedMappings
+        }
+
+         fun buildHaplotypeGraph(hvcfDir:String?): HaplotypeGraph {
+            val timedValue = measureTimedValue {
+                if(hvcfDir != null && hvcfDir != "") {
+                    val pathList = File(hvcfDir).listFiles { file -> file.name.endsWith(".h.vcf") || file.name.endsWith(".h.vcf.gz") }.map { it.path }
+                    HaplotypeGraph(pathList)
+                }
+                else {
+                    //Load in the TileDB
+                    TODO("TileDB VCF Reader Not implemented yet.  Please run with --hvcf-dir")
+                }
+            }
+
+            myLogger.info("HaplotypeGraph built in ${timedValue.duration.toDouble(DurationUnit.MILLISECONDS)} ms.")
+            return timedValue.value
         }
     }
 }
