@@ -234,9 +234,7 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
             // Grab the gff entries that overlap with the asm region used to create this haplotype
             // there may be multiple entries that overlap, and there may be multiple regions from
             // this Aseembly which make up the haplotype.
-            println("LCJ - makeGffFromHvcf: getting overlapping entries for region ${refRange}")
             val regionGffEntries = getOverlappingEntriesFromGff(hvcfRecord.contig, refRange.start..refRange.end, asmCenterGffEntries)
-            println("LCJ - makeGffFromHvcf: number of overlapping entries for region ${refRange}: ${regionGffEntries.size}")
             regionOverlapLists.addAll(regionGffEntries)
         }
 
@@ -255,7 +253,6 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
             }
         })
 
-        println("LCJ - makeGffFromHvcf: number of sortedGffEntries: ${sortedGffEntries.size}")
         // Create the Gff3Feature entry, add to list
         for (entry in sortedGffEntries) {
             val newRange = getPseudoGFFCoordsMultipleRegions( entry.start..entry.end, regionList, offset)
@@ -290,7 +287,6 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
     }
 
     // Create the last "chromosome" entry for this file
-    println("LCJ - creating last chromosome entry for the file")
     val gff3FeatureEntry = createGffChromosomeEntry(curChrom, offset)
     pseudoGenomeGff3Features.add(gff3FeatureEntry)
 
@@ -322,29 +318,24 @@ fun writeGffFile(outputFile: String, features: Set<Gff3Feature>, comments: List<
 
         println("LCJ - writeGffFile: writing to file ${outputFile}")
         Gff3Writer(Paths.get(outputFile)).use { writer ->
-            println("LCJ - writeGffFile - writing comments")
             // comments are optional
             comments?.forEach {
                 writer.addComment(it)
             }
 
-            println("LCJ - writeGffFile - writing regions")
             // regions are optional
             regions?.forEach {
                 writer.addDirective(Gff3Codec.Gff3Directive.SEQUENCE_REGION_DIRECTIVE, it)
             }
             // There should be features!
-            println("LCJ - writeGffFile - writing features")
             features.forEach {
                 writer.addFeature(it)
             }
 
         }
     } catch (ioe: IOException) {
-        println("LCJ - writeGffFile - IOException!")
         throw TribbleException("Error writing to file $outputFile", ioe)
     } catch (exc: Exception) {
-        println("LCJ - writeGffFile - Exception!")
         throw IllegalStateException("Error writing to file $outputFile", exc)
     }
 }
@@ -376,12 +367,16 @@ fun getOverlappingEntriesFromGff(contig: String, haplotypeRange:IntRange, asmCen
 
     // Start with floorKey 1 less than the haplotype node start position to get more
     // gff3 entries around the center position.
+    // floorKey returns the greatest key less than or equal to the given position
     var floorKeyTemp = asmCenterGffs.floorKey(hapStartPos)
     var floorKey = floorKeyTemp
     if (floorKeyTemp != null) {
         if (floorKeyTemp.position <= 1) floorKey = Position(floorKeyTemp.contig, 1)
         else
           floorKey = Position(floorKeyTemp.contig, floorKeyTemp.position-1)
+    } else {
+        // If floorKey is null, why don't we set it to start pos?
+        floorKey = Position(contig,haplotypeRange.first)
     }
 
     // Because submap below grabs the values in an inclusive/exclusive manner,
@@ -390,19 +385,27 @@ fun getOverlappingEntriesFromGff(contig: String, haplotypeRange:IntRange, asmCen
     var ceilingKey = ceilingKeyTemp
     if (ceilingKeyTemp != null) {
         ceilingKey = Position(ceilingKeyTemp.contig,ceilingKeyTemp.position+1)
+    } else {
+        // If ceilingKey is null, default to the end position.
+        ceilingKey = Position(contig,haplotypeRange.endInclusive)
     }
 
-    if (floorKey == null) {
-        if (ceilingKey != null) {
-            floorKey = Position(ceilingKey.contig,ceilingKey.position-1)
-        }
-    }
-    if (ceilingKey == null) {
-        if (floorKey != null) {
-            ceilingKey = Position(floorKey.contig,floorKey.position+1)
-        }
-    }
+//    if (floorKey == null) {
+//        // LCJ - if this is null, why don't we set floorKey to start pos?
+//        // ANd why is setting it dependent on whether ceiling key has a value?
+//        if (ceilingKey != null) {
+//            floorKey = Position(ceilingKey.contig,ceilingKey.position-1)
+//        }
+//    }
+//    if (ceilingKey == null) {
+//        // If ceilingKey is null, why doesn't it default to end position?
+//        if (floorKey != null) {
+//            ceilingKey = Position(floorKey.contig,floorKey.position+1)
+//        }
+//    }
 
+    // The reason we're using floorKey and ceilingKey is we need values that exist in the map.
+    // "subMap" expects the given keys to be in the map.
     val subMap1 = if (floorKey != null ) asmCenterGffs.subMap(floorKey,ceilingKey).flatMap { it -> it.value } else null
 
     // There are many instances where the coordinates from floorKey or ceilingKey do not overlap the
