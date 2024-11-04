@@ -327,7 +327,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         // Determine the dimensions of the arrays based on the input list
         val rangeSize = rangeIdToSampleToChecksum.size
         val sampleSize = rangeIdToSampleToChecksum[0][0].size
-        val gameteSize = rangeIdToSampleToChecksum[0].size
+        val gameteSize = rangeIdToSampleToChecksum.maxOf { it.size }
 
         // Initialize the array for rangeByGameteIdToHapid
         val rangeByGameteIdToHapid = Array(rangeSize) {
