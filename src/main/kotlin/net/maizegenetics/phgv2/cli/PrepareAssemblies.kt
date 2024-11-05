@@ -64,7 +64,7 @@ class PrepareAssemblies : CliktCommand(help = "Annotate FASTA file Id lines with
             .map { line ->
                 val parts = line.split("\t")
                 if (parts.size != 2) {
-                    throw IllegalArgumentException("Invalid format in line: \"$line\". Each line must contain exactly one tab between two columns.")
+                    throw IllegalArgumentException("Invalid format in line: \"$line\". Each line must contain exactly one tab between filename and samplename columns.")
                 }
                 Pair(parts[0], parts[1])
             }
