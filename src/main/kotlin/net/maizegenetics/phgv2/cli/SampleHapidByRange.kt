@@ -1,0 +1,51 @@
+package net.maizegenetics.phgv2.cli
+
+import biokotlin.util.bufferedWriter
+import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.required
+import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.SampleGamete
+import org.apache.logging.log4j.LogManager
+import java.io.File
+
+class SampleHapidByRange : CliktCommand(help = "Merge multiple HVCF files into a single HVCF file.") {
+
+    private val myLogger = LogManager.getLogger(SampleHapidByRange::class.java)
+
+    val inputDir by option(help = "Full path to input HVCF file directory")
+        .required()
+
+    val outputFile by option(help = "Full path to output table summary file")
+        .required()
+
+    override fun run() {
+
+        val inputFiles = File(inputDir)
+            .walk()
+            .filter {
+                it.isFile && (it.name.endsWith(".h.vcf") || it.name.endsWith(".h.vcf.gz") ||
+                        it.name.endsWith(".hvcf") || it.name.endsWith(".hvcf.gz"))
+            }
+            .map { it.absolutePath }
+            .toList()
+
+        val graph = HaplotypeGraph(inputFiles)
+
+        writeTable(graph, outputFile)
+
+    }
+
+    // #CHROM POS                                B73                          SEEDGWAS1                         SEEDGWAS10
+    // chr1   315223 <c9ecfe3967a71282f3ad7c41d48e0bbf> <b19364bc9a4c07a80986b1ee181446c2> <5c8e72b2e9f11ecc652d5b8e8d0e5bf3>
+    // chr1   328917 <f162e742c4d30f151ae6276fbebe762c> <fdfdaa361c39cf5b6f13fad195d0e519> <283a8261c193212fd5cf43d208673322>
+    // chr1   412242 <471d4abbf0545dede647e65915345648> <d6dd5ecea7fb4e6f77f9e630f601b7a8> <13e0ac1a8d12e1aedd6a5302d1e221fd>
+    private fun writeTable(graph: HaplotypeGraph, outputFile: String) {
+
+        bufferedWriter(outputFile).use { writer ->
+            TODO()
+        }
+
+    }
+
+}
