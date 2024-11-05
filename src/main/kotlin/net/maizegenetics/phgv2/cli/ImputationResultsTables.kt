@@ -54,6 +54,8 @@ class ImputationResultsTables: CliktCommand(help = "Metrics for WeiYun's project
 
     }
 
+    // Function to create a tab-delimited file with haplotype id and gametes
+    // gametes (ie sample names) are a comma-separated list in the second column
     fun createHapidGameteTable(graph:HaplotypeGraph, outputDir:String) {
 
         val time = System.nanoTime()
