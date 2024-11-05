@@ -85,7 +85,7 @@ class PrepareAssemblies : CliktCommand(help = "Annotate FASTA file Id lines with
             launch {
                 myLogger.info("Adding entries to the inputChannel:")
                 assemblies.forEach { entry ->
-                    val asmFile = entry.first
+                    val asmFile = entry.first.trim()
                     // Allow for compressed or non-compressed, e.g. .fa or .fa.gz as extensions
                     val sampleName = entry.second.trim()
                     val compressed = if (asmFile.endsWith(".gz")) true else false
