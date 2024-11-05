@@ -56,11 +56,18 @@ class PrepareAssemblies : CliktCommand(help = "Annotate FASTA file Id lines with
         // create list of assemblies to align from the assemblies file")
         myLogger.info("creating assembliesList, calling createParallelAnnotatedFastas")
         // Read the keyfile, parse the fasta file names and the sampleName
-        // Create a list of pairs of fasta file name and sampleName
+        // Create a list of pairs of fasta file name and sampleName.  Add checking to validate
+        // the format of the keyfile.
 
-        val assemblies = File(keyfile).bufferedReader().readLines().filter{!it.startsWith("#")}
-            .map { it.split("\t") }
-            .map { Pair(it[0], it[1]) }
+        val assemblies = File(keyfile).bufferedReader().readLines()
+            .filter { !it.startsWith("#") }
+            .map { line ->
+                val parts = line.split("\t")
+                if (parts.size != 2) {
+                    throw IllegalArgumentException("Invalid format in line: \"$line\". Each line must contain exactly one tab between two columns.")
+                }
+                Pair(parts[0], parts[1])
+            }
 
         createParallelAnnotatedFastas(assemblies, outputDir)
     }
