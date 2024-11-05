@@ -58,7 +58,7 @@ class PrepareAssemblies : CliktCommand(help = "Annotate FASTA file Id lines with
         // Read the keyfile, parse the fasta file names and the sampleName
         // Create a list of pairs of fasta file name and sampleName
 
-        val assemblies = File(keyfile).bufferedReader().readLines()
+        val assemblies = File(keyfile).bufferedReader().readLines().filter{!it.startsWith("#")}
             .map { it.split("\t") }
             .map { Pair(it[0], it[1]) }
 
@@ -80,7 +80,7 @@ class PrepareAssemblies : CliktCommand(help = "Annotate FASTA file Id lines with
                 assemblies.forEach { entry ->
                     val asmFile = entry.first
                     // Allow for compressed or non-compressed, e.g. .fa or .fa.gz as extensions
-                    val sampleName = entry.second
+                    val sampleName = entry.second.trim()
                     val compressed = if (asmFile.endsWith(".gz")) true else false
 
                     myLogger.info("adding ${sampleName} to the inputChannel")
@@ -105,7 +105,7 @@ class PrepareAssemblies : CliktCommand(help = "Annotate FASTA file Id lines with
             Dispatchers.Default
         ) {
             for (entry in inputChannel) {
-                println("annotateFasta: entry = ${entry.sampleName}")
+                myLogger.info("annotateFasta: entry = ${entry.sampleName}")
                 val fastaFile = entry.fastaFile
                 val sampleName = entry.sampleName
                 val outputDir = entry.outputDir
