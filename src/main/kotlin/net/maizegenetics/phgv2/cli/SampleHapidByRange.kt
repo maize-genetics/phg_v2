@@ -43,7 +43,25 @@ class SampleHapidByRange : CliktCommand(help = "Merge multiple HVCF files into a
     private fun writeTable(graph: HaplotypeGraph, outputFile: String) {
 
         bufferedWriter(outputFile).use { writer ->
-            TODO()
+
+            val samples = graph.samples()
+
+            // Write header
+            writer.write("#CHROM\tSTART\tEND")
+            samples.forEach { sample ->
+                writer.write("\t${sample}")
+            }
+            writer.write("\n")
+
+            graph.ranges().forEach { range ->
+                writer.write("${range.contig}\t${range.start}\t${range.end}")
+                val sampleToHapid = graph.sampleGameteToHaplotypeId(range)
+                samples.forEach { sample ->
+                    writer.write("\t${sampleToHapid[SampleGamete(sample)]}")
+                }
+                writer.write("\n")
+            }
+
         }
 
     }
