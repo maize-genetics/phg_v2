@@ -37,6 +37,9 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     private lateinit var altHeaderMap: Map<String, AltHeaderMetaData>
 
     init {
+
+        getSampleNamesALTHeaders(hvcfFiles)
+
         processFiles(hvcfFiles)
 
         if (rangeByGameteIdToHapid.isNotEmpty()) {
@@ -46,6 +49,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         }
 
         contigs = refRangeMap.keys.map { it.contig }.toSortedSet().toList()
+
     }
 
     /**
@@ -86,7 +90,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         return gameteSet
     }
 
-    fun numSampleGametes() : Int {
+    fun numSampleGametes(): Int {
         return sampleGametesInGraph().size
     }
 
@@ -113,7 +117,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      * Simple function to make a map of all the haplotypeIds and all the SampleGametes which have that haplotypeId.
      */
     fun hapIdsToSampleGametes(): Map<String, List<SampleGamete>> {
-       return ranges().map { hapIdToSampleGametes(it) }
+        return ranges().map { hapIdToSampleGametes(it) }
             .flatMap { it.toList() }.toMap()
     }
 
@@ -137,7 +141,6 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
             }
         }
         return result
-
     }
 
     /**
@@ -170,17 +173,20 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      */
     fun altHeaders() = altHeaderMap
 
-    private fun processFiles(hvcfFiles: List<String>) {
+    /**
+     * Get sample names and ALT headers from the HVCF files.
+     */
+    private fun getSampleNamesALTHeaders(hvcfFiles: List<String>) {
 
-        myLogger.info("processFiles: ${hvcfFiles.size} hvcf files")
+        myLogger.info("getSampleNamesALTHeaders: ${hvcfFiles.size} hvcf files")
 
         // Step 1: Get sample names and ALT headers
-        val sampleChannel = Channel<Deferred<Pair<List<String>, Map<String, AltHeaderMetaData>>>>(15)
+        val sampleChannel = Channel<Deferred<Pair<List<String>, Map<String, AltHeaderMetaData>>>>(25)
         CoroutineScope(Dispatchers.IO).launch {
 
             hvcfFiles.forEach { hvcfFile ->
 
-                myLogger.info("processFiles: get samples and ALT headers: $hvcfFile")
+                myLogger.info("getSampleNamesALTHeaders: $hvcfFile")
 
                 sampleChannel.send(async {
                     VCFFileReader(File(hvcfFile), false).use { reader ->
@@ -197,7 +203,6 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         }
 
-        val sampleNamesSet = mutableSetOf<String>()
         val sampleNamesList = mutableListOf<String>()
         val mutableAltHeaderMap: MutableMap<String, AltHeaderMetaData> = mutableMapOf()
 
@@ -211,7 +216,6 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
                 // sampleNames are being added to both a Set and List so that they can be
                 // compared to detect and report duplicate sample names
-                sampleNamesSet.addAll(sampleHeader.first)
                 sampleNamesList.addAll(sampleHeader.first)
 
                 mutableAltHeaderMap.putAll(sampleHeader.second)
@@ -219,12 +223,14 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         }
 
+        val sampleNamesSet = sampleNamesList.toSet()
+
         // make the alt header map immutable
         altHeaderMap = mutableAltHeaderMap.toMap()
 
         // Step 2: check for duplicate sample names
         myLogger.info("Parsing ALT headers, now checking for duplicate sample names.")
-        sampleNamesSet.forEach { sampleNamesList.remove(it) }
+        sampleNamesList.removeAll(sampleNamesSet)
         if (sampleNamesList.isNotEmpty()) {
             throw IllegalArgumentException("processFiles: duplicate sample names: $sampleNamesList")
         }
@@ -236,11 +242,22 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
             Pair(sampleName, index)
         }.toMap()
 
+    }
+
+    /**
+     * Process the HVCF files to create the HaplotypeGraph.
+     * This function creates the rangeByGameteIdToHapid data structure.
+     * All VariantContexts are processed to create the haplotype graph.
+     */
+    private fun processFiles(hvcfFiles: List<String>) {
+
+        myLogger.info("processFiles: ${hvcfFiles.size} hvcf files")
+
         // rangeIdToSampleToChecksum[rangeId][gameteId][sampleId] -> checksum
         val rangeIdToSampleToChecksum = mutableListOf<MutableList<Array<String?>>>()
 
-        // Step 4: Process the context variants of each HVCF file
-        val rangeInfoChannel = Channel<Deferred<List<RangeInfo>>>(5)
+        // Process the context variants of each HVCF file
+        val rangeInfoChannel = Channel<Deferred<List<RangeInfo>>>(15)
         CoroutineScope(Dispatchers.IO).launch {
             hvcfFiles.forEach { hvcfFile ->
                 myLogger.info("processFile: $hvcfFile")
@@ -285,8 +302,11 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         }
 
+        // Global variable initialization storing ReferenceRange to rangeId
         refRangeMap = rangeMap.toSortedMap()
 
+        // Global variable initialization storing rangeIdToSampleToChecksum
+        // rangeByGameteIdToHapid[refRangeId][sampleId][gameteID] -> checksum / hapid
         rangeByGameteIdToHapid = convert(rangeIdToSampleToChecksum)
 
     }
@@ -307,7 +327,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         // Determine the dimensions of the arrays based on the input list
         val rangeSize = rangeIdToSampleToChecksum.size
         val sampleSize = rangeIdToSampleToChecksum[0][0].size
-        val gameteSize = rangeIdToSampleToChecksum[0].size
+        val gameteSize = rangeIdToSampleToChecksum.maxOf { it.size }
 
         // Initialize the array for rangeByGameteIdToHapid
         val rangeByGameteIdToHapid = Array(rangeSize) {
@@ -348,8 +368,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      * one Reference Range indexed by gameteId and sampleId
      * @param range This is the ReferenceRange
      */
-    data class RangeInfo(
-        val rangeSampleToChecksum: MutableList<Array<String?>>,
+    private data class RangeInfo(
+        val rangeSampleToChecksum: MutableList<MutableList<Pair<Int, String>>>,
         val range: ReferenceRange
     )
 
@@ -362,20 +382,21 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         val range = ReferenceRange(context.contig, context.start, context.end)
 
-        // rangeSampleToChecksum[gameteID][sampleID] -> Checksum
-        val rangeSampleToChecksum: MutableList<Array<String?>> = mutableListOf()
+        // rangeSampleToChecksum[gameteID] -> List <sampleID, Checksum>
+        val rangeSampleToChecksum: MutableList<MutableList<Pair<Int, String>>> = mutableListOf()
 
         context.genotypes.forEach { genotype ->
 
             val sampleId = sampleNameToIdMap[genotype.sampleName]!!
 
             genotype.alleles.forEachIndexed { gameteId, allele ->
+                // List of (sampleId -> Checksum)
                 var checksumsForSamples = rangeSampleToChecksum.getOrNull(gameteId)
                 if (checksumsForSamples == null) {
-                    checksumsForSamples = arrayOfNulls(numberOfSamples())
+                    checksumsForSamples = mutableListOf()
                     rangeSampleToChecksum.add(gameteId, checksumsForSamples)
                 }
-                checksumsForSamples[sampleId] = allele.displayString.substringAfter("<").substringBefore(">")
+                checksumsForSamples.add(sampleId to allele.displayString.substringAfter("<").substringBefore(">"))
             }
 
         }
@@ -389,31 +410,30 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      * This is needed since the input files are processed in
      * multiple threads. This aggregates the results.
      *
-     * sampleGameteHapid[gameteId][sampleId] -> Checksum / hapid
+     * gameteSampleHapid1[gameteId][sampleId] -> Checksum / hapid
+     * gameteSampleHapid2[gameteId] -> List<Pair<sampleId, Checksum>>
      */
     private fun mergeStringArrays(
         gameteSampleHapid1: MutableList<Array<String?>>?,
-        gameteSampleHapid2: MutableList<Array<String?>>
+        gameteSampleHapid2: MutableList<MutableList<Pair<Int, String>>>
     ): MutableList<Array<String?>> {
 
-        return if (gameteSampleHapid1 == null) {
-            gameteSampleHapid2
-        } else {
-            gameteSampleHapid2.forEachIndexed { gameteId, sampleList ->
-                var sampleHapid1 = gameteSampleHapid1.getOrNull(gameteId)
-                if (sampleHapid1 == null) {
-                    sampleHapid1 = arrayOfNulls(sampleList.size)
-                    gameteSampleHapid1.add(gameteId, sampleHapid1)
-                }
-                sampleList.forEachIndexed { sampleId, checksum ->
-                    if (sampleHapid1[sampleId] == null) {
-                        sampleHapid1[sampleId] = checksum
-                    }
-                }
+        val result = gameteSampleHapid1 ?: mutableListOf()
+
+        gameteSampleHapid2.forEachIndexed { gameteId, sampleList ->
+            var sampleHapid1 = result.getOrNull(gameteId)
+            if (sampleHapid1 == null) {
+                sampleHapid1 = arrayOfNulls(numberOfSamples())
+                result.add(gameteId, sampleHapid1)
             }
 
-            gameteSampleHapid1
+            sampleList.forEach { (sampleId, checksum) ->
+                sampleHapid1[sampleId] = checksum
+            }
+
         }
+
+        return result
 
     }
 

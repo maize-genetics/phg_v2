@@ -171,7 +171,7 @@ class BuildKmerIndexTest {
         }
 
         //create a HaplotypeGraph from the hvcf files
-        val buildIndexResult = BuildKmerIndex().test("--db-path $tempDBPathDir --hvcf-dir $tempHvcfDir")
+        val buildIndexResult = BuildKmerIndex().test("--db-path $tempDBPathDir --hvcf-dir $tempHvcfDir --initial-keep-size 10000")
 
         //Was the index created?
         assertEquals(0, buildIndexResult.statusCode)
@@ -199,7 +199,7 @@ class BuildKmerIndexTest {
 
         //create a HaplotypeGraph from the hvcf files
         val buildIndexResult = BuildKmerIndex().test("--db-path $tempDBPathDir --hvcf-dir $tempHvcfDir " +
-                "--max-arg-length 150 --index-file ${tempHvcfDir}kmerIndexOther.txt")
+                "--max-arg-length 150 --index-file ${tempHvcfDir}kmerIndexOther.txt --initial-keep-size 10000")
 
         //Was the index created?
         assertEquals(0, buildIndexResult.statusCode)
@@ -218,7 +218,7 @@ class BuildKmerIndexTest {
 
         //create a HaplotypeGraph from the hvcf files
         val buildIndexResult2 = BuildKmerIndex().test("--db-path $tempDBPathDir --hvcf-dir $tempHvcfDir " +
-                "--max-arg-length 150 --index-file ${tempHvcfDir}kmerIndexOther.txt")
+                "--max-arg-length 150 --index-file ${tempHvcfDir}kmerIndexOther.txt --initial-keep-size 10000")
 
         //Was the index created?
         assertEquals(0, buildIndexResult2.statusCode)
@@ -247,7 +247,7 @@ class BuildKmerIndexTest {
             }
 
         //create a HaplotypeGraph from the hvcf files
-        val buildIndexResult = BuildKmerIndex().test("--db-path $tempDBPathDir --hvcf-dir $tempHvcfDir")
+        val buildIndexResult = BuildKmerIndex().test("--db-path $tempDBPathDir --hvcf-dir $tempHvcfDir --initial-keep-size 10000")
 
         //Was the index created?
         assertEquals(0, buildIndexResult.statusCode)
@@ -259,10 +259,10 @@ class BuildKmerIndexTest {
             while (inputLine != null) {
                 //diagnostic report header is "contig	start	end	length	kmerCount	adjacentCount"
                 //only lines 6 and 28 should have adjacentCount > 0
-                if (lineCount == 2) assertEquals("1\t1\t1000\t1000\t193\t0", inputLine)
-                if (lineCount == 8) assertEquals("1\t16501\t17500\t1000\t287\t51", inputLine)
-                if (lineCount == 28) assertEquals("2\t16501\t17500\t1000\t300\t64", inputLine)
-                if (lineCount == 35) assertEquals("2\t34001\t38500\t4500\t902\t0", inputLine)
+                if (lineCount == 2) assertEquals("1\t1\t1000\t1000\t634\t0", inputLine)
+                if (lineCount == 8) assertEquals("1\t16501\t17500\t1000\t775\t0", inputLine)
+                if (lineCount == 28) assertEquals("2\t16501\t17500\t1000\t771\t0", inputLine)
+                if (lineCount == 35) assertEquals("2\t34001\t38500\t4500\t2773\t0", inputLine)
                 inputLine = myReader.readLine()
                 lineCount++
             }
@@ -270,7 +270,7 @@ class BuildKmerIndexTest {
 
         //delete the diagnostic file then rerun with noDiagnostic flag
         File("${tempHvcfDir}kmerIndexStatistics.txt").delete()
-        val noDiagnoticResult = BuildKmerIndex().test("--db-path $tempDBPathDir --hvcf-dir $tempHvcfDir -n")
+        val noDiagnoticResult = BuildKmerIndex().test("--db-path $tempDBPathDir --hvcf-dir $tempHvcfDir -n --initial-keep-size 10000")
         assertEquals(0, noDiagnoticResult.statusCode)
         assert( !File("${tempHvcfDir}kmerIndexStatistics.txt").exists()) {"The diagnostic file was written but option is -n"}
 
