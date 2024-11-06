@@ -9,7 +9,7 @@ import net.maizegenetics.phgv2.api.SampleGamete
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
-class SampleHapidByRange : CliktCommand(help = "Merge multiple HVCF files into a single HVCF file.") {
+class SampleHapidByRange : CliktCommand(help = "Create a table of haplotype IDs by range") {
 
     private val myLogger = LogManager.getLogger(SampleHapidByRange::class.java)
 
@@ -57,7 +57,8 @@ class SampleHapidByRange : CliktCommand(help = "Merge multiple HVCF files into a
                 writer.write("${range.contig}\t${range.start}\t${range.end}")
                 val sampleToHapid = graph.sampleGameteToHaplotypeId(range)
                 samples.forEach { sample ->
-                    writer.write("\t${sampleToHapid[SampleGamete(sample)]}")
+                    val value = sampleToHapid[SampleGamete(sample)]?.let { "<$it>" } ?: "."
+                    writer.write("\t$value")
                 }
                 writer.write("\n")
             }
