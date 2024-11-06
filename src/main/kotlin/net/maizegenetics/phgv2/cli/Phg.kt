@@ -32,6 +32,7 @@ fun main(args: Array<String>) = Phg()
         CreateAnchorwaveDotplot(), CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), Hvcf2Gvcf(), LoadVcf(), ExportVcf(),
         BuildKmerIndex(), MapKmers(), FindPaths(), // Imputation
         CreateFastaFromHvcf(), ListSamples(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer, ExtractEdgeReads(),QcReadMapping(), // Utilities
+        PathsToGff(), // more utilities
         CompositeToHaplotypeCoords() // resequencing pipeline
     )
     .main(args)
