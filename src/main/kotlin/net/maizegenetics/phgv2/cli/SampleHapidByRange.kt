@@ -8,6 +8,7 @@ import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SampleGamete
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.util.*
 
 class SampleHapidByRange : CliktCommand(help = "Create a table of haplotype IDs by range") {
 
@@ -56,9 +57,14 @@ class SampleHapidByRange : CliktCommand(help = "Create a table of haplotype IDs 
             graph.ranges().forEach { range ->
                 writer.write("${range.contig}\t${range.start}\t${range.end}")
                 val sampleToHapid = graph.sampleGameteToHaplotypeId(range)
+                val sampleToGametes = mutableMapOf<String, TreeSet<SampleGamete>>()
+                sampleToHapid.keys.forEach { gamete ->
+                    sampleToGametes.getOrPut(gamete.name) { TreeSet() }.add(gamete)
+                }
                 samples.forEach { sample ->
-                    val value = sampleToHapid[SampleGamete(sample)]?.let { "<$it>" } ?: "."
-                    writer.write("\t$value")
+                    val hapids =
+                        sampleToGametes[sample]?.joinToString(separator = "/") { "<${sampleToHapid[it]}>" } ?: "."
+                    writer.write("\t$hapids")
                 }
                 writer.write("\n")
             }
