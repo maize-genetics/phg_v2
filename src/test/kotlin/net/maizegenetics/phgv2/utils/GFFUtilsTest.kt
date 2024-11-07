@@ -122,6 +122,12 @@ class GFFUtilsTest {
 
         // Need to add some assertions.  How many entries do I expect? etc
         // Verify specific entries are in the output file.
+        //TODO why are there more entries than I expect in these files??
+        // The reason we have start coordiantes not in the original gff file is because
+        // these are pseudo-genome coordiantes.  There may be a problem with the change I
+        // added to include the lower numbered entries - the change where we took the
+        // hap start if there was no overlapping with central.  need to deterine if the
+        // entries created really belong.
         println("Finished testPathsToGff")
 
 
