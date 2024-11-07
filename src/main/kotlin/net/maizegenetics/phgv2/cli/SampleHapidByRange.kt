@@ -10,6 +10,12 @@ import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.util.*
 
+/**
+ * Create a table of haplotype IDs by range.
+ * This class takes a directory of HVCF files and creates a HaplotypeGraph.
+ * It then writes a table of haplotype IDs (for each sample) by
+ * reference range to a file.
+ */
 class SampleHapidByRange : CliktCommand(help = "Create a table of haplotype IDs by range") {
 
     private val myLogger = LogManager.getLogger(SampleHapidByRange::class.java)
@@ -22,6 +28,7 @@ class SampleHapidByRange : CliktCommand(help = "Create a table of haplotype IDs 
 
     override fun run() {
 
+        // Get list of input HVCF files in the input directory
         val inputFiles = File(inputDir)
             .walk()
             .filter {
@@ -31,8 +38,10 @@ class SampleHapidByRange : CliktCommand(help = "Create a table of haplotype IDs 
             .map { it.absolutePath }
             .toList()
 
+        // Merge the HVCF files into a HaplotypeGraph
         val graph = HaplotypeGraph(inputFiles)
 
+        // Write the table of haplotype IDs by range to the output file
         writeTable(graph, outputFile)
 
     }
