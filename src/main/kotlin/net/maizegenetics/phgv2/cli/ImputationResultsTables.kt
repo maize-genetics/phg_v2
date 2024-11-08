@@ -46,7 +46,7 @@ class ImputationResultsTables: CliktCommand(help = "Metrics for WeiYun's project
 
         // We have the graph, we now want this data:
         // Table1: HapId to Gamete
-        createHapidGameteTable(graph, outputDir)
+        HapidSampleTable().createHapidGameteTable(graph, outputDir)
 
         // Table2: SeedSample by RefRange: Value is HapID
         // Table3 (subset by RefRange i.e. 67K of these): RefPosition by Gamete: Value is GT
@@ -54,24 +54,6 @@ class ImputationResultsTables: CliktCommand(help = "Metrics for WeiYun's project
 
     }
 
-    // Function to create a tab-delimited file with haplotype id and gametes
-    // gametes (ie sample names) are a comma-separated list in the second column
-    fun createHapidGameteTable(graph:HaplotypeGraph, outputDir:String) {
 
-        val time = System.nanoTime()
-        val hapidGameteFile = "${outputDir}/hapid_gamete.tsv"
-        bufferedWriter(hapidGameteFile).use { writer ->
-            graph.ranges().forEachIndexed { rangeIndex, range ->
-                graph.hapIdToSampleGametes(range).forEach { (hapId, gametes) ->
-                    // create a comma separated string of gametes from gametes
-                    // The gametes are SampleGamete objects, which are a combination of a sample name and a gamete id
-                    // For each gamete, substring it to remove everything from the last colon on
-                    val gameteList = gametes.map { it.toString().substringBeforeLast(":") }
-                        .joinToString(",")
-                    writer.write("$hapId\t$gameteList\n")
-                }
-            }
-        }
-        myLogger.info("Time to write hapid_gamete.tsv: ${(System.nanoTime() - time) / 1e9}")
-    }
+
 }
