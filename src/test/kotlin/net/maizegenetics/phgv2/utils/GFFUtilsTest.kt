@@ -75,6 +75,11 @@ class GFFUtilsTest {
         //    /Users/lcj34/notes_files/phg_2018/new_features/phg493_GFF_plugin_fromAsmCoords/testing/keyFile.txt
         // TODO: LCJ - remove hard coding - store files somewhere
         // TODO : this test still fails, and it doesn't pick up the early genes - debug that !
+
+        // Nov 12, 2024 - 2 entries missing:  a gene and an mRNA that were split to fit into
+        // a ref range - but why didn't they pick up the first one like it did for the earlier
+        // entries in that list?  The CDS and exon entries were processed correctly!
+
         // It isn't finindht them in getOverlappingEntriesFromGff()
         val keyFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGFF/testKeyFile.txt"
         val hvcfFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGFF/Imputation.h.vcf"
