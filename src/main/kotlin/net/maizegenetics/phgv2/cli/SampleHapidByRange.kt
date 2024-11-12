@@ -12,7 +12,7 @@ import java.util.*
 
 /**
  * Create a table of haplotype IDs by range.
- * This class takes a directory of HVCF files and creates a HaplotypeGraph.
+ * This class takes a directory of HVCF files created from the imputation pipeline and creates a HaplotypeGraph.
  * It then writes a table of haplotype IDs (for each sample) by
  * reference range to a file.
  */
