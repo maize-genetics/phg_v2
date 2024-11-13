@@ -15,6 +15,8 @@ class MergeGVCFs : CliktCommand(help = "Merge GVCF files into Single VCF file") 
     val inputDir by option(help = "Full path to input GVCF file directory")
         .required()
 
+    val bedFile by option(help = "Path to the bed file used to create ranges for the tiledb data storage. ")
+
     val outputFile by option(help = "Full path to output VCF file")
         .required()
 
@@ -26,7 +28,7 @@ class MergeGVCFs : CliktCommand(help = "Merge GVCF files into Single VCF file") 
         // Checks to ensure that the output file does not exist
         require(!File(outputFile).isFile) { "Output file already exists: $outputFile" }
 
-        mergeGVCFs(inputDir, outputFile)
+        mergeGVCFs(inputDir, outputFile, bedFile)
 
     }
 
