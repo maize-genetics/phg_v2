@@ -2,7 +2,6 @@ package net.maizegenetics.phgv2.cli
 
 import biokotlin.util.bufferedWriter
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import net.maizegenetics.phgv2.api.HaplotypeGraph
