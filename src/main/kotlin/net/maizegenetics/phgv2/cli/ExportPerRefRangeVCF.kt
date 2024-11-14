@@ -13,6 +13,13 @@ import net.maizegenetics.phgv2.utils.verifyURI
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
+/**
+ * This class takes a list of samples and a regions file and exports the samples to individual multi-sample vcf files,
+ * one vcf file per region. THe exported data comes from a tiledb dataset provided by the user.
+ *
+ * This class was written to test the efficiency of exporting per region files.  It may be quicker to
+ * export the entire files, then let the biokotlin mergeVCfs function merge and export files based on regions.
+ */
 class ExportPerRefRangeVCF: CliktCommand(help = "Export given samples to merged vcf file on a per-range basis") {
 
     private val myLogger = LogManager.getLogger(ExportVcf::class.java)
@@ -50,8 +57,6 @@ class ExportPerRefRangeVCF: CliktCommand(help = "Export given samples to merged 
         .default("")
 
     override fun run() {
-        //TODO("Not yet implemented")
-
         val dbPath = if (dbPath.isBlank()) {
             System.getProperty("user.dir")
         } else {
@@ -74,13 +79,22 @@ class ExportPerRefRangeVCF: CliktCommand(help = "Export given samples to merged 
         val regions = convertRegionFileToRegionList(regionsFile)
         val batches = regions.chunked(batchSize) // not sending in batches right now - will figure that out later
 
-        // THis isn't correct - we want to send a process builder command for each entry in
-        // the batch, running batch.size number of samples at a time
-
+        // TODO: update this to send in batches.  Will be done at a later date.  This is test code
+        // that may be replaced with a more efficient method.
         regions.forEach { region ->
             // Create the data portion of the command for this batch
 
             val outputFile = "$outputDir/export_gvcf_${region.replace(":","_")}.vcf"
+
+            // THe tiledb-config options are set to allow for large memory usage, which greatly increases
+            // the speed of exporting the files.
+            // The values below were suggested by the tiledb team based on an issue posted to their github
+            // repository:
+            //   https://github.com/TileDB-Inc/TileDB-VCF/issues/652
+            // sm.memory_budget=10737418240,
+            // sm.memory_budget_var=21474836480,
+            // sm.skip_unary_partitioning_budget_check=true
+
             var dataCommand = if (samples.getExportCommand()[0] == SampleFormatEnum.FILE.toString()) mutableListOf(
                 "tiledbvcf",
                 "export",

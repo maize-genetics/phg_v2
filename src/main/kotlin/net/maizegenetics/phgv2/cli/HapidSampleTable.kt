@@ -9,9 +9,11 @@ import org.apache.logging.log4j.LogManager
 import java.io.File
 
 /**
- * This class will take hvcf files created from assembly alignment and create a tab-delimited file
+ * This class will take hvcf files created from assembly alignment (CreateMafVCF) and create a tab-delimited file
  * of haplotype IDs to SampleGamete.  There can be multiple samples mapping to each hapid.  The samples
  * will be a comma-separated list in the second column.
+ *
+ * The output from this class is used in later stages of imputation analysis.
  */
 class HapidSampleTable : CliktCommand(help = "Create a table of haplotype IDs to SampleGamete.  Can be multiple samples mapping to each hapid"){
 
