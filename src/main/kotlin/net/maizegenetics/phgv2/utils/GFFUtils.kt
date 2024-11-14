@@ -177,7 +177,6 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
     var count = 0
     var total = 0
 
-    println("LCJ - makeGffFromHvcf: number of hvcf records: ${hvcfRecords.size}")
     // traverse the hvcf records, creating the entries
     for (hvcfRecord in hvcfRecords) {
         val hapId = hvcfRecord.alternateAlleles.first().displayString.removeSurrounding("<", ">")
@@ -205,6 +204,7 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
         }
         // get regions that make up this hapid
         val regions = altData.regions
+
 
         // Create a region list, flipping any negative strand entries
         // This is needed for the getPseudoGFFCoordsMultipleRegions() function
@@ -255,11 +255,9 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
 
         // Create the Gff3Feature entry, add to list
         for (entry in sortedGffEntries) {
+
             val newRange = getPseudoGFFCoordsMultipleRegions( entry.start..entry.end, regionList, offset)
 
-            if (entry.start == 37920) {
-                println("forEntryInSortedEntries LCJ: processing entry: type: ${entry.type}, entry.start: ${entry.start}, newRange.first: ${newRange.first},  rangeLast: ${newRange.last}")
-            }
             // Update the entry to be specific to gff coordinates.
             // Add an annotations for:
             //   reference_range_id
@@ -281,10 +279,6 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
             //val annoList = regions.map { "${it.first.position}-${it.second.position}" }
             //annotations.put("halotypeAsmCoordinates", annoList)
 
-
-            if (newRange.first == 37920 || entry.start == 39720) {
-                println("processingSortedEntries LCJ: adding entry: type: ${entry.type}, newRange.first: ${newRange.first}, entry.start: ${entry.start} end: ${newRange.last}")
-            }
             // Create the Gff3Feature entry, add to list
             val gff3FeatureEntry = Gff3FeatureImpl(entry.contig, entry.source, entry.type, newRange.first, newRange.last, entry.score, entry.strand, entry.phase, annotations)
             pseudoGenomeGff3Features.add(gff3FeatureEntry)
@@ -307,10 +301,9 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
 
     if (count > 0) total += count
     myLogger.info("makeGffFromPath: all entries finished, total: ${total}")
-    println("makeGffFromPath: all entries finished, total: ${total}")
+
     if (outputFile != null && outputFile !="") {
         myLogger.info("makeGffFromPath: writing pseudo gff file to ${outputFile}")
-        println("makeGffFromPath: writing pseudo gff file to ${outputFile}")
         writeGffFile(outputFile, mergedFeatures.toSet(),null,null)
     }
     val endingTime = (System.nanoTime() - time)/1e9
@@ -322,16 +315,11 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
  * when processing reference range at a time, some features may overlap
  * multiple ranges.  The GFF file has no concept of reference ranges, so
  * these entries need to be merged.
- *
- * TODO!! This still needs work as it splits the gene and mRNA entries into separate
- * for start position 37920 on chr2.
  */
 fun mergeAdjacentFeatures(features: MutableSet<Gff3Feature>): List<Gff3Feature> {
     // Sort features by contig, type, start, and end for easy processing
     val sortedFeatures = features.sortedWith(compareBy({ it.contig }, { it.type }, { it.start }, { it.end }))
     val mergedFeatures = mutableListOf<Gff3Feature>()
-
-    println("\nLCJ - in mergeAdjacentFeatures ...")
 
     var idx = 0
     while (idx < sortedFeatures.size) {
@@ -339,28 +327,20 @@ fun mergeAdjacentFeatures(features: MutableSet<Gff3Feature>): List<Gff3Feature> 
         var jdx = idx + 1
         var hasMerged = false
 
-        if (currentFeature.start == 37920) {
-            println("Merging features type: ${currentFeature.type}, start: ${currentFeature.start}, end: ${currentFeature.end}")
-        }
-        // Check if the next feature is adjacent and of the same type
-        while (jdx < sortedFeatures.size &&
-            sortedFeatures[jdx].contig == currentFeature.contig &&
-            sortedFeatures[jdx].type == currentFeature.type &&  // Ensure type matches
-            sortedFeatures[jdx].start == currentFeature.end     // Ensure adjacency
+        // Check if the next feature is on the same chrom, is the same type and is adjacent or overlaps the current feature
+        while (jdx < sortedFeatures.size && featuresOverlap(currentFeature, sortedFeatures[jdx])
         ) {
+
             val nextFeature = sortedFeatures[jdx]
-            if (nextFeature.start == 37920) {
-                println("Merging features while jdx loop: type: ${nextFeature.type}, start: ${nextFeature.start}, end: ${nextFeature.end}")
-            }
 
             // Get referenceRangeID and halotypeAsmCoordinates attributes, handle nulls and lists
             val currentRefRangeID = currentFeature.getAttribute("referenceRangeID")?.firstOrNull() ?: ""
             val nextRefRangeID = nextFeature.getAttribute("referenceRangeID")?.firstOrNull() ?: ""
             val newReferenceRangeID = listOf(currentRefRangeID, nextRefRangeID).joinToString(",")
 
-           // val currentHaplotypeAsmCoords = currentFeature.getAttribute("halotypeAsmCoordinates")?.firstOrNull() ?: ""
-           // val nextHaplotypeAsmCoords = nextFeature.getAttribute("halotypeAsmCoordinates")?.firstOrNull() ?: ""
-            //val newHaplotypeAsmCoordinates = "${currentHaplotypeAsmCoords.split("-").first()}-${nextHaplotypeAsmCoords.split("-").last()}"
+            // Not including the ASM coordinates as they are not valid.  The coordinates should be
+            // based on what would be the composite genome.  They can be determined from the start/end
+            // columns of the GFF3 file.
 
             // Merge features by creating a new Gff3FeatureImpl
             currentFeature = Gff3FeatureImpl(
@@ -368,7 +348,6 @@ fun mergeAdjacentFeatures(features: MutableSet<Gff3Feature>): List<Gff3Feature> 
                 currentFeature.start, nextFeature.end, currentFeature.score, currentFeature.strand,
                 currentFeature.phase, currentFeature.attributes.toMutableMap().apply {
                     put("referenceRangeID", listOf(newReferenceRangeID))
-                    //put("halotypeAsmCoordinates", listOf(newHaplotypeAsmCoordinates))
                 }
             )
             hasMerged = true
@@ -382,12 +361,38 @@ fun mergeAdjacentFeatures(features: MutableSet<Gff3Feature>): List<Gff3Feature> 
 
     // resort the merged features by contig, start, end
     mergedFeatures.sortWith(compareBy({ it.contig }, { it.start }, { it.end }))
-
-    println("Merged features end: original features size: ${sortedFeatures.size}, merged feautres size: ${mergedFeatures.size}")
     return mergedFeatures
 }
 
 
+// This function checks for overlapping GFF3 entries
+fun featuresOverlap(feature1: Gff3Feature, feature2: Gff3Feature): Boolean {
+    // 1. Check if contigs are the same
+    if (feature1.contig != feature2.contig) return false
+
+    // 2. Check if types are the same
+    if (feature1.type != feature2.type) return false
+
+    // 3. Check if the ranges overlap
+    if (feature1.start > feature2.end || feature2.start > feature1.end) return false
+
+    // 4. Additional criteria based on feature type
+    return when (feature1.type) {
+        "exon", "three_prime_utr", "five_prime_utr" -> {
+            // For these types, check if the Parent attributes are the same
+            val parent1 = feature1.getAttribute("Parent") ?: return false
+            val parent2 = feature2.getAttribute("Parent") ?: return false
+            parent1 == parent2
+        }
+        "CDS", "gene", "mRNA" -> {
+            // For these types, check if the ID attributes are the same
+            val id1 = feature1.getAttribute("ID") ?: return false
+            val id2 = feature2.getAttribute("ID") ?: return false
+            id1 == id2
+        }
+        else -> false
+    }
+}
 
 
 
@@ -485,9 +490,6 @@ fun getOverlappingEntriesFromGff(contig: String, haplotypeRange:IntRange, asmCen
         for (gff3entry in subMap1) {
             if (gff3entry.contig.equals(contig)) { // do I need this conditional ??
                 if ((haplotypeRange.first <= gff3entry.end) && (haplotypeRange.endInclusive >= gff3entry.start)) {
-                    if (gff3entry.start == 37920) {
-                        println("getOverlappingEntriesFromGff LCJ: adding overlapping entry: type: ${gff3entry.type}, start: ${gff3entry.start}, end: ${gff3entry.end}")
-                    }
                     gff3Features.add(gff3entry)
                 }
             }
@@ -570,6 +572,11 @@ fun getPseudoGFFCoordsMultipleRegions(asmGffRange: IntRange, regions:List<IntRan
 
     val startDiff = asmGffRange.start - hapStart + 1
     val endDiff = hapEnd - asmGffRange.endInclusive + 1
+    // PathsToGffTest fails when we don't have the +1 added,
+    // However, the testGetPseudoGFFCoordsMultipleRegions fails when
+    // we do have it.  Need to debug to see the issue.  WHen did I add the +1 ??
+//    val startDiff = asmGffRange.start - hapStart
+//    val endDiff = hapEnd - asmGffRange.endInclusive
     // endDiff and endAdjust are negative if the haplotype node coordinate end value
     // is less than the assembly gff end value, meaning it doesn't cover the full GFF entry
     val endAdjust = if (endDiff > 0) 0 else endDiff
