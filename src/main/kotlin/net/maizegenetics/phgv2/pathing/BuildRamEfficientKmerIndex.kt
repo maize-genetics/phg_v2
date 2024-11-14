@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.pathing
 
+import biokotlin.util.bufferedWriter
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
@@ -8,6 +9,8 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.buildHaplotypeGraph
@@ -69,7 +72,68 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
         myLogger.info("Start of BuildRamEfficientKmerIndex...")
         val graph = buildHaplotypeGraph(hvcfDir)
 
-        //TODO("Not yet implemented")
+        val (hashToHapidMap, discardSet) = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue, initialKeepSize)
+
+        val kmerIndexFilename = if (indexFile == "") "${hvcfDir}/kmerIndex.txt" else indexFile
+
+
+        //save the kmerIndex
+        saveKmerHashesAndHapids(graph, kmerIndexFilename, hashToHapidMap)
+
+        if(discardFile.isNotEmpty()) {
+            bufferedWriter(discardFile).use { writer ->
+                for (element in discardSet) {
+                    writer.write("$element\n")
+                }
+            }
+        }
+
+        if (noDiagnostics) {
+            runDiagnostics = false
+            myLogger.info("BuildKmerIndex: Diagnostic output will not be written because the --no-diagnostic flag was set.")
+        }
+        else {
+            writeDiagnostics(refrangeToAdjacentHashCount)
+        }
+
+    }
+
+
+    // This is derived from the function processGraphKmers in BuildKmerIndex.kt
+    // This implementation uses a mutableMap, which should be able to
+    // grow as needed.  The bitmaps that contain the gamete information will take up
+    // less room and need less storage.
+    fun processGraphKmers(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75,
+                          hashMask: Long = 3, hashFilterValue:Long = 1, initialKeepSize: Int = 500_000_000) : Pair<Map<Long,IndexedKmerData>, LongOpenHashSet> {
+
+        // keepMap is a map of hapidHash -> IndexedKmerData
+        val keepMap = mutableMapOf<Long,IndexedKmerData>()
+        //discardSet is a Set of hashes
+        val discardSet = LongOpenHashSet(initialKeepSize)
+        val startTime = System.nanoTime()
+
+        // This returns a SortedSEt of <SampleGamete> - should it be turned into an ordered
+        // list of just sample names?  This list is needed to index into the bit arrays
+        val sampleGametes = graph.sampleGametesInGraph()
+        val samples = sampleGametes.map { it.name }.sorted()
+
+        // TODO - implement the rest of this!
+
+        return Pair(keepMap, discardSet)
+
+    }
+
+    private fun saveKmerHashesAndHapids(
+        graph: HaplotypeGraph,
+        kmerIndexFilename: String,
+        hashToHapidMap: Map<Long, IndexedKmerData>
+    ) {
+        TODO("Not yet implemented")
+    }
+
+    private fun writeDiagnostics(refrangeToAdjacentHashCount: MutableMap<ReferenceRange, Int>) {
+        TODO("Not yet implemented")
+
     }
 
 }
