@@ -15,9 +15,10 @@ class HapidSampleTableTest {
         @BeforeAll
         fun setup() {
             File(TestExtension.testVCFDir).mkdirs()
+            // These are the good hvcf files created from aligned assemblies
             val fileList = listOf("LineA","LineB","LineD","LineE")
             val hvcfFolder = "data/test/smallseq/"
-            // copy the files in fileLIst that live in the hvcfFolder to
+            // copy the files in fileList that live in the hvcfFolder to
             // the testVCFDir
             fileList.forEach {
                 val hvcfFile = File(hvcfFolder, "${it}.h.vcf")
@@ -36,8 +37,7 @@ class HapidSampleTableTest {
     @Test
     fun testCliktClass() {
 
-        // This file has a samplename of "LineImpute".
-        // All of the haplotypes for chrom1 are from LineA, all of the haplotypes for chrom2 are from LineB
+        // test missing hvcf dir
         val hapidSampleTable = HapidSampleTable()
         val outputFile = "${TestExtension.tempDir}/hapid_sample_table.tsv"
         val resultMissingHvcfDir =
@@ -68,7 +68,7 @@ class HapidSampleTableTest {
         val hapidSet = mutableSetOf<String>()
         // Read all the hvcf files in the testVCFDir
         // For each one, skip any lines that begin with #
-        // FOr the other lines in this tab-delimited file, grab the value of the ALT field (the 5th
+        // For the other lines in this tab-delimited file, grab the value of the ALT field (the 5th
         // column) and add it to the set.
         File(TestExtension.testVCFDir).listFiles { file -> file.name.endsWith(".h.vcf") || file.name.endsWith(".h.vcf.gz") }
             .forEach { file ->
