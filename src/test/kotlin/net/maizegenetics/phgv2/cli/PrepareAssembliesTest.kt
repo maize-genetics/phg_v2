@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.testing.test
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
@@ -53,6 +54,47 @@ class PrepareAssembliesTest {
                 "\n" +
                 "Error: missing option --output-dir\n",resultMissingOutDir.output)
 
+    }
+
+    @Test
+    fun testBadKeyfileMultipleTab() {
+        val fastaInputDir = TestExtension.testInputFastaDir
+        val fastaOutputDir = TestExtension.testOutputFastaDir
+
+        // Create a List<String> of fasta files in the fastaInputDir
+        val fileList = File(fastaInputDir).listFiles().filter { it.extension == "fa" || it.extension == "fasta" }.map { it.absolutePath }
+
+        // Create a tab-delimited file of fasta file names and sample names
+        // Put multiple tabs between the columns - this should cause an error
+        val filesToUpdate = File(fastaOutputDir, "fastaCreateFileNames.txt")
+        filesToUpdate.writeText(fileList.joinToString("\n") { "${it}\t\t${File(it).nameWithoutExtension}" })
+
+        val prepareAssemblies = PrepareAssemblies()
+        assertThrows<IllegalArgumentException> {
+            //Check that an error is thrown when there are multiple tabs between the columns
+            prepareAssemblies.test( "--keyfile ${filesToUpdate} --threads 2 --output-dir ${TestExtension.testOutputFastaDir}")
+        }
+
+    }
+
+    @Test
+    fun testBadKeyfileSpaceInsteadOfTab() {
+        val fastaInputDir = TestExtension.testInputFastaDir
+        val fastaOutputDir = TestExtension.testOutputFastaDir
+
+        // Create a List<String> of fasta files in the fastaInputDir
+        val fileList = File(fastaInputDir).listFiles().filter { it.extension == "fa" || it.extension == "fasta" }.map { it.absolutePath }
+
+        // Create a tab-delimited file of fasta file names and sample names
+        // Put spaces between the columns instead of the required tabs
+        val filesToUpdate = File(fastaOutputDir, "fastaCreateFileNames.txt")
+        filesToUpdate.writeText(fileList.joinToString("\n") { "${it}  ${File(it).nameWithoutExtension}" })
+
+        val prepareAssemblies = PrepareAssemblies()
+        assertThrows<IllegalArgumentException> {
+            //Check that an error is thrown when  there are spaces rather than tabs between the columns
+            prepareAssemblies.test( "--keyfile ${filesToUpdate} --threads 2 --output-dir ${TestExtension.testOutputFastaDir}")
+        }
     }
 
     @Test
