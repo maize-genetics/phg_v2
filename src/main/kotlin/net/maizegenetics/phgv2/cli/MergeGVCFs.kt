@@ -1,6 +1,5 @@
 package net.maizegenetics.phgv2.cli
 
-
 import biokotlin.util.MergeGVCFUtils.mergeGVCFs
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.option
@@ -15,6 +14,8 @@ class MergeGVCFs : CliktCommand(help = "Merge GVCF files into Single VCF file") 
     val inputDir by option(help = "Full path to input GVCF file directory")
         .required()
 
+    val bedFile by option(help = "Path to the bed file used to subset the output VCF files. ")
+
     val outputFile by option(help = "Full path to output VCF file")
         .required()
 
@@ -26,7 +27,7 @@ class MergeGVCFs : CliktCommand(help = "Merge GVCF files into Single VCF file") 
         // Checks to ensure that the output file does not exist
         require(!File(outputFile).isFile) { "Output file already exists: $outputFile" }
 
-        mergeGVCFs(inputDir, outputFile)
+        mergeGVCFs(inputDir, outputFile, bedFile)
 
     }
 
