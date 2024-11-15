@@ -95,6 +95,7 @@ nav:
   - Home: 
       - index.md
   - Getting Started:
+      - Launch: launch_test.md
       - Installation: installation.md
       - Building and loading: build_and_load.md
       - Imputation: imputation.md
