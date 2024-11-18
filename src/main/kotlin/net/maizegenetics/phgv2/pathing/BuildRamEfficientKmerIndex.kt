@@ -326,9 +326,11 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
         numberOfHapSets: Int,
         refRangeToHapIndexMap: Map<ReferenceRange, Map<String, Int>>,
         refrange: ReferenceRange,
-        hapidKmerHashMap: Map<Set<String>, List<Long>>
+        hapidKmerHashMap: Map<Set<String>, List<Long>> // each key is a set of hapids that share a specific kmer list, the value is that kmer list
     ): Pair<BitSet, MutableList<Pair<Long, Int>>> {
 
+        // THe hapidKKmerHashMap: each key is a set of hapids that share a specific kmer list.
+        // THe "value" of the map is that kmer hash list
         TODO("this should be called from extractKmersAndExportIndexForRefRange - need to understand the BUildKmerIndex implementation, format of the encoding")
     }
 
