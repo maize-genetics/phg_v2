@@ -21,7 +21,6 @@ import java.nio.file.Paths
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import java.util.*
-import kotlin.collections.LinkedHashSet
 
 
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.VariantLoadingUtils")
@@ -354,33 +353,6 @@ fun getChecksumForString(seq: String, protocol: String="Md5"): String {
     } catch (exc: NoSuchAlgorithmException) {
         myLogger.warn("getChecksumForString: problem getting checksum: " + exc.message)
         throw IllegalStateException("CheckSum: getChecksumForString: error: " + exc.message)
-    }
-}
-
-/**
- * this function will take an ordered list of haplotype ids and create a hash from
- * this list.
- * The intent of this function is to create a hash for a graph.  The hapids should be
- * the md5 hash of the haplotype sequence.  The list of haplies should be ordered by
- * reference range, then by sample within the reference range.  The samples need to be
- * ordered in a consistent manner, e.g.  alphabetically/lexicographically.
- */
-fun getChecksumForGraph(hapids:List<String>, protocol: String="Md5"): String {
-    try {
-        val md = MessageDigest.getInstance(protocol)
-        for (hapid in hapids) {
-            md.update(hapid.toByteArray())
-        }
-        val byteData = md.digest()
-        // convert the byte to hex format
-        val sb = StringBuffer()
-        for (idx in byteData.indices) {
-            sb.append(Integer.toString((byteData[idx].toInt() and 0xff) + 0x100, 16).substring(1))
-        }
-        return sb.toString()
-    } catch (exc: NoSuchAlgorithmException) {
-        myLogger.warn("getChecksumForGraph: problem getting checksum: " + exc.message)
-        throw IllegalStateException("CheckSum: getChecksumForGraph: error: " + exc.message)
     }
 }
 
