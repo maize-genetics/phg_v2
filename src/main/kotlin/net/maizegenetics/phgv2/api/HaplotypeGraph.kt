@@ -514,9 +514,22 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         return result
     }
 
+    /**
+     * Returns the checksum for this graph.
+     * The checksum is based on the sample names, ranges, and haplotypes.
+     * This is used to determine if two graphs are the same.
+     */
     fun checksum(): String {
 
         val digester = MessageDigest.getInstance("MD5")
+
+        sampleNames.forEach { sampleName ->
+            digester.update(sampleName.toByteArray())
+        }
+
+        ranges().forEach { range ->
+            digester.update(range.toString().toByteArray())
+        }
 
         rangeByGameteIdToHapid.forEach { range ->
             range.forEach { sample ->
