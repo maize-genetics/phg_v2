@@ -15,3 +15,23 @@ fun setBitForSample(gamete: ULong, samples: List<String>, sample: String): ULong
     // Set the bit at the position corresponding to the index
     return gamete or (1uL shl index)
 }
+
+//  This function returns the indices of the set bits in a ULong number
+//  The iteration stops once the number becomes zero, it avoids unnecessary checks when bits are not set.
+// It is used to get the samples that have hits in the keepMap of the processGraphKmers2 function
+
+fun getSetBitIndices(number: ULong): List<Int> {
+    val indices = mutableListOf<Int>()
+    var value = number
+    var index = 0
+
+    while (value > 0uL) {
+        if ((value and 1uL) != 0uL) {
+            indices.add(index)
+        }
+        value = value shr 1
+        index++
+    }
+
+    return indices
+}
