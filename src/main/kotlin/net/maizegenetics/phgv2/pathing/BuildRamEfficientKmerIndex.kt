@@ -17,9 +17,13 @@ import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.buildHaplotypeGraph
 import net.maizegenetics.phgv2.utils.AltHeaderMetaData
+import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.apache.logging.log4j.LogManager
+import java.io.BufferedWriter
 import java.io.File
+import java.util.*
 import kotlin.math.min
 import kotlin.time.DurationUnit
 import kotlin.time.measureTimedValue
@@ -76,14 +80,21 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
         //build the haplotypeGraph
         myLogger.info("Start of BuildRamEfficientKmerIndex...")
         val graph = buildHaplotypeGraph(hvcfDir)
+        // This returns a SortedSet of <SampleGamete> objects
+        val sampleGametes = graph.sampleGametesInGraph()
 
-        val (hashToHapidMap, discardSet) = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue, initialKeepSize)
+        // Take the Sorted set, store to map for more efficient lookup,
+        // value is the sample's index to the list (preserve sorted order)
+        val samplesMap: Map<String, Int> = sampleGametes
+            .mapIndexed { index, sampleGamete -> sampleGamete.toString() to index }
+            .toMap()
+
+        val (hashToHapidMap, discardSet) = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue, samplesMap)
 
         val kmerIndexFilename = if (indexFile == "") "${hvcfDir}/kmerIndex.txt" else indexFile
 
-
         //save the kmerIndex
-        saveKmerHashesAndHapids(graph, kmerIndexFilename, hashToHapidMap)
+        saveKmerHashesAndHapids(graph, kmerIndexFilename, hashToHapidMap,samplesMap)
 
         if(discardFile.isNotEmpty()) {
             bufferedWriter(discardFile).use { writer ->
@@ -109,24 +120,18 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
     // grow as needed.  The bitmaps that contain the gamete information will take up
     // less room and need less storage.
     fun processGraphKmers(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75,
-                          hashMask: Long = 3, hashFilterValue:Long = 1, initialKeepSize: Int = 500_000_000) : Pair<Map<Long,IndexedKmerData>, LongOpenHashSet> {
+                          hashMask: Long = 3, hashFilterValue:Long = 1, samplesMap:Map<String,Int>) : Pair<Map<Long,IndexedKmerData>, LongOpenHashSet> {
 
-        // keepMap is a map of hapidHash -> IndexedKmerData
+        // keepMap is a map of kmerHash -> IndexedKmerData
         val keepMap = mutableMapOf<Long,IndexedKmerData>()
         //discardSet is a Set of hashes
         val discardSet = LongOpenHashSet(initialKeepSize)
         val startTime = System.nanoTime()
-
-        // This returns a SortedSEt of <SampleGamete> - should it be turned into an ordered
-        // list of just sample names?  This list is needed to index into the bit arrays
-        val sampleGametes = graph.sampleGametesInGraph()
-        val samples = sampleGametes.map { it.name }.sorted()
-
         val contigRangesMap = graph.rangesByContig()
 
         //We set this to be numSampleGametes * .5 so we only keep track of informative kmers
         //We originally tried 2 * numSampleGametes but that was too high as we had too much repetitive mappings
-        val maxHapsToKeep = sampleGametes.size * .5
+        val maxHapsToKeep = samplesMap.keys.size * .5
 
         for (chr in contigRangesMap.keys) {
             //get all sequence for this chromosome
@@ -146,12 +151,11 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
                 //map haplotype ids to the sequence for that hapid
                 val hapidToSequenceMap = extractSequenceForCurrentHapIds(hapidToSampleMap, graph, agcChromSequence, agcOtherRegionSequence)
 
-                //  TODO - implement this function - it will have most of our changes based on keepMap changes
-                // We  will need to add the hapidToSampleMap as a parameter - this will be needed to get the sample
-                // for the hapid to index into the bit array
-                //Count Kmer Hashes for the Haplotype Sequences
+                // Include the hapidToSampleMap as a parameter - this will be needed to get the sample for the hapid
+                // so we can index into the bit arrays
+                // Count Kmer Hashes for the Haplotype Sequences
                 countKmerHashesForHaplotypeSequenceSimplified(hapidToSequenceMap, hashMask, hashFilterValue, keepMap,
-                    discardSet, maxHapsToKeep,hapidToSampleMap,samples,refrange)
+                    discardSet, maxHapsToKeep,hapidToSampleMap,samplesMap,refrange)
             }
         }
         myLogger.debug("Finished building kmer keep set, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
@@ -173,14 +177,14 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
      * One for the hash counts and one for a hash to a list of hapIds which contain that hash.
      * The sequenceList input is a map of hapidId -> list of sequences
      * Note this will likely need to be heavily updated to keep track of relative position in the hapId due to the splitting on N's code
-     * "samples" is an ordered list of samples from the graph
+     * "samplesMap" is an ordered map of samples from the graph (Sorted list, stored as map with indexed values)
      * "hapidToSampleMap" maps the hapid to a list of samples which contain that hapid.
      */
     private fun countKmerHashesForHaplotypeSequenceSimplified(sequenceMap: Map<String, List<String>>, hashMask: Long, hashFilterValue: Long,
                                                               keepMap:MutableMap<Long,IndexedKmerData>, discardSet: LongOpenHashSet, maxHapsToKeep: Double,
-                                                              hapidToSampleMap: Map<String, List<SampleGamete>>, samplesList:List<String>, refRange: ReferenceRange) {
+                                                              hapidToSampleMap: Map<String, List<SampleGamete>>, samplesMap:Map<String,Int>, refRange: ReferenceRange) {
         for ((hapid, seqList) in sequenceMap) {
-            val sample = hapidToSampleMap[hapid]!!.first().name
+            val sample = hapidToSampleMap[hapid]!!.first().toString()
             for (sequenceWithNs in seqList) {
                 //split sequence on N's then filter on length > 31 because we are looking for 32-mers
                 val splitList = sequenceWithNs
@@ -224,58 +228,146 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
                             keyInMap -> {
                                 var kmerDetails = keepMap[minHash]!!
 
-                                val index = samplesList.indexOf(sample)
+                                val index = samplesMap[sample] ?: -1
                                 if (index == -1) {
-                                    throw IllegalArgumentException("Sample ${sample} not found in the list.")
+                                    throw IllegalArgumentException("Sample ${sample} not found in the graph.")
                                 }
-                                when (index) {
-                                    in 0..63 -> {
-                                        kmerDetails.gameteLong0 = kmerDetails.gameteLong0 or (1uL shl index)
-                                        keepMap[minHash] = kmerDetails
-                                    } // Update gamete0
-                                    in 64..127 -> {
-                                        kmerDetails.gameteLong1 = kmerDetails.gameteLong1 or (1uL shl (index - 64))
-                                        keepMap[minHash] = kmerDetails
-                                    } // Update gamete1
-                                    else -> {
-                                        // no changes?  Are we ignoring when have more than 128 samples?
+                                if (index in 0..127) { // this ignores samples beyond 128
+                                    val shiftIndex = index % 64
+                                    if (index < 64) {
+                                        kmerDetails.gameteLong0 = kmerDetails.gameteLong0 or (1uL shl shiftIndex)
+                                    } else {
+                                        kmerDetails.gameteLong1 = kmerDetails.gameteLong1 or (1uL shl shiftIndex)
                                     }
+                                    keepMap[minHash] = kmerDetails
                                 }
 
                             } // New Entry: add the hapID to the current set for this hash
                             else  -> { // create new entry for map
                                 var gameteLong0 = 0uL
                                 var gameteLong1 = 0uL
-                                val index = samplesList.indexOf(sample)
+                                val index = samplesMap[sample] ?: -1
                                 if (index == -1) {
                                     throw IllegalArgumentException("Sample ${sample} not found in the list.")
                                 }
-                                when (index) {
-                                    in 0..63 -> {
-                                        gameteLong0 = gameteLong0 or (1uL shl index)
-                                    } // Update gamete0
-                                    in 64..127 -> {
-                                        gameteLong1 = gameteLong1 or (1uL shl (index - 64))
-                                    } // Update gamete1
-                                    else -> {
-                                        // no changes?  Are we ignoring when have more than 128 samples?
+                                if (index in 0..127) { // this ignores samples beyond 128
+                                    val shiftIndex = index % 64
+                                    if (index < 64) {
+                                        gameteLong0 = gameteLong0 or (1uL shl shiftIndex)
+                                    } else {
+                                        gameteLong1 = gameteLong1 or (1uL shl shiftIndex)
                                     }
                                 }
                                 keepMap[minHash] = IndexedKmerData(refRange.contig, refRange.start.toUInt(),gameteLong0,gameteLong1)
                             } //Newly seen hash so we need to add a new object
-                        }
-                    }
-                }
-            }
-        }
+                        } // end when
+                    } // end for nucleotide
+                } // end for sequence in splitList
+            } // for sequenceWithNs in seaList
+        } // end for hapid, seqList in sequenceMap
     }
+
+    /**
+     * Function to save the kmer hash map to the specified file.
+     * Initial implementation from BUildKmerIndex.kt
+     * Need to flush out code for extractKmersAndExportIndexForRefRange()
+     * The samplesMap is needed to decode the bitmaps gameteLong0 and gameteLong1
+     *
+     */
     private fun saveKmerHashesAndHapids(
         graph: HaplotypeGraph,
         kmerIndexFilename: String,
-        hashToHapidMap: Map<Long, IndexedKmerData>
+        kmerMapToHapIds: Map<Long, IndexedKmerData>,
+        samplesMap: Map<String, Int>
     ) {
-        TODO("Not yet implemented")
+        //refRangeToHapidMap is a map of refRange -> (map of hapid -> index of hapid)
+        val refRangeToHapIndexMap = graph.refRangeToHapIdMap()
+
+        val hapIdToRefRangeMap = graph.hapIdToRefRangeMap()
+
+        //Walk through the map and associate kmerLongs (the kmer hashes) with specific referenceRanges
+        //refRangeToKmerSetMap is a map of refRange -> Set of kmer hashes
+        val refRangeToKmerSetMap = getRefRangeToKmerSetMap(kmerMapToHapIds, hapIdToRefRangeMap,graph)
+
+        val startTime = System.nanoTime()
+
+        getBufferedWriter(kmerIndexFilename).use { myWriter ->
+
+            for((rangeCount, refrange) in refRangeToKmerSetMap.keys.withIndex()) {
+
+                if(rangeCount % 1000 == 0) {
+                    myLogger.info("Time Spent Processing output: ${(System.nanoTime() - startTime)/1e9} seconds.  Processed $rangeCount Ranges.")
+                }
+                //extract out the kmers for the refRange and export to file
+                extractKmersAndExportIndexForRefRange(refRangeToKmerSetMap, refrange, kmerMapToHapIds, refRangeToHapIndexMap, samplesMap,myWriter)
+            }
+        }
+
+        myLogger.info("Saved kmer mapping to $kmerIndexFilename, elapsed time ${(System.nanoTime() - startTime)/1e9} sec")
     }
+
+    // THis may be called from saveKmerHashesAndHapids(), if we follow implementation of BUildKmerIndex.kt
+    // Are these the correct parameters, or does our IndexedKmerData make it different.
+    // WIll need the samplesMap to decode the bitmaps gameteLong0 and gameteLong1
+    fun extractKmersAndExportIndexForRefRange(
+        refRangeToKmerSetMap: Map<ReferenceRange, Set<Long>>,
+        refrange: ReferenceRange,
+        kmerMapToHapIds: Map<Long,IndexedKmerData>,
+        refRangeToHapIndexMap: Map<ReferenceRange, Map<String, Int>>,
+        samplesMap: Map<String, Int>,
+        myWriter: BufferedWriter
+    ) {
+        TODO("implement this - understand this function in BUildKmerIndex - kmerMapToHapIds is defined differently")
+    }
+
+
+    fun buildEncodedHapSetsAndHashOffsets(
+        numberOfHaplotypesInRange: Int,
+        numberOfHapSets: Int,
+        refRangeToHapIndexMap: Map<ReferenceRange, Map<String, Int>>,
+        refrange: ReferenceRange,
+        hapidKmerHashMap: Map<Set<String>, List<Long>>
+    ): Pair<BitSet, MutableList<Pair<Long, Int>>> {
+
+        TODO("this should be called from extractKmersAndExportIndexForRefRange - need to understand the BUildKmerIndex implementation, format of the encoding")
+    }
+
+    /**
+     * Function to create a map of refRange -> Set of kmer hashes based on the kmerMapToHapIds and hapIdToRefRangeMap
+     */
+    fun getRefRangeToKmerSetMap(
+        kmerMapToHapIds: Map<Long,IndexedKmerData>, // this is the keepMap
+        hapIdToRefRangeMap: Map<String, List<ReferenceRange>>,
+        graph: HaplotypeGraph
+    ): Map<ReferenceRange, Set<Long>> {
+
+        // The map below is needed to associate the kmer hash with the reference range
+        // based on the IndexedKmerData object, which holds the chr and pos of the refRange to
+        // which this kmer mapped.
+        val positionToReferenceRange: Map<Position, ReferenceRange> = graph.ranges().associate {
+            Position(it.contig, it.start) to it
+        }
+        val refRangeToKmerSetMap = mutableMapOf<ReferenceRange, MutableSet<Long>>()
+        for (kmerMap in kmerMapToHapIds.entries) {
+            val kmer = kmerMap.key
+            // The IndexedKmerData includes the chr and start pos of the reference range
+            val kmerDataPosition = Position(kmerMap.value.chr, kmerMap.value.pos.toInt())
+
+            // For this version, all the haplotype ids map to the same refrange
+            // In the old, rarely some kmers would map to additional ref ranges but not all
+            // In this version, the data ends up being set to the first refRange to which the kmer maps
+            // After the kmer is on the kmerMapToHapIds object, the only change is to the bit sets
+            // represented by gameteLong0 and gameteLong1.
+            val refRange = positionToReferenceRange[kmerDataPosition]!!
+            if (refRangeToKmerSetMap.containsKey(refRange)) {
+                refRangeToKmerSetMap[refRange]!!.add(kmer)
+            } else {
+                refRangeToKmerSetMap[refRange] = mutableSetOf(kmer)
+            }
+        }
+        return refRangeToKmerSetMap
+    }
+
 
     private fun writeDiagnostics(refrangeToAdjacentHashCount: MutableMap<ReferenceRange, Int>) {
         TODO("Not yet implemented")
