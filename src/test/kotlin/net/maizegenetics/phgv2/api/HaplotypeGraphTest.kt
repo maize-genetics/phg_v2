@@ -21,6 +21,13 @@ class HaplotypeGraphTest {
 
         assertTrue(ranges.isSorted(), "ranges not sorted")
 
+        assertTrue(graph.numberOfSamples() == 1, "numOfSamples not 1: ${graph.numberOfSamples()}")
+
+        assertTrue(
+            graph.checksum == "1566df5fad42a5752c5720e1aef039ab",
+            "checksum not 1566df5fad42a5752c5720e1aef039ab: ${graph.checksum}"
+        )
+
     }
 
     @Test
@@ -32,6 +39,11 @@ class HaplotypeGraphTest {
                 TestExtension.smallseqLineBHvcfFile,
                 TestExtension.smallseqRefHvcfFile
             )
+        )
+
+        assertTrue(
+            graph.checksum == "1e3d5c6ed7d43c1725542d826a515b16",
+            "checksum not 1e3d5c6ed7d43c1725542d826a515b16: ${graph.checksum}"
         )
 
         assertEquals(40, graph.numberOfRanges(), "numOfRanges not 40: ${graph.numberOfRanges()}")
