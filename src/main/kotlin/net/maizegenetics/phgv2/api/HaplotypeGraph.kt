@@ -545,8 +545,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         // convert the byte to hex format
         val builder = StringBuilder()
-        for (i in bytes.indices) {
-            builder.append(String.format("%02x", bytes[i].toInt() and 0xff))
+        for (idx in bytes.indices) {
+            builder.append(String.format("%02x", bytes[idx].toInt() and 0xff))
         }
         return builder.toString()
 
