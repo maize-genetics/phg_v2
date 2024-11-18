@@ -8,6 +8,7 @@ import net.maizegenetics.phgv2.utils.AltHeaderMetaData
 import net.maizegenetics.phgv2.utils.parseALTHeader
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.security.MessageDigest
 import java.util.*
 
 /**
@@ -511,6 +512,29 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         }
 
         return result
+    }
+
+    fun checksum(): String {
+
+        val digester = MessageDigest.getInstance("MD5")
+
+        rangeByGameteIdToHapid.forEach { range ->
+            range.forEach { sample ->
+                sample.forEach { hapid ->
+                    digester.update(hapid.toByteArray())
+                }
+            }
+        }
+
+        val bytes = digester.digest()
+
+        // convert the byte to hex format
+        val builder = StringBuilder()
+        for (i in bytes.indices) {
+            builder.append(String.format("%02x", bytes[i].toInt() and 0xff))
+        }
+        return builder.toString()
+
     }
 
 }
