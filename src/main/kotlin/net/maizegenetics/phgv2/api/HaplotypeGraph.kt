@@ -34,6 +34,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     // A list of contigs in this graph
     val contigs: List<String>
 
+    val checksum: String by lazy { checksum() }
+
     // Map<ID (checksum), AltHeaderMetaData>
     private lateinit var altHeaderMap: Map<String, AltHeaderMetaData>
 
@@ -519,7 +521,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      * The checksum is based on the sample names, ranges, and haplotypes.
      * This is used to determine if two graphs are the same.
      */
-    fun checksum(): String {
+    private fun checksum(): String {
 
         val digester = MessageDigest.getInstance("MD5")
 
