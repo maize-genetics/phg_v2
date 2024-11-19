@@ -552,4 +552,14 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
     }
 
+    /**
+     * Returns the checksum for the reference sequence at the specified ReferenceRange.
+     */
+    fun refChecksum(refRange: ReferenceRange): String {
+        val rangeId = refRangeMap[refRange]
+        require(rangeId != null) { "refChecksum: range: $refRange not found" }
+        val hapid = rangeByGameteIdToHapid[rangeId][0][0]
+        return altHeaderMap[hapid]?.refChecksum ?: ""
+    }
+
 }
