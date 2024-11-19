@@ -299,7 +299,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
                     myLogger.info("Time Spent Processing output: ${(System.nanoTime() - startTime)/1e9} seconds.  Processed $rangeCount Ranges.")
                 }
                 //extract out the kmers for the refRange and export to file
-                extractKmersAndExportIndexForRefRange(refRangeToKmerSetMap, refrange, kmerMapToHapIds, refRangeToHapIndexMap, samplesMap,myWriter)
+                extractKmersAndExportIndexForRefRange(graph,refRangeToKmerSetMap, refrange, kmerMapToHapIds, refRangeToHapIndexMap, samplesMap,myWriter)
             }
         }
 
@@ -310,6 +310,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
     // Are these the correct parameters, or does our IndexedKmerData make it different.
     // WIll need the samplesMap to decode the bitmaps gameteLong0 and gameteLong1
     fun extractKmersAndExportIndexForRefRange(
+        graph: HaplotypeGraph,
         refRangeToKmerSetMap: Map<ReferenceRange, Set<Long>>,
         refrange: ReferenceRange,
         kmerMapToHapIds: Map<Long,IndexedKmerData>,
@@ -317,21 +318,124 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
         samplesMap: Map<String, Int>,
         myWriter: BufferedWriter
     ) {
-        TODO("implement this - understand this function in BUildKmerIndex - kmerMapToHapIds is defined differently")
+
+        //Check to make sure the refRange maps have the correct keys.
+        if(!refRangeToKmerSetMap.containsKey(refrange)) {
+            myLogger.warn("No kmers associated with this refRange: $refrange")
+            return
+        }
+        check(refRangeToHapIndexMap.containsKey(refrange)) { "Error no haplotypes associated with this refRange: $refrange" }
+
+        // THis is the set of kmer hashes for the reference range
+        val kmers = refRangeToKmerSetMap[refrange]!!
+
+        // THIs is a new function, different from original implementation as our kmerMapToHapIds is different
+        // mapForRange is a map of kmer hash -> Set of hapid ids
+        val mapForRange = createKmerHashToSetHapidsMap(graph, kmerMapToHapIds, samplesMap, refrange, kmers)
+
+        //generate map of hapidSet -> kmer hash list
+        val hapidKmerHashMap = createHapIdToKmerMap(mapForRange)
+
+        val numberOfHaplotypesInRange = refRangeToHapIndexMap[refrange]!!.size
+
+        val numberOfHapSets = hapidKmerHashMap.size
+        if (numberOfHapSets == 0) return  //skip to next refrange because there are no kmers here
+        val (encodedHapSets, kmerHashOffsets) = buildEncodedHapSetsAndHashOffsets(
+            numberOfHaplotypesInRange,
+            numberOfHapSets,
+            refRangeToHapIndexMap,
+            refrange,
+            hapidKmerHashMap
+        )
+
+        exportRefRangeKmerIndex(myWriter, refrange, encodedHapSets, kmerHashOffsets)
     }
 
+    fun createKmerHashToSetHapidsMap(
+        graph: HaplotypeGraph,
+        kmerMapToHapIds: Map<Long,IndexedKmerData>,
+        samplesMap: Map<String, Int>,
+        refRange:ReferenceRange,
+        kmers:Set<Long>
 
+    ): Map<Long, Set<String>> {
+        val kmerHashToHapidsMap = mutableMapOf<Long, Set<String>>()
+        // Process just the kmers from the kmers list
+        for (kmerHash in kmers) {
+            val kmerData = kmerMapToHapIds[kmerHash]!!
+            val sampleGametes = findSampleGametes(kmerData.gameteLong0, kmerData.gameteLong1, samplesMap)
+            // get the hapids from the graph.rangeByGameteIdToHapid
+            // ***TERRY*** - Can you implement this function?  We talked about it in Slack
+            // Given a refRange and a set of sampleGametes, return the haplotype ids that are in the refRange
+            // that correspond to the sampleGametes
+            //val hapidSet = graph.rangeByGameteIdToHapid(sampleGametes, refRange)
+            //kmerHashToHapidsMap[kmerHash] = hapidSet
+        }
+
+        return kmerHashToHapidsMap
+    }
+
+    /** Function to reverse the multimap from kmerHash -> Set of hapid ids to hapidSet -> List of kmer hashes
+     *  This is needed to be able to encode the haplotype sets into a bitset
+     */
+    fun createHapIdToKmerMap(kmerMapForRange: Map<Long, Set<String>>): Map<Set<String>, List<Long>> {
+        val hapidKmerHashMap = mutableMapOf<Set<String>, MutableList<Long>>()
+        for (entry in kmerMapForRange.entries) {
+            val kmerHashList = hapidKmerHashMap[entry.value]
+            if (kmerHashList == null) hapidKmerHashMap.put(entry.value.toMutableSet(), mutableListOf(entry.key))
+            else kmerHashList.add(entry.key)
+        }
+        return hapidKmerHashMap
+    }
+
+    // From Peter's code in BuildKmerIndex.kt
+    fun exportRefRangeKmerIndex(
+        myWriter: BufferedWriter,
+        refrange: ReferenceRange,
+        encodedHapSets: BitSet,
+        kmerHashOffsets: List<Pair<Long, Int>>
+    ) {
+        //write the results of the range to a file
+        //line 1: >rangeid
+        myWriter.write(">$refrange\n")
+        //line 2: long1,long2,...,longn (range has hapid sets encoded into a bitSet, which can be stored as longs)
+        myWriter.write("${encodedHapSets.toLongArray().joinToString(",")}\n")
+        //line 3: hash1,offset1,hash2,offset2,...,hashn,offsetn
+        myWriter.write("${kmerHashOffsets.map { "${it.first}@${it.second}" }.joinToString(",")}\n")
+    }
+
+    // Copied from BuildKmerIndex.kt
     fun buildEncodedHapSetsAndHashOffsets(
         numberOfHaplotypesInRange: Int,
         numberOfHapSets: Int,
         refRangeToHapIndexMap: Map<ReferenceRange, Map<String, Int>>,
         refrange: ReferenceRange,
-        hapidKmerHashMap: Map<Set<String>, List<Long>> // each key is a set of hapids that share a specific kmer list, the value is that kmer list
+        hapidKmerHashMap: Map<Set<String>, List<Long>>
     ): Pair<BitSet, MutableList<Pair<Long, Int>>> {
+        val numberOfBitsNeeded = numberOfHaplotypesInRange * numberOfHapSets
+        //encodedHapSets is a BitSet containing all of the Hapsets seen in this reference range
+        //each hapset is encoded with a series of bits equal to the number of haplotypes in the range
+        //with the bits in this hapset set
+        //the offset for each kmer is the offset for its associated hapset
+        val encodedHapSets = BitSet(numberOfBitsNeeded)
+        //make pairs of kmerHash, offset
+        val kmerHashOffsets = mutableListOf<Pair<Long, Int>>()
 
-        // THe hapidKKmerHashMap: each key is a set of hapids that share a specific kmer list.
-        // THe "value" of the map is that kmer hash list
-        TODO("this should be called from extractKmersAndExportIndexForRefRange - need to understand the BUildKmerIndex implementation, format of the encoding")
+        var offset = 0
+        val hapidIndex = refRangeToHapIndexMap[refrange]
+        check(hapidIndex != null) { "hapidIndex null for $refrange" }
+
+        hapidKmerHashMap.entries.forEachIndexed { index, entry ->
+            //this line encodes a haplotype set (hapset)
+            for (hapid in entry.key) {
+                if(hapidIndex.containsKey(hapid)) encodedHapSets.set(offset + hapidIndex[hapid]!!)
+            }
+
+            //this line stores a pair of kmerHash, offset for each kmer mapping to this haplotype set
+            for (kmerHash in entry.value) kmerHashOffsets.add(Pair(kmerHash, offset))
+            offset += numberOfHaplotypesInRange
+        }
+        return Pair(encodedHapSets, kmerHashOffsets)
     }
 
     /**
