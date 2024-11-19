@@ -6,8 +6,39 @@ commands" for miscellaneous "quality of life (QoL)" improvements. In
 this document, we will discuss the currently available external
 commands for performing highly used tasks.
 
+<div class="grid cards" markdown>
+-   :material-arrow-left-right:{ .lg .middle } __Conversion__
 
-## Convert gVCF files to hVCF files
+    ---
+
+    Commands for converting one file type to another
+
+    [:octicons-arrow-right-24: Go to section](#conversion)
+
+-   :material-table-merge-cells:{ .lg .middle } __Merging__
+
+    ---
+
+    Commands for merging various PHG file types
+
+    [:octicons-arrow-right-24: Go to section](#merging)
+
+
+
+-   :material-table:{ .lg .middle } __Statistics__
+
+    ---
+
+    Commands for generating summary information in tabular format
+
+    [:octicons-arrow-right-24: Go to section](#statistics)
+
+</div>
+
+
+## Conversion
+
+### Convert gVCF files to hVCF files
 
 > Create hVCF files from existing gVCF files created by the PHG
 
@@ -34,7 +65,7 @@ phg gvcf2hvcf \
 | `--db-path`          | Folder name where TileDB datasets and AGC record is stored. If not provided, the current working directory is used. | _Current working dir_              |                  |
 
 
-## Convert hVCF files to gVCF files
+### Convert hVCF files to gVCF files
 
 > Create gVCF files from existing hVCF files created by the PHG
 
@@ -62,7 +93,13 @@ phg hvcf2gvcf \
 | `--batch-size`       | Number of sample vcf files to export in a single batch from tiledb                                                  | `5`                                |                  |
 
 
-## Merge gVCF files
+
+
+
+
+## Merging
+
+### Merge gVCF files
 
 > Merge multiple gVCF files into a single gVCF file
 
@@ -84,7 +121,7 @@ phg merge-gvcfs \
 | `--output-dir` | Path and/or filename for merged gVCF file. | `""`          | :material-check: |
 
 
-## Merge hVCF files
+### Merge hVCF files
 
 > Merge multiple hVCF files into a single hVCF file
 
@@ -126,10 +163,14 @@ phg merge-hvcfs \
     ##ALT=<ID=R000001_LineA_G01, ...>
     ```
 
-## List Sample names from datasets
 
-> List the sample names from the AGC compressed file, the tileDB gVCF dataset, and/or the tileDB hVCF dataset
-> 
+## Statistics
+
+### List Sample names from datasets
+
+> List the sample names from the AGC compressed file, the TileDB gVCF 
+> dataset, and/or the TileDB hVCF dataset
+
 **Command** - `list-samples`
 
 **Example**
@@ -137,15 +178,92 @@ phg merge-hvcfs \
 ```shell
 phg list-samples \
     --db-path my/phg/db \
-    --output-file output/hvcfSamples.txt \
+    --output-file output/hvcf_samples.txt \
     --data-set hvcf 
 ```
 
 **Parameters**
 
-| Parameter name       | Description                                                                                                         | Default value | Required?        |
-|----------------------|---------------------------------------------------------------------------------------------------------------------|---------------|------------------|
-| `--dp-path`          | Folder name where TileDB datasets and AGC record is stored. If not provided, the current working directory is used. | `""`          | :material-check: |
-| `--output-file`      | Path and/or filename for the samples list file.                                                                     | `""`          | :material-check: |
-| `--data-set`         | Storage from which to pull sample names. Must be one of 'all','agc','gvcf','hvcf'                                    | `hvcf`        |                  |
-| `--conda-env-prefix` | Prefix for the Conda environment to use. If provided, this should be the full path to the Conda environment.          | _Current active Conda environment_         |
+| Parameter name       | Description                                                                                                         | Default value                      | Required?        |
+|----------------------|---------------------------------------------------------------------------------------------------------------------|------------------------------------|------------------|
+| `--db-path`          | Folder name where TileDB datasets and AGC record is stored. If not provided, the current working directory is used. | `""`                               | :material-check: |
+| `--output-file`      | Path and/or filename for the samples list file.                                                                     | `""`                               | :material-check: |
+| `--data-set`         | Storage from which to pull sample names. Must be one of `all`, `agc`, `gvcf`, `hvcf`                                | `hvcf`                             |                  |
+| `--conda-env-prefix` | Prefix for the Conda environment to use. If provided, this should be the full path to the Conda environment.        | _Current active Conda environment_ |
+
+**Example output**
+
+```
+B73
+Ki11
+Mo18W
+Ki3
+```
+
+
+### Create a table of haplotype IDs by reference range
+
+> Creates a tab-delimited table of haplotype IDs by reference range
+> coordinats and sample IDs
+
+**Command** - `sample-hapid-by-range`
+
+**Example**
+
+```shell
+phg sample-hapid-by-range \
+    --input-dir my/hvcf/directory \
+    --output-file output/hapid_table
+```
+
+**Parameters**
+
+| Parameter name | Description                                  | Default value | Required?        |
+|----------------|----------------------------------------------|---------------|------------------|
+| `--input-dir`  | Path to directory holding hVCF files.        | `""`          | :material-check: |
+| `--output-dir` | Path and/or filename for haplotype ID table. | `""`          | :material-check: |
+
+**Example output**
+
+```
+#CHROM START   END   B73                                SEEDGWAS1                          SEEDGWAS10
+chr1   1       5000  <c9ecfe3967a71282f3ad7c41d48e0bbf> <b19364bc9a4c07a80986b1ee181446c2> <5c8e72b2e9f11ecc652d5b8e8d0e5bf3>
+chr1   5001    6000  <f162e742c4d30f151ae6276fbebe762c> <fdfdaa361c39cf5b6f13fad195d0e519> <283a8261c193212fd5cf43d208673322>
+chr1   6001    9000  <471d4abbf0545dede647e65915345648> <d6dd5ecea7fb4e6f77f9e630f601b7a8> <13e0ac1a8d12e1aedd6a5302d1e221fd>
+```
+
+
+
+### Create a table of haplotype IDs to sample
+
+> Creates a tab-delimited table of haplotype IDs to sample gamete. Can
+> be one or multiple samples mapping to each haplotype ID.
+
+**Command** - `hapid-sample-table`
+
+**Example**
+
+```shell
+phg hapid-sample-table \
+    --hvcf-dir my/hvcf/directory \
+    --output-file output/hapid_table
+```
+
+**Parameters**
+
+| Parameter name | Description                                  | Default value | Required?        |
+|----------------|----------------------------------------------|---------------|------------------|
+| `--hvcf-dir`   | Path to directory holding hVCF files.        | `""`          | :material-check: |
+| `--output-dir` | Path and/or filename for haplotype ID table. | `""`          | :material-check: |
+
+
+**Example output**
+
+```
+"a81a7df7340ae0f14a6dccce0d9632db"  Ki3
+"c45452b07db68928da6f4e14d50ba1e3"  Mo18W
+"1b6d29dbb7b380e67b15c5a0f0142cf0"  Ms71,R2D2
+"a935ee46a1a1118df309fc34bdb9e5a5"  B73,Ky21,Ki11
+"b878dec3587e24c4714fec5131d4dbbb"  C3PO
+```
+
