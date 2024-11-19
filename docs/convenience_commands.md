@@ -204,7 +204,7 @@ Ki3
 ### Create a table of haplotype IDs by reference range
 
 > Creates a tab-delimited table of haplotype IDs by reference range
-> coordinats and sample IDs
+> coordinates and sample IDs
 
 **Command** - `sample-hapid-by-range`
 
@@ -256,6 +256,12 @@ phg hapid-sample-table \
 | `--hvcf-dir`   | Path to directory holding hVCF files.        | `""`          | :material-check: |
 | `--output-dir` | Path and/or filename for haplotype ID table. | `""`          | :material-check: |
 
+
+!!! note "Note - `--hvcf-dir`"
+    This is intended for use with hVCF files created from aligning assemblies. While
+    this will work with hVCF files from imputation, **all** the sample names will be
+    the imputed file name and not the sample names associated with the hapids when
+    they were created.
 
 **Example output**
 
