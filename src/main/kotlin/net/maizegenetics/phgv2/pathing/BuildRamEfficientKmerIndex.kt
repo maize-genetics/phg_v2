@@ -16,13 +16,11 @@ import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.buildHaplotypeGraph
-import net.maizegenetics.phgv2.utils.AltHeaderMetaData
-import net.maizegenetics.phgv2.utils.Position
-import net.maizegenetics.phgv2.utils.getBufferedWriter
-import net.maizegenetics.phgv2.utils.retrieveAgcContigs
+import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedWriter
 import java.io.File
+import java.nio.file.Files
 import java.util.*
 import kotlin.math.min
 import kotlin.time.DurationUnit
@@ -115,7 +113,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
     }
 
 
-    // This is derived from the function processGraphKmers in BuildKmerIndex.kt
+    // This is derived from the function processGraphKmers in BuildKmerIndex.kt, but with a few changes
     // This implementation uses a mutableMap, which should be able to
     // grow as needed.  The bitmaps that contain the gamete information will take up
     // less room and need less storage.
@@ -172,6 +170,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
     }
 
     /**
+     * Copied from BuildKmerIndex.kt
      * Function to count the kmerHashes for a single reference range's haplotype nodes.
      * This gets put in 2 sets of maps.
      * One for the hash counts and one for a hash to a list of hapIds which contain that hash.
@@ -268,11 +267,9 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
     }
 
     /**
+     * Initial implementation from BUildKmerIndex.kt, has a few changes
      * Function to save the kmer hash map to the specified file.
-     * Initial implementation from BUildKmerIndex.kt
-     * Need to flush out code for extractKmersAndExportIndexForRefRange()
      * The samplesMap is needed to decode the bitmaps gameteLong0 and gameteLong1
-     *
      */
     private fun saveKmerHashesAndHapids(
         graph: HaplotypeGraph,
@@ -306,9 +303,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
         myLogger.info("Saved kmer mapping to $kmerIndexFilename, elapsed time ${(System.nanoTime() - startTime)/1e9} sec")
     }
 
-    // THis may be called from saveKmerHashesAndHapids(), if we follow implementation of BUildKmerIndex.kt
-    // Are these the correct parameters, or does our IndexedKmerData make it different.
-    // WIll need the samplesMap to decode the bitmaps gameteLong0 and gameteLong1
+    // THis is called from saveKmerHashesAndHapids(), and copied with minor updates from BuildKmerIndex.kt
     fun extractKmersAndExportIndexForRefRange(
         graph: HaplotypeGraph,
         refRangeToKmerSetMap: Map<ReferenceRange, Set<Long>>,
@@ -329,7 +324,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
         // THis is the set of kmer hashes for the reference range
         val kmers = refRangeToKmerSetMap[refrange]!!
 
-        // THIs is a new function, different from original implementation as our kmerMapToHapIds is different
+        // This is a new function, different from original implementation as our kmerMapToHapIds is different
         // mapForRange is a map of kmer hash -> Set of hapid ids
         val mapForRange = createKmerHashToSetHapidsMap(graph, kmerMapToHapIds, samplesMap, refrange, kmers)
 
@@ -351,6 +346,8 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
         exportRefRangeKmerIndex(myWriter, refrange, encodedHapSets, kmerHashOffsets)
     }
 
+    // New function for Ram Efficient Kmer Index
+    // It creates a map of kmerHash -> Set of haplotype ids
     fun createKmerHashToSetHapidsMap(
         graph: HaplotypeGraph,
         kmerMapToHapIds: Map<Long,IndexedKmerData>,
@@ -375,7 +372,9 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
         return kmerHashToHapidsMap
     }
 
-    /** Function to reverse the multimap from kmerHash -> Set of hapid ids to hapidSet -> List of kmer hashes
+    /**
+     * This copied from BuildKmerUtils.kt
+     * Function to reverse the multimap from kmerHash -> Set of hapid ids to hapidSet -> List of kmer hashes
      *  This is needed to be able to encode the haplotype sets into a bitset
      */
     fun createHapIdToKmerMap(kmerMapForRange: Map<Long, Set<String>>): Map<Set<String>, List<Long>> {
@@ -439,6 +438,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
     }
 
     /**
+     * Modified from BuildKmerIndex.kt
      * Function to create a map of refRange -> Set of kmer hashes based on the kmerMapToHapIds and hapIdToRefRangeMap
      */
     fun getRefRangeToKmerSetMap(
@@ -475,12 +475,41 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
     }
 
 
-    private fun writeDiagnostics(refrangeToAdjacentHashCount: MutableMap<ReferenceRange, Int>) {
-        TODO("Not yet implemented")
+    // Copied from BuildKmerIndex.kt
+    private fun writeDiagnostics(adjacentHashCounts: Map<ReferenceRange, Int>) {
+        val diagnosticFileName = "kmerIndexStatistics.txt"
+        val diagnosticFilePath = if (indexFile.isBlank() || File(indexFile).parentFile == null) {
+            File(hvcfDir).resolve(diagnosticFileName).absolutePath
+        } else {
+            File(indexFile).parentFile.resolve(diagnosticFileName).absolutePath
+        }
+
+        val tmpStats = Files.createTempFile("stats", ".txt").toString()
+
+        //start by running KmerIndexStatistics
+        val argList = listOf("--hvcf-dir", hvcfDir, "--index-file", indexFile, "--output-file", tmpStats)
+        KmerIndexStatistics().main(argList)
+
+        //Add the counts from adjacentHashCounts
+        getBufferedReader(tmpStats).use { myReader ->
+            getBufferedWriter(diagnosticFilePath).use { myWriter ->
+                val header = myReader.readLine()
+                myWriter.write("$header\tadjacentCount\n")
+                var inputLine = myReader.readLine()
+                while (inputLine  != null) {
+                    val data = inputLine.split("\t")
+                    val refrange = ReferenceRange.parse("${data[0]}:${data[1]}-${data[2]}")
+                    val adjacentCount = adjacentHashCounts.getOrElse(refrange){0}
+                    myWriter.write("$inputLine\t${adjacentCount}\n")
+                    inputLine = myReader.readLine()
+                }
+            }
+        }
 
     }
 
     /**
+     * Copied from BuildKmerIndex.kt
      * Function to extract out the sequence for a current list of haplotype ids
      */
     private fun extractSequenceForCurrentHapIds(
@@ -499,6 +528,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
     }
 
 
+    // Copied from BuildKmerIndex.kt
     private fun getAgcSequenceForRanges(ranges: List<String>): Map<Pair<String,String>, NucSeq> {
         val argLength = ranges.sumOf { it.length } / ranges.size + 1
         val maxArgs = maxArgLength / argLength
@@ -510,6 +540,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
     }
 
     /**
+     * Copied from BuildKmerIndex.kt
      * Function to pull the needed sequences from AGC
      */
     private fun getSeqListForHapId(
