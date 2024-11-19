@@ -250,4 +250,31 @@ class HaplotypeGraphTest {
         return true
     }
 
+    @Test
+    fun testRefChecksum() {
+
+        val hvcfFile = "${TestExtension.smallSeqInputDir}LineB_kmer_index_test.h.vcf"
+
+        val graph = HaplotypeGraph(listOf(hvcfFile))
+
+        var range = ReferenceRange("1", 1001, 5500)
+        assertTrue(
+            graph.refChecksum(range) == "57705b1e2541c7634ea59a48fc52026f",
+            "checksum not 57705b1e2541c7634ea59a48fc52026f: ${graph.checksum}"
+        )
+
+        range = ReferenceRange("2", 6501, 11000)
+        assertTrue(
+            graph.refChecksum(range) == "b8843efbd6adaa261a01518dc2a39aa2",
+            "checksum not b8843efbd6adaa261a01518dc2a39aa2: ${graph.checksum}"
+        )
+
+        range = ReferenceRange("2", 49501, 50500)
+        assertTrue(
+            graph.refChecksum(range) == "39f96726321b329964435865b3694fd2",
+            "checksum not 39f96726321b329964435865b3694fd2: ${graph.checksum}"
+        )
+
+    }
+
 }
