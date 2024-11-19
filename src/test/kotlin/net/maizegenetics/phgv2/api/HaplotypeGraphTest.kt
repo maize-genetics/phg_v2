@@ -275,6 +275,11 @@ class HaplotypeGraphTest {
             "checksum not 39f96726321b329964435865b3694fd2: ${graph.checksum}"
         )
 
+        range = ReferenceRange("3", 49501, 50500)
+        assertThrows<IllegalArgumentException> {
+            graph.refChecksum(range)
+        }
+
     }
 
 }
