@@ -363,14 +363,13 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
         for (kmerHash in kmers) {
             val kmerData = kmerMapToHapIds[kmerHash]!!
             val sampleGametes = findSampleGametes(kmerData.gameteLong0, kmerData.gameteLong1, samplesMap)
-            // get the hapids from the graph.rangeByGameteIdToHapid
-            // ***TERRY*** - Can you implement this function?  We talked about it in Slack
-            // Given a refRange and a set of sampleGametes, return the haplotype ids that are in the refRange
-            // that correspond to the sampleGametes
-            //val hapidSet = graph.rangeByGameteIdToHapid(sampleGametes, refRange)
-            //kmerHashToHapidsMap[kmerHash] = hapidSet
-        }
 
+            // This function gets ALL the hapids at a specific range.
+            val sampleToHapid = graph.sampleGameteToHaplotypeId(refRange)
+            // filter the values of sampleToHapid to only include the hapids that are in the sampleGametes
+            val hapidSet = sampleToHapid.filterKeys { sampleGametes.contains(it) }.values.toSet()
+            kmerHashToHapidsMap[kmerHash] = hapidSet
+        }
         return kmerHashToHapidsMap
     }
 
