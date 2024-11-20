@@ -288,8 +288,10 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
 
         val startTime = System.nanoTime()
 
+        // get graph hash
+        val graphhash = graph.checksum
         getBufferedWriter(kmerIndexFilename).use { myWriter ->
-
+            myWriter.write("GraphHash:$graphhash\n")
             for((rangeCount, refrange) in refRangeToKmerSetMap.keys.withIndex()) {
 
                 if(rangeCount % 1000 == 0) {
