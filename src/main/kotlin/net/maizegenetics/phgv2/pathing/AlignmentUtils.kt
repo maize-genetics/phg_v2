@@ -123,7 +123,7 @@ class AlignmentUtils {
                     if (firstLine.startsWith("GraphHash")) {
                         val origGraphHash = firstLine.substringAfter(":")
                         if (origGraphHash != graph.checksum) {
-                            myLogger.error("GraphHash in kmerMap file does not match the graphHash of the HaplotypeGraph object")
+                            myLogger.error("GraphHash in kmerMap file $origGraphHash does not match the graphHash of the HaplotypeGraph object ${graph.checksum}")
                             throw IllegalArgumentException("GraphHash in kmerMap file does not match the graphHash of the HaplotypeGraph object")
                         }
                     } else {

@@ -170,7 +170,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
     }
 
     /**
-     * Copied from BuildKmerIndex.kt
+     * Copied from BuildKmerIndex.kt with changes
      * Function to count the kmerHashes for a single reference range's haplotype nodes.
      * This gets put in 2 sets of maps.
      * One for the hash counts and one for a hash to a list of hapIds which contain that hash.

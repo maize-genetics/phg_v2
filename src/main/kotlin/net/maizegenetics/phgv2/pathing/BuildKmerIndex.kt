@@ -355,15 +355,17 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         val hapIdToRefRangeMap = graph.hapIdToRefRangeMap()
 
-
         //Walk through the map and associate kmerLongs (the kmer hashes) with specific referenceRanges
         //refRangeToKmerSetMap is a map of refRange -> Set of kmer hashes
         val refRangeToKmerSetMap = getRefRangeToKmerSetMap(kmerMapToHapIds, hapIdToRefRangeMap)
 
         val startTime = System.nanoTime()
 
+        // get graph hash
+        val graphhash = graph.checksum
         getBufferedWriter(filePath).use { myWriter ->
 
+            myWriter.write("GraphHash:$graphhash\n")
             for((rangeCount, refrange) in refRangeToKmerSetMap.keys.withIndex()) {
 
                 if(rangeCount % 1000 == 0) {
