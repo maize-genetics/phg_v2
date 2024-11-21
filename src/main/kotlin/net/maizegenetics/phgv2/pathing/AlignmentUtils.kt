@@ -17,8 +17,6 @@ import java.util.*
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.time.DurationUnit
-import kotlin.time.measureTimedValue
 
 /**
  * data class to hold the KmerMap information.  From the PHGv1 source code:
