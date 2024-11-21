@@ -394,7 +394,7 @@ fun seqFromAGC(
     hapid: String,
     range: Pair<Position, Position>,
     condaEnvPrefix: String = ""
-): String {
+): Pair<String, List<String>> {
 
     val altMetaData = graph.altHeader(hapid) ?: throw IllegalArgumentException("Haplotype ID $hapid not found in graph")
 
@@ -428,7 +428,7 @@ fun seqFromAGC(
 
     val seqs = retrieveAgcContigs(dbPath, queryRanges, condaEnvPrefix)
 
-    return buildHapSeq(seqs, displayRanges, hapSeq)
+    return Pair(buildHapSeq(seqs, displayRanges, hapSeq), displayRanges)
 
 }
 
