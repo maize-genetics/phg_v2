@@ -361,8 +361,11 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         val startTime = System.nanoTime()
 
+        // get graph hash
+        val graphhash = graph.checksum
         getBufferedWriter(filePath).use { myWriter ->
 
+            myWriter.write("GraphHash:$graphhash\n") // store the graph hash for comparison with future processing
             for((rangeCount, refrange) in refRangeToKmerSetMap.keys.withIndex()) {
 
                 if(rangeCount % 1000 == 0) {
