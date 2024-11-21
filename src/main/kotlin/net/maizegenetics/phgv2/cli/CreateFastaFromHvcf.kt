@@ -1,6 +1,5 @@
 package net.maizegenetics.phgv2.cli
 
-import biokotlin.seq.NucSeq
 import biokotlin.util.bufferedWriter
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
@@ -240,43 +239,6 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
              hapSeqList.addAll(chromToAltEntryData[chrom]!!.map { it.third.copy(sequence = buildHapSeq(seqs, it.second,it.third)) })
         }
         return hapSeqList
-    }
-
-    /**
-     * Function to build the haplotype sequence based on the list of display regions and the given haplotype sequence object.
-     * The sequence has already extracted out of AGC and stored in the seqs map.
-     * The incoming "seqs" parameter has the key as a Pair(sampleName,displayRegion), where display region could
-     * be just a contig, or a contig with ranges:  e.g. "chr1" or "chr1:100-200".  SampleName is the sample from which
-     * the sequence was extracted.
-     */
-    fun buildHapSeq(seqs: Map<Pair<String,String>,NucSeq> , displayRegions : List<String>, hapSeqObjects: HaplotypeSequence) : String {
-        // hapSeqRegions is the HaplotypeSequence object's list of regions.
-        // This was passed in as part of the Triple created in the calling method.
-        // Because of the way these were created, the displayRegions and the hapSeqRegions should be in the same order.
-        val hapSeqRegions = hapSeqObjects.asmRegions
-
-        // This gets all the sequences from all the regions in the list,
-        // and joins them to a string with no separator.  The string that is
-        // returned is the sequence for the haplotype.
-        return displayRegions.mapIndexed{ idx, currentDisplayRegion ->
-            val currentHapSeqRegion = hapSeqRegions[idx]
-
-            // The displayRegions are of the form: sampleName@contig:stPos-endPos
-            val sampleName = currentDisplayRegion.split("@")[0]
-            val region = currentDisplayRegion.split("@")[1]
-
-            val seq = seqs[Pair(sampleName,region)]!!
-
-            //Check to see if we have an inverted sub region based on the currentHapSeqRegion
-            if(currentHapSeqRegion.first.position > currentHapSeqRegion.second.position) {
-                //If so we need to reverse compliment the sequence
-                seq.reverse_complement().seq()
-            }
-            else {
-                seq.seq()
-            }
-        }.joinToString("")
-
     }
 
     /**
