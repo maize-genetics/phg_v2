@@ -70,8 +70,10 @@ class KmerIndexStatistics : CliktCommand(help="Write kmer counts by reference ra
         var refrange = ReferenceRange("NULL", 0, 0)
 
         getBufferedReader(filename).useLines {
+            // Read the first line, then contine
             it.forEach { inputStr ->
                 totalLineCount++
+                if (inputStr.startsWith("GraphHash")) return@forEach
 
                 lineCount = when (inputStr.first()) {
                     '>' -> 1
