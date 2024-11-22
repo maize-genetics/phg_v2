@@ -13,6 +13,12 @@ import net.maizegenetics.phgv2.utils.seqFromAGC
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
+/**
+ * Write one Fasta file reference range specified by the bedfile.
+ * All haplotypes in the range are written to the file.
+ * The range is appended to the output file name.
+ * The header of each sequence contains the sample name and the original regions of the haplotype.
+ */
 class RefRangeFasta : CliktCommand(help = "Write Reference Range Sequences to Fasta.") {
 
     private val myLogger = LogManager.getLogger(RefRangeFasta::class.java)
@@ -50,6 +56,9 @@ class RefRangeFasta : CliktCommand(help = "Write Reference Range Sequences to Fa
 
     }
 
+    /**
+     * Write the fasta file for the given range.
+     */
     private fun writeFasta(graph: HaplotypeGraph, range: Pair<Position, Position>) {
 
         val rangeStr = "${range.first.contig}_${range.first.position}-${range.second.position}"
@@ -63,8 +72,6 @@ class RefRangeFasta : CliktCommand(help = "Write Reference Range Sequences to Fa
                 range.second.position
             )
         )
-
-        println("sampleToHapid: $sampleToHapid")
 
         if (sampleToHapid.isEmpty()) {
             myLogger.warn("No haplotypes found for range: $rangeStr")
@@ -90,13 +97,13 @@ class RefRangeFasta : CliktCommand(help = "Write Reference Range Sequences to Fa
                         return
                     }
 
-                    writer.write("> ${displayRanges.joinToString(";")}\n")
+                    writer.write("> Sample:$sample;Regions:${displayRanges.joinToString(";")}\n")
                     seq.chunked(60)
                         .forEach { chunk ->
                             writer.write(chunk)
                             writer.newLine()
                         }
-                    writer.write("\n")
+
                 }
 
         }
