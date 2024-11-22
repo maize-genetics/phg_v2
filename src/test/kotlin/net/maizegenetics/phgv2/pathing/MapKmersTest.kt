@@ -21,6 +21,7 @@ import kotlin.math.min
 import kotlin.test.Ignore
 import kotlin.test.assertTrue
 import kotlin.test.fail
+import kotlin.test.assertEquals
 
 @ExtendWith(TestExtension::class)
 class MapKmersTest {
@@ -81,6 +82,38 @@ class MapKmersTest {
         )
     }
 
+    @Test
+    fun testMisMatchedGraphFiles() {
+        // this test creates the kmerIndex with a different graph than is used
+        // for read mapping.  And error and exception should occur
+        //load a graph from small seq
+        val graph1 = HaplotypeGraph(listOf(TestExtension.smallseqRefHvcfFile, TestExtension.smallseqLineAHvcfFile, TestExtension.smallseqLineBHvcfFile))
+        val kmerIndexFile = "${TestExtension.testOutputDir}/kmerIndex.txt"
+        val buildKmerIndex = BuildKmerIndex()
+        setupAgc()
+        val agcPath = "${TestExtension.testOutputFastaDir}/dbPath"
+
+        val kmerMapToHapids = buildKmerIndex.processGraphKmers(graph1,  agcPath,.75, initialKeepSize = 10000).first
+        buildKmerIndex.saveKmerHashesAndHapids(graph1, kmerIndexFile, kmerMapToHapids)
+
+        val graph2 = HaplotypeGraph(listOf(TestExtension.smallseqRefHvcfFile, TestExtension.smallseqLineAHvcfFile))
+        val keyFileRecordLineA = KeyFileData("LineA_Paired", "${TestExtension.testLineASimReadsPrefix}_1.fq", "${TestExtension.testLineASimReadsPrefix}_2.fq")
+
+        // THis should throw an exception
+        val exception = assertThrows<IllegalArgumentException> {
+            AlignmentUtils.alignReadsToHaplotypes(
+                graph2,
+                kmerIndexFile,
+                listOf(keyFileRecordLineA),
+                TestExtension.testOutputDir
+            )
+        }
+        assertEquals(
+            "GraphHash in kmerMap file does not match the graphHash of the HaplotypeGraph object",
+            exception.message
+        )
+
+    }
     @Test
     fun testFullReadMappingPipeline() {
         //load a graph from small seq
