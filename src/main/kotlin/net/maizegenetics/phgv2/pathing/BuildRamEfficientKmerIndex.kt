@@ -117,10 +117,10 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
     // grow as needed.  The bitmaps that contain the gamete information will take up
     // less room and need less storage.
     fun processGraphKmers(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75,
-                          hashMask: Long = 3, hashFilterValue:Long = 1, samplesMap:Map<String,Int>) : Pair<Map<Long,IndexedKmerData>, LongOpenHashSet> {
+                          hashMask: Long = 3, hashFilterValue:Long = 1, samplesMap:Map<String,Int>) : Pair<Long2ObjectOpenHashMap<IndexedKmerData>, LongOpenHashSet> {
 
         // keepMap is a map of kmerHash -> IndexedKmerData
-        val keepMap = mutableMapOf<Long,IndexedKmerData>()
+        val keepMap = Long2ObjectOpenHashMap<IndexedKmerData>() //Long2ObjectOpenHashMap
         //discardSet is a Set of hashes
         val discardSet = LongOpenHashSet(initialKeepSize)
         val startTime = System.nanoTime()
@@ -179,7 +179,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
      * "hapidToSampleMap" maps the hapid to a list of samples which contain that hapid.
      */
     private fun countKmerHashesForHaplotypeSequenceSimplified(sequenceMap: Map<String, List<String>>, hashMask: Long, hashFilterValue: Long,
-                                                              keepMap:MutableMap<Long,IndexedKmerData>, discardSet: LongOpenHashSet, maxHapsToKeep: Double,
+                                                              keepMap:Long2ObjectOpenHashMap<IndexedKmerData>, discardSet: LongOpenHashSet, maxHapsToKeep: Double,
                                                               hapidToSampleMap: Map<String, List<SampleGamete>>, samplesMap:Map<String,Int>, refRange: ReferenceRange) {
         for ((hapid, seqList) in sequenceMap) {
             val sample = hapidToSampleMap[hapid]!!.first().toString()
@@ -273,7 +273,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
     private fun saveKmerHashesAndHapids(
         graph: HaplotypeGraph,
         kmerIndexFilename: String,
-        kmerMapToHapIds: Map<Long, IndexedKmerData>,
+        kmerMapToHapIds: Long2ObjectOpenHashMap<IndexedKmerData>,
         samplesMap: Map<String, Int>
     ) {
         //refRangeToHapidMap is a map of refRange -> (map of hapid -> index of hapid)
@@ -309,7 +309,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
         graph: HaplotypeGraph,
         refRangeToKmerSetMap: Map<ReferenceRange, Set<Long>>,
         refrange: ReferenceRange,
-        kmerMapToHapIds: Map<Long,IndexedKmerData>,
+        kmerMapToHapIds: Long2ObjectOpenHashMap<IndexedKmerData>,
         refRangeToHapIndexMap: Map<ReferenceRange, Map<String, Int>>,
         samplesMap: Map<String, Int>,
         myWriter: BufferedWriter
@@ -351,7 +351,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
     // It creates a map of kmerHash -> Set of haplotype ids
     fun createKmerHashToSetHapidsMap(
         graph: HaplotypeGraph,
-        kmerMapToHapIds: Map<Long,IndexedKmerData>,
+        kmerMapToHapIds: Long2ObjectOpenHashMap<IndexedKmerData>,
         samplesMap: Map<String, Int>,
         refRange:ReferenceRange,
         kmers:Set<Long>
@@ -442,7 +442,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
      * Function to create a map of refRange -> Set of kmer hashes based on the kmerMapToHapIds and hapIdToRefRangeMap
      */
     fun getRefRangeToKmerSetMap(
-        kmerMapToHapIds: Map<Long,IndexedKmerData>, // this is the keepMap
+        kmerMapToHapIds: Long2ObjectOpenHashMap<IndexedKmerData>, // this is the keepMap
         hapIdToRefRangeMap: Map<String, List<ReferenceRange>>,
         graph: HaplotypeGraph
     ): Map<ReferenceRange, Set<Long>> {
