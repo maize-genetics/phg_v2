@@ -25,7 +25,7 @@ class PathsToGff: CliktCommand( help = "Create a GFF file from a PHG imputation 
 
     private val myLogger = LogManager.getLogger(PathsToGff::class.java)
 
-    val keyFile by option(help = "Tab-delimited file containing 2 column: SampleName and GFF.  GFF column contains full path name for the GFF file for that sample.  SampleName contains the sample name for that assembly, e.g. B73 or CML247, and must match the name as stored in TileDB and AGC. ")
+    val keyFile by option(help = "Tab-delimited file containing 2 column: SampleName and GFF (in that order).  GFF column contains full path name for the GFF file for that sample.  SampleName contains the sample name for that assembly, e.g. B73 or CML247, and must match the name as stored in TileDB and AGC. ")
         .required()
 
     val hvcfFile by option(help = "Full path to the H.vcf file")

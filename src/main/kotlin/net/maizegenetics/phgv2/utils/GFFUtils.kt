@@ -82,9 +82,15 @@ fun loadGFFsToGff3Feature(keyFile: String): Map<String, TreeMap<Position,ArrayLi
     val resultsTree:MutableMap<String, TreeMap<Position,ArrayList<Gff3Feature>>> = mutableMapOf()
     //val taxonToGFFfileMap:MutableMap<String, String> = HashMap<String, String>()
     val taxonToGFFfileMap:MutableMap<String, String> = mutableMapOf()
+    // Read keyfile.  Skip lines that begin with # and verify other
+    // lines have 2 tab-delimited columns.  THrow exception if this is not the case
     bufferedReader(keyFile)
             .forEachLine{
-                val parsedLine = it.split("\t");
+                if (it.startsWith("#")) return@forEachLine
+                val parsedLine = it.split("\t")
+                if (parsedLine.size != 2) {
+                    throw IllegalArgumentException("loadGffsToGff3Feature: key file must have 2 tab-delimited columns, the first is the sample name, the second is path to the key file for that sample")
+                }
                 taxonToGFFfileMap.put(parsedLine[0], parsedLine[1])
             }
 
