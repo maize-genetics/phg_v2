@@ -615,9 +615,10 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         // If it doesn't an exception will be thrown
         val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
         if(metricsFile != "") {
-            createASMHvcfs(dbPath, bed, referenceFile, mafDir, outputDir, metricsFile, skipMetrics, legacyMafFile)
+            // twoGvcfs is not an option for the CLI, so we will always set it to false
+            createASMHvcfs(dbPath, bed, referenceFile, mafDir, outputDir, metricsFile, skipMetrics, false,legacyMafFile)
         } else {
-            createASMHvcfs(dbPath, bed, referenceFile, mafDir, outputDir, "$outputDir/VCFMetrics.tsv", skipMetrics, legacyMafFile)
+            createASMHvcfs(dbPath, bed, referenceFile, mafDir, outputDir, "$outputDir/VCFMetrics.tsv", skipMetrics, false,legacyMafFile)
         }
 
     }

@@ -8,6 +8,7 @@ import net.maizegenetics.phgv2.utils.AltHeaderMetaData
 import net.maizegenetics.phgv2.utils.parseALTHeader
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.security.MessageDigest
 import java.util.*
 
 /**
@@ -32,6 +33,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
     // A list of contigs in this graph
     val contigs: List<String>
+
+    val checksum: String by lazy { checksum() }
 
     // Map<ID (checksum), AltHeaderMetaData>
     private lateinit var altHeaderMap: Map<String, AltHeaderMetaData>
@@ -511,6 +514,52 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         }
 
         return result
+    }
+
+    /**
+     * Returns the checksum for this graph.
+     * The checksum is based on the sample names, ranges, and haplotypes.
+     * This is used to determine if two graphs are the same.
+     */
+    private fun checksum(): String {
+
+        val digester = MessageDigest.getInstance("MD5")
+
+        sampleNames.forEach { sampleName ->
+            digester.update(sampleName.toByteArray())
+        }
+
+        ranges().forEach { range ->
+            digester.update(range.toString().toByteArray())
+        }
+
+        rangeByGameteIdToHapid.forEach { range ->
+            range.forEach { sample ->
+                sample.forEach { hapid ->
+                    digester.update(hapid.toByteArray())
+                }
+            }
+        }
+
+        val bytes = digester.digest()
+
+        // convert the byte to hex format
+        val builder = StringBuilder()
+        for (idx in bytes.indices) {
+            builder.append(String.format("%02x", bytes[idx].toInt() and 0xff))
+        }
+        return builder.toString()
+
+    }
+
+    /**
+     * Returns the checksum for the reference sequence at the specified ReferenceRange.
+     */
+    fun refChecksum(refRange: ReferenceRange): String {
+        val rangeId = refRangeMap[refRange]
+        require(rangeId != null) { "refChecksum: range: $refRange not found" }
+        val hapid = rangeByGameteIdToHapid[rangeId][0][0]
+        return altHeaderMap[hapid]?.refChecksum ?: ""
     }
 
 }
