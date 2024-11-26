@@ -153,9 +153,6 @@ fun createTreeMapFromFeaturesCenter(features: List<Gff3Feature>): TreeMap<Positi
  *
  * Return:  A set of Gff3Features
  *
- * LCJ update for phgv2:  send int ALT headers instead of graph?  These will have sample
- * name and regions for the haplotype nodes.
- *
  */
 fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,ArrayList<Gff3Feature>>>, outputFile:String): Set<Gff3Feature> {
 
@@ -298,15 +295,7 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
     // reference ranges and thus appear twice.  these entries need to be merged. The
     // following method does that.
 
-    // DEBUG: Print the pseudoGenoeGff3Features list to
-    // /Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGff/junit_tests/featuresToMerge_debug.gff3
-//    val outputFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGff/junit_tests/featuresToMerge_DEBUGyesPlus1.gff3"
-//    writeGffFile(outputFile, pseudoGenomeGff3Features.toSet(),null,null)
-    // LCJ - END DEBUG
-
-    println("LCJ - number of entries before mergeAdjacentFeatures: ${pseudoGenomeGff3Features.size}")
     val mergedFeatures = mergeAdjacentFeatures(pseudoGenomeGff3Features)
-    println("LCJ - number of entries after mergeAdjacentFeatures: ${mergedFeatures.size}")
 
     if (count > 0) total += count
     myLogger.info("makeGffFromPath: all entries finished, total: ${total}")
@@ -342,12 +331,10 @@ fun mergeAdjacentFeatures(features: MutableSet<Gff3Feature>): List<Gff3Feature> 
 
             val nextFeature = sortedFeatures[jdx]
 
-            println("\nLCJ - MERGING Current: ${currentFeature.contig} ${currentFeature.start} ${currentFeature.end} ${currentFeature.type} ")
             // Get referenceRangeID and halotypeAsmCoordinates attributes, handle nulls and lists
             val currentRefRangeID = currentFeature.getAttribute("referenceRangeID")?.firstOrNull() ?: ""
             val nextRefRangeID = nextFeature.getAttribute("referenceRangeID")?.firstOrNull() ?: ""
             val newReferenceRangeID = listOf(currentRefRangeID, nextRefRangeID).joinToString(",")
-            println("LCJ - MERGING with Next: ${nextFeature.contig} ${nextFeature.start} ${nextFeature.end} ${nextFeature.type} ")
 
             // Not including the ASM coordinates as they are not valid.  The coordinates should be
             // based on what would be the composite genome.  They can be determined from the start/end
@@ -377,6 +364,7 @@ fun mergeAdjacentFeatures(features: MutableSet<Gff3Feature>): List<Gff3Feature> 
 
 
 // This function checks for overlapping GFF3 entries
+// We want overlapping or adjacent in order to merge.
 fun featuresOverlap(feature1: Gff3Feature, feature2: Gff3Feature): Boolean {
     // 1. Check if contigs are the same
     if (feature1.contig != feature2.contig) return false
@@ -385,7 +373,7 @@ fun featuresOverlap(feature1: Gff3Feature, feature2: Gff3Feature): Boolean {
     if (feature1.type != feature2.type) return false
 
     // 3. Check if the ranges overlap
-    if (feature1.start > feature2.end || feature2.start > feature1.end) return false
+    if (feature1.start > feature2.end+1 || feature2.start > feature1.end+1) return false // plus1 to allow for merging adjacent entries
 
     // 4. Additional criteria based on feature type
     return when (feature1.type) {
@@ -582,18 +570,10 @@ fun getPseudoGFFCoordsMultipleRegions(asmGffRange: IntRange, regions:List<IntRan
     var hapEnd = overlappingRegions[overlappingRegions.size-1].last
 
     val startDiff = asmGffRange.start - hapStart + 1
-    val endDiff = hapEnd - asmGffRange.endInclusive + 1
-    // PathsToGffTest fails when we don't have the +1 added,
-    // However, the testGetPseudoGFFCoordsMultipleRegions fails when
-    // we do have it.  Need to debug to see the issue.  WHen did I add the +1 ??
-//    val startDiff = asmGffRange.start - hapStart
-//    val endDiff = hapEnd - asmGffRange.endInclusive
-    // endDiff and endAdjust are negative if the haplotype node coordinate end value
-    // is less than the assembly gff end value, meaning it doesn't cover the full GFF entry
+    // Note: don't need the +1 here as the value is inclusive/inclusive
+    // When the endDiff is positive, we use 0, when it is negative, plus 1 makes the difference 1 less than it should be.
+    val endDiff = hapEnd - asmGffRange.endInclusive
 
-    if (asmGffRange.start == 41214) {
-        println("LCJ - DEBUG: startDiff: ${startDiff} endDiff: ${endDiff} asmGffRange.start: ${asmGffRange.start} asmGffRange.endInclusive: ${asmGffRange.endInclusive} hapStart: ${hapStart} hapEnd: ${hapEnd}")
-    }
     val endAdjust = if (endDiff > 0) 0 else endDiff
 
     // pgStart is > 1 if the haplotypeNode starts  prior to the gff entry

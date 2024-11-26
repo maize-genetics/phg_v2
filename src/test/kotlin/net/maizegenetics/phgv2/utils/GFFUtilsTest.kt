@@ -355,13 +355,13 @@ class GFFUtilsTest {
         var regions = mutableListOf(hapAsmCoords)
         var offset = 0
 
-        var expectedResult = 3951..4342
+        var expectedResult = 3952..4343
         var pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
         assertEquals(expectedResult, pseudoGenomeCoords)
 
         // same as above, but offset from start of chrom is 1000
         offset = 1000
-        expectedResult = 4951..5342
+        expectedResult = 4952..5343
         pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
         assertEquals(expectedResult, pseudoGenomeCoords)
 
@@ -371,7 +371,7 @@ class GFFUtilsTest {
         gffCoords = 155822773..155823423
         hapAsmCoords = 155823019..155827364
         regions = mutableListOf(hapAsmCoords)
-        expectedResult = 1..405
+        expectedResult = 1..406
         pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
         assertEquals(expectedResult, pseudoGenomeCoords)
 
@@ -381,7 +381,7 @@ class GFFUtilsTest {
         gffCoords =    142564613..142564838
         hapAsmCoords = 142564609..142570362
         regions = mutableListOf(hapAsmCoords)
-        expectedResult = 4..229
+        expectedResult = 5..230
         pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
         assertEquals(expectedResult, pseudoGenomeCoords)
 
@@ -389,13 +389,13 @@ class GFFUtilsTest {
         gffCoords = 183334395..183338622
         hapAsmCoords = 183334395..183338622
         regions = mutableListOf(hapAsmCoords)
-        expectedResult = 1..4228
+        expectedResult = 1..4229
         pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
         assertEquals(expectedResult, pseudoGenomeCoords)
 
         // as above, offset is 250
         offset = 250
-        expectedResult = 251..4478
+        expectedResult = 251..4479
         pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
         assertEquals(expectedResult, pseudoGenomeCoords)
 
@@ -413,14 +413,14 @@ class GFFUtilsTest {
         // The start will be 71 (offset=0 means this is the start of the haplotype sequence) and
         // the gene starts 71 bps into this sequence.
         // The first 2 regions overlap the gff entry, so the end range of the pseudo genome entry
-        // should be 100 (900-800+1) + 51 (1000-950+1) = 151
-        var expectedResult = 71..151  //
+        // should be 101 (900-800+1) + 51 (1000-950+1) = 152
+        var expectedResult = 72..152  //
         var pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
         assertEquals(expectedResult, pseudoGenomeCoords)
 
         // same as above, but offset is 50
         offset = 50
-        expectedResult = 121..201
+        expectedResult = 122..202
         pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
         assertEquals(expectedResult, pseudoGenomeCoords)
 
@@ -432,9 +432,9 @@ class GFFUtilsTest {
         // There is no offset (this is the beginning of the haplotype equence) but there
         // are 2 regions of sequence before the gene starts.
         // SO the start is 100-50+1 = 51, plus 300-150 + 1 = 151 = 202, plus 871-800 = 71 (it starts on 871 so don't add 1)
-        // Start is hence 51+151+71 = 273
-        // end is 273+130(size of gene) -1 = 402
-        expectedResult = 273..402
+        // Start is hence 51+151+71+1 = 273
+        // end is 273+130(size of gene)  = 403
+        expectedResult = 274..403
         pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
         assertEquals(expectedResult, pseudoGenomeCoords)
 
