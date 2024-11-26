@@ -47,16 +47,13 @@ class GFFUtilsTest {
             // Delete recursively the tempDir
             File(TestExtension.tempDir).deleteRecursively()
             File(dataDir).mkdirs()
-            try {
 
-                Files.createDirectories(Paths.get(dataDir))
-            } catch (ioe: IOException) {
-                throw IllegalStateException("GFFTests:setup: error deleting/creating folders: " + ioe.message)
-            }
+            // General test files
             createGFFFileWithHeadersB73(gffFileWithHeadersB73)
             createGFFFileWithHeadersCML103(gffFileWithHeadersCML103)
             createGFFFileForBPTests(gffFileShortBPTesting)
             createGFFKeyfile(keyFile,gffFileWithHeadersB73,gffFileWithHeadersCML103)
+
         }
 
         @JvmStatic
@@ -73,11 +70,10 @@ class GFFUtilsTest {
         // the individual functions that are called by the clikt class.
         // This is the keyfile we had for testing with Michelle's data in phgv1:
         //    /Users/lcj34/notes_files/phg_2018/new_features/phg493_GFF_plugin_fromAsmCoords/testing/keyFile.txt
-        // TODO: LCJ - remove hard coding - store files somewhere
 
-        val keyFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGFF/testKeyFile.txt"
-        val hvcfFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGFF/Imputation.h.vcf"
-        val outputFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGff/junit_tests/testPathsToGffOutput_nov26.gff3"
+        val keyFile = "data/test/pathsToGff/testKeyFile.txt"
+        val hvcfFile = "data/test/pathsToGff/Imputation.h.vcf"
+        val outputFile = "${TestExtension.tempDir}/pathsToGvcf_fromHvcf.gff3"
 
         val pathsToGff = PathsToGff()
         val goodParamsTest = pathsToGff.test("--key-file ${keyFile} --hvcf-file ${hvcfFile} --output-file ${outputFile}")
@@ -113,17 +109,12 @@ class GFFUtilsTest {
         var lineBEntries = newGff.filter { it.contains("LineB_mikado_gene") }
         assertTrue(lineBEntries.size == 0)
 
-        // TODO - finish this
         // Verify entries for positions earlier than 2700 come from lineA, not lineB
         // Verify entries for positions later than 2700 come from lineB, not lineA
         lineAEntries = newGff.filter { it.contains("LineA_astro_gene") }
         assertTrue(lineAEntries.size == 0)
         lineBEntries = newGff.filter { it.contains("LineB_astro_gene") }
         assertTrue(lineBEntries.size > 0)
-
-
-        // Need to add some assertions.  How many entries do I expect? etc
-        // Verify specific entries are in the output file.
 
         println("Finished testPathsToGff")
 
