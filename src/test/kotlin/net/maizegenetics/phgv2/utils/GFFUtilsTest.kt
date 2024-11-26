@@ -75,8 +75,12 @@ class GFFUtilsTest {
         val hvcfFile = "data/test/pathsToGff/Imputation.h.vcf"
         val outputFile = "${TestExtension.tempDir}/pathsToGvcf_fromHvcf.gff3"
 
+        // Copy the keyFile and hvcfFile to the test directory
+        Files.copy(Paths.get(keyFile), Paths.get("${TestExtension.tempDir}/testKeyFile.txt"))
+        Files.copy(Paths.get(hvcfFile), Paths.get("${TestExtension.tempDir}/Imputation.h.vcf"))
+
         val pathsToGff = PathsToGff()
-        val goodParamsTest = pathsToGff.test("--key-file ${keyFile} --hvcf-file ${hvcfFile} --output-file ${outputFile}")
+        val goodParamsTest = pathsToGff.test("--key-file ${TestExtension.tempDir}/testKeyFile.txt --hvcf-file ${TestExtension.tempDir}/Imputation.h.vcf --output-file ${outputFile}")
 
         assertEquals(0, goodParamsTest.statusCode)
         // Verify specific entries
