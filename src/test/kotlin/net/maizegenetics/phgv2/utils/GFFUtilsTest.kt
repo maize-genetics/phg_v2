@@ -77,7 +77,7 @@ class GFFUtilsTest {
 
         val keyFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGFF/testKeyFile.txt"
         val hvcfFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGFF/Imputation.h.vcf"
-        val outputFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGff/junit_tests/testPathsToGffOutput.gff3"
+        val outputFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGff/junit_tests/testPathsToGffOutput_nov26.gff3"
 
         val pathsToGff = PathsToGff()
         val goodParamsTest = pathsToGff.test("--key-file ${keyFile} --hvcf-file ${hvcfFile} --output-file ${outputFile}")
@@ -355,9 +355,9 @@ class GFFUtilsTest {
         var regions = mutableListOf(hapAsmCoords)
         var offset = 0
 
-        var expectedResult = 3952..4342
+        var expectedResult = 3951..4342
         var pseudoGenomeCoords = getPseudoGFFCoordsMultipleRegions(gffCoords, regions, offset)
-        //assertEquals(expectedResult, pseudoGenomeCoords)
+        assertEquals(expectedResult, pseudoGenomeCoords)
 
         // same as above, but offset from start of chrom is 1000
         offset = 1000

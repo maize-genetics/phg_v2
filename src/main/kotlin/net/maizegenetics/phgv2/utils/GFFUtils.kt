@@ -297,7 +297,16 @@ fun makeGffFromHvcf(hvcfFile: String, centerGffs: Map<String, TreeMap<Position,A
     // Because we processed on a refRange basis, some entries could be overlapping
     // reference ranges and thus appear twice.  these entries need to be merged. The
     // following method does that.
+
+    // DEBUG: Print the pseudoGenoeGff3Features list to
+    // /Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGff/junit_tests/featuresToMerge_debug.gff3
+//    val outputFile = "/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGff/junit_tests/featuresToMerge_DEBUGyesPlus1.gff3"
+//    writeGffFile(outputFile, pseudoGenomeGff3Features.toSet(),null,null)
+    // LCJ - END DEBUG
+
+    println("LCJ - number of entries before mergeAdjacentFeatures: ${pseudoGenomeGff3Features.size}")
     val mergedFeatures = mergeAdjacentFeatures(pseudoGenomeGff3Features)
+    println("LCJ - number of entries after mergeAdjacentFeatures: ${mergedFeatures.size}")
 
     if (count > 0) total += count
     myLogger.info("makeGffFromPath: all entries finished, total: ${total}")
@@ -333,10 +342,12 @@ fun mergeAdjacentFeatures(features: MutableSet<Gff3Feature>): List<Gff3Feature> 
 
             val nextFeature = sortedFeatures[jdx]
 
+            println("\nLCJ - MERGING Current: ${currentFeature.contig} ${currentFeature.start} ${currentFeature.end} ${currentFeature.type} ")
             // Get referenceRangeID and halotypeAsmCoordinates attributes, handle nulls and lists
             val currentRefRangeID = currentFeature.getAttribute("referenceRangeID")?.firstOrNull() ?: ""
             val nextRefRangeID = nextFeature.getAttribute("referenceRangeID")?.firstOrNull() ?: ""
             val newReferenceRangeID = listOf(currentRefRangeID, nextRefRangeID).joinToString(",")
+            println("LCJ - MERGING with Next: ${nextFeature.contig} ${nextFeature.start} ${nextFeature.end} ${nextFeature.type} ")
 
             // Not including the ASM coordinates as they are not valid.  The coordinates should be
             // based on what would be the composite genome.  They can be determined from the start/end
@@ -579,6 +590,10 @@ fun getPseudoGFFCoordsMultipleRegions(asmGffRange: IntRange, regions:List<IntRan
 //    val endDiff = hapEnd - asmGffRange.endInclusive
     // endDiff and endAdjust are negative if the haplotype node coordinate end value
     // is less than the assembly gff end value, meaning it doesn't cover the full GFF entry
+
+    if (asmGffRange.start == 41214) {
+        println("LCJ - DEBUG: startDiff: ${startDiff} endDiff: ${endDiff} asmGffRange.start: ${asmGffRange.start} asmGffRange.endInclusive: ${asmGffRange.endInclusive} hapStart: ${hapStart} hapEnd: ${hapEnd}")
+    }
     val endAdjust = if (endDiff > 0) 0 else endDiff
 
     // pgStart is > 1 if the haplotypeNode starts  prior to the gff entry
