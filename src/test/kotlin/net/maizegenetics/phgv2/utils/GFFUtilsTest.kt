@@ -17,6 +17,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import java.io.IOException
@@ -63,6 +64,67 @@ class GFFUtilsTest {
         }
     }
 
+    @Test
+    fun testBadKeyFile() {
+        // This test verifies an exception is thrown if the keyfile is not
+        // composed of lines with 2 tab-separated columns
+        val pathsKeyFile = "data/test/pathsToGff/testKeyFile.txt"
+        val hvcfFile = "data/test/pathsToGff/Imputation.h.vcf"
+        val outputFile = "${TestExtension.tempDir}/pathsToGvcf_badKeyFile.gff3"
+
+        val savedKeyFile = "${TestExtension.tempDir}/savedKeyFile.txt"
+        // copy pathsKeyFile to savedKeyFile if it doesn't already exist
+        if (!Files.exists(Paths.get(savedKeyFile))) {
+            Files.copy(Paths.get(pathsKeyFile), Paths.get(savedKeyFile))
+        }
+
+        val badKeyFile = "${TestExtension.tempDir}/badKeyFile.txt"
+        // Read the savedKeyFile and write it out to badKeyfile, but change the tabs
+        // to spaces between the columns
+        val savedKeyFileLines = bufferedReader(savedKeyFile).readLines()
+        bufferedWriter(badKeyFile).use { writer ->
+            for (line in savedKeyFileLines) {
+                writer.write(line.replace("\t"," ") + "\n")
+            }
+        }
+
+        assertThrows<IllegalArgumentException> {
+            val pathsToGff = PathsToGff()
+            val badParamsTest = pathsToGff.test("--key-file ${badKeyFile} --hvcf-file ${hvcfFile} --output-file ${outputFile}")
+        }
+    }
+
+    @Test
+    fun testKeyfileWithComments() {
+        // This file verifies the code handles a key file with comment lines
+        val pathsKeyFile = "data/test/pathsToGff/testKeyFile.txt"
+        val hvcfFile = "data/test/pathsToGff/Imputation.h.vcf"
+        val outputFile = "${TestExtension.tempDir}/pathsToGvcf_commentInKeyfile.gff3"
+
+        val savedKeyFile = "${TestExtension.tempDir}/savedKeyFile.txt"
+        // copy pathsKeyFile to savedKeyFile
+        Files.copy(Paths.get(pathsKeyFile), Paths.get(savedKeyFile))
+        val newKeyFile = "${TestExtension.tempDir}/newKeyFile.txt"
+        // Read the savedKeyFile and write it out to newKeyFile, but add a comment line
+        val savedKeyFileLines = bufferedReader(savedKeyFile).readLines()
+        bufferedWriter(newKeyFile).use { writer ->
+            writer.write("# This is a comment line\n")
+            for (line in savedKeyFileLines) {
+                writer.write(line + "\n")
+            }
+        }
+
+        // run the test
+        val pathsToGff = PathsToGff()
+        val commentKeyFileResult = pathsToGff.test("--key-file ${newKeyFile} --hvcf-file ${hvcfFile} --output-file ${outputFile}")
+        assertEquals(0, commentKeyFileResult.statusCode)
+        // check a couple more things
+        // read the outputFile using bufferedReader
+        val newGff = bufferedReader(outputFile).readLines()
+        // verify the number of lines is 43
+        assertEquals(43, newGff.size)
+
+    }
 
     @Test
     fun testPathsToGff() {
