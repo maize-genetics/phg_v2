@@ -1,2 +1,2 @@
-LineA	/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGFF/lineAGff_withHeaders_chr1chr2.gff3
-LineB	/Users/lcj34/notes_files/phg_v2/newFeatures/pathsToGFF/lineBGff_withHeaders_chr1chr2.gff3
+LineA	data/test/pathsToGFF/lineAGff_withHeaders_chr1chr2.gff3
+LineB	data/test/pathsToGFF/lineBGff_withHeaders_chr1chr2.gff3
