@@ -340,7 +340,7 @@ fun mergeAdjacentFeatures(features: MutableSet<Gff3Feature>): List<Gff3Feature> 
             // Get referenceRangeID and halotypeAsmCoordinates attributes, handle nulls and lists
             val currentRefRangeID = currentFeature.getAttribute("referenceRangeID")?.firstOrNull() ?: ""
             val nextRefRangeID = nextFeature.getAttribute("referenceRangeID")?.firstOrNull() ?: ""
-            val newReferenceRangeID = listOf(currentRefRangeID, nextRefRangeID).joinToString(",")
+            val newReferenceRangeID ="${currentRefRangeID},${nextRefRangeID}"
 
             // Not including the ASM coordinates as they are not valid.  The coordinates should be
             // based on what would be the composite genome.  They can be determined from the start/end
