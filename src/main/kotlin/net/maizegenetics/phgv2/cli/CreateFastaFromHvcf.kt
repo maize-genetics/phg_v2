@@ -17,8 +17,15 @@ import java.io.BufferedWriter
 import java.io.File
 
 
-data class HaplotypeSequence(val id: String, val sequence: String, val refRangeId: String, val refContig: String, val refStart: Int, val refEnd: Int,
-                             val asmRegions:List<Pair<Position, Position>>)
+data class HaplotypeSequence(
+    val id: String,
+    val sequence: String,
+    val refRangeId: String,
+    val refContig: String,
+    val refStart: Int,
+    val refEnd: Int,
+    val asmRegions: List<Pair<Position, Position>>
+)
 
 /**
  * Class to create either a composite or a haplotype fasta file from an input hvcf file or from TileDB directly.
@@ -44,10 +51,11 @@ data class HaplotypeSequence(val id: String, val sequence: String, val refRangeI
  */
 
 sealed class HvcfInput {
-    data class HvcfFile(val hvcfFile: String): HvcfInput()
-    data class HvcfDir(val hvcfDir: String): HvcfInput()
+    data class HvcfFile(val hvcfFile: String) : HvcfInput()
+    data class HvcfDir(val hvcfDir: String) : HvcfInput()
 }
-class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.vcf file or TileDB directly") {
+
+class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vcf file or TileDB directly") {
 
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
@@ -69,14 +77,20 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
     // Currently one of the two options must be provided but this may change when we support
     // processing directly from TileDB
     val hvcfInput: HvcfInput? by mutuallyExclusiveOptions<HvcfInput>(
-        option("--hvcf-file", help = "Path to hVCF file. Data will be pulled directly from this file instead of querying TileDB")
+        option(
+            "--hvcf-file",
+            help = "Path to hVCF file. Data will be pulled directly from this file instead of querying TileDB"
+        )
             .convert { HvcfInput.HvcfFile(it) },
-        option("--hvcf-dir", help = "Path to directory holding hVCF files. Data will be pulled directly from these files instead of querying TileDB")
+        option(
+            "--hvcf-dir",
+            help = "Path to directory holding hVCF files. Data will be pulled directly from these files instead of querying TileDB"
+        )
             .convert { HvcfInput.HvcfDir(it) }
     ).single() // cannot provide both hvcf-file and hvcf-dir at the same time
         .required() // one of the two options must be provided
 
-    val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
+    val condaEnvPrefix by option(help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
 
     // Pre-compile the Regex pattern - used when creating the output fasta file names
@@ -86,7 +100,13 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
      * Function to build the Fasta file from the HVCF and the agc record.
      * Right now it does not support pulling from TileDB, but will in the future.
      */
-    fun buildFastaFromHVCF(dbPath: String, outputDir: String, fastaType: FastaType, hvcfInput: HvcfInput?, condaEnvPrefix:String) {
+    fun buildFastaFromHVCF(
+        dbPath: String,
+        outputDir: String,
+        fastaType: FastaType,
+        hvcfInput: HvcfInput?,
+        condaEnvPrefix: String
+    ) {
 
         if (hvcfInput is HvcfInput.HvcfDir) {
             // Loop through the directory and figure out which files are hvcf files
@@ -95,17 +115,20 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
                 HVCF_PATTERN.containsMatchIn(file.name)
             }
 
-            if(fastaType == FastaType.pangenomeHaplotype) {
+            if (fastaType == FastaType.pangenomeHaplotype) {
                 //this mode for making a single pangenome haplotype fasta of all the hvcfs combined
                 //useful for running minimap2
                 val outputFileName = "$outputDir/pangenome.fa"
                 val sharedHapFileName = "$outputDir/sharedHaplotypes.txt"
 
                 bufferedWriter(outputFileName).use { pangenomeFileWriter ->
-                    bufferedWriter(sharedHapFileName).use { sharedHapFileWriter->
+                    bufferedWriter(sharedHapFileName).use { sharedHapFileWriter ->
                         val filesAndRecords = hvcfFiles?.map { hvcfFile ->
                             println("Processing ${hvcfFile.name}")
-                            Pair(hvcfFile.nameWithoutExtension,processSingleHVCF(VCFFileReader(hvcfFile, false), dbPath, condaEnvPrefix))
+                            Pair(
+                                hvcfFile.nameWithoutExtension,
+                                processSingleHVCF(VCFFileReader(hvcfFile, false), dbPath, condaEnvPrefix)
+                            )
                         }
 
                         val idMap = mutableMapOf<String, Set<String>>()
@@ -116,7 +139,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
                             records.forEach { record ->
                                 val id = record.id
 
-                                if(!idMap.containsKey(id)) {
+                                if (!idMap.containsKey(id)) {
                                     exportRecords.add(record)
                                 }
 
@@ -126,14 +149,12 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
                         }
 
                         writeHaplotypeSequence(pangenomeFileWriter, exportRecords, false)
-                        for(entry in idMap) {
+                        for (entry in idMap) {
                             sharedHapFileWriter.write("${entry.key}\t${entry.value.joinToString(",")}\n")
                         }
                     }
                 }
-            }
-
-            else {
+            } else {
                 // Loop through each file and run the processSingleHVCF function
                 hvcfFiles?.forEach { hvcfFile ->
                     val outputFileName = File(hvcfFile.name.replace(HVCF_PATTERN, ".fa"))
@@ -141,14 +162,16 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
                     val outputFile = "$outputDir/$outputFileName"
 
                     bufferedWriter(outputFile).use { output ->
-                        writeSequences(output,
+                        writeSequences(
+                            output,
                             processSingleHVCF(VCFFileReader(hvcfFile, false), dbPath, condaEnvPrefix),
-                            fastaType)
+                            fastaType
+                        )
                     }
                 }
             }
 
-        } else if (hvcfInput is HvcfInput.HvcfFile){
+        } else if (hvcfInput is HvcfInput.HvcfFile) {
             // Load in the HVCF
             val hvcfFileReader = VCFFileReader(File(hvcfInput.hvcfFile), false)
             val outputFileName = File(File(hvcfInput.hvcfFile).name.replace(HVCF_PATTERN, ".fa"))
@@ -159,27 +182,43 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
                 val records = processSingleHVCF(hvcfFileReader, dbPath, condaEnvPrefix)
                 writeSequences(output, records, fastaType)
             }
-        }  else {
+        } else {
             // Load in the TileDB
             TODO("TileDB VCF Reader Not implemented yet.  Please run with --hvcf-file or --hvcf-dir")
         }
 
     }
 
-    fun processSingleHVCF(vcfFileReader: VCFFileReader, dbPath: String,condaEnvPrefix:String) : List<HaplotypeSequence> {
+    fun processSingleHVCF(
+        vcfFileReader: VCFFileReader,
+        dbPath: String,
+        condaEnvPrefix: String
+    ): List<HaplotypeSequence> {
         //extract out the haplotype sequence boundaries for each haplotype from the hvcf
         val altHeaderMap = parseALTHeader(vcfFileReader.header)
 
         val samples = vcfFileReader.header.sampleNamesInOrder
         val hvcfRecords = vcfFileReader.iterator().asSequence().toList()
 
-        return samples.flatMap { sample -> createHaplotypeSequences(dbPath, sample, hvcfRecords, altHeaderMap,condaEnvPrefix) }
+        return samples.flatMap { sample ->
+            createHaplotypeSequences(
+                dbPath,
+                sample,
+                hvcfRecords,
+                altHeaderMap,
+                condaEnvPrefix
+            )
+        }
     }
 
-    fun writeSequences(outputWriter: BufferedWriter, haplotypeSequences: List<HaplotypeSequence>, fastaType: FastaType) {
-        if(fastaType == FastaType.composite)
+    fun writeSequences(
+        outputWriter: BufferedWriter,
+        haplotypeSequences: List<HaplotypeSequence>,
+        fastaType: FastaType
+    ) {
+        if (fastaType == FastaType.composite)
             writeCompositeSequence(outputWriter, haplotypeSequences)
-        else if(fastaType == FastaType.haplotype) {
+        else if (fastaType == FastaType.haplotype) {
             writeHaplotypeSequence(outputWriter, haplotypeSequences)
         }
     }
@@ -194,49 +233,69 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
      *    "hapSampleName" is the samplename associated with the haplotype sequence, and this information
      *           is pulled from the ALT header line using the hapid as an index.
      */
-    fun createHaplotypeSequences(dbPath:String, sampleName: String, haplotypeVariants: List<VariantContext>, altHeaders: Map<String, AltHeaderMetaData>,condaEnvPrefix:String): List<HaplotypeSequence> {
-        val chromToAltEntryData = mutableMapOf<String, MutableList<Triple<MutableList<String>,MutableList<String>,HaplotypeSequence>>>()
+    fun createHaplotypeSequences(
+        dbPath: String,
+        sampleName: String,
+        haplotypeVariants: List<VariantContext>,
+        altHeaders: Map<String, AltHeaderMetaData>,
+        condaEnvPrefix: String
+    ): List<HaplotypeSequence> {
+        val chromToAltEntryData =
+            mutableMapOf<String, MutableList<Triple<MutableList<String>, MutableList<String>, HaplotypeSequence>>>()
         val hapSeqList = mutableListOf<HaplotypeSequence>()
         // Filter out the haplotype variants that do not have the sampleName
         // Also filter out the haplotype variants that have a blank haplotype ID
         // FindPaths includes missing haplotypes in the h.vcf file.  These are represented via "." in the h.vcf file and appear
         // as empty string in the variable "hapId" below.  This is not an error
         haplotypeVariants.filter { it.hasGenotype(sampleName) }
-            .filter{it.getGenotype(sampleName).getAllele(0).displayString.replace("<","").replace(">","") != ""}
+            .filter { it.getGenotype(sampleName).getAllele(0).displayString.replace("<", "").replace(">", "") != "" }
             .map {
-            val hapId = it.getGenotype(sampleName).getAllele(0).displayString.replace("<","").replace(">","")
-            // If the hapId from the variants is a non-blank value that is not in the ALT header, throw an exception
-            check(altHeaders.containsKey(hapId)) { "Haplotype ID $hapId not found in ALT Header" }
-            val altMetaData = altHeaders[hapId]
-            val hapSampleName = altMetaData!!.sampleName()
-            //Need to subtract 1 from start as it uses 0 based format
-            val regions =  altMetaData!!.regions
-            val queryRanges = mutableListOf<String>()
-            val displayRanges = mutableListOf<String>()
-            for(region in regions) {
-                if(region.first.position-1 > region.second.position-1) {
-                    queryRanges.add("${region.first.contig}@${hapSampleName}:${region.second.position-1}-${region.first.position-1}")
-                    displayRanges.add("${hapSampleName}@${region.first.contig}:${region.second.position-1}-${region.first.position-1}")
+                val hapId = it.getGenotype(sampleName).getAllele(0).displayString.replace("<", "").replace(">", "")
+                // If the hapId from the variants is a non-blank value that is not in the ALT header, throw an exception
+                check(altHeaders.containsKey(hapId)) { "Haplotype ID $hapId not found in ALT Header" }
+                val altMetaData = altHeaders[hapId]
+                val hapSampleName = altMetaData!!.sampleName()
+                //Need to subtract 1 from start as it uses 0 based format
+                val regions = altMetaData!!.regions
+                val queryRanges = mutableListOf<String>()
+                val displayRanges = mutableListOf<String>()
+                for (region in regions) {
+                    if (region.first.position - 1 > region.second.position - 1) {
+                        queryRanges.add("${region.first.contig}@${hapSampleName}:${region.second.position - 1}-${region.first.position - 1}")
+                        displayRanges.add("${hapSampleName}@${region.first.contig}:${region.second.position - 1}-${region.first.position - 1}")
+                    } else {
+                        queryRanges.add("${region.first.contig}@${hapSampleName}:${region.first.position - 1}-${region.second.position - 1}")
+                        displayRanges.add("${hapSampleName}@${region.first.contig}:${region.first.position - 1}-${region.second.position - 1}")
+                    }
                 }
-                else {
-                    queryRanges.add("${region.first.contig}@${hapSampleName}:${region.first.position - 1}-${region.second.position - 1}")
-                    displayRanges.add("${hapSampleName}@${region.first.contig}:${region.first.position-1}-${region.second.position-1}")
-                }
+                //Add the haplotype sequence to the list of haplotype sequences for this chromosome
+                val chromList = chromToAltEntryData.getOrDefault(it.contig, mutableListOf())
+                chromList.add(
+                    Triple(
+                        queryRanges,
+                        displayRanges,
+                        HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, regions)
+                    )
+                )
+                chromToAltEntryData[it.contig] = chromList
             }
-            //Add the haplotype sequence to the list of haplotype sequences for this chromosome
-            val chromList = chromToAltEntryData.getOrDefault(it.contig, mutableListOf())
-            chromList.add(Triple(queryRanges, displayRanges, HaplotypeSequence(hapId, "", altMetaData.refRange, it.contig, it.start, it.end, regions)))
-            chromToAltEntryData[it.contig] = chromList
-        }
 
         // The full set of ranges in a single query is too much for both ProcessBuilder
         // and for AGC.  Loop over the chromosomes, grabbing sequence from AGC a chrom at a time.
         // This returns a list of HaplotypeSequence objects.
-        for(chrom in chromToAltEntryData.keys) {
+        for (chrom in chromToAltEntryData.keys) {
             val ranges = chromToAltEntryData[chrom]!!.flatMap { it.first }
-            val seqs = retrieveAgcContigs(dbPath,ranges,condaEnvPrefix)
+            val seqs = retrieveAgcContigs(dbPath, ranges, condaEnvPrefix)
             // add to the hapSeqList an updated HaplotypeSequence object containing the sequence built from AGC contigs
-             hapSeqList.addAll(chromToAltEntryData[chrom]!!.map { it.third.copy(sequence = buildHapSeq(seqs, it.second,it.third)) })
+            hapSeqList.addAll(chromToAltEntryData[chrom]!!.map {
+                it.third.copy(
+                    sequence = buildHapSeq(
+                        seqs,
+                        it.second,
+                        it.third
+                    )
+                )
+            })
         }
         return hapSeqList
     }
@@ -279,14 +338,20 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
      * Function to output haplotype sequences to a fasta file.  Here each haplotype is exported as its own fasta record without concatenating things together.
      * This is almost identical to how fastas were exported in the original version of the pipeline.
      */
-    fun writeHaplotypeSequence(outputFileWriter: BufferedWriter, haplotypeSequences: List<HaplotypeSequence>, exportFullIdLine : Boolean = true) {
+    fun writeHaplotypeSequence(
+        outputFileWriter: BufferedWriter,
+        haplotypeSequences: List<HaplotypeSequence>,
+        exportFullIdLine: Boolean = true
+    ) {
         // Make this a set to remove duplicates.  A LinkedHashSet to maintain the order
-        for(hapSeq in haplotypeSequences.toCollection(LinkedHashSet())) {
+        for (hapSeq in haplotypeSequences.toCollection(LinkedHashSet())) {
             outputFileWriter.write(">${hapSeq.id}")
-            if(exportFullIdLine) {
-                outputFileWriter.write(" Ref_Range_Id=${hapSeq.refRangeId} " +
-                "Ref_Contig=${hapSeq.refContig} Ref_Start=${hapSeq.refStart} Ref_End=${hapSeq.refEnd} " +
-                        "Asm_Regions=${hapSeq.asmRegions.joinToString(",") { "${it.first.contig}:${it.first.position}-${it.second.position}" }}")
+            if (exportFullIdLine) {
+                outputFileWriter.write(
+                    " Ref_Range_Id=${hapSeq.refRangeId} " +
+                        "Ref_Contig=${hapSeq.refContig} Ref_Start=${hapSeq.refStart} Ref_End=${hapSeq.refEnd} " +
+                        "Asm_Regions=${hapSeq.asmRegions.joinToString(",") { "${it.first.contig}:${it.first.position}-${it.second.position}" }}"
+                )
             }
             outputFileWriter.write("\n")
             hapSeq.sequence
@@ -305,7 +370,7 @@ class CreateFastaFromHvcf : CliktCommand( help = "Create a FASTA file from a h.v
 
         // Verify the tiledbURI
         // If it doesn't an exception will be thrown
-        val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
+        val validDB = verifyURI(dbPath, "hvcf_dataset", condaEnvPrefix)
 
         buildFastaFromHVCF(dbPath, outputDir, fastaType, hvcfInput, condaEnvPrefix)
     }
