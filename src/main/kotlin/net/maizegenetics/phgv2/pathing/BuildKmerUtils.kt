@@ -26,13 +26,13 @@ fun setBitForSample(gamete: ULong, samples: List<String>, sample: String): ULong
  *  It is used to get the samples that have hits in the keepMap of the processGraphKmers2 function
  */
 
-fun getSetBitIndices(number: ULong): List<Int> {
+fun getSetBitIndices(number: Long): List<Int> {
     val indices = mutableListOf<Int>()
     var value = number
     var index = 0
 
-    while (value > 0uL) {
-        if ((value and 1uL) != 0uL) {
+    while (value > 0L) {
+        if ((value and 1L) != 0L) {
             indices.add(index)
         }
         value = value shr 1
@@ -46,11 +46,12 @@ fun getSetBitIndices(number: ULong): List<Int> {
  * Given two ULong numbers representing a bit set of samples, and a map of samples to indexed positions,
  * this function returns a list of SampleGamete objects represented by the set bits in the ULong numbers.
  */
+
 fun findSampleGametes(
-    gameteLong0: ULong,
-    gameteLong1: ULong,
+    gameteLong0: Long,
+    gameteLong1: Long,
     samplesMap: Map<String, Int>
-): Set<SampleGamete> {
+): Set<SampleGamete>{
     val sampleGametes = mutableSetOf<SampleGamete>()
 
     // Combine gameteLong0 and gameteLong1 into a single map lookup

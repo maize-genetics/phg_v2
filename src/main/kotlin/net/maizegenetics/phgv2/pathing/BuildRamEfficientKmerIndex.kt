@@ -12,6 +12,7 @@ import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
+import me.lemire.integercompression.differential.IntegratedIntCompressor
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
@@ -25,7 +26,8 @@ import kotlin.math.min
 import kotlin.time.DurationUnit
 import kotlin.time.measureTimedValue
 
-data class IndexedKmerData(val chr: String, val pos: UInt, var gameteLong0 : ULong, var gameteLong1 : ULong)
+//data class IndexedKmerData(val chr: String, val pos: UInt, var gameteLong0 : ULong, var gameteLong1 : ULong)
+data class IndexedKmerData(val chr: String, val pos: Int, var gameteLong0 : Long, var gameteLong1 : Long)
 class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGraph. By default the file will be written " +
         "to <hvcfDir>/kmerIndex.txt") {
 
@@ -87,11 +89,16 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
             .toMap()
 
         val (hashToHapidMap, discardSet) = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue, samplesMap)
+//        val (hashToHapidMap, discardSet) = processGraphKmersList(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue, samplesMap)
+//        val (hashToHapidMap, discardSet) = processGraphKmersCompressInt(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue, samplesMap, IntegratedIntCompressor())
 
         val kmerIndexFilename = if (indexFile == "") "${hvcfDir}/kmerIndex.txt" else indexFile
-
+//        println("Ram Usage prior to saving kmerIndex:")
+//        SizeOf.printMemoryUse()
         //save the kmerIndex
         saveKmerHashesAndHapids(graph, kmerIndexFilename, hashToHapidMap,samplesMap)
+        println("Ram Usage after saving kmerIndex:")
+        SizeOf.printMemoryUse()
 
         if(discardFile.isNotEmpty()) {
             bufferedWriter(discardFile).use { writer ->
@@ -131,6 +138,11 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
         val maxHapsToKeep = samplesMap.keys.size * .5
 
         for (chr in contigRangesMap.keys) {
+            //ZRM for testing: TODO: Remove at PR
+//            if(chr != "chr8") {
+//                myLogger.info("Skipping chr $chr")
+//                continue
+//            }
             //get all sequence for this chromosome
             val agcRequestLists = rangeListsForAgcCommand(graph, contigRangesMap, chr)
             val agcChromSequence = if (agcRequestLists.sampleContigList.isNotEmpty()) {
@@ -154,6 +166,140 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
                 countKmerHashesForHaplotypeSequenceSimplified(hapidToSequenceMap, hashMask, hashFilterValue, keepMap,
                     discardSet, maxHapsToKeep,hapidToSampleMap,samplesMap,refrange)
             }
+//            Uncomment to see RAM usage
+//            SizeOf.printMemoryUse()
+        }
+        myLogger.debug("Finished building kmer keep set, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
+
+        //make sure no hashes in the keepMap are also in discard
+        var numberInDiscardSet = 0
+        for (element in keepMap.keys) {
+            if (discardSet.contains(element)) numberInDiscardSet++
+        }
+        myLogger.info("$numberInDiscardSet kmers in the keepMap are also in the discardSet.")
+
+        return Pair(keepMap, discardSet)
+
+    }
+
+    // This is derived from the function processGraphKmers in BuildKmerIndex.kt, but with a few changes
+    // This implementation uses a mutableMap, which should be able to
+    // grow as needed.  The bitmaps that contain the gamete information will take up
+    // less room and need less storage.
+    fun processGraphKmersList(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75,
+                          hashMask: Long = 3, hashFilterValue:Long = 1, samplesMap:Map<String,Int>) : Pair<Long2ObjectOpenHashMap<List<IndexedKmerData>>, LongOpenHashSet> {
+
+        // keepMap is a map of kmerHash -> IndexedKmerData
+        val keepMap = Long2ObjectOpenHashMap<MutableList<IndexedKmerData>>() //Long2ObjectOpenHashMap
+        //discardSet is a Set of hashes
+        val discardSet = LongOpenHashSet(initialKeepSize)
+        val startTime = System.nanoTime()
+        val contigRangesMap = graph.rangesByContig()
+
+        //We set this to be numSampleGametes * .5 so we only keep track of informative kmers
+        //We originally tried 2 * numSampleGametes but that was too high as we had too much repetitive mappings
+        val maxHapsToKeep = samplesMap.keys.size * .5
+
+        for (chr in contigRangesMap.keys) {
+            //ZRM for testing:
+            if(chr != "chr8") {
+                myLogger.info("Skipping chr $chr")
+                continue
+            }
+            //get all sequence for this chromosome
+            val agcRequestLists = rangeListsForAgcCommand(graph, contigRangesMap, chr)
+            val agcChromSequence = if (agcRequestLists.sampleContigList.isNotEmpty()) {
+                myLogger.info("sampleContigList size = ${agcRequestLists.sampleContigList.size}, first element = ${agcRequestLists.sampleContigList[0]}")
+                retrieveAgcContigs(dbPath, agcRequestLists.sampleContigList,"")
+            }
+            else emptyMap()
+            val agcOtherRegionSequence: Map<Pair<String,String>, NucSeq> = if (agcRequestLists.otherRegionsList.isNotEmpty()) getAgcSequenceForRanges(agcRequestLists.otherRegionsList)
+            else emptyMap()
+
+            //iterate through refranges, generate kmers from the sequence
+            for (refrange in contigRangesMap[chr]!!) {
+                val hapidToSampleMap = graph.hapIdToSampleGametes(refrange)
+
+                //map haplotype ids to the sequence for that hapid
+                val hapidToSequenceMap = extractSequenceForCurrentHapIds(hapidToSampleMap, graph, agcChromSequence, agcOtherRegionSequence)
+
+                // Include the hapidToSampleMap as a parameter - this will be needed to get the sample for the hapid
+                // so we can index into the bit arrays
+                // Count Kmer Hashes for the Haplotype Sequences
+                countKmerHashesForHaplotypeSequenceSimplifiedList(hapidToSequenceMap, hashMask, hashFilterValue, keepMap,
+                    discardSet, maxHapsToKeep,hapidToSampleMap,samplesMap,refrange)
+            }
+            SizeOf.printMemoryUse()
+        }
+        myLogger.debug("Finished building kmer keep set, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
+
+        //make sure no hashes in the keepMap are also in discard
+        var numberInDiscardSet = 0
+        for (element in keepMap.keys) {
+            if (discardSet.contains(element)) numberInDiscardSet++
+        }
+        myLogger.info("$numberInDiscardSet kmers in the keepMap are also in the discardSet.")
+
+        return Pair(keepMap as Long2ObjectOpenHashMap<List<IndexedKmerData>>, discardSet)
+
+    }
+
+
+    // This is derived from the function processGraphKmers in BuildKmerIndex.kt, but with a few changes
+    // This implementation uses a mutableMap, which should be able to
+    // grow as needed.  The bitmaps that contain the gamete information will take up
+    // less room and need less storage.
+    fun processGraphKmersCompressInt(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75,
+                              hashMask: Long = 3, hashFilterValue:Long = 1, samplesMap:Map<String,Int>, intCompressor: IntegratedIntCompressor) : Pair<Long2ObjectOpenHashMap<IntArray>, LongOpenHashSet> {
+
+        // keepMap is a map of kmerHash -> IndexedKmerData
+        val keepMap = Long2ObjectOpenHashMap<IntArray>() //Long2ObjectOpenHashMap
+
+        val chroms = graph.contigs.sorted()
+        val chrIdxMap = chroms.mapIndexed { index, chr -> index to chr }.toMap()
+
+
+        //discardSet is a Set of hashes
+        val discardSet = LongOpenHashSet(initialKeepSize)
+        val startTime = System.nanoTime()
+        val contigRangesMap = graph.rangesByContig()
+
+        //We set this to be numSampleGametes * .5 so we only keep track of informative kmers
+        //We originally tried 2 * numSampleGametes but that was too high as we had too much repetitive mappings
+        val maxHapsToKeep = samplesMap.keys.size * .5
+
+        for (chr in contigRangesMap.keys) {
+            //ZRM for testing:
+            if(chr != "chr8") {
+                myLogger.info("Skipping chr $chr")
+                continue
+            }
+            //get all sequence for this chromosome
+            val agcRequestLists = rangeListsForAgcCommand(graph, contigRangesMap, chr)
+            val agcChromSequence = if (agcRequestLists.sampleContigList.isNotEmpty()) {
+                myLogger.info("sampleContigList size = ${agcRequestLists.sampleContigList.size}, first element = ${agcRequestLists.sampleContigList[0]}")
+                retrieveAgcContigs(dbPath, agcRequestLists.sampleContigList,"")
+            }
+            else emptyMap()
+            val agcOtherRegionSequence: Map<Pair<String,String>, NucSeq> = if (agcRequestLists.otherRegionsList.isNotEmpty()) getAgcSequenceForRanges(agcRequestLists.otherRegionsList)
+            else emptyMap()
+
+            println("Done retrieving sequences for chr $chr")
+            SizeOf.printMemoryUse()
+            //iterate through refranges, generate kmers from the sequence
+            for (refrange in contigRangesMap[chr]!!) {
+                val hapidToSampleMap = graph.hapIdToSampleGametes(refrange)
+
+                //map haplotype ids to the sequence for that hapid
+                val hapidToSequenceMap = extractSequenceForCurrentHapIds(hapidToSampleMap, graph, agcChromSequence, agcOtherRegionSequence)
+
+                // Include the hapidToSampleMap as a parameter - this will be needed to get the sample for the hapid
+                // so we can index into the bit arrays
+                // Count Kmer Hashes for the Haplotype Sequences
+                countKmerHashesForHaplotypeSequenceSimplifiedCompInt(hapidToSequenceMap, hashMask, hashFilterValue, keepMap,
+                    discardSet, maxHapsToKeep,hapidToSampleMap,samplesMap,refrange, intCompressor, chrIdxMap)
+            }
+            SizeOf.printMemoryUse()
         }
         myLogger.debug("Finished building kmer keep set, keep set size = ${keepMap.size}, discard set size = ${discardSet.size}, elapse time ${(System.nanoTime() - startTime)/1e9} sec")
 
@@ -204,11 +350,9 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
                         val minHash = min(previousHash.first.toULong(), previousHash.second.toULong()).toLong()
 
                         val keyInMap = keepMap.containsKey(minHash)
-                        var bitCount1 = 0
-                        var bitCount2 = 0
+                        var bitCount = 0
                         if (keyInMap) {
-                            bitCount1 = keepMap[minHash]!!.gameteLong0.countOneBits()
-                            bitCount2 = keepMap[minHash]!!.gameteLong1.countOneBits()
+                            bitCount = keepMap[minHash]!!.gameteLong0.countOneBits() + keepMap[minHash]!!.gameteLong1.countOneBits()
                         }
                         // Use only kmers with a specific ending nucleotide(s)
                         // hashMask determines how many positions will be used
@@ -217,7 +361,7 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
                         when {
                             ((minHash and hashMask) != hashFilterValue) -> continue //Doesn't pass hash Mask filter so skip
                             discardSet.contains(minHash) -> continue // Already in discard set so skip
-                            keyInMap && (bitCount1 + bitCount2 + 1 > maxHapsToKeep) -> {
+                            keyInMap && (bitCount + 1 > maxHapsToKeep) -> {
                                 //This means that adding a hapID will push us over the maxHapsToKeep parameter so we
                                 //should remove from the keepMap and add to the discardSet
                                 keepMap.remove(minHash)
@@ -233,17 +377,17 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
                                 if (index in 0..127) { // this ignores samples beyond 128
                                     val shiftIndex = index % 64
                                     if (index < 64) {
-                                        kmerDetails.gameteLong0 = kmerDetails.gameteLong0 or (1uL shl shiftIndex)
+                                        kmerDetails.gameteLong0 = kmerDetails.gameteLong0 or (1L shl shiftIndex)
                                     } else {
-                                        kmerDetails.gameteLong1 = kmerDetails.gameteLong1 or (1uL shl shiftIndex)
+                                        kmerDetails.gameteLong1 = kmerDetails.gameteLong1 or (1L shl shiftIndex)
                                     }
                                     keepMap[minHash] = kmerDetails
                                 }
 
                             } // New Entry: add the hapID to the current set for this hash
                             else  -> { // create new entry for map
-                                var gameteLong0 = 0uL
-                                var gameteLong1 = 0uL
+                                var gameteLong0 = 0L
+                                var gameteLong1 = 0L
                                 val index = samplesMap[sample] ?: -1
                                 if (index == -1) {
                                     throw IllegalArgumentException("Sample ${sample} not found in the list.")
@@ -251,12 +395,12 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
                                 if (index in 0..127) { // this ignores samples beyond 128
                                     val shiftIndex = index % 64
                                     if (index < 64) {
-                                        gameteLong0 = gameteLong0 or (1uL shl shiftIndex)
+                                        gameteLong0 = gameteLong0 or (1L shl shiftIndex)
                                     } else {
-                                        gameteLong1 = gameteLong1 or (1uL shl shiftIndex)
+                                        gameteLong1 = gameteLong1 or (1L shl shiftIndex)
                                     }
                                 }
-                                keepMap[minHash] = IndexedKmerData(refRange.contig, refRange.start.toUInt(),gameteLong0,gameteLong1)
+                                keepMap[minHash] = IndexedKmerData(refRange.contig, refRange.start,gameteLong0,gameteLong1)
                             } //Newly seen hash so we need to add a new object
                         } // end when
                     } // end for nucleotide
@@ -264,6 +408,264 @@ class BuildRamEfficientKmerIndex: CliktCommand(help="Create a kmer index for a H
             } // for sequenceWithNs in seaList
         } // end for hapid, seqList in sequenceMap
     }
+
+
+    private fun countKmerHashesForHaplotypeSequenceSimplifiedList(sequenceMap: Map<String, List<String>>, hashMask: Long, hashFilterValue: Long,
+                                                              keepMap:Long2ObjectOpenHashMap<MutableList<IndexedKmerData>>, discardSet: LongOpenHashSet, maxHapsToKeep: Double,
+                                                              hapidToSampleMap: Map<String, List<SampleGamete>>, samplesMap:Map<String,Int>, refRange: ReferenceRange) {
+        for ((hapid, seqList) in sequenceMap) {
+            val sample = hapidToSampleMap[hapid]!!.first().toString()
+            for (sequenceWithNs in seqList) {
+                //split sequence on N's then filter on length > 31 because we are looking for 32-mers
+                val splitList = sequenceWithNs
+                    .split("N+".toRegex())
+                    .filter{it.length > 31}
+                for (sequence in splitList) {
+                    var previousHash = Pair(0L, 0L)
+
+                    //for first 31 nucleotides just update the hash
+                    for (nucleotide in sequence.subSequence(0..30)) {
+                        previousHash = updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+                    }
+
+                    //start using kmers starting with the 32nd nucleotide
+                    for (nucleotide in sequence.subSequence(31 until sequence.length)) {
+                        previousHash = updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+                        //Need to convert these to ULong otherwise the min function will not work correctly
+                        //If we leave these as signed Longs, G and T are sorted before A and C due to negative values
+                        val minHash = min(previousHash.first.toULong(), previousHash.second.toULong()).toLong()
+
+                        val keyInMap = keepMap.containsKey(minHash)
+                        var bitCount = 0
+                        if (keyInMap) {
+                            for(kmerData in keepMap[minHash]!!) {
+                                bitCount += kmerData.gameteLong0.countOneBits() + kmerData.gameteLong1.countOneBits()
+                            }
+                        }
+                        // Use only kmers with a specific ending nucleotide(s)
+                        // hashMask determines how many positions will be used
+                        // hashFilterValue determines which nucleotide will be kept at that position
+
+                        when {
+                            ((minHash and hashMask) != hashFilterValue) -> continue //Doesn't pass hash Mask filter so skip
+                            discardSet.contains(minHash) -> continue // Already in discard set so skip
+                            keyInMap && (bitCount + 1 > maxHapsToKeep) -> {
+                                //This means that adding a hapID will push us over the maxHapsToKeep parameter so we
+                                //should remove from the keepMap and add to the discardSet
+                                keepMap.remove(minHash)
+                                discardSet.add(minHash)
+                            }
+                            keyInMap -> {
+                                //loop through the kmerdata lists, if we find one that overlaps we add that hap to the list
+                                var alreadySeenRefRange = false
+
+                                for (kmerData in keepMap[minHash]!!) {
+                                    if (kmerData.chr == refRange.contig && kmerData.pos == refRange.start) {
+                                        alreadySeenRefRange = true
+                                        val index = samplesMap[sample] ?: -1
+                                        if (index == -1) {
+                                            throw IllegalArgumentException("Sample ${sample} not found in the graph.")
+                                        }
+                                        if (index in 0..127) { // this ignores samples beyond 128
+                                            val shiftIndex = index % 64
+                                            if (index < 64) {
+                                                kmerData.gameteLong0 = kmerData.gameteLong0 or (1L shl shiftIndex)
+                                            } else {
+                                                kmerData.gameteLong1 = kmerData.gameteLong1 or (1L shl shiftIndex)
+                                            }
+                                        }
+                                        break
+                                    }
+                                }
+                                if(!alreadySeenRefRange) {
+                                    var gameteLong0 = 0L
+                                    var gameteLong1 = 0L
+                                    val index = samplesMap[sample] ?: -1
+                                    if (index == -1) {
+                                        throw IllegalArgumentException("Sample ${sample} not found in the list.")
+                                    }
+                                    if (index in 0..127) { // this ignores samples beyond 128
+                                        val shiftIndex = index % 64
+                                        if (index < 64) {
+                                            gameteLong0 = gameteLong0 or (1L shl shiftIndex)
+                                        } else {
+                                            gameteLong1 = gameteLong1 or (1L shl shiftIndex)
+                                        }
+                                    }
+                                    keepMap[minHash].add(IndexedKmerData(refRange.contig, refRange.start,gameteLong0,gameteLong1))
+                                }
+                            } // New Entry: add the hapID to the current set for this hash
+                            else  -> { // create new entry for map
+                                var gameteLong0 = 0L
+                                var gameteLong1 = 0L
+                                val index = samplesMap[sample] ?: -1
+                                if (index == -1) {
+                                    throw IllegalArgumentException("Sample ${sample} not found in the list.")
+                                }
+                                if (index in 0..127) { // this ignores samples beyond 128
+                                    val shiftIndex = index % 64
+                                    if (index < 64) {
+                                        gameteLong0 = gameteLong0 or (1L shl shiftIndex)
+                                    } else {
+                                        gameteLong1 = gameteLong1 or (1L shl shiftIndex)
+                                    }
+                                }
+                                keepMap[minHash] = mutableListOf(IndexedKmerData(refRange.contig, refRange.start,gameteLong0,gameteLong1))
+                            } //Newly seen hash so we need to add a new object
+                        } // end when
+                    } // end for nucleotide
+                } // end for sequence in splitList
+            } // for sequenceWithNs in seaList
+        } // end for hapid, seqList in sequenceMap
+    }
+
+    private fun countKmerHashesForHaplotypeSequenceSimplifiedCompInt(sequenceMap: Map<String, List<String>>, hashMask: Long, hashFilterValue: Long,
+                                                                  keepMap:Long2ObjectOpenHashMap<IntArray>, discardSet: LongOpenHashSet, maxHapsToKeep: Double,
+                                                                  hapidToSampleMap: Map<String, List<SampleGamete>>, samplesMap:Map<String,Int>, refRange: ReferenceRange,
+                                                                  intCompressor: IntegratedIntCompressor, chrIdxMap: Map<Int,String>) {
+        for ((hapid, seqList) in sequenceMap) {
+            val sample = hapidToSampleMap[hapid]!!.first().toString()
+            for (sequenceWithNs in seqList) {
+                //split sequence on N's then filter on length > 31 because we are looking for 32-mers
+                val splitList = sequenceWithNs
+                    .split("N+".toRegex())
+                    .filter{it.length > 31}
+                for (sequence in splitList) {
+                    var previousHash = Pair(0L, 0L)
+
+                    //for first 31 nucleotides just update the hash
+                    for (nucleotide in sequence.subSequence(0..30)) {
+                        previousHash = updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+                    }
+
+                    //start using kmers starting with the 32nd nucleotide
+                    for (nucleotide in sequence.subSequence(31 until sequence.length)) {
+                        previousHash = updateKmerHashAndReverseCompliment(previousHash, nucleotide)
+                        //Need to convert these to ULong otherwise the min function will not work correctly
+                        //If we leave these as signed Longs, G and T are sorted before A and C due to negative values
+                        val minHash = min(previousHash.first.toULong(), previousHash.second.toULong()).toLong()
+
+                        val keyInMap = keepMap.containsKey(minHash)
+                        val bitCount = if (keyInMap) {
+                                //decode keepMap[minHash]
+                                countBitsIntArray(intCompressor.uncompress(keepMap[minHash]!!))
+                            }
+                            else {
+                                0
+                            }
+                        // Use only kmers with a specific ending nucleotide(s)
+                        // hashMask determines how many positions will be used
+                        // hashFilterValue determines which nucleotide will be kept at that position
+
+                        when {
+                            ((minHash and hashMask) != hashFilterValue) -> continue //Doesn't pass hash Mask filter so skip
+                            discardSet.contains(minHash) -> continue // Already in discard set so skip
+                            keyInMap && (bitCount + 1 > maxHapsToKeep) -> {
+                                //This means that adding a hapID will push us over the maxHapsToKeep parameter so we
+                                //should remove from the keepMap and add to the discardSet
+                                keepMap.remove(minHash)
+                                discardSet.add(minHash)
+                            }
+                            keyInMap -> {
+                                val decodedArray = intCompressor.uncompress(keepMap[minHash]!!)
+
+                                val updatedArray = updateKmerHits(decodedArray, refRange, sample, samplesMap, chrIdxMap)
+                                keepMap[minHash] = intCompressor.compress(updatedArray)
+                            } // New Entry: add the hapID to the current set for this hash
+                            else  -> { // create new entry for map
+                                val newArray = IntArray(5 * maxHapsToKeep.toInt())
+                                val updatedArray = updateKmerHits(newArray, refRange, sample, samplesMap, chrIdxMap)
+                                keepMap[minHash] = intCompressor.compress(updatedArray)
+                            } //Newly seen hash so we need to add a new object
+                        } // end when
+                    } // end for nucleotide
+                } // end for sequence in splitList
+            } // for sequenceWithNs in seaList
+        } // end for hapid, seqList in sequenceMap
+    }
+
+    private fun countBitsIntArray(intArray: IntArray): Int {
+        //We need to skip the every first entry in the sets of 5
+        //ChrPos, gameteLong0, gameteLong1, gameteLong2, gameteLong3
+        var count = 0
+        for((index, int) in intArray.withIndex()) {
+            if(index % 5 == 0) {
+                continue
+            }
+            count += int.countOneBits()
+        }
+        return count
+    }
+
+    private fun updateKmerHits(decodedArray: IntArray, refRange: ReferenceRange, sample: String, samplesMap: Map<String, Int>, chrIdxMap: Map<Int,String>): IntArray {
+        //the array is in sets of 5
+        //ChrPos, gameteLong0, gameteLong1, gameteLong2, gameteLong3
+        //We need to find the correct set of 5 for the refRange if it exists
+        //If it does not exist we need to add a new set of 5.  Note we must have space here no matter what because of previous checks
+
+        //Loop through each position checking to see if it matches our refRange
+        for(arrayIdx in 0 until decodedArray.size step 5) {
+            if(decodedArray[arrayIdx] == 0) {
+                //encode the hit at this idx
+
+                val sampleIdx = samplesMap[sample] ?: -1
+                if (sampleIdx == -1) {
+                    throw IllegalArgumentException("Sample ${sample} not found in the graph.")
+                }
+                updateIntBits(sampleIdx, decodedArray, arrayIdx)
+
+                return decodedArray
+            }
+            val (chrIdx,pos) = decodePosInt(decodedArray[arrayIdx])
+            val chrName = chrIdxMap[chrIdx]
+            if(chrName == refRange.contig && pos == refRange.start) {
+                //We found the correct set of 5
+                //Now we need to update the correct int within the array
+                val sampleIdx = samplesMap[sample] ?: -1
+                if (sampleIdx == -1) {
+                    throw IllegalArgumentException("Sample ${sample} not found in the graph.")
+                }
+                updateIntBits(sampleIdx, decodedArray, arrayIdx)
+                return decodedArray
+            }
+        }
+        throw IllegalArgumentException("No space found for refRange: ${refRange.contig} ${refRange.start}")
+    }
+
+    private fun updateIntBits(sampleIdx: Int, decodedArray: IntArray, arrayIdx: Int) {
+        if (sampleIdx in 0..127) { // this ignores samples beyond 128
+            val shiftIndex = sampleIdx % 32
+            if (sampleIdx in 0..31) {
+                decodedArray[arrayIdx + 2] = decodedArray[arrayIdx + 2] or (1 shl shiftIndex)
+            } else if (sampleIdx in 32..63) {
+                decodedArray[arrayIdx + 3] = decodedArray[arrayIdx + 3] or (1 shl shiftIndex)
+            } else if (sampleIdx in 64..95) {
+                decodedArray[arrayIdx + 4] = decodedArray[arrayIdx + 4] or (1 shl shiftIndex)
+            } else {
+                decodedArray[arrayIdx + 5] = decodedArray[arrayIdx + 5] or (1 shl shiftIndex)
+            }
+        }
+    }
+
+    /**
+     * Function to decode the ChrIndex+Pos encoding
+     * First 8 bits are used by chr last 24 are used by pos
+     */
+    fun decodePosInt(chrPosInt: Int) : Pair<Int,Int> {
+        val chr = chrPosInt shr 24
+        val pos = chrPosInt and 0xFFFFFF
+        return Pair(chr,pos)
+    }
+
+    /**
+     * Function to encode the chr and Position.
+     *
+     * We don't care about sign here because we are not sorting
+     */
+    fun encodePosInt(chr: Int, pos: Int) : Int {
+        return (chr shl 24) or pos
+    }
+
 
     /**
      * Initial implementation from BUildKmerIndex.kt, has a few changes

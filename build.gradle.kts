@@ -93,6 +93,7 @@ dependencies {
     implementation("io.ktor:ktor-client-websockets:$ktorVersion")
 
     implementation("org.ehcache:ehcache:3.10.8")
+    implementation("me.lemire.integercompression:JavaFastPFOR:0.2.1")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
 
