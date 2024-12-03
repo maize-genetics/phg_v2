@@ -12,7 +12,10 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.enum
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
+import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.utils.*
+import org.apache.logging.log4j.LogManager
 import java.io.BufferedWriter
 import java.io.File
 
@@ -57,6 +60,8 @@ sealed class HvcfInput {
 
 class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vcf file or TileDB directly") {
 
+    private val myLogger = LogManager.getLogger(CreateFastaFromHvcf::class.java)
+
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
 
@@ -66,7 +71,8 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
     enum class FastaType {
         composite,
         haplotype,
-        pangenomeHaplotype
+        pangenomeHaplotype,
+        rangeFasta
     }
 
     val fastaType by option("--fasta-type", help = "Type of fasta exported.  Can be either composite or haplotype")
@@ -89,6 +95,9 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
             .convert { HvcfInput.HvcfDir(it) }
     ).single() // cannot provide both hvcf-file and hvcf-dir at the same time
         .required() // one of the two options must be provided
+
+    val rangeBedfile by option(help = "Full path to bedfile specifying the ranges to export")
+        .required()
 
     val condaEnvPrefix by option(help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
@@ -349,8 +358,8 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
             if (exportFullIdLine) {
                 outputFileWriter.write(
                     " Ref_Range_Id=${hapSeq.refRangeId} " +
-                        "Ref_Contig=${hapSeq.refContig} Ref_Start=${hapSeq.refStart} Ref_End=${hapSeq.refEnd} " +
-                        "Asm_Regions=${hapSeq.asmRegions.joinToString(",") { "${it.first.contig}:${it.first.position}-${it.second.position}" }}"
+                            "Ref_Contig=${hapSeq.refContig} Ref_Start=${hapSeq.refStart} Ref_End=${hapSeq.refEnd} " +
+                            "Asm_Regions=${hapSeq.asmRegions.joinToString(",") { "${it.first.contig}:${it.first.position}-${it.second.position}" }}"
                 )
             }
             outputFileWriter.write("\n")
@@ -358,6 +367,85 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
                 .chunked(80)//Chunking into 80 character lines
                 .forEach { outputFileWriter.write(it + "\n") }
         }
+    }
+
+    private fun refRangeFastas() {
+
+        val inputFiles = when (hvcfInput) {
+            is HvcfInput.HvcfDir -> {
+                File((hvcfInput as HvcfInput.HvcfDir).hvcfDir).listFiles { file ->
+                    HVCF_PATTERN.containsMatchIn(file.name)
+                }?.map { it.name }
+            }
+
+            is HvcfInput.HvcfFile -> listOf((hvcfInput as HvcfInput.HvcfFile).hvcfFile)
+            else -> null
+        }
+
+        require(!inputFiles.isNullOrEmpty()) { "At least one HVCF file should be specified." }
+
+        val graph = HaplotypeGraph(inputFiles)
+
+        val ranges = loadRanges(rangeBedfile)
+
+        ranges.forEach { range ->
+            writeFasta(graph, range)
+        }
+
+    }
+
+    /**
+     * Write the fasta file for the given range.
+     */
+    private fun writeFasta(graph: HaplotypeGraph, range: Pair<Position, Position>) {
+
+        val rangeStr = "${range.first.contig}_${range.first.position}-${range.second.position}"
+
+        val filename = "${outputDir}-${rangeStr}.fasta"
+
+        val sampleToHapid = graph.sampleGameteToHaplotypeId(
+            ReferenceRange(
+                range.first.contig,
+                range.first.position,
+                range.second.position
+            )
+        )
+
+        if (sampleToHapid.isEmpty()) {
+            myLogger.warn("No haplotypes found for range: $rangeStr")
+            return
+        }
+
+        bufferedWriter(filename).use { writer ->
+
+            sampleToHapid
+                .filter { it.key.gameteId == 0 }
+                .map { it.key.name to it.value }
+                .forEach { (sample, hapid) ->
+
+                    val seq: String
+                    val displayRanges: List<String>
+                    try {
+                        val temp = seqFromAGC(dbPath, graph, hapid, range)
+                        seq = temp.first
+                        displayRanges = temp.second
+                    } catch (e: Exception) {
+                        myLogger.error("Error getting sequence for $sample-$rangeStr")
+                        e.printStackTrace()
+                        return
+                    }
+
+                    writer.write("> Sample:$sample;Regions:${displayRanges.joinToString(";")}\n")
+                    seq.chunked(60)
+                        .forEach { chunk ->
+                            writer.write(chunk)
+                            writer.newLine()
+                        }
+
+                }
+
+        }
+
     }
 
     override fun run() {
@@ -372,6 +460,7 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
         // If it doesn't an exception will be thrown
         val validDB = verifyURI(dbPath, "hvcf_dataset", condaEnvPrefix)
 
-        buildFastaFromHVCF(dbPath, outputDir, fastaType, hvcfInput, condaEnvPrefix)
+        if (fastaType == FastaType.rangeFasta) refRangeFastas()
+        else buildFastaFromHVCF(dbPath, outputDir, fastaType, hvcfInput, condaEnvPrefix)
     }
 }
