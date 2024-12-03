@@ -1,0 +1,2 @@
+LineA	data/test/pathsToGff/lineAGff_withHeaders_chr1chr2.gff3
+LineB	data/test/pathsToGff/lineBGff_withHeaders_chr1chr2.gff3
