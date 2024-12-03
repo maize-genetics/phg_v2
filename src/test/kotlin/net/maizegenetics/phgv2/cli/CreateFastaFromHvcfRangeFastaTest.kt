@@ -48,11 +48,11 @@ class CreateFastaFromHvcfRangeFastaTest {
 
         val outputFile = "${outputHvcfDir}testRefRangeFasta.vcf"
 
-        // phg ref-range-fasta --db-path /workdir/wl748/db_huehue
-        // --input-dir /local/workdir/wl748/huehue_hvcf_v2 --output-file ref-range-fasta/Terry
-        // --range-bedfile hpc1_RefRange.bed
+        // phg create-fasta-from-hvcf --db-path /workdir/wl748/db_huehue
+        // --hvcf-dir /local/workdir/wl748/huehue_hvcf_v2 --output-dir ref-range-fasta/Terry
+        // --range-bedfile hpc1_RefRange.bed --fasta-type rangeFasta
         val result = CreateFastaFromHvcf().test(
-            "--db-path $dbPath --hvcf-dir $multiInputDir --output-dir $outputFile --range-bedfile $bedfile"
+            "--db-path $dbPath --hvcf-dir $multiInputDir --output-dir $outputFile --range-bedfile $bedfile --fasta-type rangeFasta"
         )
 
         myLogger.info("testRefRangeFasta: result output: ${result.output}")
