@@ -373,7 +373,7 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
      */
     private fun refRangeFastas() {
 
-        require(rangeBedfile.isNullOrEmpty()) { "Bed file is required for FastaType.rangeFasta." }
+        require(!rangeBedfile.isNullOrEmpty()) { "Bed file is required for FastaType.rangeFasta." }
 
         val inputFiles = when (hvcfInput) {
             is HvcfInput.HvcfDir -> {
