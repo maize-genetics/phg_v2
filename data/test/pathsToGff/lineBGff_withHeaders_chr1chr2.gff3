@@ -1,0 +1,50 @@
+##gff-version 3
+##sequence-region   chr1 1 55500
+##sequence-region   chr2 1 55500
+chr1	assembly	chromosome	1	55500	.	.	.	ID=1;Name=chromosome:LineB-Junit:1:1:55500:1
+###
+chr1	NAM	gene	683	742	.	+	.	ID=gene:LineB1e000001;biotype=protein_coding;logic_name=LineB_mikado_gene
+chr1	NAM	mRNA	683	742	.	+	.	ID=transcript:LineB1e000001_T001;Parent=gene:LineB1e000001;biotype=protein_coding;transcript_id=LineB1e000001_T001;canonical_transcript=1;_AED=0.23;_QI=0|0.75|0.66|0.77|0|0|9|1668|648;Dbxref=InterPro:IPR003690,Pfam:PF02536;Ontology_term=GO:0003690,GO:0006355
+chr1	NAM	exon	683	745	.	+	.	Parent=transcript:LineB1e000001_T001;Name=LineB1e000001_T001.exon.1;ensembl_end_phase=0;ensembl_phase=0;exon_id=LineB1e000001_T001.exon.1;rank=1
+chr1	NAM	CDS	683	745	.	+	0	ID=CDS:LineB1e000001_P001;Parent=transcript:LineB1e000001_T001;protein_id=LineB1e000001_P001
+chr1	NAM	three_prime_UTR	697	699	.	+	.	Parent=transcript:LineB1e000001_T001
+###
+chr1	NAM	gene	41214	46762	.	-	.	ID=gene:LineB1e000002;biotype=protein_coding;logic_name=LineB_astro_gene
+chr1	NAM	mRNA	41214	43902	.	-	.	ID=transcript:LineB1e000002_T001;Parent=gene:LineB1e000002;biotype=protein_coding;transcript_id=LineB1e000002_T001;_AED=0.22;_QI=2|1|0.75|1|0|0|8|313|357
+chr1	NAM	three_prime_UTR	41214	41526	.	-	.	Parent=transcript:LineB1e000002_T001
+chr1	NAM	exon	41214	41588	.	-	.	Parent=transcript:LineB1e000002_T001;Name=LineB1e000002_T001.exon.1;ensembl_end_phase=-1;ensembl_phase=-1;exon_id=LineB1e000002_T001.exon.1;rank=8
+chr1	NAM	CDS	41527	41588	.	-	2	ID=CDS:LineB1e000002_P001;Parent=transcript:LineB1e000002_T001;protein_id=LineB1e000002_P001
+chr1	NAM	five_prime_UTR	43901	43902	.	-	.	Parent=transcript:LineB1e000002_T001
+chr1	NAM	mRNA	41214	46762	.	-	.	ID=transcript:LineB1e000002_T002;Parent=gene:LineB1e000002;biotype=protein_coding;transcript_id=LineB1e000002_T002;canonical_transcript=1;_AED=0.20;_QI=843|1|0.77|1|0|0|9|313|519;Dbxref=InterPro:IPR016072,InterPro:IPR016073,Pfam:PF01466,Pfam:PF03931;Ontology_term=GO:0006511
+chr1	NAM	three_prime_UTR	41214	41526	.	-	.	Parent=transcript:LineB1e000002_T002
+chr1	NAM	exon	41214	41588	.	-	.	Parent=transcript:LineB1e000002_T002;Name=LineB1e000002_T002.exon.1;ensembl_end_phase=-1;ensembl_phase=-1;exon_id=LineB1e000002_T002.exon.1;rank=9
+chr1	NAM	CDS	41527	41588	.	-	2	ID=CDS:LineB1e000002_P002;Parent=transcript:LineB1e000002_T002;protein_id=LineB1e000002_P002
+chr1	NAM	exon	41742	41807	.	-	.	Parent=transcript:LineB1e000002_T002;Name=LineB1e000002_T002.exon.2;ensembl_end_phase=1;ensembl_phase=1;exon_id=LineB1e000002_T002.exon.2;rank=8
+chr1	NAM	CDS	41742	41807	.	-	2	ID=CDS:LineB1e000002_P002;Parent=transcript:LineB1e000002_T002;protein_id=LineB1e000002_P002
+chr1	NAM	exon	42257	42375	.	-	.	Parent=transcript:LineB1e000002_T002;Name=LineB1e000002_T002.exon.3;ensembl_end_phase=1;ensembl_phase=1;exon_id=LineB1e000002_T002.exon.3;rank=7
+chr1	NAM	CDS	42257	42375	.	-	1	ID=CDS:LineB1e000002_P002;Parent=transcript:LineB1e000002_T002;protein_id=LineB1e000002_P002
+chr1	NAM	exon	42508	42665	.	-	.	Parent=transcript:LineB1e000002_T002;Name=LineB1e000002_T002.exon.4;ensembl_end_phase=2;ensembl_phase=2;exon_id=LineB1e000002_T002.exon.4;rank=6
+chr1	NAM	CDS	42508	42665	.	-	0	ID=CDS:LineB1e000002_P002;Parent=transcript:LineB1e000002_T002;protein_id=LineB1e000002_P002
+chr1	NAM	exon	42762	42917	.	-	.	Parent=transcript:LineB1e000002_T002;Name=LineB1e000002_T002.exon.5;ensembl_end_phase=0;ensembl_phase=0;exon_id=LineB1e000002_T002.exon.5;rank=5
+chr1	NAM	CDS	42762	42917	.	-	0	ID=CDS:LineB1e000002_P002;Parent=transcript:LineB1e000002_T002;protein_id=LineB1e000002_P002
+chr1	NAM	exon	43039	43197	.	-	.	Parent=transcript:LineB1e000002_T002;Name=LineB1e000002_T002.exon.6;ensembl_end_phase=0;ensembl_phase=0;exon_id=LineB1e000002_T002.exon.6;rank=4
+chr1	NAM	CDS	43039	43197	.	-	0	ID=CDS:LineB1e000002_P002;Parent=transcript:LineB1e000002_T002;protein_id=LineB1e000002_P002;product=lynnProduct1,MichelleProduct2
+chr1	NAM	TE	48670	48680	.	-	0	ID=TE:LineB_TE1;Name=Copia_LineB
+###
+chr2	assembly	chromosome	1	55500	.	.	.	ID=2;Name=chromosome:LineA-Junit:1:1:55500:1
+###
+chr2	NAM	gene	29923	31419	.	-	.	ID=gene:LineB1e006478;biotype=protein_coding;logic_name=LineB_saturn_gene
+chr2	NAM	mRNA	29923	31419	.	-	.	ID=transcript:LineB1e006478_T001;Parent=gene:LineB1e006478;biotype=protein_coding;transcript_id=LineB1e006478_T001;canonical_transcript=1;_AED=0.01;_QI=188|-1|0|1|-1|0|1|439|289;Dbxref=InterPro:IPR021148,Pfam:PF04669
+chr2	NAM	three_prime_UTR	29923	30361	.	-	.	Parent=transcript:LineB1e006478_T001
+chr2	NAM	exon	29923	31419	.	-	.	Parent=transcript:LineB1e006478_T001;Name=LineB1e006478_T001.exon.1;ensembl_end_phase=-1;ensembl_phase=-1;exon_id=LineB1e006478_T001.exon.1;rank=1
+chr2	NAM	CDS	30362	31231	.	-	0	ID=CDS:LineB1e006478_P001;Parent=transcript:LineB1e006478_T001;protein_id=LineB1e006478_P001
+chr2	NAM	five_prime_UTR	31232	31419	.	-	.	Parent=transcript:LineB1e006478_T001
+###
+chr2	NAM	gene	37920	41238	.	+	.	ID=gene:LineB1e006479;biotype=protein_coding;logic_name=LineB_pluto_gene
+chr2	NAM	mRNA	37920	41238	.	+	.	ID=transcript:LineB1e006479_T001;Parent=gene:LineB1e006479;biotype=protein_coding;transcript_id=LineB1e006479_T001;canonical_transcript=1;_AED=1.00;_QI=0|0|0|0|0|0|2|2|1082
+chr2	NAM	exon	37920	41090	.	+	.	Parent=transcript:LineB1e006479_T001;Name=LineB1e006479_T001.exon.1;ensembl_end_phase=0;ensembl_phase=0;exon_id=LineB1e006479_T001.exon.1;rank=1
+chr2	NAM	CDS	37920	41090	.	+	0	ID=CDS:LineB1e006479_P001;Parent=transcript:LineB1e006479_T001;protein_id=LineB1e006479_P001
+chr2	NAM	CDS	41162	41236	.	+	0	ID=CDS:LineB1e006479_P001;Parent=transcript:LineB1e006479_T001;protein_id=LineB1e006479_P001
+chr2	NAM	exon	41162	41238	.	+	.	Parent=transcript:LineB1e006479_T001;Name=LineB1e006479_T001.exon.2;ensembl_end_phase=-1;ensembl_phase=-1;exon_id=LineB1e006479_T001.exon.2;rank=2
+chr2	NAM	three_prime_UTR	41237	41238	.	+	.	Parent=transcript:LineB1e006479_T001
+chr2	NAM	TE	50100	50125	.	-	0	ID=TE:LineB_TE22;Name=Copia_LineB
