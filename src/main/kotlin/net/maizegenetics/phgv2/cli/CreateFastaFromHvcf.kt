@@ -368,6 +368,9 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
         }
     }
 
+    /**
+     * Write one Fasta file per reference range specified by the bedfile
+     */
     private fun refRangeFastas() {
 
         require(rangeBedfile.isNullOrEmpty()) { "Bed file is required for FastaType.rangeFasta." }

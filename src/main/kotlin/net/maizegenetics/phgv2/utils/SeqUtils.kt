@@ -388,6 +388,17 @@ fun queryAgc(commands:Array<String>):Map<Pair<String,String>,NucSeq> {
     return genomeChromNucSeq
 }
 
+/**
+ * Gets the sequence using AGC.
+ *
+ * @param dbPath the folder containing assemblies.agc
+ * @param graph the HaplotypeGraph object
+ * @param hapid the haplotype ID associated with the sequence
+ * @param range the range of the sequence to be returned
+ * @param condaEnvPrefix the conda environment prefix
+ *
+ * @return a pair of the sequence and the display ranges
+ */
 fun seqFromAGC(
     dbPath: String,
     graph: HaplotypeGraph,
