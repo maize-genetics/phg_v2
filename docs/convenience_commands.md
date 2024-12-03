@@ -97,6 +97,9 @@ phg hvcf2gvcf \
 
 > Create a path-specific GFF file from an imputed H.vcf file and existing sample GFF files.
 > This command is useful for creating a GFF file that contains only the annotations for the paths that are present in the imputed H.vcf file.
+> Users who would like the process the data from memory vs an output file may call the functions PathsToGFF(),loadGFFsToGff3Feature()
+> followed by PathsToGff().makeGffFromHvcf().  Users who wish to incorporate this into their own
+> pipeline should look at the code in the PathsToGFF() class.
 
 **Command** - `paths-to-gff`
 
