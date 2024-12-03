@@ -97,7 +97,6 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
         .required() // one of the two options must be provided
 
     val rangeBedfile by option(help = "Full path to bedfile specifying the ranges to export")
-        .required()
 
     val condaEnvPrefix by option(help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
@@ -371,6 +370,8 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
 
     private fun refRangeFastas() {
 
+        require(rangeBedfile.isNullOrEmpty()) { "Bed file is required for FastaType.rangeFasta." }
+
         val inputFiles = when (hvcfInput) {
             is HvcfInput.HvcfDir -> {
                 File((hvcfInput as HvcfInput.HvcfDir).hvcfDir).listFiles { file ->
@@ -386,7 +387,7 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
 
         val graph = HaplotypeGraph(inputFiles)
 
-        val ranges = loadRanges(rangeBedfile)
+        val ranges = loadRanges(rangeBedfile!!)
 
         ranges.forEach { range ->
             writeFasta(graph, range)
