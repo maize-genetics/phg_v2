@@ -17,6 +17,8 @@ import java.util.*
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.time.DurationUnit
+import kotlin.time.measureTimedValue
 
 /**
  * data class to hold the KmerMap information.  From the PHGv1 source code:
@@ -105,41 +107,58 @@ class AlignmentUtils {
             //kmerHashmap: a map of kmer hash to reference range and offset into its BitSet, encoded as a long
             //These data structures all the reference range and haplotype set to be looked up for a kmer has
 
-
             val rangeToBitSetMap = mutableMapOf<ReferenceRange, BitSet>()
             val kmerToRefRangeAndOffsetMap = Long2ObjectOpenHashMap<MutableList<RefRangeOffset>>()
-            var lineCount = 0
-            var totalLineCount = 0
             var refrange = ReferenceRange("NULL", 0, 0)
 
             val readFileStartTime = System.nanoTime()
             val refRangeToIdMap = graph.refRangeToIndexMap()
-            getBufferedReader(filename).useLines {
-                it.forEach { inputStr ->
+            getBufferedReader(filename).useLines { lines ->
+                val iterator = lines.iterator()
+
+                // Read and validate the first line. Verify the graph used to create the kmerIndex file matches the
+                // graph passed to this function.
+                if (iterator.hasNext()) {
+                    val firstLine = iterator.next()
+                    if (firstLine.startsWith("GraphHash")) {
+                        val origGraphHash = firstLine.substringAfter(":")
+                        if (origGraphHash != graph.checksum) {
+                            myLogger.error("GraphHash in kmerMap file $origGraphHash does not match the graphHash of the HaplotypeGraph object ${graph.checksum}")
+                            throw IllegalArgumentException("GraphHash in kmerMap file does not match the graphHash of the HaplotypeGraph object")
+                        }
+                    } else {
+                        throw IllegalArgumentException("First line of file must start with 'GraphHash'")
+                    }
+                } else {
+                    throw IllegalArgumentException("File is empty and must contain 'GraphHash' in the first line")
+                }
+
+                // Process the remaining lines
+                var lineCount = 0
+                var totalLineCount = 1 // already read the first line
+                iterator.forEachRemaining { inputStr ->
                     totalLineCount++
 
-                    lineCount = when (inputStr.first()) {
+                    lineCount = when (inputStr.firstOrNull()) {
                         '>' -> 1
                         else -> lineCount + 1
                     }
 
                     when (lineCount) {
                         1 -> {
-                            //line 1 is the range
+                            // Line 1 is the range
                             refrange = ReferenceRange.parse(inputStr.substring(1))
                         }
-
                         2 -> {
                             try {
                                 val parsedLine = inputStr.split(",")
                                 val myBitset = BitSet.valueOf(parsedLine.map { it.toLong() }.toLongArray())
                                 rangeToBitSetMap[refrange] = myBitset
                             } catch (e: Exception) {
-                                myLogger.error("error at line $totalLineCount for input = $inputStr")
-                                throw java.lang.IllegalArgumentException(e)
+                                myLogger.error("Error at line $totalLineCount for input = $inputStr")
+                                throw IllegalArgumentException(e)
                             }
                         }
-
                         3 -> {
                             val refrangeLong = (refRangeToIdMap[refrange]!!.toLong()) shl 32
                             val parsedLine = inputStr.split(",")
@@ -149,20 +168,16 @@ class AlignmentUtils {
                                 val hashOffset = datapair.split("@")
 
                                 if (hashOffset.size < 2) {
-                                    myLogger.warn("improperly formatted datapair at line $totalLineCount")
+                                    myLogger.warn("Improperly formatted datapair at line $totalLineCount")
                                 }
 
                                 val hash = hashOffset[0].toLong()
                                 val offset = refrangeLong or hashOffset[1].toLong()
 
-                                if(kmerToRefRangeAndOffsetMap.containsKey(hash)) {
-                                    kmerToRefRangeAndOffsetMap[hash]!!.add(RefRangeOffset(refrange, offset))
-                                } else {
-                                    kmerToRefRangeAndOffsetMap[hash] = mutableListOf(RefRangeOffset(refrange, offset))
-                                }
+                                kmerToRefRangeAndOffsetMap.getOrPut(hash) { mutableListOf<RefRangeOffset>() }
+                                    .add(RefRangeOffset(refrange, offset))
                             }
                         }
-
                         else -> {
                             throw IllegalArgumentException("Line count = $lineCount in kmerMap file format at line $totalLineCount in file $filename")
                         }
@@ -757,5 +772,21 @@ class AlignmentUtils {
             }
             return mergedMappings
         }
+
+//         fun buildHaplotypeGraph(hvcfDir:String?): HaplotypeGraph {
+//            val timedValue = measureTimedValue {
+//                if(hvcfDir != null && hvcfDir != "") {
+//                    val pathList = File(hvcfDir).listFiles { file -> file.name.endsWith(".h.vcf") || file.name.endsWith(".h.vcf.gz") }.map { it.path }
+//                    HaplotypeGraph(pathList)
+//                }
+//                else {
+//                    //Load in the TileDB
+//                    TODO("TileDB VCF Reader Not implemented yet.  Please run with --hvcf-dir")
+//                }
+//            }
+//
+//            myLogger.info("HaplotypeGraph built in ${timedValue.duration.toDouble(DurationUnit.MILLISECONDS)} ms.")
+//            return timedValue.value
+//        }
     }
 }
