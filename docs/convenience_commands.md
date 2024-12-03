@@ -93,6 +93,28 @@ phg hvcf2gvcf \
 | `--batch-size`       | Number of sample vcf files to export in a single batch from tiledb                                                  | `5`                                |                  |
 
 
+### Create a GFF file from an imputed H.vcf file
+
+> Create a path-specific GFF file from an imputed H.vcf file and existing sample GFF files.
+> This command is useful for creating a GFF file that contains only the annotations for the paths that are present in the imputed H.vcf file.
+
+**Command** - `paths-to-gff`
+
+** Example **
+
+```shell
+phg paths-to-gff \
+    --hvcf-file my/hvcf/file.h.vcf \
+    --key-file my/samples/keyfile.txt \
+    --output-file output/path_specific.gff
+```
+
+
+| Parameter name  | Description                                                                                                                                                | Default value | Required?        |
+|-----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
+| `--hvcf-file`   | Path to hVCF file for which the gff will be created                                                                                                        | `""`          | :material-check: |
+| `--key-file`    | Path to key file containing 2 tab-delimited columns: the first contains the sample name, the second contains a full path to the gff3 file for that sample. | `""`          | :material-check: |
+| `--output-file` | Full path to the file where the new gff3 file will be written                                                                                              | `""`          | :material-check: |                                |                  |
 
 
 

@@ -127,6 +127,41 @@ class GFFUtilsTest {
     }
 
     @Test
+    fun testPathsToGFFClickCommands() {
+        val pathsKeyFile = "data/test/pathsToGff/testKeyFile.txt"
+        val hvcfFile = "data/test/pathsToGff/Imputation.h.vcf"
+        val outputFile = "${TestExtension.tempDir}/pathsToGvcf_fromHvcf.gff3"
+
+        val pathsToGff = PathsToGff()
+        val resultMissingKeyFile =
+            pathsToGff.test("--output-file ${outputFile}  --hvcf-file ${hvcfFile}")
+        assertEquals(resultMissingKeyFile.statusCode, 1)
+        assertEquals(
+            "Usage: paths-to-gff [<options>]\n" +
+                    "\n" +
+                    "Error: missing option --key-file\n", resultMissingKeyFile.output
+        )
+
+        val resultMissingHvcfDir =
+            pathsToGff.test("--key-file ${pathsKeyFile}  --output-file ${outputFile}")
+        assertEquals(resultMissingHvcfDir.statusCode, 1)
+        assertEquals(
+            "Usage: paths-to-gff [<options>]\n" +
+                    "\n" +
+                    "Error: missing option --hvcf-file\n", resultMissingHvcfDir.output
+        )
+
+        val resultMissingOutputFile =
+            pathsToGff.test("--key-file ${pathsKeyFile}  --hvcf-file ${hvcfFile}")
+        assertEquals(resultMissingOutputFile.statusCode, 1)
+        assertEquals(
+            "Usage: paths-to-gff [<options>]\n" +
+                    "\n" +
+                    "Error: missing option --output-file\n", resultMissingOutputFile.output
+        )
+
+    }
+    @Test
     fun testPathsToGff() {
         // This is testing the actual clikt class.  All tests following are tests of
         // the individual functions that are called by the clikt class.
