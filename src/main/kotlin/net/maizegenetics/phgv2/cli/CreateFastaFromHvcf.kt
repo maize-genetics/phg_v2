@@ -43,6 +43,11 @@ data class HaplotypeSequence(
  * A Haplotype fasta file is where we output each haplotype as a separate fasta entry.  This can be used for read
  * mapping purposes and imputation purposes or simple haplotype sequence retrieval.
  *
+ * A pangenome haplotype fasta file is where we output all the haplotypes from all the hvcf files in the directory
+ *
+ * The range fasta option outputs one file per reference range specified by the bedfile.  Each file contains the
+ * haplotype sequences for each sample for the specified range.
+ *
  * The class can be used in two ways.  The first is to create a fasta file from a hvcf file.  The second is to create a
  * fasta file from TileDB directly.  The first method is useful for creating a fasta file from a hvcf file that is
  * already created.  The second method is useful for creating a fasta file directly from a TileDB database to avoid
@@ -75,7 +80,7 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
         rangeFasta
     }
 
-    val fastaType by option("--fasta-type", help = "Type of fasta exported.  Can be either composite or haplotype")
+    val fastaType by option("--fasta-type", help = "Type of fasta exported.")
         .enum<FastaType>()
         .required()
 
