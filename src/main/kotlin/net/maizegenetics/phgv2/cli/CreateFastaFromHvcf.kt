@@ -377,9 +377,13 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
 
         val inputFiles = when (hvcfInput) {
             is HvcfInput.HvcfDir -> {
-                File((hvcfInput as HvcfInput.HvcfDir).hvcfDir).listFiles { file ->
-                    HVCF_PATTERN.containsMatchIn(file.name)
-                }?.map { it.name }
+                File((hvcfInput as HvcfInput.HvcfDir).hvcfDir)
+                    .walk()
+                    .filter {
+                        HVCF_PATTERN.containsMatchIn(it.name)
+                    }
+                    .map { it.absolutePath }
+                    .toList()
             }
 
             is HvcfInput.HvcfFile -> listOf((hvcfInput as HvcfInput.HvcfFile).hvcfFile)
