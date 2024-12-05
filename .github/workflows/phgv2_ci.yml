@@ -52,6 +52,6 @@ jobs:
         if: success() || failure()
         with:
           report_paths: '**/build/test-results/test/TEST-*.xml'
-          check_name: BioKotlin Test Report
+          check_name: PHGv2 Test Report
           job_summary: true
           detailed_summary: true
