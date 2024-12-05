@@ -122,7 +122,7 @@ class ExportVcfTest {
 
         // Verify ref vcf
         var checksum1 = getChecksum(TestExtension.smallseqRefHvcfFile)
-        var checksum2 = "PublishTestReport"
+        var checksum2 = getChecksum("$outputHvcfDir/Ref.h.vcf")
 
         println("Ref.h.vcf expected checksum1: $checksum1")
         println("Ref.vcf actual checksum2: $checksum2")
