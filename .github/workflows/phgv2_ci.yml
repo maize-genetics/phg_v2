@@ -11,7 +11,7 @@ on:
     paths:
       - 'src/**'
 
-jobs:  
+jobs:
   test:
     name: PHGv2 CI
     runs-on: ubuntu-latest
@@ -47,3 +47,11 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           files: build/reports/kover/report.xml
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v3
+        if: success() || failure()
+        with:
+          report_paths: '**/build/test-results/test/TEST-*.xml'
+          check_name: PHGv2 Test Report
+          job_summary: true
+          detailed_summary: true
