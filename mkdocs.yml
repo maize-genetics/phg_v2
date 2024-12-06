@@ -18,23 +18,9 @@ theme:
   favicon: img/product/favicon.png
   palette:
     - media: "(prefers-color-scheme)"
-      toggle:
-        icon: material/link
-        name: Switch to light mode
-    - media: "(prefers-color-scheme: light)"
       scheme: default
       primary: green
       accent: green
-      toggle:
-        icon: material/toggle-switch
-        name: Switch to dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: black
-      accent: indigo
-      toggle:
-        icon: material/toggle-switch-off
-        name: Switch to system preference
   features:
     - content.code.select
     - content.code.copy
@@ -51,7 +37,7 @@ theme:
     code: Roboto Mono
 
 # Copyright
-copyright: Copyright &copy; 2023 - 2024 Buckler Lab
+copyright: Copyright &copy; 2023 - 2024  <a href="https://www.maizegenetics.net "><b>Buckler Lab</b></a>
 
 extra:
   social:
