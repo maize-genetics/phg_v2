@@ -1,10 +1,12 @@
 package net.maizegenetics.phgv2.utils
 
 import biokotlin.seq.NucSeq
+import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.cli.HaplotypeSequence
+import org.apache.logging.log4j.LogManager
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
-import org.apache.logging.log4j.LogManager
 
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.SeqUtils")
 
@@ -384,4 +386,100 @@ fun queryAgc(commands:Array<String>):Map<Pair<String,String>,NucSeq> {
         throw IllegalArgumentException("Error running AGC command: ${commands.joinToString(" ")}\nError: $errors")
     }
     return genomeChromNucSeq
+}
+
+/**
+ * Gets the sequence using AGC.
+ *
+ * @param dbPath the folder containing assemblies.agc
+ * @param graph the HaplotypeGraph object
+ * @param hapid the haplotype ID associated with the sequence
+ * @param range the range of the sequence to be returned
+ * @param condaEnvPrefix the conda environment prefix
+ *
+ * @return a pair of the sequence and the display ranges
+ */
+fun seqFromAGC(
+    dbPath: String,
+    graph: HaplotypeGraph,
+    hapid: String,
+    range: Pair<Position, Position>,
+    condaEnvPrefix: String = ""
+): Pair<String, List<String>> {
+
+    val altMetaData = graph.altHeader(hapid) ?: throw IllegalArgumentException("Haplotype ID $hapid not found in graph")
+
+    val hapSampleName = altMetaData.sampleName()
+
+    val regions = altMetaData.regions
+
+    val queryRanges = mutableListOf<String>()
+    val displayRanges = mutableListOf<String>()
+
+    // Need to subtract 1 from start as it uses 0 based format
+    for (region in regions) {
+        if (region.first.position - 1 > region.second.position - 1) {
+            queryRanges.add("${region.first.contig}@${hapSampleName}:${region.second.position - 1}-${region.first.position - 1}")
+            displayRanges.add("${hapSampleName}@${region.first.contig}:${region.second.position - 1}-${region.first.position - 1}")
+        } else {
+            queryRanges.add("${region.first.contig}@${hapSampleName}:${region.first.position - 1}-${region.second.position - 1}")
+            displayRanges.add("${hapSampleName}@${region.first.contig}:${region.first.position - 1}-${region.second.position - 1}")
+        }
+    }
+
+    val hapSeq = HaplotypeSequence(
+        hapid,
+        "",
+        altMetaData.refRange,
+        range.first.contig,
+        range.first.position,
+        range.second.position,
+        regions
+    )
+
+    val seqs = retrieveAgcContigs(dbPath, queryRanges, condaEnvPrefix)
+
+    return Pair(buildHapSeq(seqs, displayRanges, hapSeq), displayRanges)
+
+}
+
+/**
+ * Function to build the haplotype sequence based on the list of display regions and the given haplotype sequence object.
+ * The sequence has already extracted out of AGC and stored in the seqs map.
+ * The incoming "seqs" parameter has the key as a Pair(sampleName,displayRegion), where display region could
+ * be just a contig, or a contig with ranges:  e.g. "chr1" or "chr1:100-200".  SampleName is the sample from which
+ * the sequence was extracted.
+ */
+fun buildHapSeq(
+    seqs: Map<Pair<String, String>, NucSeq>,
+    displayRegions: List<String>,
+    hapSeqObjects: HaplotypeSequence
+): String {
+
+    // hapSeqRegions is the HaplotypeSequence object's list of regions.
+    // This was passed in as part of the Triple created in the calling method.
+    // Because of the way these were created, the displayRegions and the hapSeqRegions should be in the same order.
+    val hapSeqRegions = hapSeqObjects.asmRegions
+
+    // This gets all the sequences from all the regions in the list,
+    // and joins them to a string with no separator.  The string that is
+    // returned is the sequence for the haplotype.
+    return displayRegions.mapIndexed { idx, currentDisplayRegion ->
+        val currentHapSeqRegion = hapSeqRegions[idx]
+
+        // The displayRegions are of the form: sampleName@contig:stPos-endPos
+        val sampleName = currentDisplayRegion.split("@")[0]
+        val region = currentDisplayRegion.split("@")[1]
+
+        val seq = seqs[Pair(sampleName, region)]!!
+
+        // Check to see if we have an inverted sub-region based on the currentHapSeqRegion
+        if (currentHapSeqRegion.first.position > currentHapSeqRegion.second.position) {
+            //If so we need to reverse compliment the sequence
+            seq.reverse_complement().seq()
+        } else {
+            seq.seq()
+        }
+    }.joinToString("")
+
 }
