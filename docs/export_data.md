@@ -168,8 +168,13 @@ and `type` is the type of fasta file created (`composite` or
       composite or "pseudo" genome can be **used for the resequencing 
       pipeline**.
     + `haplotype` - generate a FASTA file where each haplotype is a
-      seperate FASTA entry. **Useful for read mapping, imputation
+      separate FASTA entry. **Useful for read mapping, imputation
       or simple haplotype sequence retrieval**.
+    + 'pangenomeHaplotype' - generate a FASTA file where we output
+      all the haplotypes from all the hvcf files in the directory
+    + 'rangeFasta' - outputs one file per reference range specified
+      by the bedfile.  Each file contains the haplotype sequences
+      for each sample for the specified range.
 * `-o` - output path to directory for the created fasta files.
 
 

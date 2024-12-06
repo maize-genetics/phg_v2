@@ -66,7 +66,7 @@ class CreateFastaFromHvcfTest {
         assertEquals(resultBadFastaType.statusCode, 1)
         assertEquals("Usage: create-fasta-from-hvcf [<options>]\n" +
                 "\n" +
-                "Error: invalid value for --fasta-type: invalid choice: bad. (choose from composite, haplotype, pangenomeHaplotype)\n",resultBadFastaType.output)
+                "Error: invalid value for --fasta-type: invalid choice: bad. (choose from composite, haplotype, pangenomeHaplotype, rangeFasta)\n", resultBadFastaType.output)
 
         // Only one of --hvcf-file or --hvcf-dir can be used.  THis test has both sent
         val resultHvcfFileAndDir = createFastaFromHvcf.test("--db-path ${TestExtension.testTileDBURI} -o ${TestExtension.tempDir} --fasta-type haplotype --hvcf-file /test_file.h.vcf --hvcf-dir /test_dir")
@@ -567,7 +567,7 @@ class CreateFastaFromHvcfTest {
         val extractedSeqs = mapOf<Pair<String,String>,NucSeq>(Pair("Ref","1:0-49") to seqs["1"]!![0..49],
             Pair("Ref","1:59-99") to seqs["1"]!![59 .. 99])
 
-        val hapSeq = createFastaFromHvcf.buildHapSeq(extractedSeqs, region, firstHapSeq)
+        val hapSeq = buildHapSeq(extractedSeqs, region, firstHapSeq)
         assertEquals(91, hapSeq.length)
         assertEquals(extractedSeqs.values.joinToString("") { it.seq() }, hapSeq)
 
@@ -581,7 +581,7 @@ class CreateFastaFromHvcfTest {
         val extractedSeqs2 = mapOf<Pair<String,String>,NucSeq>(Pair("Ref","1:49-0") to seqs["1"]!![0..49],
             Pair("Ref","1:59-99") to seqs["1"]!![59 .. 99])
 
-        val hapSeq2 = createFastaFromHvcf.buildHapSeq(extractedSeqs2, region2, secondHapSeq)
+        val hapSeq2 = buildHapSeq(extractedSeqs2, region2, secondHapSeq)
         assertEquals(91, hapSeq2.length)
         assertEquals(extractedSeqs2.values.joinToString("") { it.reverse_complement().seq() }, hapSeq2)
 
@@ -596,7 +596,7 @@ class CreateFastaFromHvcfTest {
         val extractedSeqs3 = mapOf<Pair<String,String>,NucSeq>(Pair("Ref","1:0-49") to seqs["1"]!![0..49],
             Pair("Ref","1:59-99") to seqs["1"]!![59 .. 99])
 
-        val hapSeq3 = createFastaFromHvcf.buildHapSeq(extractedSeqs3, region3, thirdHapSeq)
+        val hapSeq3 = buildHapSeq(extractedSeqs3, region3, thirdHapSeq)
         assertEquals(91, hapSeq3.length)
         val expectedSeq = extractedSeqs3[Pair("Ref","1:0-49")]!!.seq() + extractedSeqs3[Pair("Ref","1:59-99")]!!.reverse_complement().seq()
         assertEquals(expectedSeq, hapSeq3)
