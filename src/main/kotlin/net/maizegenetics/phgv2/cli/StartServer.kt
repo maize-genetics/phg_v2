@@ -47,6 +47,8 @@ object StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
 
     override fun run() {
 
+        logCommand(this)
+
         setupDebugLogging()
         // Do not default dbPath to the current working folder.  User may have previously started
         // the server, which will set the TILEDB_URI in the application.conf file.

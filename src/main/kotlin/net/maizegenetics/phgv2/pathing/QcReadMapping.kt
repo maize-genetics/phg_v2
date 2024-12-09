@@ -9,6 +9,7 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.int
 import htsjdk.samtools.fastq.FastqReader
 import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.convertRefRangeToIdBitsetMap
 import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.rangeHapidMapFromKmerHash
 import java.io.File
@@ -38,6 +39,8 @@ class QcReadMapping  : CliktCommand(help="Error check reads against a kmer index
 
 
     override fun run() {
+        logCommand(this)
+
         val hvcfFiles = File(hvcfDir).listFiles { file -> file.name.endsWith(".h.vcf") || file.name.endsWith(".h.vcf.gz") }.map { it.path }
         val graph = HaplotypeGraph(hvcfFiles)
         println("Loaded Graph")

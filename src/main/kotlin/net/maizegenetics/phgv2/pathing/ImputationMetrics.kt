@@ -7,6 +7,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.validate
 import htsjdk.variant.vcf.VCFFileReader
+import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.parseALTHeader
 import org.apache.logging.log4j.LogManager
@@ -56,10 +57,11 @@ class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read ma
 
 
     override fun run() {
+        logCommand(this)
         processImputationResults(sampleHvcf, imputationHvcf, bedFile, chrom, outputFile, readMappingFiles)
     }
 
-    fun processImputationResults(sampleHvcf: String, imputationHvcf: String, bedFile: String, chrom: String?, outputFile: String, readMappingFiles: String) {
+    private fun processImputationResults(sampleHvcf: String, imputationHvcf: String, bedFile: String, chrom: String?, outputFile: String, readMappingFiles: String) {
         // create a List of chromosomes from the chrom string, which is a comma separated string
         val chromList = chrom?.split(",")?.toList()
         val parentChromPosToHapid = mutableMapOf<Position,String>()
@@ -184,7 +186,7 @@ class ImputationMetrics : CliktCommand(help = "Impute best path(s) using read ma
     }
 
     // function to read the readMapping files and create a map of Hapid -> read counts
-    fun readCountsFromFiles(readMappingFiles:String): Map<String, Int> {
+    private fun readCountsFromFiles(readMappingFiles:String): Map<String, Int> {
         // The readMappingFiles parameter is file containing full path to a read mapping file, one per line.
         // Each individual file in this list has headers, then is a tab-delimited file with the following columns:
         // HapIds (comma-separated list)

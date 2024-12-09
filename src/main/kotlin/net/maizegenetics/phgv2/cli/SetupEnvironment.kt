@@ -76,6 +76,8 @@ class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG
     }
 
     override fun run() {
+        logCommand(this)
+
         val workingDir = System.getProperty("user.dir")
 
         // call method to create the environment

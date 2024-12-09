@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.pathing
 
+
 import biokotlin.seq.NucSeq
 import biokotlin.util.bufferedWriter
 import com.github.ajalt.clikt.core.CliktCommand
@@ -11,19 +12,20 @@ import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
-import it.unimi.dsi.fastutil.longs.LongOpenHashBigSet
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
-import net.maizegenetics.phgv2.utils.*
+import net.maizegenetics.phgv2.cli.logCommand
+import net.maizegenetics.phgv2.utils.AltHeaderMetaData
+import net.maizegenetics.phgv2.utils.getBufferedReader
+import net.maizegenetics.phgv2.utils.getBufferedWriter
+import net.maizegenetics.phgv2.utils.retrieveAgcContigs
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedWriter
 import java.io.File
 import java.nio.file.Files
 import java.util.*
-
-
 import kotlin.math.min
 import kotlin.time.DurationUnit
 import kotlin.time.measureTimedValue
@@ -87,7 +89,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
     private var runDiagnostics = true
 
     override fun run() {
-        //build the haplotypeGraph
+        logCommand(this)
+
+        // build the haplotypeGraph
         myLogger.info("Start of BuildKmerIndex...")
         val graph = buildHaplotypeGraph()
 
@@ -97,7 +101,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         val kmerIndexFilename = if (indexFile == "") "${hvcfDir}/kmerIndex.txt" else indexFile
 
 
-        //save the kmerIndex
+        // save the kmerIndex
         saveKmerHashesAndHapids(graph, kmerIndexFilename, hashToHapidMap)
 
         if(discardFile.isNotEmpty()) {

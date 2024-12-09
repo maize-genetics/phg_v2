@@ -28,6 +28,8 @@ class SampleHapidByRange : CliktCommand(help = "Create a table of haplotype IDs 
 
     override fun run() {
 
+        logCommand(this)
+
         // Get list of input HVCF files in the input directory
         val inputFiles = File(inputDir)
             .walk()

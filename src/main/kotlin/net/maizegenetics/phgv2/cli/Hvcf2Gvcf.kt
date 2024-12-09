@@ -68,6 +68,8 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         .required()
 
     override fun run() {
+        logCommand(this)
+
         val dbPath = if (dbPath.isBlank()) {
             System.getProperty("user.dir")
         } else {

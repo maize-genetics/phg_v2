@@ -76,6 +76,9 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
         .default("")
 
     override fun run() {
+
+        logCommand(this)
+
         // This method creates the files needed for aligning assemblies in a slurm data array job.
         // For each assembly in the list, add an entry to the slurm data array job file that calls align-assemblies clikt command
         // THis is implemented in the createSlrumDatArrayJobFile() function
@@ -90,7 +93,7 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
             slurmCommandFile,
             outputDir,
             totalThreads,
-            1, // default for in-paralel as there is only one assembly per line
+            1, // default for in-parallel as there is only one assembly per line
             refMaxAlignCov,
             queryMaxAlignCov,
             condaEnvPrefix
@@ -101,11 +104,11 @@ class PrepareSlurmAlignFile: CliktCommand(help = "create files for aligning asse
     // it creates a single file, where there is a line for each assembly to be aligned.
     // In each of these lines, a call is made to the phg align-assemblies command using the parameters supplied here
     // The output of this method is a file that can be submitted to slurm as a data array job.
-    //The input to the function is all the parameters that are defined above.
-    //The output is a file that can be submitted to slurm as a data array job.
-    //The file will contain a line for each assembly to be aligned.  Each line will be a call to the phg align-assemblies command.
-    //The parameters for the call will be the parameters supplied to this function.
-    fun createSlurmDataArrayJobFile(
+    // The input to the function is all the parameters that are defined above.
+    // The output is a file that can be submitted to slurm as a data array job.
+    // The file will contain a line for each assembly to be aligned.  Each line will be a call to the phg align-assemblies command.
+    // The parameters for the call will be the parameters supplied to this function.
+    private fun createSlurmDataArrayJobFile(
         phgLocation: String,
         gff: String,
         referenceFile: String,

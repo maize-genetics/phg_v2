@@ -53,6 +53,8 @@ class PrepareAssemblies : CliktCommand(help = "Annotate FASTA file Id lines with
     data class InputChannelData(val fastaFile:String, val sampleName:String, val compressed:Boolean, val outputDir:String)
 
     override fun run() {
+        logCommand(this)
+
         // create list of assemblies to align from the assemblies file")
         myLogger.info("creating assembliesList, calling createParallelAnnotatedFastas")
         // Read the keyfile, parse the fasta file names and the sampleName

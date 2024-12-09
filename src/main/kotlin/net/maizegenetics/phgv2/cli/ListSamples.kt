@@ -1,7 +1,6 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
@@ -10,7 +9,6 @@ import net.maizegenetics.phgv2.utils.getBufferedWriter
 import net.maizegenetics.phgv2.utils.retrieveAgcData
 import net.maizegenetics.phgv2.utils.verifyURI
 import org.apache.logging.log4j.LogManager
-import kotlin.test.DefaultAsserter.fail
 
 /**
  * This class is used to list the sample names in both the AGC compressed file and the tiledb datasets.
@@ -53,6 +51,8 @@ class ListSamples: CliktCommand(help = "List the sample names in both the AGC co
         .required()
 
     override fun run() {
+        logCommand(this)
+
         val tileDb = if (dbPath.isBlank()) System.getProperty("user.dir") else dbPath
 
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
@@ -67,7 +67,7 @@ class ListSamples: CliktCommand(help = "List the sample names in both the AGC co
     // There may be some samples in the hvcf that are not in the gvcf, in particular the reference genome
     // We would expect that otherwise the samples in the gvcf and hvcf datasets would be the same but it
     // is possible users have only loaded a portion of each type vcf.
-    fun createSampleLists(dbPath: String, condaEnvPrefix: String, outputFile: String, dataset:DatasetOptions) {
+    private fun createSampleLists(dbPath: String, condaEnvPrefix: String, outputFile: String, dataset:DatasetOptions) {
 
 
         // call command to get list of samples from the AGC file

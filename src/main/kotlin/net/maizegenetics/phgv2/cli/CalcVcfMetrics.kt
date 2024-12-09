@@ -90,6 +90,7 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
         .required()
 
     override fun run() {
+        logCommand(this)
         calculateVcfMetrics(vcfDir, outFile)
     }
 
@@ -135,7 +136,7 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
      * Given lists of statistics, write them to the output tsv file
      * hvcfStatsMap may be empty.
      */
-    fun writeGVCFFile(outFileName: String, gvcfStatsMap: Map<String, List<GVCFStats>?>, hvcfStatsMap: Map<String, List<HVCFStats>>) {
+    private fun writeGVCFFile(outFileName: String, gvcfStatsMap: Map<String, List<GVCFStats>?>, hvcfStatsMap: Map<String, List<HVCFStats>>) {
 
         // if hvcfStatsMap is empty, we omit the corresponding columns from the tsv
         val includeHVCFStats = hvcfStatsMap.size > 0
@@ -374,7 +375,7 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
     /**
      * Collects information about a single-sample HVCF file on a range-by-range scale
      */
-    fun getHVCFStatsByRange(vcfFile: File): Pair<String, Map<RefRangeInfo, HVCFStatsByRange>> {
+    private fun getHVCFStatsByRange(vcfFile: File): Pair<String, Map<RefRangeInfo, HVCFStatsByRange>> {
 
         // read file
         VCFFileReader(vcfFile, false).use { reader ->
@@ -439,7 +440,7 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
      * Produces one large range.
      * And flipping ranges where start > end
      */
-    fun getRange(start: Int, end: Int): Range<Int> {
+    private fun getRange(start: Int, end: Int): Range<Int> {
         return if(start > end) {
             Range.closed(end, start).canonical(DiscreteDomain.integers())
         } else {
@@ -451,7 +452,7 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
      * Calculate the median value of a list of integers
      * Returns null if list is empty
      * **/
-    fun median(values: List<Int>): Double {
+    private fun median(values: List<Int>): Double {
         if (values.size == 0) { return 0.0 }
 
         val valuesSort = values.sorted()

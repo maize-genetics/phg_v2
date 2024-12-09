@@ -320,6 +320,8 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
     }
 
     override fun run() {
+        logCommand(this)
+
         val genome = Genome.fromFile(gff)
         val genes = genome.iterator().asSequence().filter { it.type == "gene" }.toList()
 
@@ -337,7 +339,7 @@ class CreateRanges: CliktCommand(help="Create a BED file of reference ranges fro
         val filledInBedRecords = if(makeOnlyGenic) bedRecords else fillIntergenicRegions(bedRecords, refSeq)
 
         // Merge ranges that are not rangeMinSize in length
-        val bedRecordsMerged = if (!makeOnlyGenic && rangeMinSize > 0) mergeShortRanges(filledInBedRecords,rangeMinSize) else filledInBedRecords
+        val bedRecordsMerged = if (!makeOnlyGenic && rangeMinSize > 0) mergeShortRanges(filledInBedRecords ,rangeMinSize) else filledInBedRecords
 
         val bedLinesToPrint = convertBedRecordsIntoOutputStrings(bedRecordsMerged)
 

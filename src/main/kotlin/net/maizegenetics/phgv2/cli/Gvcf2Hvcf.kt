@@ -43,6 +43,8 @@ class Gvcf2Hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         .default("")
 
     override fun run() {
+        logCommand(this)
+
         // Check the dbPath and set it to the current working directory if it is not provided
         val dbPath = if (dbPath.isBlank()) {
             System.getProperty("user.dir")
@@ -55,7 +57,7 @@ class Gvcf2Hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
     // This is the entry point for this class.  It creates ranges from the bed file, stores the reference genome
     // sequence into a data structure, and then processes the gvcf files in the gvcfDir.  The hvcf files that
     // are created are written to the same folder that contains the gvcf files.
-    fun createASMHvcfs(dbPath: String, bedFileName: String, referenceFileName: String, gvcfDirName: String, condaEnvPrefix: String = "") {
+    private fun createASMHvcfs(dbPath: String, bedFileName: String, referenceFileName: String, gvcfDirName: String, condaEnvPrefix: String = "") {
         //load the bed file into a data structure
         val ranges = loadRanges(bedFileName)
         myLogger.info("CreateASMHvcfs: calling buildRefGenomeSeq")
@@ -90,7 +92,7 @@ class Gvcf2Hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
 
     // This method takes a gvcfFile and returns a list of VariantContext records
     // It is assumed this is a single-sample gvcf file.
-    fun createVCList(gvcfFile: File): Pair<String,List<VariantContext>> {
+    private fun createVCList(gvcfFile: File): Pair<String,List<VariantContext>> {
         // read the gvcf file and create a list of VariantContext records
         // for each line in the gvcf file, create a VariantContext record
         // and add it to the list

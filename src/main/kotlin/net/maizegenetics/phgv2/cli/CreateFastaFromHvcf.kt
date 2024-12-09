@@ -462,6 +462,8 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
     }
 
     override fun run() {
+        logCommand(this)
+
         // Check the dbPath and set it to the current working directory if it is not provided
         val dbPath = if (dbPath.isBlank()) {
             System.getProperty("user.dir")

@@ -46,15 +46,17 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
 
     override fun run() {
 
+        logCommand(this)
+
         val dbPath = if (dbPath.isBlank()) {
             System.getProperty("user.dir")
         } else {
             dbPath
         }
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
-        val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
+        val validDB = verifyURI(dbPath,"hvcf_dataset", condaEnvPrefix)
 
-        loadVcfFiles(vcfDir,dbPath,condaEnvPrefix,threads)
+        loadVcfFiles(vcfDir, dbPath, condaEnvPrefix, threads)
     }
 
     fun loadVcfFiles(vcfDir:String,dbPath:String,condaEnvPrefix:String,threads:String="1") {
@@ -165,7 +167,7 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
         }
     }
 
-    fun getVcfSampleLists(fileLists:List<String>):Map<String,String> {
+    private fun getVcfSampleLists(fileLists:List<String>):Map<String,String> {
         // get the sample names from the vcf files
         val vcfSampleToFileName = mutableMapOf<String,String>()
         for (file in fileLists) {
@@ -184,7 +186,7 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
     // we must explicitly pass dbPath as otherwise the parameter will not be known
     // when coming from CreateRefVcf, resulting in the error:
     //    Cannot read from option delegate before parsing command line
-    fun loadVCFToTiledb(vcfList:List<String>, dbPath:String, dataSet:String, threads:String,condaEnvPrefix:String) {
+    private fun loadVCFToTiledb(vcfList:List<String>, dbPath:String, dataSet:String, threads:String,condaEnvPrefix:String) {
 
         // declare tne temp folder
         // This will be used to write output files from ProcessBuilder commands

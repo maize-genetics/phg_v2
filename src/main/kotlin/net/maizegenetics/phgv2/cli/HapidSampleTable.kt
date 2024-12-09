@@ -25,6 +25,8 @@ class HapidSampleTable : CliktCommand(help = "Create a table of haplotype IDs to
         .required()
 
     override fun run() {
+        logCommand(this)
+
         // Get list of files, create graph, write table
         val hvcfFiles = File(hvcfDir).listFiles { file -> file.name.endsWith(".h.vcf") || file.name.endsWith(".h.vcf.gz") }.map { it.path }
         val startTime = System.nanoTime()
@@ -38,7 +40,7 @@ class HapidSampleTable : CliktCommand(help = "Create a table of haplotype IDs to
 
     // Function to create a tab-delimited file with haplotype id and gametes.
     // gametes (ie sample names) are a comma-separated list in the second column
-    fun createHapidGameteTable(graph:HaplotypeGraph, outputFile:String) {
+    private fun createHapidGameteTable(graph:HaplotypeGraph, outputFile:String) {
 
         val time = System.nanoTime()
         bufferedWriter(outputFile).use { writer ->
