@@ -96,7 +96,9 @@ phg hvcf2gvcf \
 ### Create a GFF file from an imputed hVCF file
 
 > Create a _path-specific_ [GFF file](https://en.wikipedia.org/wiki/General_feature_format) 
-> from an imputed hVCF file and existing sample GFF files.
+> from an imputed hVCF file and existing sample GFF files. Useful for
+> creating a GFF file that contains only annotations for paths present
+> in the imputed hVCF file.
 
 
 **Command** - `paths-to-gff`
