@@ -93,17 +93,17 @@ phg hvcf2gvcf \
 | `--batch-size`       | Number of sample vcf files to export in a single batch from tiledb                                                  | `5`                                |                  |
 
 
-### Create a GFF file from an imputed H.vcf file
+### Create a GFF file from an imputed hVCF file
 
-> Create a path-specific GFF file from an imputed H.vcf file and existing sample GFF files.
-> This command is useful for creating a GFF file that contains only the annotations for the paths that are present in the imputed H.vcf file.
-> Users who would like the process the data from memory vs an output file may call the functions PathsToGFF(),loadGFFsToGff3Feature()
-> followed by PathsToGff().makeGffFromHvcf().  Users who wish to incorporate this into their own
-> pipeline should look at the code in the PathsToGFF() class.
+> Create a _path-specific_ [GFF file](https://en.wikipedia.org/wiki/General_feature_format) 
+> from an imputed hVCF file and existing sample GFF files. Useful for
+> creating a GFF file that contains only annotations for paths present
+> in the imputed hVCF file.
+
 
 **Command** - `paths-to-gff`
 
-** Example **
+**Example**
 
 ```shell
 phg paths-to-gff \
@@ -112,14 +112,38 @@ phg paths-to-gff \
     --output-file output/path_specific.gff
 ```
 
+**Parameters**
 
-| Parameter name  | Description                                                                                                                                                | Default value | Required?        |
-|-----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
-| `--hvcf-file`   | Path to hVCF file for which the gff will be created                                                                                                        | `""`          | :material-check: |
-| `--key-file`    | Path to key file containing 2 tab-delimited columns: the first contains the sample name, the second contains a full path to the gff3 file for that sample. | `""`          | :material-check: |
-| `--output-file` | Full path to the file where the new gff3 file will be written                                                                                              | `""`          | :material-check: |                                |                  |
+| Parameter name  | Description                                                                                                                                  | Default value | Required?        |
+|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
+| `--hvcf-file`   | Path to hVCF file for which the GFF will be created                                                                                          | `""`          | :material-check: |
+| `--key-file`    | Path to key file containing 2 tab-delimited columns: <ol><li>Sample ID</li><li> The **full path** to the GFF3 file for that sample</li></ol> | `""`          | :material-check: |
+| `--output-file` | Full path to the file where the new GFF3 file will be written                                                                                | `""`          | :material-check: |                                |                  |
 
+!!! note "Advanced API use"
+    For advanced users who would like to leverage this GFF-based data
+    structure in memory for downstream Kotlin pipelines in contrast
+    to handling output files, you may use the following example code:
 
+    ``` kotlin
+    import net.maizegenetics.phgv2.utils.loadGFFsToGff3Feature
+    import net.maizegenetics.phgv2.utils.makeGffFromHvcf
+    
+    // Same as CLI parameter inputs
+    val keyFile  = "my/samples/keyfile.txt"
+    val hvcfFile = "my/hvcf/file.h.vcf"
+    
+    // Create GFF 'TreeMap' object
+    val resTreeMap = loadGFFsToGff3Feature(keyFile)
+    
+    // Create HTSJDK 'Gff3Feature' set object
+    val taxonPathGFF = makeGffFromHvcf(hvcfFile, resTreeMap)
+    ```
+    
+    In the above example, `taxonPathGFF` is an in-memory [HTSJDK](https://github.com/samtools/htsjdk)
+    [`Gff3Feature`](https://javadoc.io/doc/com.github.samtools/htsjdk/2.24.1/htsjdk/tribble/gff/package-summary.html) 
+    object that can be used for downstream purposes. See the [`PathsToGff`](https://github.com/maize-genetics/phg_v2/blob/main/src/main/kotlin/net/maizegenetics/phgv2/cli/PathsToGff.kt)
+    class source code for further details.
 
 
 ## Merging
