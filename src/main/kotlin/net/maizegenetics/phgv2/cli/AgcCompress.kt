@@ -62,6 +62,9 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
 
 
     override fun run() {
+
+        logCommand(this)
+
         myLogger.info("Starting AGC compression: validate the URI")
         // If the dbPath is not provided, use the current working directory
         val tiledbFolder = if (dbPath.isBlank()) {
@@ -71,9 +74,9 @@ class AgcCompress : CliktCommand(help = "Create a single AGC compressed file fro
         }
         // Verify the dbPath contains valid tiledb created datasets
         // If it doesn't an exception will be thrown
-        val validDB = verifyURI(tiledbFolder,"hvcf_dataset",condaEnvPrefix)
+        val validDB = verifyURI(tiledbFolder,"hvcf_dataset", condaEnvPrefix)
         // process the input
-        processAGCFiles(tiledbFolder,fastaList,referenceFile, condaEnvPrefix)
+        processAGCFiles(tiledbFolder, fastaList, referenceFile, condaEnvPrefix)
 
     }
 
