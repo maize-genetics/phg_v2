@@ -8,8 +8,9 @@ import com.github.ajalt.clikt.parameters.options.*
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.cli.logCommand
+import org.apache.logging.log4j.LogManager
 import java.io.File
-import java.util.logging.Logger
 
 /**
  * Sealed classes to handle either a keyFile or a list of readFiles.
@@ -61,7 +62,7 @@ sealed class ReadInputFile {
 
 class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
 
-    private val myLogger = Logger.getLogger("net.maizegenetics.phgv2.pathing.MapKmers")
+    private val myLogger = LogManager.getLogger(MapKmers::class.java)
 
     //./phg map-kmers \
     //    --kmer-index kmer_index.map \
@@ -104,6 +105,8 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
         .flag(default = false)
 
     override fun run() {
+
+        logCommand(this)
 
         myLogger.info("Begin mapping reads to the pangenome kmer index.")
         //loop through all files in hvcfDir and create a list of hvcf files

@@ -50,6 +50,9 @@ class CompositeToHaplotypeCoords: CliktCommand(help = "Create g.vcf file for a P
         .required()
 
     override fun run() {
+
+        logCommand(this)
+
         val (hapidToLength,pathingVCFRangeMap) = processPathVCF(pathHvcf)
         // The pathingVCFRangeMap is to identify the haplotype in which the
         // variantVCF's POS is located.  The haplotype ID is used in the CHROM field
@@ -63,6 +66,7 @@ class CompositeToHaplotypeCoords: CliktCommand(help = "Create g.vcf file for a P
         // create new outputfile which is the parent of the outputFile parameter with
         // a file name of chromLengths.txt
         val chromLengthsFile = File(outputFile).parent + "/chromLengths.txt"
+
     }
 
     fun reseqVCFHeader(reader:VCFFileReader, hapidToLength:Map<String,Int>,sampleNames:List<String>): VCFHeader {

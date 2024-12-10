@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import org.apache.logging.log4j.LogManager
@@ -28,6 +29,8 @@ class KmerIndexStatistics : CliktCommand(help="Write kmer counts by reference ra
         .default("")
 
     override fun run() {
+        logCommand(this)
+
         val graph = buildHaplotypeGraph()
         val indexFilename = if (indexFile.isNotBlank()) indexFile else File(hvcfDir).resolve("kmerIndex.txt").absolutePath
         val outputFilename = if (outputFile.isNotBlank()) outputFile else File(hvcfDir).resolve("kmerIndexCounts.txt").absolutePath
@@ -63,7 +66,7 @@ class KmerIndexStatistics : CliktCommand(help="Write kmer counts by reference ra
     /**
      * Similar to AlignmentUtils.loadKmerMaps but only counts the number of kmers in each reference range
      */
-    fun countKmersByRefrange(filename: String): Map<ReferenceRange, Int> {
+    private fun countKmersByRefrange(filename: String): Map<ReferenceRange, Int> {
         val kmerCounts = mutableMapOf<ReferenceRange, Int>()
         var lineCount = 0
         var totalLineCount = 0

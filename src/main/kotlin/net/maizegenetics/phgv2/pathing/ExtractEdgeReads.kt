@@ -11,6 +11,7 @@ import htsjdk.samtools.SamReaderFactory
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
+import net.maizegenetics.phgv2.cli.logCommand
 import org.apache.logging.log4j.LogManager
 import java.io.File
 import kotlin.math.abs
@@ -52,14 +53,16 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
      */
     override fun run() {
 
+        logCommand(this)
+
         val hvcfFiles = File(hvcfDir).listFiles { file -> file.name.endsWith(".h.vcf") || file.name.endsWith(".h.vcf.gz") }.map { it.path }
 
-        //load the graph in
+        // load the graph in
         val graph = HaplotypeGraph(hvcfFiles)
 
         myLogger.info("Extracting reads from $bamFile")
         val (countMap, recordsToExport, readToClassificaiton) = extractReads(sampleName, bamFile, graph, maxClassNum)
-        //Print out the countMap
+        // Print out the countMap
         printCountMap(countMap)
         val outputFileName = "${outputFileDir}/${File(bamFile).nameWithoutExtension}"
         myLogger.info("Writing output to $outputFileName")

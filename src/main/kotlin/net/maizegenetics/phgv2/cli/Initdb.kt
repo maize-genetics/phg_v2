@@ -117,7 +117,10 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
             throw IllegalArgumentException("Error running ProcessBuilder to create tiledb gvcf array: ${exc.message}")
         }
     }
+
     override fun run() {
+
+        logCommand(this)
 
         // Set the dbPath to the current working directory if it is not provided
         // no validation is done here as the createDataSets method will check for the existence of the folder
@@ -129,7 +132,7 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
         }
 
         // call method to create the environment
-        createDataSets(dbPath, condaEnvPrefix,gvcfAnchorGap, hvcfAnchorGap)
+        createDataSets(dbPath, condaEnvPrefix, gvcfAnchorGap, hvcfAnchorGap)
     }
 
 }

@@ -21,11 +21,15 @@ import java.io.File
 class CreateAnchorwaveDotplot: CliktCommand(help = "create a dot plot stored in PNG file from anchowave anchorspro file") {
 
     private val myLogger = LogManager.getLogger(CreateAnchorwaveDotplot::class.java)
+
     val inputFile by option(help = "Full path to the anchorwave generated anchorspro file that will be analyzed.")
         .required()
     val outputFile by option(help = "Full path to the SVG file where the dotplot data will be stored - should end with .svg or .png")
         .required()
     override fun run() {
+
+        logCommand(this)
+
         val startTime = System.nanoTime()
 
         val origFile = File(inputFile)

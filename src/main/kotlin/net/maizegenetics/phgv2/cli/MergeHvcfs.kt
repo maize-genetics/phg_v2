@@ -36,6 +36,8 @@ class MergeHvcfs : CliktCommand(help = "Merge multiple HVCF files into a single 
 
     override fun run() {
 
+        logCommand(this)
+
         val inputFiles = File(inputDir)
             .walk()
             .filter {

@@ -174,6 +174,8 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
 
     override fun run() {
 
+        logCommand(this)
+
         // Returns Pair<Int, Int> where the first value is the number of parallel alignments, the second is threadsPerAlignment
         val numAssemblies = assembliesList.getAssemblyFiles().size
         val runsAndThreads = calculatedNumThreadsAndRuns(totalThreads, inParallel, numAssemblies)
@@ -204,8 +206,10 @@ class AlignAssemblies : CliktCommand(help = "Align prepared assembly fasta files
 
     }
 
-    fun processRefFiles( referenceFile:String,  gff:String,   outputDir:String,
-                         runsAndThreads:Pair<Int, Int>, condaEnvPrefix:String): Pair<String,String>{
+    private fun processRefFiles(
+        referenceFile: String, gff: String, outputDir: String,
+        runsAndThreads: Pair<Int, Int>, condaEnvPrefix: String
+    ): Pair<String, String> {
 
         val cdsFasta = "$outputDir/ref.cds.fasta"
         createCDSfromRefData(referenceFile, gff, cdsFasta, outputDir,condaEnvPrefix)

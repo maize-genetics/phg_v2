@@ -52,6 +52,8 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
         .default("")
 
     override fun run() {
+        logCommand(this)
+
         myLogger.info("begin CreateRefVcf: validate dpPath URI")
         val dbPath = if (dbPath.isBlank()) {
             System.getProperty("user.dir")
@@ -59,9 +61,9 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
             dbPath
         }
         // Verify the dbPath is a valid tiledb URI
-        val validDB = verifyURI(dbPath,"hvcf_dataset",condaEnvPrefix)
+        val validDB = verifyURI(dbPath,"hvcf_dataset", condaEnvPrefix)
 
-        createRefHvcf(bed,referenceFile,referenceName,referenceUrl,dbPath)
+        createRefHvcf(bed, referenceFile, referenceName, referenceUrl, dbPath)
     }
 
     fun createRefHvcf(ranges:String,refGenome:String,refName:String,refUrl:String,outputDir:String) {
@@ -238,7 +240,7 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
 
     } // end createRefRanges()
 
-    fun checkDbExists(dbpath:String):Boolean {
+    private fun checkDbExists(dbpath: String): Boolean {
         // Check that the user supplied folder exists
         val dbfolder = File(dbpath)
         if (!dbfolder.exists()) {
