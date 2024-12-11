@@ -3,18 +3,21 @@ package net.maizegenetics.phgv2.utils
 import io.tiledb.java.api.*
 import io.tiledb.java.api.Array
 import io.tiledb.java.api.Constants.TILEDB_VAR_NUM
+import org.apache.logging.log4j.LogManager
 import java.io.File
 
 /**
  * Functions to test java tiledb core api.  This hopefully runs on any platform.
  * The tiledb-java library is platform independent.
+ *
  * When you give it an array name, it will create the array in the current directory.
  * And all the data will be written to the array.
  * On bl01, I was in the folder : /workdir/lcj34/phg_v2/tiledbTesting and I told it
  * to create an array named "alt_header_array".  It created a folder named "alt_header_array"
  * and there is data now in it.
- * TODO: test the array can be created. Then write code to test that I can pull data from it
  */
+
+private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.TiledbCoreHvcfUtils")
 fun parseTiledbAltHeaders(vcfFile: String): List<Map<String, String>> {
     val altData = mutableListOf<Map<String, String>>()
 
@@ -42,6 +45,9 @@ fun parseTiledbAltHeaders(vcfFile: String): List<Map<String, String>> {
                 }
 
                 // Ensure RefChecksum exists with a default empty value if missing
+                // older files stored RefChecksum as the RefRange, and did not use the contig:start-end
+                // For this to work, we really need the newer format where RefRange is contig:start-end
+                // and RefChecksum is its own field.
                 entry.putIfAbsent("RefChecksum", "")
 
                 // Add the entry to the altData list
@@ -52,96 +58,70 @@ fun parseTiledbAltHeaders(vcfFile: String): List<Map<String, String>> {
     return altData
 }
 
-fun createTileDBArray(arrayName: String) {
+// If there is no path for the arrayName, the array will be created
+// in the current directory.
+fun createTileDBArray2Dimension(arrayName: String) {
     val context = Context()
 
-    // Define dimensions (ID as a string dimension)
-    val dimID = Dimension(
+    // Define dimensions
+    val dimRefRange = Dimension(
         context,
-        "ID",
-        Datatype.TILEDB_STRING_ASCII, // String data type
-        null,                         // No domain for string dimensions
-        null                          // No tile extent for string dimensions
+        "RefRange",
+        Datatype.TILEDB_STRING_ASCII, // Variable-length string
+        null, // No domain for variable-length strings
+        null  // No tile extent for variable-length strings
+    )
+
+    val dimSampleName = Dimension(
+        context,
+        "SampleName",
+        Datatype.TILEDB_STRING_ASCII, // Variable-length string
+        null, // No domain for variable-length strings
+        null  // No tile extent for variable-length strings
     )
 
     // Define domain
-    val domain = Domain(context).addDimension(dimID)
-
-    // Define attributes (all variable-length)
-    val attrSampleName = Attribute(context, "SampleName", Datatype.TILEDB_STRING_ASCII).apply {
-        setCellValNum(TILEDB_VAR_NUM) // Set as variable-length
+    val domain = Domain(context).apply {
+        addDimension(dimRefRange)
+        addDimension(dimSampleName)
     }
+
+      // Define attributes
     val attrRegions = Attribute(context, "Regions", Datatype.TILEDB_STRING_ASCII).apply {
         setCellValNum(TILEDB_VAR_NUM) // Set as variable-length
     }
+
     val attrRefChecksum = Attribute(context, "RefChecksum", Datatype.TILEDB_STRING_ASCII).apply {
         setCellValNum(TILEDB_VAR_NUM) // Set as variable-length
     }
-    val attrRefRange = Attribute(context, "RefRange", Datatype.TILEDB_STRING_ASCII).apply {
+
+    val attrID = Attribute(context, "ID", Datatype.TILEDB_STRING_ASCII).apply {
         setCellValNum(TILEDB_VAR_NUM) // Set as variable-length
     }
 
-    // Create schema
+    // Define schema
     val schema = ArraySchema(context, ArrayType.TILEDB_SPARSE).apply {
         setDomain(domain)
-        addAttribute(attrSampleName)
         addAttribute(attrRegions)
         addAttribute(attrRefChecksum)
-        addAttribute(attrRefRange)
+        addAttribute(attrID)
     }
 
-    // Use ArraySchema to create the array
+    // Create the array
     Array.create(arrayName, schema)
 
     // Close resources
     schema.close()
     domain.close()
     context.close()
+
 }
-
-fun createTileDBArrayORIG(arrayName: String) {
-    val context = Context()
-
-    // Define dimensions (ID as a string dimension)
-    val dimID = Dimension(
-        context,
-        "ID",
-        Datatype.TILEDB_STRING_ASCII, // String data type
-        null,                         // No domain for string dimensions
-        null                          // No tile extent for string dimensions
-    )
-
-    // Define domain
-    val domain = Domain(context).addDimension(dimID)
-
-    // Define attributes
-    val attrSampleName = Attribute(context, "SampleName", Datatype.TILEDB_STRING_ASCII)
-    val attrRegions = Attribute(context, "Regions", Datatype.TILEDB_STRING_ASCII)
-    val attrRefChecksum = Attribute(context, "RefChecksum", Datatype.TILEDB_STRING_ASCII)
-    val attrRefRange = Attribute(context, "RefRange", Datatype.TILEDB_STRING_ASCII)
-
-    // Create schema - note:  DENSE arrays do not support dimension datatype 'STRING_ASCII'
-    // What does that mean for us?
-    val schema = ArraySchema(context, ArrayType.TILEDB_SPARSE).apply {
-        setDomain(domain)
-        addAttribute(attrSampleName)
-        addAttribute(attrRegions)
-        addAttribute(attrRefChecksum)
-        addAttribute(attrRefRange)
-    }
-
-    // Use ArraySchema to create the array
-    //schema.create(arrayName)
-    Array.create(arrayName, schema)
-
-    // Close resources
-    schema.close()
-    domain.close()
-    context.close()
-}
-
 
 // Prepare data and offsets for variable-length fields
+// This executes 2 main tasks:
+//  1. joins all strings into 1 large string creating a concatenated string buffer
+//  2. Calculates the starting index of each string within the concatenated string.
+//     This is important for variable-length dimensions or attributes.
 fun prepareVariableBuffer(
     context: Context,
     data: List<String>
@@ -152,12 +132,16 @@ fun prepareVariableBuffer(
         .map { it.toLong() }
         .toLongArray()
 
+    // WIth variable length attributes, we need both a data buffer and an offsets buffer
     val dataBuffer = io.tiledb.java.api.NativeArray(context, concatenated, Datatype.TILEDB_STRING_ASCII)
     val offsetsBuffer = io.tiledb.java.api.NativeArray(context, offsets, Datatype.TILEDB_UINT64)
 
     return Pair(dataBuffer, offsetsBuffer)
 }
 
+// Function takes an array name and a list of maps, where each map contains
+// the fields ID, SampleName, Regions, RefChecksum, and RefRange.
+// The function writes the data to the TileDB array.
 fun writeAltDataToTileDB(arrayName: String, altData: List<Map<String, String>>) {
     val context = Context()
 
@@ -172,11 +156,11 @@ fun writeAltDataToTileDB(arrayName: String, altData: List<Map<String, String>>) 
     val refRanges = altData.map { it["RefRange"].orEmpty() }
 
     // Debug: Print extracted data
-    println("\nLCJ - ids: $ids")
-    println("LCJ - sampleNames: $sampleNames")
-    println("LCJ - regions: $regions")
-    println("LCJ - refChecksums: $refChecksums")
-    println("LCJ - refRanges: $refRanges")
+//    println("\nLCJ - ids: $ids")
+//    println("LCJ - sampleNames: $sampleNames")
+//    println("LCJ - regions: $regions")
+//    println("LCJ - refChecksums: $refChecksums")
+//    println("LCJ - refRanges: $refRanges")
 
     // Prepare data and offsets for all attributes
     val idBuffers = prepareVariableBuffer(context, ids)
@@ -185,14 +169,15 @@ fun writeAltDataToTileDB(arrayName: String, altData: List<Map<String, String>>) 
     val refChecksumBuffers = prepareVariableBuffer(context, refChecksums)
     val refRangeBuffers = prepareVariableBuffer(context, refRanges)
 
-    println("LCJ - Concatenated SampleName Data: ${sampleNames.joinToString(separator = "")}")
-    println("LCJ - Offsets for SampleName: ${sampleNames.runningFold(0) { acc, s -> acc + s.length }}")
+//    println("LCJ - Concatenated SampleName Data: ${sampleNames.joinToString(separator = "")}")
+//    println("LCJ - Offsets for SampleName: ${sampleNames.runningFold(0) { acc, s -> acc + s.length }}")
+//
+//    println("LCJ - Concatenated Regions Data: ${regions.joinToString(separator = "")}")
+//    println("LCJ - Offsets for Regions: ${regions.runningFold(0) { acc, s -> acc + s.length }}")
+//    println("\nBefore writing to DB:\nConcatenated RefRange Data: ${refRanges.joinToString("")}")
+//    println("Before writing to DB:\nRefRange Offsets: ${refRanges.runningFold(0) { acc, s -> acc + s.length }}")
 
-    println("LCJ - Concatenated Regions Data: ${regions.joinToString(separator = "")}")
-    println("LCJ - Offsets for Regions: ${regions.runningFold(0) { acc, s -> acc + s.length }}")
-
-
-    println("\nwriteALtDataToTIleDBSending query now\n")
+    println("\nwriteALtDataToTIleDB: Sending query now\n")
     // Prepare query
     val query = Query(array, QueryType.TILEDB_WRITE).apply {
         setLayout(Layout.TILEDB_UNORDERED)
@@ -221,8 +206,15 @@ fun writeAltDataToTileDB(arrayName: String, altData: List<Map<String, String>>) 
     context.close()
 }
 
-fun readDataFromTileDB(arrayName: String, idList: List<String>): List<Map<String, String>> {
+// Given a set of IDs, this function return the sampleName and Regions for each ID
+// This is just a test of functionality.
+fun readSampleNameRegionsForID(arrayName: String, idList: List<String>): List<Map<String, String>> {
     val context = Context()
+
+    // returning a Kotlin  List<Map<String, String>>, and it supports
+    // Easy iteration over entries.
+    // Direct access to fields by their keys.
+    // WOuld we want a data class instead?
     val result = mutableListOf<Map<String, String>>()
 
     // Open the array in read mode
@@ -237,7 +229,6 @@ fun readDataFromTileDB(arrayName: String, idList: List<String>): List<Map<String
 
     val regionsBuffer = io.tiledb.java.api.NativeArray(context, 4096, Datatype.TILEDB_STRING_ASCII)    // Adjust size as needed
     val regionsOffsets = io.tiledb.java.api.NativeArray(context, 512, Datatype.TILEDB_UINT64)          // Adjust size as needed
-
 
     // Prepare query
     val query = Query(array, QueryType.TILEDB_READ).apply {
@@ -260,7 +251,6 @@ fun readDataFromTileDB(arrayName: String, idList: List<String>): List<Map<String
 
     // Process results
     val resultBufferElements = query.resultBufferElements()
-//    println("LCJ - Buffer Elements: $resultBufferElements")
 
     // Extract results for SampleName
     val sampleNameOffsetsArray = sampleNameOffsets.toJavaArray() as LongArray
@@ -285,22 +275,16 @@ fun readDataFromTileDB(arrayName: String, idList: List<String>): List<Map<String
         regionsRawData.substring(offset.toInt(), end).trimEnd('\u0000')
     }.filter { it.isNotEmpty() } // Remove empty strings
 
-//    println("LCJ - Processed SampleNames: $sampleNames")
-//    println("LCJ - Processed Regions: $regions")
-
     // Combine results
-    for (i in sampleNames.indices) {
+    for (idx in sampleNames.indices) {
         result.add(
             mapOf(
-                "ID" to idList[i],
-                "SampleName" to sampleNames[i],
-                "Regions" to regions[i]
+                "ID" to idList[idx],
+                "SampleName" to sampleNames[idx],
+                "Regions" to regions[idx]
             )
         )
     }
-
-    // Debug final results
-    println("LCJ - Final Results: $result")
 
     // Close resources
     query.close()
@@ -309,6 +293,81 @@ fun readDataFromTileDB(arrayName: String, idList: List<String>): List<Map<String
 
     return result
 }
+
+// Given a list of Reference Ranges, query the array for all IDs associated with each Reference Range
+fun queryIDsByRefRange(arrayName: String, refRangesToQuery: List<String>): Map<String, List<String>> {
+    val context = Context()
+
+    // This one is not a list.  We have a list of refRanges to query, and we want to return a map of refRanges to IDs
+    // SO the return is a Map<String, List<String>>.  The key is the refRange, and the value is a list of hapIDs that
+    // are associated with each range.
+    val result = mutableMapOf<String, List<String>>()
+
+    // Open the array in read mode
+    val array = Array(context, arrayName, QueryType.TILEDB_READ)
+
+    // Prepare buffers for reading IDs and RefRanges
+    val idBuffer = io.tiledb.java.api.NativeArray(context, 4096, Datatype.TILEDB_STRING_ASCII) // Adjust size as needed
+    val idOffsetsBuffer = io.tiledb.java.api.NativeArray(context, 512, Datatype.TILEDB_UINT64)
+
+    val refRangeBuffer = io.tiledb.java.api.NativeArray(context, 4096, Datatype.TILEDB_STRING_ASCII) // Adjust size as needed
+    val refRangeOffsetsBuffer = io.tiledb.java.api.NativeArray(context, 512, Datatype.TILEDB_UINT64)
+
+    // Create a query object
+    val query = Query(array, QueryType.TILEDB_READ).apply {
+        setLayout(Layout.TILEDB_UNORDERED)
+
+        // Set buffers for ID and RefRange
+        setDataBuffer("ID", idBuffer)
+        setOffsetsBuffer("ID", idOffsetsBuffer)
+
+        setDataBuffer("RefRange", refRangeBuffer)
+        setOffsetsBuffer("RefRange", refRangeOffsetsBuffer)
+    }
+
+    // Submit the query
+    query.submit()
+
+    // Process results
+    val resultBufferElements = query.resultBufferElements()
+
+    // NativeArray from TileDB doesn't have a toByteArray() method and doesn't support
+    // conversion using Kotlin's toByteARra90.  So we move to Java to do the conversion
+    val idOffsetsArray = idOffsetsBuffer.toJavaArray() as LongArray
+    println("LCJ queryIdByRefRange - idOffsetsArray: ${idOffsetsArray.contentToString()}")
+    val idRawData = String(idBuffer.toJavaArray() as ByteArray)
+
+    val ids = idOffsetsArray.mapIndexed { index, offset ->
+        val end = if (index < idOffsetsArray.size - 1) idOffsetsArray[index + 1].toInt() else idRawData.length
+        //idRawData.substring(offset.toInt(), end).trimEnd('\u0000')
+        if (offset.toInt() < end) idRawData.substring(offset.toInt(), end).trimEnd('\u0000') else ""
+    }.filter { it.isNotEmpty() } // Remove empty strings
+
+    val refRangeOffsetsArray = refRangeOffsetsBuffer.toJavaArray() as LongArray
+    val refRangeRawData = String(refRangeBuffer.toJavaArray() as ByteArray)
+//    println("LCJ - refRangeRawData: $refRangeRawData")
+//    println("LCJ - refRangeOffsetsArray: ${refRangeOffsetsArray.contentToString()}")
+    val refRanges = refRangeOffsetsArray.mapIndexed { index, offset ->
+        val end = if (index < refRangeOffsetsArray.size - 1) refRangeOffsetsArray[index + 1].toInt() else refRangeRawData.length
+        if (offset.toInt() < end) refRangeRawData.substring(offset.toInt(), end).trimEnd('\u0000') else ""
+    }.filter { it.isNotEmpty() } // Remove empty strings
+
+    // Filter IDs by RefRange
+    refRangesToQuery.forEach { refRangeQuery ->
+        val matchingIDs = ids.zip(refRanges)
+            .filter { it.second == refRangeQuery }
+            .map { it.first }
+        result[refRangeQuery] = matchingIDs
+    }
+
+    // Close resources
+    query.close()
+    array.close()
+    context.close()
+
+    return result
+}
+
 
 
 
