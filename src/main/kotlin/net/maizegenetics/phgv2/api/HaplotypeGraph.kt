@@ -562,4 +562,19 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         return altHeaderMap[hapid]?.refChecksum ?: ""
     }
 
+    /**
+     * Returns a map of haplotype id to sequence length.
+     * This is calculated from the AltHeaderMetaData regions.
+     */
+    fun hapidToSeqLength(): Map<String, Int> {
+
+        return altHeaderMap.map { (hapid, altHeader) ->
+            val seqLength = altHeader.regions.sumOf { (start, end) ->
+                end.position - start.position + 1
+            }
+            Pair(hapid, seqLength)
+        }.toMap()
+
+    }
+
 }
