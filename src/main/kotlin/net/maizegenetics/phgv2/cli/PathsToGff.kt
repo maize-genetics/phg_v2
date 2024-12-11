@@ -1,11 +1,6 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
-import com.github.ajalt.clikt.parameters.groups.required
-import com.github.ajalt.clikt.parameters.groups.single
-import com.github.ajalt.clikt.parameters.options.convert
-import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import net.maizegenetics.phgv2.utils.loadGFFsToGff3Feature
@@ -38,6 +33,9 @@ class PathsToGff: CliktCommand( help = "Create a GFF file from a PHG imputation 
     val HVCF_PATTERN = Regex("""(\.hvcf|\.h\.vcf|\.hvcf\.gz|\.h\.vcf\.gz)$""")
 
     override fun run() {
+
+        logCommand(this)
+
         val resultsTreeCenter = loadGFFsToGff3Feature(keyFile)
         myLogger.info("Calling makeGffFromPath for file ${hvcfFile}")
         val time = System.nanoTime()

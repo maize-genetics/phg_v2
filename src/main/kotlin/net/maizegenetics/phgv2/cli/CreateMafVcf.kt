@@ -58,10 +58,19 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * It will first use Biokotlin to build the gVCF and then will use the BED file to extract out the hVCF information.
      * if [twoGvcfs] is true, then the output will be split into two gvcf files, one for each gamete.
      */
-    fun createASMHvcfs(dbPath: String, bedFileName: String, referenceFileName: String, mafDirName: String,
-                       outputDirName: String, metricsFile: String, skipMetrics: Boolean = false, twoGvcfs:Boolean=false, legacyMafFile: Boolean = false) {
-        //load the bed file into some data structure
-//        val ranges = bedfileToSRangeSet(bedFileName,referenceFileName)
+    private fun createASMHvcfs(
+        dbPath: String,
+        bedFileName: String,
+        referenceFileName: String,
+        mafDirName: String,
+        outputDirName: String,
+        metricsFile: String,
+        skipMetrics: Boolean = false,
+        twoGvcfs: Boolean = false,
+        legacyMafFile: Boolean = false
+    ) {
+
+        // load the bed file into some data structure
         val ranges = loadRanges(bedFileName)
         myLogger.info("CreateASMHvcfs: calling buildRefGenomeSeq")
         val refGenomeSequence = buildRefGenomeSeq(referenceFileName)
@@ -72,7 +81,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         // directly, so must sort the contigs here.
         val contigList = refGenomeSequence.keys.toList().sorted()
 
-        //loop through the maf files in mafDirName and getGVCFVariantsFromMafFile
+        // loop through the maf files in mafDirName and getGVCFVariantsFromMafFile
         File(mafDirName).walk().filter { !it.isHidden && !it.isDirectory }
             .filter { it.extension == "maf" }
             .forEach {
@@ -127,7 +136,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
 
     }
 
-    //Function to load in the reference using Biokotlin
+    // Function to load in the reference using Biokotlin
     fun buildRefGenomeSeq(referenceFileName: String) : Map<String, NucSeq> {
         return NucSeqIO(referenceFileName).readAll()
     }
@@ -144,7 +153,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * 7. [outputType] - either gvcf or vcf (BioKotlin doesn't currently have h.vcf, default is gvcf)
      *
      */
-    fun getGVCFVariantsFromMafFile(refSeq: Map<String,NucSeq>, mafFileName : String, sampleName: String, fillGaps: Boolean = false, twoGvcfs: Boolean = false, legacyMafFile: Boolean = false) : Map<String,List<VariantContext>> {
+    private fun getGVCFVariantsFromMafFile(refSeq: Map<String,NucSeq>, mafFileName : String, sampleName: String, fillGaps: Boolean = false, twoGvcfs: Boolean = false, legacyMafFile: Boolean = false) : Map<String,List<VariantContext>> {
         return MAFToGVCF().getVariantContextsfromMAF(
             mafFileName,
             refSeq,
@@ -173,7 +182,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
             .flatMap { convertGVCFToHVCFForChrom(dbPath, sampleName, bedRegionsByContig[it]!!, refGenomeSequence, agcArchiveName, gvcfVariantsByContig[it]!!, asmHeaders,condaEnvPrefix) }
     }
 
-    fun convertGVCFToHVCFForChrom(dbPath: String, sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, agcArchiveName: String, variantContexts: List<VariantContext>, asmHeaders: MutableMap<String,VCFHeaderLine>,condaEnvPrefix:String = "" ) : List<VariantContext> {
+    private fun convertGVCFToHVCFForChrom(dbPath: String, sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, agcArchiveName: String, variantContexts: List<VariantContext>, asmHeaders: MutableMap<String,VCFHeaderLine>, condaEnvPrefix:String = "" ) : List<VariantContext> {
         
         /**
          * Loop through the bed file
@@ -334,7 +343,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * Function to extract all the needed information out of the ASM gVCF record and put them into HVCFRecordMetadata objects
      * This will first try to resize the positions based on the ref start position and then will extract out all the other information.
      */
-    fun convertGVCFRecordsToHVCFMetaData(sampleName: String, region: Pair<Position,Position>, refRangeSeq: NucSeq, variants: List<VariantContext> ) : HVCFRecordMetadata {
+    private fun convertGVCFRecordsToHVCFMetaData(sampleName: String, region: Pair<Position,Position>, refRangeSeq: NucSeq, variants: List<VariantContext> ) : HVCFRecordMetadata {
         //Take the first and the last variantContext
         val firstVariant = variants.first()
         val lastVariant = variants.last()
@@ -474,7 +483,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * This function will bulk load sequences in from the AGC record and then will associate the returned sequences
      * with the metadata record which contains the coordiantes for the query and will add in the asmSeq.
      */
-    fun addSequencesToMetaData(dbPath: String, metadata: List<HVCFRecordMetadata>, condaEnvPrefix:String="") : List<HVCFRecordMetadata> {
+    private fun addSequencesToMetaData(dbPath: String, metadata: List<HVCFRecordMetadata>, condaEnvPrefix:String="") : List<HVCFRecordMetadata> {
         //get out the assembly coordinates and build them into the regions
         val metaDataToRangeLookup = metadata.map {
             val queries = mutableListOf<String>()
@@ -538,7 +547,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * Simple function to convert a single metadata record into a VariantContext.
      * This will also create the ALT tag and add it to the asmHeaders object for use during export.
      */
-    fun convertMetaDataRecordToHVCF(metaDataRecord: HVCFRecordMetadata, asmHeaders: MutableMap<String, VCFHeaderLine>, dbPath: String): VariantContext {
+    private fun convertMetaDataRecordToHVCF(metaDataRecord: HVCFRecordMetadata, asmHeaders: MutableMap<String, VCFHeaderLine>, dbPath: String): VariantContext {
         val assemblyHaplotypeSeq:String = metaDataRecord.asmSeq
         //md5 hash the assembly sequence
         val assemblyHaplotypeHash = getChecksumForString(assemblyHaplotypeSeq)
@@ -605,6 +614,9 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
     }
 
     override fun run() {
+
+        logCommand(this)
+
         val dbPath = if (dbPath.isBlank()) {
             System.getProperty("user.dir")
         } else {

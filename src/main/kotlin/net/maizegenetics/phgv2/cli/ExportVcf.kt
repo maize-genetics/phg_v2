@@ -89,9 +89,11 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
 
     override fun run() {
 
-        //if using a regions file, the output vcfs can contain duplicate sequential reference blocks which need to be deleted
-        //in that case write the vcf files to a temp directory, then write the de-duped vcfs to the output.
-        //If a regions-file is specified, check for its existence
+        logCommand(this)
+
+        // if using a regions file, the output vcfs can contain duplicate sequential reference blocks which need to be deleted
+        // in that case write the vcf files to a temp directory, then write the de-duped vcfs to the output.
+        // If a regions-file is specified, check for its existence
         val workingOutputDirectory = if (regionsFile.isNotBlank()) {
             require(File(regionsFile).exists()) {"$regionsFile does not exist."}
             val tmpDir = Files.createTempDirectory("vcfOut").toFile()

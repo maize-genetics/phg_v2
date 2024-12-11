@@ -21,6 +21,8 @@ class MergeGVCFs : CliktCommand(help = "Merge GVCF files into Single VCF file") 
 
     override fun run() {
 
+        logCommand(this)
+
         // Checks to ensure that the input directory exists
         require(File(inputDir).isDirectory) { "Input GVCF directory does not exist: $inputDir" }
 

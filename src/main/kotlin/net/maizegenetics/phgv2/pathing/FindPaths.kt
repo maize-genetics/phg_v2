@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.importReadMapping
 import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.mergeReadMappings
 import net.maizegenetics.phgv2.utils.*
@@ -167,6 +168,8 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
     private val myLogger = LogManager.getLogger(FindPaths::class.java)
 
     override fun run() {
+        logCommand(this)
+
         val keyFileLines = readInputFiles.getReadFiles()
         require(keyFileLines.isNotEmpty()) {"Must provide either --path-keyfile or --read-files."}
 
