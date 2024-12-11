@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.brapi.createSmallSeqTiledb
+import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.getChecksum
 import net.maizegenetics.phgv2.utils.seqFromAGC
 import org.apache.logging.log4j.LogManager
@@ -87,7 +88,7 @@ class CreateFastaFromHvcfRangeFastaTest {
         val inputFiles =
             File(multiInputDir)
                 .walk()
-                .filter {  HVCF_PATTERN.containsMatchIn(it.name) }
+                .filter { HVCF_PATTERN.containsMatchIn(it.name) }
                 .map { it.absolutePath }
                 .toList()
 
@@ -95,11 +96,26 @@ class CreateFastaFromHvcfRangeFastaTest {
 
         val graph = HaplotypeGraph(inputFiles)
 
-        graph.altHeaders()
-            .map { it.key }
-            .forEach { hapid ->
-                val temp = seqFromAGC(dbPath, graph, hapid, range)
-                seq = temp.first
+        val hapidToSeqLength = graph.hapidToSeqLength()
+
+        graph.ranges()
+            .forEach { range ->
+                graph.hapIdToSampleGametes(range).keys
+                    .forEach { hapid ->
+                        seqFromAGC(
+                            dbPath,
+                            graph,
+                            hapid,
+                            Pair(Position(range.contig, range.start), Position(range.contig, range.end))
+                        )
+                            .let { (seq, _) ->
+                                assertEquals(
+                                    hapidToSeqLength.getValue(hapid),
+                                    seq.length,
+                                    "hapid: $hapid seq length: ${seq.length} != ${hapidToSeqLength.getValue(hapid)}"
+                                )
+                            }
+                    }
             }
 
     }
