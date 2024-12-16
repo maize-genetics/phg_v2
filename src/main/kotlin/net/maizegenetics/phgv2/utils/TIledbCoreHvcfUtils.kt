@@ -18,36 +18,41 @@ import java.io.File
  */
 
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.TiledbCoreHvcfUtils")
+
 fun parseTiledbAltHeaders(vcfFile: String): List<Map<String, String>> {
     val altData = mutableListOf<Map<String, String>>()
+
+    // Regex pattern to match key-value pairs, accounting for quoted values
+    val regex = Regex("""(\w+)=("(.*?)"|[^,]+)""")
 
     File(vcfFile).useLines { lines ->
         lines.forEach { line ->
             if (line.startsWith("##ALT=<")) {
                 // Subset the line to start after ##ALT=< and end before >
                 val lineData = line.substring(7, line.length - 1)
-                // Split the lineData on commas
-                val lineDataSplit = lineData.split(",")
 
                 // Create a map for storing the selected fields
                 val entry = mutableMapOf<String, String>()
 
-                // Extract only the desired fields
-                lineDataSplit.forEach { data ->
-                    val dataSplit = data.split("=")
-                    if (dataSplit.size == 2) { // Ensure valid key=value pairs
-                        val key = dataSplit[0].trim()
-                        val value = dataSplit[1].removeSurrounding("\"").trim()
-                        if (key in listOf("ID", "SampleName", "Regions", "RefChecksum", "RefRange")) {
-                            entry[key] = value
-                        }
+                // Extract key-value pairs using the regex
+                regex.findAll(lineData).forEach { matchResult ->
+                    val key = matchResult.groupValues[1].trim()
+                    val value = matchResult.groupValues[2].removeSurrounding("\"").trim()
+                    if (key in listOf("ID", "SampleName", "Regions", "RefChecksum", "RefRange")) {
+                        entry[key] = value
                     }
                 }
 
+                // Split multiple Regions into individual entries if present, then rejoin with ; vs ,
+                // Do we want this or is it fine to keep as comma separated?  Will the comma ever confuse the parser
+                // or conflict with another use of the comma?
+//                entry["Regions"]?.let { regions ->
+//                    if (regions.contains(",")) {
+//                        entry["Regions"] = regions.split(",").joinToString(";") // Replace commas with semicolons
+//                    }
+//                }
+
                 // Ensure RefChecksum exists with a default empty value if missing
-                // older files stored RefChecksum as the RefRange, and did not use the contig:start-end
-                // For this to work, we really need the newer format where RefRange is contig:start-end
-                // and RefChecksum is its own field.
                 entry.putIfAbsent("RefChecksum", "")
 
                 // Add the entry to the altData list
@@ -122,6 +127,10 @@ fun createTileDBArray2Dimension(arrayName: String) {
 //  1. joins all strings into 1 large string creating a concatenated string buffer
 //  2. Calculates the starting index of each string within the concatenated string.
 //     This is important for variable-length dimensions or attributes.
+// This function should be used when loading data to a tiledb, or for creating
+// the buffers for a specific list of values for a dimension (not attribute) that is being queried.
+// For example:  if you want to query all the samplenames and IDs (hapids) for a select set
+// of RefRanges, you would use this function to create the buffers for the RefRanges.
 fun prepareVariableBuffer(
     context: Context,
     data: List<String>
@@ -206,83 +215,190 @@ fun writeAltDataToTileDB(arrayName: String, altData: List<Map<String, String>>) 
     context.close()
 }
 
-// Given a set of IDs, this function return the sampleName and Regions for each ID
-// This is just a test of functionality.
-fun readSampleNameRegionsForID(arrayName: String, idList: List<String>): List<Map<String, String>> {
+/**
+ * This function queries the TileDB array for the sampleName and Id associated with refernece ranges.
+ * It uses a dynamic buffer size to handle incomplete queries, continuing to query until the query is complete.
+ * The function returns a list of maps, where each map contains the fields SampleName and ID.
+ */
+fun queryWithDynamicBuffers(arrayName: String, refRangeList: List<String>): List<Map<String, String>> {
     val context = Context()
-
-    // returning a Kotlin  List<Map<String, String>>, and it supports
-    // Easy iteration over entries.
-    // Direct access to fields by their keys.
-    // WOuld we want a data class instead?
     val result = mutableListOf<Map<String, String>>()
 
     // Open the array in read mode
     val array = Array(context, arrayName, QueryType.TILEDB_READ)
 
-    // Prepare ID buffers
-    val idBuffers = prepareVariableBuffer(context, idList)
+    // Prepare buffers for RefRange (filtering dimension)
+    val refRangeBuffers = prepareVariableBuffer(context, refRangeList)
 
-    // Prepare buffers for SampleName and Regions
-    val sampleNameBuffer = io.tiledb.java.api.NativeArray(context, 4096, Datatype.TILEDB_STRING_ASCII) // Adjust size as needed
-    val sampleNameOffsets = io.tiledb.java.api.NativeArray(context, 512, Datatype.TILEDB_UINT64)       // Adjust size as needed
+    // Initial buffer sizes
+    var sampleNameBufferSize = 4096
+    var sampleNameOffsetsSize = 512
+    var idBufferSize = 4096
+    var idOffsetsSize = 512
 
-    val regionsBuffer = io.tiledb.java.api.NativeArray(context, 4096, Datatype.TILEDB_STRING_ASCII)    // Adjust size as needed
-    val regionsOffsets = io.tiledb.java.api.NativeArray(context, 512, Datatype.TILEDB_UINT64)          // Adjust size as needed
+    // Initialize query buffers
+    var sampleNameBuffer = io.tiledb.java.api.NativeArray(context, sampleNameBufferSize, Datatype.TILEDB_STRING_ASCII)
+    var sampleNameOffsets = io.tiledb.java.api.NativeArray(context, sampleNameOffsetsSize, Datatype.TILEDB_UINT64)
 
-    // Prepare query
+    var idBuffer = io.tiledb.java.api.NativeArray(context, idBufferSize, Datatype.TILEDB_STRING_ASCII)
+    var idOffsets = io.tiledb.java.api.NativeArray(context, idOffsetsSize, Datatype.TILEDB_UINT64)
+
     val query = Query(array, QueryType.TILEDB_READ).apply {
         setLayout(Layout.TILEDB_UNORDERED)
 
-        // Set ID buffers
-        setDataBuffer("ID", idBuffers.first)
-        setOffsetsBuffer("ID", idBuffers.second)
+        // Set RefRange buffers
+        setDataBuffer("RefRange", refRangeBuffers.first)
+        setOffsetsBuffer("RefRange", refRangeBuffers.second)
 
-        // Set attribute buffers
+        // Set SampleName buffers
         setDataBuffer("SampleName", sampleNameBuffer)
         setOffsetsBuffer("SampleName", sampleNameOffsets)
 
-        setDataBuffer("Regions", regionsBuffer)
-        setOffsetsBuffer("Regions", regionsOffsets)
+        // Set ID buffers
+        setDataBuffer("ID", idBuffer)
+        setOffsetsBuffer("ID", idOffsets)
     }
 
-    // Submit query
-    query.submit()
+    // Iterate until query is complete
+    do {
+        query.submit()
 
-    // Process results
-    val resultBufferElements = query.resultBufferElements()
+        if (query.queryStatus == QueryStatus.TILEDB_INCOMPLETE) {
+            println("Query incomplete. Expanding buffer sizes.")
 
-    // Extract results for SampleName
+            // Double buffer sizes
+            sampleNameBufferSize *= 2
+            sampleNameOffsetsSize *= 2
+            idBufferSize *= 2
+            idOffsetsSize *= 2
+
+            // Reallocate buffers
+            sampleNameBuffer = io.tiledb.java.api.NativeArray(context, sampleNameBufferSize, Datatype.TILEDB_STRING_ASCII)
+            sampleNameOffsets = io.tiledb.java.api.NativeArray(context, sampleNameOffsetsSize, Datatype.TILEDB_UINT64)
+            idBuffer = io.tiledb.java.api.NativeArray(context, idBufferSize, Datatype.TILEDB_STRING_ASCII)
+            idOffsets = io.tiledb.java.api.NativeArray(context, idOffsetsSize, Datatype.TILEDB_UINT64)
+
+            // Reset buffers in the query
+            query.setDataBuffer("SampleName", sampleNameBuffer)
+            query.setOffsetsBuffer("SampleName", sampleNameOffsets)
+            query.setDataBuffer("ID", idBuffer)
+            query.setOffsetsBuffer("ID", idOffsets)
+        }
+
+    } while (query.queryStatus == QueryStatus.TILEDB_INCOMPLETE)
+
+    // Use resultBufferElements to determine the number of valid entries
+    val numSampleNames = query.resultBufferElements()["SampleName"]?.first?.toInt() ?: 0
+    val numIDs = query.resultBufferElements()["ID"]?.first?.toInt() ?: 0
+
+    // Extract SampleName data
     val sampleNameOffsetsArray = sampleNameOffsets.toJavaArray() as LongArray
     val sampleNameRawData = String(sampleNameBuffer.toJavaArray() as ByteArray)
-//    println("LCJ - Raw SampleName Data: $sampleNameRawData")
-//    println("LCJ - SampleName Offsets: ${sampleNameOffsetsArray.contentToString()}")
-
-
-    val sampleNames = sampleNameOffsetsArray.mapIndexed { index, offset ->
+    val sampleNames = sampleNameOffsetsArray.take(numSampleNames).mapIndexedNotNull { index, offset ->
         val end = if (index < sampleNameOffsetsArray.size - 1) sampleNameOffsetsArray[index + 1].toInt() else sampleNameRawData.length
-        sampleNameRawData.substring(offset.toInt(), end).trimEnd('\u0000')
-    }.filter { it.isNotEmpty() } // Remove empty strings
+        if (offset.toInt() < end) sampleNameRawData.substring(offset.toInt(), end).trimEnd('\u0000') else null
+    }
 
-    // Extract results for Regions
-    val regionsOffsetsArray = regionsOffsets.toJavaArray() as LongArray
-    val regionsRawData = String(regionsBuffer.toJavaArray() as ByteArray)
-//    println("LCJ - Raw Regions Data: $regionsRawData")
-//    println("LCJ - Regions Offsets: ${regionsOffsetsArray.contentToString()}")
-
-    val regions = regionsOffsetsArray.mapIndexed { index, offset ->
-        val end = if (index < regionsOffsetsArray.size - 1) regionsOffsetsArray[index + 1].toInt() else regionsRawData.length
-        regionsRawData.substring(offset.toInt(), end).trimEnd('\u0000')
-    }.filter { it.isNotEmpty() } // Remove empty strings
+    // Extract ID data
+    val idOffsetsArray = idOffsets.toJavaArray() as LongArray
+    val idRawData = String(idBuffer.toJavaArray() as ByteArray)
+    val ids = idOffsetsArray.take(numIDs).mapIndexedNotNull { index, offset ->
+        val end = if (index < idOffsetsArray.size - 1) idOffsetsArray[index + 1].toInt() else idRawData.length
+        if (offset.toInt() < end) idRawData.substring(offset.toInt(), end).trimEnd('\u0000') else null
+    }
 
     // Combine results
-    for (idx in sampleNames.indices) {
-        result.add(
-            mapOf(
-                "ID" to idList[idx],
-                "SampleName" to sampleNames[idx],
-                "Regions" to regions[idx]
-            )
+    sampleNames.zip(ids).forEach { (sampleName, id) ->
+        result.add(mapOf("SampleName" to sampleName, "ID" to id))
+    }
+
+    // Close resources
+    query.close()
+    array.close()
+    context.close()
+
+    return result
+}
+
+
+
+/**
+ * Given a list of reference ranges, return the sampleNames and Ids (hapids) associated with each range.
+ */
+fun querySampleNamesAndIDsByRefRange(arrayName: String, refRangeList: List<String>): Map<String, List<Map<String, String>>> {
+    val context = Context()
+    val result = mutableMapOf<String, List<Map<String, String>>>()
+
+    // Open the array in read mode
+    val array = Array(context, arrayName, QueryType.TILEDB_READ)
+
+    // Prepare buffers for RefRange
+    val refRangeBuffers = prepareVariableBuffer(context, refRangeList)
+
+    // Prepare buffers for SampleName and ID
+    val sampleNameBuffer = io.tiledb.java.api.NativeArray(context, 4096, Datatype.TILEDB_STRING_ASCII)
+    val sampleNameOffsets = io.tiledb.java.api.NativeArray(context, 512, Datatype.TILEDB_UINT64)
+
+    val idBuffer = io.tiledb.java.api.NativeArray(context, 4096, Datatype.TILEDB_STRING_ASCII)
+    val idOffsets = io.tiledb.java.api.NativeArray(context, 512, Datatype.TILEDB_UINT64)
+
+    // Create and configure the query
+    val query = Query(array, QueryType.TILEDB_READ).apply {
+        setLayout(Layout.TILEDB_UNORDERED)
+
+        // Set buffers for RefRange (dimension filter)
+        setDataBuffer("RefRange", refRangeBuffers.first)
+        setOffsetsBuffer("RefRange", refRangeBuffers.second)
+
+        // Set buffers for SampleName (dimension retrieval)
+        setDataBuffer("SampleName", sampleNameBuffer)
+        setOffsetsBuffer("SampleName", sampleNameOffsets)
+
+        // Set buffers for ID (attribute retrieval)
+        setDataBuffer("ID", idBuffer)
+        setOffsetsBuffer("ID", idOffsets)
+    }
+
+    // Submit the query
+    query.submit()
+
+    // Use resultBufferElements to determine the number of valid entries
+    val numSampleNames = query.resultBufferElements()["SampleName"]?.first?.toInt() ?: 0
+    val numIDs = query.resultBufferElements()["ID"]?.first?.toInt() ?: 0
+    val numRefRanges = query.resultBufferElements()["RefRange"]?.first?.toInt() ?: 0
+    println("LCJ - Num Results: SampleNames=$numSampleNames, IDs=$numIDs, RefRanges=$numRefRanges")
+
+    // Extract RefRange data
+    val refRangeOffsetsArray = refRangeBuffers.second.toJavaArray() as LongArray
+    val refRangeRawData = String(refRangeBuffers.first.toJavaArray() as ByteArray)
+    val refRanges = refRangeOffsetsArray.take(numRefRanges).mapIndexedNotNull { index, offset ->
+        val end = if (index < refRangeOffsetsArray.size - 1) refRangeOffsetsArray[index + 1].toInt() else refRangeRawData.length
+        if (offset.toInt() < end) refRangeRawData.substring(offset.toInt(), end).trimEnd('\u0000') else null
+    }
+
+    // Extract SampleName data
+    val sampleNameOffsetsArray = sampleNameOffsets.toJavaArray() as LongArray
+    val sampleNameRawData = String(sampleNameBuffer.toJavaArray() as ByteArray)
+    val sampleNames = sampleNameOffsetsArray.take(numSampleNames).mapIndexedNotNull { index, offset ->
+        val end = if (index < sampleNameOffsetsArray.size - 1) sampleNameOffsetsArray[index + 1].toInt() else sampleNameRawData.length
+        if (offset.toInt() < end) sampleNameRawData.substring(offset.toInt(), end).trimEnd('\u0000') else null
+    }
+
+    // Extract ID data
+    val idOffsetsArray = idOffsets.toJavaArray() as LongArray
+    val idRawData = String(idBuffer.toJavaArray() as ByteArray)
+    val ids = idOffsetsArray.take(numIDs).mapIndexedNotNull { index, offset ->
+        val end = if (index < idOffsetsArray.size - 1) idOffsetsArray[index + 1].toInt() else idRawData.length
+        if (offset.toInt() < end) idRawData.substring(offset.toInt(), end).trimEnd('\u0000') else null
+    }
+
+    // Combine results grouped by RefRange
+    refRanges.forEachIndexed { index, refRange ->
+        val sampleName = sampleNames.getOrNull(index) ?: ""
+        val id = ids.getOrNull(index) ?: ""
+        result[refRange] = result.getOrDefault(refRange, emptyList()) + mapOf(
+            "SampleName" to sampleName,
+            "ID" to id
         )
     }
 
@@ -294,7 +410,127 @@ fun readSampleNameRegionsForID(arrayName: String, idList: List<String>): List<Ma
     return result
 }
 
+
+// New version which queries using the dimensions and then filters for ID (the attribute)
+// Is this useful?  Probably need a generic function that can query any dimension and filter for any attribute.
+fun getSampleNameRefRangesForID(arrayName: String, idList: List<String>): List<Map<String, String>> {
+    val context = Context()
+    val result = mutableListOf<Map<String, String>>()
+
+    // Open the array in read mode
+    val array = Array(context, arrayName, QueryType.TILEDB_READ)
+
+    // Prepare buffers for dimensions and attributes
+    val sampleNameBuffer = io.tiledb.java.api.NativeArray(context, 4096, Datatype.TILEDB_STRING_ASCII) // Adjust size
+    val sampleNameOffsets = io.tiledb.java.api.NativeArray(context, 512, Datatype.TILEDB_UINT64)
+
+    val refRangeBuffer = io.tiledb.java.api.NativeArray(context, 4096, Datatype.TILEDB_STRING_ASCII)    // Adjust size
+    val refRangeOffsets = io.tiledb.java.api.NativeArray(context, 512, Datatype.TILEDB_UINT64)
+
+    val idBuffer = io.tiledb.java.api.NativeArray(context, 4096, Datatype.TILEDB_STRING_ASCII)          // Adjust size
+    val idOffsetsBuffer = io.tiledb.java.api.NativeArray(context, 512, Datatype.TILEDB_UINT64)
+
+    // Prepare query
+    val query = Query(array, QueryType.TILEDB_READ).apply {
+        setLayout(Layout.TILEDB_UNORDERED)
+
+        // Set buffers for dimensions and attributes
+        setDataBuffer("SampleName", sampleNameBuffer)
+        setOffsetsBuffer("SampleName", sampleNameOffsets)
+
+        setDataBuffer("RefRange", refRangeBuffer)
+        setOffsetsBuffer("RefRange", refRangeOffsets)
+
+        setDataBuffer("ID", idBuffer)
+        setOffsetsBuffer("ID", idOffsetsBuffer)
+    }
+
+    // Submit query
+    query.submit()
+
+    // Process results
+    val idOffsetsArray = idOffsetsBuffer.toJavaArray() as LongArray
+    val idRawData = String(idBuffer.toJavaArray() as ByteArray)
+    println("LCJ - Raw ID Data: $idRawData")
+    println("LCJ - ID Offsets: ${idOffsetsArray.contentToString()}")
+
+    // Get the number of results for the ID element.
+    // The first number is the number of element offsets for variable size attributes
+    // (and always zero for fixed-sized attributes and coordinates).
+    // The second is the number of elements in the data buffer.
+    // For variable-sized attributes the first number is the number of cells read
+    // (and hence the number of offsets), the second number is the number of elements in the data buffer.
+    val numResults = query.resultBufferElements()["ID"]?.first ?: 0
+    println("LCJ - Number of results: $numResults")
+//    val ids = idOffsetsArray.toList().mapIndexedNotNull { index, offset ->
+//        val end = if (index < idOffsetsArray.size - 1) idOffsetsArray[index + 1].toInt() else idRawData.length
+//        if (offset.toInt() >= 0 && offset.toInt() < end && end <= idRawData.length) {
+//            idRawData.substring(offset.toInt(), end).trimEnd('\u0000')
+//        } else {
+//            null // Skip invalid entries
+//        }
+//    }.filter { it.isNotEmpty() } // Remove empty strings
+    val ids = idOffsetsArray.take(numResults.toInt()).mapIndexedNotNull { index, offset ->
+        val end = if (index < numResults - 1) idOffsetsArray[index + 1].toInt() else idRawData.length
+        if (offset.toInt() >= 0 && offset.toInt() < end && end <= idRawData.length) {
+            idRawData.substring(offset.toInt(), end).trimEnd('\u0000')
+        } else {
+            null // Skip invalid entries
+        }
+    }
+
+    println("\n -with numResults, IDs: $ids")
+    val sampleNameOffsetsArray = sampleNameOffsets.toJavaArray() as LongArray
+    val sampleNameRawData = String(sampleNameBuffer.toJavaArray() as ByteArray)
+    println("LCJ - Raw SampleName Data: $sampleNameRawData")
+    println("LCJ - SampleName Offsets: ${sampleNameOffsetsArray.contentToString()}")
+    val sampleNames = sampleNameOffsetsArray.toList().mapIndexedNotNull { index, offset ->
+        val end = if (index < sampleNameOffsetsArray.size - 1) sampleNameOffsetsArray[index + 1].toInt() else sampleNameRawData.length
+        if (offset.toInt() >= 0 && offset.toInt() < end && end <= idRawData.length) {
+            sampleNameRawData.substring(offset.toInt(), end).trimEnd('\u0000')
+        } else {
+            null // Skip invalid entries
+        }
+    }.filter { it.isNotEmpty() }
+
+    val refRangeOffsetsArray = refRangeOffsets.toJavaArray() as LongArray
+    val refRangeRawData = String(refRangeBuffer.toJavaArray() as ByteArray)
+    println("LCJ - Raw RefRange Data: $refRangeRawData")
+    println("LCJ - RefRange Offsets: ${refRangeOffsetsArray.contentToString()}")
+    val refRanges = refRangeOffsetsArray.toList().mapIndexedNotNull { index, offset ->
+        val end = if (index < refRangeOffsetsArray.size - 1) refRangeOffsetsArray[index + 1].toInt() else refRangeRawData.length
+        if (offset.toInt() >= 0 && offset.toInt() < end && end <= idRawData.length) {
+            refRangeRawData.substring(offset.toInt(), end).trimEnd('\u0000')
+        } else {
+            null // Skip invalid entries
+        }
+    }.filter { it.isNotEmpty() }
+
+    // Filter results by IDs
+    for (idx in ids.indices) {
+        if (ids[idx] in idList) {
+            result.add(
+                mapOf(
+                    "ID" to ids[idx],
+                    "SampleName" to sampleNames.getOrElse(idx) { "" },
+                    "RefRange" to refRanges.getOrElse(idx) { "" }
+                )
+            )
+        }
+    }
+
+    // Close resources
+    query.close()
+    array.close()
+    context.close()
+
+    return result
+}
+
+
+
 // Given a list of Reference Ranges, query the array for all IDs associated with each Reference Range
+// THis might work better than the previous function.
 fun queryIDsByRefRange(arrayName: String, refRangesToQuery: List<String>): Map<String, List<String>> {
     val context = Context()
 
@@ -334,7 +570,7 @@ fun queryIDsByRefRange(arrayName: String, refRangesToQuery: List<String>): Map<S
     // NativeArray from TileDB doesn't have a toByteArray() method and doesn't support
     // conversion using Kotlin's toByteARra90.  So we move to Java to do the conversion
     val idOffsetsArray = idOffsetsBuffer.toJavaArray() as LongArray
-    println("LCJ queryIdByRefRange - idOffsetsArray: ${idOffsetsArray.contentToString()}")
+    //println("LCJ queryIdByRefRange - idOffsetsArray: ${idOffsetsArray.contentToString()}")
     val idRawData = String(idBuffer.toJavaArray() as ByteArray)
 
     val ids = idOffsetsArray.mapIndexed { index, offset ->
