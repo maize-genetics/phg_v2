@@ -1,6 +1,9 @@
 package net.maizegenetics.phgv2.utils
 
 import biokotlin.util.bufferedReader
+import io.tiledb.java.api.Array
+import io.tiledb.java.api.QueryType
+import io.tiledb.java.api.*
 import net.maizegenetics.phgv2.cli.TestExtension
 import org.apache.logging.log4j.LogManager
 import org.junit.jupiter.api.AfterAll
@@ -8,6 +11,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 
@@ -42,6 +46,31 @@ class TiledbCoreHvcfUtilsTest {
             // delete the tempDir
             File(TestExtension.tempDir).deleteRecursively()
         }
+    }
+
+    @Test
+    fun testTiledbArrayExists() {
+        // This is mostly to  verify the commands that test for
+        // tiledb array existence
+        println("Creating tiledb array")
+        createTileDBArray2Dimension(tiledbArrayName)
+        val array = Array(Context(), tiledbArrayName, QueryType.TILEDB_READ)
+        assertTrue(array.schema != null)
+        array.close()
+
+        // Verify an exception is thrown if name exists but is not a tiledb array
+        assertThrows<TileDBError>{
+            Array(Context(), lineAhvcf, QueryType.TILEDB_READ)
+        }
+
+        // Verify exception is thrown if the array does not exist
+        assertThrows<TileDBError>{
+            Array(Context(), "badArray", QueryType.TILEDB_READ)
+        }
+
+        // delete the tiledbArray so next tests can recreate what they need
+        File(tiledbArrayName).deleteRecursively()
+
     }
 
     @Test
