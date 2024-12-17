@@ -3,13 +3,19 @@
 
 import biokotlin.genome.Position
 import biokotlin.util.bufferedReader
+import net.maizegenetics.analysis.association.FixedEffectLMPlugin
+import net.maizegenetics.analysis.data.IntersectionAlignmentPlugin
+import net.maizegenetics.dna.snp.ExportUtils
 import net.maizegenetics.dna.snp.GenotypeTable
 import net.maizegenetics.dna.snp.GenotypeTableBuilder
 import net.maizegenetics.dna.snp.ImportUtils
 import net.maizegenetics.dna.snp.genotypecall.GenotypeCallTableBuilder
 import net.maizegenetics.phenotype.Phenotype
 import net.maizegenetics.phenotype.PhenotypeBuilder
+import net.maizegenetics.plugindef.DataSet
+import net.maizegenetics.plugindef.Datum
 import net.maizegenetics.taxa.TaxaListBuilder
+import net.maizegenetics.util.TableReport
 import java.io.File
 import java.util.*
 
@@ -23,6 +29,8 @@ val vcfFileNamesPerRangeForAssemblies = File(vcfFilesPerRangeForAssembliesDir)
     .map { it.substringBeforeLast("-").substringAfter("Zh-") to it }
     .toMap()
 
+// /workdir/wl748/SeeD_env/allClimateSoilGeoVariables.txt
+// Start with trait AltM
 val traitFile = "allClimateSoilGeoVariables.txt"
 val phenotype = PhenotypeBuilder().fromFile(traitFile).build()[0]
 
@@ -37,12 +45,19 @@ val imputedTableFile = "merge_SeeD2.txt"
 val imputedTable = readTable(imputedTableFile, 2)
 
 imputedTable.posToLine.forEach { (pos, line) ->
-    val genotypeTable = processRange(pos, line)
+
+    val key = "${pos.contig}_${pos.position}"
+    val vcfFilename = vcfFileNamesPerRangeForAssemblies[key] ?: error("No VCF file found for $key")
+
+    val genotypeTable = processRange(pos, line, vcfFilename)
     runGLM(genotypeTable, phenotype)
+
+    writeVCF(genotypeTable, "impute-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "Impute")}")
+
 }
 
 
-fun processRange(pos: Position, line: String): GenotypeTable {
+fun processRange(pos: Position, line: String, vcfFilename: String): GenotypeTable {
 
     val pangenomeLine = pangenomeTable.posToLine[pos] ?: error("No pangenome entry found for $pos")
     val pangenomeHapids = pangenomeLine.split("\t").drop(4)
@@ -59,9 +74,7 @@ fun processRange(pos: Position, line: String): GenotypeTable {
         "Number of hapids (${hapids.size}) does not match number of samples ($numSamples) at $pos"
     }
 
-    val key = "${pos.contig}_${pos.position}"
-    val vcf = vcfFileNamesPerRangeForAssemblies[key] ?: error("No VCF file found for $key")
-    val rangeGenotypeTableAssemblies = ImportUtils.readFromVCF(vcf, null, false, true)
+    val rangeGenotypeTableAssemblies = ImportUtils.readFromVCF(vcfFilename, null, false, true)
     val numSites = rangeGenotypeTableAssemblies.numberOfSites()
     val vcfSamples = rangeGenotypeTableAssemblies.taxa()
 
@@ -83,8 +96,18 @@ fun processRange(pos: Position, line: String): GenotypeTable {
 
 }
 
-fun runGLM(genotype: GenotypeTable, phenotype: Phenotype) {
-    // Run GLM
+fun runGLM(genotype: GenotypeTable, phenotype: Phenotype): List<TableReport> {
+
+    val input = DataSet(listOf(Datum("genotype", genotype, null), Datum("phenotype", phenotype, null)), null)
+
+    val intersect = IntersectionAlignmentPlugin(null, false)
+
+    val glm = FixedEffectLMPlugin(null, false)
+
+    val result = glm.performFunction(intersect.performFunction(input))
+
+    return result.getDataOfType(TableReport::class.java).map { it.data as TableReport }
+
 }
 
 
@@ -104,4 +127,8 @@ private fun readTable(filename: String, nonSampleHeaders: Int): SummaryTable {
             }.toMap().toSortedMap()
         return SummaryTable(samples, posToLine)
     }
+}
+
+fun writeVCF(genotype: GenotypeTable, filename: String) {
+    ExportUtils.writeToVCF(genotype, filename, false)
 }
