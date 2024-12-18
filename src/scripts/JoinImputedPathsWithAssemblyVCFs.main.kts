@@ -5,10 +5,7 @@ import biokotlin.genome.Position
 import biokotlin.util.bufferedReader
 import net.maizegenetics.analysis.association.FixedEffectLMPlugin
 import net.maizegenetics.analysis.data.IntersectionAlignmentPlugin
-import net.maizegenetics.dna.snp.ExportUtils
-import net.maizegenetics.dna.snp.GenotypeTable
-import net.maizegenetics.dna.snp.GenotypeTableBuilder
-import net.maizegenetics.dna.snp.ImportUtils
+import net.maizegenetics.dna.snp.*
 import net.maizegenetics.dna.snp.genotypecall.GenotypeCallTableBuilder
 import net.maizegenetics.phenotype.Phenotype
 import net.maizegenetics.phenotype.PhenotypeBuilder
@@ -16,6 +13,7 @@ import net.maizegenetics.plugindef.DataSet
 import net.maizegenetics.plugindef.Datum
 import net.maizegenetics.taxa.TaxaListBuilder
 import net.maizegenetics.util.TableReport
+import net.maizegenetics.util.TableReportUtils
 import java.io.File
 import java.util.*
 
@@ -31,7 +29,7 @@ val vcfFileNamesPerRangeForAssemblies = File(vcfFilesPerRangeForAssembliesDir)
 
 // /workdir/wl748/SeeD_env/allClimateSoilGeoVariables.txt
 // Start with trait AltM
-val traitFile = "allClimateSoilGeoVariables.txt"
+val traitFile = "AltM.txt"
 val phenotype = PhenotypeBuilder().fromFile(traitFile).build()[0]
 
 // CHROM   POS     ID      REF     ALT  Samples...
@@ -49,10 +47,15 @@ imputedTable.posToLine.forEach { (pos, line) ->
     val key = "${pos.contig}_${pos.position}"
     val vcfFilename = vcfFileNamesPerRangeForAssemblies[key] ?: error("No VCF file found for $key")
 
-    val genotypeTable = processRange(pos, line, vcfFilename)
-    runGLM(genotypeTable, phenotype)
+    val genotypeTable = processRange(pos, line, vcfFilename, true)
 
     writeVCF(genotypeTable, "impute-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "Impute")}")
+
+    val glmOutput = runGLM(genotypeTable, phenotype)
+
+    glmOutput.forEachIndexed { i, table ->
+        writeTable(table, "glm-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "GLM").replace(".vcf", "-$i.txt")}")
+    }
 
 }
 
@@ -131,4 +134,8 @@ private fun readTable(filename: String, nonSampleHeaders: Int): SummaryTable {
 
 fun writeVCF(genotype: GenotypeTable, filename: String) {
     ExportUtils.writeToVCF(genotype, filename, false)
+}
+
+fun writeTable(table: TableReport, filename: String) {
+    TableReportUtils.saveDelimitedTableReport(table, "\t", File(filename))
 }
