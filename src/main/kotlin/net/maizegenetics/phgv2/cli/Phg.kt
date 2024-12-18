@@ -33,6 +33,7 @@ fun main(args: Array<String>) = Phg()
         BuildKmerIndex(), MapKmers(), FindPaths(), HapidSampleTable(), SampleHapidByRange(), // Imputation
         CreateFastaFromHvcf(), ListSamples(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer, ExtractEdgeReads(), //Utilities
         QcReadMapping(), PathsToGff(), // Utilities continued
-        CompositeToHaplotypeCoords() // resequencing pipeline
+        CompositeToHaplotypeCoords(), // resequencing pipeline
+        InitHvcfArray(), LoadHvcf() // hvcf loading
     )
     .main(args)

@@ -95,6 +95,7 @@ dependencies {
     implementation("io.ktor:ktor-client-websockets:$ktorVersion")
 
     implementation("org.ehcache:ehcache:3.10.8")
+    implementation("net.openhft:zero-allocation-hashing:0.16")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
 

@@ -26,13 +26,17 @@ class TiledbCoreHvcfUtilsTest {
         private val outputHvcfDir = "${TestExtension.tempDir}/output/"
         val lineAhvcf = "data/test/tiledbCoreHvcf/LineA.h.vcf"
         val lineBhvcf = "data/test/tiledbCoreHvcf/LineB.h.vcf"
-        val tiledbArrayName = "${TestExtension.tempDir}/alt_header_array"
+        val dbPath = TestExtension.testTileDBURI
+        val altHeaderArray = dbPath + "/alt_header_array"
+        val variantsArray = dbPath + "/hvcf_variants_array"
+        val edArray = dbPath + "/ed_hvcf_array"
 
         @BeforeAll
         @JvmStatic
         fun setup() {
             File(multiInputDir).mkdirs()
             File(outputHvcfDir).mkdirs()
+            File(dbPath).mkdirs()
 
             File(lineAhvcf).copyTo(File(multiInputDir + File(lineAhvcf).name))
             File(lineBhvcf).copyTo(File(multiInputDir + File(lineBhvcf).name))
@@ -48,15 +52,30 @@ class TiledbCoreHvcfUtilsTest {
         }
     }
 
+//    @Test
+//    fun testEdTiledbArray() {
+//        createTileDBEdArray(dbPath)
+//        val array = Array(Context(), edArray, QueryType.TILEDB_READ)
+//        assertTrue(array.schema != null)
+//        array.close()
+//
+//    }
     @Test
     fun testTiledbArrayExists() {
         // This is mostly to  verify the commands that test for
         // tiledb array existence
+        // make sure tiledb main folder exists
+        File(dbPath).mkdirs()
         println("Creating tiledb array")
-        createTileDBArray2Dimension(tiledbArrayName)
-        val array = Array(Context(), tiledbArrayName, QueryType.TILEDB_READ)
+        createTileDBCoreArrays(dbPath)
+        val array = Array(Context(), altHeaderArray, QueryType.TILEDB_READ)
         assertTrue(array.schema != null)
         array.close()
+
+        // verify  the variants array exists
+        val variantsArray = Array(Context(), variantsArray, QueryType.TILEDB_READ)
+        assertTrue(variantsArray.schema != null)
+        variantsArray.close()
 
         // Verify an exception is thrown if name exists but is not a tiledb array
         assertThrows<TileDBError>{
@@ -69,7 +88,7 @@ class TiledbCoreHvcfUtilsTest {
         }
 
         // delete the tiledbArray so next tests can recreate what they need
-        File(tiledbArrayName).deleteRecursively()
+        File(dbPath).deleteRecursively()
 
     }
 
@@ -130,30 +149,33 @@ class TiledbCoreHvcfUtilsTest {
 
         // Create the tiledb array by calling the function createTileDBArray
         println("Creating tiledb array")
-        createTileDBArray2Dimension(tiledbArrayName)
+        // ensure the top folder exists
+        File(dbPath).mkdirs()
+        createTileDBCoreArrays(dbPath)
 
         // Write the altHeaders to the tiledb array
         println("Writing LineA altHeaders to tiledb array")
-        writeAltDataToTileDB(tiledbArrayName, altHeadersLineA)
+        writeAltDataToTileDB(altHeaderArray, altHeadersLineA)
         println("Writing LineB altHeaders to tiledb array")
-        writeAltDataToTileDB(tiledbArrayName, altHeadersLineB)
+        writeAltDataToTileDB(altHeaderArray, altHeadersLineB)
 
         // To test what was written, we must extract data
         println("TestCase: Extracting data from tiledb array")
         // These are the first 2 IDs in the LineA.h.vcf file followed by the first 2 IDs in the LineB.h.vcf file
-        val rangesToQuery = listOf("=1:1-1000","=2:1-1000")
+        //val rangesToQuery = listOf("=1:1-1000","=2:1-1000")
+        val rangesToQuery = listOf("1:1-1000","2:1-1000")
         //val idsToQuery = listOf("0eb9029f3896313aebc69c8489923141","12f0cec9102e84a161866e37072443b7","00f297caa4a0fa5a6f8e76d388393fa7","05efe15d97db33185b64821791b01b0f")
 
         // Read data from TileDB.  This gets the SampleName and Regions for the
         // given ID
-        val results = querySampleNamesAndIDsByRefRange(tiledbArrayName, rangesToQuery)
+        val results = querySampleNamesAndIDsByRefRange(altHeaderArray, rangesToQuery)
 
         // Print results
         println("Results:")
         results.forEach { println(it) }
 
         // delete the tiledbArray so next tests can recreate what they need
-        File(tiledbArrayName).deleteRecursively()
+        File(dbPath).deleteRecursively()
     }
     @Test
     fun testQueryByRefRange() {
@@ -167,20 +189,20 @@ class TiledbCoreHvcfUtilsTest {
         // Create the tiledb array by calling the function createTileDBArray
         println("Creating tiledb array")
         //createTileDBArraySingleDimensionID(tiledbArrayName)
-        createTileDBArray2Dimension(tiledbArrayName)
+        createTileDBCoreArrays(dbPath)
 
         // Write the altHeaders to the tiledb array
         println("Writing altHeaders to tiledb array")
-        writeAltDataToTileDB(tiledbArrayName, altHeadersLineA)
-        writeAltDataToTileDB(tiledbArrayName, altHeadersLineB)
+        writeAltDataToTileDB(altHeaderArray, altHeadersLineA)
+        writeAltDataToTileDB(altHeaderArray, altHeadersLineB)
         // Try to query by refRange
-        val resultsByRefRange = queryIDsByRefRange(tiledbArrayName, listOf("1:1-1000"))
+        val resultsByRefRange = queryIDsByRefRange(altHeaderArray, listOf("1:1-1000"))
         println("Results with 1 refRange: $resultsByRefRange")
-        val resultsByRefRange2 = queryIDsByRefRange(tiledbArrayName, listOf("1:1-1000","2:12001-16500"))
+        val resultsByRefRange2 = queryIDsByRefRange(altHeaderArray, listOf("1:1-1000","2:12001-16500"))
         println("Results with 2 refRanges: $resultsByRefRange2")
 
         // delete the tiledbArray so next tests can recreate what they need
-        File(tiledbArrayName).deleteRecursively()
+        File(dbPath).deleteRecursively()
 
     }
 
