@@ -1,8 +1,11 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.brapi.createSmallSeqTiledb
+import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.getChecksum
+import net.maizegenetics.phgv2.utils.seqFromAGC
 import org.apache.logging.log4j.LogManager
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -26,6 +29,8 @@ class CreateFastaFromHvcfRangeFastaTest {
         private val expectedFasta2 = "data/test/refRangeFasta/testRefRangeFasta.vcf-2_23001-27500.fasta"
 
         private val dbPath = "${exportHvcfDir}/tiledb_ref_range_fasta"
+
+        val HVCF_PATTERN = Regex("""(\.hvcf|\.h\.vcf|\.hvcf\.gz|\.h\.vcf\.gz)$""")
 
         @BeforeAll
         @JvmStatic
@@ -74,6 +79,44 @@ class CreateFastaFromHvcfRangeFastaTest {
         myLogger.info("testRefRangeFasta2 actual checksum2: $checksum2")
 
         assertEquals(checksum1, checksum2, "testRefRangeFasta2 checksums do not match")
+
+    }
+
+    @Test
+    fun testHaplotypeGraphHapidToSeqLength() {
+
+        val inputFiles =
+            File(multiInputDir)
+                .walk()
+                .filter { HVCF_PATTERN.containsMatchIn(it.name) }
+                .map { it.absolutePath }
+                .toList()
+
+        require(inputFiles.isNotEmpty()) { "At least one HVCF file should be specified." }
+
+        val graph = HaplotypeGraph(inputFiles)
+
+        val hapidToSeqLength = graph.hapidToSeqLength()
+
+        graph.ranges()
+            .forEach { range ->
+                graph.hapIdToSampleGametes(range).keys
+                    .forEach { hapid ->
+                        seqFromAGC(
+                            dbPath,
+                            graph,
+                            hapid,
+                            Pair(Position(range.contig, range.start), Position(range.contig, range.end))
+                        )
+                            .let { (seq, _) ->
+                                assertEquals(
+                                    hapidToSeqLength.getValue(hapid),
+                                    seq.length,
+                                    "hapid: $hapid seq length: ${seq.length} != ${hapidToSeqLength.getValue(hapid)}"
+                                )
+                            }
+                    }
+            }
 
     }
 
