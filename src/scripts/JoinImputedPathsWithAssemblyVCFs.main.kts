@@ -5,6 +5,7 @@ import biokotlin.genome.Position
 import biokotlin.util.bufferedReader
 import net.maizegenetics.analysis.association.FixedEffectLMPlugin
 import net.maizegenetics.analysis.data.IntersectionAlignmentPlugin
+import net.maizegenetics.analysis.filter.FilterSiteBuilderPlugin
 import net.maizegenetics.dna.snp.*
 import net.maizegenetics.dna.snp.genotypecall.GenotypeCallTableBuilder
 import net.maizegenetics.phenotype.Phenotype
@@ -13,6 +14,7 @@ import net.maizegenetics.plugindef.DataSet
 import net.maizegenetics.plugindef.Datum
 import net.maizegenetics.taxa.TaxaListBuilder
 import net.maizegenetics.util.TableReport
+import net.maizegenetics.util.TableReportBuilder
 import net.maizegenetics.util.TableReportUtils
 import java.io.File
 import java.util.*
