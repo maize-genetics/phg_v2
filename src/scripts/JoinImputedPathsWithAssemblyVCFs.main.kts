@@ -40,6 +40,9 @@ val imputedTableFile = "merge_SeeD2.txt"
 
 val indelsToMissing = false
 
+val writeVCFFiles = true
+
+val writeGLMResults = true
 
 
 // Create a map of key (i.e. chr10_154585427) to VCF file name (i.e. Zh-chr10_154585427-154627028.vcf)
@@ -63,15 +66,20 @@ imputedTable.posToLine.forEach { (pos, line) ->
 
     val genotypeTable = processRange(pos, line, vcfFilename, indelsToMissing)
 
-    writeVCF(genotypeTable, "impute-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "Impute")}")
+    if (writeVCFFiles) writeVCF(
+        genotypeTable,
+        "impute-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "Impute")}"
+    )
 
     val glmOutput = runGLM(genotypeTable, phenotype)
 
-    glmOutput.forEachIndexed { i, table ->
-        writeTable(
-            table,
-            "glm-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "GLM").replace(".vcf", "-$i.txt")}"
-        )
+    if (writeGLMResults) {
+        glmOutput.forEachIndexed { i, table ->
+            writeTable(
+                table,
+                "glm-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "GLM").replace(".vcf", "-$i.txt")}"
+            )
+        }
     }
 
 }
