@@ -118,6 +118,24 @@ fun processRange(pos: Position, line: String, vcfFilename: String, indelToMissin
 
 }
 
+// include Site Min Count, Site Min Allele Freq and Bed file filters
+fun filterGenotypeTable(
+    genotype: GenotypeTable,
+    siteMinCount: Int? = null,
+    siteMinAlleleFreq: Double? = null,
+    bedfile: String? = null
+): GenotypeTable {
+
+    val builder = FilterSiteBuilderPlugin()
+
+    siteMinCount?.let { builder.siteMinCount(it) }
+    siteMinAlleleFreq?.let { builder.siteMinAlleleFreq(it) }
+    bedfile?.let { builder.bedFile(it) }
+
+    return builder.runPlugin(genotype)
+
+}
+
 fun runGLM(genotype: GenotypeTable, phenotype: Phenotype): List<TableReport> {
 
     val input = DataSet(listOf(Datum("genotype", genotype, null), Datum("phenotype", phenotype, null)), null)
