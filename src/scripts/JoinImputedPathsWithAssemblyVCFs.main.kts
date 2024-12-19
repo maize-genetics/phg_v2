@@ -67,9 +67,6 @@ fun processRange(pos: Position, line: String, vcfFilename: String): GenotypeTabl
     require(pangenomeHapids.size == pangenomeTable.samples.size) {
         "Number of hapids (${pangenomeHapids.size}) does not match number of samples (${pangenomeTable.samples.size}) at $pos"
     }
-    val pangenomeHapidToSample = pangenomeHapids
-        .mapIndexed { sampleIndex, hapid -> Pair(hapid, sampleIndex) }
-        .toMap()
 
     val hapids = line.split("\t").drop(2)
     val numSamples = imputedTable.samples.size
@@ -80,6 +77,14 @@ fun processRange(pos: Position, line: String, vcfFilename: String): GenotypeTabl
     val rangeGenotypeTableAssemblies = ImportUtils.readFromVCF(vcfFilename, null, false, true)
     val numSites = rangeGenotypeTableAssemblies.numberOfSites()
     val vcfSamples = rangeGenotypeTableAssemblies.taxa()
+
+    val pangenomeHapidToSample = pangenomeHapids
+        .mapIndexed { sampleIndex, hapid ->
+            val sampleName = pangenomeTable.samples[sampleIndex]
+            val newSampleIndex = vcfSamples.indexOf(sampleName)
+            Pair(hapid, newSampleIndex)
+        }
+        .toMap()
 
     val genotype = GenotypeCallTableBuilder.getUnphasedNucleotideGenotypeBuilder(numSamples, numSites)
 
