@@ -20,7 +20,28 @@ import java.io.File
 import java.util.*
 
 
+//
+// Variables to be set by the user
+//
+
 val vcfFilesPerRangeForAssembliesDir = "vcf-by-range"
+
+// /workdir/wl748/SeeD_env/allClimateSoilGeoVariables.txt
+// Start with trait AltM
+val traitFile = "AltM.txt"
+
+// CHROM   POS     ID      REF     ALT  Samples...
+// /local/workdir/wl748/merge_pangenome_v2.txt
+val pangenomeTableFile = "merge_pangenome_v2.txt"
+
+// #CHROM  POS Samples...
+// /local/workdir/wl748/merge_hapID/merge_SeeD.txt
+val imputedTableFile = "merge_SeeD2.txt"
+
+val indelsToMissing = false
+
+
+
 // Create a map of key (i.e. chr10_154585427) to VCF file name (i.e. Zh-chr10_154585427-154627028.vcf)
 val vcfFileNamesPerRangeForAssemblies = File(vcfFilesPerRangeForAssembliesDir)
     .walk()
@@ -29,19 +50,10 @@ val vcfFileNamesPerRangeForAssemblies = File(vcfFilesPerRangeForAssembliesDir)
     .map { it.substringBeforeLast("-").substringAfter("Zh-") to it }
     .toMap()
 
-// /workdir/wl748/SeeD_env/allClimateSoilGeoVariables.txt
-// Start with trait AltM
-val traitFile = "AltM.txt"
 val phenotype = PhenotypeBuilder().fromFile(traitFile).build()[0]
 
-// CHROM   POS     ID      REF     ALT  Samples...
-// /local/workdir/wl748/merge_pangenome_v2.txt
-val pangenomeTableFile = "merge_pangenome_v2.txt"
 val pangenomeTable = readTable(pangenomeTableFile, 4)
 
-// #CHROM  POS Samples...
-// /local/workdir/wl748/merge_hapID/merge_SeeD.txt
-val imputedTableFile = "merge_SeeD2.txt"
 val imputedTable = readTable(imputedTableFile, 2)
 
 imputedTable.posToLine.forEach { (pos, line) ->
@@ -49,14 +61,17 @@ imputedTable.posToLine.forEach { (pos, line) ->
     val key = "${pos.contig}_${pos.position}"
     val vcfFilename = vcfFileNamesPerRangeForAssemblies[key] ?: error("No VCF file found for $key")
 
-    val genotypeTable = processRange(pos, line, vcfFilename, false)
+    val genotypeTable = processRange(pos, line, vcfFilename, indelsToMissing)
 
     writeVCF(genotypeTable, "impute-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "Impute")}")
 
     val glmOutput = runGLM(genotypeTable, phenotype)
 
     glmOutput.forEachIndexed { i, table ->
-        writeTable(table, "glm-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "GLM").replace(".vcf", "-$i.txt")}")
+        writeTable(
+            table,
+            "glm-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "GLM").replace(".vcf", "-$i.txt")}"
+        )
     }
 
 }
@@ -177,4 +192,26 @@ fun writeVCF(genotype: GenotypeTable, filename: String) {
 
 fun writeTable(table: TableReport, filename: String) {
     TableReportUtils.saveDelimitedTableReport(table, "\t", File(filename))
+}
+
+// log10(exactP) =  pf(F-statistics, df1 = Numerator df, df2 = Denominator df, lower.tail = F, log.p = TRUE)/log(10)
+fun addPValueColumn(table: TableReport): TableReport {
+
+    val columnNames = table.tableColumnNames.map { it.toString() }
+
+    // Trait   Marker  Chr     Pos     marker_F        p       marker_Rsq      add_F   add_p   dom_F
+    // dom_p   marker_df       marker_MS       error_df        error_MS        model_df
+    // model_MS        minorObs
+    val fStatsIndex = columnNames.indexOf("marker_F")
+    val df1Index = columnNames.indexOf("marker_df")
+    val df2Index = columnNames.indexOf("error_df")
+
+    val builder = TableReportBuilder.getInstance(table.tableTitle, arrayOf(columnNames + "exactP"))
+
+    (0 until table.rowCount).forEach { row ->
+
+    }
+
+    return builder.build()
+
 }
