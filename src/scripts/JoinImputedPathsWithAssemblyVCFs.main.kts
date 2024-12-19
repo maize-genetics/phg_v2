@@ -47,7 +47,7 @@ imputedTable.posToLine.forEach { (pos, line) ->
     val key = "${pos.contig}_${pos.position}"
     val vcfFilename = vcfFileNamesPerRangeForAssemblies[key] ?: error("No VCF file found for $key")
 
-    val genotypeTable = processRange(pos, line, vcfFilename, true)
+    val genotypeTable = processRange(pos, line, vcfFilename, false)
 
     writeVCF(genotypeTable, "impute-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "Impute")}")
 
@@ -60,7 +60,7 @@ imputedTable.posToLine.forEach { (pos, line) ->
 }
 
 
-fun processRange(pos: Position, line: String, vcfFilename: String): GenotypeTable {
+fun processRange(pos: Position, line: String, vcfFilename: String, indelToMissing: Boolean = false): GenotypeTable {
 
     val pangenomeLine = pangenomeTable.posToLine[pos] ?: error("No pangenome entry found for $pos")
     val pangenomeHapids = pangenomeLine.split("\t").drop(4)
@@ -90,6 +90,20 @@ fun processRange(pos: Position, line: String, vcfFilename: String): GenotypeTabl
 
     val pangenomeGenotypesBySample = vcfSamples.indices
         .map { rangeGenotypeTableAssemblies.genotypeAllSites(it) }
+        .map { genotypes ->
+            if (indelToMissing) {
+                genotypes.map { genotype ->
+                    val diploid = GenotypeTableUtils.getDiploidValues(genotype)
+                    if (diploid[0] == NucleotideAlignmentConstants.GAP_ALLELE || diploid[0] == NucleotideAlignmentConstants.INSERT_ALLELE)
+                        diploid[0] = GenotypeTable.UNKNOWN_ALLELE
+                    if (diploid[1] == NucleotideAlignmentConstants.GAP_ALLELE || diploid[1] == NucleotideAlignmentConstants.INSERT_ALLELE)
+                        diploid[1] = GenotypeTable.UNKNOWN_ALLELE
+                    GenotypeTableUtils.getDiploidValue(diploid[0], diploid[1])
+                }.toByteArray()
+            } else {
+                genotypes
+            }
+        }
         .toTypedArray()
 
     hapids.forEachIndexed { i, hapid ->
