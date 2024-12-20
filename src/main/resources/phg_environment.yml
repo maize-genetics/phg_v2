@@ -11,3 +11,5 @@ dependencies:
   - bcftools
   - samtools
   - agc=3.1
+  - ropebwt3=3.9
+  - seqtk=1.4
