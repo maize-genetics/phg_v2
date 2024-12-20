@@ -151,7 +151,7 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
                     // to accommodate the VCF for later calls.  here we need to turn back to 0-based for NucSeq,
                     // which is inclusive/inclusive 0-based.  So the start is decremented but the end is not.
                     val intervalSeq = chrSeq!![anchorStart-1, anchorEnd-1].toString()
-                    val intervalHash = getChecksumForString(intervalSeq, "Md5")
+                    val intervalHash = xxHash64(intervalSeq)
                     val intervalStart = Position(chrom, anchorStart)
                     val intervalEnd = Position(chrom, anchorEnd)
 
@@ -159,7 +159,7 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
                     // The interval hash becomes the alt allele in the hvcf file
                     val refAllele = chrSeq!![anchorStart-1].toString() // subtract 1 to convert to 0-based
 
-                    val calls = Pair(refAllele,intervalHash)
+                    val calls = Pair(refAllele,intervalHash.toString())
                     // this prevents them from being written to the hvcf file
                     // The intervalStart/intervalEnd values passed here are 1-based
                     val vc = createHVCFRecord(
@@ -173,7 +173,7 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
                     
                     // Only add to the alt header lines if the intervalHash is not already in the set.
                     // There are duplicate sequences in the reference file when splitting by gff defined genes
-                    if (!currentSeqHashs.contains(intervalHash)) {
+                    if (!currentSeqHashs.contains(intervalHash.toString())) {
                         altHeaderLines.add(
                             VCFAltHeaderLine(
                                 "<ID=${intervalHash}, Description=\"haplotype data for line: ${refName}\"," +
@@ -182,7 +182,7 @@ class CreateRefVcf : CliktCommand(help = "Create and load to tiledb a haplotype 
                                 VCFHeaderVersion.VCF4_2
                             )
                         )
-                        currentSeqHashs.add(intervalHash)
+                        currentSeqHashs.add(intervalHash.toString())
                     }
 
                     line = br.readLine()

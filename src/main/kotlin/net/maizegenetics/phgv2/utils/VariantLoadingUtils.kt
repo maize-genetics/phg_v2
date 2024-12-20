@@ -23,6 +23,8 @@ import java.security.NoSuchAlgorithmException
 import java.util.*
 import kotlin.collections.LinkedHashSet
 
+import net.openhft.hashing.LongHashFunction
+import java.nio.charset.StandardCharsets
 
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.VariantLoadingUtils")
 
@@ -356,6 +358,12 @@ fun getChecksumForString(seq: String, protocol: String="Md5"): String {
         throw IllegalStateException("CheckSum: getChecksumForString: error: " + exc.message)
     }
 }
+// This function skips the MD5 hash and directly creates an INT 64 hash
+// for use with hvcf and tiledb. Will we transition to this as hapID value?
+fun xxHash64(input: String): Long {
+    return LongHashFunction.xx().hashBytes(input.toByteArray(StandardCharsets.UTF_8))
+}
+
 
 /**
  * This function verifies the path given for the tiledb datasets is valid
