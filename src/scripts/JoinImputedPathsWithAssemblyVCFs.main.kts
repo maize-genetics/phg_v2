@@ -30,6 +30,9 @@ val vcfFilesPerRangeForAssembliesDir = "vcf-by-range"
 // Start with trait AltM
 val traitFile = "AltM.txt"
 
+// Set to null if no population structure file
+val populationStructureFile: String? = "SeeD_gPCs2.txt"
+
 // CHROM   POS     ID      REF     ALT  Samples...
 // /local/workdir/wl748/merge_pangenome_v2.txt
 val pangenomeTableFile = "merge_pangenome_v2.txt"
@@ -55,6 +58,8 @@ val vcfFileNamesPerRangeForAssemblies = File(vcfFilesPerRangeForAssembliesDir)
 
 val phenotype = PhenotypeBuilder().fromFile(traitFile).build()[0]
 
+val populationStructure = populationStructureFile?.let { PhenotypeBuilder().fromFile(it).build()[0] }
+
 val pangenomeTable = readTable(pangenomeTableFile, 4)
 
 val imputedTable = readTable(imputedTableFile, 2)
@@ -62,7 +67,11 @@ val imputedTable = readTable(imputedTableFile, 2)
 imputedTable.posToLine.forEach { (pos, line) ->
 
     val key = "${pos.contig}_${pos.position}"
-    val vcfFilename = vcfFileNamesPerRangeForAssemblies[key] ?: error("No VCF file found for $key")
+    val vcfFilename = vcfFileNamesPerRangeForAssemblies[key]
+    if (vcfFilename == null) {
+        println("WARNING: No VCF file found for key: $key")
+        return@forEach
+    }
 
     val genotypeTable = processRange(pos, line, vcfFilename, indelsToMissing)
 
@@ -71,7 +80,7 @@ imputedTable.posToLine.forEach { (pos, line) ->
         "impute-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "Impute")}"
     )
 
-    val glmOutput = runGLM(genotypeTable, phenotype)
+    val glmOutput = runGLM(genotypeTable, phenotype, populationStructure)
 
     if (writeGLMResults) {
         glmOutput.forEachIndexed { i, table ->
@@ -161,9 +170,14 @@ fun filterGenotypeTable(
 
 }
 
-fun runGLM(genotype: GenotypeTable, phenotype: Phenotype): List<TableReport> {
+fun runGLM(genotype: GenotypeTable, phenotype: Phenotype, populationStructre: Phenotype? = null): List<TableReport> {
 
-    val input = DataSet(listOf(Datum("genotype", genotype, null), Datum("phenotype", phenotype, null)), null)
+    val inputDatums = mutableListOf<Datum>()
+    inputDatums.add(Datum("genotype", genotype, null))
+    inputDatums.add(Datum("phenotype", phenotype, null))
+    populationStructre?.let { inputDatums.add(Datum("populationStructure", it, null)) }
+
+    val input = DataSet(inputDatums, null)
 
     val intersect = IntersectionAlignmentPlugin(null, false)
 
