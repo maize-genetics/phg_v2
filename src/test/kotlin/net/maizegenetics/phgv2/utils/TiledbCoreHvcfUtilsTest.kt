@@ -1,6 +1,7 @@
 package net.maizegenetics.phgv2.utils
 
 import biokotlin.util.bufferedReader
+import htsjdk.variant.vcf.VCFFileReader
 import io.tiledb.java.api.Array
 import io.tiledb.java.api.QueryType
 import io.tiledb.java.api.*
@@ -29,7 +30,6 @@ class TiledbCoreHvcfUtilsTest {
         val dbPath = TestExtension.testTileDBURI
         val altHeaderArray = dbPath + "/alt_header_array"
         val variantsArray = dbPath + "/hvcf_variants_array"
-        val edArray = dbPath + "/ed_hvcf_array"
 
         @BeforeAll
         @JvmStatic
@@ -52,14 +52,6 @@ class TiledbCoreHvcfUtilsTest {
         }
     }
 
-//    @Test
-//    fun testEdTiledbArray() {
-//        createTileDBEdArray(dbPath)
-//        val array = Array(Context(), edArray, QueryType.TILEDB_READ)
-//        assertTrue(array.schema != null)
-//        array.close()
-//
-//    }
     @Test
     fun testTiledbArrayExists() {
         // This is mostly to  verify the commands that test for
@@ -93,9 +85,10 @@ class TiledbCoreHvcfUtilsTest {
     }
 
     @Test
-    fun testParseALtHeadersTiledb() {
+    fun testParseAltHeadersTiledb() {
         // testing output from parseTiledbAltHeaders
-        val altHeaders = parseTiledbAltHeaders(lineAhvcf)
+        val vcfReader = VCFFileReader(File(lineAhvcf), false)
+        val altHeaders = parseTiledbAltHeaders(vcfReader)
         println("Finished parsing smallSeqLineAHvcfFile")
 
         // Read the altheader data into a list to compare to what
@@ -113,6 +106,9 @@ class TiledbCoreHvcfUtilsTest {
         val regions = altHeaders.map { it["Regions"].orEmpty() }
         val refChecksums = altHeaders.map { it["RefChecksum"].orEmpty() }
         val refRanges = altHeaders.map { it["RefRange"].orEmpty() }
+
+        // verify the number of entries from parseTiledbAltHeaders matches the number of ALT header lines in the VCF file
+        assertEquals(altHeaders.size, altHeaderListFromHvcf.size)
 
         // THe first ALT header line has 1 region in it: 2:49501-50300, verify it is stored correctly
         assertEquals("2:49501-50300", regions[0])
@@ -140,50 +136,54 @@ class TiledbCoreHvcfUtilsTest {
 
     @Test
     fun testQuerySampleNameID_byRefRange() {
-        // testing output from parseTiledbAltHeaders
-        val altHeadersLineA = parseTiledbAltHeaders(lineAhvcf)
-        println("Finished parsing lineAhvcf")
+            // testing output from parseTiledbAltHeaders
+            var vcfReader = VCFFileReader(File(lineAhvcf), false)
+            val altHeadersLineA = parseTiledbAltHeaders(vcfReader)
+            println("Finished parsing lineAhvcf")
 
-        val altHeadersLineB = parseTiledbAltHeaders(lineBhvcf)
-        println("Finished parsing lineBhvcf")
+            vcfReader = VCFFileReader(File(lineBhvcf), false)
+            val altHeadersLineB = parseTiledbAltHeaders(vcfReader)
+            println("Finished parsing lineBhvcf")
 
-        // Create the tiledb array by calling the function createTileDBArray
-        println("Creating tiledb array")
-        // ensure the top folder exists
-        File(dbPath).mkdirs()
-        createTileDBCoreArrays(dbPath)
+            // Create the tiledb array by calling the function createTileDBArray
+            println("Creating tiledb array")
+            // ensure the top folder exists
+            File(dbPath).mkdirs()
+            createTileDBCoreArrays(dbPath)
 
-        // Write the altHeaders to the tiledb array
-        println("Writing LineA altHeaders to tiledb array")
-        writeAltDataToTileDB(altHeaderArray, altHeadersLineA)
-        println("Writing LineB altHeaders to tiledb array")
-        writeAltDataToTileDB(altHeaderArray, altHeadersLineB)
+            // Write the altHeaders to the tiledb array
+            println("Writing LineA altHeaders to tiledb array")
+            writeAltDataToTileDB(altHeaderArray, altHeadersLineA)
+            println("Writing LineB altHeaders to tiledb array")
+            writeAltDataToTileDB(altHeaderArray, altHeadersLineB)
 
-        // To test what was written, we must extract data
-        println("TestCase: Extracting data from tiledb array")
-        // These are the first 2 IDs in the LineA.h.vcf file followed by the first 2 IDs in the LineB.h.vcf file
-        //val rangesToQuery = listOf("=1:1-1000","=2:1-1000")
-        val rangesToQuery = listOf("1:1-1000","2:1-1000")
-        //val idsToQuery = listOf("0eb9029f3896313aebc69c8489923141","12f0cec9102e84a161866e37072443b7","00f297caa4a0fa5a6f8e76d388393fa7","05efe15d97db33185b64821791b01b0f")
+            // To test what was written, we must extract data
+            println("TestCase: Extracting data from tiledb array")
+            // These are the first 2 IDs in the LineA.h.vcf file followed by the first 2 IDs in the LineB.h.vcf file
+            //val rangesToQuery = listOf("=1:1-1000","=2:1-1000")
+            val rangesToQuery = listOf("1:1-1000","2:1-1000")
+            //val idsToQuery = listOf("0eb9029f3896313aebc69c8489923141","12f0cec9102e84a161866e37072443b7","00f297caa4a0fa5a6f8e76d388393fa7","05efe15d97db33185b64821791b01b0f")
 
-        // Read data from TileDB.  This gets the SampleName and Regions for the
-        // given ID
-        val results = querySampleNamesAndIDsByRefRange(altHeaderArray, rangesToQuery)
+            // Read data from TileDB.  This gets the SampleName and Regions for the
+            // given ID
+            val results = querySampleNamesAndIDsByRefRange(altHeaderArray, rangesToQuery)
 
-        // Print results
-        println("Results:")
-        results.forEach { println(it) }
+            // Print results
+            println("Results:")
+            results.forEach { println(it) }
 
-        // delete the tiledbArray so next tests can recreate what they need
-        File(dbPath).deleteRecursively()
+            // delete the tiledbArray so next tests can recreate what they need
+            File(dbPath).deleteRecursively()
     }
     @Test
     fun testQueryByRefRange() {
 
         // testing output from parseTiledbAltHeaders
-        val altHeadersLineA = parseTiledbAltHeaders(lineAhvcf)
+        var vcfReader = VCFFileReader(File(lineAhvcf), false)
+        val altHeadersLineA = parseTiledbAltHeaders(vcfReader)
         println("Finished parsing LineA alt headers ")
-        val altHeadersLineB = parseTiledbAltHeaders(lineBhvcf)
+        vcfReader = VCFFileReader(File(lineBhvcf), false)
+        val altHeadersLineB = parseTiledbAltHeaders(vcfReader)
         println("Finished parsing lineBhvcf alt headers")
 
         // Create the tiledb array by calling the function createTileDBArray

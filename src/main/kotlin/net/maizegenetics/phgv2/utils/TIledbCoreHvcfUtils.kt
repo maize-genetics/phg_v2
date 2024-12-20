@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.utils
 
+import htsjdk.variant.vcf.VCFFileReader
 import io.tiledb.java.api.*
 import io.tiledb.java.api.Array
 import io.tiledb.java.api.Constants.TILEDB_VAR_NUM
@@ -23,16 +24,28 @@ import java.io.File
 
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.TiledbCoreHvcfUtils")
 
-enum class HvcfDimensions {
-    SampleGamete, RefRange
+
+fun parseTiledbAltHeaders(reader: VCFFileReader): List<Map<String,String>> {
+    val altData = mutableListOf<Map<String, String>>()
+
+    val altHeaders = parseALTHeader(reader.header)
+    // Need to put the data into the map above
+    altHeaders.forEach{ header ->
+        val entry = mutableMapOf<String, String>()
+        entry["ID"] = header.value.id
+        entry["SampleName"] = header.value.sampleName()
+        entry["Regions"] = header.value.regions.map { it.first.toString() + "-" + it.second.position.toString() }.joinToString(",")
+        entry["RefRange"] = header.value.refRange
+        entry["RefChecksum"] = header.value.refChecksum
+        altData.add(entry)
+    }
+    return altData
 }
-
-enum class HvcfAttributes {
-    ID, Regions, RefChecksum
-}
-
-
-fun parseTiledbAltHeaders(vcfFile: String): List<Map<String, String>> {
+// Rather than procsesing the files with 2 methods, which would
+// require reading the file twice, we'll read the file once and
+// process the header and body in one pass.  Below might need to be
+// re-written using htsjdk to read the file and parse the header.
+fun parseTiledbAltHeadersORIG(vcfFile: String): List<Map<String, String>> {
     val altData = mutableListOf<Map<String, String>>()
 
     // Regex pattern to match key-value pairs, accounting for quoted values
@@ -55,15 +68,6 @@ fun parseTiledbAltHeaders(vcfFile: String): List<Map<String, String>> {
                         entry[key] = value
                     }
                 }
-
-                // Split multiple Regions into individual entries if present, then rejoin with ; vs ,
-                // Do we want this or is it fine to keep as comma separated?  Will the comma ever confuse the parser
-                // or conflict with another use of the comma?
-//                entry["Regions"]?.let { regions ->
-//                    if (regions.contains(",")) {
-//                        entry["Regions"] = regions.split(",").joinToString(";") // Replace commas with semicolons
-//                    }
-//                }
 
                 // Ensure RefChecksum exists with a default empty value if missing
                 entry.putIfAbsent("RefChecksum", "")
@@ -142,16 +146,16 @@ fun createTileDBCoreArrays(dbPath: String) {
     val arrayNameVariants = dbPath + "/hvcf_variants_array"
 
     val domain2 = Domain(context).apply {
-        addDimension(Dimension(context, "SampleName", Datatype.TILEDB_STRING_ASCII, null, null))
         addDimension(Dimension(context, "RefRange", Datatype.TILEDB_STRING_ASCII, null, null))
+        addDimension(Dimension(context, "SampleName", Datatype.TILEDB_STRING_ASCII, null, null))
     }
     // Dimensions are the same as above
     // This data is coming from hvcf files, so we should always have
     // the chr/start/end that can be formatted to a ref range that
     // matches the refRange for the alt_header_array
 
-    val attrID1 = Attribute(context, "ID1", Datatype.TILEDB_INT64)
-    val attrID2 = Attribute(context, "ID2", Datatype.TILEDB_INT64)
+    val attrID1 = Attribute(context, "ID1", Datatype.TILEDB_STRING_ASCII)
+    val attrID2 = Attribute(context, "ID2", Datatype.TILEDB_STRING_ASCII)
 
     val schema2 = ArraySchema(context, ArrayType.TILEDB_SPARSE).apply {
         setDomain(domain2) // same domain as above
@@ -269,11 +273,66 @@ fun writeAltDataToTileDB(arrayName: String, altData: List<Map<String, String>>) 
 }
 
 /**
- * This function queries the TileDB array for the sampleName and Id associated with refernece ranges.
+ * This function writes hvcf variants data to the hvcf_variants_array
+ * TODO you forgot to create the refRange !!
+ */
+fun writeVariantsDataToTileDB(variantArrayName:String, combinedHvcfVariantData:List<Map<String, String>>) {
+    val context = Context()
+
+    // Open the array in write mode
+    val array = Array(context, variantArrayName, QueryType.TILEDB_WRITE)
+
+    // Extract data
+    val sampleGametes = combinedHvcfVariantData.map { it["SampleGamete"].orEmpty() }
+    val id1s = combinedHvcfVariantData.map { it["ID1"].orEmpty() }
+    val id2s = combinedHvcfVariantData.map { it["ID2"].orEmpty() }
+    val gt1s = combinedHvcfVariantData.map { it["GT1"].orEmpty() }
+    val gt2s = combinedHvcfVariantData.map { it["GT2"].orEmpty() }
+
+    // Prepare data and offsets for all attributes
+    val sampleGameteBuffers = prepareVariableBuffer(context, sampleGametes)
+    val id1Buffers = prepareVariableBuffer(context, id1s)
+    val gt1Buffers = prepareVariableBuffer(context, gt1s)
+    val id2Buffers = prepareVariableBuffer(context, id2s)
+    val gt2Buffers = prepareVariableBuffer(context, gt2s)
+
+    // Prepare query
+    val query = Query(array, QueryType.TILEDB_WRITE).apply {
+        setLayout(Layout.TILEDB_UNORDERED)
+
+        // Set buffers for variable-length attributes
+        setDataBuffer("SampleGamete", sampleGameteBuffers.first)
+        setOffsetsBuffer("SampleGamete", sampleGameteBuffers.second)
+
+        setDataBuffer("ID1", id1Buffers.first)
+        setOffsetsBuffer("ID1", id1Buffers.second)
+
+        setDataBuffer("GT1", gt1Buffers.first)
+        setOffsetsBuffer("GT1", gt1Buffers.second)
+
+        setDataBuffer("ID2", id2Buffers.first)
+        setOffsetsBuffer("ID2", id2Buffers.second)
+
+        setDataBuffer("GT2", gt2Buffers.first)
+        setOffsetsBuffer("GT2", gt2Buffers.second)
+    }
+
+    // Submit and finalize query
+    query.submit()
+    query.close()
+    array.close()
+    context.close()
+}
+
+/**
+ * This function queries the TileDB array for the sampleName and Id associated with refernece ranges
+ * in the array name provided.  THis was written assuming the query wasfor the alt_headers_array -
+ * but the general principle shoudl be adapted to both arrays.
  * It uses a dynamic buffer size to handle incomplete queries, continuing to query until the query is complete.
  * The function returns a list of maps, where each map contains the fields SampleName and ID.
  *
  * THIS HAS NOT BEEN TESTED - it is here because we'll probably need something like it when testing at scale
+ * as we won't know the sizeof the data we are querying.
  */
 fun queryWithDynamicBuffers(arrayName: String, refRangeList: List<String>): List<Map<String, String>> {
     val context = Context()
@@ -379,11 +438,8 @@ fun queryWithDynamicBuffers(arrayName: String, refRangeList: List<String>): List
 
 /**
  * Given a list of reference ranges, return the sampleNames and Ids (hapids) associated with each range.
- * THis isn't working right - it is not getting LineB data, only lineA
- * Tthe problem is the offsets, is sees LineALineB as 1 item, not 2
+ *
  */
-
-// This one by chatGPT - still not correct
 fun querySampleNamesAndIDsByRefRange(arrayName: String, refRangeList: List<String>): Map<String, List<Map<String, String>>> {
     val context = Context()
     val result = mutableMapOf<String, List<Map<String, String>>>()
