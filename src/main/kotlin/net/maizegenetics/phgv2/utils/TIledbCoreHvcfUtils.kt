@@ -274,7 +274,6 @@ fun writeAltDataToTileDB(arrayName: String, altData: List<Map<String, String>>) 
 
 /**
  * This function writes hvcf variants data to the hvcf_variants_array
- * TODO you forgot to create the refRange !!
  */
 fun writeVariantsDataToTileDB(variantArrayName:String, combinedHvcfVariantData:List<Map<String, String>>) {
     val context = Context()
@@ -286,15 +285,11 @@ fun writeVariantsDataToTileDB(variantArrayName:String, combinedHvcfVariantData:L
     val sampleGametes = combinedHvcfVariantData.map { it["SampleGamete"].orEmpty() }
     val id1s = combinedHvcfVariantData.map { it["ID1"].orEmpty() }
     val id2s = combinedHvcfVariantData.map { it["ID2"].orEmpty() }
-    val gt1s = combinedHvcfVariantData.map { it["GT1"].orEmpty() }
-    val gt2s = combinedHvcfVariantData.map { it["GT2"].orEmpty() }
 
     // Prepare data and offsets for all attributes
     val sampleGameteBuffers = prepareVariableBuffer(context, sampleGametes)
     val id1Buffers = prepareVariableBuffer(context, id1s)
-    val gt1Buffers = prepareVariableBuffer(context, gt1s)
     val id2Buffers = prepareVariableBuffer(context, id2s)
-    val gt2Buffers = prepareVariableBuffer(context, gt2s)
 
     // Prepare query
     val query = Query(array, QueryType.TILEDB_WRITE).apply {
@@ -307,14 +302,8 @@ fun writeVariantsDataToTileDB(variantArrayName:String, combinedHvcfVariantData:L
         setDataBuffer("ID1", id1Buffers.first)
         setOffsetsBuffer("ID1", id1Buffers.second)
 
-        setDataBuffer("GT1", gt1Buffers.first)
-        setOffsetsBuffer("GT1", gt1Buffers.second)
-
         setDataBuffer("ID2", id2Buffers.first)
         setOffsetsBuffer("ID2", id2Buffers.second)
-
-        setDataBuffer("GT2", gt2Buffers.first)
-        setOffsetsBuffer("GT2", gt2Buffers.second)
     }
 
     // Submit and finalize query
