@@ -17,7 +17,6 @@ theme:
   logo: img/product/phg_logo_white.svg
   favicon: img/product/favicon.png
   palette:
-    - media: "(prefers-color-scheme)"
       scheme: default
       primary: green
       accent: green
