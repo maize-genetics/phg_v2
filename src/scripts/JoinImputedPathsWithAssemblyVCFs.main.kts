@@ -39,7 +39,7 @@ val pangenomeTableFile = "merge_pangenome_v2.txt"
 
 // #CHROM  POS Samples...
 // /local/workdir/wl748/merge_hapID/merge_SeeD.txt
-val imputedTableFile = "merge_SeeD2.txt"
+val imputedTableFile = "merge_SeeD.txt"
 
 val indelsToMissing = false
 
