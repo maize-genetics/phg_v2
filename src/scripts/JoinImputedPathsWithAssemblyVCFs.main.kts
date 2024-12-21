@@ -47,6 +47,12 @@ val writeVCFFiles = true
 
 val writeGLMResults = true
 
+// Filtering options
+// Set to null if option not used
+val siteMinCount: Int? = null
+val siteMinAlleleFreq: Double? = null
+val bedfile: String? = null
+
 
 // Create a map of key (i.e. chr10_154585427) to VCF file name (i.e. Zh-chr10_154585427-154627028.vcf)
 val vcfFileNamesPerRangeForAssemblies = File(vcfFilesPerRangeForAssembliesDir)
@@ -73,7 +79,9 @@ imputedTable.posToLine.forEach { (pos, line) ->
         return@forEach
     }
 
-    val genotypeTable = processRange(pos, line, vcfFilename, indelsToMissing)
+    var genotypeTable = processRange(pos, line, vcfFilename, indelsToMissing)
+
+    genotypeTable = filterGenotypeTable(genotypeTable, siteMinCount, siteMinAlleleFreq, bedfile)
 
     if (writeVCFFiles) writeVCF(
         genotypeTable,
@@ -159,6 +167,9 @@ fun filterGenotypeTable(
     siteMinAlleleFreq: Double? = null,
     bedfile: String? = null
 ): GenotypeTable {
+
+    // If no filters are set, return the original genotype table
+    if (siteMinCount == null && siteMinAlleleFreq == null && bedfile == null) return genotype
 
     val builder = FilterSiteBuilderPlugin()
 
