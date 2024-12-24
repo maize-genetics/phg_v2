@@ -105,10 +105,18 @@ fun createTileDBCoreArrays(dbPath: String) {
         null  // No tile extent for variable-length strings
     )
 
+    // Cannot set fixed-length string for dimensions - they must be variable length.  ONly attributes
+    // canbe fixed length.
+    val dimID = Dimension(context, "ID",Datatype.TILEDB_STRING_ASCII, null, null)
+
+    // CUrrently ordering domains as RefRange, SampleName and ID in that order.
+    // ID should definitlye be last, but is a toss up between RefRange and SampleName
+    // for which should be first.
     // Define domain
     val domain = Domain(context).apply {
         addDimension(dimRefRange)
         addDimension(dimSampleName)
+        addDimension(dimID)
     }
 
       // Define attributes
@@ -120,16 +128,16 @@ fun createTileDBCoreArrays(dbPath: String) {
         setCellValNum(TILEDB_VAR_NUM) // Set as variable-length
     }
 
-    val attrID = Attribute(context, "ID", Datatype.TILEDB_STRING_ASCII).apply {
-        setCellValNum(TILEDB_VAR_NUM) // Set as variable-length
-    }
+//    val attrID = Attribute(context, "ID", Datatype.TILEDB_STRING_ASCII).apply {
+//        setCellValNum(TILEDB_VAR_NUM) // Set as variable-length - which is wrong, these are set at 32 bytes for md5 hash
+//    }
 
     // Define schema
     val schema = ArraySchema(context, ArrayType.TILEDB_SPARSE).apply {
         setDomain(domain)
         addAttribute(attrRegions)
         addAttribute(attrRefChecksum)
-        addAttribute(attrID)
+        //addAttribute(attrID)  // attrID is now a dimension, not an attribute
     }
 
     // Create the array
@@ -137,25 +145,26 @@ fun createTileDBCoreArrays(dbPath: String) {
 
     // Close resources
     schema.close()
-    //domain.close()
+    domain.close()
     //context.close()  WIll use for 2nd array - don't close it yet.
 
     // Create the variants array
     // Dimensions are sampleName and refRange:  these are both strings
-    // Attributes are ID1 and ID2 - these will be TILEDB_INT64
+    // Attributes are ID1 and ID2 - these are currently string, will someday be uint64
     val arrayNameVariants = dbPath + "/hvcf_variants_array"
 
     val domain2 = Domain(context).apply {
         addDimension(Dimension(context, "RefRange", Datatype.TILEDB_STRING_ASCII, null, null))
         addDimension(Dimension(context, "SampleName", Datatype.TILEDB_STRING_ASCII, null, null))
     }
-    // Dimensions are the same as above
-    // This data is coming from hvcf files, so we should always have
-    // the chr/start/end that can be formatted to a ref range that
-    // matches the refRange for the alt_header_array
 
-    val attrID1 = Attribute(context, "ID1", Datatype.TILEDB_STRING_ASCII)
-    val attrID2 = Attribute(context, "ID2", Datatype.TILEDB_STRING_ASCII)
+    // Setting fixed size based on MD5 hash.  If IDs change to uint64 this will have to change as well
+    val attrID1 = Attribute(context, "ID1", Datatype.TILEDB_STRING_ASCII).apply {
+        setCellValNum(32) // Define as fixed-length with 32 characters
+    }
+    val attrID2 = Attribute(context, "ID2", Datatype.TILEDB_STRING_ASCII).apply {
+        setCellValNum(32) // Define as fixed-length with 32 characters
+    }
 
     val schema2 = ArraySchema(context, ArrayType.TILEDB_SPARSE).apply {
         setDomain(domain2) // same domain as above
@@ -282,28 +291,35 @@ fun writeVariantsDataToTileDB(variantArrayName:String, combinedHvcfVariantData:L
     val array = Array(context, variantArrayName, QueryType.TILEDB_WRITE)
 
     // Extract data
-    val sampleGametes = combinedHvcfVariantData.map { it["SampleGamete"].orEmpty() }
-    val id1s = combinedHvcfVariantData.map { it["ID1"].orEmpty() }
-    val id2s = combinedHvcfVariantData.map { it["ID2"].orEmpty() }
+    val samples = combinedHvcfVariantData.map { it["SampleName"].orEmpty() }
+    val refRanges = combinedHvcfVariantData.map { it["RefRange"].orEmpty() }
 
     // Prepare data and offsets for all attributes
-    val sampleGameteBuffers = prepareVariableBuffer(context, sampleGametes)
-    val id1Buffers = prepareVariableBuffer(context, id1s)
-    val id2Buffers = prepareVariableBuffer(context, id2s)
+    val sampleBuffers = prepareVariableBuffer(context, samples) // SampleNames are variable length
+    val refRangeBuffers = prepareVariableBuffer(context, refRanges) // RefRanges are variable length
+
+    // This value must change if we go to uint64 for the IDs - 32 is when using MD5 hash
+    val fixedLength = 64 // fixed length buffer while we use the MD5 hash, which is 32 bytes
+    val id1s = combinedHvcfVariantData.map { it["ID1"].orEmpty().padEnd(fixedLength) }
+    val id1Buffer = io.tiledb.java.api.NativeArray(context, id1s.joinToString(""), Datatype.TILEDB_STRING_ASCII)
+
+    val id2s = combinedHvcfVariantData.map { it["ID2"].orEmpty().padEnd(fixedLength) }
+    val id2Buffer = io.tiledb.java.api.NativeArray(context, id2s.joinToString(""), Datatype.TILEDB_STRING_ASCII)
 
     // Prepare query
     val query = Query(array, QueryType.TILEDB_WRITE).apply {
         setLayout(Layout.TILEDB_UNORDERED)
 
         // Set buffers for variable-length attributes
-        setDataBuffer("SampleGamete", sampleGameteBuffers.first)
-        setOffsetsBuffer("SampleGamete", sampleGameteBuffers.second)
+        setDataBuffer("SampleName", sampleBuffers.first)
+        setOffsetsBuffer("SampleName", sampleBuffers.second)
 
-        setDataBuffer("ID1", id1Buffers.first)
-        setOffsetsBuffer("ID1", id1Buffers.second)
+        setDataBuffer("RefRange", refRangeBuffers.first)
+        setOffsetsBuffer("RefRange", refRangeBuffers.second)
 
-        setDataBuffer("ID2", id2Buffers.first)
-        setOffsetsBuffer("ID2", id2Buffers.second)
+        // Set buffers for fixed length attributes
+        setDataBuffer("ID1", id1Buffer)
+        setDataBuffer("ID2", id2Buffer)
     }
 
     // Submit and finalize query

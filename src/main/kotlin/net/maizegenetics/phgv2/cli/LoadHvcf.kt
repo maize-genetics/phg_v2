@@ -109,9 +109,11 @@ class LoadHvcf: CliktCommand(help = "Load  h.vcf files into TileDB core datasets
             // Then parse the body of this file
             // We want to store the sampleGamete, the ID and the GT value to the tiledbArray
             // so the datatype should be another List<Map<String,String>> where the map is
-            // sampleGamete, ID, GT
+            // sampleGamete, ID
             //val haplotypeVariants = vcfReader.iterator().asSequence().toList()
 
+            // TODO:  need to handle multipsample hvcf files
+            // WIll we have them from imputation or are these always single sample unless someone merges them?
             val sampleName = vcfReader.header.genotypeSamples.firstOrNull()
             // Iterate through VariantContext objects in the VCF
             vcfReader.iterator().forEach { variantContext ->
@@ -123,7 +125,7 @@ class LoadHvcf: CliktCommand(help = "Load  h.vcf files into TileDB core datasets
                 }
 
                 val altAlleles = variantContext.alternateAlleles
-                val gtField = genotype.genotypeString
+                val gtField = genotype.genotypeString // need this to determine how many alleles there are
                 val alleles = gtField.split("[/|]".toRegex()) // Split on "/" or "|" for diploid
 
                 // create the refRange mapping
@@ -152,11 +154,13 @@ class LoadHvcf: CliktCommand(help = "Load  h.vcf files into TileDB core datasets
         }
 
         // Now load the data
-        myLogger.info("Before writing to tiledb: size if combinedHvcfData: ${combinedHvcfHeaderData.size}")
+        myLogger.info("Writing to tiledb: size of combinedHvcfALTHeaderData: ${combinedHvcfHeaderData.size}")
         val arrayName = "${dbPath}/alt_header_array"
         writeAltDataToTileDB(arrayName, combinedHvcfHeaderData)
-        myLogger.info("Before writing to tiledb: size if combinedHvcfData: ${combinedHvcfVariantData.size}")
+        myLogger.info("Finished writing ALT data")
+        myLogger.info("\nWriting to tiledb: size of combinedHvcfVariantData: ${combinedHvcfVariantData.size}")
         val variantArrayName = "${dbPath}/hvcf_variants_array"
         writeVariantsDataToTileDB(variantArrayName, combinedHvcfVariantData)
+        myLogger.info("Finished writing Variant data")
     }
 }
