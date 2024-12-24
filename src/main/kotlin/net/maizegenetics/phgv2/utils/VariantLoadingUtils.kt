@@ -360,8 +360,8 @@ fun getChecksumForString(seq: String, protocol: String="Md5"): String {
 }
 // This function skips the MD5 hash and directly creates an INT 64 hash
 // for use with hvcf and tiledb. Will we transition to this as hapID value?
-fun xxHash64(input: String): Long {
-    return LongHashFunction.xx().hashBytes(input.toByteArray(StandardCharsets.UTF_8))
+fun xxHash64(input: String): ULong {
+    return LongHashFunction.xx().hashBytes(input.toByteArray(StandardCharsets.UTF_8)).toULong()
 }
 
 
