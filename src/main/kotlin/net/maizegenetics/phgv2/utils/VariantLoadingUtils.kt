@@ -358,8 +358,20 @@ fun getChecksumForString(seq: String, protocol: String="Md5"): String {
         throw IllegalStateException("CheckSum: getChecksumForString: error: " + exc.message)
     }
 }
-// This function skips the MD5 hash and directly creates an INT 64 hash
-// for use with hvcf and tiledb. Will we transition to this as hapID value?
+
+/**
+ * This function creates a unit64 hash from a string using the xxHash64 algorithm.
+ * Storing the hash as a long is more efficient than storing the string, making for
+ * better performance when storing and querying large datasets in tiledb.
+ *
+ * Comparison of base64, hex or number:
+ *   unit64 (8 bytes) < Base64 (12 bytes) < Hex (16 bytes)
+ *
+ * This function should replace getChecksumForString in the future.
+ * In addition, data structures that expected a String for the assembly
+ * and refernce sequence hash should now be changed to expect a ULong.
+ *
+ */
 fun xxHash64(input: String): ULong {
     return LongHashFunction.xx().hashBytes(input.toByteArray(StandardCharsets.UTF_8)).toULong()
 }

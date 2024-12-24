@@ -97,7 +97,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                     exportVariantContext(sampleName, variants, "${outputDirName}/${it.nameWithoutExtension}.g.vcf",refGenomeSequence, setOf())
                     bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.g.vcf")
 
-                    val asmHeaderLines = mutableMapOf<Long,VCFHeaderLine>()
+                    val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
                     //convert the GVCF records into hvcf records
                     myLogger.info("createASMHvcfs: calling convertGVCFToHVCF for $sampleName")
                     val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines,condaEnvPrefix)
@@ -116,7 +116,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                         val outputFile =
                             exportVariantContext(name, sortedVariants, outputNames[index], refGenomeSequence, setOf())
                         bgzipAndIndexGVCFfile(outputNames[index])
-                        val asmHeaderLines = mutableMapOf<Long,VCFHeaderLine>()
+                        val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
                         //convert the GVCF records into hvcf records
                         val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, sortedVariants, refGenomeSequence, dbPath, asmHeaderLines,condaEnvPrefix)
                         val asmHeaderSet = asmHeaderLines.values.toSet()
@@ -168,7 +168,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * Function to convert a GVCF file into an HCVF file
      */
     fun convertGVCFToHVCF(dbPath: String,sampleName: String, bedRanges : List<Pair<Position,Position>>, gvcfVariants: List<VariantContext>,
-                          refGenomeSequence : Map<String, NucSeq>, agcArchiveName: String, asmHeaders: MutableMap<Long,VCFHeaderLine>,condaEnvPrefix:String = "") : List<VariantContext> {
+                          refGenomeSequence : Map<String, NucSeq>, agcArchiveName: String, asmHeaders: MutableMap<String,VCFHeaderLine>,condaEnvPrefix:String = "") : List<VariantContext> {
         // group the gvcfVariants by contig
         val gvcfVariantsByContig = gvcfVariants.groupBy { it.contig }
 
@@ -182,7 +182,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
             .flatMap { convertGVCFToHVCFForChrom(dbPath, sampleName, bedRegionsByContig[it]!!, refGenomeSequence, agcArchiveName, gvcfVariantsByContig[it]!!, asmHeaders,condaEnvPrefix) }
     }
 
-    private fun convertGVCFToHVCFForChrom(dbPath: String, sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, agcArchiveName: String, variantContexts: List<VariantContext>, asmHeaders: MutableMap<Long,VCFHeaderLine>, condaEnvPrefix:String = "" ) : List<VariantContext> {
+    private fun convertGVCFToHVCFForChrom(dbPath: String, sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, agcArchiveName: String, variantContexts: List<VariantContext>, asmHeaders: MutableMap<String,VCFHeaderLine>, condaEnvPrefix:String = "" ) : List<VariantContext> {
         
         /**
          * Loop through the bed file
@@ -539,7 +539,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
     /**
      * Simple function to convert the all the HVCFRecordMetadata records into VariantContext records
      */
-    fun convertMetaDataToHVCFContexts(metaData: List<HVCFRecordMetadata>, asmHeaders: MutableMap<Long,VCFHeaderLine>, dbPath:String): List<VariantContext> {
+    fun convertMetaDataToHVCFContexts(metaData: List<HVCFRecordMetadata>, asmHeaders: MutableMap<String,VCFHeaderLine>, dbPath:String): List<VariantContext> {
         return metaData.map { convertMetaDataRecordToHVCF(it, asmHeaders, dbPath) }
     }
 
@@ -547,13 +547,13 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * Simple function to convert a single metadata record into a VariantContext.
      * This will also create the ALT tag and add it to the asmHeaders object for use during export.
      */
-    private fun convertMetaDataRecordToHVCF(metaDataRecord: HVCFRecordMetadata, asmHeaders: MutableMap<Long, VCFHeaderLine>, dbPath: String): VariantContext {
+    private fun convertMetaDataRecordToHVCF(metaDataRecord: HVCFRecordMetadata, asmHeaders: MutableMap<String, VCFHeaderLine>, dbPath: String): VariantContext {
         val assemblyHaplotypeSeq:String = metaDataRecord.asmSeq
         //md5 hash the assembly sequence
-        val assemblyHaplotypeHash = xxHash64(assemblyHaplotypeSeq)
+        val assemblyHaplotypeHash = getChecksumForString(assemblyHaplotypeSeq)
         check(metaDataRecord.refSeq.isNotEmpty()) { "Reference sequence is empty" }
         //md5 has the refSequence
-        val refSeqHash = xxHash64(metaDataRecord.refSeq)
+        val refSeqHash = getChecksumForString(metaDataRecord.refSeq)
 
         //create the asmHeader lines
         if(!asmHeaders.containsKey(assemblyHaplotypeHash)) {
