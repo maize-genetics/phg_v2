@@ -134,7 +134,7 @@ class RopebwtIndex : CliktCommand(help="Create a ropeBWT3 index") {
         }
         else {
             Pair("-n", "phgv2-conda") }
-        val ssaCommand = listOf("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "ssa", "-o", "$indexFilePrefix.bwt.ssa", "-s8", "-t${numThreads}", "$indexFilePrefix.fmd")
+        val ssaCommand = listOf("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "ssa", "-o", "$indexFilePrefix.fmd.ssa", "-s8", "-t${numThreads}", "$indexFilePrefix.fmd")
         myLogger.info("Running ropebwt3 ssa command: ${ssaCommand.joinToString(" ")}")
         try {
             val process = ProcessBuilder(ssaCommand)
@@ -181,7 +181,7 @@ class RopebwtIndex : CliktCommand(help="Create a ropeBWT3 index") {
             //write the lengths to the file
             val neqSeqIO = NucSeqIO(inputFasta)
             neqSeqIO.forEach { seq ->
-                writer.write("${seq.name}\t${seq.sequence.size()}\n")
+                writer.write("${seq.id}\t${seq.sequence.size()}\n")
             }
         }
     }
