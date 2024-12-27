@@ -23,7 +23,7 @@ class RopebwtIndexTest {
     companion object {
         val tempTestDir = "${TestExtension.tempDir}ropebwtTest/"
         val tempDBPathDir = "${TestExtension.testOutputFastaDir}dbPath/"
-        val inputFasta = TestExtension.smallSeqInputDir+"pangenome.fa"
+        val inputFasta = TestExtension.smallSeqInputDir+"/pangenome/pangenome.fa"
         val indexFilePrefix = tempTestDir+"testIndex"
 
 

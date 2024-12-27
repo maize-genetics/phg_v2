@@ -74,7 +74,7 @@ class RopebwtIndex : CliktCommand(help="Create a ropeBWT3 index") {
             Pair("-p",condaEnvPrefix)
         }
         else {
-            Pair("-n", "phgv2-conda") }
+            Pair("-n", "phgv2-ropebwt-conda") }
         val buildCommand = listOf("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "build", "-t$numThreads", "-bo", "$indexFilePrefix.fmr", "$inputFasta")
         myLogger.info("Running ropebwt3 build command: ${buildCommand.joinToString(" ")}")
         try {
@@ -98,7 +98,7 @@ class RopebwtIndex : CliktCommand(help="Create a ropeBWT3 index") {
             Pair("-p",condaEnvPrefix)
         }
         else {
-            Pair("-n", "phgv2-conda") }
+            Pair("-n", "phgv2-ropebwt-conda") }
         val convertCommand = listOf("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "build", "-i", "$indexFilePrefix.fmr", "-do", "$indexFilePrefix.fmd")
         myLogger.info("Running ropebwt3 convert command: ${convertCommand.joinToString(" ")}")
         try {
@@ -133,7 +133,7 @@ class RopebwtIndex : CliktCommand(help="Create a ropeBWT3 index") {
             Pair("-p",condaEnvPrefix)
         }
         else {
-            Pair("-n", "phgv2-conda") }
+            Pair("-n", "phgv2-ropebwt-conda") }
         val ssaCommand = listOf("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "ssa", "-o", "$indexFilePrefix.fmd.ssa", "-s8", "-t${numThreads}", "$indexFilePrefix.fmd")
         myLogger.info("Running ropebwt3 ssa command: ${ssaCommand.joinToString(" ")}")
         try {
