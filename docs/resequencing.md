@@ -32,6 +32,12 @@ perform this transformation, the user can use the
         -o output/composite_assemblies/
     ```
 
+* Index composite FASTA file
+
+    ```shell
+    samtools faidx output/composite_assemblies/LineA_B_composite.fa
+    ```
+
 * Align short reads to composite FASTA
 
     ```shell
@@ -57,18 +63,18 @@ perform this transformation, the user can use the
 
     ```shell
     PHG_DIR=phg_v2_example/
-    
+
     docker run \
-    -v ${PHG_DIR}:/workdir \
-    google/deepvariant:1.6.1 \
-    /opt/deepvariant/bin/run_deepvariant \
-    --model_type=WGS \
-    --ref=/workdir/output/composite_assemblies/LineA_B_composite.fa \
-    --reads=/workdir/output/minimap2/LineA_B_composite_filtered.bam \
-    --output_vcf=/workdir/output/vcf_files/LineA_B_composite_reseq.vcf \
-    --output_gvcf=/workdir/output/vcf_files/LineA_B_composite_reseq.g.vcf \
-    --intermediate_results_dir=/workdir/intermediate_results \
-    --num_shards=4
+        -v ${PHG_DIR}:/workdir \
+        google/deepvariant:1.6.1 \
+        /opt/deepvariant/bin/run_deepvariant \
+        --model_type=WGS \
+        --ref=/workdir/output/composite_assemblies/LineA_B_composite.fa \
+        --reads=/workdir/output/minimap2/LineA_B_composite_filtered.bam \
+        --output_vcf=/workdir/output/vcf_files/LineA_B_composite_reseq.vcf \
+        --output_gvcf=/workdir/output/vcf_files/LineA_B_composite_reseq.g.vcf \
+        --intermediate_results_dir=/workdir/intermediate_results \
+        --num_shards=4
     ```
 
 
@@ -149,6 +155,28 @@ phg_v2_example/
     ├── reference/
     └── temp/
 ```
+
+### Index composite FASTA file
+Once we create the composite FASTA file, we will need to create an
+[`.fai` index](http://www.htslib.org/doc/faidx.html) file for the 
+subsequent DeepVariant procedure. This indexing step will significantly
+decrease lookup times into our new composite reference FASTA
+assembly. To create this file, we can use `faidx` command from
+`samtools`:
+
+```shell
+samtools faidx output/composite_assemblies/LineA_B_composite.fa
+```
+
+This will create an `.fai` index file in the same directory where the
+composite FASTA was created. In our case, this file will be named
+`LineA_B_composite.fa.fai`.
+
+!!! note
+    For the DeepVariant step, this file will **need to be in the same
+    directory as your composite FASTA file**. DeepVariant will assume
+    that this file and the FASTA assembly are in the same directory.
+    If not, an error will occur!
 
 
 ### Align short reads to composite FASTA
