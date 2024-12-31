@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 import com.github.ajalt.clikt.testing.test
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.fail
 
 class MapReadsTest {
 
@@ -29,5 +30,10 @@ class MapReadsTest {
         assertEquals(1, noOutputDir.statusCode)
         assertEquals("Usage: map-reads [<options>]\n\n" +
                 "Error: missing option --output-dir\n", noOutputDir.stderr)
+    }
+
+    @Test
+    fun testParseMem() {
+        fail("Not yet implemented")
     }
 }
