@@ -11,7 +11,9 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
+import it.unimi.dsi.fastutil.longs.AbstractLongSet
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
+import it.unimi.dsi.fastutil.longs.LongOpenHashBigSet
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
@@ -89,6 +91,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         .int()
         .default(500_000_000)
 
+    val useBigDiscardSet by option(help="Use a BigSet for the discard set.  This is useful for pangenomes with lots of repetitive kmers resulting in very large discard sets. Note this may require more RAM and time to process.")
+        .flag()
+
     private val refrangeToAdjacentHashCount = mutableMapOf<ReferenceRange, Int>()
     private var runDiagnostics = true
 
@@ -100,7 +105,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         val graph = buildHaplotypeGraph()
 
 
-        val (hashToHapidMap, discardSet) = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue, initialKeepSize, maxSampleProportion)
+        val (hashToHapidMap, discardSet) = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue, initialKeepSize, maxSampleProportion, useBigDiscardSet)
 
         val kmerIndexFilename = if (indexFile == "") "${hvcfDir}/kmerIndex.txt" else indexFile
 
@@ -149,14 +154,20 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
      */
     fun processGraphKmers(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75,
-                          hashMask: Long = 3, hashFilterValue:Long = 1, initialKeepSize: Int = 500_000_000, maxSampleProportion: Double = .5) : Pair<Long2ObjectOpenHashMap<Set<String>>,LongOpenHashSet> {
+                          hashMask: Long = 3, hashFilterValue:Long = 1, initialKeepSize: Int = 500_000_000, maxSampleProportion: Double = .5, bigSet: Boolean = false) : Pair<Long2ObjectOpenHashMap<Set<String>>,AbstractLongSet> {
         //keepMap is a map of hash -> Set of haplotype ids
         //TODO Change this to be more RAM efficient.  Probably need something like this:
         // Map<Long, Set<Pair<refRangeIdx, hapIdBitset>>
         val keepMap = Long2ObjectOpenHashMap<MutableSet<String>>(initialKeepSize)
 
         //discardSet is a Set of hashes
-        val discardSet = LongOpenHashSet(initialKeepSize)
+        val discardSet = if(bigSet) {
+            LongOpenHashBigSet(initialKeepSize.toLong())
+        }
+        else {
+            LongOpenHashSet(initialKeepSize)
+        }
+
         val startTime = System.nanoTime()
         val sampleGametes = graph.sampleGametesInGraph()
 
@@ -310,7 +321,8 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * The sequenceList input is a map of hapidId -> list of sequences
      * Note this will likely need to be heavily updated to keep track of relative position in the hapId due to the splitting on N's code
      */
-    private fun countKmerHashesForHaplotypeSequenceSimplified(sequenceMap: Map<String, List<String>>, hashMask: Long, hashFilterValue: Long, keepMap:Long2ObjectOpenHashMap<MutableSet<String>>, discardSet: LongOpenHashSet, maxHapsToKeep: Double) {
+//    private fun countKmerHashesForHaplotypeSequenceSimplified(sequenceMap: Map<String, List<String>>, hashMask: Long, hashFilterValue: Long, keepMap:Long2ObjectOpenHashMap<MutableSet<String>>, discardSet: LongOpenHashSet, maxHapsToKeep: Double) {
+    private fun countKmerHashesForHaplotypeSequenceSimplified(sequenceMap: Map<String, List<String>>, hashMask: Long, hashFilterValue: Long, keepMap:Long2ObjectOpenHashMap<MutableSet<String>>, discardSet: AbstractLongSet, maxHapsToKeep: Double) {
         for ((hapid, seqList) in sequenceMap) {
             for (sequenceWithNs in seqList) {
                 //split sequence on N's then filter on length > 31 because we are looking for 32-mers
