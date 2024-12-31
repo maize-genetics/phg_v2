@@ -55,10 +55,14 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
     val discardFile by option(help = "The full path of the discard set file. If Left blank no file will be written out.")
         .default("")
 
-    val maxHaplotypeProportion by option("-p", "--maxHapProportion", help = "only kmers mapping to less than or " +
+    val maxHaplotypeProportion by option("-p", "--maxHapProportion", help = "This is Currently not in use: only kmers mapping to less than or " +
             "equal to maxHapProportion of haplotypes in a reference range will be retained.")
         .double()
         .default(0.75)
+
+    val maxSampleProportion by option(help = "Parameter to control the amount of repetitive kmers that are kept.  If a kmer is seen > --max-sample-proportion * numSamples, it will be ignored.  This can be above 1.0 if you wish to retain somewhat highly repetitive kmers.")
+        .double()
+        .default(.5)
 
     val hashMask by option("-m", "--hashMask", help = "with hashFilter, used to mask kmers for filtering. " +
             "Default uses only the last kmer nucleotide. Only change this if you know what you are doing.")
@@ -96,7 +100,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
         val graph = buildHaplotypeGraph()
 
 
-        val (hashToHapidMap, discardSet) = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue, initialKeepSize)
+        val (hashToHapidMap, discardSet) = processGraphKmers(graph, dbPath, maxHaplotypeProportion,  hashMask, hashFilterValue, initialKeepSize, maxSampleProportion)
 
         val kmerIndexFilename = if (indexFile == "") "${hvcfDir}/kmerIndex.txt" else indexFile
 
@@ -145,7 +149,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
      * Which allows the export to not need to do a second pass over the sequences to get the set of hapIds which contain the unique kmers.
      */
     fun processGraphKmers(graph: HaplotypeGraph, dbPath: String, maxHaplotypeProportion: Double=.75,
-                          hashMask: Long = 3, hashFilterValue:Long = 1, initialKeepSize: Int = 500_000_000) : Pair<Long2ObjectOpenHashMap<Set<String>>,LongOpenHashSet> {
+                          hashMask: Long = 3, hashFilterValue:Long = 1, initialKeepSize: Int = 500_000_000, maxSampleProportion: Double = .5) : Pair<Long2ObjectOpenHashMap<Set<String>>,LongOpenHashSet> {
         //keepMap is a map of hash -> Set of haplotype ids
         //TODO Change this to be more RAM efficient.  Probably need something like this:
         // Map<Long, Set<Pair<refRangeIdx, hapIdBitset>>
@@ -158,9 +162,9 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
 
         val contigRangesMap = graph.rangesByContig()
 
-        //We set this to be numSampleGametes * .5 so we only keep track of informative kmers
+        //We set this to be numSampleGametes * maxSampleProportion so we only keep track of informative kmers
         //We originally tried 2 * numSampleGametes but that was too high as we had too much repetitive mappings
-        val maxHapsToKeep = sampleGametes.size * .5
+        val maxHapsToKeep = sampleGametes.size * maxSampleProportion
 
         for (chr in contigRangesMap.keys) {
             //get all sequence for this chromosome
