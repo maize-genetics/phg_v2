@@ -2,7 +2,9 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 
 import com.github.ajalt.clikt.testing.test
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.test.fail
 
 class MapReadsTest {
@@ -60,5 +62,58 @@ class MapReadsTest {
         assertEquals("-", parsed.listMemHits[2].strand)
         assertEquals(35325, parsed.listMemHits[2].pos)
 
+    }
+
+    //data class MEM(val readName: String, val readStart: Int, val readEnd: Int, val numHits: Int, val listMemHits: List<MEMHit>)
+    //data class MEMHit(val contig: String, val strand: String, val pos: Int)
+    @Test
+    fun testProcessMemsForRead() {
+        val mapReads = MapReads()
+
+        //Make a simple 1 MEM hit
+        val simpleMEMList = listOf(MEM("read1",0,150,3,listOf(MEMHit("hap1", "+", 100), MEMHit("hap2", "-", 200), MEMHit("hap3", "+", 300))))
+
+        var simpleReadMapping = mutableMapOf<List<String>, Int>()
+        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,5)
+        assertEquals(1, simpleReadMapping.size)
+        assertEquals(listOf("hap1","hap2","hap3"), simpleReadMapping.keys.first())
+        assertEquals(1, simpleReadMapping[listOf("hap1","hap2","hap3")])
+
+
+        simpleReadMapping = mutableMapOf()
+        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,2)
+        assertEquals(0, simpleReadMapping.size)
+
+
+        //Create a few reads with the same hapIds hit
+        val simpleMEMList2 = listOf(MEM("read2",0,150,3,listOf(MEMHit("hap1", "+", 100), MEMHit("hap2", "-", 200), MEMHit("hap3", "+", 300))))
+        val simpleMEMList3 = listOf(
+            MEM("read3",2,150,3,listOf(MEMHit("hap1", "+", 100), MEMHit("hap2", "-", 200), MEMHit("hap3", "+", 300))),
+            MEM("read3",1,150,3,listOf(MEMHit("hap4", "+", 100), MEMHit("hap5", "-", 200)))
+        )
+
+        val simpleMEMList4 = listOf(
+            MEM("read3",2,150,3,listOf(MEMHit("hap1", "+", 100), MEMHit("hap2", "-", 200), MEMHit("hap3", "+", 300))),
+            MEM("read3",2,150,3,listOf(MEMHit("hap4", "+", 100), MEMHit("hap5", "-", 200)))
+        )
+
+        simpleReadMapping = mutableMapOf()
+        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,6)
+        mapReads.processMemsForRead(simpleMEMList2,simpleReadMapping,6)
+        mapReads.processMemsForRead(simpleMEMList3,simpleReadMapping,6)
+        mapReads.processMemsForRead(simpleMEMList4,simpleReadMapping,6)
+        assertEquals(3, simpleReadMapping.size)
+        assertTrue(simpleReadMapping.keys.contains(listOf("hap1","hap2","hap3")))
+        assertEquals(2, simpleReadMapping[listOf("hap1","hap2","hap3")])
+        assertTrue(simpleReadMapping.keys.contains(listOf("hap4","hap5")))
+        assertEquals(1, simpleReadMapping[listOf("hap4","hap5")])
+        assertTrue(simpleReadMapping.keys.contains(listOf("hap1","hap2","hap3","hap4","hap5")))
+        assertEquals(1, simpleReadMapping[listOf("hap1","hap2","hap3","hap4","hap5")])
+
+
+        //pass in empty list
+        simpleReadMapping = mutableMapOf()
+        assertThrows<NoSuchElementException> { mapReads.processMemsForRead(listOf(),simpleReadMapping,6) }
+        
     }
 }

@@ -78,12 +78,24 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
 
         val bedFileReader = setupMappingProcess(index, readFile, threads, minMemLength, maxNumHits, condaEnvPrefix)
 
+        val readMapping = createReadMappingsForFileReader(bedFileReader, maxNumHits)
+
+        bedFileReader.close()
+
+        myLogger.info("Writing read mapping to $outputFile")
+        AlignmentUtils.exportReadMapping(outputFile,readMapping, sampleName,Pair(readFile,""))
+    }
+
+    fun createReadMappingsForFileReader(
+        bedFileReader: BufferedReader,
+        maxNumHits: Int
+    ): MutableMap<List<String>, Int> {
         var currentLine = bedFileReader.readLine()
         val tempMems = mutableListOf<MEM>()
         val readMapping = mutableMapOf<List<String>, Int>()
-        while(currentLine != null) {
+        while (currentLine != null) {
             val alignmentParsed = parseStringIntoMem(currentLine)
-            if(tempMems.isNotEmpty() && tempMems[0].readName != alignmentParsed.readName) {
+            if (tempMems.isNotEmpty() && tempMems[0].readName != alignmentParsed.readName) {
                 //write out the tempMems
                 processMemsForRead(tempMems, readMapping, maxNumHits)
                 tempMems.clear()
@@ -93,11 +105,7 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         }
 
         processMemsForRead(tempMems, readMapping, maxNumHits)
-
-        bedFileReader.close()
-
-        myLogger.info("Writing read mapping to $outputFile")
-        AlignmentUtils.exportReadMapping(outputFile,readMapping, sampleName,Pair(readFile,""))
+        return readMapping
     }
 
     /**
@@ -136,7 +144,7 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         return MEM(readName, readStart, readEnd, numHits, listMemHits)
     }
 
-    fun processMemsForRead(tempMems: MutableList<MEM>, readMapping: MutableMap<List<String>, Int>, maxNumHits: Int) {
+    fun processMemsForRead(tempMems: List<MEM>, readMapping: MutableMap<List<String>, Int>, maxNumHits: Int) {
         //get the longest hits
         val maxLength = tempMems.maxOf { it.readEnd - it.readStart }
         //remove any hits that are not the longest
