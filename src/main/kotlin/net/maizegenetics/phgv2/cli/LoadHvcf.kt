@@ -97,8 +97,14 @@ class LoadHvcf: CliktCommand(help = "Load  h.vcf files into TileDB core datasets
         val combinedHvcfHeaderData = mutableListOf<Map<String, String>>() // list of maps holding combined parsed hvcf header data
         val combinedHvcfVariantData = mutableListOf<Map<String, String>>() // list of maps holding combined parsed hvcf context data
 
+        myLogger.info("processHvcfsToTIledbArrays: hvcfDir: $hvcfDir, dbPath: $dbPath printing file list:")
         val hvcfFiles = File(hvcfDir).listFiles { file ->
+            myLogger.info("file: ${file.name}")
             HVCF_PATTERN.containsMatchIn(file.name)
+        }
+        if (hvcfFiles == null || hvcfFiles.isEmpty()) {
+            myLogger.error("No hvcf files found in $hvcfDir")
+            return
         }
         myLogger.info("hvcfFiles size: ${hvcfFiles.size}, begin parsing hvcf files.")
         hvcfFiles.forEach{ file ->

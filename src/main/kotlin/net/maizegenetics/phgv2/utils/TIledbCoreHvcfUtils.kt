@@ -128,6 +128,7 @@ fun createTileDBCoreArrays(dbPath: String) {
         setCellValNum(TILEDB_VAR_NUM) // Set as variable-length
     }
 
+    // ID is now a dimension, not an attribute
 //    val attrID = Attribute(context, "ID", Datatype.TILEDB_STRING_ASCII).apply {
 //        setCellValNum(TILEDB_VAR_NUM) // Set as variable-length - which is wrong, these are set at 32 bytes for md5 hash
 //    }
@@ -299,12 +300,12 @@ fun writeVariantsDataToTileDB(variantArrayName:String, combinedHvcfVariantData:L
     val refRangeBuffers = prepareVariableBuffer(context, refRanges) // RefRanges are variable length
 
     // This value must change if we go to uint64 for the IDs - 32 is when using MD5 hash
-    val fixedLength = 64 // fixed length buffer while we use the MD5 hash, which is 32 bytes
+    val fixedLength = 32 // fixed length buffer while we use the MD5 hash, which is 32 bytes
     val id1s = combinedHvcfVariantData.map { it["ID1"].orEmpty().padEnd(fixedLength) }
-    val id1Buffer = io.tiledb.java.api.NativeArray(context, id1s.joinToString(""), Datatype.TILEDB_STRING_ASCII)
+    val id1Buffer = NativeArray(context, id1s.joinToString(""), Datatype.TILEDB_STRING_ASCII)
 
     val id2s = combinedHvcfVariantData.map { it["ID2"].orEmpty().padEnd(fixedLength) }
-    val id2Buffer = io.tiledb.java.api.NativeArray(context, id2s.joinToString(""), Datatype.TILEDB_STRING_ASCII)
+    val id2Buffer = NativeArray(context, id2s.joinToString(""), Datatype.TILEDB_STRING_ASCII)
 
     // Prepare query
     val query = Query(array, QueryType.TILEDB_WRITE).apply {
