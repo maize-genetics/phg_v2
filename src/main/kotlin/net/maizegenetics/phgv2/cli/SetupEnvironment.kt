@@ -21,11 +21,18 @@ class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG
 
     private val myLogger = LogManager.getLogger(SetupEnvironment::class.java)
 
+    enum class CONDAENVTYPE {
+        PHG, ROPEBWT
+    }
+
     val envFile by option("-e", "--env-file", help = "File containing the conda environment definition")
         .default("")
 
+    val ropebwtEnvFile by option(help = "File containing the conda environment definition for ropebwt")
+        .default("")
+
     // This function uses ProcessBuilder to setup the phgv2 conda environment
-    fun createEnvironment(envFile: String, outputDir: String) {
+    fun createEnvironment(envFile: String, outputDir: String, ropeBWTFile:String) {
 
         // if no user defined environment file, use the default
         var resultEnvFile = if (envFile == "") {
@@ -47,11 +54,40 @@ class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG
             envFile
         }
 
+        var ropeBwtResutlEnvFile = if(ropeBWTFile == "") {
+            val selectedEnvFile = "${outputDir}/phg_ropebwt_environment.yml"
+            val fileContent = this::class.java.classLoader.getResource("phg_ropebwt_environment.yml").readText()
+            myLogger.info("writing default environment file to $selectedEnvFile")
+            // This will overwrite an existing file
+            File(selectedEnvFile).writeText(fileContent)
+            selectedEnvFile
+        } else {
+            if (!File(ropeBWTFile).exists()) {
+                myLogger.error("The specified file $ropeBWTFile does not exist.")
+                throw IllegalStateException("SetupEnvironment: create conda environment failed: file $ropeBWTFile does not exist")
+            }
+            ropeBWTFile
+
+        }
+
+        runCondaCreate(resultEnvFile, outputDir, envFile, CONDAENVTYPE.PHG)
+        runCondaCreate(ropeBwtResutlEnvFile, outputDir, ropeBWTFile, CONDAENVTYPE.ROPEBWT)
+    }
+
+    private fun runCondaCreate(resultEnvFile: String, outputDir: String, envFile: String, envType: CONDAENVTYPE) {
         // call ProcessBuilder to execute the conda create env command
         myLogger.info("Creating conda environment from file: $resultEnvFile")
         val builder = ProcessBuilder("conda", "env", "create", "--solver=libmamba", "--file", resultEnvFile)
-        var redirectOutput = outputDir + "/condaCreate_output.log"
-        var redirectError = outputDir + "/condaCreate_error.log"
+        var redirectOutput = when(envType) {
+            CONDAENVTYPE.PHG -> outputDir + "/condaCreate_output.log"
+            CONDAENVTYPE.ROPEBWT -> outputDir + "/ropebwtCondaCreate_output.log"
+        }
+
+        var redirectError = when(envType) {
+            CONDAENVTYPE.PHG -> outputDir + "/condaCreate_error.log"
+            CONDAENVTYPE.ROPEBWT -> outputDir + "/ropebwtCondaCreate_error.log"
+        }
+
         builder.redirectOutput(File(redirectOutput))
         builder.redirectError(File(redirectError))
         myLogger.info(" begin conda create Command:" + builder.command().joinToString(" "));
@@ -81,6 +117,6 @@ class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG
         val workingDir = System.getProperty("user.dir")
 
         // call method to create the environment
-        createEnvironment(envFile, workingDir)
+        createEnvironment(envFile, workingDir, ropebwtEnvFile)
     }
 }
