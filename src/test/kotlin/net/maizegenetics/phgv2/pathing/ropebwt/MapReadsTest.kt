@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
+import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.testing.test
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -64,8 +65,6 @@ class MapReadsTest {
 
     }
 
-    //data class MEM(val readName: String, val readStart: Int, val readEnd: Int, val numHits: Int, val listMemHits: List<MEMHit>)
-    //data class MEMHit(val contig: String, val strand: String, val pos: Int)
     @Test
     fun testProcessMemsForRead() {
         val mapReads = MapReads()
@@ -114,6 +113,35 @@ class MapReadsTest {
         //pass in empty list
         simpleReadMapping = mutableMapOf()
         assertThrows<NoSuchElementException> { mapReads.processMemsForRead(listOf(),simpleReadMapping,6) }
-        
+
+    }
+
+    @Test
+    fun testCreateReadMappingsForFileReader() {
+        val reader = bufferedReader("data/test/ropebwt/alignment.bed")
+        val mapReads = MapReads()
+        val readMapping = mapReads.createReadMappingsForFileReader(reader, 5)
+
+        assertEquals(2, readMapping.size)
+        assertTrue(readMapping.keys.contains(listOf("hap1","hap2","hap3")))
+        assertEquals(2, readMapping[listOf("hap1","hap2","hap3")])
+        assertTrue(readMapping.keys.contains(listOf("hap4","hap5")))
+        assertEquals(1, readMapping[listOf("hap4","hap5")])
+
+    }
+
+    @Test
+    fun testSetupMappingProcess() {
+        fail("Not yet implemented")
+    }
+
+    @Test
+    fun testMapSingleReadFile() {
+        fail("Not yet implemented")
+    }
+
+    @Test
+    fun testMapAllReadFiles() {
+        fail("Not yet implemented")
     }
 }

@@ -86,6 +86,28 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         AlignmentUtils.exportReadMapping(outputFile,readMapping, sampleName,Pair(readFile,""))
     }
 
+
+
+    /**
+     * Function to setup the ropebwt3 mem process
+     * //time ../ropebwt3/ropebwt3 mem -t40 -l148 -p50 /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmd /workdir/zrm22/phgv2/ropeBWT/Reads/B97_HVMFTCCXX_L7_1.clean.fq.gz > B97_1_fullASM_pos_matches2NM.bed
+     *
+     */
+    fun setupMappingProcess(index: String, readFile: String, threads: Int, minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String): BufferedReader {
+        val prefixArg = if(condaEnvPrefix.isNotBlank()) {
+            Pair("-p",condaEnvPrefix)
+        }
+        else {
+            Pair("-n", "phgv2-ropebwt-conda")
+        }
+
+        val ropebwt3Process = ProcessBuilder("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "mem", "-t$threads", "-l$minMemLength", "-p$maxNumHits", index, readFile)
+            .redirectError(ProcessBuilder.Redirect.INHERIT)
+            .start()
+
+        return BufferedReader(InputStreamReader(ropebwt3Process.inputStream))
+    }
+
     fun createReadMappingsForFileReader(
         bedFileReader: BufferedReader,
         maxNumHits: Int
@@ -106,26 +128,6 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
 
         processMemsForRead(tempMems, readMapping, maxNumHits)
         return readMapping
-    }
-
-    /**
-     * Function to setup the ropebwt3 mem process
-     * //time ../ropebwt3/ropebwt3 mem -t40 -l148 -p50 /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmd /workdir/zrm22/phgv2/ropeBWT/Reads/B97_HVMFTCCXX_L7_1.clean.fq.gz > B97_1_fullASM_pos_matches2NM.bed
-     *
-     */
-    fun setupMappingProcess(index: String, readFile: String, threads: Int, minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String): BufferedReader {
-        val prefixArg = if(condaEnvPrefix.isNotBlank()) {
-            Pair("-p",condaEnvPrefix)
-        }
-        else {
-            Pair("-n", "phgv2-ropebwt-conda")
-        }
-
-        val ropebwt3Process = ProcessBuilder("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "mem", "-t$threads", "-l$minMemLength", "-p$maxNumHits", index, readFile)
-            .redirectError(ProcessBuilder.Redirect.INHERIT)
-            .start()
-
-        return BufferedReader(InputStreamReader(ropebwt3Process.inputStream))
     }
 
     /**
