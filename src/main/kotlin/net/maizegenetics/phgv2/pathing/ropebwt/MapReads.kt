@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
+import biokotlin.util.bufferedWriter
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
 import com.github.ajalt.clikt.parameters.groups.required
@@ -18,10 +19,18 @@ import java.io.BufferedInputStream
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
+/**
+ * Some classes to hold the data from the ropebwt3 mem output
+ */
 data class MEM(val readName: String, val readStart: Int, val readEnd: Int, val numHits: Int, val listMemHits: List<MEMHit>)
 data class MEMHit(val contig: String, val strand: String, val pos: Int)
 
-
+/**
+ * MapReads will map read files independently to a pangenome indexed by ropeBWT3
+ * This will create a standard read mapping file that can be used for path finding
+ * Note that this will take some time to run.  Our internal tests show that WGS files can take about 20 minutes to run.
+ * Each file from a pair are processed independently.
+ */
 class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
 
     private val myLogger = LogManager.getLogger(MapReads::class.java)
@@ -60,17 +69,26 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         mapAllReadFiles(index, readInputFiles.getReadFiles(), outputDir, threads, minMemLength, maxNumHits, condaEnvPrefix)
     }
 
+    /**
+     * Function to map all the read files in the keyFileDataEntries to the index
+     */
     fun mapAllReadFiles(index: String, keyFileDataEntries: List<KeyFileData>, outputDir: String, threads: Int, minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String) {
-        //time ../ropebwt3/ropebwt3 mem -t40 -l148 -p50 /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmd /workdir/zrm22/phgv2/ropeBWT/Reads/B97_HVMFTCCXX_L7_1.clean.fq.gz > B97_1_fullASM_pos_matches2NM.bed
-
+        //Loop through the keyFileDataEntries and map the reads
+        //If there is a second file it processes that and makes a separate readMapping file.
+        val readNameToFileMap = mutableMapOf<String,MutableList<String>>()
         for(readFile in keyFileDataEntries) {
+            val fileList = readNameToFileMap[readFile.sampleName]?: mutableListOf()
             val outputFile1 = "$outputDir/${readFile.sampleName}_1_readMapping.txt"
             mapSingleReadFile(index, readFile.sampleName, readFile.file1,outputFile1, threads, minMemLength, maxNumHits, condaEnvPrefix)
+            fileList.add(outputFile1)
             if(readFile.file2 != "") {
                 val outputFile2 = "$outputDir/${readFile.sampleName}_2_readMapping.txt"
                 mapSingleReadFile(index, readFile.sampleName, readFile.file2, outputFile2, threads, minMemLength, maxNumHits, condaEnvPrefix)
+                fileList.add(outputFile2)
             }
+            readNameToFileMap[readFile.sampleName] = fileList
         }
+        exportPathKeyFile(outputDir, readNameToFileMap)
     }
 
     fun mapSingleReadFile(index: String, sampleName: String,readFile: String, outputFile: String, threads: Int, minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String) {
@@ -163,6 +181,20 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
             //First turn the hapIds into a set then back to a list and sort so it will be consistent
             val hapIdsHit = bestHits.flatMap { it.listMemHits.map{hits -> hits.contig} }.toSet().toList().sorted()
             readMapping[hapIdsHit] = (readMapping[hapIdsHit]?:0) + 1
+        }
+    }
+
+    fun exportPathKeyFile(outputDir: String, readNameToFileMap: Map<String, List<String>>) {
+        val pathKeyFile = "$outputDir/pathKeyFile.txt"
+        myLogger.info("Writing pathKeyFile to $pathKeyFile")
+        bufferedWriter(pathKeyFile).use {writer ->
+            writer.write("sampleName\tfilename\n")
+            for ((sampleName, fileList) in readNameToFileMap) {
+                for (file in fileList) {
+                    writer.write("$sampleName\t$file\n")
+                }
+            }
+            writer.close()
         }
     }
 }

@@ -231,7 +231,22 @@ class MapReadsTest {
 
         assertEquals(expectedReadMap2.size, observedReadMap2.size)
         expectedReadMap2.keys.forEach { assertEquals(expectedReadMap2[it], observedReadMap2[it]) }
+    }
 
+    @Test
+    fun testExportPathKeyFile() {
+        val mapReads = MapReads()
+        val outputDir = "${TestExtension.tempDir}ropebwtTest/"
+        val readNameToFileMap = mutableMapOf<String,MutableList<String>>()
+        readNameToFileMap["LineA"] = mutableListOf("$outputDir/LineA_1_readMapping.txt", "$outputDir/LineA_2_readMapping.txt")
+        readNameToFileMap["LineB"] = mutableListOf("$outputDir/LineB_1_readMapping.txt")
 
+        mapReads.exportPathKeyFile(outputDir, readNameToFileMap)
+
+        val expectedLines = listOf("sampleName\tfilename", "LineA\t$outputDir/LineA_1_readMapping.txt", "LineA\t$outputDir/LineA_2_readMapping.txt", "LineB\t$outputDir/LineB_1_readMapping.txt")
+        val observedLines = bufferedReader("$outputDir/pathKeyFile.txt").readLines()
+
+        assertEquals(expectedLines.size, observedLines.size)
+        expectedLines.indices.forEach { assertEquals(expectedLines[it], observedLines[it]) }
     }
 }
