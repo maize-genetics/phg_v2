@@ -91,6 +91,9 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         exportPathKeyFile(outputDir, readNameToFileMap)
     }
 
+    /**
+     * Function to map a single read file to the index and write the read mapping to the outputFile
+     */
     fun mapSingleReadFile(index: String, sampleName: String,readFile: String, outputFile: String, threads: Int, minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String) {
         myLogger.info("Mapping reads in $readFile to $index")
 
@@ -107,7 +110,7 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
 
 
     /**
-     * Function to setup the ropebwt3 mem process
+     * Function to setup the ropebwt3 mem process and pass a BufferedReader for use by the rest of the program
      * //time ../ropebwt3/ropebwt3 mem -t40 -l148 -p50 /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmd /workdir/zrm22/phgv2/ropeBWT/Reads/B97_HVMFTCCXX_L7_1.clean.fq.gz > B97_1_fullASM_pos_matches2NM.bed
      *
      */
@@ -126,6 +129,10 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         return BufferedReader(InputStreamReader(ropebwt3Process.inputStream))
     }
 
+    /**
+     * Function to create a readMapping Map from a BufferedReader of a ropebwt3 mem output
+     * This will work directly from a file but this command is not setup to do that yet.
+     */
     fun createReadMappingsForFileReader(
         bedFileReader: BufferedReader,
         maxNumHits: Int
@@ -168,6 +175,11 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         return MEM(readName, readStart, readEnd, numHits, listMemHits)
     }
 
+    /**
+     * Function to process the mems for a single read and add them to the readMapping
+     * This will filter things based on the maxNumHits and retain the mems that are longest
+     * Because MEMs are Maximal Exact Matches, the longest MEMs are the best hits
+     */
     fun processMemsForRead(tempMems: List<MEM>, readMapping: MutableMap<List<String>, Int>, maxNumHits: Int) {
         //get the longest hits
         val maxLength = tempMems.maxOf { it.readEnd - it.readStart }
@@ -184,6 +196,9 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         }
     }
 
+    /**
+     * Function to export the path key file for the readMapping files that have been processed.
+     */
     fun exportPathKeyFile(outputDir: String, readNameToFileMap: Map<String, List<String>>) {
         val pathKeyFile = "$outputDir/pathKeyFile.txt"
         myLogger.info("Writing pathKeyFile to $pathKeyFile")
