@@ -2,13 +2,52 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 
 import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.cli.TestExtension
+import net.maizegenetics.phgv2.pathing.KeyFileData
+import net.maizegenetics.phgv2.utils.setupDebugLogging
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
 class MapReadsTest {
+
+    companion object {
+        val tempTestDir = "${TestExtension.tempDir}ropebwtTest/"
+
+
+        //Setup/download  files
+        //Resetting on both setup and teardown just to be safe.
+        @JvmStatic
+        @BeforeAll
+        fun setup() {
+            resetDirs()
+            setupDebugLogging()
+        }
+
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+            resetDirs()
+        }
+
+        private fun resetDirs() {
+
+            File(TestExtension.tempDir).deleteRecursively()
+            File(TestExtension.testOutputFastaDir).deleteRecursively()
+            File(TestExtension.testOutputDir).deleteRecursively()
+            File(tempTestDir).deleteRecursively()
+
+            File(TestExtension.tempDir).mkdirs()
+            File(TestExtension.testOutputFastaDir).mkdirs()
+            File(TestExtension.testOutputDir).mkdirs()
+            File(tempTestDir).mkdirs()
+        }
+    }
 
     @Test
     fun testCliktParams() {
@@ -147,11 +186,52 @@ class MapReadsTest {
 
     @Test
     fun testMapSingleReadFile() {
-        fail("Not yet implemented")
+        resetDirs()
+        val mapReads = MapReads()
+        val index = "data/test/ropebwt/testIndex.fmd"
+        val readFile = "data/test/kmerReadMapping/simulatedReads/LineA_1.fq"
+        val outputDir = "${TestExtension.tempDir}ropebwtTest/"
+        val outputFile = "$outputDir/LineA_1_readMapping.txt"
+        mapReads.mapSingleReadFile(index, "LineA" ,readFile, outputFile ,5, 148, 5, "")
+
+        val expectedLines = bufferedReader("data/test/ropebwt/LineA_1_readMapping.txt").readLines()
+        val expectedReadMap = expectedLines.filter { !it.startsWith("#") }.filter { !it.startsWith("HapId") }.map { it.split("\t") }.associate { it[0] to it[1].toInt() }
+        val observedLines = bufferedReader(outputFile).readLines()
+        val observedReadMap = observedLines.filter { !it.startsWith("#") }.filter { !it.startsWith("HapId") }.map { it.split("\t") }.associate { it[0] to it[1].toInt() }
+
+        assertEquals(expectedReadMap.size, observedReadMap.size)
+
+        expectedReadMap.keys.forEach { assertEquals(expectedReadMap[it], observedReadMap[it]) }
     }
 
     @Test
     fun testMapAllReadFiles() {
-        fail("Not yet implemented")
+        resetDirs()
+        val mapReads = MapReads()
+        //process all the reads
+        val outputDir = "${TestExtension.tempDir}ropebwtTest/"
+        val index = "data/test/ropebwt/testIndex.fmd"
+
+        val keyFileDataEntry = listOf(KeyFileData("LineA", "data/test/kmerReadMapping/simulatedReads/LineA_1.fq", "data/test/kmerReadMapping/simulatedReads/LineA_2.fq"))
+        mapReads.mapAllReadFiles(index, keyFileDataEntry, outputDir, 5, 148, 5, "")
+
+
+        val expectedLines = bufferedReader("data/test/ropebwt/LineA_1_readMapping.txt").readLines()
+        val expectedReadMap = expectedLines.filter { !it.startsWith("#") }.filter { !it.startsWith("HapId") }.map { it.split("\t") }.associate { it[0] to it[1].toInt() }
+        val observedLines = bufferedReader("$outputDir/LineA_1_readMapping.txt").readLines()
+        val observedReadMap = observedLines.filter { !it.startsWith("#") }.filter { !it.startsWith("HapId") }.map { it.split("\t") }.associate { it[0] to it[1].toInt() }
+
+        assertEquals(expectedReadMap.size, observedReadMap.size)
+        expectedReadMap.keys.forEach { assertEquals(expectedReadMap[it], observedReadMap[it]) }
+
+        val expectedLines2 = bufferedReader("data/test/ropebwt/LineA_2_readMapping.txt").readLines()
+        val expectedReadMap2 = expectedLines2.filter { !it.startsWith("#") }.filter { !it.startsWith("HapId") }.map { it.split("\t") }.associate { it[0] to it[1].toInt() }
+        val observedLines2 = bufferedReader("$outputDir/LineA_2_readMapping.txt").readLines()
+        val observedReadMap2 = observedLines2.filter { !it.startsWith("#") }.filter { !it.startsWith("HapId") }.map { it.split("\t") }.associate { it[0] to it[1].toInt() }
+
+        assertEquals(expectedReadMap2.size, observedReadMap2.size)
+        expectedReadMap2.keys.forEach { assertEquals(expectedReadMap2[it], observedReadMap2[it]) }
+
+
     }
 }

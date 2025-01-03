@@ -116,6 +116,10 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         val tempMems = mutableListOf<MEM>()
         val readMapping = mutableMapOf<List<String>, Int>()
         while (currentLine != null) {
+            if(currentLine.isEmpty()) {
+                currentLine = bedFileReader.readLine()
+                continue
+            }
             val alignmentParsed = parseStringIntoMem(currentLine)
             if (tempMems.isNotEmpty() && tempMems[0].readName != alignmentParsed.readName) {
                 //write out the tempMems
