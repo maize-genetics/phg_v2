@@ -132,7 +132,17 @@ class MapReadsTest {
 
     @Test
     fun testSetupMappingProcess() {
-        fail("Not yet implemented")
+        val expected = bufferedReader("data/test/ropebwt/LineA_1_expected.bed").readLines()
+
+        val mapReads = MapReads()
+        val index = "data/test/ropebwt/testIndex.fmd"
+        val readFile = "data/test/kmerReadMapping/simulatedReads/LineA_1.fq"
+        //index: String, readFile: String, threads: Int, minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String
+
+        val observedAlignments = mapReads.setupMappingProcess(index, readFile, 5, 148, 5, "").readLines().filter { it.isNotEmpty() }
+
+        assertEquals(expected.size, observedAlignments.size)
+        expected.indices.forEach { assertEquals(expected[it], observedAlignments[it]) }
     }
 
     @Test
