@@ -25,8 +25,10 @@ class TiledbCoreHvcfUtilsTest {
 
         private val multiInputDir = "${TestExtension.tempDir}/multi-input/"
         private val outputHvcfDir = "${TestExtension.tempDir}/output/"
+        private val imputedHvcfDir = "${TestExtension.tempDir}/imputed/"
         val lineAhvcf = "data/test/tiledbCoreHvcf/LineA.h.vcf"
         val lineBhvcf = "data/test/tiledbCoreHvcf/LineB.h.vcf"
+        val imputedHvcf = "data/test/resequenceHaplotypeVCF/Imputation.h.vcf"
         val dbPath = TestExtension.testTileDBURI
         val altHeaderArray = dbPath + "/alt_header_array"
         val variantsArray = dbPath + "/hvcf_variants_array"
@@ -37,9 +39,11 @@ class TiledbCoreHvcfUtilsTest {
             File(multiInputDir).mkdirs()
             File(outputHvcfDir).mkdirs()
             File(dbPath).mkdirs()
+            File(imputedHvcfDir).mkdirs()
 
             File(lineAhvcf).copyTo(File(multiInputDir + File(lineAhvcf).name))
             File(lineBhvcf).copyTo(File(multiInputDir + File(lineBhvcf).name))
+            File(imputedHvcf).copyTo(File(imputedHvcfDir + File(imputedHvcf).name))
         }
 
         @AfterAll
@@ -47,6 +51,7 @@ class TiledbCoreHvcfUtilsTest {
         fun teardown() {
             File(outputHvcfDir).deleteRecursively()
             File(multiInputDir).deleteRecursively()
+            File(imputedHvcfDir).deleteRecursively()
             // delete the tempDir
             File(TestExtension.tempDir).deleteRecursively()
         }
@@ -159,22 +164,26 @@ class TiledbCoreHvcfUtilsTest {
 
             // To test what was written, we must extract data
             println("TestCase: Extracting data from tiledb array")
-            // These are the first 2 IDs in the LineA.h.vcf file followed by the first 2 IDs in the LineB.h.vcf file
+
             //val rangesToQuery = listOf("=1:1-1000","=2:1-1000")
             val rangesToQuery = listOf("1:1-1000","2:1-1000")
-            //val idsToQuery = listOf("0eb9029f3896313aebc69c8489923141","12f0cec9102e84a161866e37072443b7","00f297caa4a0fa5a6f8e76d388393fa7","05efe15d97db33185b64821791b01b0f")
 
-            // Read data from TileDB.  This gets the SampleName and Regions for the
-            // given ID
+            // Read data from TileDB.  This gets the SampleName and ID for the given refRange
             val results = querySampleNamesAndIDsByRefRange(altHeaderArray, rangesToQuery)
 
             // Print results
             println("Results:")
             results.forEach { println(it) }
 
+        // Try with dynamic buffers
+        val streamingResults = queryWithStreaming(altHeaderArray, rangesToQuery)
+        println("\nStreaming buffer results:")
+        streamingResults.forEach { println(it) }
+
             // delete the tiledbArray so next tests can recreate what they need
             File(dbPath).deleteRecursively()
     }
+
     @Test
     fun testQueryByRefRange() {
 
@@ -201,9 +210,179 @@ class TiledbCoreHvcfUtilsTest {
         val resultsByRefRange2 = queryIDsByRefRange(altHeaderArray, listOf("1:1-1000","2:12001-16500"))
         println("Results with 2 refRanges: $resultsByRefRange2")
 
+        val resultsByRefRange5Ranges = queryIDsByRefRange(altHeaderArray, listOf("1:1-1000","1:12001-16500","1:33001-34000","2:1-1000","2:5501-6500"))
+        println("Results with 5 refRanges: $resultsByRefRange5Ranges")
+
+        // Need some asserts here !!
+
         // delete the tiledbArray so next tests can recreate what they need
         File(dbPath).deleteRecursively()
 
+    }
+
+    @Test
+    fun testQueryByRefRange_2() {
+
+        // Trying to see why I can filter on specific refRanges and get it correct for the alt header array,
+        // but cannot get it correct for the variants array  Added the variants array processing here,
+        // which is a copy of the test above.  Wanted to be sure I didn't mess up the test above which is
+        // the reason for the duplicate test case.
+
+        // testing output from parseTiledbAltHeaders
+        var vcfReader = VCFFileReader(File(lineAhvcf), false)
+        val altHeadersLineA = parseTiledbAltHeaders(vcfReader)
+        println("Finished parsing LineA alt headers ")
+        val variantDataLineA = parseTiledbVariantData(vcfReader)
+        println("Finished parsing lineAhvcf variant data")
+
+        vcfReader = VCFFileReader(File(lineBhvcf), false)
+        val altHeadersLineB = parseTiledbAltHeaders(vcfReader)
+        println("Finished parsing lineBhvcf alt headers")
+        val variantDataLineB = parseTiledbVariantData(vcfReader)
+        println("Finished parsing lineBhvcf variant data")
+
+        // Create the tiledb array by calling the function createTileDBArray
+        println("Creating tiledb array")
+        //createTileDBArraySingleDimensionID(tiledbArrayName)
+        createTileDBCoreArrays(dbPath)
+
+        // Write the altHeaders to the tiledb array
+        println("Writing altHeaders to tiledb array")
+        writeAltDataToTileDB(altHeaderArray, altHeadersLineA)
+        writeAltDataToTileDB(altHeaderArray, altHeadersLineB)
+
+        //Write to the variants array
+        writeVariantsDataToTileDB(variantsArray, variantDataLineA)
+        writeVariantsDataToTileDB(variantsArray, variantDataLineB)
+
+        // Try to query by refRange
+        val resultsByRefRange = queryIDsByRefRange(altHeaderArray, listOf("1:1-1000"))
+        println("Results with 1 refRange: $resultsByRefRange")
+        val resultsByRefRange2 = queryIDsByRefRange(altHeaderArray, listOf("1:1-1000","2:12001-16500"))
+        println("Results with 2 refRanges: $resultsByRefRange2")
+
+        val resultsByRefRange5Ranges = queryIDsByRefRange(altHeaderArray, listOf("1:1-1000","1:12001-16500","1:33001-34000","2:1-1000","2:5501-6500"))
+        println("Results with 5 refRanges: $resultsByRefRange5Ranges")
+
+        // Need some asserts here !!
+
+        // Query the variants array
+        val results = queryByRefRanges(variantsArray, listOf("1:1-1000","1:12001-16500","1:33001-34000","2:1-1000","2:5501-6500"))
+        println("\nResults on variantsArray:")
+        results.forEach { println(it) }
+
+
+        // delete the tiledbArray so next tests can recreate what they need
+        File(dbPath).deleteRecursively()
+
+    }
+
+    @Test
+    fun testVariantArray() {
+        println("Creating tiledb array")
+        // ensure the top folder exists
+        File(dbPath).mkdirs()
+        createTileDBCoreArrays(dbPath)
+
+        // Load the imputed hvcf file
+        // loadImputedHvcfToTileDB(imputedHvcf, dbPath)
+        // testing output from parseTiledbAltHeaders
+        var vcfReader = VCFFileReader(File(imputedHvcf), false)
+        val altHeadersImputed = parseTiledbAltHeaders(vcfReader)
+        println("Finished parsing imputedHvcf alt headers ")
+        val variantData = parseTiledbVariantData(vcfReader)
+        println("Finished parsing imputedHvcf variant data")
+
+        // Now load the data
+        val arrayName = "${dbPath}/alt_header_array"
+        writeAltDataToTileDB(arrayName, altHeadersImputed)
+        val variantArrayName = "${dbPath}/hvcf_variants_array"
+        writeVariantsDataToTileDB(variantArrayName, variantData)
+
+        // Do again for LineA and LineB
+        vcfReader = VCFFileReader(File(lineAhvcf), false)
+        val altHeadersLineA = parseTiledbAltHeaders(vcfReader)
+        writeAltDataToTileDB(arrayName, altHeadersLineA)
+        val variantDataLineA = parseTiledbVariantData(vcfReader)
+        writeVariantsDataToTileDB(variantArrayName, variantDataLineA)
+        println("Finished writing LineA data")
+
+        vcfReader = VCFFileReader(File(lineBhvcf), false)
+        val altHeadersLineB = parseTiledbAltHeaders(vcfReader)
+        writeAltDataToTileDB(arrayName, altHeadersLineB)
+        val variantDataLineB = parseTiledbVariantData(vcfReader)
+        writeVariantsDataToTileDB(variantArrayName, variantDataLineB)
+
+        // Query for distinct sampleNames from the hvcf_variants_array
+        println("QUery distinct sample names from the hvcf_variants_array")
+        val names = queryDistinctSampleNames(variantArrayName)
+        println("Distinct sample names: $names")
+        assertTrue(names.size == 3)
+        assertTrue(names.contains("LineA"))
+        assertTrue(names.contains("LineB"))
+        assertTrue(names.contains("TestLine2"))
+
+        //Query for distinct refRanges from the hvcf_variants_array
+        println("Query distinct refRanges from the hvcf_variants_array")
+        val refRangeList = queryDistinctRefRanges(variantArrayName)
+        println("\nnumber of distinct ref ranges: ${refRangeList.size}")
+        println("Distinct refRanges: $refRangeList")
+        assertEquals(38, refRangeList.size)
+
+
+        // QUery for SampleName and ID based on a list of RefRanges
+        // I can't get this to work.  It is fine when I try the query on the altHeaderArray
+        //  but not on the variantsArray.
+
+        //val refRanges = listOf("1:1-1000","1:12001-16500","1:33001-34000","2:1-1000","2:5501-6500")
+        val refRanges = listOf("1:33001-34000","2:1-1000","2:5501-6500")
+        //val results = queryByRefRanges(variantArrayName, refRanges)
+        val results = queryByRefRanges(variantArrayName, listOf("1:1-1000","1:12001-16500","1:33001-34000","2:1-1000","2:5501-6500"))
+        println("\nResults on variantsArray:")
+        results.forEach { println(it) }
+
+        // Query as we do the altHeaders
+        val resultsByRefRange2 = queryIDsByRefRange(altHeaderArray, listOf("1:1-1000","1:12001-16500","1:33001-34000","2:1-1000","2:5501-6500"))
+
+        println("\nResults with 5 refRanges:, altHeaderArray: ")
+        results.forEach {println(it)}
+    }
+
+    @Test
+    fun testLoadImputedHvcf() {
+        // TODO - this failes - no output!1 Just columns, no rows.
+        // Load the imputed hvcf file into the tiledb core arrays
+        // Create the tiledb array by calling the function createTileDBArray
+        println("Creating tiledb array")
+        // ensure the top folder exists
+        File(dbPath).mkdirs()
+        createTileDBCoreArrays(dbPath)
+
+        // Load the imputed hvcf file
+       // loadImputedHvcfToTileDB(imputedHvcf, dbPath)
+        // testing output from parseTiledbAltHeaders
+        var vcfReader = VCFFileReader(File(imputedHvcf), false)
+        val altHeadersImputed = parseTiledbAltHeaders(vcfReader)
+        println("Finished parsing imputedHvcf alt headers ")
+        val variantData = parseTiledbVariantData(vcfReader)
+        println("Finished parsing imputedHvcf variant data")
+
+        // Now load the data
+        val arrayName = "${dbPath}/alt_header_array"
+        writeAltDataToTileDB(arrayName, altHeadersImputed)
+        val variantArrayName = "${dbPath}/hvcf_variants_array"
+        writeVariantsDataToTileDB(variantArrayName, variantData)
+
+        println("QUery distinct sample names from the hvcf_variants_array")
+        val names = queryDistinctSampleNames(variantArrayName)
+        println("Distinct sample names: $names")
+
+        // Query the data to verify it is loaded.
+        // QUery only the variants data:
+        val results = queryVariantsArray(variantArrayName, null, listOf("TestLine2"))
+
+        // delete the tiledbArray so next tests can recreate what they need
+        File(dbPath).deleteRecursively()
     }
 
 }
