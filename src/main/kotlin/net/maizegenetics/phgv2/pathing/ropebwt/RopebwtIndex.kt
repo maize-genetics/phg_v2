@@ -12,6 +12,15 @@ import net.maizegenetics.phgv2.cli.logCommand
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
+/**
+ * Class to call the appropriate ropebwt3 commands to create a ropeBWT3 index
+ * First it will run the build step to make the index
+ * Then it converts the fmr index to fmd for speed and efficiency
+ * Then it builds the suffix array for the index
+ * Finally it builds the chromosome length file for the index
+ *
+ * With the output files we can then run ropebwt3 mem and get read mappings.
+ */
 class RopebwtIndex : CliktCommand(help="Create a ropeBWT3 index") {
 
     private val myLogger = LogManager.getLogger(RopebwtIndex::class.java)
@@ -46,7 +55,7 @@ class RopebwtIndex : CliktCommand(help="Create a ropeBWT3 index") {
         //time ../ropebwt3/ropebwt3 build -t24 -bo phg_ASMs.fmr /workdir/zrm22/phgv2/ropeBWT/fullASMTests/ASMs/B73.fa
         runBuildStep(inputFasta, indexFilePrefix, numThreads, condaEnvPrefix)
 
-        //Convert the fmr to fmt
+        //Convert the fmr to fmd to make it static and efficient
         //time ../ropebwt3/ropebwt3 build -i /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmr -do /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmd
         convertBWTIndex(indexFilePrefix, condaEnvPrefix)
 
@@ -90,6 +99,7 @@ class RopebwtIndex : CliktCommand(help="Create a ropeBWT3 index") {
 
     /**
      * Function to convert the BWT index file to a format that is static but more efficient
+     * This is recommended by the ropebwt3 documentation
      */
     fun convertBWTIndex(indexFilePrefix: String, condaEnvPrefix: String) {
         //Convert the fmr to fmt

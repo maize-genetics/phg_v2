@@ -1,7 +1,5 @@
 name: phgv2-ropebwt-conda
 channels:
-  - conda-forge
   - bioconda
-  - tiledb
 dependencies:
   - ropebwt3=3.9
