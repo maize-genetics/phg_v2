@@ -267,11 +267,14 @@ phg_v2_example/
 In addition to `--index-file`, this command can take other optional 
 parameters:
 
-| Parameter name             | Description                                                                                                       | Default value         |
-|----------------------------|-------------------------------------------------------------------------------------------------------------------|-----------------------|
-| `--max-hap-proportion`     | Only k-mers mapping to less than or equal to maxHapProportion of haplotypes in a reference range will be retained. | `0.75`                |
-| `--max-arg-length`         | The maximum argument length for a call to the [AGC program](https://github.com/acoleman2000/agc).                 | `200000`              |
-| `--no-diagnostics` or `-n` | A flag that eliminates the diagnostic report                                                                      | the report is written |
+| Parameter name            | Description                                                                                                                                                                                       | Default value              |
+|---------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------|
+| `--max-hap-proportion`    | Note: This parameter is currently unused.  Will be removed in a future update. Only k-mers mapping to less than or equal to maxHapProportion of haplotypes in a reference range will be retained. | `0.75`                     |
+| `--max-arg-length`        | The maximum argument length for a call to the [AGC program](https://github.com/acoleman2000/agc).                                                                                                 | `200000`                   |
+| `--no-diagnostics` or `-n` | A flag that eliminates the diagnostic report                                                                                                                                                      | Disabled (report is written) |
+| `--max-sample-proportion ` | This parameter will allow for kmers seen below --max-sample-proportion * numSamples to be retained.  Any kmers occurring more than that ratio will be filtered out.                               | `0.5`                      |
+| `--use-big-discard-set`    | A flag to use a different data structure to hold the discard set at the expense of RAM and speed.  If the default option fails due to an error consider enabling this flag.                       | Disabled (default data structure is used) |
+
 
 !!! tip
     If you get an error caused by a call to AGC being too long,
