@@ -248,7 +248,7 @@ fun prepareVariableBuffer(
     data: List<String>
 ): Pair<io.tiledb.java.api.NativeArray, io.tiledb.java.api.NativeArray> {
     val concatenated = data.joinToString(separator = "")
-    println("prepareVariableBuffer: size of data list = ${data.size}")
+    //println("prepareVariableBuffer: size of data list = ${data.size}")
 
     // Create a running total of the lengths of the strings in the data list, dropping
     // the last element as that is not needed, then convert to a long array.
@@ -257,7 +257,7 @@ fun prepareVariableBuffer(
         .map { it.toLong() } // tiledb wants this data as TILEDB_UINT64, which is Kotlin long
         .toLongArray()
 
-    println("prepareVariableBuffer: size of offsets array = ${offsets.size}")
+    //println("prepareVariableBuffer: size of offsets array = ${offsets.size}")
     // WIth variable length attributes, we need both a data buffer and an offsets buffer
     val dataBuffer = io.tiledb.java.api.NativeArray(context, concatenated, Datatype.TILEDB_STRING_ASCII)
     val offsetsBuffer = io.tiledb.java.api.NativeArray(context, offsets, Datatype.TILEDB_UINT64)
@@ -399,13 +399,17 @@ fun writeVariantsDataToTileDB(variantArrayName:String, combinedHvcfVariantData:L
  * It uses a stream to continually read results while the query statue is INCOMPLETE.
  * The function returns a list of maps, where each map contains the fields SampleName and ID.
  *
- * THIS HAS NOT BEEN TESTED - it is here because we'll probably need something like it when testing at scale
- * as we won't know the sizeof the data we are querying.
+ * Streaming works with smallseq, so probably really isn't streaming.  Needs testing with
+ * a larger dataset.
+ *
+ * This was tested using the alt_header_array, not the hvcf_variants_array
+ * THis works when I grab ALL data, then filter at the end.  But when I try to filter
+ * based on refRanges run through prepareVariableBuffer, I don't get the correct results.
  */
 
-fun queryWithStreaming(arrayName: String, refRangeList: List<String>): Map<String,List<Map<String,String>>> {
+fun queryWithStreaming_sampleNameIdByRefRange(arrayName: String, refRangeList: List<String>): Map<String,List<Map<String,String>>> {
     val context = Context()
-    val combinedResult = mutableListOf<Map<String, String>>()
+    //val combinedResult = mutableListOf<Map<String, String>>()
     val resultMap = mutableMapOf<String, List<Map<String,String>>>()
 
     // Open the array in read mode
@@ -413,6 +417,10 @@ fun queryWithStreaming(arrayName: String, refRangeList: List<String>): Map<Strin
 
     // Prepare buffers for RefRange (filtering dimension)
     val refRangeBuffers = prepareVariableBuffer(context, refRangeList)
+    println("queryWithStreaming: refRangeList size = ${refRangeList.size},  refRangeBuffers.first size = ${refRangeBuffers.first.size}, second size = ${refRangeBuffers.second.size}")
+    // print the refRangeBuffers.second as a long array
+    val refRangeOffsetsArray = refRangeBuffers.second.toJavaArray() as LongArray
+    println("queryWithStreaming: refRangeOffsetsArray = ${refRangeOffsetsArray.contentToString()}")
 
     // Set reasonable initial buffer sizes
     val sampleNameBufferSize = 8192
@@ -435,11 +443,15 @@ fun queryWithStreaming(arrayName: String, refRangeList: List<String>): Map<Strin
         setLayout(Layout.TILEDB_UNORDERED) // GLOBAL_ORDER didn't get all the data, and associated it incorrectly
 
         // Set RefRange buffers
-        setDataBuffer("RefRange", refRangeBuffer)
-        setOffsetsBuffer("RefRange", refRangeOffsets)
+//        setDataBuffer("RefRange", refRangeBuffer)
+//        setOffsetsBuffer("RefRange", refRangeOffsets)
 
-//        setDataBuffer("RefRange", refRangeBuffers.first)
-//        setOffsetsBuffer("RefRange", refRangeBuffers.second)
+        // Set RefRange Buffers  - these are the buffers from prepareVariableBuffer(refRangeList)
+
+
+
+        setDataBuffer("RefRange", refRangeBuffers.first)
+        setOffsetsBuffer("RefRange", refRangeBuffers.second)
 
         // Set SampleName buffers
         setDataBuffer("SampleName", sampleNameBuffer)
@@ -450,6 +462,14 @@ fun queryWithStreaming(arrayName: String, refRangeList: List<String>): Map<Strin
         setOffsetsBuffer("ID", idOffsets)
     }
 
+    // Add ranges for RefRange dimension. This will allow tiledb to do the "slicing" for us
+    // This doesn't work due to conda issues.  It seems we need a core tiledb of 12.2.0 or later
+    // I tried adding and creating a new environment but could not get the env to build on the iMac.
+    // SO for now, we will just get all the data and filter it at the end.
+//    refRangeList.forEach { refRange ->
+//        query.addRange(0, refRange, refRange, null) // Constrain to specific RefRange values
+//    }
+
     // Iterate until query is complete
     do {
         query.submit()
@@ -458,7 +478,7 @@ fun queryWithStreaming(arrayName: String, refRangeList: List<String>): Map<Strin
         val numSampleNames = query.resultBufferElements()["SampleName"]?.first?.toInt() ?: 0
         val numIDs = query.resultBufferElements()["ID"]?.first?.toInt() ?: 0
         val numRefRanges = query.resultBufferElements()["RefRange"]?.first?.toInt() ?: 0
-        //println("queryWithStreaming submit results: SampleNames=$numSampleNames, IDs=$numIDs, RefRanges=$numRefRanges")
+        println("queryWithStreaming the query.submit results show : num SampleNames=$numSampleNames, num IDs=$numIDs, num RefRanges=$numRefRanges")
 
         // Extract RefRange data
 //        val refRangeOffsetsArray = refRangeOffsets.toJavaArray() as LongArray
@@ -467,6 +487,21 @@ fun queryWithStreaming(arrayName: String, refRangeList: List<String>): Map<Strin
 //            val end = if (index < refRangeOffsetsArray.size - 1) refRangeOffsetsArray[index + 1].toInt() else refRangeRawData.length
 //            if (offset.toInt() < end) refRangeRawData.substring(offset.toInt(), end).trimEnd('\u0000') else null
 //        }
+
+        // Extract RefRange data
+        val refRangeOffsetsArrayResult = refRangeBuffers.second.toJavaArray() as LongArray
+        val refRangeRawData = String(refRangeBuffers.first.toJavaArray() as ByteArray)
+        val refRanges = refRangeOffsetsArrayResult.take(query.resultBufferElements()["RefRange"]?.first?.toInt() ?: 0)
+            .mapIndexedNotNull { index, offset ->
+                val end = if (index < refRangeOffsetsArrayResult.size - 1) refRangeOffsetsArrayResult[index + 1].toInt()
+                else refRangeRawData.length
+                refRangeRawData.substring(offset.toInt(), end).trimEnd('\u0000')
+                if (offset.toInt() < end) {
+                    refRangeRawData.substring(offset.toInt(), end).trimEnd('\u0000')
+                } else {
+                    null
+                }
+            }
 
         // Extract SampleName data
         val sampleNameOffsetsArray = sampleNameOffsets.toJavaArray() as LongArray
@@ -488,32 +523,15 @@ fun queryWithStreaming(arrayName: String, refRangeList: List<String>): Map<Strin
             } else null
         }
 
-        // Extract RefRange data
-        val refRangeOffsetsArrayResult = refRangeBuffers.second.toJavaArray() as LongArray
-        val refRangeRawData = String(refRangeBuffers.first.toJavaArray() as ByteArray)
-        val refRanges = refRangeOffsetsArrayResult.take(query.resultBufferElements()["RefRange"]?.first?.toInt() ?: 0)
-            .mapIndexedNotNull { index, offset ->
-                val end = if (index < refRangeOffsetsArrayResult.size - 1) refRangeOffsetsArrayResult[index + 1].toInt()
-                else refRangeRawData.length
-                refRangeRawData.substring(offset.toInt(), end).trimEnd('\u0000')
-                if (offset.toInt() < end) {
-                    refRangeRawData.substring(offset.toInt(), end).trimEnd('\u0000')
-                } else {
-                    null
-                }
-            }
-
-        // Combine results into a list of maps
-        // TODO - is this is the problem.  ARe we overwritting something?
-        // NO - changing this to below didn't fix it - results are the same.
-        val results = refRanges.zip(sampleNames.zip(ids)) { refRange, (sampleName, id1) ->
-            mapOf(
-                "RefRange" to refRange,
-                "SampleName" to sampleName,
-                "ID1" to id1
-            )
-        }
-        combinedResult.addAll(results)
+        // Combine results into a list of map
+//        val results = refRanges.zip(sampleNames.zip(ids)) { refRange, (sampleName, id) ->
+//            mapOf(
+//                "RefRange" to refRange,
+//                "SampleName" to sampleName,
+//                "ID" to id
+//            )
+//        }
+//        combinedResult.addAll(results)
 
         // TRy this instead of above: No - doesn't help.  STill not getting the correct
         // results.  Not sure if the problem is reading the data or storing the data.
@@ -533,12 +551,12 @@ fun queryWithStreaming(arrayName: String, refRangeList: List<String>): Map<Strin
     // with just a couple.  So now filter the results to just what we requested
     //val filteredResults = combinedResult.filter { it["RefRange"] in refRangeList }
     val filteredResults = resultMap.filterKeys { it in refRangeList }
-    println("queryWithStreaming: num combined results = ${resultMap.keys.size}, num filtered results = ${filteredResults.size}")
+    println("queryWithStreaming: number of  resultMap entries = ${resultMap.keys.size}, num filtered results = ${filteredResults.keys.size}")
     println("\nHere are all the values from the resultMap before filtering:")
     resultMap.forEach { (key, value) -> println("Key: $key, Value: $value") }
-    println("\nHere are all the values from the original combinedResult map before filtering:")
+    //println("\nHere are all the values from the original combinedResult map before filtering:")
     // print the values in combinedResult.  These turn out to be the same as the resultMap
-    combinedResult.forEach { println(it) }
+    //combinedResult.forEach { println(it) }
 
     return filteredResults
 }
