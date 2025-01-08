@@ -220,6 +220,9 @@ class TiledbCoreHvcfUtilsTest {
         // which is a copy of the test above.  Wanted to be sure I didn't mess up the test above which is
         // the reason for the duplicate test case.
 
+        // Make sure the top folder exists
+        File(dbPath).mkdirs()
+
         // testing output from parseTiledbAltHeaders
         var vcfReader = VCFFileReader(File(lineAhvcf), false)
         val altHeadersLineA = parseTiledbAltHeaders(vcfReader)
