@@ -186,12 +186,12 @@ fun filterGenotypeTable(
 
 }
 
-fun runGLM(genotype: GenotypeTable, phenotype: Phenotype, populationStructre: Phenotype? = null): List<TableReport> {
+fun runGLM(genotype: GenotypeTable, phenotype: Phenotype, populationStructure: Phenotype? = null): List<TableReport> {
 
     val inputDatums = mutableListOf<Datum>()
     inputDatums.add(Datum("genotype", genotype, null))
     inputDatums.add(Datum("phenotype", phenotype, null))
-    populationStructre?.let { inputDatums.add(Datum("populationStructure", it, null)) }
+    populationStructure?.let { inputDatums.add(Datum("populationStructure", it, null)) }
 
     val input = DataSet(inputDatums, null)
 
