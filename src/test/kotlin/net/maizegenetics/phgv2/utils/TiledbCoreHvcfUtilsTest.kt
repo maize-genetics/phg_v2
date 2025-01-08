@@ -165,18 +165,10 @@ class TiledbCoreHvcfUtilsTest {
             // To test what was written, we must extract data
             println("TestCase: Extracting data from tiledb array")
 
-            //val rangesToQuery = listOf("=1:1-1000","=2:1-1000")
-            val rangesToQuery = listOf("1:1-1000","2:1-1000")
-
-            // Read data from TileDB.  This gets the SampleName and ID for the given refRange
-            val results = querySampleNamesAndIDsByRefRange(altHeaderArray, rangesToQuery)
-
-            // Print results
-            println("Results:")
-            results.forEach { println(it) }
+            val rangesToQuery = listOf("1:1-1000","1:6501-11000","2:1-1000","2:5501-6500")
 
         // Try with dynamic buffers
-        val streamingResults = queryWithStreaming(altHeaderArray, rangesToQuery)
+        val streamingResults = queryWithStreaming_sampleNameIdByRefRange(altHeaderArray, rangesToQuery)
         println("\nStreaming buffer results:")
         streamingResults.forEach { println(it) }
 
