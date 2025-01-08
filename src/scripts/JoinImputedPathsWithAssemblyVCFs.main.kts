@@ -88,15 +88,20 @@ imputedTable.posToLine.forEach { (pos, line) ->
         "impute-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "Impute")}"
     )
 
-    val glmOutput = runGLM(genotypeTable, phenotype, populationStructure)
+    if (genotypeTable.hasGenotype()) {
+        val glmOutput = runGLM(genotypeTable, phenotype, populationStructure)
 
-    if (writeGLMResults) {
-        glmOutput.forEachIndexed { i, table ->
-            writeTable(
-                table,
-                "glm-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "GLM").replace(".vcf", "-$i.txt")}"
-            )
+        if (writeGLMResults) {
+            glmOutput.forEachIndexed { i, table ->
+                writeTable(
+                    table,
+                    "glm-by-range/${
+                        vcfFilename.substringAfterLast('/').replace("Zh", "GLM").replace(".vcf", "-$i.txt")
+                    }"
+                )
+            }
         }
+
     }
 
 }
