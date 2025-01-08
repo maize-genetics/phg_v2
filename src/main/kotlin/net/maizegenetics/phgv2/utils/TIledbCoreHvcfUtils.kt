@@ -403,8 +403,7 @@ fun writeVariantsDataToTileDB(variantArrayName:String, combinedHvcfVariantData:L
  * a larger dataset.
  *
  * This was tested using the alt_header_array, not the hvcf_variants_array
- * THis works when I grab ALL data, then filter at the end.  But when I try to filter
- * based on refRanges run through prepareVariableBuffer, I don't get the correct results.
+ * THis works when I grab ALL data, then filter at the end.
  */
 
 fun queryWithStreaming_sampleNameIdByRefRange(arrayName: String, refRangeList: List<String>): Map<String,List<Map<String,String>>> {
