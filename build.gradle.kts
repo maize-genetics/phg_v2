@@ -66,7 +66,8 @@ dependencies {
 
     // Use these jar file when compiling for Linux
     // Keep the Mac Intel and Mac ARM jar inclusions commented out
-    implementation(files("repo/tiledb-vcf-java-0.25.2.jar"))
+    //implementation(files("repo/tiledb-vcf-java-0.25.2.jar"))
+    implementation(files("repo/tiledb-vcf-java-0.37.0-1-g03553439.jar")) // added 2024-01-08 based on ubuntua:latest
     implementation(files("repo/tiledb-java-0.19.6-SNAPSHOT.jar"))
 
     // Use these jar files when compiling for Mac with Intel chip
