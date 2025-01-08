@@ -66,8 +66,8 @@ dependencies {
 
     // Use these jar file when compiling for Linux
     // Keep the Mac Intel and Mac ARM jar inclusions commented out
-    implementation(files("repo/tiledb-vcf-java-0.25.2.jar"))
-    //implementation(files("repo/tiledb-vcf-java-0.37.0.jar"))
+    //implementation(files("repo/tiledb-vcf-java-0.25.2.jar"))
+    implementation(files("repo/tiledb-vcf-java-0.37.0-1-g03553439.jar"))
     // TileDB universal Java API
     implementation("io.tiledb:tiledb-java:0.28.1") // Replace with the latest version
     //implementation("io.tiledb:tiledb-java:0.28.2") // LCJ compiled, but not necessary, pull from maven
