@@ -338,6 +338,8 @@ class TiledbCoreHvcfUtilsTest {
 
         println("\nResults with 5 refRanges:, altHeaderArray: ")
         results.forEach {println(it)}
+
+        File(dbPath).deleteRecursively()
     }
 
     @Test
