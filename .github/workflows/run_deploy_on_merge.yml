@@ -11,7 +11,7 @@ on:
 jobs:
 
   check-app-changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       app_changed: ${{ steps.check_app_changes.outputs.app_changed }}
     steps:
