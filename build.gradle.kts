@@ -51,6 +51,7 @@ dependencies {
     implementation("com.github.samtools:htsjdk:4.0.1")
 
     implementation("it.unimi.dsi:fastutil:8.5.12")
+    implementation("net.openhft:zero-allocation-hashing:0.16")
 
     implementation("org.jetbrains.kotlin:kotlin-test:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}")
@@ -67,7 +68,9 @@ dependencies {
     // Use these jar file when compiling for Linux
     // Keep the Mac Intel and Mac ARM jar inclusions commented out
     implementation(files("repo/tiledb-vcf-java-0.37.0-1-g03553439.jar")) // added 2024-01-08 based on TileDB VCF 0.37.0 build
-    implementation(files("repo/tiledb-java-0.19.6-SNAPSHOT.jar"))
+    // TILedb universal Java API
+    implementation("io.tiledb:tiledb-java:0.28.1") // Replace with the latest version
+    //implementation(files("repo/tiledb-java-0.19.6-SNAPSHOT.jar"))
 
     // Use these jar files when compiling for Mac with Intel chip
     // Keep the Linux and Mac ARM jar inclusions commented out
