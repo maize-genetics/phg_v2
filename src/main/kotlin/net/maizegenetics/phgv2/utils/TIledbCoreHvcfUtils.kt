@@ -83,9 +83,9 @@ fun parseTiledbVariantData(vcfReader:VCFFileReader): List<Map<String,String>> {
         // Create the entry.  Only 1 if is haploid, 2 if is diploid
         val entry = mutableMapOf<String, String>()
         entry["RefRange"] = refRange
-        entry["ID1"] = altAlleles[0].displayString
+        entry["ID1"] = altAlleles[0].displayString.removeSurrounding("<", ">")
         entry["SampleName"] = "${sampleName}"
-        entry["ID2"] = altAlleles[0].displayString // Will be changed below if there are 2 alleles
+        entry["ID2"] = altAlleles[0].displayString.removeSurrounding("<", ">") // Will be changed below if there are 2 alleles
 
         // DO we want this to be 0, or do we want this to be
         // the same value as the ID1 field?
@@ -93,7 +93,7 @@ fun parseTiledbVariantData(vcfReader:VCFFileReader): List<Map<String,String>> {
         // when it is diploid.  But what about haploid - how do we know it is hapoid if we
         // fill in the ID2 field?
         if (alleles.size == 2 && altAlleles.size == 2) {
-            entry["ID2"] = altAlleles[1].displayString // If there are 2 alt alleles, set ID2 to the second allele
+            entry["ID2"] = altAlleles[1].displayString.removeSurrounding("<", ">") // If there are 2 alt alleles, set ID2 to the second allele
         }
         variantData.add(entry)
     }

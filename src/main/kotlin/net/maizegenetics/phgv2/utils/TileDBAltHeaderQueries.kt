@@ -214,8 +214,6 @@ fun queryIDsByRefRange(arrayName: String, refRangesToQuery: List<String>): Map<S
 
     val refRangeOffsetsArray = refRangeOffsetsBuffer.toJavaArray() as LongArray
     val refRangeRawData = String(refRangeBuffer.toJavaArray() as ByteArray)
-//    println("LCJ - refRangeRawData: $refRangeRawData")
-//    println("LCJ - refRangeOffsetsArray: ${refRangeOffsetsArray.contentToString()}")
     val refRanges = refRangeOffsetsArray.mapIndexed { index, offset ->
         val end = if (index < refRangeOffsetsArray.size - 1) refRangeOffsetsArray[index + 1].toInt() else refRangeRawData.length
         if (offset.toInt() < end) refRangeRawData.substring(offset.toInt(), end).trimEnd('\u0000') else ""
