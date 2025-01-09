@@ -66,10 +66,8 @@ dependencies {
 
     // Use these jar file when compiling for Linux
     // Keep the Mac Intel and Mac ARM jar inclusions commented out
-    implementation(files("repo/tiledb-vcf-java-0.25.2.jar"))
-    // TileDB universal Java API
-    implementation("io.tiledb:tiledb-java:0.28.1") // Replace with the latest version
-    //implementation(files("repo/tiledb-java-0.19.6-SNAPSHOT.jar")) // if not using universal TIledb Java API
+    implementation(files("repo/tiledb-vcf-java-0.37.0-1-g03553439.jar")) // added 2024-01-08 based on TileDB VCF 0.37.0 build
+    implementation(files("repo/tiledb-java-0.19.6-SNAPSHOT.jar"))
 
     // Use these jar files when compiling for Mac with Intel chip
     // Keep the Linux and Mac ARM jar inclusions commented out
@@ -95,7 +93,6 @@ dependencies {
     implementation("io.ktor:ktor-client-websockets:$ktorVersion")
 
     implementation("org.ehcache:ehcache:3.10.8")
-    implementation("net.openhft:zero-allocation-hashing:0.16")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
 
@@ -112,21 +109,6 @@ dependencies {
     }
 }
 
-// Helper function to detect platform and architecture
-// For future use
-fun platformAndArch(): String {
-    val platform = when (System.getProperty("os.name")) {
-        "Linux" -> "linux"
-        "Mac OS X" -> "osx"
-        else -> throw IllegalArgumentException("Unsupported OS")
-    }
-    val arch = when (System.getProperty("os.arch")) {
-        "amd64", "x86_64" -> "x86_64"
-        "arm", "aarch64" -> "arm"
-        else -> throw IllegalArgumentException("Unsupported architecture")
-    }
-    return "$platform-$arch"
-}
 // include versions.properties file in jar file
 tasks.jar {
     from(sourceSets.main.get().output)
