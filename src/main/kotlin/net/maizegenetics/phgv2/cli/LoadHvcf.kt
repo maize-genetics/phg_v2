@@ -32,9 +32,6 @@ class LoadHvcf: CliktCommand(help = "Load  h.vcf files into TileDB core datasets
     val dbPath by option(help = "Folder holding TileDB datasets")
         .default("")
 
-//    val type by option(help = "Type of hvcf file  to process: choices are assembly or imputed")
-//        .default("assembly")
-
     // Pre-compile the Regex pattern - used when creating the output fasta file names
     val HVCF_PATTERN = Regex("""(\.hvcf|\.h\.vcf|\.hvcf\.gz|\.h\.vcf\.gz)$""")
 
@@ -49,7 +46,7 @@ class LoadHvcf: CliktCommand(help = "Load  h.vcf files into TileDB core datasets
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
         println("LoadHvcf: verifying array")
         val goodArray = verifyHvcfArray(dbPath)
-        println("LoadHvcf: goodArray: $goodArray")
+        myLogger.info("LoadHvcf: goodArray: $goodArray")
 
         processHvcfsToTiledbArrays(hvcfDir, dbPath)
 
