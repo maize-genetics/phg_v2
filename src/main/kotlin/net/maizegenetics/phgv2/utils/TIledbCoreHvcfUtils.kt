@@ -350,6 +350,7 @@ fun writeAltDataToTileDB(arrayName: String, altData: List<Map<String, String>>) 
 
 /**
  * This function writes hvcf variants data to the hvcf_variants_array
+ * TODO: Does this need streaming if the data is large?
  */
 fun writeVariantsDataToTileDB(variantArrayName:String, combinedHvcfVariantData:List<Map<String, String>>) {
     val context = Context()

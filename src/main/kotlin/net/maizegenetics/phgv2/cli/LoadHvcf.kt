@@ -15,8 +15,8 @@ import java.io.File
  * This will load to the core tiledb array the HVCF files that are in the directory
  * This array will live in the same folder that contains the vcf dataset .
  *
- * It is required that hvcf files from assembly alignment (ie from the CreateMafVCF command) and
- * hvcf files from the imputation pipeline are loaded separately from the different folders.
+ * Both hvcfs from aligned assemblies and from imputation may be loaded from the same directory.
+ * Imputed hvcfs will not have alt headers but that is handled in the code below
  *
  * In the future: Initdb should create both the tiledbvcf array for the gvcf files, and the tiledbcore array for the hvcf files
  * For now, we call InitHvcfArray to create the core array for the hvcf files
@@ -32,8 +32,8 @@ class LoadHvcf: CliktCommand(help = "Load  h.vcf files into TileDB core datasets
     val dbPath by option(help = "Folder holding TileDB datasets")
         .default("")
 
-    val type by option(help = "Type of hvcf file  to process: choices are assembly or imputed")
-        .default("assembly")
+//    val type by option(help = "Type of hvcf file  to process: choices are assembly or imputed")
+//        .default("assembly")
 
     // Pre-compile the Regex pattern - used when creating the output fasta file names
     val HVCF_PATTERN = Regex("""(\.hvcf|\.h\.vcf|\.hvcf\.gz|\.h\.vcf\.gz)$""")
@@ -86,31 +86,30 @@ class LoadHvcf: CliktCommand(help = "Load  h.vcf files into TileDB core datasets
             // This is to ensure batching for tiledb arrays.
             val vcfReader = VCFFileReader(file, false)
             val hvcfData = parseTiledbAltHeaders(vcfReader)
-            writeAltDataToTileDB(altArrayName, hvcfData)
-           // combinedHvcfHeaderData.addAll(hvcfData)
+            println("hvcfData size: ${hvcfData.size} for file ${file.name}")
+            if (hvcfData.isNotEmpty()) {
+                // hvcf files from imputation may not have alt headers
+                writeAltDataToTileDB(altArrayName, hvcfData)
+                // combinedHvcfHeaderData.addAll(hvcfData)
+                myLogger.info("Finished writing ALT data for file ${file.name}")
+            }
 
             // Then parse the body of this file
-            // We want to store the sampleGamete, the ID and the GT value to the tiledbArray
-            // so the datatype should be another List<Map<String,String>> where the map is
-            // sampleGamete, ID
-            //val haplotypeVariants = vcfReader.iterator().asSequence().toList()
+            // We want to store the SampleName, plus ID1 and ID2 to the tiledbArray
+            // ID1 and ID2 will be the same if this is haploid data
 
             // TODO:  need to handle multipsample hvcf files
             // WIll we have them from imputation or are these always single sample unless someone merges them?
             val variantData = parseTiledbVariantData(vcfReader)
+            if (variantData.isEmpty()) {
+                myLogger.warn("No variant data found in ${file.name}")
+                return
+            }
             writeVariantsDataToTileDB(variantArrayName, variantData)
+            myLogger.info("Finished writing Variant data for file ${file.name}")
             //combinedHvcfVariantData.addAll(variantData)
 
         }
 
-        // Now load the data
-        myLogger.info("Writing to tiledb: size of combinedHvcfALTHeaderData: ${combinedHvcfHeaderData.size}")
-
-
-        myLogger.info("Finished writing ALT data")
-        myLogger.info("\nWriting to tiledb: size of combinedHvcfVariantData: ${combinedHvcfVariantData.size}")
-
-
-        myLogger.info("Finished writing Variant data")
     }
 }
