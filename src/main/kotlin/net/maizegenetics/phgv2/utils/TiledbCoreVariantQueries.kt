@@ -102,6 +102,7 @@ fun queryDistinctRefRanges(arrayName: String): Set<String>{
     val context = Context()
 
     // Open the TileDB array in read mode
+    println("queryDistinctRefRanges: arrayName = $arrayName")
     val array = Array(context, arrayName, QueryType.TILEDB_READ)
 
     val allRanges = mutableSetOf<String>()
