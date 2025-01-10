@@ -54,6 +54,10 @@ fun parseTiledbAltHeaders(reader: VCFFileReader): List<Map<String,String>> {
     return altData
 }
 
+
+// Returns a list of maps where each map contains the fields SampleName, RefRange, ID1, and ID2.
+// The values for each field are extracted from the VCF file.
+// Each item on the list is the data from a single variant line.
 fun parseTiledbVariantData(vcfReader:VCFFileReader): List<Map<String,String>> {
     val variantData = mutableListOf<Map<String, String>>()
 

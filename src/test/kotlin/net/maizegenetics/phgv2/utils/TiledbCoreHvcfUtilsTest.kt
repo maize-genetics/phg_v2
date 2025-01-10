@@ -90,6 +90,33 @@ class TiledbCoreHvcfUtilsTest {
     }
 
     @Test
+    fun testParseTIledbVariantData() {
+        val vcfReader = VCFFileReader(File(lineAhvcf), false)
+        val variantData = parseTiledbVariantData(vcfReader)
+        println("Finished parsing lineAhvcf variant data")
+        assertEquals(38, variantData.size)
+        // Verify the first and lsat entries in the variant data
+        // they should be:
+        //    RefRange=1:1-1000, ID1=12f0cec9102e84a161866e37072443b7, SampleName=LineA, ID2=12f0cec9102e84a161866e37072443b7
+        //    RefRange=2:49501-50500, ID1=0eb9029f3896313aebc69c8489923141, SampleName=LineA, ID2=0eb9029f3896313aebc69c8489923141
+
+        val firstEntry = variantData.first()
+        assertEquals(4, firstEntry.size)
+        assertEquals("1:1-1000", firstEntry["RefRange"])
+        assertEquals("12f0cec9102e84a161866e37072443b7", firstEntry["ID1"])
+        assertEquals("LineA", firstEntry["SampleName"])
+        assertEquals("12f0cec9102e84a161866e37072443b7", firstEntry["ID2"])
+
+        val lastEntry = variantData.last()
+        assertEquals(4, lastEntry.size)
+        assertEquals("2:49501-50500", lastEntry["RefRange"])
+        assertEquals("0eb9029f3896313aebc69c8489923141", lastEntry["ID1"])
+        assertEquals("LineA", lastEntry["SampleName"])
+        assertEquals("0eb9029f3896313aebc69c8489923141", lastEntry["ID2"])
+
+    }
+
+    @Test
     fun testParseAltHeadersTiledb() {
         // testing output from parseTiledbAltHeaders
         val vcfReader = VCFFileReader(File(lineAhvcf), false)
