@@ -5,10 +5,12 @@ import net.maizegenetics.phgv2.cli.TestExtension
 import org.apache.logging.log4j.LogManager
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
+import kotlin.test.assertTrue
 
 @ExtendWith(TestExtension::class)
 class TiledbAltHeadersQueriesTest {
@@ -86,16 +88,16 @@ class TiledbAltHeadersQueriesTest {
 
         Assertions.assertTrue(streamingResults.size == 4)
         val firstRefRange = streamingResults.get("1:1-1000")
-        Assertions.assertEquals(2, firstRefRange?.size) // entries for both LineA and LineB
+        assertEquals(2, firstRefRange?.size) // entries for both LineA and LineB
         // verify the firstRefRange contains an entry for SampleName=LineA, ID=12f0cec9102e84a161866e37072443b7
         // Define the expected map entry
         val expectedEntryLineA = mapOf("SampleName" to "LineA", "ID" to "12f0cec9102e84a161866e37072443b7")
         val expectedEntryLineB = mapOf("SampleName" to "LineB", "ID" to "4fc7b8af32ddd74e07cb49d147ef1938")
 
         // Assert that firstRefRange contains the expected entry
-        Assertions.assertTrue(firstRefRange?.any { it == expectedEntryLineA } ?: false,
+        assertTrue(firstRefRange?.any { it == expectedEntryLineA } ?: false,
             "Expected entry LineA not found in firstRefRange")
-        Assertions.assertTrue(firstRefRange?.any { it == expectedEntryLineB } ?: false,
+        assertTrue(firstRefRange?.any { it == expectedEntryLineB } ?: false,
             "Expected entry LineB not found in firstRefRange")
 
         // delete the tiledbArray so next tests can recreate what they need
@@ -107,6 +109,7 @@ class TiledbAltHeadersQueriesTest {
     fun testQueryIdsByRefRange() {
 
         // testing output from parseTiledbAltHeaders
+        // The values used for the asserts were copied from the values in the hvcf files
         var vcfReader = VCFFileReader(File(lineAhvcf), false)
         val altHeadersLineA = parseTiledbAltHeaders(vcfReader)
         println("Finished parsing LineA alt headers ")
@@ -129,13 +132,62 @@ class TiledbAltHeadersQueriesTest {
         // Try to query by refRange
         val resultsByRefRange = queryIDsByRefRange(TiledbCoreHvcfUtilsTest.altHeaderArray, listOf("1:1-1000"))
         println("Results with 1 refRange: $resultsByRefRange")
+        assertEquals(1, resultsByRefRange.keys.size)
+        val rangeResults = resultsByRefRange.get("1:1-1000")
+        assertEquals(2, rangeResults?.size)
+        // verify rangeResults contains both 12f0cec9102e84a161866e37072443b7 and 4fc7b8af32ddd74e07cb49d147ef1938
+        assertTrue(rangeResults?.contains("12f0cec9102e84a161866e37072443b7") ?: false)
+        assertTrue(rangeResults?.contains("4fc7b8af32ddd74e07cb49d147ef1938") ?: false)
+
         val resultsByRefRange2 = queryIDsByRefRange(TiledbCoreHvcfUtilsTest.altHeaderArray, listOf("1:1-1000","2:12001-16500"))
         println("Results with 2 refRanges: $resultsByRefRange2")
+        assertEquals(2, resultsByRefRange2.keys.size)
+        var firstRangeResults = resultsByRefRange2.get("1:1-1000")
+        assertEquals(2, firstRangeResults?.size)
+        // verify firstRangeResults contains both 12f0cec9102e84a161866e37072443b7 and 4fc7b8af32ddd74e07cb49d147ef1938
+        assertTrue(firstRangeResults?.contains("12f0cec9102e84a161866e37072443b7") ?: false)
+        assertTrue(firstRangeResults?.contains("4fc7b8af32ddd74e07cb49d147ef1938") ?: false)
+
+        var secondRangeResults = resultsByRefRange2.get("2:12001-16500")
+        assertEquals(2, secondRangeResults?.size)
+        // verify secondRangeResults contains both 184a72815a2ba5949635cc38769cedd0 and 6fb2de47c835bd9ab026c02d62f49807
+        assertTrue(secondRangeResults?.contains("184a72815a2ba5949635cc38769cedd0") ?: false)
+        assertTrue(secondRangeResults?.contains("6fb2de47c835bd9ab026c02d62f49807") ?: false)
+
 
         val resultsByRefRange5Ranges = queryIDsByRefRange(TiledbCoreHvcfUtilsTest.altHeaderArray, listOf("1:1-1000","1:12001-16500","1:33001-34000","2:1-1000","2:5501-6500"))
         println("Results with 5 refRanges: $resultsByRefRange5Ranges")
 
-        // Need some asserts here !!
+        assertEquals(5, resultsByRefRange5Ranges.keys.size)
+        firstRangeResults = resultsByRefRange5Ranges.get("1:1-1000")
+        assertEquals(2, firstRangeResults?.size)
+        // verify firstRangeResults contains both 12f0cec9102e84a161866e37072443b7 and 4fc7b8af32ddd74e07cb49d147ef1938
+        assertTrue(firstRangeResults?.contains("12f0cec9102e84a161866e37072443b7") ?: false)
+        assertTrue(firstRangeResults?.contains("4fc7b8af32ddd74e07cb49d147ef1938") ?: false)
+
+        secondRangeResults = resultsByRefRange5Ranges.get("1:12001-16500")
+        assertEquals(2, secondRangeResults?.size)
+        // verify secondRangeResults contains both d4c8b5505d7046b41d7f69b246063ebb and aff71f19de448514a6d9208b1fcb4e8a
+        assertTrue(secondRangeResults?.contains("d4c8b5505d7046b41d7f69b246063ebb") ?: false)
+        assertTrue(secondRangeResults?.contains("aff71f19de448514a6d9208b1fcb4e8a") ?: false)
+
+        val thirdRangeResults = resultsByRefRange5Ranges.get("1:33001-34000")
+        assertEquals(2, thirdRangeResults?.size)
+        // verify thirdRangeResults contains both 5a2ff3fb844d5647987da5c194d1c728 and 79146831745c85d26117f13b5873935f
+        assertTrue(thirdRangeResults?.contains("5a2ff3fb844d5647987da5c194d1c728") ?: false)
+        assertTrue(thirdRangeResults?.contains("79146831745c85d26117f13b5873935f") ?: false)
+
+        val fourthRangeResults = resultsByRefRange5Ranges.get("2:1-1000")
+        assertEquals(2, fourthRangeResults?.size)
+        // verify fourthRangeResults contains both 13417ecbb38b9a159e3ca8c9dade7088 and 180417a01edbfed525d7c238910e0ff4
+        assertTrue(fourthRangeResults?.contains("13417ecbb38b9a159e3ca8c9dade7088") ?: false)
+        assertTrue(fourthRangeResults?.contains("180417a01edbfed525d7c238910e0ff4") ?: false)
+
+        val fifthRangeResults = resultsByRefRange5Ranges.get("2:5501-6500")
+        assertEquals(2, fifthRangeResults?.size)
+        // verify fifthRangeResults contains both 50044914d5111c5b5ec58c9d720e3b2d and 45b121547c7ae517a181fdd2621495c4
+        assertTrue(fifthRangeResults?.contains("50044914d5111c5b5ec58c9d720e3b2d") ?: false)
+        assertTrue(fifthRangeResults?.contains("45b121547c7ae517a181fdd2621495c4") ?: false)
 
         // delete the tiledbArray so next tests can recreate what they need
         File(TiledbCoreHvcfUtilsTest.dbPath).deleteRecursively()

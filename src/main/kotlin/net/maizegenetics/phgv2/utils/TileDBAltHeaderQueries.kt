@@ -161,8 +161,8 @@ fun queryWithStreaming_sampleNameIdByRefRange(arrayName: String, refRangeList: L
 /**
  * Given a list of refRanges, query the array for all IDs associated with each reference range
  *
- * NOTE: this function has not been re-written to use streaming.  That needs to be done to ensure
- * all data is retrieved.
+ * TODO: this function has not been re-written to use streaming.  That needs to be done to ensure
+ * all data is retrieved.  Test using bl01 phgv2_commonSept2024 data loaded to the new files
  */
 fun queryIDsByRefRange(arrayName: String, refRangesToQuery: List<String>): Map<String, List<String>> {
     val context = Context()
