@@ -31,7 +31,7 @@ data class MEMHit(val contig: String, val strand: String, val pos: Int)
  * Note that this will take some time to run.  Our internal tests show that WGS files can take about 20 minutes to run.
  * Each file from a pair are processed independently.
  */
-class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
+class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT3") {
 
     private val myLogger = LogManager.getLogger(MapReads::class.java)
 

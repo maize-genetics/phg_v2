@@ -21,7 +21,7 @@ import java.io.File
  *
  * With the output files we can then run ropebwt3 mem and get read mappings.
  */
-class RopebwtIndex : CliktCommand(help="Create a ropeBWT3 index") {
+class RopebwtIndex : CliktCommand(help="BETA: Create a ropeBWT3 index") {
 
     private val myLogger = LogManager.getLogger(RopebwtIndex::class.java)
 
