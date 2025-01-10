@@ -8,14 +8,9 @@ import io.tiledb.java.api.Query
 
 /**
  * This class contains queries to be run against a TileDB core hvcf_variant_arrays
- * Each test takes an array name - that array should be an hvcf_variant_array.
+ * Each test takes an array name - that array should be an hvcf_variant_array, populated
+ * with hvcf file data created from both the assembly alignment pipeline and the imputation pipeline.
  * THere is a separate class for the alt_header_array queries
- */
-
-/**
- * This query is only for the variants array.  THis array should be populated with
- * hvcf data from both aligned asemblies and the imputation pipeline.
- *
  */
 
 /**
@@ -41,12 +36,13 @@ fun convertQueryResultToDataFrame(data: Map<String, List<Map<String, String>>>):
 }
 
 /**
- * query distinct sample names from the tiledb array/  Could probably use this query for
+ * query distinct sample names from the tiledb array/  Could  use this query for
  * either array, as SampleName is a dimension named in both the alt_header_array and the
  * hvcf_variants_array.
  */
 fun queryDistinctSampleNames(arrayName: String): Set<String> {
     val context = Context()
+    val allSamples = mutableSetOf<String>()
 
     // Open the TileDB array in read mode
     val array = Array(context, arrayName, QueryType.TILEDB_READ)
@@ -62,36 +58,39 @@ fun queryDistinctSampleNames(arrayName: String): Set<String> {
         setOffsetsBuffer("SampleName", sampleNameOffsets)
     }
 
-    // Submit the query
-    query.submit()
+    do {
+        query.submit()
 
-    // Extract the number of results
-    val numSampleNames = query.resultBufferElements()["SampleName"]?.first?.toInt() ?: 0
+        // Extract the number of results
+        val numSampleNames = query.resultBufferElements()["SampleName"]?.first?.toInt() ?: 0
 
-    // Extract SampleName data
-    val offsetsArray = sampleNameOffsets.toJavaArray() as LongArray
-    val rawData = String(sampleNameBuffer.toJavaArray() as ByteArray)
+        // Extract SampleName data
+        val offsetsArray = sampleNameOffsets.toJavaArray() as LongArray
+        val rawData = String(sampleNameBuffer.toJavaArray() as ByteArray)
 
-    val sampleNames = offsetsArray.take(numSampleNames).mapIndexedNotNull { index, offset ->
-        val end = if (index < offsetsArray.size - 1) {
-            offsetsArray[index + 1].toInt()
-        } else {
-            rawData.length
-        }
+        val sampleNames = offsetsArray.take(numSampleNames).mapIndexedNotNull { index, offset ->
+            val end = if (index < offsetsArray.size - 1) {
+                offsetsArray[index + 1].toInt()
+            } else {
+                rawData.length
+            }
 
-        if (offset.toInt() >= 0 && offset.toInt() < end) {
-            rawData.substring(offset.toInt(), end).trimEnd('\u0000')
-        } else {
-            null // Skip invalid offsets
-        }
-    }.toSet() // Use a set to ensure uniqueness
+            if (offset.toInt() >= 0 && offset.toInt() < end) {
+                rawData.substring(offset.toInt(), end).trimEnd('\u0000')
+            } else {
+                null // Skip invalid offsets
+            }
+        }.toSet() // Use a set to ensure uniqueness
+
+        allSamples.addAll(sampleNames)
+    } while (query.queryStatus == QueryStatus.TILEDB_INCOMPLETE)
 
     // Close resources
     query.close()
     array.close()
     context.close()
 
-    return sampleNames
+    return allSamples
 }
 
 /**
@@ -105,6 +104,7 @@ fun queryDistinctRefRanges(arrayName: String): Set<String>{
     // Open the TileDB array in read mode
     val array = Array(context, arrayName, QueryType.TILEDB_READ)
 
+    val allRanges = mutableSetOf<String>()
     // Prepare buffers for SampleName (variable-length strings)
     val refRangeBuffer = NativeArray(context, 4096, Datatype.TILEDB_STRING_ASCII) // Adjust size as needed
     val refRangeOffsets = NativeArray(context, 512, Datatype.TILEDB_UINT64) // Adjust size as needed
@@ -116,36 +116,39 @@ fun queryDistinctRefRanges(arrayName: String): Set<String>{
         setOffsetsBuffer("RefRange", refRangeOffsets)
     }
 
-    // Submit the query
-    query.submit()
+    do {
 
-    // Extract the number of results
-    val numRefRanges = query.resultBufferElements()["RefRange"]?.first?.toInt() ?: 0
+        query.submit()
 
-    // Extract Range data
-    val offsetsArray = refRangeOffsets.toJavaArray() as LongArray
-    val rawData = String(refRangeBuffer.toJavaArray() as ByteArray)
+        // Extract the number of results
+        val numRefRanges = query.resultBufferElements()["RefRange"]?.first?.toInt() ?: 0
 
-    val refRanges = offsetsArray.take(numRefRanges).mapIndexedNotNull { index, offset ->
-        val end = if (index < offsetsArray.size - 1) {
-            offsetsArray[index + 1].toInt()
-        } else {
-            rawData.length
-        }
+        // Extract Range data
+        val offsetsArray = refRangeOffsets.toJavaArray() as LongArray
+        val rawData = String(refRangeBuffer.toJavaArray() as ByteArray)
 
-        if (offset.toInt() >= 0 && offset.toInt() < end) {
-            rawData.substring(offset.toInt(), end).trimEnd('\u0000')
-        } else {
-            null // Skip invalid offsets
-        }
-    }.toSet() // Use a set to ensure uniqueness
+        val refRanges = offsetsArray.take(numRefRanges).mapIndexedNotNull { index, offset ->
+            val end = if (index < offsetsArray.size - 1) {
+                offsetsArray[index + 1].toInt()
+            } else {
+                rawData.length
+            }
+
+            if (offset.toInt() >= 0 && offset.toInt() < end) {
+                rawData.substring(offset.toInt(), end).trimEnd('\u0000')
+            } else {
+                null // Skip invalid offsets
+            }
+        }.toSet() // Use a set to ensure uniqueness
+        allRanges.addAll(refRanges)
+    } while (query.queryStatus == QueryStatus.TILEDB_INCOMPLETE)
 
     // Close resources
     query.close()
     array.close()
     context.close()
 
-    return refRanges
+    return allRanges
 
 }
 
@@ -154,7 +157,7 @@ fun queryDistinctRefRanges(arrayName: String): Set<String>{
  * The results is a map of RefRange to a list of maps where each map contains the fields SampleName, ID1, and ID2.
  *
  * It uses streaming to get all values.  This needs to be tested on a larger dataset than the test data.
- * BL01 with the common phg loaded to tiledb core arrays is the next step.
+ * TODO: test on BL01 with the phgv2_commonSept2024 data loaded to tiledb core arrays.
  */
 fun queryVariantArray_byRefRange(
     arrayName: String,
@@ -195,6 +198,9 @@ fun queryVariantArray_byRefRange(
     val id2Buffer = NativeArray(context, idBufferSize, Datatype.TILEDB_STRING_ASCII)
 
     // Create the query
+    // This gets ALL data. To have tiledb do the slicing we need to do an "addRange" to the query.
+    // That code appears to be available in a Java API version that is not yet available on Maven
+    // So all data is returned and then filtered in the code below.
     val query = Query(array, QueryType.TILEDB_READ).apply {
         setLayout(Layout.TILEDB_UNORDERED)
 
@@ -203,7 +209,7 @@ fun queryVariantArray_byRefRange(
 
         setDataBuffer("SampleName", sampleNameBuffer)
         setOffsetsBuffer("SampleName", sampleNameOffsets)
-        setDataBuffer("ID1", id1Buffer)
+        setDataBuffer("ID1", id1Buffer) // no offsets buffers for fixed size attributes
         setDataBuffer("ID2", id2Buffer)
     }
 

@@ -161,8 +161,8 @@ fun queryWithStreaming_sampleNameIdByRefRange(arrayName: String, refRangeList: L
 /**
  * Given a list of refRanges, query the array for all IDs associated with each reference range
  *
- * TODO: this function has not been re-written to use streaming.  That needs to be done to ensure
- * all data is retrieved.  Test using bl01 phgv2_commonSept2024 data loaded to the new files
+ * This function uses streaming ro continually read tiledb results until the query status is TILEDB_COMPLETE
+ * (ie, no longer TILEDB_INCOMPLETE).  It returns a map of refRanges to a list of IDs.
  */
 fun queryIDsByRefRange(arrayName: String, refRangesToQuery: List<String>): Map<String, List<String>> {
     val context = Context()
@@ -194,38 +194,34 @@ fun queryIDsByRefRange(arrayName: String, refRangesToQuery: List<String>): Map<S
         setOffsetsBuffer("RefRange", refRangeOffsetsBuffer)
     }
 
-    // Submit the query
-    query.submit()
+    do {
+        query.submit()
 
-    // Process results
-    val resultBufferElements = query.resultBufferElements()
+        // Extract RefRange data
+        val refRangeOffsetsArray = refRangeOffsetsBuffer.toJavaArray() as LongArray
+        val refRangeRawData = String(refRangeBuffer.toJavaArray() as ByteArray)
+        val refRanges = refRangeOffsetsArray.mapIndexed { index, offset ->
+            val end = if (index < refRangeOffsetsArray.size - 1) refRangeOffsetsArray[index + 1].toInt() else refRangeRawData.length
+            if (offset.toInt() < end) refRangeRawData.substring(offset.toInt(), end).trimEnd('\u0000') else ""
+        }.filter { it.isNotEmpty() } // Remove empty strings
 
-    // NativeArray from TileDB doesn't have a toByteArray() method and doesn't support
-    // conversion using Kotlin's toByteARra90.  So we move to Java to do the conversion
-    val idOffsetsArray = idOffsetsBuffer.toJavaArray() as LongArray
-    //println("LCJ queryIdByRefRange - idOffsetsArray: ${idOffsetsArray.contentToString()}")
-    val idRawData = String(idBuffer.toJavaArray() as ByteArray)
+        // Extract ID data
+        val idOffsetsArray = idOffsetsBuffer.toJavaArray() as LongArray
+        val idRawData = String(idBuffer.toJavaArray() as ByteArray)
+        val ids = idOffsetsArray.mapIndexed { index, offset ->
+            val end = if (index < idOffsetsArray.size - 1) idOffsetsArray[index + 1].toInt() else idRawData.length
+            if (offset.toInt() < end) idRawData.substring(offset.toInt(), end).trimEnd('\u0000') else ""
+        }.filter { it.isNotEmpty() } // Remove empty strings
 
-    val ids = idOffsetsArray.mapIndexed { index, offset ->
-        val end = if (index < idOffsetsArray.size - 1) idOffsetsArray[index + 1].toInt() else idRawData.length
-        //idRawData.substring(offset.toInt(), end).trimEnd('\u0000')
-        if (offset.toInt() < end) idRawData.substring(offset.toInt(), end).trimEnd('\u0000') else ""
-    }.filter { it.isNotEmpty() } // Remove empty strings
+        // Filter IDs by RefRange
+        refRangesToQuery.forEach { refRangeQuery ->
+            val matchingIDs = ids.zip(refRanges)
+                .filter { it.second == refRangeQuery }
+                .map { it.first }
+            result[refRangeQuery] = matchingIDs
+        }
 
-    val refRangeOffsetsArray = refRangeOffsetsBuffer.toJavaArray() as LongArray
-    val refRangeRawData = String(refRangeBuffer.toJavaArray() as ByteArray)
-    val refRanges = refRangeOffsetsArray.mapIndexed { index, offset ->
-        val end = if (index < refRangeOffsetsArray.size - 1) refRangeOffsetsArray[index + 1].toInt() else refRangeRawData.length
-        if (offset.toInt() < end) refRangeRawData.substring(offset.toInt(), end).trimEnd('\u0000') else ""
-    }.filter { it.isNotEmpty() } // Remove empty strings
-
-    // Filter IDs by RefRange
-    refRangesToQuery.forEach { refRangeQuery ->
-        val matchingIDs = ids.zip(refRanges)
-            .filter { it.second == refRangeQuery }
-            .map { it.first }
-        result[refRangeQuery] = matchingIDs
-    }
+    } while (query.queryStatus == QueryStatus.TILEDB_INCOMPLETE)
 
     // Close resources
     query.close()
