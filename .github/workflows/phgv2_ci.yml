@@ -29,6 +29,8 @@ jobs:
           miniconda-version: "latest"
       - name: Run Conda
         run: conda env create --solver=libmamba --file src/main/resources/phg_environment.yml
+      - name: Run RopeBWT Conda
+        run: conda env create --solver=libmamba --file src/main/resources/phg_ropebwt_environment.yml
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
