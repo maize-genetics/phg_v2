@@ -51,7 +51,7 @@ class QueryHvcfArraysTest {
         val queryHvcfArrays = QueryHvcfArrays()
 
         // Test missing output-file parameter
-        val resultMissingOutputFile = queryHvcfArrays.test("--db-path ${TestExtension.testTileDBURI} --query-type distinctSamples")
+        val resultMissingOutputFile = queryHvcfArrays.test("--db-path ${TestExtension.testTileDBURI} --query-type DISTINCT_SAMPLES")
         assertEquals(resultMissingOutputFile.statusCode, 1)
         assertEquals("Usage: query-hvcf-arrays [<options>]\n" +
                 "\n" +
@@ -80,10 +80,10 @@ class QueryHvcfArraysTest {
 
         // Now query the arrays
         val queryHvcfArrays = QueryHvcfArrays()
-        var resultQuery = queryHvcfArrays.test("--db-path ${TestExtension.testTileDBURI} --query-type distinctSamples --output-file $outputQueryResultsDir/sampleNames.txt")
+        var resultQuery = queryHvcfArrays.test("--db-path ${TestExtension.testTileDBURI} --query-type DISTINCT_SAMPLES --output-file $outputQueryResultsDir/sampleNames.txt")
         assertEquals(resultQuery.statusCode, 0)
 
-        resultQuery = queryHvcfArrays.test("--db-path ${TestExtension.testTileDBURI} --query-type distinctRanges --output-file $outputQueryResultsDir/ranges.txt")
+        resultQuery = queryHvcfArrays.test("--db-path ${TestExtension.testTileDBURI} --query-type DISTINCT_RANGES --output-file $outputQueryResultsDir/ranges.txt")
         assertEquals(resultQuery.statusCode, 0)
 
         // Read the results files and compare to expected
@@ -96,7 +96,7 @@ class QueryHvcfArraysTest {
         assertEquals(3, actualSampleNames.trim().split("\n").size)
 
         // query the sample names from the altHeaderArray - should be 1 less
-        resultQuery = queryHvcfArrays.test("--db-path ${TestExtension.testTileDBURI} --query-type distinctSamples --output-file $outputQueryResultsDir/sampleNamesAltHeader.txt --array-type altHeader")
+        resultQuery = queryHvcfArrays.test("--db-path ${TestExtension.testTileDBURI} --query-type DISTINCT_SAMPLES --output-file $outputQueryResultsDir/sampleNamesAltHeader.txt --array-type ALT_HEADER")
         assertEquals(resultQuery.statusCode, 0)
         val actualSampleNamesAltHeader = File("$outputQueryResultsDir/sampleNamesAltHeader.txt").readText()
         // print the sample names
