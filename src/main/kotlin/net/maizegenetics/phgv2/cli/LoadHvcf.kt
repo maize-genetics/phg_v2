@@ -44,7 +44,7 @@ class LoadHvcf: CliktCommand(help = "Load  h.vcf files into TileDB core datasets
             dbPath
         }
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
-        println("LoadHvcf: verifying array")
+        myLogger.info("LoadHvcf: verifying array")
         val goodArray = verifyHvcfArray(dbPath)
         myLogger.info("LoadHvcf: goodArray: $goodArray")
 
@@ -83,7 +83,7 @@ class LoadHvcf: CliktCommand(help = "Load  h.vcf files into TileDB core datasets
             // This is to ensure batching for tiledb arrays.
             val vcfReader = VCFFileReader(file, false)
             val hvcfData = parseTiledbAltHeaders(vcfReader)
-            println("hvcfData size: ${hvcfData.size} for file ${file.name}")
+            myLogger.info("hvcfData size: ${hvcfData.size} for file ${file.name}")
             if (hvcfData.isNotEmpty()) {
                 // hvcf files from imputation may not have alt headers
                 writeAltDataToTileDB(altArrayName, hvcfData)

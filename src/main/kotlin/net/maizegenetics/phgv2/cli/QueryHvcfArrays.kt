@@ -5,12 +5,24 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.types.enum
 import net.maizegenetics.phgv2.utils.queryDistinctRefRanges
 import net.maizegenetics.phgv2.utils.queryDistinctSampleNames
-import net.maizegenetics.phgv2.utils.queryVariantArray_byRefRange
 import net.maizegenetics.phgv2.utils.verifyHvcfArray
 import org.apache.logging.log4j.LogManager
 import java.io.File
+
+//Enum to hold the Query Types currently supported
+enum class QueryType {
+    DISTINCT_SAMPLES,
+    DISTINCT_RANGES
+}
+
+//Enum to hold the Array Types currently supported
+enum class ArrayType {
+    ALT_HEADER,
+    VARIANTS
+}
 
 /**
  * This class processing user queries for data stored in the tiledb core arrays.
@@ -29,19 +41,22 @@ class QueryHvcfArrays: CliktCommand(help = "Query tiledb core arrays for hvcf fi
         .default("")
     val refRangeFile by option(help = "Full path to BED file formatted list of reference ranges to query.  Default is all")
         .default("")
-    val queryType by option(help = "Type of query to perform.  Choices are:  distinctSamples, distinctRanges  Required")
+    val queryType by option(help = "Type of query to perform.  Choices are:  distinctSamples, distinctRanges")
+        .enum<QueryType>()
         .required()
     val arrayType by option(help = "Type of array to query.  Choices are:  altHeader, variants.  Default is variants")
-        .default("variants")
+        .enum<ArrayType>()
+        .default(ArrayType.VARIANTS)
+
+    //Leaving this commented as we will likely need this in the future
 //    val sampleNames by option(help = "Full path to text file with sampleNames, 1 per line. Default is all")
 //        .default("")
 
-    val outputFile by option(help = "Full path to Output file for results.  Required")
+    val outputFile by option(help = "Full path to Output file for results.")
         .required()
 
     override fun run() {
         logCommand(this)
-        //TODO("Not yet implemented")
 
         // If the dbPath is blank, then use the current working directory
         val dbPath = if (dbPath.isBlank()) {
@@ -59,7 +74,7 @@ class QueryHvcfArrays: CliktCommand(help = "Query tiledb core arrays for hvcf fi
     // This is initial query.  Only handling distinctSamples and distinctRanges
     // Should be expanded to handle other queries, and perhaps break processing
     // into separate functions.
-    fun processUserQuery(dbPath:String, refRangeFile:String, queryType:String, arrayType:String, outputFile:String) {
+    fun processUserQuery(dbPath:String, refRangeFile:String, queryType:QueryType, arrayType:ArrayType, outputFile:String) {
         myLogger.info("Processing user query: $queryType")
         // Read in the refRangeFile, sampleNames, and ids files if they are not blank
         // THis is a BED file - entries need to be translated to the format chrom:start-end
@@ -76,37 +91,37 @@ class QueryHvcfArrays: CliktCommand(help = "Query tiledb core arrays for hvcf fi
         }
 
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
-        println("QueryHvcfArrays: verifying array")
+        myLogger.info("QueryHvcfArrays: verifying array")
         val goodArray = verifyHvcfArray(dbPath)
         myLogger.info("QueryHvcfArrays: goodArray: $goodArray")
 
         // Define the array to query
-        val queryArray = if (arrayType == "altHeader") {
-            "$dbPath/alt_header_array"
-        } else {
-            "$dbPath/hvcf_variants_array"
+        // Using an enum means we don't need a else catch all
+        val queryArray = when(arrayType) {
+            ArrayType.ALT_HEADER -> {
+                "$dbPath/alt_header_array"
+            }
+            ArrayType.VARIANTS -> {
+                "$dbPath/hvcf_variants_array"
+            }
         }
         // query based on queryType
+        // Using an enum means we don't need a else catch all
         when (queryType) {
-            "distinctSamples" -> {
+            QueryType.DISTINCT_SAMPLES -> {
                 val distinctSamples = queryDistinctSampleNames(queryArray)
                 // Write the results from both the altHeaderArray and the variantsArray to the output file
                 File(outputFile).writeText(distinctSamples.joinToString("\n"))
             }
-            "distinctRanges" -> {
+            QueryType.DISTINCT_RANGES -> {
                 // The ranges shoudl be identical in the altHeaderArray and the variantsArray
                 // so only 1 query is needed
                 val distinctRanges = queryDistinctRefRanges(queryArray)
-                println("Distinct refRanges: $distinctRanges\n")
+                myLogger.info("Distinct refRanges: $distinctRanges\n")
                 // Write the results to the output file
                 File(outputFile).writeText(distinctRanges.joinToString("\n"))
             }
-            else -> {
-                myLogger.error("Query type $queryType not yet supported.  Please use distinctSamples or distinctRanges")
-            }
-
         }
         myLogger.info(" query written to file $outputFile")
-
     }
 }
