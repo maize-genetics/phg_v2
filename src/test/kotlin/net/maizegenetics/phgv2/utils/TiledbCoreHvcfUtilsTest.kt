@@ -64,7 +64,7 @@ class TiledbCoreHvcfUtilsTest {
         // make sure tiledb main folder exists
         File(dbPath).mkdirs()
         println("Creating tiledb array")
-        createTileDBCoreArrays(dbPath)
+        TiledbCoreHvcfUtils.createTileDBCoreArrays(dbPath)
         val array = Array(Context(), altHeaderArray, QueryType.TILEDB_READ)
         assertTrue(array.schema != null)
         array.close()
@@ -92,7 +92,7 @@ class TiledbCoreHvcfUtilsTest {
     @Test
     fun testParseTIledbVariantData() {
         val vcfReader = VCFFileReader(File(lineAhvcf), false)
-        val variantData = parseTiledbVariantData(vcfReader)
+        val variantData = TiledbCoreHvcfUtils.parseTiledbVariantData(vcfReader)
         println("Finished parsing lineAhvcf variant data")
         assertEquals(38, variantData.size)
         // Verify the first and lsat entries in the variant data
@@ -120,7 +120,7 @@ class TiledbCoreHvcfUtilsTest {
     fun testParseAltHeadersTiledb() {
         // testing output from parseTiledbAltHeaders
         val vcfReader = VCFFileReader(File(lineAhvcf), false)
-        val altHeaders = parseTiledbAltHeaders(vcfReader)
+        val altHeaders = TiledbCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
         println("Finished parsing smallSeqLineAHvcfFile")
 
         // Read the altheader data into a list to compare to what

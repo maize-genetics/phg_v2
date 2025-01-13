@@ -6,9 +6,9 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.enum
+import net.maizegenetics.phgv2.utils.TiledbCoreHvcfUtils
 import net.maizegenetics.phgv2.utils.queryDistinctRefRanges
 import net.maizegenetics.phgv2.utils.queryDistinctSampleNames
-import net.maizegenetics.phgv2.utils.verifyHvcfArray
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
@@ -92,7 +92,7 @@ class QueryHvcfArrays: CliktCommand(help = "Query tiledb core arrays for hvcf fi
 
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
         myLogger.info("QueryHvcfArrays: verifying array")
-        val goodArray = verifyHvcfArray(dbPath)
+        val goodArray = TiledbCoreHvcfUtils.verifyHvcfArray(dbPath)
         myLogger.info("QueryHvcfArrays: goodArray: $goodArray")
 
         // Define the array to query

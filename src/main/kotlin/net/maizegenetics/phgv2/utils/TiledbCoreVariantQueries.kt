@@ -183,7 +183,7 @@ fun queryVariantArray_byRefRange(
         val offset = NativeArray(context, 1024, Datatype.TILEDB_UINT64)
         Pair(buffer,offset)
     } else {
-        prepareVariableBuffer(context, refRangeList)
+        TiledbCoreHvcfUtils.prepareVariableBuffer(context, refRangeList)
     }
     val refRangeOffsetsArray = refRangeBuffers.second.toJavaArray() as LongArray
     println("variantArray: refRangeOffsetsArray = ${refRangeOffsetsArray.contentToString()}")

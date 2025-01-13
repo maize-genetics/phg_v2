@@ -40,7 +40,7 @@ fun queryWithStreaming_sampleNameIdByRefRange(arrayName: String, refRangeList: L
     val array = Array(context, arrayName, QueryType.TILEDB_READ)
 
     // Prepare buffers for RefRange (filtering dimension)
-    val refRangeBuffers = prepareVariableBuffer(context, refRangeList)
+    val refRangeBuffers = TiledbCoreHvcfUtils.prepareVariableBuffer(context, refRangeList)
     println("queryWithStreaming: refRangeList size = ${refRangeList.size},  refRangeBuffers.first size = ${refRangeBuffers.first.size}, second size = ${refRangeBuffers.second.size}")
     // print the refRangeBuffers.second as a long array
     val refRangeOffsetsArray = refRangeBuffers.second.toJavaArray() as LongArray

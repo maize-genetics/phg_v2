@@ -63,35 +63,35 @@ class TileDBCoreVariantQueriesTest {
         // testing output from parseTiledbAltHeaders
         var vcfReader = VCFFileReader(File(lineAhvcf), false)
 
-        val variantDataLineA = parseTiledbVariantData(vcfReader)
+        val variantDataLineA = TiledbCoreHvcfUtils.parseTiledbVariantData(vcfReader)
         println("Finished parsing lineAhvcf variant data")
 
         vcfReader = VCFFileReader(File(lineBhvcf), false)
-        val variantDataLineB = parseTiledbVariantData(vcfReader)
+        val variantDataLineB = TiledbCoreHvcfUtils.parseTiledbVariantData(vcfReader)
         println("Finished parsing lineBhvcf variant data")
 
         // Create the tiledb array by calling the function createTileDBArray
         println("Creating tiledb array")
         //createTileDBArraySingleDimensionID(tiledbArrayName)
-        createTileDBCoreArrays(dbPath)
+        TiledbCoreHvcfUtils.createTileDBCoreArrays(dbPath)
 
         //Write to the variants array
-        writeVariantsDataToTileDB(variantsArray, variantDataLineA)
-        writeVariantsDataToTileDB(variantsArray, variantDataLineB)
+        TiledbCoreHvcfUtils.writeVariantsDataToTileDB(variantsArray, variantDataLineA)
+        TiledbCoreHvcfUtils.writeVariantsDataToTileDB(variantsArray, variantDataLineB)
 
         // Load the imputed hvcf file
 
         vcfReader = VCFFileReader(File(imputedHvcf), false)
-        val altHeadersImputed = parseTiledbAltHeaders(vcfReader)
+        val altHeadersImputed = TiledbCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
         println("Finished parsing imputedHvcf alt headers ")
-        val variantData = parseTiledbVariantData(vcfReader)
+        val variantData = TiledbCoreHvcfUtils.parseTiledbVariantData(vcfReader)
         println("Finished parsing imputedHvcf variant data")
 
         // Now load the data
         val arrayName = "${dbPath}/alt_header_array"
-        writeAltDataToTileDB(arrayName, altHeadersImputed)
+        TiledbCoreHvcfUtils.writeAltDataToTileDB(arrayName, altHeadersImputed)
         val variantArrayName = "${dbPath}/hvcf_variants_array"
-        writeVariantsDataToTileDB(variantArrayName, variantData)
+        TiledbCoreHvcfUtils.writeVariantsDataToTileDB(variantArrayName, variantData)
 
         // Query the variants array
         val results = queryVariantArray_byRefRange(variantsArray, listOf("1:1-1000","1:12001-16500","1:33001-34000","2:1-1000","2:5501-6500"))
@@ -156,35 +156,35 @@ class TileDBCoreVariantQueriesTest {
         println("Creating tiledb array")
         // ensure the top folder exists
         File(dbPath).mkdirs()
-        createTileDBCoreArrays(dbPath)
+        TiledbCoreHvcfUtils.createTileDBCoreArrays(dbPath)
 
         // Load the imputed hvcf file
 
         var vcfReader = VCFFileReader(File(imputedHvcf), false)
-        val altHeadersImputed = parseTiledbAltHeaders(vcfReader)
+        val altHeadersImputed = TiledbCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
         println("Finished parsing imputedHvcf alt headers ")
-        val variantData = parseTiledbVariantData(vcfReader)
+        val variantData = TiledbCoreHvcfUtils.parseTiledbVariantData(vcfReader)
         println("Finished parsing imputedHvcf variant data")
 
         // Now load the data
         val arrayName = "${dbPath}/alt_header_array"
-        writeAltDataToTileDB(arrayName, altHeadersImputed)
+        TiledbCoreHvcfUtils.writeAltDataToTileDB(arrayName, altHeadersImputed)
         val variantArrayName = "${dbPath}/hvcf_variants_array"
-        writeVariantsDataToTileDB(variantArrayName, variantData)
+        TiledbCoreHvcfUtils.writeVariantsDataToTileDB(variantArrayName, variantData)
 
         // Do again for LineA and LineB
         vcfReader = VCFFileReader(File(lineAhvcf), false)
-        val altHeadersLineA = parseTiledbAltHeaders(vcfReader)
-        writeAltDataToTileDB(arrayName, altHeadersLineA)
-        val variantDataLineA = parseTiledbVariantData(vcfReader)
-        writeVariantsDataToTileDB(variantArrayName, variantDataLineA)
+        val altHeadersLineA = TiledbCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
+        TiledbCoreHvcfUtils.writeAltDataToTileDB(arrayName, altHeadersLineA)
+        val variantDataLineA = TiledbCoreHvcfUtils.parseTiledbVariantData(vcfReader)
+        TiledbCoreHvcfUtils.writeVariantsDataToTileDB(variantArrayName, variantDataLineA)
         println("Finished writing LineA data")
 
         vcfReader = VCFFileReader(File(lineBhvcf), false)
-        val altHeadersLineB = parseTiledbAltHeaders(vcfReader)
-        writeAltDataToTileDB(arrayName, altHeadersLineB)
-        val variantDataLineB = parseTiledbVariantData(vcfReader)
-        writeVariantsDataToTileDB(variantArrayName, variantDataLineB)
+        val altHeadersLineB = TiledbCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
+        TiledbCoreHvcfUtils.writeAltDataToTileDB(arrayName, altHeadersLineB)
+        val variantDataLineB = TiledbCoreHvcfUtils.parseTiledbVariantData(vcfReader)
+        TiledbCoreHvcfUtils.writeVariantsDataToTileDB(variantArrayName, variantDataLineB)
 
         // Query for distinct sampleNames from the hvcf_variants_array
         println("QUery distinct sample names from the hvcf_variants_array")

@@ -45,7 +45,7 @@ class LoadHvcf: CliktCommand(help = "Load  h.vcf files into TileDB core datasets
         }
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
         myLogger.info("LoadHvcf: verifying array")
-        val goodArray = verifyHvcfArray(dbPath)
+        val goodArray = TiledbCoreHvcfUtils.verifyHvcfArray(dbPath)
         myLogger.info("LoadHvcf: goodArray: $goodArray")
 
         processHvcfsToTiledbArrays(hvcfDir, dbPath)
@@ -82,11 +82,11 @@ class LoadHvcf: CliktCommand(help = "Load  h.vcf files into TileDB core datasets
             // data is written for each file as it is processed.
             // This is to ensure batching for tiledb arrays.
             val vcfReader = VCFFileReader(file, false)
-            val hvcfData = parseTiledbAltHeaders(vcfReader)
+            val hvcfData = TiledbCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
             myLogger.info("hvcfData size: ${hvcfData.size} for file ${file.name}")
             if (hvcfData.isNotEmpty()) {
                 // hvcf files from imputation may not have alt headers
-                writeAltDataToTileDB(altArrayName, hvcfData)
+                TiledbCoreHvcfUtils.writeAltDataToTileDB(altArrayName, hvcfData)
                 // combinedHvcfHeaderData.addAll(hvcfData)
                 myLogger.info("Finished writing ALT data for file ${file.name}")
             }
@@ -97,12 +97,12 @@ class LoadHvcf: CliktCommand(help = "Load  h.vcf files into TileDB core datasets
 
             // TODO:  need to handle multipsample hvcf files
             // WIll we have them from imputation or are these always single sample unless someone merges them?
-            val variantData = parseTiledbVariantData(vcfReader)
+            val variantData = TiledbCoreHvcfUtils.parseTiledbVariantData(vcfReader)
             if (variantData.isEmpty()) {
                 myLogger.warn("No variant data found in ${file.name}")
                 return
             }
-            writeVariantsDataToTileDB(variantArrayName, variantData)
+            TiledbCoreHvcfUtils.writeVariantsDataToTileDB(variantArrayName, variantData)
             myLogger.info("Finished writing Variant data for file ${file.name}")
             //combinedHvcfVariantData.addAll(variantData)
 
