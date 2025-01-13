@@ -22,6 +22,7 @@ class InitHvcfArray: CliktCommand(help = "Create TileDB core array  h.vcf files"
         .default("")
 
     override fun run() {
+        logCommand(this)
         // Set the dbPath to the current directory if it is not set
         val dbPath = if (dbPath.isBlank()) {
             System.getProperty("user.dir")
