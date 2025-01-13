@@ -18,7 +18,7 @@ import java.io.File
  * and to create the SamleGamete - which will still be a string, but with _0 _1 etc appended to the sample name.
  */
 
-class TiledbCoreHvcfUtils {
+class TileDBCoreHvcfUtils {
     companion object {
         private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.TiledbCoreHvcfUtils")
 

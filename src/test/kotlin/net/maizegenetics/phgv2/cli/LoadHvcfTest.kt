@@ -1,8 +1,7 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
-import net.maizegenetics.phgv2.utils.queryDistinctRefRanges
-import net.maizegenetics.phgv2.utils.queryDistinctSampleNames
+import net.maizegenetics.phgv2.utils.TileDBCoreVariantQueries
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -73,7 +72,7 @@ class LoadHvcfTest {
 
         // Add some asserts to check the output
         // Get number of distinct sample names from the variantsArray
-        val names = queryDistinctSampleNames(variantsArray)
+        val names = TileDBCoreVariantQueries.queryDistinctSampleNames(variantsArray)
         println("Distinct sample names: $names")
         assertEquals(3,names.size)
         assertTrue(names.contains("LineA"))
@@ -82,18 +81,18 @@ class LoadHvcfTest {
 
         // get number of distinct samples from the altHeaderArray
         // TestLine2 will not show up as a sample name in the altHeaderArray
-        val names2 = queryDistinctSampleNames(altHeaderArray)
+        val names2 = TileDBCoreVariantQueries.queryDistinctSampleNames(altHeaderArray)
         println("Distinct sample names: $names2")
         assertEquals(2,names2.size)
         assertTrue(names2.contains("LineA"))
         assertTrue(names2.contains("LineB"))
 
         // Get number of distinct refRanges from the variantsArray
-        val refRanges = queryDistinctRefRanges(variantsArray)
+        val refRanges = TileDBCoreVariantQueries.queryDistinctRefRanges(variantsArray)
         assertEquals(38,refRanges.size)
 
         // GEt number of distinct refRanges from the altHeaderArray
-        val refRangeAltHeaders = queryDistinctRefRanges(altHeaderArray)
+        val refRangeAltHeaders = TileDBCoreVariantQueries.queryDistinctRefRanges(altHeaderArray)
         assertEquals(38,refRangeAltHeaders.size)
 
         // verify the number of refRanges in the altHeaderArray is the same as in the variantsArray

@@ -13,8 +13,8 @@ import java.io.File
 import kotlin.test.assertTrue
 
 @ExtendWith(TestExtension::class)
-class TiledbAltHeadersQueriesTest {
-    private val myLogger = LogManager.getLogger(TiledbAltHeadersQueriesTest::class.java)
+class TileDBAltHeadersQueriesTest {
+    private val myLogger = LogManager.getLogger(TileDBAltHeadersQueriesTest::class.java)
 
     companion object {
 
@@ -56,24 +56,24 @@ class TiledbAltHeadersQueriesTest {
     fun testQuerySampleNameID_byRefRange() {
         // testing output from parseTiledbAltHeaders
         var vcfReader = VCFFileReader(File(lineAhvcf), false)
-        val altHeadersLineA = TiledbCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
+        val altHeadersLineA = TileDBCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
         println("Finished parsing lineAhvcf")
 
         vcfReader = VCFFileReader(File(lineBhvcf), false)
-        val altHeadersLineB = TiledbCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
+        val altHeadersLineB = TileDBCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
         println("Finished parsing lineBhvcf")
 
         // Create the tiledb array by calling the function createTileDBArray
         println("Creating tiledb array")
         // ensure the top folder exists
         File(dbPath).mkdirs()
-        TiledbCoreHvcfUtils.createTileDBCoreArrays(dbPath)
+        TileDBCoreHvcfUtils.createTileDBCoreArrays(dbPath)
 
         // Write the altHeaders to the tiledb array
         println("Writing LineA altHeaders to tiledb array")
-        TiledbCoreHvcfUtils.writeAltDataToTileDB(altHeaderArray, altHeadersLineA)
+        TileDBCoreHvcfUtils.writeAltDataToTileDB(altHeaderArray, altHeadersLineA)
         println("Writing LineB altHeaders to tiledb array")
-        TiledbCoreHvcfUtils.writeAltDataToTileDB(altHeaderArray, altHeadersLineB)
+        TileDBCoreHvcfUtils.writeAltDataToTileDB(altHeaderArray, altHeadersLineB)
 
         // To test what was written, we must extract data
         println("TestCase: Extracting data from tiledb array")
@@ -81,7 +81,7 @@ class TiledbAltHeadersQueriesTest {
         val rangesToQuery = listOf("1:1-1000", "1:6501-11000", "2:1-1000", "2:5501-6500")
 
         // Try with dynamic buffers
-        val streamingResults = queryWithStreaming_sampleNameIdByRefRange(TiledbCoreHvcfUtilsTest.altHeaderArray, rangesToQuery)
+        val streamingResults = TileDBAltHeaderQueries.queryWithStreaming_sampleNameIdByRefRange(TileDBCoreHvcfUtilsTest.altHeaderArray, rangesToQuery)
 
         println("\nStreaming buffer results:")
         streamingResults.forEach { println(it) }
@@ -101,7 +101,7 @@ class TiledbAltHeadersQueriesTest {
             "Expected entry LineB not found in firstRefRange")
 
         // delete the tiledbArray so next tests can recreate what they need
-        File(TiledbCoreHvcfUtilsTest.dbPath).deleteRecursively()
+        File(TileDBCoreHvcfUtilsTest.dbPath).deleteRecursively()
 
     }
 
@@ -111,10 +111,10 @@ class TiledbAltHeadersQueriesTest {
         // testing output from parseTiledbAltHeaders
         // The values used for the asserts were copied from the values in the hvcf files
         var vcfReader = VCFFileReader(File(lineAhvcf), false)
-        val altHeadersLineA = TiledbCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
+        val altHeadersLineA = TileDBCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
         println("Finished parsing LineA alt headers ")
         vcfReader = VCFFileReader(File(lineBhvcf), false)
-        val altHeadersLineB = TiledbCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
+        val altHeadersLineB = TileDBCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
         println("Finished parsing lineBhvcf alt headers")
 
 
@@ -123,14 +123,14 @@ class TiledbAltHeadersQueriesTest {
         // Create the tiledb array by calling the function createTileDBArray
         println("Creating tiledb array")
         //createTileDBArraySingleDimensionID(tiledbArrayName)
-        TiledbCoreHvcfUtils.createTileDBCoreArrays(dbPath)
+        TileDBCoreHvcfUtils.createTileDBCoreArrays(dbPath)
 
         // Write the altHeaders to the tiledb array
         println("Writing altHeaders to tiledb array")
-        TiledbCoreHvcfUtils.writeAltDataToTileDB(altHeaderArray, altHeadersLineA)
-        TiledbCoreHvcfUtils.writeAltDataToTileDB(altHeaderArray, altHeadersLineB)
+        TileDBCoreHvcfUtils.writeAltDataToTileDB(altHeaderArray, altHeadersLineA)
+        TileDBCoreHvcfUtils.writeAltDataToTileDB(altHeaderArray, altHeadersLineB)
         // Try to query by refRange
-        val resultsByRefRange = queryIDsByRefRange(TiledbCoreHvcfUtilsTest.altHeaderArray, listOf("1:1-1000"))
+        val resultsByRefRange = TileDBAltHeaderQueries.queryIDsByRefRange(TileDBCoreHvcfUtilsTest.altHeaderArray, listOf("1:1-1000"))
         println("Results with 1 refRange: $resultsByRefRange")
         assertEquals(1, resultsByRefRange.keys.size)
         val rangeResults = resultsByRefRange.get("1:1-1000")
@@ -139,7 +139,7 @@ class TiledbAltHeadersQueriesTest {
         assertTrue(rangeResults?.contains("12f0cec9102e84a161866e37072443b7") ?: false)
         assertTrue(rangeResults?.contains("4fc7b8af32ddd74e07cb49d147ef1938") ?: false)
 
-        val resultsByRefRange2 = queryIDsByRefRange(TiledbCoreHvcfUtilsTest.altHeaderArray, listOf("1:1-1000","2:12001-16500"))
+        val resultsByRefRange2 = TileDBAltHeaderQueries.queryIDsByRefRange(TileDBCoreHvcfUtilsTest.altHeaderArray, listOf("1:1-1000","2:12001-16500"))
         println("Results with 2 refRanges: $resultsByRefRange2")
         assertEquals(2, resultsByRefRange2.keys.size)
         var firstRangeResults = resultsByRefRange2.get("1:1-1000")
@@ -155,7 +155,7 @@ class TiledbAltHeadersQueriesTest {
         assertTrue(secondRangeResults?.contains("6fb2de47c835bd9ab026c02d62f49807") ?: false)
 
 
-        val resultsByRefRange5Ranges = queryIDsByRefRange(TiledbCoreHvcfUtilsTest.altHeaderArray, listOf("1:1-1000","1:12001-16500","1:33001-34000","2:1-1000","2:5501-6500"))
+        val resultsByRefRange5Ranges = TileDBAltHeaderQueries.queryIDsByRefRange(TileDBCoreHvcfUtilsTest.altHeaderArray, listOf("1:1-1000","1:12001-16500","1:33001-34000","2:1-1000","2:5501-6500"))
         println("Results with 5 refRanges: $resultsByRefRange5Ranges")
 
         assertEquals(5, resultsByRefRange5Ranges.keys.size)
@@ -190,7 +190,7 @@ class TiledbAltHeadersQueriesTest {
         assertTrue(fifthRangeResults?.contains("45b121547c7ae517a181fdd2621495c4") ?: false)
 
         // delete the tiledbArray so next tests can recreate what they need
-        File(TiledbCoreHvcfUtilsTest.dbPath).deleteRecursively()
+        File(TileDBCoreHvcfUtilsTest.dbPath).deleteRecursively()
 
     }
 

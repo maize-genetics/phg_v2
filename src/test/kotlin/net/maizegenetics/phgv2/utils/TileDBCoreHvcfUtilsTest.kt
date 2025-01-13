@@ -17,9 +17,9 @@ import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 
 @ExtendWith(TestExtension::class)
-class TiledbCoreHvcfUtilsTest {
+class TileDBCoreHvcfUtilsTest {
 
-    private val myLogger = LogManager.getLogger(TiledbCoreHvcfUtilsTest::class.java)
+    private val myLogger = LogManager.getLogger(TileDBCoreHvcfUtilsTest::class.java)
 
     companion object {
 
@@ -64,7 +64,7 @@ class TiledbCoreHvcfUtilsTest {
         // make sure tiledb main folder exists
         File(dbPath).mkdirs()
         println("Creating tiledb array")
-        TiledbCoreHvcfUtils.createTileDBCoreArrays(dbPath)
+        TileDBCoreHvcfUtils.createTileDBCoreArrays(dbPath)
         val array = Array(Context(), altHeaderArray, QueryType.TILEDB_READ)
         assertTrue(array.schema != null)
         array.close()
@@ -92,7 +92,7 @@ class TiledbCoreHvcfUtilsTest {
     @Test
     fun testParseTIledbVariantData() {
         val vcfReader = VCFFileReader(File(lineAhvcf), false)
-        val variantData = TiledbCoreHvcfUtils.parseTiledbVariantData(vcfReader)
+        val variantData = TileDBCoreHvcfUtils.parseTiledbVariantData(vcfReader)
         println("Finished parsing lineAhvcf variant data")
         assertEquals(38, variantData.size)
         // Verify the first and lsat entries in the variant data
@@ -120,7 +120,7 @@ class TiledbCoreHvcfUtilsTest {
     fun testParseAltHeadersTiledb() {
         // testing output from parseTiledbAltHeaders
         val vcfReader = VCFFileReader(File(lineAhvcf), false)
-        val altHeaders = TiledbCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
+        val altHeaders = TileDBCoreHvcfUtils.parseTiledbAltHeaders(vcfReader)
         println("Finished parsing smallSeqLineAHvcfFile")
 
         // Read the altheader data into a list to compare to what

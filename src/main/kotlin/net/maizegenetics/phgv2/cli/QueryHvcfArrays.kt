@@ -6,9 +6,8 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.enum
-import net.maizegenetics.phgv2.utils.TiledbCoreHvcfUtils
-import net.maizegenetics.phgv2.utils.queryDistinctRefRanges
-import net.maizegenetics.phgv2.utils.queryDistinctSampleNames
+import net.maizegenetics.phgv2.utils.TileDBCoreHvcfUtils
+import net.maizegenetics.phgv2.utils.TileDBCoreVariantQueries
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
@@ -92,7 +91,7 @@ class QueryHvcfArrays: CliktCommand(help = "Query tiledb core arrays for hvcf fi
 
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
         myLogger.info("QueryHvcfArrays: verifying array")
-        val goodArray = TiledbCoreHvcfUtils.verifyHvcfArray(dbPath)
+        val goodArray = TileDBCoreHvcfUtils.verifyHvcfArray(dbPath)
         myLogger.info("QueryHvcfArrays: goodArray: $goodArray")
 
         // Define the array to query
@@ -109,14 +108,14 @@ class QueryHvcfArrays: CliktCommand(help = "Query tiledb core arrays for hvcf fi
         // Using an enum means we don't need a else catch all
         when (queryType) {
             QueryType.DISTINCT_SAMPLES -> {
-                val distinctSamples = queryDistinctSampleNames(queryArray)
+                val distinctSamples = TileDBCoreVariantQueries.queryDistinctSampleNames(queryArray)
                 // Write the results from both the altHeaderArray and the variantsArray to the output file
                 File(outputFile).writeText(distinctSamples.joinToString("\n"))
             }
             QueryType.DISTINCT_RANGES -> {
                 // The ranges shoudl be identical in the altHeaderArray and the variantsArray
                 // so only 1 query is needed
-                val distinctRanges = queryDistinctRefRanges(queryArray)
+                val distinctRanges = TileDBCoreVariantQueries.queryDistinctRefRanges(queryArray)
                 myLogger.info("Distinct refRanges: $distinctRanges\n")
                 // Write the results to the output file
                 File(outputFile).writeText(distinctRanges.joinToString("\n"))

@@ -3,7 +3,7 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import net.maizegenetics.phgv2.utils.TiledbCoreHvcfUtils
+import net.maizegenetics.phgv2.utils.TileDBCoreHvcfUtils
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
@@ -37,7 +37,7 @@ class InitHvcfArray: CliktCommand(help = "Create TileDB core array  h.vcf files"
         }
 
         // Create the tiledb core array
-        TiledbCoreHvcfUtils.createTileDBCoreArrays(dbPath)
+        TileDBCoreHvcfUtils.createTileDBCoreArrays(dbPath)
         myLogger.info("TileDB core array created for h.vcf files in $dbPath")
     }
 }
