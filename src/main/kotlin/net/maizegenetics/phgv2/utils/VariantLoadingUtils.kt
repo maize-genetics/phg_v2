@@ -22,6 +22,10 @@ import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import java.util.*
 import kotlin.collections.LinkedHashSet
+import com.google.common.hash.Hashing
+import java.nio.charset.StandardCharsets
+import net.openhft.hashing.LongHashFunction
+
 
 
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.VariantLoadingUtils")
@@ -356,6 +360,18 @@ fun getChecksumForString(seq: String, protocol: String="Md5"): String {
         throw IllegalStateException("CheckSum: getChecksumForString: error: " + exc.message)
     }
 }
+
+// This function creates the Murmur3 hash for the md5 string
+fun md5ToMurmur3(md5hash: String): Long {
+    return Hashing.murmur3_128().hashString(md5hash, StandardCharsets.UTF_8).asLong()
+}
+
+// This function skips the MD5 hash and directly creates an INT 64 hash
+// for use with hvcf and tiledb. Will we transition to this as hapID value?
+fun xxHash64(input: String): ULong {
+    return LongHashFunction.xx().hashBytes(input.toByteArray(StandardCharsets.UTF_8)).toULong()
+}
+
 
 /**
  * This function verifies the path given for the tiledb datasets is valid

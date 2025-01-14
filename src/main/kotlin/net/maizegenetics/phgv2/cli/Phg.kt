@@ -32,9 +32,11 @@ fun main(args: Array<String>) = Phg()
     .subcommands(
         SetupEnvironment(), Initdb(), CreateRanges(), PrepareAssemblies(), AgcCompress(), AlignAssemblies(), PrepareSlurmAlignFile(),
         CreateAnchorwaveDotplot(), CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), Hvcf2Gvcf(), LoadVcf(), ExportVcf(),
-        BuildKmerIndex(), MapKmers(), FindPaths(), HapidSampleTable(), SampleHapidByRange(),RopebwtIndex(), MapReads(), // Imputation
+        BuildKmerIndex(), MapKmers(), FindPaths(), HapidSampleTable(), SampleHapidByRange(),
+        RopebwtIndex(), MapReads(), // Imputation
         CreateFastaFromHvcf(), ListSamples(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer, ExtractEdgeReads(), //Utilities
         QcReadMapping(), PathsToGff(), // Utilities continued
-        CompositeToHaplotypeCoords() // resequencing pipeline
+        CompositeToHaplotypeCoords(), // resequencing pipeline
+        InitHvcfArray(), LoadHvcf(), QueryHvcfArrays() // hvcf loading
     )
     .main(args)
