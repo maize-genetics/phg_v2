@@ -3,14 +3,26 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 import biokotlin.seqIO.NucSeqIO
 import biokotlin.util.bufferedWriter
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.options.default
-import com.github.ajalt.clikt.parameters.options.flag
-import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
+import com.github.ajalt.clikt.parameters.groups.required
+import com.github.ajalt.clikt.parameters.groups.single
+import com.github.ajalt.clikt.parameters.options.*
 import com.github.ajalt.clikt.parameters.types.int
+import net.maizegenetics.phgv2.cli.CreateFastaFromHvcf
 import net.maizegenetics.phgv2.cli.logCommand
 import org.apache.logging.log4j.LogManager
 import java.io.File
+
+
+/**
+ * Class to hold the input for the ropeBWT3 index creation
+ * This can give you a pangenome file or a hvcf dir
+ */
+sealed class RopeBWTIndexInput {
+    data class PangenomeFile(val pangenomeFile: String) : RopeBWTIndexInput()
+    data class HvcfDir(val hvcfDir: String) : RopeBWTIndexInput()
+}
+
 
 /**
  * Class to call the appropriate ropebwt3 commands to create a ropeBWT3 index
@@ -25,10 +37,28 @@ class RopebwtIndex : CliktCommand(help="BETA: Create a ropeBWT3 index") {
 
     private val myLogger = LogManager.getLogger(RopebwtIndex::class.java)
 
-    val inputFasta by option(help = "Pangenome Fasta File")
-        .required() //Needs to be required now due to the agc archive
+    // Pre-compile the Regex pattern - used when creating the output fasta file names
+    val HVCF_PATTERN = Regex("""(\.hvcf|\.h\.vcf|\.hvcf\.gz|\.h\.vcf\.gz)$""")
 
-    val indexFilePrefix by option(help = "The full path of the ropebwt3 index file.")
+    val ropeBWTIndexInput : RopeBWTIndexInput? by mutuallyExclusiveOptions<RopeBWTIndexInput>(
+        option(
+            "--pangenome-file",
+            help = "Path to pangenome fasta file created by create-fasta-from-hvcf."
+        ).convert { RopeBWTIndexInput.PangenomeFile(it) },
+        option(
+            "--hvcf-dir",
+            help = "Path to directory holding hVCF files. This will build a pangenome fasta file from the hvcf files."
+        ).convert { RopeBWTIndexInput.HvcfDir(it) }
+    ).single().required()
+
+    val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  " +
+            "If not provided, the current working directory is used.  Note that if --pangenome-file is used this is not used as the sequence is already extracted into a fasta file")
+        .default("")
+
+    val outputDir by option(help = "Output Directory")
+        .required()
+
+    val indexFilePrefix by option(help = "Prefix of the ropebwt3 index file.  This will be added to the output directory and ropeBWT3 will make a number of output files.")
         .required()
 
     val numThreads by option(help = "Number of threads to use for the index creation.")
@@ -44,10 +74,27 @@ class RopebwtIndex : CliktCommand(help="BETA: Create a ropeBWT3 index") {
     override fun run() {
         logCommand(this)
 
-        myLogger.info("Creating ropeBWT3 index for $inputFasta")
+        val pangenomeFastaFile = if(ropeBWTIndexInput is RopeBWTIndexInput.HvcfDir) {
+            myLogger.info("Creating pangenome fasta file from hvcf files in ${(ropeBWTIndexInput as RopeBWTIndexInput.HvcfDir).hvcfDir}")
+            val hvcfDir = (ropeBWTIndexInput as RopeBWTIndexInput.HvcfDir).hvcfDir
+            createPangenomeFasta(hvcfDir, outputDir, dbPath, condaEnvPrefix)
+            "$outputDir/pangenome.fa"
+        }
+        else {
+            (ropeBWTIndexInput as RopeBWTIndexInput.PangenomeFile).pangenomeFile
+        }
 
-        createInitialIndex(inputFasta, indexFilePrefix, numThreads, deleteFmrIndex, condaEnvPrefix)
+        myLogger.info("Creating ropeBWT3 index for $pangenomeFastaFile")
 
+        createInitialIndex(pangenomeFastaFile, "${outputDir}/${indexFilePrefix}", numThreads, deleteFmrIndex, condaEnvPrefix)
+
+    }
+
+    fun createPangenomeFasta(hvcfDir: String, outputDir: String, dbPath: String, condaEnvPrefix: String) {
+        val hvcfFiles : Array<File> = File(hvcfDir).listFiles { file ->
+            HVCF_PATTERN.containsMatchIn(file.name)
+        } ?: throw Exception("No hvcf files found in $hvcfDir")
+        CreateFastaFromHvcf().createPangenomeHaplotypeFile(outputDir, hvcfFiles, dbPath, condaEnvPrefix)
     }
 
     fun createInitialIndex(inputFasta:String, indexFilePrefix:String, numThreads: Int, deleteFMRIndex:Boolean, condaEnvPrefix:String) {

@@ -124,66 +124,7 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
         if (hvcfInput is HvcfInput.HvcfDir) {
             // Loop through the directory and figure out which files are hvcf files
             // The gvcf and hvcf files may be in the same folder, so verify specific extension
-            val hvcfFiles = File(hvcfInput.hvcfDir).listFiles { file ->
-                HVCF_PATTERN.containsMatchIn(file.name)
-            }
-
-            if (fastaType == FastaType.pangenomeHaplotype) {
-                //this mode for making a single pangenome haplotype fasta of all the hvcfs combined
-                //useful for running minimap2
-                val outputFileName = "$outputDir/pangenome.fa"
-                val sharedHapFileName = "$outputDir/sharedHaplotypes.txt"
-
-                bufferedWriter(outputFileName).use { pangenomeFileWriter ->
-                    bufferedWriter(sharedHapFileName).use { sharedHapFileWriter ->
-                        val filesAndRecords = hvcfFiles?.map { hvcfFile ->
-                            println("Processing ${hvcfFile.name}")
-                            Pair(
-                                hvcfFile.nameWithoutExtension,
-                                processSingleHVCF(VCFFileReader(hvcfFile, false), dbPath, condaEnvPrefix)
-                            )
-                        }
-
-                        val idMap = mutableMapOf<String, Set<String>>()
-                        val exportRecords = mutableListOf<HaplotypeSequence>()
-
-                        println("Writing pangenome fasta")
-                        filesAndRecords?.forEach { (fileName, records) ->
-                            records.forEach { record ->
-                                val id = record.id
-
-                                if (!idMap.containsKey(id)) {
-                                    exportRecords.add(record)
-                                }
-
-                                val idSet = idMap.getOrDefault(id, setOf())
-                                idMap[id] = idSet.plus(fileName)
-                            }
-                        }
-
-                        writeHaplotypeSequence(pangenomeFileWriter, exportRecords, false)
-                        for (entry in idMap) {
-                            sharedHapFileWriter.write("${entry.key}\t${entry.value.joinToString(",")}\n")
-                        }
-                    }
-                }
-            } else {
-                // Loop through each file and run the processSingleHVCF function
-                hvcfFiles?.forEach { hvcfFile ->
-                    val outputFileName = File(hvcfFile.name.replace(HVCF_PATTERN, ".fa"))
-                        .name.replace(".fa", "_${fastaType}.fa")
-                    val outputFile = "$outputDir/$outputFileName"
-
-                    bufferedWriter(outputFile).use { output ->
-                        writeSequences(
-                            output,
-                            processSingleHVCF(VCFFileReader(hvcfFile, false), dbPath, condaEnvPrefix),
-                            fastaType
-                        )
-                    }
-                }
-            }
-
+            processHVCFDirectory(hvcfInput, fastaType, outputDir, dbPath, condaEnvPrefix)
         } else if (hvcfInput is HvcfInput.HvcfFile) {
             // Load in the HVCF
             val hvcfFileReader = VCFFileReader(File(hvcfInput.hvcfFile), false)
@@ -200,6 +141,98 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
             TODO("TileDB VCF Reader Not implemented yet.  Please run with --hvcf-file or --hvcf-dir")
         }
 
+    }
+
+    /**
+     * Function to process HVCFs found in a given directory.
+     */
+    fun processHVCFDirectory(
+        hvcfInput: HvcfInput.HvcfDir,
+        fastaType: FastaType,
+        outputDir: String,
+        dbPath: String,
+        condaEnvPrefix: String
+    ) {
+        val hvcfFiles : Array<File> = File(hvcfInput.hvcfDir).listFiles { file ->
+            HVCF_PATTERN.containsMatchIn(file.name)
+        } ?: throw Exception("No hvcf files found in ${hvcfInput.hvcfDir}")
+
+        if (fastaType == FastaType.pangenomeHaplotype) {
+            createPangenomeHaplotypeFile(outputDir, hvcfFiles, dbPath, condaEnvPrefix)
+        } else {
+            // Loop through each file and run the processSingleHVCF function
+            hvcfFiles?.forEach { hvcfFile ->
+                val outputFileName = File(hvcfFile.name.replace(HVCF_PATTERN, ".fa"))
+                    .name.replace(".fa", "_${fastaType}.fa")
+                val outputFile = "$outputDir/$outputFileName"
+
+                bufferedWriter(outputFile).use { output ->
+                    writeSequences(
+                        output,
+                        processSingleHVCF(VCFFileReader(hvcfFile, false), dbPath, condaEnvPrefix),
+                        fastaType
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * This function will build the pangenome haplotype fasta file from all the hvcf files in the directory
+     */
+    fun createPangenomeHaplotypeFile(
+        outputDir: String,
+        hvcfFiles: Array<File>,
+        dbPath: String,
+        condaEnvPrefix: String
+    ) {
+        //this mode for making a single pangenome haplotype fasta of all the hvcfs combined
+        //useful for running minimap2
+        val outputFileName = "$outputDir/pangenome.fa"
+        val sharedHapFileName = "$outputDir/sharedHaplotypes.txt"
+
+        bufferedWriter(outputFileName).use { pangenomeFileWriter ->
+            bufferedWriter(sharedHapFileName).use { sharedHapFileWriter ->
+                val filesAndRecords = hvcfFiles.map { hvcfFile ->
+                    myLogger.info("Processing ${hvcfFile.name}")
+                    Pair(
+                        hvcfFile.nameWithoutExtension,
+                        processSingleHVCF(VCFFileReader(hvcfFile, false), dbPath, condaEnvPrefix)
+                    )
+                }
+
+                val (idMap, exportRecords) = buildIdMapAndExpRecords(filesAndRecords)
+
+                writeHaplotypeSequence(pangenomeFileWriter, exportRecords, false)
+                for (entry in idMap) {
+                    sharedHapFileWriter.write("${entry.key}\t${entry.value.joinToString(",")}\n")
+                }
+            }
+        }
+    }
+
+    /**
+     * Function to build the id to Sequence map used to see which haplotypes are shared.
+     * This also will build the list of haplotype sequences to be exported to the file
+     */
+    private fun buildIdMapAndExpRecords(filesAndRecords: List<Pair<String, List<HaplotypeSequence>>>): Pair<MutableMap<String, Set<String>>, MutableList<HaplotypeSequence>> {
+        val idMap = mutableMapOf<String, Set<String>>()
+        val exportRecords = mutableListOf<HaplotypeSequence>()
+
+        myLogger.info("Writing pangenome fasta")
+        filesAndRecords.forEach { (fileName, records) ->
+            records.forEach { record ->
+                val id = record.id
+
+                if (!idMap.containsKey(id)) {
+                    exportRecords.add(record)
+                }
+
+                val idSet = idMap.getOrDefault(id, setOf())
+                idMap[id] = idSet.plus(fileName)
+            }
+        }
+        return Pair(idMap, exportRecords)
     }
 
     fun processSingleHVCF(
