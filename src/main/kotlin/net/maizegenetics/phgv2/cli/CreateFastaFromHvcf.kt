@@ -87,7 +87,7 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
     // Users may input either a single hvcf file or a directory with multiple hvcf files
     // Currently one of the two options must be provided but this may change when we support
     // processing directly from TileDB
-    val hvcfInput: HvcfInput? by mutuallyExclusiveOptions<HvcfInput>(
+    val hvcfInput: HvcfInput by mutuallyExclusiveOptions(
         option(
             "--hvcf-file",
             help = "Path to hVCF file. Data will be pulled directly from this file instead of querying TileDB"
@@ -117,7 +117,7 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
         dbPath: String,
         outputDir: String,
         fastaType: FastaType,
-        hvcfInput: HvcfInput?,
+        hvcfInput: HvcfInput,
         condaEnvPrefix: String
     ) {
 
@@ -127,15 +127,17 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
             processHVCFDirectory(hvcfInput, fastaType, outputDir, dbPath, condaEnvPrefix)
         } else if (hvcfInput is HvcfInput.HvcfFile) {
             // Load in the HVCF
-            val hvcfFileReader = VCFFileReader(File(hvcfInput.hvcfFile), false)
-            val outputFileName = File(File(hvcfInput.hvcfFile).name.replace(HVCF_PATTERN, ".fa"))
-                .name.replace(".fa", "_${fastaType}.fa")
-            val outputFile = "$outputDir/$outputFileName"
+            VCFFileReader(File(hvcfInput.hvcfFile), false).use {hvcfFileReader ->
+                val outputFileName = File(File(hvcfInput.hvcfFile).name.replace(HVCF_PATTERN, ".fa"))
+                    .name.replace(".fa", "_${fastaType}.fa")
+                val outputFile = "$outputDir/$outputFileName"
 
-            bufferedWriter(outputFile).use { output ->
-                val records = processSingleHVCF(hvcfFileReader, dbPath, condaEnvPrefix)
-                writeSequences(output, records, fastaType)
+                bufferedWriter(outputFile).use { output ->
+                    val records = processSingleHVCF(hvcfFileReader, dbPath, condaEnvPrefix)
+                    writeSequences(output, records, fastaType)
+                }
             }
+
         } else {
             // Load in the TileDB
             TODO("TileDB VCF Reader Not implemented yet.  Please run with --hvcf-file or --hvcf-dir")
@@ -167,11 +169,13 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
                 val outputFile = "$outputDir/$outputFileName"
 
                 bufferedWriter(outputFile).use { output ->
-                    writeSequences(
-                        output,
-                        processSingleHVCF(VCFFileReader(hvcfFile, false), dbPath, condaEnvPrefix),
-                        fastaType
-                    )
+                    VCFFileReader(hvcfFile, false).use { vcfFileReader ->
+                        writeSequences(
+                            output,
+                            processSingleHVCF(vcfFileReader, dbPath, condaEnvPrefix),
+                            fastaType
+                        )
+                    }
                 }
             }
         }
@@ -195,10 +199,12 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
             bufferedWriter(sharedHapFileName).use { sharedHapFileWriter ->
                 val filesAndRecords = hvcfFiles.map { hvcfFile ->
                     myLogger.info("Processing ${hvcfFile.name}")
-                    Pair(
-                        hvcfFile.nameWithoutExtension,
-                        processSingleHVCF(VCFFileReader(hvcfFile, false), dbPath, condaEnvPrefix)
-                    )
+                    VCFFileReader(hvcfFile,false).use { vcfFileReader ->
+                        Pair(
+                            hvcfFile.nameWithoutExtension,
+                            processSingleHVCF(vcfFileReader, dbPath, condaEnvPrefix)
+                        )
+                    }
                 }
 
                 val (idMap, exportRecords) = buildIdMapAndExpRecords(filesAndRecords)

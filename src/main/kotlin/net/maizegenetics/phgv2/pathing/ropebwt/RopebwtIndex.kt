@@ -40,7 +40,7 @@ class RopebwtIndex : CliktCommand(help="BETA: Create a ropeBWT3 index") {
     // Pre-compile the Regex pattern - used when creating the output fasta file names
     val HVCF_PATTERN = Regex("""(\.hvcf|\.h\.vcf|\.hvcf\.gz|\.h\.vcf\.gz)$""")
 
-    val ropeBWTIndexInput : RopeBWTIndexInput? by mutuallyExclusiveOptions<RopeBWTIndexInput>(
+    val ropeBWTIndexInput : RopeBWTIndexInput by mutuallyExclusiveOptions(
         option(
             "--pangenome-file",
             help = "Path to pangenome fasta file created by create-fasta-from-hvcf."
