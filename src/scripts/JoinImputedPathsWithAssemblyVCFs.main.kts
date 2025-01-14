@@ -1,8 +1,11 @@
 @file:DependsOn("net.maizegenetics:tassel:5.2.94")
-@file:DependsOn("org.biokotlin:biokotlin:0.22")
+@file:DependsOn("org.biokotlin:biokotlin:0.23")
+@file:DependsOn("com.google.guava:guava:33.1.0-jre")
 
 import biokotlin.genome.Position
 import biokotlin.util.bufferedReader
+import com.google.common.collect.ArrayListMultimap
+import com.google.common.collect.Multimap
 import net.maizegenetics.analysis.association.FixedEffectLMPlugin
 import net.maizegenetics.analysis.data.IntersectionAlignmentPlugin
 import net.maizegenetics.analysis.filter.FilterSiteBuilderPlugin
@@ -125,16 +128,18 @@ fun processRange(pos: Position, line: String, vcfFilename: String, indelToMissin
     val numSites = rangeGenotypeTableAssemblies.numberOfSites()
     val vcfSamples = rangeGenotypeTableAssemblies.taxa()
 
-    val pangenomeHapidToSample = pangenomeHapids
-        .mapIndexed { sampleIndex, hapid ->
-            val sampleName = pangenomeTable.samples[sampleIndex]
-            val newSampleIndex = vcfSamples.indexOf(sampleName)
-            Pair(hapid, newSampleIndex)
-        }
-        .toMap()
+    // Multimap of pangenome hapid to sample's index in the VCF
+    val pangenomeHapidToMultiSample: Multimap<String, Int> = ArrayListMultimap.create()
+    pangenomeHapids.forEachIndexed { sampleIndex, hapid ->
+        val sampleName = pangenomeTable.samples[sampleIndex]
+        val newSampleIndex = vcfSamples.indexOf(sampleName)
 
-    val genotype = GenotypeCallTableBuilder.getUnphasedNucleotideGenotypeBuilder(numSamples, numSites)
+        // Add the mapping to the Multimap
+        pangenomeHapidToMultiSample.put(hapid, newSampleIndex)
+    }
 
+    // Array of genotypes for each sample in the pangenome
+    // Index of the array corresponds to the sample index in the pangenome
     val pangenomeGenotypesBySample = vcfSamples.indices
         .map { rangeGenotypeTableAssemblies.genotypeAllSites(it) }
         .map { genotypes ->
@@ -153,6 +158,15 @@ fun processRange(pos: Position, line: String, vcfFilename: String, indelToMissin
         }
         .toTypedArray()
 
+    // Map of pangenome hapid to the sample index in the VCF with the most common genotype
+    val pangenomeHapidToSample = pangenomeHapidToMultiSample.keys().associateWith { hapid ->
+        pangenomeHapidToMultiSample.get(hapid).map { sampleIndex ->
+            Pair(sampleIndex, pangenomeGenotypesBySample[sampleIndex].hashCode())
+        }.groupBy { it.second }.maxBy { it.value.size }.value.first().first
+    }
+
+    // Set the genotypes for each sample in the pangenome
+    val genotype = GenotypeCallTableBuilder.getUnphasedNucleotideGenotypeBuilder(numSamples, numSites)
     hapids.forEachIndexed { i, hapid ->
         if (hapid == ".") return@forEachIndexed
         val sampleIndex =
