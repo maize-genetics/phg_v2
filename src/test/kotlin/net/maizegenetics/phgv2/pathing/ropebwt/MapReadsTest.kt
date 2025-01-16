@@ -2,6 +2,8 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 
 import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.pathing.KeyFileData
 import net.maizegenetics.phgv2.utils.setupDebugLogging
@@ -108,18 +110,21 @@ class MapReadsTest {
     fun testProcessMemsForRead() {
         val mapReads = MapReads()
 
+        val hapIdToRefRangeMap = mapOf("hap1" to listOf(ReferenceRange("chr1",100,200)), "hap2" to listOf(ReferenceRange("chr1",100,200)), "hap3" to listOf(ReferenceRange("chr1",100,200)),
+            "hap4" to listOf(ReferenceRange("chr1",100,200)), "hap5" to listOf(ReferenceRange("chr1",100,200)))
+
         //Make a simple 1 MEM hit
         val simpleMEMList = listOf(MEM("read1",0,150,3,listOf(MEMHit("hap1", "+", 100), MEMHit("hap2", "-", 200), MEMHit("hap3", "+", 300))))
 
         var simpleReadMapping = mutableMapOf<List<String>, Int>()
-        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,5)
+        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,5, hapIdToRefRangeMap)
         assertEquals(1, simpleReadMapping.size)
         assertEquals(listOf("hap1","hap2","hap3"), simpleReadMapping.keys.first())
         assertEquals(1, simpleReadMapping[listOf("hap1","hap2","hap3")])
 
 
         simpleReadMapping = mutableMapOf()
-        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,2)
+        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,2, hapIdToRefRangeMap)
         assertEquals(0, simpleReadMapping.size)
 
 
@@ -136,10 +141,10 @@ class MapReadsTest {
         )
 
         simpleReadMapping = mutableMapOf()
-        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,6)
-        mapReads.processMemsForRead(simpleMEMList2,simpleReadMapping,6)
-        mapReads.processMemsForRead(simpleMEMList3,simpleReadMapping,6)
-        mapReads.processMemsForRead(simpleMEMList4,simpleReadMapping,6)
+        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,6, hapIdToRefRangeMap)
+        mapReads.processMemsForRead(simpleMEMList2,simpleReadMapping,6, hapIdToRefRangeMap)
+        mapReads.processMemsForRead(simpleMEMList3,simpleReadMapping,6, hapIdToRefRangeMap)
+        mapReads.processMemsForRead(simpleMEMList4,simpleReadMapping,6, hapIdToRefRangeMap)
         assertEquals(3, simpleReadMapping.size)
         assertTrue(simpleReadMapping.keys.contains(listOf("hap1","hap2","hap3")))
         assertEquals(2, simpleReadMapping[listOf("hap1","hap2","hap3")])
@@ -151,15 +156,23 @@ class MapReadsTest {
 
         //pass in empty list
         simpleReadMapping = mutableMapOf()
-        assertThrows<NoSuchElementException> { mapReads.processMemsForRead(listOf(),simpleReadMapping,6) }
+        assertThrows<NoSuchElementException> { mapReads.processMemsForRead(listOf(),simpleReadMapping,6, hapIdToRefRangeMap) }
 
     }
 
     @Test
     fun testCreateReadMappingsForFileReader() {
         val reader = bufferedReader("data/test/ropebwt/alignment.bed")
+
+        val hapIdToRefRangeMap = mapOf("hap1" to listOf(ReferenceRange("chr1",100,200)),
+            "hap2" to listOf(ReferenceRange("chr1",100,200)),
+            "hap3" to listOf(ReferenceRange("chr1",100,200)),
+            "hap4" to listOf(ReferenceRange("chr1",100,200)),
+            "hap5" to listOf(ReferenceRange("chr1",100,200)))
+
+
         val mapReads = MapReads()
-        val readMapping = mapReads.createReadMappingsForFileReader(reader, 5)
+        val readMapping = mapReads.createReadMappingsForFileReader(reader, 5, hapIdToRefRangeMap)
 
         assertEquals(2, readMapping.size)
         assertTrue(readMapping.keys.contains(listOf("hap1","hap2","hap3")))
@@ -192,7 +205,17 @@ class MapReadsTest {
         val readFile = "data/test/kmerReadMapping/simulatedReads/LineA_1.fq"
         val outputDir = "${TestExtension.tempDir}ropebwtTest/"
         val outputFile = "$outputDir/LineA_1_readMapping.txt"
-        mapReads.mapSingleReadFile(index, "LineA" ,readFile, outputFile ,5, 148, 5, "")
+
+
+        val hvcfFiles = File(TestExtension.smallSeqInputDir).walkTopDown().filter { it.isFile }
+            .filter { it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz") }.map { "${TestExtension.smallSeqInputDir}/${it.name}" }
+            .toList()
+
+        val graph = HaplotypeGraph(hvcfFiles)
+
+        val hapIdToRefRangeMap = graph.hapIdToRefRangeMap()
+
+        mapReads.mapSingleReadFile(index, "LineA" ,readFile, outputFile ,5, 148, 5, "", hapIdToRefRangeMap)
 
         val expectedLines = bufferedReader("data/test/ropebwt/LineA_1_readMapping.txt").readLines()
         val expectedReadMap = expectedLines.filter { !it.startsWith("#") }.filter { !it.startsWith("HapId") }.map { it.split("\t") }.associate { it[0] to it[1].toInt() }
@@ -212,8 +235,16 @@ class MapReadsTest {
         val outputDir = "${TestExtension.tempDir}ropebwtTest/"
         val index = "data/test/ropebwt/testIndex.fmd"
 
+        val hvcfFiles = File(TestExtension.smallSeqInputDir).walkTopDown().filter { it.isFile }
+            .filter { it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz") }.map { "${TestExtension.smallSeqInputDir}/${it.name}" }
+            .toList()
+
+        val graph = HaplotypeGraph(hvcfFiles)
+
+        val hapIdToRefRangeMap = graph.hapIdToRefRangeMap()
+
         val keyFileDataEntry = listOf(KeyFileData("LineA", "data/test/kmerReadMapping/simulatedReads/LineA_1.fq", "data/test/kmerReadMapping/simulatedReads/LineA_2.fq"))
-        mapReads.mapAllReadFiles(index, keyFileDataEntry, outputDir, 5, 148, 5, "")
+        mapReads.mapAllReadFiles(index, keyFileDataEntry, outputDir, 5, 148, 5, "", hapIdToRefRangeMap )
 
 
         val expectedLines = bufferedReader("data/test/ropebwt/LineA_1_readMapping.txt").readLines()
