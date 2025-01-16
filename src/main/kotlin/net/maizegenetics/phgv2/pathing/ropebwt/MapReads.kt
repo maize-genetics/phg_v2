@@ -204,15 +204,15 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
         //remove any hits that are not the longest
         val bestHits = tempMems.filter { it.readEnd - it.readStart == maxLength }
 
-        val bestHapIds = bestHits.flatMap { it.listMemHits.map{hits -> hits.contig} }.toSet()
-
-        val filteredBestHapIds = filterToOneReferenceRange(bestHapIds, hapIdToRefRangeMap)
-
-        val totalNumHits = filteredBestHapIds.size
+        val totalNumHits = bestHits.sumOf { it.numHits }
 
         if(totalNumHits <= maxNumHits) {
-            //if the total number of hits is less than the maxNumHits, add all the hits to the readMapping
+            //if the total number of hits is less than the maxNumHits, Filter the haps down to a single ref range and then add all those to the readMapping
             //First turn the hapIds into a set then back to a list and sort so it will be consistent
+            val bestHapIds = bestHits.flatMap { it.listMemHits.map{hits -> hits.contig} }.toSet()
+
+            val filteredBestHapIds = filterToOneReferenceRange(bestHapIds, hapIdToRefRangeMap)
+
             val hapIdsHit = filteredBestHapIds.sorted()
             readMapping[hapIdsHit] = (readMapping[hapIdsHit]?:0) + 1
         }

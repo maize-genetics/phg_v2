@@ -55,25 +55,30 @@ class MapReadsTest {
     fun testCliktParams() {
         val mapReads = MapReads()
 
-        val noIndex = mapReads.test("--read-files test1.fq --output-dir testDir")
+        val noIndex = mapReads.test("--read-files test1.fq --output-dir testDir --hvcf-dir ${TestExtension.smallSeqInputDir}")
         assertEquals(1, noIndex.statusCode)
         assertEquals("Usage: map-reads [<options>]\n\n" +
                 "Error: missing option --index\n", noIndex.stderr)
 
-        val noReads = mapReads.test("--index testIndex --output-dir testDir")
+        val noReads = mapReads.test("--index testIndex --output-dir testDir --hvcf-dir ${TestExtension.smallSeqInputDir}")
         assertEquals(1, noReads.statusCode)
         assertEquals("Usage: map-reads [<options>]\n\n" +
                 "Error: must provide one of --key-file, --read-files\n", noReads.stderr)
 
-        val bothReadInputs = mapReads.test("--index testIndex --key-file testKeyFile --read-files test1.fq --output-dir testDir")
+        val bothReadInputs = mapReads.test("--index testIndex --key-file testKeyFile --read-files test1.fq --output-dir testDir --hvcf-dir ${TestExtension.smallSeqInputDir}")
         assertEquals(1, bothReadInputs.statusCode)
         assertEquals("Usage: map-reads [<options>]\n\n" +
                 "Error: option --key-file cannot be used with --read-files\n", bothReadInputs.stderr)
 
-        val noOutputDir = mapReads.test("--index testIndex --read-files test1.fq")
+        val noOutputDir = mapReads.test("--index testIndex --read-files test1.fq --hvcf-dir ${TestExtension.smallSeqInputDir}")
         assertEquals(1, noOutputDir.statusCode)
         assertEquals("Usage: map-reads [<options>]\n\n" +
                 "Error: missing option --output-dir\n", noOutputDir.stderr)
+
+        val noHvcfDir = mapReads.test("--index testIndex --read-files test1.fq --output-dir testDir")
+        assertEquals(1, noHvcfDir.statusCode)
+        assertEquals("Usage: map-reads [<options>]\n\n" +
+                "Error: missing option --hvcf-dir\n", noHvcfDir.stderr)
     }
 
     @Test
@@ -174,6 +179,8 @@ class MapReadsTest {
         val mapReads = MapReads()
         val readMapping = mapReads.createReadMappingsForFileReader(reader, 5, hapIdToRefRangeMap)
 
+        println(readMapping)
+
         assertEquals(2, readMapping.size)
         assertTrue(readMapping.keys.contains(listOf("hap1","hap2","hap3")))
         assertEquals(2, readMapping[listOf("hap1","hap2","hap3")])
@@ -206,10 +213,7 @@ class MapReadsTest {
         val outputDir = "${TestExtension.tempDir}ropebwtTest/"
         val outputFile = "$outputDir/LineA_1_readMapping.txt"
 
-
-        val hvcfFiles = File(TestExtension.smallSeqInputDir).walkTopDown().filter { it.isFile }
-            .filter { it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz") }.map { "${TestExtension.smallSeqInputDir}/${it.name}" }
-            .toList()
+        val hvcfFiles = listOf("data/test/smallseq/LineA.h.vcf", "data/test/smallseq/LineB.h.vcf", "data/test/smallseq/Ref.h.vcf")
 
         val graph = HaplotypeGraph(hvcfFiles)
 
@@ -221,6 +225,10 @@ class MapReadsTest {
         val expectedReadMap = expectedLines.filter { !it.startsWith("#") }.filter { !it.startsWith("HapId") }.map { it.split("\t") }.associate { it[0] to it[1].toInt() }
         val observedLines = bufferedReader(outputFile).readLines()
         val observedReadMap = observedLines.filter { !it.startsWith("#") }.filter { !it.startsWith("HapId") }.map { it.split("\t") }.associate { it[0] to it[1].toInt() }
+
+        val sum = observedReadMap.values.sum()
+        println(sum)
+        println("expected: " + expectedReadMap.values.sum())
 
         assertEquals(expectedReadMap.size, observedReadMap.size)
 
@@ -235,9 +243,7 @@ class MapReadsTest {
         val outputDir = "${TestExtension.tempDir}ropebwtTest/"
         val index = "data/test/ropebwt/testIndex.fmd"
 
-        val hvcfFiles = File(TestExtension.smallSeqInputDir).walkTopDown().filter { it.isFile }
-            .filter { it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz") }.map { "${TestExtension.smallSeqInputDir}/${it.name}" }
-            .toList()
+        val hvcfFiles = listOf("data/test/smallseq/LineA.h.vcf", "data/test/smallseq/LineB.h.vcf", "data/test/smallseq/Ref.h.vcf")
 
         val graph = HaplotypeGraph(hvcfFiles)
 
