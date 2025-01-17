@@ -286,4 +286,34 @@ class MapReadsTest {
         assertEquals(expectedLines.size, observedLines.size)
         expectedLines.indices.forEach { assertEquals(expectedLines[it], observedLines[it]) }
     }
+
+    @Test
+    fun testFilterToOneReferenceRange() {
+        val mapReads = MapReads()
+        val hapIdToRefRangeMap = mapOf("hap1" to listOf(ReferenceRange("chr1",100,200)),
+            "hap2" to listOf(ReferenceRange("chr1",100,200)),
+            "hap3" to listOf(ReferenceRange("chr1",100,200)),
+            "hap4" to listOf(ReferenceRange("chr1",200,300)),
+            "hap5" to listOf(ReferenceRange("chr1",200,300)))
+
+
+
+        //all one refRange
+        val allOneHapIdsSet = setOf("hap1","hap2","hap3")
+        val expectedAllOne = setOf("hap1","hap2","hap3")
+        val filteredAllOne = mapReads.filterToOneReferenceRange(allOneHapIdsSet, hapIdToRefRangeMap)
+        assertEquals(3, filteredAllOne.size)
+        assertTrue(filteredAllOne.toSet().containsAll(expectedAllOne))
+        assertTrue(expectedAllOne.containsAll(filteredAllOne.toSet()))
+        
+
+        val threeVTwo = setOf("hap1","hap2","hap3","hap4","hap5")
+        val expectedThree = setOf("hap1","hap2","hap3")
+        val filteredThree = mapReads.filterToOneReferenceRange(threeVTwo, hapIdToRefRangeMap)
+        assertEquals(3, filteredThree.size)
+        assertTrue(filteredThree.toSet().containsAll(expectedThree))
+        assertTrue(expectedThree.containsAll(filteredThree.toSet()))
+
+
+    }
 }
