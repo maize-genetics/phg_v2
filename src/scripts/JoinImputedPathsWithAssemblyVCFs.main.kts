@@ -91,7 +91,8 @@ imputedTable.posToLine.forEach { (pos, line) ->
         "impute-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "Impute")}"
     )
 
-    if (genotypeTable.hasGenotype()) {
+    if (genotypeTable != null && genotypeTable.numberOfSites() > 0) {
+
         val glmOutput = runGLM(genotypeTable, phenotype, populationStructure)
 
         if (writeGLMResults) {
