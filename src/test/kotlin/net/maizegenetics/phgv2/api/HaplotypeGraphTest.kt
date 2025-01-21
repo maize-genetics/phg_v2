@@ -135,8 +135,8 @@ class HaplotypeGraphTest {
         val graph = HaplotypeGraph(multiInputDir)
 
         assertTrue(
-            graph.checksum == "9d81a63a9833793fac8712490361b297",
-            "checksum not 9d81a63a9833793fac8712490361b297: ${graph.checksum}"
+            graph.checksum == "1e3d5c6ed7d43c1725542d826a515b16",
+            "checksum not 1e3d5c6ed7d43c1725542d826a515b16: ${graph.checksum}"
         )
 
         assertEquals(40, graph.numberOfRanges(), "numOfRanges not 40: ${graph.numberOfRanges()}")
