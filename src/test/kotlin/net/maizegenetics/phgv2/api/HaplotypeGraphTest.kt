@@ -1,14 +1,32 @@
 package net.maizegenetics.phgv2.api
 
 import net.maizegenetics.phgv2.cli.TestExtension
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
+import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @ExtendWith(TestExtension::class)
 class HaplotypeGraphTest {
+
+    companion object {
+
+        private val multiInputDir = "${TestExtension.tempDir}/graph-input-dir/"
+
+        @BeforeAll
+        @JvmStatic
+        fun setup() {
+            File(multiInputDir).mkdirs()
+
+            File(TestExtension.smallseqRefHvcfFile).copyTo(File(multiInputDir + File(TestExtension.smallseqRefHvcfFile).name))
+            File(TestExtension.smallseqLineAHvcfFile).copyTo(File(multiInputDir + File(TestExtension.smallseqLineAHvcfFile).name))
+            File(TestExtension.smallseqLineBHvcfFile).copyTo(File(multiInputDir + File(TestExtension.smallseqLineBHvcfFile).name))
+        }
+
+    }
 
     @Test
     fun testHaplotypeGraph() {
@@ -44,6 +62,81 @@ class HaplotypeGraphTest {
         assertTrue(
             graph.checksum == "1e3d5c6ed7d43c1725542d826a515b16",
             "checksum not 1e3d5c6ed7d43c1725542d826a515b16: ${graph.checksum}"
+        )
+
+        assertEquals(40, graph.numberOfRanges(), "numOfRanges not 40: ${graph.numberOfRanges()}")
+
+        assertEquals(3, graph.numberOfSamples(), "numOfSamples not 3: ${graph.numberOfSamples()}")
+
+        val ranges = graph.ranges()
+
+        assertTrue(ranges.isSorted(), "ranges not sorted")
+
+        assertEquals(graph.numberOfRanges(), ranges.size, "ranges size not equal to numberOfRanges")
+
+        // tests hapIdToSamples() method
+
+        var hapIdToSamples = graph.hapIdToSampleGametes(ranges[0])
+
+        assertEquals(3, hapIdToSamples.size, "hapIdToSamples size not 3: ${hapIdToSamples.size}")
+
+        var hapid = "12f0cec9102e84a161866e37072443b7"
+        var samples = hapIdToSamples[hapid]
+        assertEquals("LineA", samples?.get(0)?.name, "sample not LineA: ${samples?.get(0)?.name}")
+
+        hapid = "4fc7b8af32ddd74e07cb49d147ef1938"
+        samples = hapIdToSamples[hapid]
+        assertEquals("LineB", samples?.get(0)?.name, "sample not LineB: ${samples?.get(0)?.name}")
+
+        hapIdToSamples = graph.hapIdToSampleGametes(ranges[ranges.size - 2])
+        hapid = "0eb9029f3896313aebc69c8489923141"
+        samples = hapIdToSamples[hapid]
+        assertEquals("LineA", samples?.get(0)?.name, "sample not LineA: ${samples?.get(0)?.name}")
+
+        hapid = "5031218d4ac709dd51a946acd0550356"
+        samples = hapIdToSamples[hapid]
+        assertEquals("LineB", samples?.get(0)?.name, "sample not LineB: ${samples?.get(0)?.name}")
+
+        // tests for sampleToHapId() method
+
+        var checksum = graph.sampleToHapId(ranges[0], SampleGamete("LineA"))
+        assertEquals(
+            "12f0cec9102e84a161866e37072443b7",
+            checksum,
+            "sampleToHapId: checksum not 12f0cec9102e84a161866e37072443b7: $checksum"
+        )
+
+        checksum = graph.sampleToHapId(ranges[0], SampleGamete("LineB"))
+        assertEquals(
+            "4fc7b8af32ddd74e07cb49d147ef1938",
+            checksum,
+            "sampleToHapId: checksum not 4fc7b8af32ddd74e07cb49d147ef1938: $checksum"
+        )
+
+        checksum = graph.sampleToHapId(ranges[ranges.size - 2], SampleGamete("LineA"))
+        assertEquals(
+            "0eb9029f3896313aebc69c8489923141",
+            checksum,
+            "sampleToHapId: checksum not 0eb9029f3896313aebc69c8489923141: $checksum"
+        )
+
+        checksum = graph.sampleToHapId(ranges[ranges.size - 2], SampleGamete("LineB"))
+        assertEquals(
+            "5031218d4ac709dd51a946acd0550356",
+            checksum,
+            "sampleToHapId: checksum not 5031218d4ac709dd51a946acd0550356: $checksum"
+        )
+
+    }
+
+    @Test
+    fun testDirectoryHaplotypeGraph() {
+
+        val graph = HaplotypeGraph(multiInputDir)
+
+        assertTrue(
+            graph.checksum == "9d81a63a9833793fac8712490361b297",
+            "checksum not 9d81a63a9833793fac8712490361b297: ${graph.checksum}"
         )
 
         assertEquals(40, graph.numberOfRanges(), "numOfRanges not 40: ${graph.numberOfRanges()}")
