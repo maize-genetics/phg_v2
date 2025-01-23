@@ -7,7 +7,6 @@ import com.github.ajalt.clikt.parameters.options.required
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SampleGamete
 import org.apache.logging.log4j.LogManager
-import java.io.File
 import java.util.*
 
 /**
@@ -30,18 +29,8 @@ class SampleHapidByRange : CliktCommand(help = "Create a table of haplotype IDs 
 
         logCommand(this)
 
-        // Get list of input HVCF files in the input directory
-        val inputFiles = File(inputDir)
-            .walk()
-            .filter {
-                it.isFile && (it.name.endsWith(".h.vcf") || it.name.endsWith(".h.vcf.gz") ||
-                        it.name.endsWith(".hvcf") || it.name.endsWith(".hvcf.gz"))
-            }
-            .map { it.absolutePath }
-            .toList()
-
         // Merge the HVCF files into a HaplotypeGraph
-        val graph = HaplotypeGraph(inputFiles)
+        val graph = HaplotypeGraph(inputDir)
 
         // Write the table of haplotype IDs by range to the output file
         writeTable(graph, outputFile)
