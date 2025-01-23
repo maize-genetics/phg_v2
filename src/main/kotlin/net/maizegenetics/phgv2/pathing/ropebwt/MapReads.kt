@@ -72,12 +72,8 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
         logCommand(this)
 
         myLogger.info("Building the Graph")
-        //loop through all files in hvcfDir and create a list of hvcf files
-        val hvcfFiles = File(hvcfDir).walkTopDown().filter { it.isFile }
-            .filter { it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz") }.map { "${hvcfDir}/${it.name}" }
-            .toList()
 
-        val graph = HaplotypeGraph(hvcfFiles)
+        val graph = HaplotypeGraph(hvcfDir)
 
         val hapIdToRefRangeMap = graph.hapIdToRefRangeMap()
 
