@@ -55,10 +55,8 @@ class ExtractEdgeReads : CliktCommand( help = "Extract out Edge Case reads from 
 
         logCommand(this)
 
-        val hvcfFiles = File(hvcfDir).listFiles { file -> file.name.endsWith(".h.vcf") || file.name.endsWith(".h.vcf.gz") }.map { it.path }
-
         // load the graph in
-        val graph = HaplotypeGraph(hvcfFiles)
+        val graph = HaplotypeGraph(hvcfDir)
 
         myLogger.info("Extracting reads from $bamFile")
         val (countMap, recordsToExport, readToClassificaiton) = extractReads(sampleName, bamFile, graph, maxClassNum)
