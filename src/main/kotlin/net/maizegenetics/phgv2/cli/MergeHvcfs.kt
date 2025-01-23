@@ -9,7 +9,6 @@ import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SymbolicAllele
 import net.maizegenetics.phgv2.api.exportMultiSampleHVCF
 import org.apache.logging.log4j.LogManager
-import java.io.File
 
 /**
  * Merge multiple HVCF files into a single HVCF file.
@@ -38,16 +37,7 @@ class MergeHvcfs : CliktCommand(help = "Merge multiple HVCF files into a single 
 
         logCommand(this)
 
-        val inputFiles = File(inputDir)
-            .walk()
-            .filter {
-                it.isFile && (it.name.endsWith(".h.vcf") || it.name.endsWith(".h.vcf.gz") ||
-                        it.name.endsWith(".hvcf") || it.name.endsWith(".hvcf.gz"))
-            }
-            .map { it.absolutePath }
-            .toList()
-
-        val graph = HaplotypeGraph(inputFiles)
+        val graph = HaplotypeGraph(inputDir)
 
         exportMultiSampleHVCF(graph, outputFile, referenceFile, idFormat, rangeBedfile)
 

@@ -6,7 +6,6 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import org.apache.logging.log4j.LogManager
-import java.io.File
 
 /**
  * This class will take hvcf files created from assembly alignment (CreateMafVCF) and create a tab-delimited file
@@ -27,10 +26,9 @@ class HapidSampleTable : CliktCommand(help = "Create a table of haplotype IDs to
     override fun run() {
         logCommand(this)
 
-        // Get list of files, create graph, write table
-        val hvcfFiles = File(hvcfDir).listFiles { file -> file.name.endsWith(".h.vcf") || file.name.endsWith(".h.vcf.gz") }.map { it.path }
+        // create graph, write table
         val startTime = System.nanoTime()
-        val graph = HaplotypeGraph(hvcfFiles)
+        val graph = HaplotypeGraph(hvcfDir)
         val timeToBuildGraph = (System.nanoTime() - startTime) / 1e9
         myLogger.info("Time to build graph: $timeToBuildGraph")
 

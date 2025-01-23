@@ -109,16 +109,11 @@ class MapKmers : CliktCommand(help="Map Kmers to the pangenome reference") {
         logCommand(this)
 
         myLogger.info("Begin mapping reads to the pangenome kmer index.")
-        //loop through all files in hvcfDir and create a list of hvcf files
-        val hvcfFiles = File(hvcfDir).walkTopDown().filter { it.isFile }
-            .filter { it.name.endsWith("h.vcf") || it.name.endsWith("h.vcf.gz") }.map { "${hvcfDir}/${it.name}" }
-            .toList()
-
-        //set the kmerIndex file name
+        // set the kmerIndex file name
         val kmerIndexFilename = kmerIndex.ifBlank { "${hvcfDir}/kmerIndex.txt" }
 
-        //create a HaplotypeGraph from the list of hvcf files
-        val graph = HaplotypeGraph(hvcfFiles)
+        // create a HaplotypeGraph from the list of hvcf files
+        val graph = HaplotypeGraph(hvcfDir)
         AlignmentUtils.alignReadsToHaplotypes(graph, kmerIndexFilename, readInputFiles.getReadFiles(), outputDir, threads, minProportionOfMaxCount, minProportionSameReferenceRange, diagnosticMode)
     }
 }
