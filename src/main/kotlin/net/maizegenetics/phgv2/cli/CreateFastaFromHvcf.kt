@@ -419,24 +419,11 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
 
         require(!rangeBedfile.isNullOrEmpty()) { "Bed file is required for FastaType.rangeFasta." }
 
-        val inputFiles = when (hvcfInput) {
-            is HvcfInput.HvcfDir -> {
-                File((hvcfInput as HvcfInput.HvcfDir).hvcfDir)
-                    .walk()
-                    .filter {
-                        HVCF_PATTERN.containsMatchIn(it.name)
-                    }
-                    .map { it.absolutePath }
-                    .toList()
-            }
+        val graph = when (hvcfInput) {
+            is HvcfInput.HvcfDir -> { HaplotypeGraph((hvcfInput as HvcfInput.HvcfDir).hvcfDir) }
 
-            is HvcfInput.HvcfFile -> listOf((hvcfInput as HvcfInput.HvcfFile).hvcfFile)
-            else -> null
+            is HvcfInput.HvcfFile -> HaplotypeGraph(listOf((hvcfInput as HvcfInput.HvcfFile).hvcfFile))
         }
-
-        require(!inputFiles.isNullOrEmpty()) { "At least one HVCF file should be specified." }
-
-        val graph = HaplotypeGraph(inputFiles)
 
         val ranges = loadRanges(rangeBedfile!!)
 

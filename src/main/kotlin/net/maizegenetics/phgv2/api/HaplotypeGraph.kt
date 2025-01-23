@@ -39,6 +39,20 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     // Map<ID (checksum), AltHeaderMetaData>
     private lateinit var altHeaderMap: Map<String, AltHeaderMetaData>
 
+    constructor(hvcfDirectory: String) : this(
+        File(hvcfDirectory)
+            .walk()
+            .filter {
+                it.isFile && (it.name.endsWith(".h.vcf") || it.name.endsWith(".h.vcf.gz") ||
+                        it.name.endsWith(".hvcf") || it.name.endsWith(".hvcf.gz"))
+            }
+            .map { it.absolutePath }
+            .toList()
+    ) {
+        require(File(hvcfDirectory).exists()) { "HVCF directory does not exist: $hvcfDirectory" }
+        require(File(hvcfDirectory).isDirectory) { "Provided path is not a directory: $hvcfDirectory" }
+    }
+
     init {
 
         getSampleNamesALTHeaders(hvcfFiles)

@@ -85,16 +85,7 @@ class CreateFastaFromHvcfRangeFastaTest {
     @Test
     fun testHaplotypeGraphHapidToSeqLength() {
 
-        val inputFiles =
-            File(multiInputDir)
-                .walk()
-                .filter { HVCF_PATTERN.containsMatchIn(it.name) }
-                .map { it.absolutePath }
-                .toList()
-
-        require(inputFiles.isNotEmpty()) { "At least one HVCF file should be specified." }
-
-        val graph = HaplotypeGraph(inputFiles)
+        val graph = HaplotypeGraph(multiInputDir)
 
         val hapidToSeqLength = graph.hapidToSeqLength()
 

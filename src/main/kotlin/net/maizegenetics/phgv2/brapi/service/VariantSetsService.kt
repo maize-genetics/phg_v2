@@ -66,17 +66,7 @@ object VariantSetsService {
 
         createSingleSampleHVCFs()
 
-        val inputFiles = File(individualSamplesDir)
-            .listFiles()
-            ?.filter { it.extension == "vcf" || it.extension == "vcf.gz" }
-            ?.map { it.absolutePath }
-
-        if (inputFiles.isNullOrEmpty()) {
-            myLogger.warn("createAllSamplesHVCF: No input files found in $individualSamplesDir")
-            return "NO INPUT FILES"
-        }
-
-        val graph = HaplotypeGraph(inputFiles)
+        val graph = HaplotypeGraph(individualSamplesDir)
 
         exportMultiSampleHVCF(graph, allSamplesHvcf)
 

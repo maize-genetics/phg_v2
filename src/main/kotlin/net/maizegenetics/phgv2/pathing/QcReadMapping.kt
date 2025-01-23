@@ -12,7 +12,6 @@ import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.convertRefRangeToIdBitsetMap
 import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.rangeHapidMapFromKmerHash
-import java.io.File
 import kotlin.math.min
 
 /**
@@ -37,12 +36,10 @@ class QcReadMapping  : CliktCommand(help="Error check reads against a kmer index
         .default(20)
 
 
-
     override fun run() {
         logCommand(this)
 
-        val hvcfFiles = File(hvcfDir).listFiles { file -> file.name.endsWith(".h.vcf") || file.name.endsWith(".h.vcf.gz") }.map { it.path }
-        val graph = HaplotypeGraph(hvcfFiles)
+        val graph = HaplotypeGraph(hvcfDir)
         println("Loaded Graph")
         //Load up the index file
         val kmerIndexMap = AlignmentUtils.loadKmerMaps(kmerIndex, graph)
