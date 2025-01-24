@@ -10,6 +10,8 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.int
+import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.pathing.AlignmentUtils
 import net.maizegenetics.phgv2.pathing.KeyFileData
@@ -17,6 +19,7 @@ import net.maizegenetics.phgv2.pathing.ReadInputFile
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedInputStream
 import java.io.BufferedReader
+import java.io.File
 import java.io.InputStreamReader
 
 /**
@@ -46,6 +49,9 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
     val outputDir by option("-o", "--output-dir", help = "Name for output ReadMapping file Directory (Required)")
         .required()
 
+    val hvcfDir by option(help = "Directory for the haplotype VCF files. These hvcfs will be used to filter the hits to only those that hit a single referenceRange.")
+        .required()
+
     val threads by option(help = "Number of threads to use.")
         .int()
         .default(5)
@@ -64,26 +70,33 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
 
     override fun run() {
         logCommand(this)
+
+        myLogger.info("Building the Graph")
+
+        val graph = HaplotypeGraph(hvcfDir)
+
+        val hapIdToRefRangeMap = graph.hapIdToRefRangeMap()
+
         myLogger.info("Mapping reads to pangenome")
 
-        mapAllReadFiles(index, readInputFiles.getReadFiles(), outputDir, threads, minMemLength, maxNumHits, condaEnvPrefix)
+        mapAllReadFiles(index, readInputFiles.getReadFiles(), outputDir, threads, minMemLength, maxNumHits, condaEnvPrefix, hapIdToRefRangeMap)
     }
 
     /**
      * Function to map all the read files in the keyFileDataEntries to the index
      */
-    fun mapAllReadFiles(index: String, keyFileDataEntries: List<KeyFileData>, outputDir: String, threads: Int, minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String) {
+    fun mapAllReadFiles(index: String, keyFileDataEntries: List<KeyFileData>, outputDir: String, threads: Int, minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String, hapIdToRefRangeMap : Map<String, List<ReferenceRange>>) {
         //Loop through the keyFileDataEntries and map the reads
         //If there is a second file it processes that and makes a separate readMapping file.
         val readNameToFileMap = mutableMapOf<String,MutableList<String>>()
         for(readFile in keyFileDataEntries) {
             val fileList = readNameToFileMap[readFile.sampleName]?: mutableListOf()
             val outputFile1 = "$outputDir/${readFile.sampleName}_1_readMapping.txt"
-            mapSingleReadFile(index, readFile.sampleName, readFile.file1,outputFile1, threads, minMemLength, maxNumHits, condaEnvPrefix)
+            mapSingleReadFile(index, readFile.sampleName, readFile.file1,outputFile1, threads, minMemLength, maxNumHits, condaEnvPrefix, hapIdToRefRangeMap)
             fileList.add(outputFile1)
             if(readFile.file2 != "") {
                 val outputFile2 = "$outputDir/${readFile.sampleName}_2_readMapping.txt"
-                mapSingleReadFile(index, readFile.sampleName, readFile.file2, outputFile2, threads, minMemLength, maxNumHits, condaEnvPrefix)
+                mapSingleReadFile(index, readFile.sampleName, readFile.file2, outputFile2, threads, minMemLength, maxNumHits, condaEnvPrefix, hapIdToRefRangeMap)
                 fileList.add(outputFile2)
             }
             readNameToFileMap[readFile.sampleName] = fileList
@@ -94,12 +107,12 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
     /**
      * Function to map a single read file to the index and write the read mapping to the outputFile
      */
-    fun mapSingleReadFile(index: String, sampleName: String,readFile: String, outputFile: String, threads: Int, minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String) {
+    fun mapSingleReadFile(index: String, sampleName: String,readFile: String, outputFile: String, threads: Int, minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String, hapIdToRefRangeMap: Map<String,List<ReferenceRange>>) {
         myLogger.info("Mapping reads in $readFile to $index")
 
         val bedFileReader = setupMappingProcess(index, readFile, threads, minMemLength, maxNumHits, condaEnvPrefix)
 
-        val readMapping = createReadMappingsForFileReader(bedFileReader, maxNumHits)
+        val readMapping = createReadMappingsForFileReader(bedFileReader, maxNumHits, hapIdToRefRangeMap)
 
         bedFileReader.close()
 
@@ -135,7 +148,8 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
      */
     fun createReadMappingsForFileReader(
         bedFileReader: BufferedReader,
-        maxNumHits: Int
+        maxNumHits: Int,
+        hapIdToRefRangeMap: Map<String, List<ReferenceRange>>
     ): MutableMap<List<String>, Int> {
         var currentLine = bedFileReader.readLine()
         val tempMems = mutableListOf<MEM>()
@@ -148,14 +162,14 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
             val alignmentParsed = parseStringIntoMem(currentLine)
             if (tempMems.isNotEmpty() && tempMems[0].readName != alignmentParsed.readName) {
                 //write out the tempMems
-                processMemsForRead(tempMems, readMapping, maxNumHits)
+                processMemsForRead(tempMems, readMapping, maxNumHits,hapIdToRefRangeMap)
                 tempMems.clear()
             }
             tempMems.add(alignmentParsed)
             currentLine = bedFileReader.readLine()
         }
 
-        processMemsForRead(tempMems, readMapping, maxNumHits)
+        processMemsForRead(tempMems, readMapping, maxNumHits, hapIdToRefRangeMap)
         return readMapping
     }
 
@@ -180,7 +194,7 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
      * This will filter things based on the maxNumHits and retain the mems that are longest
      * Because MEMs are Maximal Exact Matches, the longest MEMs are the best hits
      */
-    fun processMemsForRead(tempMems: List<MEM>, readMapping: MutableMap<List<String>, Int>, maxNumHits: Int) {
+    fun processMemsForRead(tempMems: List<MEM>, readMapping: MutableMap<List<String>, Int>, maxNumHits: Int, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>) {
         //get the longest hits
         val maxLength = tempMems.maxOf { it.readEnd - it.readStart }
         //remove any hits that are not the longest
@@ -189,11 +203,32 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
         val totalNumHits = bestHits.sumOf { it.numHits }
 
         if(totalNumHits <= maxNumHits) {
-            //if the total number of hits is less than the maxNumHits, add all the hits to the readMapping
+            //if the total number of hits is less than the maxNumHits, Filter the haps down to a single ref range and then add all those to the readMapping
             //First turn the hapIds into a set then back to a list and sort so it will be consistent
-            val hapIdsHit = bestHits.flatMap { it.listMemHits.map{hits -> hits.contig} }.toSet().toList().sorted()
+            val bestHapIds = bestHits.flatMap { it.listMemHits.map{hits -> hits.contig} }.toSet()
+
+            val filteredBestHapIds = filterToOneReferenceRange(bestHapIds, hapIdToRefRangeMap)
+
+            val hapIdsHit = filteredBestHapIds.sorted()
             readMapping[hapIdsHit] = (readMapping[hapIdsHit]?:0) + 1
         }
+    }
+
+    /**
+     * Function to filter the hapIds to only those that hit a single reference range
+     * This will pick the highest occurring reference range and if there is a tie it will choose the first one.
+     */
+    fun filterToOneReferenceRange(hapIds: Set<String>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>) : List<String> {
+        //figure out which reference range is hit the most
+        val refRangeCounts = hapIds.map { hapIdToRefRangeMap[it] }
+            .filterNotNull()
+            .flatten()
+            .groupingBy { it }
+            .eachCount()
+
+        val maxRefRange = refRangeCounts.maxByOrNull { it.value }?.key
+        //Then filter out any hapIds that don't have that reference range
+        return hapIds.filter { hapIdToRefRangeMap[it]?.contains(maxRefRange)?:false }
     }
 
     /**
