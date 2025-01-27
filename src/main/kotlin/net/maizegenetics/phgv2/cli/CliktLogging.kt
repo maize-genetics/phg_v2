@@ -26,3 +26,6 @@ fun logCommand(command: CliktCommand) {
     }
 
 }
+fun headerCommand(command: CliktCommand) : String {
+    return "PHGv2 Command: ${command.currentContext.originalArgv.joinToString(" ")}"
+}
