@@ -64,26 +64,26 @@ class RopeBwtIndexTest {
         //pangenome-file
         //hvcf-dir
         //Leave off the input files
-        val noInputs = ropebwtIndex.test("--db-path ${TestExtension.tempDir} --output-dir ${TestExtension.tempDir}ropebwtTest/ --index-file-prefix testIndex --num-threads 3 --delete-fmr-index")
+        val noInputs = ropebwtIndex.test("--db-path ${TestExtension.tempDir} --output-dir ${TestExtension.tempDir}ropebwtTest/ --index-file-prefix testIndex --threads 3 --delete-fmr-index")
         assertEquals(1, noInputs.statusCode)
-        assertEquals("Usage: ropebwt-index [<options>]\n\n" +
+        assertEquals("Usage: rope-bwt-index [<options>]\n\n" +
                 "Error: must provide one of --pangenome-file, --hvcf-dir\n", noInputs.stderr)
 
-        val tooManyInputs = ropebwtIndex.test("--pangenome-file data/test/smallseq/pangenome.fa --hvcf-dir data/test/smallseq/hvcf/ --db-path ${TestExtension.tempDir} --output-dir ${TestExtension.tempDir}ropebwtTest/ --index-file-prefix testIndex --num-threads 3 --delete-fmr-index")
+        val tooManyInputs = ropebwtIndex.test("--pangenome-file data/test/smallseq/pangenome.fa --hvcf-dir data/test/smallseq/hvcf/ --db-path ${TestExtension.tempDir} --output-dir ${TestExtension.tempDir}ropebwtTest/ --index-file-prefix testIndex --threads 3 --delete-fmr-index")
         assertEquals(1, tooManyInputs.statusCode)
-        assertEquals("Usage: ropebwt-index [<options>]\n\n" +
+        assertEquals("Usage: rope-bwt-index [<options>]\n\n" +
                 "Error: option --pangenome-file cannot be used with --hvcf-dir\n", tooManyInputs.stderr)
 
         //output-dir
-        val noOutputDir = ropebwtIndex.test("--pangenome-file data/test/smallseq/pangenome.fa --db-path ${TestExtension.tempDir} --index-file-prefix testIndex --num-threads 3 --delete-fmr-index")
+        val noOutputDir = ropebwtIndex.test("--pangenome-file data/test/smallseq/pangenome.fa --db-path ${TestExtension.tempDir} --index-file-prefix testIndex --threads 3 --delete-fmr-index")
         assertEquals(1, noOutputDir.statusCode)
-        assertEquals("Usage: ropebwt-index [<options>]\n\n" +
+        assertEquals("Usage: rope-bwt-index [<options>]\n\n" +
                 "Error: missing option --output-dir\n", noOutputDir.stderr)
 
         //index-file-prefix
-        val noIndexFilePrefix = ropebwtIndex.test("--pangenome-file data/test/smallseq/pangenome.fa --db-path ${TestExtension.tempDir} --output-dir ${TestExtension.tempDir}ropebwtTest/ --num-threads 3 --delete-fmr-index")
+        val noIndexFilePrefix = ropebwtIndex.test("--pangenome-file data/test/smallseq/pangenome.fa --db-path ${TestExtension.tempDir} --output-dir ${TestExtension.tempDir}ropebwtTest/ --threads 3 --delete-fmr-index")
         assertEquals(1, noIndexFilePrefix.statusCode)
-        assertEquals("Usage: ropebwt-index [<options>]\n\n" +
+        assertEquals("Usage: rope-bwt-index [<options>]\n\n" +
                 "Error: missing option --index-file-prefix\n", noIndexFilePrefix.stderr)
 
     }
