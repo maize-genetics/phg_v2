@@ -3,21 +3,15 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 import biokotlin.seqIO.NucSeqIO
 import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.testing.test
-import net.maizegenetics.phgv2.cli.AgcCompress
-import net.maizegenetics.phgv2.cli.CreateFastaFromHvcf
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.setupDebugLogging
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import java.io.BufferedWriter
 import java.io.File
-import java.io.FileWriter
-import kotlin.test.Ignore
 import kotlin.test.assertEquals
-import kotlin.test.fail
 
-class RopebwtIndexTest {
+class RopeBwtIndexTest {
 
 
     companion object {
@@ -64,32 +58,32 @@ class RopebwtIndexTest {
 
     @Test
     fun testCliktParams() {
-        val ropebwtIndex = RopebwtIndex()
+        val ropebwtIndex = RopeBwtIndex()
 
 
         //pangenome-file
         //hvcf-dir
         //Leave off the input files
-        val noInputs = ropebwtIndex.test("--db-path ${TestExtension.tempDir} --output-dir ${TestExtension.tempDir}ropebwtTest/ --index-file-prefix testIndex --num-threads 3 --delete-fmr-index")
+        val noInputs = ropebwtIndex.test("--db-path ${TestExtension.tempDir} --output-dir ${TestExtension.tempDir}ropebwtTest/ --index-file-prefix testIndex --threads 3 --delete-fmr-index")
         assertEquals(1, noInputs.statusCode)
-        assertEquals("Usage: ropebwt-index [<options>]\n\n" +
+        assertEquals("Usage: rope-bwt-index [<options>]\n\n" +
                 "Error: must provide one of --pangenome-file, --hvcf-dir\n", noInputs.stderr)
 
-        val tooManyInputs = ropebwtIndex.test("--pangenome-file data/test/smallseq/pangenome.fa --hvcf-dir data/test/smallseq/hvcf/ --db-path ${TestExtension.tempDir} --output-dir ${TestExtension.tempDir}ropebwtTest/ --index-file-prefix testIndex --num-threads 3 --delete-fmr-index")
+        val tooManyInputs = ropebwtIndex.test("--pangenome-file data/test/smallseq/pangenome.fa --hvcf-dir data/test/smallseq/hvcf/ --db-path ${TestExtension.tempDir} --output-dir ${TestExtension.tempDir}ropebwtTest/ --index-file-prefix testIndex --threads 3 --delete-fmr-index")
         assertEquals(1, tooManyInputs.statusCode)
-        assertEquals("Usage: ropebwt-index [<options>]\n\n" +
+        assertEquals("Usage: rope-bwt-index [<options>]\n\n" +
                 "Error: option --pangenome-file cannot be used with --hvcf-dir\n", tooManyInputs.stderr)
 
         //output-dir
-        val noOutputDir = ropebwtIndex.test("--pangenome-file data/test/smallseq/pangenome.fa --db-path ${TestExtension.tempDir} --index-file-prefix testIndex --num-threads 3 --delete-fmr-index")
+        val noOutputDir = ropebwtIndex.test("--pangenome-file data/test/smallseq/pangenome.fa --db-path ${TestExtension.tempDir} --index-file-prefix testIndex --threads 3 --delete-fmr-index")
         assertEquals(1, noOutputDir.statusCode)
-        assertEquals("Usage: ropebwt-index [<options>]\n\n" +
+        assertEquals("Usage: rope-bwt-index [<options>]\n\n" +
                 "Error: missing option --output-dir\n", noOutputDir.stderr)
 
         //index-file-prefix
-        val noIndexFilePrefix = ropebwtIndex.test("--pangenome-file data/test/smallseq/pangenome.fa --db-path ${TestExtension.tempDir} --output-dir ${TestExtension.tempDir}ropebwtTest/ --num-threads 3 --delete-fmr-index")
+        val noIndexFilePrefix = ropebwtIndex.test("--pangenome-file data/test/smallseq/pangenome.fa --db-path ${TestExtension.tempDir} --output-dir ${TestExtension.tempDir}ropebwtTest/ --threads 3 --delete-fmr-index")
         assertEquals(1, noIndexFilePrefix.statusCode)
-        assertEquals("Usage: ropebwt-index [<options>]\n\n" +
+        assertEquals("Usage: rope-bwt-index [<options>]\n\n" +
                 "Error: missing option --index-file-prefix\n", noIndexFilePrefix.stderr)
 
     }
@@ -97,7 +91,7 @@ class RopebwtIndexTest {
     //runBuildStep(inputFasta:String, indexFilePrefix:String, numThreads: Int, condaEnvPrefix:String)
     @Test
     fun testRunBuildStep() {
-        val ropebwtIndex = RopebwtIndex()
+        val ropebwtIndex = RopeBwtIndex()
         val numThreads = 3
         ropebwtIndex.runBuildStep(inputFasta, indexFilePrefix, numThreads, "")
 
@@ -109,7 +103,7 @@ class RopebwtIndexTest {
     //deleteFMRIndex(indexFilePrefix: String)
     @Test
     fun testConvertAndDeleteBWTIndex() {
-        val ropebwtIndex = RopebwtIndex()
+        val ropebwtIndex = RopeBwtIndex()
         val numThreads = 3
 
         ropebwtIndex.runBuildStep(inputFasta, indexFilePrefix, numThreads, "")
@@ -126,7 +120,7 @@ class RopebwtIndexTest {
     //buildSuffixArray(indexFilePrefix: String, numThreads: Int, condaEnvPrefix: String)
     @Test
     fun testBuildSuffixArray() {
-        val ropebwtIndex = RopebwtIndex()
+        val ropebwtIndex = RopeBwtIndex()
         val numThreads = 3
 
         ropebwtIndex.runBuildStep(inputFasta, indexFilePrefix, numThreads, "")
@@ -139,7 +133,7 @@ class RopebwtIndexTest {
     //buildChrLengthFile(inputFasta: String, indexFilePrefix: String)
     @Test
     fun testBuildChrLengthFile() {
-        val ropebwtIndex = RopebwtIndex()
+        val ropebwtIndex = RopeBwtIndex()
         ropebwtIndex.buildChrLengthFile(inputFasta, indexFilePrefix)
 
         //verify that the output file exists
@@ -167,7 +161,7 @@ class RopebwtIndexTest {
     @Test
     fun createInitialIndex() {
         resetDirs()
-        val ropebwtIndex = RopebwtIndex()
+        val ropebwtIndex = RopeBwtIndex()
         val numThreads = 3
         ropebwtIndex.createInitialIndex(inputFasta, indexFilePrefix, numThreads, true,"")
 
