@@ -15,7 +15,6 @@ import net.maizegenetics.phgv2.utils.Position
 import org.apache.logging.log4j.LogManager
 
 
-data class PS4GData(val gameteList: List<Int>, val pos: Int, val count: Int)
 /**
  * Command to convert the Read Mapping file to a Position Support Gamete File
  *
@@ -67,9 +66,9 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
 
         val (ps4GData, sampleGameteCount, gameteToIdxMap) = convertReadMappingDataToPS4G(readMappings, binSize, graph)
 
-        val outputFile = buildOutputFile(readMappingFile, outputDir)
+        val outputFile = PS4GUtils.buildOutputFileName(readMappingFile, outputDir)
 
-        writeOutPS4GFile(ps4GData, sampleGameteCount, gameteToIdxMap, outputFile, header, cliCommand)
+        PS4GUtils.writeOutPS4GFile(ps4GData, sampleGameteCount, gameteToIdxMap, outputFile, header, cliCommand)
 
     }
 
@@ -138,26 +137,6 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
         return (idxBits shl 28) or posBits //we dont care if its negative as we arent comparing them
     }
 
-    fun buildOutputFile(readMappingFile: String, outputDir: String) : String {
-        val fileName = readMappingFile.split("/").last().removeSuffix(".txt")
-        return "$outputDir/${fileName}_ps4g.txt"
-    }
 
-    fun writeOutPS4GFile(pS4GData: List<PS4GData>, sampleGameteCount: Map<SampleGamete,Int>,gameteToIdxMap: Map<SampleGamete,Int> ,outputFile: String, header: List<String>,cliCommand: String) {
-        bufferedWriter(outputFile).use { writer ->
-            writer.write("#PS4G\n")
-            writer.write("#ReadMappingHeader:\n")
-            header.forEach { writer.write("$it\n") }
-            writer.write("#Command: $cliCommand\n")
-            writer.write("#gamete\tgameteIndex\tcount\n")
-            sampleGameteCount.forEach { (sampleGamete, count) ->
-                writer.write("#$sampleGamete\t${gameteToIdxMap[sampleGamete]}\t$count\n")
-            }
-            writer.write("gameteSet\tpos\tcount\n")
-            pS4GData.forEach { (gameteList, pos, count) ->
-                writer.write("${gameteList.joinToString(",")}\t$pos\t$count\n")
-            }
 
-        }
-    }
 }

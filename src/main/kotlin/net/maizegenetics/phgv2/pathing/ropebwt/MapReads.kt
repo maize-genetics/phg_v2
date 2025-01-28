@@ -211,6 +211,9 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
     fun processMemsForRead(tempMems: List<MEM>, readMapping: MutableMap<List<String>, Int>, maxNumHits: Int,
                            hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, maxStart: Int, minEnd: Int) {
         val posFilteredMems = tempMems.filter { it.readStart <= maxStart && it.readEnd >= minEnd }
+        if(posFilteredMems.isEmpty()) {
+            return
+        }
         //get the longest hits
         val maxLength = posFilteredMems.maxOf { it.readEnd - it.readStart }
         //remove any hits that are not the longest
