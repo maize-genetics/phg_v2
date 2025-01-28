@@ -67,11 +67,11 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
         val cliCommand = headerCommand(this)
 
 
-        val (ps4GData, sampleGameteCount) = convertReadMappingDataToPS4G(readMappings, binSize, graph)
+        val (ps4GData, sampleGameteCount, gameteToIdxMap) = convertReadMappingDataToPS4G(readMappings, binSize, graph)
 
         val outputFile = buildOutputFile(readMappingFile, outputDir)
 
-        writeOutPS4GFile(ps4GData, sampleGameteCount, outputDir, header, cliCommand)
+        writeOutPS4GFile(ps4GData, sampleGameteCount, gameteToIdxMap,outputDir, header, cliCommand)
 
     }
 
@@ -97,7 +97,7 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
     }
 
     fun convertReadMappingDataToPS4G(readMappings: Map<Array<String>,Int>,
-                                     binSize: Int,graph: HaplotypeGraph ) : Pair<List<PS4GData>, Map<SampleGamete,Int>> {
+                                     binSize: Int,graph: HaplotypeGraph ) : Triple<List<PS4GData>, Map<SampleGamete,Int>,Map<SampleGamete,Int>> {
 
         val contigToIdxMap = graph.contigs.mapIndexed { index, s -> Pair(s,index)  }.toMap()
 
@@ -126,7 +126,7 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
             PS4GData(sampleGameteIdxSorted, posEncoded, count)
         }
 
-        return Pair(ps4GData, gameteCountMap)
+        return Triple(ps4GData, gameteCountMap, gameteToIdxMap)
     }
 
     fun encodePosition(pos: Position, contigOrdering: Map<String, Int>) : Int {
@@ -145,15 +145,15 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
         return "$outputDir/${fileName}_ps4g.txt"
     }
 
-    fun writeOutPS4GFile(pS4GData: List<PS4GData>, sampleGameteCount: Map<SampleGamete,Int>, outputFile: String, header: List<String>,cliCommand: String) {
+    fun writeOutPS4GFile(pS4GData: List<PS4GData>, sampleGameteCount: Map<SampleGamete,Int>,gameteToIdxMap: Map<SampleGamete,Int> ,outputFile: String, header: List<String>,cliCommand: String) {
         bufferedWriter(outputFile).use { writer ->
             writer.write("#PS4G\n")
             writer.write("#ReadMappingHeader:\n")
             header.forEach { writer.write("$it\n") }
             writer.write("#Command: $cliCommand\n")
-            writer.write("#SampleGamete\tcount\n")
+            writer.write("#gamete\tgameteIndex\tcount\n")
             sampleGameteCount.forEach { (sampleGamete, count) ->
-                writer.write("#$sampleGamete\t$count\n")
+                writer.write("#$sampleGamete\t${gameteToIdxMap[sampleGamete]}\t$count\n")
             }
             writer.write("gameteSet\tpos\tcount\n")
             pS4GData.forEach { (gameteList, pos, count) ->

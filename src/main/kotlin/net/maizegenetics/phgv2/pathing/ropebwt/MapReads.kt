@@ -67,6 +67,14 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
     val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
 
+    val maxStart by option(help = "Maximum start position for a read to be considered a match. Any alignments with a start above this will be ignored.")
+        .int()
+        .default(0)
+
+    val minEnd by option(help = "Minimum end position for a read to be considered a match. Any alignments with an end below this will be ignored.")
+        .int()
+        .default(70)
+
 
     override fun run() {
         logCommand(this)
@@ -79,24 +87,26 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
 
         myLogger.info("Mapping reads to pangenome")
 
-        mapAllReadFiles(index, readInputFiles.getReadFiles(), outputDir, threads, minMemLength, maxNumHits, condaEnvPrefix, hapIdToRefRangeMap)
+        mapAllReadFiles(index, readInputFiles.getReadFiles(), outputDir, threads, minMemLength, maxNumHits, condaEnvPrefix, hapIdToRefRangeMap, maxStart, minEnd)
     }
 
     /**
      * Function to map all the read files in the keyFileDataEntries to the index
      */
-    fun mapAllReadFiles(index: String, keyFileDataEntries: List<KeyFileData>, outputDir: String, threads: Int, minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String, hapIdToRefRangeMap : Map<String, List<ReferenceRange>>) {
+    fun mapAllReadFiles(index: String, keyFileDataEntries: List<KeyFileData>, outputDir: String, threads: Int,
+                        minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String,
+                        hapIdToRefRangeMap : Map<String, List<ReferenceRange>>, maxStart: Int, minEnd: Int) {
         //Loop through the keyFileDataEntries and map the reads
         //If there is a second file it processes that and makes a separate readMapping file.
         val readNameToFileMap = mutableMapOf<String,MutableList<String>>()
         for(readFile in keyFileDataEntries) {
             val fileList = readNameToFileMap[readFile.sampleName]?: mutableListOf()
             val outputFile1 = "$outputDir/${readFile.sampleName}_1_readMapping.txt"
-            mapSingleReadFile(index, readFile.sampleName, readFile.file1,outputFile1, threads, minMemLength, maxNumHits, condaEnvPrefix, hapIdToRefRangeMap)
+            mapSingleReadFile(index, readFile.sampleName, readFile.file1,outputFile1, threads, minMemLength, maxNumHits, condaEnvPrefix, hapIdToRefRangeMap, maxStart, minEnd)
             fileList.add(outputFile1)
             if(readFile.file2 != "") {
                 val outputFile2 = "$outputDir/${readFile.sampleName}_2_readMapping.txt"
-                mapSingleReadFile(index, readFile.sampleName, readFile.file2, outputFile2, threads, minMemLength, maxNumHits, condaEnvPrefix, hapIdToRefRangeMap)
+                mapSingleReadFile(index, readFile.sampleName, readFile.file2, outputFile2, threads, minMemLength, maxNumHits, condaEnvPrefix, hapIdToRefRangeMap, maxStart, minEnd)
                 fileList.add(outputFile2)
             }
             readNameToFileMap[readFile.sampleName] = fileList
@@ -107,12 +117,14 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
     /**
      * Function to map a single read file to the index and write the read mapping to the outputFile
      */
-    fun mapSingleReadFile(index: String, sampleName: String,readFile: String, outputFile: String, threads: Int, minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String, hapIdToRefRangeMap: Map<String,List<ReferenceRange>>) {
+    fun mapSingleReadFile(index: String, sampleName: String,readFile: String, outputFile: String, threads: Int,
+                          minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String,
+                          hapIdToRefRangeMap: Map<String,List<ReferenceRange>>, maxStart: Int, minEnd: Int) {
         myLogger.info("Mapping reads in $readFile to $index")
 
         val bedFileReader = setupMappingProcess(index, readFile, threads, minMemLength, maxNumHits, condaEnvPrefix)
 
-        val readMapping = createReadMappingsForFileReader(bedFileReader, maxNumHits, hapIdToRefRangeMap)
+        val readMapping = createReadMappingsForFileReader(bedFileReader, maxNumHits, hapIdToRefRangeMap, maxStart, minEnd)
 
         bedFileReader.close()
 
@@ -149,7 +161,9 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
     fun createReadMappingsForFileReader(
         bedFileReader: BufferedReader,
         maxNumHits: Int,
-        hapIdToRefRangeMap: Map<String, List<ReferenceRange>>
+        hapIdToRefRangeMap: Map<String, List<ReferenceRange>>,
+        maxStart: Int,
+        minEnd: Int
     ): MutableMap<List<String>, Int> {
         var currentLine = bedFileReader.readLine()
         val tempMems = mutableListOf<MEM>()
@@ -162,14 +176,14 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
             val alignmentParsed = parseStringIntoMem(currentLine)
             if (tempMems.isNotEmpty() && tempMems[0].readName != alignmentParsed.readName) {
                 //write out the tempMems
-                processMemsForRead(tempMems, readMapping, maxNumHits,hapIdToRefRangeMap)
+                processMemsForRead(tempMems, readMapping, maxNumHits,hapIdToRefRangeMap, maxStart, minEnd)
                 tempMems.clear()
             }
             tempMems.add(alignmentParsed)
             currentLine = bedFileReader.readLine()
         }
 
-        processMemsForRead(tempMems, readMapping, maxNumHits, hapIdToRefRangeMap)
+        processMemsForRead(tempMems, readMapping, maxNumHits, hapIdToRefRangeMap, maxStart, minEnd)
         return readMapping
     }
 
@@ -191,14 +205,16 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
 
     /**
      * Function to process the mems for a single read and add them to the readMapping
-     * This will filter things based on the maxNumHits and retain the mems that are longest
+     * This will filter things based on the maxStart and minEnd positions, then  maxNumHits and retain the mems that are longest
      * Because MEMs are Maximal Exact Matches, the longest MEMs are the best hits
      */
-    fun processMemsForRead(tempMems: List<MEM>, readMapping: MutableMap<List<String>, Int>, maxNumHits: Int, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>) {
+    fun processMemsForRead(tempMems: List<MEM>, readMapping: MutableMap<List<String>, Int>, maxNumHits: Int,
+                           hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, maxStart: Int, minEnd: Int) {
+        val posFilteredMems = tempMems.filter { it.readStart <= maxStart && it.readEnd >= minEnd }
         //get the longest hits
-        val maxLength = tempMems.maxOf { it.readEnd - it.readStart }
+        val maxLength = posFilteredMems.maxOf { it.readEnd - it.readStart }
         //remove any hits that are not the longest
-        val bestHits = tempMems.filter { it.readEnd - it.readStart == maxLength }
+        val bestHits = posFilteredMems.filter { it.readEnd - it.readStart == maxLength }
 
         val totalNumHits = bestHits.sumOf { it.numHits }
 
