@@ -7,7 +7,6 @@ import com.github.ajalt.clikt.output.MordantHelpFormatter
 import com.github.ajalt.clikt.parameters.options.versionOption
 import net.maizegenetics.phgv2.pathing.*
 import net.maizegenetics.phgv2.pathing.ropebwt.ConvertRm2Ps4gFile
-import net.maizegenetics.phgv2.pathing.ropebwt.CreateChromLengthFile
 import net.maizegenetics.phgv2.pathing.ropebwt.MapReads
 import net.maizegenetics.phgv2.pathing.ropebwt.RopebwtIndex
 import net.maizegenetics.phgv2.utils.phgVersion

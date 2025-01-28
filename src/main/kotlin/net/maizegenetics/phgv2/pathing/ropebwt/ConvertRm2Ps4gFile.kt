@@ -47,8 +47,6 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
     val hvcfDir by option(help = "Directory containing the hvcf files")
         .required()
 
-    val numBitsToShift = 8 //Maybe make this a param
-
 
     override fun run() {
         logCommand(this)
@@ -71,7 +69,7 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
 
         val outputFile = buildOutputFile(readMappingFile, outputDir)
 
-        writeOutPS4GFile(ps4GData, sampleGameteCount, gameteToIdxMap,outputDir, header, cliCommand)
+        writeOutPS4GFile(ps4GData, sampleGameteCount, gameteToIdxMap, outputFile, header, cliCommand)
 
     }
 
@@ -133,8 +131,8 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
         //Pack into an Int
         val idx = contigOrdering[pos.contig]?: throw IllegalArgumentException("Contig ${pos.contig} not found in contigOrdering")
 
-        //pack last 4 bits of idx into first 4 bits of output then pack the position minus 8 bits into the last 28 bits
-        val idxBits = idx and 0xF
+        //pack last 4 bits of idx into first 8 bits of output then pack the position minus 8 bits into the last 28 bits
+        val idxBits = idx and 0xFF //If there are more than 256 contigs this will have unexpected issues
         val posBits = pos.position/256 // div 256 effectively bitshifts by 8
 
         return (idxBits shl 28) or posBits //we dont care if its negative as we arent comparing them
