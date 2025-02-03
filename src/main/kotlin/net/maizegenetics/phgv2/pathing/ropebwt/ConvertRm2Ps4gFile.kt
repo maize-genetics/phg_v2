@@ -108,7 +108,7 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
             val mostHitRefRange = hapIdSet.flatMap { hapId -> hapIdToRanges[hapId]?: listOf() }.maxOf { it }
             //build binned position:
             val binPos = Position(mostHitRefRange.contig, mostHitRefRange.start / binSize)
-            val posEncoded = encodePosition(binPos, contigToIdxMap)
+            val posEncoded = PS4GUtils.encodePosition(binPos, contigToIdxMap)
 
             //convert the hapIdSet into gametes
             val hapIdForSampleGameteMap = graph.hapIdToSampleGametes(mostHitRefRange)
@@ -126,16 +126,7 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
         return Triple(ps4GData, gameteCountMap, gameteToIdxMap)
     }
 
-    fun encodePosition(pos: Position, contigOrdering: Map<String, Int>) : Int {
-        //Pack into an Int
-        val idx = contigOrdering[pos.contig]?: throw IllegalArgumentException("Contig ${pos.contig} not found in contigOrdering")
 
-        //pack last 4 bits of idx into first 8 bits of output then pack the position minus 8 bits into the last 28 bits
-        val idxBits = idx and 0xFF //If there are more than 256 contigs this will have unexpected issues
-        val posBits = pos.position/256 // div 256 effectively bitshifts by 8
-
-        return (idxBits shl 28) or posBits //we dont care if its negative as we arent comparing them
-    }
 
 
 

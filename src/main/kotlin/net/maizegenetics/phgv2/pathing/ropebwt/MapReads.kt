@@ -22,11 +22,6 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
 
-/**
- * Some classes to hold the data from the ropebwt3 mem output
- */
-data class MEM(val readName: String, val readStart: Int, val readEnd: Int, val numHits: Int, val listMemHits: List<MEMHit>)
-data class MEMHit(val contig: String, val strand: String, val pos: Int)
 
 /**
  * MapReads will map read files independently to a pangenome indexed by ropeBWT3
@@ -173,7 +168,7 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
                 currentLine = bedFileReader.readLine()
                 continue
             }
-            val alignmentParsed = parseStringIntoMem(currentLine)
+            val alignmentParsed = RopeBWTUtils.parseStringIntoMem(currentLine)
             if (tempMems.isNotEmpty() && tempMems[0].readName != alignmentParsed.readName) {
                 //write out the tempMems
                 processMemsForRead(tempMems, readMapping, maxNumHits,hapIdToRefRangeMap, maxStart, minEnd)
@@ -187,21 +182,6 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
         return readMapping
     }
 
-    /**
-     * Function to parse the current alignment line from ropebwt3 mem into a usable object
-     */
-    fun parseStringIntoMem(string: String) : MEM {
-        val split = string.split("\t")
-        val readName = split[0]
-        val readStart = split[1].toInt()
-        val readEnd = split[2].toInt()
-        val numHits = split[3].toInt()
-        val listMemHits = split.subList(5, split.size).map {
-            val hitSplit = it.split(":")
-            MEMHit(hitSplit[0], hitSplit[1], hitSplit[2].toInt())
-        }
-        return MEM(readName, readStart, readEnd, numHits, listMemHits)
-    }
 
     /**
      * Function to process the mems for a single read and add them to the readMapping

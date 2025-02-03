@@ -93,7 +93,7 @@ class MapReadsTest {
                 "d84bea2a0e8bcf79fd1ba8781ad0818c:+:139499\t0bfa126c7d600678dd1dc9a66f80119b:-:35325\t8ad9073572cf3e16105f321a2727f6b7:-:35324\t" +
                 "171bd10310c5affc6313856d7b017841:-:19667\tf304773b801a9249bf36bc4b6cafb9b4:-:34309\t1e77759e3c4f8437c2d6a10de91fbf9f:-:16641\t" +
                 "233e06c196319b1b02c6210c0748dd62:+:5021"
-        val parsed = mapReads.parseStringIntoMem(alignmentString)
+        val parsed = RopeBWTUtils.parseStringIntoMem(alignmentString)
         assertEquals("ST-E00317:129:HVMFTCCXX:7:1101:5944:1309", parsed.readName)
         assertEquals(1, parsed.readStart)
         assertEquals(150, parsed.readEnd)
