@@ -1,0 +1,22 @@
+##fileformat=VCFv4.2
+##FORMAT=<ID=AD,Number=3,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth (only filtered reads used for calling)">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##INFO=<ID=AF,Number=3,Type=Integer,Description="Allele Frequency">
+##INFO=<ID=ASM_Chr,Number=1,Type=String,Description="Assembly chromosome">
+##INFO=<ID=ASM_End,Number=1,Type=Integer,Description="Assembly end position">
+##INFO=<ID=ASM_Start,Number=1,Type=Integer,Description="Assembly start position">
+##INFO=<ID=ASM_Strand,Number=1,Type=String,Description="Assembly strand">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
+##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
+##contig=<ID=1,length=11>
+##contig=<ID=2,length=10>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Line1
+1	1	.	A	<NON_REF>	.	.	ASM_Chr=1;ASM_End=1;ASM_Start=1;ASM_Strand=+;END=1	GT:AD:DP:PL	0:30,0:30:0,90,90
+1	2	.	A	T,<NON_REF>	.	.	ASM_Chr=1;ASM_End=2;ASM_Start=2;ASM_Strand=+	GT:AD:DP	1:0,30,0:30
+1	3	.	A	<NON_REF>	.	.	ASM_Chr=1;ASM_End=6;ASM_Start=3;ASM_Strand=+;END=6	GT:AD:DP:PL	0:30,0:30:0,90,90
+1	7	.	A	G,<NON_REF>	.	.	ASM_Chr=1;ASM_End=2;ASM_Start=2;ASM_Strand=+	GT:AD:DP	1:0,30,0:30
+1	8	.	A	<NON_REF>	.	.	ASM_Chr=1;ASM_End=10;ASM_Start=8;ASM_Strand=+;END=10	GT:AD:DP:PL	0:30,0:30:0,90,90

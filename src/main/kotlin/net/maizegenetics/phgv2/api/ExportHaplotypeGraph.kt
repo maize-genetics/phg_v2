@@ -131,9 +131,7 @@ private fun createVariantContext(
             when (symbolicAllele) {
                 SymbolicAllele.CHECKSUM -> Pair(hapid, symbolicAlleleAlt(hapid))
                 SymbolicAllele.RANGE_SAMPLE_GAMETE -> {
-                    val sample = hapIdToSampleGametes.firstNotNullOf { entry ->
-                        entry.value.firstNotNullOf { it }
-                    }
+                    val sample = hapIdToSampleGametes[hapid]!!.firstNotNullOf { it }
                     Pair(hapid, symbolicAlleleRangeSampleGamete(rangeIndex, sample.name, sample.gameteId))
                 }
             }
