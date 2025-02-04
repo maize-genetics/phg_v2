@@ -82,18 +82,18 @@ imputedTable.posToLine.forEach { (pos, line) ->
         return@forEach
     }
 
-    var genotypeTable = processRange(pos, line, vcfFilename, indelsToMissing)
+    val genotypeTable = processRange(pos, line, vcfFilename, indelsToMissing)
 
-    genotypeTable = filterGenotypeTable(genotypeTable, siteMinCount, siteMinAlleleFreq, bedfile)
+    val filteredGenotypeTable = filterGenotypeTable(genotypeTable, siteMinCount, siteMinAlleleFreq, bedfile)
 
-    if (writeVCFFiles) writeVCF(
-        genotypeTable,
-        "impute-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "Impute")}"
-    )
+    if (filteredGenotypeTable != null && filteredGenotypeTable.numberOfSites() > 0) {
 
-    if (genotypeTable != null && genotypeTable.numberOfSites() > 0) {
+        if (writeVCFFiles) writeVCF(
+            filteredGenotypeTable,
+            "impute-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "Impute")}"
+        )
 
-        val glmOutput = runGLM(genotypeTable, phenotype, populationStructure)
+        val glmOutput = runGLM(filteredGenotypeTable, phenotype, populationStructure)
 
         if (writeGLMResults) {
             glmOutput.forEachIndexed { i, table ->
@@ -186,7 +186,7 @@ fun filterGenotypeTable(
     siteMinCount: Int? = null,
     siteMinAlleleFreq: Double? = null,
     bedfile: String? = null
-): GenotypeTable {
+): GenotypeTable? {
 
     // If no filters are set, return the original genotype table
     if (siteMinCount == null && siteMinAlleleFreq == null && bedfile == null) return genotype
