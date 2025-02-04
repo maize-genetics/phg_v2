@@ -165,7 +165,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             val alignmentParsed = RopeBWTUtils.parseStringIntoMem(currentLine)
             if (tempMems.isNotEmpty() && tempMems[0].readName != alignmentParsed.readName) {
                 //write out the tempMems
-                val pairPosAndGameteSet = processMemsForRead(tempMems, splineLookup, chrIndexMap,minMEMLength, maxNumHits)
+                val pairPosAndGameteSet = processMemsForRead(tempMems, splineLookup, chrIndexMap,minMEMLength, maxNumHits, gameteToIdxMap)
                 if(pairPosAndGameteSet.first != -1) {
                     countMap[pairPosAndGameteSet] = countMap.getOrDefault(pairPosAndGameteSet, 0) + 1
                 }
@@ -175,14 +175,16 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             currentLine = bedFileReader.readLine()
         }
 
-        val pairPosAndGameteSet = processMemsForRead(tempMems, splineLookup, chrIndexMap,minMEMLength, maxNumHits)
+        val pairPosAndGameteSet = processMemsForRead(tempMems, splineLookup, chrIndexMap,minMEMLength, maxNumHits, gameteToIdxMap)
         if(pairPosAndGameteSet.first != -1) {
             countMap[pairPosAndGameteSet] = countMap.getOrDefault(pairPosAndGameteSet, 0) + 1
         }
         return countMap
     }
 
-    fun processMemsForRead(tempMems: List<MEM>, splineLookup: Map<String, PolynomialSplineFunction>, chrIndexMap: Map<String, Int>, minMEMLength: Int, maxNumHits: Int): Pair<Int, List<Int>> {
+    fun processMemsForRead(tempMems: List<MEM>, splineLookup: Map<String, PolynomialSplineFunction>,
+                           chrIndexMap: Map<String, Int>, minMEMLength: Int, maxNumHits: Int,
+                           gameteToIdxMap: Map<String, Int>): Pair<Int, List<Int>> {
         val bestHits = findBestMems(tempMems, minMEMLength, maxNumHits)
         if(bestHits.isEmpty()) {
             return Pair(-1, listOf())
@@ -192,10 +194,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         val encodedPositions = encodeHitsToPosition(bestHits, splineLookup)
 
         //Create consensus Position
-        val (consensusPosition, consensusGametes) = createConsensusPositionAndGametes(encodedPositions, chrIndexMap)
-
-        TODO()
-
+        return createConsensusPositionAndGametes(encodedPositions, chrIndexMap, gameteToIdxMap)
     }
 
     private fun encodeHitsToPosition(bestHits: List<MEMHit>, splineLookup: Map<String, PolynomialSplineFunction>) : List<Pair<String,Int>> {
@@ -211,7 +210,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         }.filter { it.second != -1 }
     }
 
-    private fun createConsensusPositionAndGametes(encodedPositions: List<Pair<String,Int>>, chrIndexMap: Map<String,Int>) : Pair<Int, List<Int>> {
+    private fun createConsensusPositionAndGametes(encodedPositions: List<Pair<String,Int>>, chrIndexMap: Map<String,Int>, gameteToIdxMap: Map<String, Int>) : Pair<Int, List<Int>> {
         val decodePositions = encodedPositions.map { Pair(it.first,PS4GUtils.decodePosition(it.second)) }
 
         //determine chromosome majority
@@ -220,14 +219,20 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         val bestHitsForChrom = decodePositions.filter { it.second.contig == bestChromosome }
         //compute the average position
         val averagePosition = bestHitsForChrom.sumOf { it.second.position } / bestHitsForChrom.size
-        //TODO remove hits that are too far from average...
+        //TODO future task remove hits that are too far from average...
+        //for now we just use the average position
+        val avgPositionObject = Position(bestChromosome, averagePosition)
+        val encodedPosition = PS4GUtils.encodePosition(avgPositionObject, chrIndexMap)
 
-        TODO()
+        val gameteIndicesHit = bestHitsForChrom.map { it.first.split("_")[1] }.map { gameteToIdxMap[it]!! }
+        return Pair(encodedPosition,gameteIndicesHit )
         //Associate the gametes with the average positions
 //        return Pair(encodedPositions)
 
 
     }
+
+
 
     /**
      * Function to remove MEMs that are not the longest and then return the best hits
