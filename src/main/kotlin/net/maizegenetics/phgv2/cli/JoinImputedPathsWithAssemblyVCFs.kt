@@ -1,11 +1,18 @@
 package net.maizegenetics.phgv2.cli
 
+import biokotlin.genome.Position
+import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import net.maizegenetics.dna.snp.*
+import net.maizegenetics.phenotype.PhenotypeBuilder
+import net.maizegenetics.util.TableReport
+import net.maizegenetics.util.TableReportUtils
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.util.*
 
 class JoinImputedPathsWithAssemblyVCFs :
     CliktCommand(help = "Joins imputed paths with assembly VCFs, and runs GLM for each reference range.") {
@@ -18,13 +25,18 @@ class JoinImputedPathsWithAssemblyVCFs :
     val traitFile by option(help = "Phenotype file")
         .required()
 
+    // Set to null if no population structure file
     val populationStructureFile by option(help = "Population structure file")
         .default("")
 
-    val traitFile by option(help = "Phenotype file")
+    // CHROM   POS     ID      REF     ALT  Samples...
+    // /local/workdir/wl748/merge_pangenome_v2.txt
+    val pangenomeTableFile by option(help = "Pangenome table file")
         .required()
 
-    val traitFile by option(help = "Phenotype file")
+    // #CHROM  POS Samples...
+    // /local/workdir/wl748/merge_hapID/merge_SeeD.txt
+    val imputedTableFile by option(help = "Imputed table file")
         .required()
 
     override fun run() {
@@ -38,8 +50,6 @@ class JoinImputedPathsWithAssemblyVCFs :
             .toMap()
 
         val phenotype = PhenotypeBuilder().fromFile(traitFile).build()[0]
-
-        val populationStructure1 = populationStructureFile?.let { PhenotypeBuilder().fromFile(it).build()[0] }
 
         val populationStructure = if (populationStructureFile.isNotEmpty()) {
             PhenotypeBuilder().fromFile(populationStructureFile).build()[0]
@@ -88,6 +98,32 @@ class JoinImputedPathsWithAssemblyVCFs :
 
         }
 
+    }
+
+    /**
+     * @param samples List of samples in the table
+     * @param posToLine Map of positions to lines in the file
+     */
+    data class SummaryTable(val samples: List<String>, val posToLine: SortedMap<Position, String>)
+
+    private fun readTable(filename: String, nonSampleHeaders: Int): SummaryTable {
+        bufferedReader(filename).use { reader ->
+            val samples = reader.readLine().split("\t").drop(nonSampleHeaders)
+            val posToLine = reader.lineSequence()
+                .map {
+                    val tokens = it.split("\t", limit = 3)
+                    Position(tokens[0], tokens[1].toInt()) to it
+                }.toMap().toSortedMap()
+            return SummaryTable(samples, posToLine)
+        }
+    }
+
+    private fun writeVCF(genotype: GenotypeTable, filename: String) {
+        ExportUtils.writeToVCF(genotype, filename, false)
+    }
+
+    private fun writeTable(table: TableReport, filename: String) {
+        TableReportUtils.saveDelimitedTableReport(table, "\t", File(filename))
     }
 
 }
