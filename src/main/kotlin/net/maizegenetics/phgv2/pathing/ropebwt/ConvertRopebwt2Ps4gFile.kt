@@ -7,6 +7,8 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.int
 import htsjdk.variant.vcf.VCFFileReader
+import net.maizegenetics.phgv2.api.SampleGamete
+import net.maizegenetics.phgv2.cli.headerCommand
 import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.parseALTHeader
@@ -40,17 +42,26 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     override fun run() {
         logCommand(this)
 
+        val command = headerCommand(this)
+
         myLogger.info("Convert Ropebwt to PS4G")
 
+        myLogger.info("Building Spline Lookup")
         val (splineLookup, chrIndexMap, gameteIndexMap) = buildSplineLookup(hvcfDir)
 
+
+        val sampleGameteIndexMap = gameteIndexMap.map { SampleGamete(it.key) to it.value}.toMap()
+
+        myLogger.info("Building PS4G Output File Name")
         //build the output file name
         val outputFile = PS4GUtils.buildOutputFileName(ropebwtBed, outputDir)
 
+        myLogger.info("Building PS4G Data")
         //build and write out the PS4G file
-        buildPS4GData(ropebwtBed, splineLookup, chrIndexMap, gameteIndexMap,minMemLength, maxNumHits)
+        val (ps4GData, sampleGameteCountMap) = buildPS4GData(ropebwtBed, splineLookup, chrIndexMap, gameteIndexMap,minMemLength, maxNumHits)
 
-
+        myLogger.info("Writing out PS4G File")
+        PS4GUtils.writeOutPS4GFile(ps4GData, sampleGameteCountMap, sampleGameteIndexMap, outputFile, listOf(), command)
     }
 
     fun buildSplineLookup(hvcfDir: String) : Triple<Map<String, PolynomialSplineFunction>, Map<String,Int>, Map<String,Int>> {
@@ -156,11 +167,14 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
     fun buildPS4GData(ropebwtBed: String,  splineLookup: Map<String, PolynomialSplineFunction>, chrIndexMap:Map<String,Int>,
                       gameteToIdxMap: Map<String,Int>,
-                      minMEMLength: Int, maxNumHits: Int) : Map<Pair<Int,List<Int>>, Int> {
+                      minMEMLength: Int, maxNumHits: Int) : Pair<List<PS4GData>, Map<SampleGamete,Int>> {
+
+        val gameteIdxToSampleGameteMap = gameteToIdxMap.map { it.value to SampleGamete(it.key) }.toMap()
         val bedFileReader = bufferedReader(ropebwtBed)
         var currentLine = bedFileReader.readLine()
         val tempMems = mutableListOf<MEM>()
         val countMap = mutableMapOf<Pair<Int, List<Int>>, Int>()
+        val sampleGameteCountMap = mutableMapOf<SampleGamete,Int>()
         while (currentLine != null) {
             if(currentLine.isEmpty()) {
                 currentLine = bedFileReader.readLine()
@@ -172,6 +186,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                 val pairPosAndGameteSet = processMemsForRead(tempMems, splineLookup, chrIndexMap,minMEMLength, maxNumHits, gameteToIdxMap)
                 if(pairPosAndGameteSet.first != -1) {
                     countMap[pairPosAndGameteSet] = countMap.getOrDefault(pairPosAndGameteSet, 0) + 1
+                    for(gameteIdx in pairPosAndGameteSet.second) {
+                        sampleGameteCountMap[gameteIdxToSampleGameteMap[gameteIdx]!!] = sampleGameteCountMap.getOrDefault(gameteIdxToSampleGameteMap[gameteIdx]!!,0) + 1
+                    }
                 }
                 tempMems.clear()
             }
@@ -182,8 +199,15 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         val pairPosAndGameteSet = processMemsForRead(tempMems, splineLookup, chrIndexMap,minMEMLength, maxNumHits, gameteToIdxMap)
         if(pairPosAndGameteSet.first != -1) {
             countMap[pairPosAndGameteSet] = countMap.getOrDefault(pairPosAndGameteSet, 0) + 1
+            for(gameteIdx in pairPosAndGameteSet.second) {
+                sampleGameteCountMap[gameteIdxToSampleGameteMap[gameteIdx]!!] = sampleGameteCountMap.getOrDefault(gameteIdxToSampleGameteMap[gameteIdx]!!,0) + 1
+            }
         }
-        return countMap
+
+        val ps4gDataList = convertCountMapToPS4GData(countMap)
+
+
+        return Pair(ps4gDataList, sampleGameteCountMap)
     }
 
     fun processMemsForRead(tempMems: List<MEM>, splineLookup: Map<String, PolynomialSplineFunction>,
@@ -236,8 +260,6 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
     }
 
-
-
     /**
      * Function to remove MEMs that are not the longest and then return the best hits
      */
@@ -257,6 +279,13 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             bestHits.flatMap { it.listMemHits }
         } else {
             listOf()
+        }
+    }
+
+    //PS4GData(val gameteList: List<Int>, val pos: Int, val count: Int)
+    fun convertCountMapToPS4GData(countMap: Map<Pair<Int,List<Int>>, Int>) : List<PS4GData> {
+        return countMap.map { (pair, count) ->
+            PS4GData(pair.second, pair.first, count)
         }
     }
 }
