@@ -99,6 +99,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                 val stPosition = currentVariant.start
                 val endPosition = currentVariant.end
 
+                val stPositionEncoded = PS4GUtils.encodePosition(Position(chrom, stPosition), chrIndexMap)
+                val endPositionEncoded = PS4GUtils.encodePosition(Position(chrom, endPosition), chrIndexMap)
+
                 val genotype = currentVariant.genotypes
                     .get(0)
                     .alleles
@@ -111,8 +114,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                     val regions = altHeaderMetaData.regions
                     val asmStart = regions.first().first.position
                     val asmEnd = regions.first().second.position
-                    listOfPoints.add(Pair(asmStart.toDouble(), stPosition.toDouble()))
-                    listOfPoints.add(Pair(asmEnd.toDouble(), endPosition.toDouble()))
+
+                    listOfPoints.add(Pair(asmStart.toDouble(), stPositionEncoded.toDouble()))
+                    listOfPoints.add(Pair(asmEnd.toDouble(), endPositionEncoded.toDouble()))
                 }
 
             }
