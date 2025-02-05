@@ -33,9 +33,9 @@ sealed class RopeBWTIndexInput {
  *
  * With the output files we can then run ropebwt3 mem and get read mappings.
  */
-class RopebwtIndex : CliktCommand(help="BETA: Create a ropeBWT3 index") {
+class RopeBwtIndex : CliktCommand(help="BETA: Create a ropeBWT3 index") {
 
-    private val myLogger = LogManager.getLogger(RopebwtIndex::class.java)
+    private val myLogger = LogManager.getLogger(RopeBwtIndex::class.java)
 
     // Pre-compile the Regex pattern - used when creating the output fasta file names
     val HVCF_PATTERN = Regex("""(\.hvcf|\.h\.vcf|\.hvcf\.gz|\.h\.vcf\.gz)$""")
@@ -61,7 +61,7 @@ class RopebwtIndex : CliktCommand(help="BETA: Create a ropeBWT3 index") {
     val indexFilePrefix by option(help = "Prefix of the ropebwt3 index file.  This will be added to the output directory and ropeBWT3 will make a number of output files.")
         .required()
 
-    val numThreads by option(help = "Number of threads to use for the index creation.")
+    val threads by option(help = "Number of threads to use for the index creation.")
         .int()
         .default(3)
 
@@ -86,7 +86,7 @@ class RopebwtIndex : CliktCommand(help="BETA: Create a ropeBWT3 index") {
 
         myLogger.info("Creating ropeBWT3 index for $pangenomeFastaFile")
 
-        createInitialIndex(pangenomeFastaFile, "${outputDir}/${indexFilePrefix}", numThreads, deleteFmrIndex, condaEnvPrefix)
+        createInitialIndex(pangenomeFastaFile, "${outputDir}/${indexFilePrefix}", threads, deleteFmrIndex, condaEnvPrefix)
 
     }
 

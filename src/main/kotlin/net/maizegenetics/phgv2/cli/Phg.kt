@@ -7,7 +7,7 @@ import com.github.ajalt.clikt.output.MordantHelpFormatter
 import com.github.ajalt.clikt.parameters.options.versionOption
 import net.maizegenetics.phgv2.pathing.*
 import net.maizegenetics.phgv2.pathing.ropebwt.MapReads
-import net.maizegenetics.phgv2.pathing.ropebwt.RopebwtIndex
+import net.maizegenetics.phgv2.pathing.ropebwt.RopeBwtIndex
 import net.maizegenetics.phgv2.utils.phgVersion
 import net.maizegenetics.phgv2.utils.setupDebugLogging
 
@@ -33,7 +33,7 @@ fun main(args: Array<String>) = Phg()
         SetupEnvironment(), Initdb(), CreateRanges(), PrepareAssemblies(), AgcCompress(), AlignAssemblies(), PrepareSlurmAlignFile(),
         CreateAnchorwaveDotplot(), CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), Hvcf2Gvcf(), LoadVcf(), ExportVcf(),
         BuildKmerIndex(), MapKmers(), FindPaths(), HapidSampleTable(), SampleHapidByRange(),
-        RopebwtIndex(), MapReads(), // Imputation
+        RopeBwtIndex(), MapReads(), // Imputation
         CreateFastaFromHvcf(), ListSamples(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer, ExtractEdgeReads(), //Utilities
         QcReadMapping(), PathsToGff(), // Utilities continued
         CompositeToHaplotypeCoords(), // resequencing pipeline

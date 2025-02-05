@@ -132,8 +132,7 @@ class BuildKmerIndex: CliktCommand(help="Create a kmer index for a HaplotypeGrap
     private fun buildHaplotypeGraph(): HaplotypeGraph {
         val timedValue = measureTimedValue {
             if(hvcfDir != "") {
-                val pathList = File(hvcfDir).listFiles { file -> file.name.endsWith(".h.vcf") || file.name.endsWith(".h.vcf.gz") }.map { it.path }
-                HaplotypeGraph(pathList)
+                HaplotypeGraph(hvcfDir)
             }
             else {
                 //Load in the TileDB
