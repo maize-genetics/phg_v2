@@ -3,11 +3,21 @@ package net.maizegenetics.phgv2.cli
 import biokotlin.genome.Position
 import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.options.default
-import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.*
+import com.github.ajalt.clikt.parameters.types.boolean
+import com.github.ajalt.clikt.parameters.types.int
+import com.google.common.collect.ArrayListMultimap
+import com.google.common.collect.Multimap
+import net.maizegenetics.analysis.association.FixedEffectLMPlugin
+import net.maizegenetics.analysis.data.IntersectionAlignmentPlugin
+import net.maizegenetics.analysis.filter.FilterSiteBuilderPlugin
 import net.maizegenetics.dna.snp.*
+import net.maizegenetics.dna.snp.genotypecall.GenotypeCallTableBuilder
+import net.maizegenetics.phenotype.Phenotype
 import net.maizegenetics.phenotype.PhenotypeBuilder
+import net.maizegenetics.plugindef.DataSet
+import net.maizegenetics.plugindef.Datum
+import net.maizegenetics.taxa.TaxaListBuilder
 import net.maizegenetics.util.TableReport
 import net.maizegenetics.util.TableReportUtils
 import org.apache.logging.log4j.LogManager
@@ -38,6 +48,13 @@ class JoinImputedPathsWithAssemblyVCFs :
     // /local/workdir/wl748/merge_hapID/merge_SeeD.txt
     val imputedTableFile by option(help = "Imputed table file")
         .required()
+
+    val indelsToMissing by option(help = "Convert indels to missing genotypes")
+        .boolean()
+        .default(false)
+
+    val siteMinCount: Int? by option(help = "Site minimum count filter")
+        .int()
 
     override fun run() {
 
@@ -97,6 +114,50 @@ class JoinImputedPathsWithAssemblyVCFs :
             }
 
         }
+
+    }
+
+    // include Site Min Count, Site Min Allele Freq and Bed file filters
+    private fun filterGenotypeTable(
+        genotype: GenotypeTable,
+        siteMinCount: Int? = null,
+        siteMinAlleleFreq: Double? = null,
+        bedfile: String? = null
+    ): GenotypeTable? {
+
+        // If no filters are set, return the original genotype table
+        if (siteMinCount == null && siteMinAlleleFreq == null && bedfile == null) return genotype
+
+        val builder = FilterSiteBuilderPlugin()
+
+        siteMinCount?.let { builder.siteMinCount(it) }
+        siteMinAlleleFreq?.let { builder.siteMinAlleleFreq(it) }
+        bedfile?.let { builder.bedFile(it) }
+
+        return builder.runPlugin(genotype)
+
+    }
+
+    fun runGLM(
+        genotype: GenotypeTable,
+        phenotype: Phenotype,
+        populationStructure: Phenotype? = null
+    ): List<TableReport> {
+
+        val inputDatums = mutableListOf<Datum>()
+        inputDatums.add(Datum("genotype", genotype, null))
+        inputDatums.add(Datum("phenotype", phenotype, null))
+        populationStructure?.let { inputDatums.add(Datum("populationStructure", it, null)) }
+
+        val input = DataSet(inputDatums, null)
+
+        val intersect = IntersectionAlignmentPlugin(null, false)
+
+        val glm = FixedEffectLMPlugin(null, false)
+
+        val result = glm.performFunction(intersect.performFunction(input))
+
+        return result.getDataOfType(TableReport::class.java).map { it.data as TableReport }
 
     }
 
