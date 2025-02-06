@@ -36,9 +36,20 @@ class PS4GUtils {
             //Pack into an Int
             val idx = contigIndexMap[pos.contig]?: throw IllegalArgumentException("Contig ${pos.contig} not found in contigIndexMap")
 
+            return encodePositionFromIdxAndPos(idx, pos.position)
+        }
+
+        fun encodePositionNoLookup(pos: Position): Int {
+            //make sure that the contig is a number
+            val idx = pos.contig.toInt()
+            return encodePositionFromIdxAndPos(idx, pos.position)
+        }
+
+        fun encodePositionFromIdxAndPos(idx: Int, pos: Int) : Int {
+            //Pack into an Int
             //pack last 4 bits of idx into first 8 bits of output then pack the position minus 8 bits into the last 28 bits
             val idxBits = idx and 0xFF //If there are more than 256 contigs this will have unexpected issues
-            val posBits = pos.position/256 // div 256 effectively bitshifts by 8
+            val posBits = pos/256 // div 256 effectively bitshifts by 8
 
             return (idxBits shl 28) or posBits //we dont care if its negative as we arent comparing them
         }
