@@ -3,8 +3,11 @@ package net.maizegenetics.phgv2.cli
 import biokotlin.genome.Position
 import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.options.*
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.boolean
+import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import com.google.common.collect.ArrayListMultimap
 import com.google.common.collect.Multimap
@@ -53,8 +56,21 @@ class JoinImputedPathsWithAssemblyVCFs :
         .boolean()
         .default(false)
 
+    val writeVCFFiles by option(help = "Whether to write VCF files")
+        .boolean()
+        .default(false)
+
+    val writeGLMResults by option(help = "Whether to write GLM results")
+        .boolean()
+        .default(false)
+
     val siteMinCount: Int? by option(help = "Site minimum count filter")
         .int()
+
+    val siteMinAlleleFreq: Double? by option(help = "Site minimum allele frequency filter")
+        .double()
+
+    val bedfile: String? by option(help = "Path to the bed file used to subset the output VCF files.")
 
     override fun run() {
 
@@ -87,7 +103,7 @@ class JoinImputedPathsWithAssemblyVCFs :
                 return@forEach
             }
 
-            val genotypeTable = processRange(pos, line, vcfFilename, indelsToMissing)
+            val genotypeTable = processRange(pos, line, vcfFilename, indelsToMissing, pangenomeTable, imputedTable)
 
             val filteredGenotypeTable = filterGenotypeTable(genotypeTable, siteMinCount, siteMinAlleleFreq, bedfile)
 
@@ -114,6 +130,82 @@ class JoinImputedPathsWithAssemblyVCFs :
             }
 
         }
+
+    }
+
+    private fun processRange(
+        pos: Position,
+        line: String,
+        vcfFilename: String,
+        indelToMissing: Boolean = false,
+        pangenomeTable: SummaryTable,
+        imputedTable: SummaryTable
+    ): GenotypeTable {
+
+        val pangenomeLine = pangenomeTable.posToLine[pos] ?: error("No pangenome entry found for $pos")
+        val pangenomeHapids = pangenomeLine.split("\t").drop(4)
+        require(pangenomeHapids.size == pangenomeTable.samples.size) {
+            "Number of hapids (${pangenomeHapids.size}) does not match number of samples (${pangenomeTable.samples.size}) at $pos"
+        }
+
+        val hapids = line.split("\t").drop(2)
+        val numSamples = imputedTable.samples.size
+        require(hapids.size == numSamples) {
+            "Number of hapids (${hapids.size}) does not match number of samples ($numSamples) at $pos"
+        }
+
+        val rangeGenotypeTableAssemblies = ImportUtils.readFromVCF(vcfFilename, null, false, true)
+        val numSites = rangeGenotypeTableAssemblies.numberOfSites()
+        val vcfSamples = rangeGenotypeTableAssemblies.taxa()
+
+        // Multimap of pangenome hapid to sample's index in the VCF
+        val pangenomeHapidToMultiSample: Multimap<String, Int> = ArrayListMultimap.create()
+        pangenomeHapids.forEachIndexed { sampleIndex, hapid ->
+            val sampleName = pangenomeTable.samples[sampleIndex]
+            val newSampleIndex = vcfSamples.indexOf(sampleName)
+
+            // Add the mapping to the Multimap
+            pangenomeHapidToMultiSample.put(hapid, newSampleIndex)
+        }
+
+        // Array of genotypes for each sample in the pangenome
+        // Index of the array corresponds to the sample index in the pangenome
+        val pangenomeGenotypesBySample = vcfSamples.indices
+            .map { rangeGenotypeTableAssemblies.genotypeAllSites(it) }
+            .map { genotypes ->
+                if (indelToMissing) {
+                    genotypes.map { genotype ->
+                        val diploid = GenotypeTableUtils.getDiploidValues(genotype)
+                        if (diploid[0] == NucleotideAlignmentConstants.GAP_ALLELE || diploid[0] == NucleotideAlignmentConstants.INSERT_ALLELE)
+                            diploid[0] = GenotypeTable.UNKNOWN_ALLELE
+                        if (diploid[1] == NucleotideAlignmentConstants.GAP_ALLELE || diploid[1] == NucleotideAlignmentConstants.INSERT_ALLELE)
+                            diploid[1] = GenotypeTable.UNKNOWN_ALLELE
+                        GenotypeTableUtils.getDiploidValue(diploid[0], diploid[1])
+                    }.toByteArray()
+                } else {
+                    genotypes
+                }
+            }
+            .toTypedArray()
+
+        // Map of pangenome hapid to the sample index in the VCF with the most common genotype
+        val pangenomeHapidToSample = pangenomeHapidToMultiSample.keys().associateWith { hapid ->
+            pangenomeHapidToMultiSample.get(hapid).map { sampleIndex ->
+                Pair(sampleIndex, pangenomeGenotypesBySample[sampleIndex].hashCode())
+            }.groupBy { it.second }.maxBy { it.value.size }.value.first().first
+        }
+
+        // Set the genotypes for each sample in the pangenome
+        val genotype = GenotypeCallTableBuilder.getUnphasedNucleotideGenotypeBuilder(numSamples, numSites)
+        hapids.forEachIndexed { i, hapid ->
+            if (hapid == ".") return@forEachIndexed
+            val sampleIndex =
+                pangenomeHapidToSample[hapid] ?: error("No pangenome sample found for hapid: $hapid at position: $pos")
+            genotype.setBaseRangeForTaxon(i, 0, pangenomeGenotypesBySample[sampleIndex])
+        }
+
+        val taxon = TaxaListBuilder().addAll(imputedTable.samples).build()
+        return GenotypeTableBuilder.getInstance(genotype.build(), rangeGenotypeTableAssemblies.positions(), taxon)
 
     }
 
