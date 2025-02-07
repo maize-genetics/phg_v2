@@ -99,12 +99,12 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                 if (chrom != currentChrom) {
                     if (listOfPoints.isEmpty()) {
                         currentChrom = chrom
-                        continue
+                    } else {
+                        buildSpline(listOfPoints, splineBuilder, splineMap, currentChrom, sampleName)
+                        currentChrom = chrom
+                        //Check to see if we need to add a new entry in our chrIndexMap
+                        checkMapAndAddToIndex(chrIndexMap, currentChrom)
                     }
-                    buildSpline(listOfPoints, splineBuilder, splineMap, currentChrom, sampleName)
-                    currentChrom = chrom
-                    //Check to see if we need to add a new entry in our chrIndexMap
-                    checkMapAndAddToIndex(chrIndexMap, currentChrom)
                 }
 
                 val stPosition = currentVariant.start
@@ -124,7 +124,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                 headerParsed[genotype]?.let { altHeaderMetaData ->
                     val regions = altHeaderMetaData.regions
                     val asmStart = regions.first().first.position
-                    val asmEnd = regions.first().second.position
+                    val asmEnd = regions.last().second.position
 
                     listOfPoints.add(Pair(asmStart.toDouble(), stPositionEncoded.toDouble()))
                     listOfPoints.add(Pair(asmEnd.toDouble(), endPositionEncoded.toDouble()))

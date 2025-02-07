@@ -1,11 +1,13 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.Position
 import org.apache.commons.math3.analysis.interpolation.SplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import java.io.File
 import kotlin.test.fail
 
 class ConvertRopebwt2Ps4gFileTest {
@@ -151,12 +153,43 @@ class ConvertRopebwt2Ps4gFileTest {
         assertEquals(Pair("chr1_sample2", 4), encodedMissingChrSpline[1])
     }
 
-    //fun processMemsForRead(tempMems: List<MEM>, splineLookup: Map<String, PolynomialSplineFunction>,
-    //                           chrIndexMap: Map<String, Int>, minMEMLength: Int, maxNumHits: Int,
-    //                           gameteToIdxMap: Map<String, Int>): Pair<Int, List<Int>>
     @Test
     fun testProcessMemsForRead() {
-        fail("Not implemented")
+        val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
+        //Start with having no passing hits
+        val memList = listOf(
+            MEM("read1", 1, 20, 2, listOf(MEMHit("chr1_sample1", "+", 1), MEMHit("chr1_sample2", "+", 2))),
+            MEM("read1", 0, 18, 2, listOf(MEMHit("chr1_sample1", "+", 3), MEMHit("chr1_sample2", "+", 4)))
+        )
+        val chrIndexMap = mapOf(Pair("chr1", 0), Pair("chr2", 1))
+        val gameteToIdxMap = mapOf(Pair("sample1", 0), Pair("sample2", 1))
+
+        val noPassingHits = convertRopebwt2Ps4gFile.processMemsForRead(memList, emptyMap(), chrIndexMap, 5, 1, gameteToIdxMap)
+        //Pair(-1, listOf())
+        assertEquals(-1, noPassingHits.first)
+        assertEquals(0, noPassingHits.second.size)
+
+        val noPassingHits2 = convertRopebwt2Ps4gFile.processMemsForRead(memList, mapOf(), chrIndexMap, 50, 30, gameteToIdxMap)
+        //Also should be Pair(-1, listOf())
+        assertEquals(-1, noPassingHits2.first)
+        assertEquals(0, noPassingHits2.second.size)
+
+
+        //Now we test with making the hits pass
+        val splineLookup = mutableMapOf<String, PolynomialSplineFunction>()
+        val splineBuilder = SplineInterpolator()
+        val listOfPoints = mutableListOf(Pair(1.0, 1.0), Pair(3.0, 3.0), Pair(5.0, 5.0))
+        convertRopebwt2Ps4gFile.buildSpline(listOfPoints, splineBuilder, splineLookup, "chr1", "sample1")
+
+        val listOfPoints2 = mutableListOf(Pair(1.0, 2.0), Pair(3.0, 4.0), Pair(5.0, 6.0))
+        convertRopebwt2Ps4gFile.buildSpline(listOfPoints2, splineBuilder, splineLookup, "chr1", "sample2")
+
+        val processedMems = convertRopebwt2Ps4gFile.processMemsForRead(memList, splineLookup, chrIndexMap, 19, 10, gameteToIdxMap)
+
+        assertEquals(2, processedMems.first) // 1 + 3 = 4 /2 = 2
+        assertEquals(2, processedMems.second.size)
+        assertEquals(0, processedMems.second[0])
+        assertEquals(1, processedMems.second[1])
     }
 
     //processTempMEMs(
@@ -244,7 +277,28 @@ class ConvertRopebwt2Ps4gFileTest {
     //    )
     @Test
     fun testProcessHvcfFileIntoSplines() {
-        fail("Not implemented")
+        val inputFile = "data/test/ropebwt/testHVCFs/LineA.h.vcf"
+        val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
+        val splineMap = mutableMapOf<String, PolynomialSplineFunction>()
+        val chrIndexMap = mutableMapOf("1" to 0, "2" to 1)
+        val gameteIndexMap = mutableMapOf("LineA" to 0, "LineB" to 1)
+
+        convertRopebwt2Ps4gFile.processHvcfFileIntoSplines(File(inputFile), splineMap, chrIndexMap, gameteIndexMap)
+
+
+        //Test some of the values in the spline
+        val chr1Spline = splineMap["1_LineA"]!!
+
+        println(chr1Spline.value(1500.0))
+        println(chr1Spline.value(1500.0).toInt())
+        println(PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()))
+
+        assertEquals(0, PS4GUtils.decodePosition(chr1Spline.value(1.0).toInt()).position)
+        assertEquals(256, PS4GUtils.decodePosition(chr1Spline.value(256.0).toInt()).position)
+        assertEquals(768, PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()).position) // 1500/256 = 5
+        assertEquals(2560, PS4GUtils.decodePosition(chr1Spline.value(3000.0).toInt()).position) // 3000/256 = 11
+
+        assertFalse(chr1Spline.isValidPoint(30000.0))
     }
 
     //buildSplineLookup(hvcfDir: String) : Triple<Map<String, PolynomialSplineFunction>, Map<String,Int>, Map<String,Int>>
