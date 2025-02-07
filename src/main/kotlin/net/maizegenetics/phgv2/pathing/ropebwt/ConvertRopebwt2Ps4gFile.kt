@@ -255,6 +255,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         return createConsensusPositionAndGametes(encodedPositions, chrIndexMap, gameteToIdxMap)
     }
 
+    /**
+     * Function to do the spline positional lookup from the RopeBWT3 MEMs
+     */
     fun encodeHitsToPosition(bestHits: List<MEMHit>, splineLookup: Map<String, PolynomialSplineFunction>) : List<Pair<String,Int>> {
         return bestHits.map { hit ->
             //hit.contig is chr_SampleGamete
