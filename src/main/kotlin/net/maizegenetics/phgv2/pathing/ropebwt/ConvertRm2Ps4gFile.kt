@@ -72,11 +72,6 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
 
     }
 
-    fun buildHapIdToPosMap(graph: HaplotypeGraph) : Map<String,List<Position>> {
-        return graph.hapIdToRefRangeMap()
-            .map { Pair(it.key, it.value.map { refRange -> Position(refRange.contig,refRange.start) }) }.toMap()
-    }
-
     fun readInReadMappingFile(readMappingFile: String) : Pair<List<String>, Map<Array<String>,Int>> {
         val lines = bufferedReader(readMappingFile).readLines()
         val headerLines = mutableListOf<String>()

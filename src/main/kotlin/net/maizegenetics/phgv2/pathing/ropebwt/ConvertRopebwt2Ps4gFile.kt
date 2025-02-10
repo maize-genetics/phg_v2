@@ -17,6 +17,10 @@ import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
+/**
+ * This class will convert a RopebwtBed file to a PS4G file.  It will only work with ropebwt3 files where the reads are
+ * aligned to the whole assembly chromosomes.
+ */
 class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G") {
 
     val myLogger = LogManager.getLogger(ConvertRopebwt2Ps4gFile::class.java)
@@ -38,7 +42,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         .int()
         .default(50)
 
-
+    /**
+     * Function to run the command.  This goes from a RopeBWT3 BED file for reads aligned against the whole chromosomes to a PS4G file.
+     */
     override fun run() {
         logCommand(this)
 
@@ -64,6 +70,10 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         PS4GUtils.writeOutPS4GFile(ps4GData, sampleGameteCountMap, sampleGameteIndexMap, outputFile, listOf(), command)
     }
 
+    /**
+     * Function to build spline lookups from the hvcf files in the directory.
+     * This will create Cubic splines based on the PolynomialSplineFunction from the Apache Commons Math3 library.
+     */
     fun buildSplineLookup(hvcfDir: String) : Triple<Map<String, PolynomialSplineFunction>, Map<String,Int>, Map<String,Int>> {
         val hvcfFiles = File(hvcfDir).listFiles()
         val splineMap = mutableMapOf<String, PolynomialSplineFunction>()
@@ -75,6 +85,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         return Triple(splineMap, chrIndexMap, gameteIndexMap)
     }
 
+    /**
+     * Function to process a single HVCF file into the spline map for the PS4G file.
+     */
     fun processHvcfFileIntoSplines(
         hvcfFile: File?,
         splineMap: MutableMap<String, PolynomialSplineFunction>,
@@ -139,6 +152,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         }
     }
 
+    /**
+     * Simple function to check to see if a value already exists in our map and adds to it if not.
+     */
     fun checkMapAndAddToIndex(
         stringToIndexMap: MutableMap<String, Int>,
         sampleName: String
@@ -148,6 +164,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         }
     }
 
+    /**
+     * Fnction to build the splines based on a list of Pair<Double, Double>
+     */
     fun buildSpline(
         listOfPoints: MutableList<Pair<Double, Double>>,
         splineBuilder: SplineInterpolator,
@@ -163,6 +182,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         listOfPoints.clear()
     }
 
+    /**
+     * Function to build the output PS4G file.
+     */
     fun buildPS4GData(ropebwtBed: String,  splineLookup: Map<String, PolynomialSplineFunction>, chrIndexMap:Map<String,Int>,
                       gameteToIdxMap: Map<String,Int>,
                       minMEMLength: Int, maxNumHits: Int) : Pair<List<PS4GData>, Map<SampleGamete,Int>> {
@@ -243,6 +265,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         }
     }
 
+    /**
+     * Function to process the MEMs collected for a given read.
+     */
     fun processMemsForRead(tempMems: List<MEM>, splineLookup: Map<String, PolynomialSplineFunction>,
                            chrIndexMap: Map<String, Int>, minMEMLength: Int, maxNumHits: Int,
                            gameteToIdxMap: Map<String, Int>): Pair<Int, List<Int>> {
