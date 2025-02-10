@@ -236,7 +236,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             processMemsForRead(tempMems, splineLookup, chrIndexMap, minMEMLength, maxNumHits, gameteToIdxMap)
         if (pairPosAndGameteSet.first != -1) {
             countMap[pairPosAndGameteSet] = countMap.getOrDefault(pairPosAndGameteSet, 0) + 1
-            for (gameteIdx in pairPosAndGameteSet.second) {
+            for (gameteIdx in pairPosAndGameteSet.second) { //Need to convert this to a set otherwise we get multiple counts for a given gamete
                 sampleGameteCountMap[gameteIdxToSampleGameteMap[gameteIdx]!!] =
                     sampleGameteCountMap.getOrDefault(gameteIdxToSampleGameteMap[gameteIdx]!!, 0) + 1
             }
@@ -294,7 +294,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         //Best chromosome is already in index form
         val encodedPosition = PS4GUtils.encodePositionFromIdxAndPos(bestChromosome.toInt(), averagePosition)
 
-        val gameteIndicesHit = bestHitsForChrom.map { it.first.split("_")[1] }.map { gameteToIdxMap[it]!! }
+        val gameteIndicesHit = bestHitsForChrom.map { it.first.split("_")[1] }.map { gameteToIdxMap[it]!! }.toSortedSet().toList()
         return Pair(encodedPosition,gameteIndicesHit )
         //Associate the gametes with the average positions
 //        return Pair(encodedPositions)

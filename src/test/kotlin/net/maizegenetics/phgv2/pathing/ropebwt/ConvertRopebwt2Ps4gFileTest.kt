@@ -2,14 +2,12 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.api.SampleGamete
-import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.Position
 import org.apache.commons.math3.analysis.interpolation.SplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.io.File
-import kotlin.test.fail
 
 class ConvertRopebwt2Ps4gFileTest {
 
@@ -245,7 +243,27 @@ class ConvertRopebwt2Ps4gFileTest {
     //                      minMEMLength: Int, maxNumHits: Int) : Pair<List<PS4GData>, Map<SampleGamete,Int>>
     @Test
     fun testBuildPS4GData() {
-        fail("Not implemented")
+        val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
+        val ropebwtBed = "data/test/ropebwt/LineA_FullChr.bed"
+        val hvcfDir = "data/test/ropebwt/testHVCFs"
+
+        val truthData=  setOf(PS4GData(listOf(0),6, 2), PS4GData(listOf(0),4,1),
+            PS4GData(listOf(0),8, 1), PS4GData(listOf(0),12, 2)
+        )
+
+        val (splineLookup, chrIndexMap, gameteToIdxMap) = convertRopebwt2Ps4gFile.buildSplineLookup(hvcfDir)
+
+        val ps4gData = convertRopebwt2Ps4gFile.buildPS4GData(ropebwtBed, splineLookup, chrIndexMap, gameteToIdxMap, 148, 10)
+
+
+
+        assertEquals(4, ps4gData.first.size)
+        assertEquals(1, ps4gData.second.size)
+        assertEquals(6, ps4gData.second[SampleGamete("LineA", 0)])
+        for(data in ps4gData.first) {
+            assertTrue(truthData.contains(data))
+        }
+
     }
 
     @Test
