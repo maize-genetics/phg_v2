@@ -96,14 +96,14 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             while (iterator.hasNext()) {
                 val currentVariant = iterator.next()
                 val chrom = currentVariant.contig
+                //Check to see if we need to add a new entry in our chrIndexMap
+                checkMapAndAddToIndex(chrIndexMap, chrom)
                 if (chrom != currentChrom) {
                     if (listOfPoints.isEmpty()) {
                         currentChrom = chrom
                     } else {
                         buildSpline(listOfPoints, splineBuilder, splineMap, currentChrom, sampleName)
                         currentChrom = chrom
-                        //Check to see if we need to add a new entry in our chrIndexMap
-                        checkMapAndAddToIndex(chrIndexMap, currentChrom)
                     }
                 }
 
@@ -135,8 +135,6 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
             if (listOfPoints.isNotEmpty()) {
                 buildSpline(listOfPoints, splineBuilder, splineMap, currentChrom, sampleName)
-                //Check to see if we need to add a new entry in our chrIndexMap
-                checkMapAndAddToIndex(chrIndexMap, currentChrom)
             }
         }
     }
@@ -218,6 +216,11 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         return Pair(ps4gDataList, sampleGameteCountMap)
     }
 
+    /**
+     * Function to process a set of MEMs for a given read.
+     * This will do the full spline lookup and then create a consensus position, it will then increment the counter for
+     * this gamete set/average position
+     */
     fun processTempMEMs(
         tempMems: MutableList<MEM>,
         splineLookup: Map<String, PolynomialSplineFunction>,
