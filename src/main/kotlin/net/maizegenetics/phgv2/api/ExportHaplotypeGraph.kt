@@ -11,10 +11,7 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder
 import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeader
 import htsjdk.variant.vcf.VCFHeaderLine
-import net.maizegenetics.phgv2.utils.AltHeaderMetaData
-import net.maizegenetics.phgv2.utils.altHeaderMetadataToVCFHeaderLine
-import net.maizegenetics.phgv2.utils.createGenericHeaderLineSet
-import net.maizegenetics.phgv2.utils.loadRanges
+import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
@@ -60,6 +57,7 @@ fun exportMultiSampleHVCF(
         .build()
         .use { writer ->
 
+            // Map of <rangeStr: String, index: Int>
             val rangeStrToIndex = if (symbolicAllele == SymbolicAllele.CHECKSUM) {
                 emptyMap()
             } else if (rangeBedfile != null) {
@@ -69,6 +67,44 @@ fun exportMultiSampleHVCF(
                     }.toMap()
             } else {
                 graph.refRangeStrToIndexMap()
+            }
+
+            val altHeaders = graph.altHeaders()
+
+            // data class AltHeaderMetaData(
+            //     val id: String, val description: String, val source: String, val sampleGamete: SampleGamete,
+            //     val regions: List<Pair<Position, Position>>, val checksum: String, val refRange: String,
+            //     val refChecksum: String = ""
+            // )
+
+            // fun altHeaderMetadataToVCFHeaderLine(altHeaderData: AltHeaderMetaData, altHeaderId: String? = null): VCFAltHeaderLine {
+            val headerLines1 = mutableMapOf<String, VCFHeaderLine>()
+
+            when (symbolicAllele) {
+
+                SymbolicAllele.RANGE_SAMPLE_GAMETE -> {
+
+                    graph.ranges()
+                        .forEach { range ->
+                            val hapidToSamples = graph.hapIdToSampleGametes(range)
+                            hapidToSamples.forEach { (hapid, samples) ->
+                                if (!headerLines1.containsKey(hapid)) {
+                                    val altHeader = altHeaders[hapid]!!
+                                    headerLines1[hapid] = createAltHeaderLine(altHeader, range, samples, rangeStrToIndex, symbolicAllele)
+                                }
+                            }
+                        }
+
+                }
+
+                SymbolicAllele.CHECKSUM -> {
+                    val checksumToId = mutableMapOf<String, String>()
+                    altHeaders.values.map {
+                        checksumToId.putIfAbsent(it.checksum, it.id)
+                        altHeaderMetadataToVCFHeaderLine(it)
+                    }
+                }
+
             }
 
             val checksumToId = mutableMapOf<String, String>()
@@ -82,6 +118,9 @@ fun exportMultiSampleHVCF(
                         }
 
                         SymbolicAllele.RANGE_SAMPLE_GAMETE -> {
+                            println("refRange: ${it.refRange}")
+                            println("refRangeStr(it): ${refRangeStr(it)}")
+                            println(rangeStrToIndex)
                             altHeaderMetadataToVCFHeaderLine(
                                 it,
                                 symbolicAlleleRangeSampleGameteStr(
@@ -112,6 +151,46 @@ fun exportMultiSampleHVCF(
             }
 
         }
+
+}
+
+private fun createAltHeaderLine(
+    origAltHeader: AltHeaderMetaData,
+    range: ReferenceRange,
+    samples: List<SampleGamete>,
+    rangeStrToIndex: Map<String, Int>,
+    symbolicAllele: SymbolicAllele
+): VCFAltHeaderLine {
+
+    val rangeStr = range.toString()
+    val sample = samples.first()
+
+    val id = when (symbolicAllele) {
+
+        SymbolicAllele.RANGE_SAMPLE_GAMETE -> {
+            symbolicAlleleRangeSampleGameteStr(
+                rangeStrToIndex[rangeStr]!!,
+                sample.name,
+                sample.gameteId
+            )
+        }
+
+        SymbolicAllele.CHECKSUM -> origAltHeader.id
+
+    }
+
+    val altData = AltHeaderMetaData(
+        id,
+        origAltHeader.description,
+        origAltHeader.source,
+        sample,
+        origAltHeader.regions,
+        origAltHeader.checksum, // .ifBlank { hapid },
+        rangeStr,
+        origAltHeader.refChecksum
+    )
+
+    return altHeaderMetadataToVCFHeaderLine(altData)
 
 }
 
@@ -207,8 +286,10 @@ private fun symbolicAlleleRangeSampleGameteStr(rangeIndex: Int, sample: String, 
 // RefRange="${contig}:${start}-${end}"
 // Regions=\"${altHeaderData.regions.joinToString(",") { "${it.first.contig}:${it.first.position}-${it.second.position}" }}\"," +
 private fun refRangeStr(header: AltHeaderMetaData): String {
+    println("refRangeStr: sample: ${header.sampleName()}  refRange: ${header.refRange}")
     val refRange = header.refRange
     if (refRange.contains(":") && refRange.contains("-")) return refRange
+    println(header.regions)
     val firstRegion = header.regions.first()
     return "${firstRegion.first.contig}:${firstRegion.first.position}-${firstRegion.second.position}"
 }
