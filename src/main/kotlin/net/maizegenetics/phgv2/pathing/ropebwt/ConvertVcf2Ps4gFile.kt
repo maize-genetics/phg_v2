@@ -11,6 +11,9 @@ import net.maizegenetics.phgv2.utils.Position
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
+/**
+ * NOTE This class is currently a WIP.  This will need to be finished eventually but was started as a hackathon project that got pivoted away from.
+ */
 data class SingleSamplePS4GData(val ps4gData: List<PS4GData>, val gameteCountMap: Map<SampleGamete,Int>)
 data class VCFPS4GData(val knownGameteToIdxMap: Map<SampleGamete,Int>, val sampleToPS4GMap : Map<String, SingleSamplePS4GData>)
 

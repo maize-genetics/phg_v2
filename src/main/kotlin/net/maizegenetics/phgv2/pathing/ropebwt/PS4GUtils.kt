@@ -51,12 +51,12 @@ class PS4GUtils {
             val idxBits = idx and 0xFF //If there are more than 256 contigs this will have unexpected issues
             val posBits = pos/256 // div 256 effectively bitshifts by 8
 
-            return (idxBits shl 28) or posBits //we dont care if its negative as we arent comparing them
+            return (idxBits shl 24) or posBits //we dont care if its negative as we arent comparing them
         }
 
         //This is a lossy function as we /256 the position during encoding.  So it will be in a bin of 256
         fun decodePosition(encodedPos : Int) : Position {
-            val idx = encodedPos shr 28
+            val idx = encodedPos shr 24
             val pos = (encodedPos and 0x0FFFFFFF) * 256
             return Position("$idx", pos)
         }
