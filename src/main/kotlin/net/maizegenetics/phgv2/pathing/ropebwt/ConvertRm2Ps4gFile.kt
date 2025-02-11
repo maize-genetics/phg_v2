@@ -45,20 +45,23 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
 
     override fun run() {
         logCommand(this)
+        val cliCommand = headerCommand(this)
 
         myLogger.info("Building Graph")
         val graph = HaplotypeGraph(hvcfDir)
         myLogger.info("Converting read mapping file")
-        convertReadMappingFile(readMappingFile, outputDir, graph)
+        convertReadMappingFile(readMappingFile, outputDir, graph, cliCommand)
 
     }
 
-    fun convertReadMappingFile(readMappingFile: String, outputDir: String, graph: HaplotypeGraph) {
+    /**
+     * Function to convert the read mapping file into a PS4G file
+     */
+    fun convertReadMappingFile(readMappingFile: String, outputDir: String, graph: HaplotypeGraph, cliCommand: String) {
 
         myLogger.info("Loading in readMapping File: $readMappingFile")
         val (header,readMappings) = readInReadMappingFile(readMappingFile)
 
-        val cliCommand = headerCommand(this)
 
         myLogger.info("Converting readMappings to PS4GData")
         val (ps4GData, sampleGameteCount, gameteToIdxMap) = convertReadMappingDataToPS4G(readMappings, graph)
@@ -70,6 +73,9 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
 
     }
 
+    /**
+     * Function to read in the readMapping file and retain the header.
+     */
     fun readInReadMappingFile(readMappingFile: String) : Pair<List<String>, Map<List<String>,Int>> {
         val lines = bufferedReader(readMappingFile).readLines().filter { it.isNotBlank() }
         val headerLines = mutableListOf<String>()
@@ -87,6 +93,9 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
         return Pair(headerLines, readMappingCounts)
     }
 
+    /**
+     * Function to create the PS4G data information for the readMappings
+     */
     fun convertReadMappingDataToPS4G(readMappings: Map<List<String>,Int>,
                                      graph: HaplotypeGraph ) : Triple<List<PS4GData>, Map<SampleGamete,Int>,Map<SampleGamete,Int>> {
 
@@ -105,6 +114,9 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
         return Triple(ps4GData, gameteCountMap, gameteToIdxMap)
     }
 
+    /**
+     * Function to create the PS4GData for a single mapping
+     */
     fun createPS4GFileForSingleMapping(
         hapIdSet: List<String>,
         hapIdToRanges: Map<String, List<ReferenceRange>>,

@@ -1,14 +1,49 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
+import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SampleGamete
-import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.fail
+import net.maizegenetics.phgv2.cli.TestExtension
+import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.setupDebugLogging
+import org.junit.jupiter.api.*
+import java.io.File
 import kotlin.test.assertEquals
 
 class ConvertRm2Ps4gFileTest {
+
+    companion object {
+        val tempTestDir = "${TestExtension.tempDir}ropebwtTest/"
+
+        //Setup/download  files
+        //Resetting on both setup and teardown just to be safe.
+        @JvmStatic
+        @BeforeAll
+        fun setup() {
+            resetDirs()
+            setupDebugLogging()
+        }
+
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+            resetDirs()
+        }
+
+        private fun resetDirs() {
+
+            File(TestExtension.tempDir).deleteRecursively()
+            File(TestExtension.testOutputFastaDir).deleteRecursively()
+            File(TestExtension.testOutputDir).deleteRecursively()
+            File(tempTestDir).deleteRecursively()
+
+            File(TestExtension.tempDir).mkdirs()
+            File(TestExtension.testOutputFastaDir).mkdirs()
+            File(TestExtension.testOutputDir).mkdirs()
+            File(tempTestDir).mkdirs()
+        }
+    }
 
     @Test
     fun testCliktParams() {
@@ -36,13 +71,55 @@ class ConvertRm2Ps4gFileTest {
         )
     }
 
-    //convertReadMappingFile(readMappingFile: String, outputDir: String, graph: HaplotypeGraph)
     @Test
     fun testConvertReadMappingFile() {
-        fail("Not yet implemented")
+        val convertRm2Ps4gFile = ConvertRm2Ps4gFile()
+        val hvcfFiles = listOf("data/test/smallseq/LineA.h.vcf", "data/test/smallseq/LineB.h.vcf", "data/test/smallseq/Ref.h.vcf")
+        val graph = HaplotypeGraph(hvcfFiles)
+        val readMappingFile = "data/test/ropebwt/LineA_1_readMapping.txt"
+        val cliCommand = "dummy Command"
+        val outputDir = tempTestDir
+
+        val readMappings = bufferedReader(readMappingFile).readLines().filter { !it.startsWith("#") }
+            .filter { !it.startsWith("HapIds") }.map { it.split("\t") }.map { Pair(it[0].split(","), it[1].toInt()) }.toMap()
+
+        convertRm2Ps4gFile.convertReadMappingFile(readMappingFile, outputDir, graph, cliCommand)
+
+        //check the output file
+        val outputFile = File("$outputDir/LineA_1_readMapping_ps4g.txt")
+        val outputLines = outputFile.readLines()
+        val header = outputLines.filter { it.startsWith("#") }
+        val sampleGameteCountOutput = header.filter { it.startsWith("#Line") || it.startsWith("#Ref") }.map { it.split("\t") }.map { Triple(it.first(), it[1].toInt(), it[2].toInt()) }
+
+        val hapIdToSampleGamete = graph.hapIdsToSampleGametes()
+
+        val chrToIndexMap = graph.contigs.mapIndexed { index, s -> Pair(s, index) }.toMap()
+
+
+        val gameteToIdxMap = sampleGameteCountOutput.associate { it.first.replace("#","") to it.second }
+        val gameteIdxToTotalCount = sampleGameteCountOutput.associate { it.first to it.third}
+
+        val ps4GData  = outputLines.filter { !it.startsWith("#") }.filter { !it.startsWith("gameteSet") }.map { it.split("\t") }
+
+        assertEquals(93, ps4GData.size)
+
+        val ps4gMap = ps4GData.map { Pair(it[0].split(",").map { it.toInt() } ,it[1].toInt()) to it[2].toInt() }.toMap()
+
+        for(readMapping in readMappings) {
+            val expectedHapIdSet = readMapping.key
+
+            val expectedGameteIdx = expectedHapIdSet.flatMap { hapIdToSampleGamete[it]!! }.map { gameteToIdxMap["$it"]!! }.sorted()
+
+            val expectedData = readMapping.value
+            val refRange = graph.hapIdToRefRangeMap()[readMapping.key[0]]!!.first()
+
+            val encodedPos = PS4GUtils.encodePosition(Position(refRange.contig, refRange.start), chrToIndexMap)
+            val observedDataCount = ps4gMap[Pair(expectedGameteIdx,encodedPos)]!!
+
+            assertEquals(expectedData, observedDataCount)
+        }
     }
 
-    //readInReadMappingFile(readMappingFile: String) : Pair<List<String>, Map<Array<String>,Int>>
     @Test
     fun testReadInReadMappingFile() {
         val convertRm2Ps4gFile = ConvertRm2Ps4gFile()
@@ -64,8 +141,6 @@ class ConvertRm2Ps4gFileTest {
         assertEquals(24, readMappings[listOf("8f2731708b30e1c402c6d6a69a983fe4", "c052e7e5a036bddc9f364324b203f1b3")])
     }
 
-    //convertReadMappingDataToPS4G(readMappings: Map<List<String>,Int>,
-    //                 graph: HaplotypeGraph ) : Triple<List<PS4GData>, Map<SampleGamete,Int>,Map<SampleGamete,Int>>
     @Test
     fun testConvertReadMappingDataToPS4G() {
         val convertRm2Ps4gFile = ConvertRm2Ps4gFile()
@@ -125,15 +200,6 @@ class ConvertRm2Ps4gFileTest {
 
     }
 
-    //fun createPS4GFileForSingleMapping(
-    //        hapIdSet: List<String>,
-    //        hapIdToRanges: Map<String, List<ReferenceRange>>,
-    //        contigToIdxMap: Map<String, Int>,
-    //        graph: HaplotypeGraph,
-    //        gameteCountMap: MutableMap<SampleGamete, Int>,
-    //        count: Int,
-    //        gameteToIdxMap: Map<SampleGamete, Int>
-    //    )
     @Test
     fun testCreatePS4GFileForSingleMapping() {
         val convertRm2Ps4gFile = ConvertRm2Ps4gFile()
