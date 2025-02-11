@@ -8,6 +8,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.headerCommand
 import net.maizegenetics.phgv2.cli.logCommand
@@ -38,11 +39,6 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
     val outputDir by option(help = "Output directory")
         .required()
 
-
-    val binSize by option(help = "Size of the bins to use for the Position Support Gamete File")
-        .int()
-        .default(256)
-
     val hvcfDir by option(help = "Directory containing the hvcf files")
         .required()
 
@@ -50,46 +46,49 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
     override fun run() {
         logCommand(this)
 
+        myLogger.info("Building Graph")
         val graph = HaplotypeGraph(hvcfDir)
-
-        convertReadMappingFile(readMappingFile, outputDir, binSize, graph)
+        myLogger.info("Converting read mapping file")
+        convertReadMappingFile(readMappingFile, outputDir, graph)
 
     }
 
-    fun convertReadMappingFile(readMappingFile: String, outputDir: String, binSize: Int, graph: HaplotypeGraph) {
+    fun convertReadMappingFile(readMappingFile: String, outputDir: String, graph: HaplotypeGraph) {
 
-
+        myLogger.info("Loading in readMapping File: $readMappingFile")
         val (header,readMappings) = readInReadMappingFile(readMappingFile)
 
         val cliCommand = headerCommand(this)
 
+        myLogger.info("Converting readMappings to PS4GData")
+        val (ps4GData, sampleGameteCount, gameteToIdxMap) = convertReadMappingDataToPS4G(readMappings, graph)
 
-        val (ps4GData, sampleGameteCount, gameteToIdxMap) = convertReadMappingDataToPS4G(readMappings, binSize, graph)
 
         val outputFile = PS4GUtils.buildOutputFileName(readMappingFile, outputDir)
-
+        myLogger.info("Writing out PS4G file to $outputFile")
         PS4GUtils.writeOutPS4GFile(ps4GData, sampleGameteCount, gameteToIdxMap, outputFile, header, cliCommand)
 
     }
 
-    fun readInReadMappingFile(readMappingFile: String) : Pair<List<String>, Map<Array<String>,Int>> {
-        val lines = bufferedReader(readMappingFile).readLines()
+    fun readInReadMappingFile(readMappingFile: String) : Pair<List<String>, Map<List<String>,Int>> {
+        val lines = bufferedReader(readMappingFile).readLines().filter { it.isNotBlank() }
         val headerLines = mutableListOf<String>()
-        val readMappingCounts = mutableMapOf<Array<String>, Int>()
+        val readMappingCounts = mutableMapOf<List<String>, Int>()
         for(line in lines) {
             if(line.startsWith("#")) {
                 headerLines.add(line)
             } else if(!line.startsWith("HapIds")) {
                 val splitLine = line.split("\t")
-                readMappingCounts[splitLine.toTypedArray()] = splitLine[1].toInt()
+                val hapIds = splitLine[0].split(",")
+                readMappingCounts[hapIds] = splitLine[1].toInt()
             }
         }
 
         return Pair(headerLines, readMappingCounts)
     }
 
-    fun convertReadMappingDataToPS4G(readMappings: Map<Array<String>,Int>,
-                                     binSize: Int,graph: HaplotypeGraph ) : Triple<List<PS4GData>, Map<SampleGamete,Int>,Map<SampleGamete,Int>> {
+    fun convertReadMappingDataToPS4G(readMappings: Map<List<String>,Int>,
+                                     graph: HaplotypeGraph ) : Triple<List<PS4GData>, Map<SampleGamete,Int>,Map<SampleGamete,Int>> {
 
         val contigToIdxMap = graph.contigs.mapIndexed { index, s -> Pair(s,index)  }.toMap()
 
@@ -100,29 +99,37 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
         val gameteCountMap = mutableMapOf<SampleGamete,Int>()
 
         val ps4GData = readMappings.map { (hapIdSet,count) ->
-            val mostHitRefRange = hapIdSet.flatMap { hapId -> hapIdToRanges[hapId]?: listOf() }.maxOf { it }
-            //build binned position:
-            val binPos = Position(mostHitRefRange.contig, mostHitRefRange.start / binSize)
-            val posEncoded = PS4GUtils.encodePosition(binPos, contigToIdxMap)
-
-            //convert the hapIdSet into gametes
-            val hapIdForSampleGameteMap = graph.hapIdToSampleGametes(mostHitRefRange)
-
-            val sampleGameteIdxSorted = hapIdSet.flatMap { hapId -> hapIdForSampleGameteMap[hapId]?: listOf() }
-                .mapNotNull { sampleGamete ->
-                    gameteCountMap[sampleGamete] = gameteCountMap.getOrDefault(sampleGamete,0) + count
-                    gameteToIdxMap[sampleGamete]
-                }
-                .sorted()
-
-            PS4GData(sampleGameteIdxSorted, posEncoded, count)
+            createPS4GFileForSingleMapping(hapIdSet, hapIdToRanges, contigToIdxMap, graph, gameteCountMap, count, gameteToIdxMap)
         }
 
         return Triple(ps4GData, gameteCountMap, gameteToIdxMap)
     }
 
+    fun createPS4GFileForSingleMapping(
+        hapIdSet: List<String>,
+        hapIdToRanges: Map<String, List<ReferenceRange>>,
+        contigToIdxMap: Map<String, Int>,
+        graph: HaplotypeGraph,
+        gameteCountMap: MutableMap<SampleGamete, Int>,
+        count: Int,
+        gameteToIdxMap: Map<SampleGamete, Int>
+    ): PS4GData {
+        val mostHitRefRange = hapIdSet.flatMap { hapId -> hapIdToRanges[hapId] ?: listOf() }.maxOf { it }
+        //build binned position:
+        val pos = Position(mostHitRefRange.contig, mostHitRefRange.start)
+        val posEncoded = PS4GUtils.encodePosition(pos, contigToIdxMap)
 
+        //convert the hapIdSet into gametes
+        val hapIdForSampleGameteMap = graph.hapIdToSampleGametes(mostHitRefRange)
 
+        val sampleGameteIdxSorted = hapIdSet.flatMap { hapId -> hapIdForSampleGameteMap[hapId] ?: listOf() }
+            .mapNotNull { sampleGamete ->
+                gameteCountMap[sampleGamete] = gameteCountMap.getOrDefault(sampleGamete, 0) + count
+                gameteToIdxMap[sampleGamete]
+            }
+            .sorted()
 
+        return PS4GData(sampleGameteIdxSorted, posEncoded, count)
+    }
 
 }
