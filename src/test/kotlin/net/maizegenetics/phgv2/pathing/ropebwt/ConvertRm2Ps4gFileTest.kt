@@ -36,7 +36,7 @@ class ConvertRm2Ps4gFileTest {
         )
     }
 
-    //convertReadMappingFile(readMappingFile: String, outputDir: String, binSize: Int, graph: HaplotypeGraph)
+    //convertReadMappingFile(readMappingFile: String, outputDir: String, graph: HaplotypeGraph)
     @Test
     fun testConvertReadMappingFile() {
         fail("Not yet implemented")
@@ -64,11 +64,65 @@ class ConvertRm2Ps4gFileTest {
         assertEquals(24, readMappings[listOf("8f2731708b30e1c402c6d6a69a983fe4", "c052e7e5a036bddc9f364324b203f1b3")])
     }
 
-    //convertReadMappingDataToPS4G(readMappings: Map<Array<String>,Int>,
-    //                                     binSize: Int,graph: HaplotypeGraph ) : Triple<List<PS4GData>, Map<SampleGamete,Int>,Map<SampleGamete,Int>>
+    //convertReadMappingDataToPS4G(readMappings: Map<List<String>,Int>,
+    //                 graph: HaplotypeGraph ) : Triple<List<PS4GData>, Map<SampleGamete,Int>,Map<SampleGamete,Int>>
     @Test
     fun testConvertReadMappingDataToPS4G() {
-        fail("Not yet implemented")
+        val convertRm2Ps4gFile = ConvertRm2Ps4gFile()
+        val hvcfFiles = listOf("data/test/smallseq/LineA.h.vcf", "data/test/smallseq/LineB.h.vcf", "data/test/smallseq/Ref.h.vcf")
+        val graph = HaplotypeGraph(hvcfFiles)
+
+        val readMappings = mapOf(
+            listOf("12f0cec9102e84a161866e37072443b7") to 853,
+            listOf("25413a93cd7622fa44d015d6914f344d", "9650638ee16a4853495610120e1323f8", "bb4b6391a180e13f4e2448674cba6d43") to 5,
+            listOf("8f2731708b30e1c402c6d6a69a983fe4", "c052e7e5a036bddc9f364324b203f1b3") to 24,
+            listOf("8f2731708b30e1c402c6d6a69a983fe4") to 15
+        )
+        val (ps4GData, sampleGameteCount, gameteToIdxMap) = convertRm2Ps4gFile.convertReadMappingDataToPS4G(readMappings, graph)
+        //check the ps4G Data
+        assertEquals(4, ps4GData.size)
+        //12f0cec9102e84a161866e37072443b7	853
+        assertEquals(1, ps4GData[0].gameteList.size)
+        assertEquals(0, ps4GData[0].gameteList[0])
+        assertEquals(853, ps4GData[0].count)
+        assertEquals(PS4GUtils.encodePositionFromIdxAndPos(0,graph.hapIdToRefRangeMap()["12f0cec9102e84a161866e37072443b7"]!!.first().start), ps4GData[0].pos)
+
+        //25413a93cd7622fa44d015d6914f344d,9650638ee16a4853495610120e1323f8,bb4b6391a180e13f4e2448674cba6d43	5
+        assertEquals(3, ps4GData[1].gameteList.size)
+        assertEquals(0, ps4GData[1].gameteList[0])
+        assertEquals(1, ps4GData[1].gameteList[1])
+        assertEquals(2, ps4GData[1].gameteList[2])
+        assertEquals(5, ps4GData[1].count)
+        assertEquals(PS4GUtils.encodePositionFromIdxAndPos(0,graph.hapIdToRefRangeMap()["25413a93cd7622fa44d015d6914f344d"]!!.first().start), ps4GData[1].pos)
+
+        //8f2731708b30e1c402c6d6a69a983fe4,c052e7e5a036bddc9f364324b203f1b3	24
+        assertEquals(2, ps4GData[2].gameteList.size)
+        //this is swapped 8f2731 is from LineB and c052e7 is from LineA.  This is correct as we sort by id and LineA comes first
+        assertEquals(0, ps4GData[2].gameteList[0])
+        assertEquals(1, ps4GData[2].gameteList[1])
+        assertEquals(24, ps4GData[2].count)
+        assertEquals(PS4GUtils.encodePositionFromIdxAndPos(1,graph.hapIdToRefRangeMap()["8f2731708b30e1c402c6d6a69a983fe4"]!!.first().start), ps4GData[2].pos)
+
+        //8f2731708b30e1c402c6d6a69a983fe4	15
+        assertEquals(1, ps4GData[3].gameteList.size)
+        assertEquals(1, ps4GData[3].gameteList[0])
+        assertEquals(15, ps4GData[3].count)
+        assertEquals(PS4GUtils.encodePositionFromIdxAndPos(1,graph.hapIdToRefRangeMap()["8f2731708b30e1c402c6d6a69a983fe4"]!!.first().start), ps4GData[3].pos)
+
+
+        //check the sampleGameteCount
+        assertEquals(3, sampleGameteCount.size)
+        assertEquals(882, sampleGameteCount[SampleGamete("LineA")])
+        assertEquals(44, sampleGameteCount[SampleGamete("LineB")])
+        assertEquals(5, sampleGameteCount[SampleGamete("Ref")])
+
+        //check the gameteToIdxMap
+        assertEquals(3, gameteToIdxMap.size)
+        assertEquals(0, gameteToIdxMap[SampleGamete("LineA")])
+        assertEquals(1, gameteToIdxMap[SampleGamete("LineB")])
+        assertEquals(2, gameteToIdxMap[SampleGamete("Ref")])
+
+
     }
 
     //fun createPS4GFileForSingleMapping(
