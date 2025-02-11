@@ -48,6 +48,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
             }
             .map { it.absolutePath }
             .toList()
+            .sorted()
     ) {
         require(File(hvcfDirectory).exists()) { "HVCF directory does not exist: $hvcfDirectory" }
         require(File(hvcfDirectory).isDirectory) { "Provided path is not a directory: $hvcfDirectory" }
