@@ -47,7 +47,7 @@ class PS4GUtils {
 
         fun encodePositionFromIdxAndPos(idx: Int, pos: Int) : Int {
             //Pack into an Int
-            //pack last 4 bits of idx into first 8 bits of output then pack the position minus 8 bits into the last 28 bits
+            //pack last 8 bits of idx into first 8 bits of output then pack the position minus 8 bits into the last 24 bits
             val idxBits = idx and 0xFF //If there are more than 256 contigs this will have unexpected issues
             val posBits = pos/256 // div 256 effectively bitshifts by 8
 
