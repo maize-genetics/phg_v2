@@ -7,6 +7,7 @@ import com.github.ajalt.clikt.output.MordantHelpFormatter
 import com.github.ajalt.clikt.parameters.options.versionOption
 import net.maizegenetics.phgv2.pathing.*
 import net.maizegenetics.phgv2.pathing.ropebwt.ConvertRm2Ps4gFile
+import net.maizegenetics.phgv2.pathing.ropebwt.ConvertRopebwt2Ps4gFile
 import net.maizegenetics.phgv2.pathing.ropebwt.MapReads
 import net.maizegenetics.phgv2.pathing.ropebwt.RopeBwtIndex
 import net.maizegenetics.phgv2.utils.phgVersion
@@ -35,6 +36,7 @@ fun main(args: Array<String>) = Phg()
         CreateAnchorwaveDotplot(), CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), Hvcf2Gvcf(), LoadVcf(), ExportVcf(),
         BuildKmerIndex(), MapKmers(), FindPaths(), HapidSampleTable(), SampleHapidByRange(),
         RopeBwtIndex(), MapReads(), // Imputation
+        ConvertRm2Ps4gFile(), ConvertRopebwt2Ps4gFile(), // PS4G File creations.
         CreateFastaFromHvcf(), ListSamples(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer, ExtractEdgeReads(), //Utilities
         QcReadMapping(), PathsToGff(), // Utilities continued
         CompositeToHaplotypeCoords(), // resequencing pipeline

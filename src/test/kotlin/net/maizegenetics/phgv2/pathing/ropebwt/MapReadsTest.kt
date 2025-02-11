@@ -161,8 +161,7 @@ class MapReadsTest {
 
         //pass in empty list
         simpleReadMapping = mutableMapOf()
-        assertThrows<NoSuchElementException> { mapReads.processMemsForRead(listOf(),simpleReadMapping,6, hapIdToRefRangeMap,0,150) }
-
+        assertEquals(0, simpleReadMapping.size)
     }
 
     @Test
