@@ -178,7 +178,10 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
             currentLine = bedFileReader.readLine()
         }
 
-        processMemsForRead(tempMems, readMapping, maxNumHits, hapIdToRefRangeMap, maxStart, minEnd)
+        if(tempMems.isNotEmpty()) {
+            processMemsForRead(tempMems, readMapping, maxNumHits, hapIdToRefRangeMap, maxStart, minEnd)
+        }
+
         return readMapping
     }
 
