@@ -3,6 +3,8 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 
 /**
  * Some classes to hold the data from the ropebwt3 mem output
+ * MEMs here are Maximal Exact Matches.  These are the regions of the read that have a full similarity to the reference.
+ * MEMHits are specific contig, strand and start positions of the MEM result.
  */
 data class MEM(val readName: String, val readStart: Int, val readEnd: Int, val numHits: Int, val listMemHits: List<MEMHit>)
 data class MEMHit(val contig: String, val strand: String, val pos: Int)
