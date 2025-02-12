@@ -19,7 +19,9 @@ import java.io.File
 
 /**
  * This class will convert a RopebwtBed file to a PS4G file.  It will only work with ropebwt3 files where the reads are
- * aligned to the whole assembly chromosomes.
+ * aligned to the whole assembly chromosomes using the mem command.  MEMs are Maximal Exact Matches and are used to
+ * determine what the optimal mapping is.  One downside to this approach is that if there is a SNP in the middle of the read, the mappings will be ignored.
+ * We can run SW in the future to fix this but it is very slow.
  */
 class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G") {
 
