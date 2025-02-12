@@ -93,7 +93,7 @@ class MapReadsTest {
                 "d84bea2a0e8bcf79fd1ba8781ad0818c:+:139499\t0bfa126c7d600678dd1dc9a66f80119b:-:35325\t8ad9073572cf3e16105f321a2727f6b7:-:35324\t" +
                 "171bd10310c5affc6313856d7b017841:-:19667\tf304773b801a9249bf36bc4b6cafb9b4:-:34309\t1e77759e3c4f8437c2d6a10de91fbf9f:-:16641\t" +
                 "233e06c196319b1b02c6210c0748dd62:+:5021"
-        val parsed = mapReads.parseStringIntoMem(alignmentString)
+        val parsed = RopeBWTUtils.parseStringIntoMem(alignmentString)
         assertEquals("ST-E00317:129:HVMFTCCXX:7:1101:5944:1309", parsed.readName)
         assertEquals(1, parsed.readStart)
         assertEquals(150, parsed.readEnd)
@@ -122,14 +122,14 @@ class MapReadsTest {
         val simpleMEMList = listOf(MEM("read1",0,150,3,listOf(MEMHit("hap1", "+", 100), MEMHit("hap2", "-", 200), MEMHit("hap3", "+", 300))))
 
         var simpleReadMapping = mutableMapOf<List<String>, Int>()
-        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,5, hapIdToRefRangeMap)
+        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,5, hapIdToRefRangeMap, 0, 150)
         assertEquals(1, simpleReadMapping.size)
         assertEquals(listOf("hap1","hap2","hap3"), simpleReadMapping.keys.first())
         assertEquals(1, simpleReadMapping[listOf("hap1","hap2","hap3")])
 
 
         simpleReadMapping = mutableMapOf()
-        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,2, hapIdToRefRangeMap)
+        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,2, hapIdToRefRangeMap,0, 150)
         assertEquals(0, simpleReadMapping.size)
 
 
@@ -146,10 +146,10 @@ class MapReadsTest {
         )
 
         simpleReadMapping = mutableMapOf()
-        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,6, hapIdToRefRangeMap)
-        mapReads.processMemsForRead(simpleMEMList2,simpleReadMapping,6, hapIdToRefRangeMap)
-        mapReads.processMemsForRead(simpleMEMList3,simpleReadMapping,6, hapIdToRefRangeMap)
-        mapReads.processMemsForRead(simpleMEMList4,simpleReadMapping,6, hapIdToRefRangeMap)
+        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150)
+        mapReads.processMemsForRead(simpleMEMList2,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150)
+        mapReads.processMemsForRead(simpleMEMList3,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150)
+        mapReads.processMemsForRead(simpleMEMList4,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150)
         assertEquals(3, simpleReadMapping.size)
         assertTrue(simpleReadMapping.keys.contains(listOf("hap1","hap2","hap3")))
         assertEquals(2, simpleReadMapping[listOf("hap1","hap2","hap3")])
@@ -161,8 +161,7 @@ class MapReadsTest {
 
         //pass in empty list
         simpleReadMapping = mutableMapOf()
-        assertThrows<NoSuchElementException> { mapReads.processMemsForRead(listOf(),simpleReadMapping,6, hapIdToRefRangeMap) }
-
+        assertEquals(0, simpleReadMapping.size)
     }
 
     @Test
@@ -177,7 +176,7 @@ class MapReadsTest {
 
 
         val mapReads = MapReads()
-        val readMapping = mapReads.createReadMappingsForFileReader(reader, 5, hapIdToRefRangeMap)
+        val readMapping = mapReads.createReadMappingsForFileReader(reader, 5, hapIdToRefRangeMap, 2, 150)
 
         println(readMapping)
 
@@ -219,7 +218,7 @@ class MapReadsTest {
 
         val hapIdToRefRangeMap = graph.hapIdToRefRangeMap()
 
-        mapReads.mapSingleReadFile(index, "LineA" ,readFile, outputFile ,5, 148, 5, "", hapIdToRefRangeMap)
+        mapReads.mapSingleReadFile(index, "LineA" ,readFile, outputFile ,5, 148, 5, "", hapIdToRefRangeMap, 2, 148)
 
         val expectedLines = bufferedReader("data/test/ropebwt/LineA_1_readMapping.txt").readLines()
         val expectedReadMap = expectedLines.filter { !it.startsWith("#") }.filter { !it.startsWith("HapId") }.map { it.split("\t") }.associate { it[0] to it[1].toInt() }
@@ -250,7 +249,7 @@ class MapReadsTest {
         val hapIdToRefRangeMap = graph.hapIdToRefRangeMap()
 
         val keyFileDataEntry = listOf(KeyFileData("LineA", "data/test/kmerReadMapping/simulatedReads/LineA_1.fq", "data/test/kmerReadMapping/simulatedReads/LineA_2.fq"))
-        mapReads.mapAllReadFiles(index, keyFileDataEntry, outputDir, 5, 148, 5, "", hapIdToRefRangeMap )
+        mapReads.mapAllReadFiles(index, keyFileDataEntry, outputDir, 5, 148, 5, "", hapIdToRefRangeMap, 2, 148)
 
 
         val expectedLines = bufferedReader("data/test/ropebwt/LineA_1_readMapping.txt").readLines()
