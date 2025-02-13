@@ -7,6 +7,7 @@ import com.github.ajalt.clikt.parameters.options.required
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
+import net.maizegenetics.phgv2.cli.logCommand
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
@@ -26,6 +27,7 @@ class ReadMappingCountQc : CliktCommand("Read mapping count QC") {
         .required()
 
     override fun run() {
+        logCommand(this)
         myLogger.info("Read mapping count QC")
         processReadMappingCounts(hvcfDir, readMappingFile, targetSampleName, outputDir)
     }
@@ -45,7 +47,9 @@ class ReadMappingCountQc : CliktCommand("Read mapping count QC") {
     }
 
 
-
+    /**
+     * Function to convert the read mappings into hapId -> count map so we could compare the target hapId to the actual counts
+     */
     fun convertReadMappingToHapIdCounts(readMappings: Map<List<String>,Int>) : Map<String,Int> {
         //convert the hapIds into counts
         return readMappings.flatMap { (hapIds,count) ->
@@ -55,6 +59,9 @@ class ReadMappingCountQc : CliktCommand("Read mapping count QC") {
             .mapValues { it.value.sum() }
     }
 
+    /**
+     * Function to create an output file name for exporting the counts
+     */
     fun buildCountOutputFile(outputDir: String, readMappingFile: String, targetSampleName: String) : String {
         //Get just the file name from the Mapping file without the extension
         return "$outputDir/${File(readMappingFile).nameWithoutExtension}_${targetSampleName}_counts.txt"
@@ -69,20 +76,50 @@ class ReadMappingCountQc : CliktCommand("Read mapping count QC") {
         bufferedWriter(outputFile).use { writer ->
             writer.write("refRange\t${targetSampleName}_HapID\t${targetSampleName}_HapCount\tHighestAltCount\tDifference\tOtherHapCounts\n")
             rangeToHapId.keys.sorted().forEach { range ->
-                val hapIds = rangeToHapId[range]!!
-                val targetHapId = hapIds.find { hapId -> hapIdToSampleGamete[hapId]!!.map { sg -> sg.name }.contains("Zm-B73-REFERENCE-NAM-5.0") }
-
-                val counts = hapIds.filter { it != targetHapId }
-                    .map { hapId ->Pair(hapId,hapIdCounts.getOrDefault(hapId, 0)) }
-                    .sortedByDescending { it.second }
-                    .map { Pair(it.second,it.first) }
-
-                val highestAlt = if(counts.isEmpty()) 0 else counts.first().first
-
-                val targetCount = hapIdCounts.getOrDefault(targetHapId,0)
-                writer.write("$range\t$targetHapId\t${targetCount}\t${highestAlt}\t${targetCount - highestAlt}\t" +
-                        "${counts.joinToString(", ") { "${it.first}_${it.second}" }}\n")
+                val outputString = buildOutputStringForHapIdsInRefRange(rangeToHapId, range, hapIdToSampleGamete, hapIdCounts, targetSampleName)
+                writer.write(outputString)
             }
         }
+    }
+
+    fun buildOutputStringForHapIdsInRefRange(
+        rangeToHapId: Map<ReferenceRange, List<String>>,
+        range: ReferenceRange,
+        hapIdToSampleGamete: Map<String, List<SampleGamete>>,
+        hapIdCounts: Map<String, Int>,
+        targetSampleName: String
+    ) : String {
+        val hapIds = rangeToHapId[range]!!
+        val targetHapId = findTargetHapIdForSample(hapIds, hapIdToSampleGamete, targetSampleName)
+
+        val nonTargetCounts = computeCountsForNonTargetHapids(hapIds, targetHapId, hapIdCounts)
+
+        val highestAlt = if (nonTargetCounts.isEmpty()) 0 else nonTargetCounts.first().first
+
+        val targetCount = hapIdCounts.getOrDefault(targetHapId, 0)
+        return "$range\t$targetHapId\t${targetCount}\t${highestAlt}\t${targetCount - highestAlt}\t" +
+                "${nonTargetCounts.joinToString(", ") { "${it.first}_${it.second}" }}\n"
+
+    }
+
+    fun computeCountsForNonTargetHapids(
+        hapIds: List<String>,
+        targetHapId: String,
+        hapIdCounts: Map<String, Int>
+    ) :List<Pair<Int,String>> {
+        return hapIds.filter { it != targetHapId }
+            .toSet()
+            .map { hapId -> Pair(hapId, hapIdCounts.getOrDefault(hapId, 0)) }
+            .sortedByDescending { it.second }
+            .map { Pair(it.second, it.first) }
+
+    }
+
+    fun findTargetHapIdForSample(
+        hapIds: List<String>,
+        hapIdToSampleGamete: Map<String, List<SampleGamete>>,
+        targetSampleName: String
+    ) : String {
+        return hapIds.find { hapId -> hapIdToSampleGamete[hapId]!!.map { sg -> sg.name }.contains(targetSampleName) }?:""
     }
 }
