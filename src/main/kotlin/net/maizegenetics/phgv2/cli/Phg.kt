@@ -38,7 +38,7 @@ fun main(args: Array<String>) = Phg()
         RopeBwtIndex(), MapReads(), // Imputation
         ConvertRm2Ps4gFile(), ConvertRopebwt2Ps4gFile(), // PS4G File creations.
         CreateFastaFromHvcf(), ListSamples(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer, ExtractEdgeReads(), //Utilities
-        QcReadMapping(), PathsToGff(), // Utilities continued
+        QcReadMapping(), ReadMappingCountQc(), PathsToGff(), // Utilities continued
         CompositeToHaplotypeCoords(), // resequencing pipeline
         InitHvcfArray(), LoadHvcf(), QueryHvcfArrays() // hvcf loading
         ,ConvertRm2Ps4gFile()
