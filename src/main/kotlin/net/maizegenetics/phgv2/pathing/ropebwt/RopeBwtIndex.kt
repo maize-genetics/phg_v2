@@ -100,131 +100,29 @@ class RopeBwtIndex : CliktCommand(help="BETA: Create a ropeBWT3 index") {
     fun createInitialIndex(inputFasta:String, indexFilePrefix:String, numThreads: Int, deleteFMRIndex:Boolean, condaEnvPrefix:String) {
         //Build fmt file
         //time ../ropebwt3/ropebwt3 build -t24 -bo phg_ASMs.fmr /workdir/zrm22/phgv2/ropeBWT/fullASMTests/ASMs/B73.fa
-        runBuildStep(inputFasta, indexFilePrefix, numThreads, condaEnvPrefix)
+        RopeBWTUtils.runBuildStep(inputFasta, indexFilePrefix, numThreads, condaEnvPrefix)
 
         //Convert the fmr to fmd to make it static and efficient
         //time ../ropebwt3/ropebwt3 build -i /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmr -do /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmd
-        convertBWTIndex(indexFilePrefix, condaEnvPrefix)
+        RopeBWTUtils.convertBWTIndex(indexFilePrefix, condaEnvPrefix)
 
         //Delete the FMR if requested
         if (deleteFMRIndex) {
-            deleteFMRIndex(indexFilePrefix)
+            RopeBWTUtils.deleteFMRIndex(indexFilePrefix)
         }
 
         //Build suffix array
         //time ../ropebwt3/ropebwt3 ssa -o /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmd.ssa -s8 -t32 /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmd
-        buildSuffixArray(indexFilePrefix, numThreads, condaEnvPrefix)
+        RopeBWTUtils.buildSuffixArray(indexFilePrefix, numThreads, condaEnvPrefix)
 
         //Build chromosome seq lengths
         //cat /workdir/zrm22/phgv2/maize2_1/minimap2Tests2/pangenome.fa | /programs/seqtk/seqtk comp | cut -f1,2 | gzip > /workdir/zrm22/phgv2/ropeBWT/phg_generalSingleFile_out.fmd.len.gz
         buildChrLengthFile(inputFasta, indexFilePrefix)
     }
 
-    /**
-     * Function to run the ropebwt3 build command
-     * This builds the initial BWT index file in an update-able format
-     */
-    fun runBuildStep(inputFasta:String, indexFilePrefix:String, numThreads: Int, condaEnvPrefix:String) {
-        //"conda","run","-p","phgv2-conda"
-        val prefixArg = if(condaEnvPrefix.isNotBlank()) {
-            Pair("-p",condaEnvPrefix)
-        }
-        else {
-            Pair("-n", "phgv2-ropebwt-conda") }
-        val buildCommand = listOf("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "build", "-t$numThreads", "-bo", "$indexFilePrefix.fmr", "$inputFasta")
-        myLogger.info("Running ropebwt3 build command: ${buildCommand.joinToString(" ")}")
-        try {
-            val process = ProcessBuilder(buildCommand)
-                .inheritIO()
-                .start()
-            process.waitFor()
-        } catch (e: Exception) {
-            myLogger.error("Error running ropebwt3 build command: ${buildCommand.joinToString(" ")}")
-            throw e
-        }
-    }
-
-    /**
-     * Function to convert the BWT index file to a format that is static but more efficient
-     * This is recommended by the ropebwt3 documentation
-     */
-    fun convertBWTIndex(indexFilePrefix: String, condaEnvPrefix: String) {
-        //Convert the fmr to fmt
-        //time ../ropebwt3/ropebwt3 build -i /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmr -do /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmd
-        val prefixArg = if(condaEnvPrefix.isNotBlank()) {
-            Pair("-p",condaEnvPrefix)
-        }
-        else {
-            Pair("-n", "phgv2-ropebwt-conda") }
-        val convertCommand = listOf("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "build", "-i", "$indexFilePrefix.fmr", "-do", "$indexFilePrefix.fmd")
-        myLogger.info("Running ropebwt3 convert command: ${convertCommand.joinToString(" ")}")
-        try {
-            val process = ProcessBuilder(convertCommand)
-                .inheritIO()
-                .start()
-            process.waitFor()
-        } catch (e: Exception) {
-            myLogger.error("Error running ropebwt3 convert command: ${convertCommand.joinToString(" ")}")
-            throw e
-        }
-    }
 
 
-    fun deleteFMRIndex(indexFilePrefix: String) {
-        try {
-            File("$indexFilePrefix.fmr").delete()
-        }
-        catch (e: Exception) {
-            myLogger.error("Error deleting $indexFilePrefix.fmr")
-            throw e
-        }
-    }
 
-    /**
-     * Function to build the suffix array for the BWT index
-     */
-    fun buildSuffixArray(indexFilePrefix: String, numThreads: Int, condaEnvPrefix: String) {
-        //Build suffix array
-        //time ../ropebwt3/ropebwt3 ssa -o /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmd.ssa -s8 -t32 /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmd
-        val prefixArg = if(condaEnvPrefix.isNotBlank()) {
-            Pair("-p",condaEnvPrefix)
-        }
-        else {
-            Pair("-n", "phgv2-ropebwt-conda") }
-        val ssaCommand = listOf("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "ssa", "-o", "$indexFilePrefix.fmd.ssa", "-s8", "-t${numThreads}", "$indexFilePrefix.fmd")
-        myLogger.info("Running ropebwt3 ssa command: ${ssaCommand.joinToString(" ")}")
-        try {
-            val process = ProcessBuilder(ssaCommand)
-                .inheritIO()
-                .start()
-            process.waitFor()
-        } catch (e: Exception) {
-            myLogger.error("Error running ropebwt3 ssa command: ${ssaCommand.joinToString(" ")}")
-            throw e
-        }
-    }
-
-    /**
-     * Function to build the chromosome length file for the BWT index
-     * This is needed to get the chromosome lengths for the pangenome
-     * We may need to remove this with a biokotlin based function in the future as cat does some odd stuff if the EOF is missing
-     */
-//    fun buildChrLengthFile(inputFasta: String, indexFilePrefix: String, condaEnvPrefix: String) {
-//        //Build chromosome seq lengths
-//        //cat /workdir/zrm22/phgv2/maize2_1/minimap2Tests2/pangenome.fa | /programs/seqtk/seqtk comp | cut -f1,2 | gzip > /workdir/zrm22/phgv2/ropeBWT/phg_generalSingleFile_out.fmd.len.gz
-//        val prefixArg = if(condaEnvPrefix.isNotBlank()) { "-p" } else { "-n" }
-//        val chrLengthCommand = listOf("conda","run",prefixArg,"phgv2-conda","cat", inputFasta, "|", "seqtk", "comp", "|", "cut", "-f1,2", "|", "gzip", ">", "$indexFilePrefix.fmd.len.gz")
-//        myLogger.info("Running chromosome length command: ${chrLengthCommand.joinToString(" ")}")
-//        try {
-//            val process = ProcessBuilder(chrLengthCommand)
-//                .inheritIO()
-//                .start()
-//            process.waitFor()
-//        } catch (e: Exception) {
-//            myLogger.error("Error running chromosome length command: ${chrLengthCommand.joinToString(" ")}")
-//            throw e
-//        }
-//    }
 
     /**
      * Function to build the chromosome length file for the BWT index
