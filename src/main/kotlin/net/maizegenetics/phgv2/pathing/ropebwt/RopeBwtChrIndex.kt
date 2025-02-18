@@ -15,7 +15,7 @@ import java.io.File
 class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
     private val myLogger = LogManager.getLogger(RopeBwtChrIndex::class.java)
 
-    val keyFile by option(help = "Tab-delimited file containing 2 columns name Fasta and SampleName.  Fasta column contains full path name for the fasta files.  SampleName contains the sample name for that assembly, e.g. B73 or CML247. ")
+    val keyfile by option(help = "Tab-delimited file containing 2 columns name Fasta and SampleName.  Fasta column contains full path name for the fasta files.  SampleName contains the sample name for that assembly, e.g. B73 or CML247. ")
         .required()
 
     val outputDir by option(help = "Output Directory")
@@ -35,10 +35,10 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
         .default("")
 
     override fun run() {
-        createChrIndex(keyFile, outputDir, indexFilePrefix, threads, deleteFmrIndex, condaEnvPrefix)
+        createChrIndex(keyfile, outputDir, indexFilePrefix, threads, deleteFmrIndex, condaEnvPrefix)
     }
 
-    fun createChrIndex(keyFile: String, outputDir: String, indexFilePrefix: String, threads: Int, deleteFmrIndex: Boolean, condaEnvPrefix: String) {
+    fun createChrIndex(keyfile: String, outputDir: String, indexFilePrefix: String, threads: Int, deleteFmrIndex: Boolean, condaEnvPrefix: String) {
         myLogger.info("Creating Rename Fasta directory")
         val renameFastaDir = "$outputDir/renamedFastas/"
         File("$outputDir/renamedFastas/").mkdirs()
@@ -46,7 +46,7 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
         val allSeqLengths = mutableListOf<Pair<String,Int>>()
 
         myLogger.info("Parsing Key File")
-        val keyFileParsed = parseKeyFile(keyFile)
+        val keyFileParsed = parseKeyFile(keyfile)
         for(keyFileRecord in keyFileParsed) {
             myLogger.info("Indexing ${keyFileRecord.first} with sampleName ${keyFileRecord.second}")
             val (renamedFile, outputSeqLengths) = processKeyFileRecord(keyFileRecord.first, keyFileRecord.second, renameFastaDir)
@@ -103,12 +103,12 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
         contigLengthPairs: MutableList<Pair<String, Int>>)
     {
         NucSeqIO(fastaFile).map { nucSeq ->
-            val contigName = nucSeq.name
+            val contigName = nucSeq.id
             val contigSequence = nucSeq.sequence
             val contigLength = contigSequence.size()
             //Contig needs to be chr_sampleGamete
             val outputName = "${contigName}_${sampleName}"
-            writer.write(">$outputName\n$contigSequence\n")
+            writer.write(">$outputName\n")
             contigSequence.seq().chunked(80).forEach { chunk -> writer.write("$chunk\n") }
             contigLengthPairs.add(Pair(outputName, contigLength))
         }
