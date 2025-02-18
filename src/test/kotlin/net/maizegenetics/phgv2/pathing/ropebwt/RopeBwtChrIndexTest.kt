@@ -9,7 +9,9 @@ import net.maizegenetics.phgv2.utils.setupDebugLogging
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.io.File
+import java.io.FileNotFoundException
 import kotlin.test.assertEquals
 import kotlin.test.fail
 
@@ -73,7 +75,6 @@ class RopeBwtChrIndexTest {
         fail("Not yet implemented")
     }
 
-    //parseKeyFile(keyfile: String): List<Pair<String, String>>
     @Test
     fun testParseKeyFile() {
         val ropeBwtChrIndex = RopeBwtChrIndex()
@@ -82,6 +83,12 @@ class RopeBwtChrIndexTest {
         assertEquals(2, keyFileParsed.size)
         assertEquals(Pair("data/test/smallseq/Ref.fa", "Ref"), keyFileParsed[0])
         assertEquals(Pair("data/test/smallseq/LineA.fa", "LineA"), keyFileParsed[1])
+
+        val keyFileBad = "data/test/ropebwt/asm_bad_keyfile.txt"
+        assertThrows<IllegalArgumentException> { ropeBwtChrIndex.parseKeyFile(keyFileBad) }
+
+        val noKeyFile = ""
+        assertThrows<FileNotFoundException>{ ropeBwtChrIndex.parseKeyFile(noKeyFile) }
     }
 
     @Test
@@ -89,7 +96,7 @@ class RopeBwtChrIndexTest {
         val ropeBwtChrIndex = RopeBwtChrIndex()
         val fastaFile = "data/test/smallseq/Ref.fa"
         val sampleName = "sample1"
-        val renameFastaDir = "$tempTestDir"
+        val renameFastaDir = tempTestDir
         val (renameFastaFile, contigLengthPairs) = ropeBwtChrIndex.processKeyFileRecord(fastaFile, sampleName, renameFastaDir)
 
         //check the output file
