@@ -41,6 +41,5 @@ fun main(args: Array<String>) = Phg()
         QcReadMapping(), ReadMappingCountQc(), PathsToGff(), // Utilities continued
         CompositeToHaplotypeCoords(), // resequencing pipeline
         InitHvcfArray(), LoadHvcf(), QueryHvcfArrays() // hvcf loading
-        ,ConvertRm2Ps4gFile()
     )
     .main(args)
