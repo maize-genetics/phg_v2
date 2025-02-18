@@ -15,7 +15,7 @@ import java.io.File
 class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
     private val myLogger = LogManager.getLogger(RopeBwtChrIndex::class.java)
 
-    val keyfile by option(help = "Tab-delimited file containing 2 columns name Fasta and SampleName.  Fasta column contains full path name for the fasta files.  SampleName contains the sample name for that assembly, e.g. B73 or CML247. ")
+    val keyFile by option(help = "Tab-delimited file containing 2 columns name Fasta and SampleName.  Fasta column contains full path name for the fasta files.  SampleName contains the sample name for that assembly, e.g. B73 or CML247. ")
         .required()
 
     val outputDir by option(help = "Output Directory")
@@ -35,10 +35,10 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
         .default("")
 
     override fun run() {
-        createChrIndex(keyfile, outputDir, indexFilePrefix, threads, deleteFmrIndex, condaEnvPrefix)
+        createChrIndex(keyFile, outputDir, indexFilePrefix, threads, deleteFmrIndex, condaEnvPrefix)
     }
 
-    fun createChrIndex(keyfile: String, outputDir: String, indexFilePrefix: String, threads: Int, deleteFmrIndex: Boolean, condaEnvPrefix: String) {
+    fun createChrIndex(keyFile: String, outputDir: String, indexFilePrefix: String, threads: Int, deleteFmrIndex: Boolean, condaEnvPrefix: String) {
         myLogger.info("Creating Rename Fasta directory")
         val renameFastaDir = "$outputDir/renamedFastas/"
         File("$outputDir/renamedFastas/").mkdirs()
@@ -46,7 +46,7 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
         val allSeqLengths = mutableListOf<Pair<String,Int>>()
 
         myLogger.info("Parsing Key File")
-        val keyFileParsed = parseKeyFile(keyfile)
+        val keyFileParsed = parseKeyFile(keyFile)
         for(keyFileRecord in keyFileParsed) {
             myLogger.info("Indexing ${keyFileRecord.first} with sampleName ${keyFileRecord.second}")
             val (renamedFile, outputSeqLengths) = processKeyFileRecord(keyFileRecord.first, keyFileRecord.second, renameFastaDir)
