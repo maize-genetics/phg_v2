@@ -13,6 +13,9 @@ import net.maizegenetics.phgv2.pathing.ropebwt.RopeBwtIndex
 import net.maizegenetics.phgv2.utils.phgVersion
 import net.maizegenetics.phgv2.utils.setupDebugLogging
 
+/**
+ * This class is the main class for the PHG command line interface.
+ */
 class Phg : CliktCommand() {
 
     init {
