@@ -73,21 +73,40 @@ class RopeBwtChrIndexTest {
         fail("Not yet implemented")
     }
 
+    //parseKeyFile(keyfile: String): List<Pair<String, String>>
     @Test
     fun testParseKeyFile() {
-        fail("Not yet implemented")
+        val ropeBwtChrIndex = RopeBwtChrIndex()
+        val keyfile = "data/test/ropebwt/asm_keyfile.txt"
+        val keyFileParsed = ropeBwtChrIndex.parseKeyFile(keyfile)
+        assertEquals(2, keyFileParsed.size)
+        assertEquals(Pair("data/test/smallseq/Ref.fa", "Ref"), keyFileParsed[0])
+        assertEquals(Pair("data/test/smallseq/LineA.fa", "LineA"), keyFileParsed[1])
     }
 
     @Test
     fun testProcessKeyFileRecord() {
-        fail("Not yet implemented")
+        val ropeBwtChrIndex = RopeBwtChrIndex()
+        val fastaFile = "data/test/smallseq/Ref.fa"
+        val sampleName = "sample1"
+        val renameFastaDir = "$tempTestDir"
+        val (renameFastaFile, contigLengthPairs) = ropeBwtChrIndex.processKeyFileRecord(fastaFile, sampleName, renameFastaDir)
+
+        //check the output file
+        val originalNucSeq = NucSeqIO(fastaFile).readAll()
+        NucSeqIO(renameFastaFile).readAll().forEach { nucSeq ->
+            val outputContigName = nucSeq.key.split("_")
+            val contigName = outputContigName[0]
+            val originalSeq = originalNucSeq[contigName]
+            assertEquals(originalSeq!!.id, contigName)
+            assertEquals(originalSeq.seq(), nucSeq.value.seq())
+        }
+
+        //check the contig length pairs
+        val contigLengths = NucSeqIO(fastaFile).readAll().map { Pair("${it.key}_${sampleName}", it.value.seq().length) }
+        assertEquals(contigLengths, contigLengthPairs)
     }
 
-    //fun renameFastaSeqs(
-    //        fastaFile: String,
-    //        sampleName: String,
-    //        writer: BufferedWriter,
-    //        contigLengthPairs: MutableList<Pair<String, Int>>)
     @Test
     fun testRenameFastaSeqs() {
         val ropeBwtChrIndex = RopeBwtChrIndex()
@@ -104,7 +123,6 @@ class RopeBwtChrIndexTest {
         NucSeqIO(outputFileName).readAll().forEach { nucSeq ->
             val outputContigName = nucSeq.key.split("_")
             val contigName = outputContigName[0]
-            val contigSequence = nucSeq.value
             val originalSeq = originalNucSeq[contigName]
             assertEquals(originalSeq!!.id, contigName)
             assertEquals(originalSeq.seq(), nucSeq.value.seq())
