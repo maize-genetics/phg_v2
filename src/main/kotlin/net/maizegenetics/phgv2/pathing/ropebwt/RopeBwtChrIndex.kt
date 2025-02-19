@@ -115,7 +115,7 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
     }
 
     fun addSeqToIndex(inputFasta: String, indexFilePrefix: String, threads: Int, condaEnvPrefix: String) {
-        val isFirst = !File("$indexFilePrefix.fmd").exists()
+        val isFirst = !File("$indexFilePrefix.fmr").exists()
 
         if(isFirst) {
            //Use the normal command

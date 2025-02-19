@@ -13,6 +13,7 @@ import org.junit.jupiter.api.assertThrows
 import java.io.File
 import java.io.FileNotFoundException
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.test.fail
 
 class RopeBwtChrIndexTest {
@@ -138,7 +139,35 @@ class RopeBwtChrIndexTest {
 
     @Test
     fun testAddSeqToIndex() {
-        fail("Not yet implemented")
+        val ropeBwtChrIndex = RopeBwtChrIndex()
+        val fastaFiles = listOf("data/test/smallseq/Ref.fa", "data/test/smallseq/LineA.fa")
+        val indexFilePrefix = "$tempTestDir/testAddSeqToIndex"
+        val threads = 3
+        val condaEnvPrefix = ""
+        // need to rename the contigs in the fasta files
+        val renameFastaDir = "$tempTestDir/renameFasta"
+        File(renameFastaDir).mkdirs()
+        val contigLengthPairs = mutableListOf<Pair<String, Int>>()
+        val renamedFiles = mutableListOf<String>()
+        fastaFiles.forEach { fastaFile ->
+            val (renameFastaFile, contigLengths) = ropeBwtChrIndex.processKeyFileRecord(fastaFile, "sample1", renameFastaDir)
+            contigLengthPairs.addAll(contigLengths)
+            renamedFiles.add(renameFastaFile)
+        }
+
+        val fileSizes = mutableListOf<Long>()
+        //Add the renamed files to the index
+        renamedFiles.forEach { renamedFile ->
+            ropeBwtChrIndex.addSeqToIndex(renamedFile, indexFilePrefix, threads, condaEnvPrefix)
+            assertTrue(File("$indexFilePrefix.fmr").exists())
+            fileSizes.add(File("$indexFilePrefix.fmr").length())
+        }
+
+        //Check to see if we are increasing the file size
+        assertEquals(2, fileSizes.size)
+        assertTrue(fileSizes[0] < fileSizes[1])
+
+
     }
 
     @Test
