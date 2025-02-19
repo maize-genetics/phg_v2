@@ -12,6 +12,11 @@ import org.apache.logging.log4j.LogManager
 import java.io.BufferedWriter
 import java.io.File
 
+/**
+ * This class is used to create a ropeBWT3 index for a set of assemblies using the full length indexing method.
+ * Each fasta is taken one at a time and is processed and indexed into the ropeBWT3 index.
+ * Once the initial index is finished, the fmr index is converted to fmd and the suffix array is built.
+ */
 class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
     private val myLogger = LogManager.getLogger(RopeBwtChrIndex::class.java)
 
@@ -38,6 +43,9 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
         createChrIndex(keyfile, outputDir, indexFilePrefix, threads, deleteFmrIndex, condaEnvPrefix)
     }
 
+    /**
+     * Function to create the chrom length index for a set of assemblies.
+     */
     fun createChrIndex(keyfile: String, outputDir: String, indexFilePrefix: String, threads: Int, deleteFmrIndex: Boolean, condaEnvPrefix: String) {
         myLogger.info("Creating Rename Fasta directory")
         val renameFastaDir = "$outputDir/renamedFastas/"
@@ -71,7 +79,11 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
 
     }
 
+    /**
+     * Function to parse the key file that contains the fasta file and sample name.
+     */
     fun parseKeyFile(keyfile: String): List<Pair<String, String>> {
+        myLogger.info("Parsing Key File")
         return File(keyfile).bufferedReader().readLines()
             .filter { !it.startsWith("#") }
             .map { line ->
@@ -83,6 +95,9 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
             }
     }
 
+    /**
+     * Function to process a single key file record.  This renames the contigs in the fasta file and then adds them to the index.
+     */
     fun processKeyFileRecord(fastaFile: String, sampleName: String, renameFastaDir: String) : Pair<String,List<Pair<String,Int>>> {
         //Rename the contigs in the fasta file by the sample name
         val fastaFileName = File(fastaFile).nameWithoutExtension
@@ -96,6 +111,10 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
         return Pair(renameFastaFile,contigLengthPairs)
     }
 
+    /**
+     * Function to rename the contigs in a fasta file by the sample name.
+     * The new contigs are contigName_sampleName
+     */
     fun renameFastaSeqs(
         fastaFile: String,
         sampleName: String,
@@ -114,6 +133,11 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
         }
     }
 
+    /**
+     * Function to add a fasta file to the index.
+     * If it is the first fasta seen, it will use the intial build command.
+     * If it is not the first fasta seen, it will use the update version of the build command.
+     */
     fun addSeqToIndex(inputFasta: String, indexFilePrefix: String, threads: Int, condaEnvPrefix: String) {
         val isFirst = !File("$indexFilePrefix.fmr").exists()
 
@@ -127,6 +151,11 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
         }
     }
 
+    /**
+     * Function to build the chromosome length file for the BWT index
+     * contigLengthPairs is a running list in order of the contigs seen in the fasta files that is created
+     * when we rename the contigs.
+     */
     fun buildChrLengthFile(indexFilePrefix: String, contigLengthPairs: List<Pair<String,Int>>) {
         bufferedWriter("$indexFilePrefix.fmd.len.gz").use { writer ->
             contigLengthPairs.forEach { (contigName, contigLength) ->
