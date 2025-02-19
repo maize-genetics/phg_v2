@@ -68,7 +68,6 @@ class RopeBWTUtils {
             else {
                 Pair("-n", "phgv2-ropebwt-conda")
             }
-            //time ../ropebwt3/ropebwt3 build -t24 -i phg_ASMs_input.fmr -bo phg_ASMs.fmr /workdir/zrm22/phgv2/ropeBWT/fullASMTests/ASMs/A188
             val buildCommand = listOf("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "build", "-t$numThreads", "-i", "$indexFilePrefix.fmr", "-bo", tempIndex, "$inputFasta")
             myLogger.info("Running ropebwt3 build command: ${buildCommand.joinToString(" ")}")
             try {
@@ -89,7 +88,6 @@ class RopeBWTUtils {
          */
         fun convertBWTIndex(indexFilePrefix: String, condaEnvPrefix: String) {
             //Convert the fmr to fmt
-            //time ../ropebwt3/ropebwt3 build -i /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmr -do /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmd
             val prefixArg = if(condaEnvPrefix.isNotBlank()) {
                 Pair("-p",condaEnvPrefix)
             }
@@ -124,7 +122,6 @@ class RopeBWTUtils {
          */
         fun buildSuffixArray(indexFilePrefix: String, numThreads: Int, condaEnvPrefix: String) {
             //Build suffix array
-            //time ../ropebwt3/ropebwt3 ssa -o /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmd.ssa -s8 -t32 /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmd
             val prefixArg = if(condaEnvPrefix.isNotBlank()) {
                 Pair("-p",condaEnvPrefix)
             }
