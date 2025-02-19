@@ -13,6 +13,7 @@ import org.junit.jupiter.api.assertThrows
 import java.io.File
 import java.io.FileNotFoundException
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
@@ -33,7 +34,7 @@ class RopeBwtChrIndexTest {
         @JvmStatic
         @AfterAll
         fun teardown() {
-//            resetDirs()
+            resetDirs()
         }
 
         private fun resetDirs() {
@@ -73,7 +74,33 @@ class RopeBwtChrIndexTest {
 
     @Test
     fun testCreateChrIndex() {
-        fail("Not yet implemented")
+        val ropeBwtChrIndex = RopeBwtChrIndex()
+        val keyfile = "data/test/ropebwt/asm_keyfile.txt"
+        val outputDir = tempTestDir
+        val indexFilePrefix = "testCreateChrIndex"
+        val threads = 3
+        val condaEnvPrefix = ""
+        val deleteFmrIndex = true
+        ropeBwtChrIndex.createChrIndex(keyfile, outputDir, indexFilePrefix, threads, deleteFmrIndex, condaEnvPrefix)
+
+        //Check to see if the files were created
+        assertTrue(File("$outputDir/renamedFastas/Ref_renamed.fa").exists())
+        assertTrue(File("$outputDir/renamedFastas/LineA_renamed.fa").exists())
+        assertFalse(File("$outputDir/testCreateChrIndex.fmr").exists())
+        assertTrue(File("$outputDir/testCreateChrIndex.fmd").exists())
+        assertTrue(File("$outputDir/testCreateChrIndex.fmd.ssa").exists())
+        assertTrue(File("$outputDir/testCreateChrIndex.fmd.len.gz").exists())
+
+        //Check to see if we don't delete the fmr file
+        val indexFilePrefixNoDelete = "testCreateChrIndexNoDelete"
+        val deleteFmrIndexNoDelete = false
+        ropeBwtChrIndex.createChrIndex(keyfile, outputDir, indexFilePrefixNoDelete, threads, deleteFmrIndexNoDelete, condaEnvPrefix)
+        assertTrue(File("$outputDir/testCreateChrIndexNoDelete.fmr").exists())
+        assertTrue(File("$outputDir/testCreateChrIndexNoDelete.fmd").exists())
+        assertTrue(File("$outputDir/testCreateChrIndexNoDelete.fmd.ssa").exists())
+        assertTrue(File("$outputDir/testCreateChrIndexNoDelete.fmd.len.gz").exists())
+
+
     }
 
     @Test

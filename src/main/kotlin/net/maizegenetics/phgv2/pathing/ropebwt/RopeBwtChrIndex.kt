@@ -56,15 +56,15 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
             addSeqToIndex(renamedFile, "$outputDir/$indexFilePrefix", threads, condaEnvPrefix)
         }
 
-        RopeBWTUtils.convertBWTIndex(indexFilePrefix, condaEnvPrefix)
+        RopeBWTUtils.convertBWTIndex("$outputDir/$indexFilePrefix", condaEnvPrefix)
 
         //Delete the FMR if requested
         if (deleteFmrIndex) {
-            RopeBWTUtils.deleteFMRIndex(indexFilePrefix)
+            RopeBWTUtils.deleteFMRIndex("$outputDir/$indexFilePrefix")
         }
 
         //Build suffix array
-        RopeBWTUtils.buildSuffixArray(indexFilePrefix, threads, condaEnvPrefix)
+        RopeBWTUtils.buildSuffixArray("$outputDir/$indexFilePrefix", threads, condaEnvPrefix)
 
         //Write the contig lengths to a file
         buildChrLengthFile("$outputDir/$indexFilePrefix", allSeqLengths)
