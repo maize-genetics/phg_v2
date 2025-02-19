@@ -32,17 +32,15 @@ class RopeBWTUtils {
             return MEM(readName, readStart, readEnd, numHits, listMemHits)
         }
 
+
+
         /**
          * Function to run the ropebwt3 build command
          * This builds the initial BWT index file in an update-able format
          */
         fun runBuildStep(inputFasta:String, indexFilePrefix:String, numThreads: Int, condaEnvPrefix:String) {
             //"conda","run","-p","phgv2-conda"
-            val prefixArg = if(condaEnvPrefix.isNotBlank()) {
-                Pair("-p",condaEnvPrefix)
-            }
-            else {
-                Pair("-n", "phgv2-ropebwt-conda") }
+            val prefixArg = getRopeBWTCondaPrefix(condaEnvPrefix)
             val buildCommand = listOf("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "build", "-t$numThreads", "-bo", "$indexFilePrefix.fmr", "$inputFasta")
             myLogger.info("Running ropebwt3 build command: ${buildCommand.joinToString(" ")}")
             try {
@@ -62,12 +60,7 @@ class RopeBWTUtils {
          */
         fun runBuildUpdateStep(inputFasta:String, indexFilePrefix:String, numThreads: Int, condaEnvPrefix:String) {
             val tempIndex = "${indexFilePrefix}_temp.fmr"
-            val prefixArg = if(condaEnvPrefix.isNotBlank()) {
-                Pair("-p",condaEnvPrefix)
-            }
-            else {
-                Pair("-n", "phgv2-ropebwt-conda")
-            }
+            val prefixArg = getRopeBWTCondaPrefix(condaEnvPrefix)
             val buildCommand = listOf("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "build", "-t$numThreads", "-i", "$indexFilePrefix.fmr", "-bo", tempIndex, "$inputFasta")
             myLogger.info("Running ropebwt3 build command: ${buildCommand.joinToString(" ")}")
             try {
@@ -88,11 +81,7 @@ class RopeBWTUtils {
          */
         fun convertBWTIndex(indexFilePrefix: String, condaEnvPrefix: String) {
             //Convert the fmr to fmt
-            val prefixArg = if(condaEnvPrefix.isNotBlank()) {
-                Pair("-p",condaEnvPrefix)
-            }
-            else {
-                Pair("-n", "phgv2-ropebwt-conda") }
+            val prefixArg = getRopeBWTCondaPrefix(condaEnvPrefix)
             val convertCommand = listOf("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "build", "-i", "$indexFilePrefix.fmr", "-do", "$indexFilePrefix.fmd")
             myLogger.info("Running ropebwt3 convert command: ${convertCommand.joinToString(" ")}")
             try {
@@ -122,11 +111,7 @@ class RopeBWTUtils {
          */
         fun buildSuffixArray(indexFilePrefix: String, numThreads: Int, condaEnvPrefix: String) {
             //Build suffix array
-            val prefixArg = if(condaEnvPrefix.isNotBlank()) {
-                Pair("-p",condaEnvPrefix)
-            }
-            else {
-                Pair("-n", "phgv2-ropebwt-conda") }
+            val prefixArg = getRopeBWTCondaPrefix(condaEnvPrefix)
             val ssaCommand = listOf("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "ssa", "-o", "$indexFilePrefix.fmd.ssa", "-s8", "-t${numThreads}", "$indexFilePrefix.fmd")
             myLogger.info("Running ropebwt3 ssa command: ${ssaCommand.joinToString(" ")}")
             try {
@@ -138,6 +123,12 @@ class RopeBWTUtils {
                 myLogger.error("Error running ropebwt3 ssa command: ${ssaCommand.joinToString(" ")}")
                 throw e
             }
+        }
+
+        private fun getRopeBWTCondaPrefix(condaEnvPrefix: String) = if (condaEnvPrefix.isNotBlank()) {
+            Pair("-p", condaEnvPrefix)
+        } else {
+            Pair("-n", "phgv2-ropebwt-conda")
         }
 
     }
