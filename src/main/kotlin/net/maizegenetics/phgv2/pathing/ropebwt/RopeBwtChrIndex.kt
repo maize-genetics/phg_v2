@@ -8,6 +8,7 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.int
+import net.maizegenetics.phgv2.cli.logCommand
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedWriter
 import java.io.File
@@ -40,6 +41,7 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
         .default("")
 
     override fun run() {
+        logCommand(this)
         createChrIndex(keyfile, outputDir, indexFilePrefix, threads, deleteFmrIndex, condaEnvPrefix)
     }
 
