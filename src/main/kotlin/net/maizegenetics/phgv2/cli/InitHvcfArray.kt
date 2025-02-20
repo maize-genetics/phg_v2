@@ -8,11 +8,11 @@ import org.apache.logging.log4j.LogManager
 import java.io.File
 
 /**
- * This function creats the tiledb array for the hvcf files
- * It uses the java api to create the array
+ * This function creates the tiledb array for the hVCF files
+ * It uses the Java API to create the array
  * The schema used is the original schema:  RefRanges and SampleNames
  * as dimensions, RefChecksum, Regions and IDs as the attributes.
- * WHile the schema may changes, examples of how to use the java API for
+ * While the schema may change, examples of how to use the Java API for
  * tiledb core arrays should remain constant.
  */
 class InitHvcfArray: CliktCommand(help = "Create TileDB core array  h.vcf files") {

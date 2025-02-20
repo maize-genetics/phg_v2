@@ -88,7 +88,7 @@ section for more information.
 
 
 
-## VCF Metrics
+## VCF metrics
 
 Once the gVCF and hVCF files for the TileDB instances have been 
 created, we can produce a table summarizing metrics related to the 
@@ -200,7 +200,9 @@ format.
   range. A large number of missing ranges may indicate a problem with 
   the assembly or the alignment.
 
-## Imputation Metrics
+
+
+## Imputation metrics
 
 > Calculate imputation metrics for an hvcf file created by the Imputation pipeline
 
@@ -239,5 +241,102 @@ haplotype, and shows the read counts from the read mappings files that support e
 The output is a tab-delimited file with data arranged in reference range order that can be opened in a 
 spreadsheet program for further analysis.
 
+
+
+## Read mapping metrics
+
+### Return QC metrics for read mappings
+
+!!! note
+Need clarification!
+
+> Using FASTQ files as an input, this command creates a tab-delimited
+> table reporting each k-mer generated from the FASTQ files and how
+> well they map to haplotypes in the PHG database.
+
+**Command** - `qc-read-mapping`
+
+**Example**
+
+```shell
+phg qc-read-mapping \
+    --hvcf-dir path/to/hvcf_directory \
+    --output-dir path/to/output_directory \
+    --read-files reads1.fastq,reads2.fastq \
+    --kmer-index path/to/kmerIndex.txt \
+    --num-reads 20
+```
+
+**Parameters**
+
+| Parameter name | Description                                                                                             | Default value             | Required?        |
+|----------------|---------------------------------------------------------------------------------------------------------|---------------------------|------------------|
+| `--hvcf-dir`   | Directory containing hVCF files used to build the HaplotypeGraph.                                       | `""`                      | :material-check: |
+| `--output-dir` | Output folder for the read mapping results.                                                             | `""`                      | :material-check: |
+| `--read-files` | Comma separated list of FASTQ read files to map.                                                        | `""`                      | :material-check: |
+| `--kmer-index` | K-mer index file created by `build-kmer-index`. If not provided, defaults to `<hvcfDir>/kmerIndex.txt`. | `<hvcfDir>/kmerIndex.txt` |                  |
+| `--num-reads`  | Number of reads to process. This value controls how many reads are processed from each file.            | `20`                      |                  |
+
+**Example output**
+
+```
+Kmer                                Hash1                               Hash2                               RefRanges                      Hapids
+ACGTACGTACGTACGTACGTACGTACGTACGT    d41d8cd98f00b204e9800998ecf8427e    0cc175b9c0f1b6a831c399e269772661    chr1:1000-2000,chr2:3000-4000    {0=[B73, Ki11]}
+TGCACTGATGCACTGATGCACTGATGCACTGA    900150983cd24fb0d6963f7d28e17f72    f96b697d7cb7938d525a2f31aaf161d0    None                           {}
+```
+
+* **`Kmer`**: A 32-nucleotide sequence extracted from the read.
+* **`Hash1` / `Hash2`**: MD5 checksum–like hash values computed for the k-mer.
+* **`RefRanges`**: A comma-separated list of reference ranges (formatted as `contig:start-end`) where the k-mer was found.
+* **`Hapids`**: A mapping from reference range IDs to the corresponding haplotype IDs that were matched.
+
+### Return QC metrics for read mapping counts
+
+> Using a read mapping file as input, this command will generate a
+> tab-delimited report of QC metrics of read mapping counts for a
+> given sample ID found the PHG DB.
+
+**Command** - `read-mapping-count-qc`
+
+**Example**
+
+```shell
+phg read-mapping-count-qc \
+    --hvcf-dir path/to/hvcf_directory \
+    --read-mapping-file path/to/read_mapping.txt \
+    --target-sample-name LineA \
+    --output-dir path/to/output_directory
+```
+
+**Parameters**
+
+| Parameter name         | Description                                           | Default value | Required?        |
+|------------------------|-------------------------------------------------------|---------------|------------------|
+| `--hvcf-dir`           | Directory with Haplotype VCF files.                   | `""`          | :material-check: |
+| `--read-mapping-file`  | Read mapping file containing the mapping data.        | `""`          | :material-check: |
+| `--target-sample-name` | Target sample name for which counts will be computed. | `""`          | :material-check: |
+| `--output-dir`         | Output directory for writing the count QC results.    | `""`          | :material-check: |
+
+**Example output**
+
+```
+refRange    LineA_HapID LineA_HapCount  HighestAltCount Difference  OtherHapCounts
+1:1-1000    12f0cec9102e84a161866e37072443b7    853 0   853 0_4fc7b8af32ddd74e07cb49d147ef1938, 0_546d1839623a5b0ea98bbff9a8a320e2
+1:1001-5500 3149b3144f93134eb29661bade697fc6    4378    70  4308    70_8967fabf10e55d881caa6fe192e7d4ca, 0_57705b1e2541c7634ea59a48fc52026f
+1:5501-6500 1b568197f6f329ec5b71f66e49a732fb    855 47  808 47_05efe15d97db33185b64821791b01b0f, 0_d896e9cc56e74f39fd3f3c665191d727
+1:6501-11000    369464a8743d2e40ad83d1375c196bdd    4355    101 4254    101_8f7de1a693aa15fb8fb7b85e7a8b5e95, 24_66465399052d8ebe48b06329c60fee03
+```
+
+* **`refRange`**: The reference range.
+* **`LineA_HapID`**: The haplotype ID corresponding to the target
+  sample (e.g., `--target-sample-name LineA`).
+* **`LineA_HapCount`**: The count of reads mapping to the target
+  haplotype.
+* **`HighestAltCount`**: The highest count among non-target
+  haplotypes.
+* **`Difference`**: The difference between the target haplotype count
+  and the highest alternative count.
+* **`OtherHapCounts`**: A comma-separated list of counts and haplotype
+  IDs for all other haplotypes in the reference range.
 
 
