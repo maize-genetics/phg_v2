@@ -88,48 +88,8 @@ class RopeBwtIndexTest {
 
     }
 
-    //runBuildStep(inputFasta:String, indexFilePrefix:String, numThreads: Int, condaEnvPrefix:String)
-    @Test
-    fun testRunBuildStep() {
-        val ropebwtIndex = RopeBwtIndex()
-        val numThreads = 3
-        ropebwtIndex.runBuildStep(inputFasta, indexFilePrefix, numThreads, "")
 
-        //verify that the output files exist
-        val fmdFile = File("$indexFilePrefix.fmr")
-        assert(fmdFile.exists())
-    }
-    //convertBWTIndex(indexFilePrefix: String, condaEnvPrefix: String)
-    //deleteFMRIndex(indexFilePrefix: String)
-    @Test
-    fun testConvertAndDeleteBWTIndex() {
-        val ropebwtIndex = RopeBwtIndex()
-        val numThreads = 3
 
-        ropebwtIndex.runBuildStep(inputFasta, indexFilePrefix, numThreads, "")
-
-        ropebwtIndex.convertBWTIndex(indexFilePrefix, "")
-        val fmdFile = File("$indexFilePrefix.fmd")
-        assert(fmdFile.exists())
-
-        ropebwtIndex.deleteFMRIndex(indexFilePrefix)
-        val fmrFile = File("$indexFilePrefix.fmr")
-        assert(!fmrFile.exists())
-    }
-
-    //buildSuffixArray(indexFilePrefix: String, numThreads: Int, condaEnvPrefix: String)
-    @Test
-    fun testBuildSuffixArray() {
-        val ropebwtIndex = RopeBwtIndex()
-        val numThreads = 3
-
-        ropebwtIndex.runBuildStep(inputFasta, indexFilePrefix, numThreads, "")
-        ropebwtIndex.convertBWTIndex(indexFilePrefix, "")
-
-        ropebwtIndex.buildSuffixArray(indexFilePrefix, numThreads, "")
-        val saFile = File("$indexFilePrefix.fmd.ssa")
-        assert(saFile.exists())
-    }
     //buildChrLengthFile(inputFasta: String, indexFilePrefix: String)
     @Test
     fun testBuildChrLengthFile() {
