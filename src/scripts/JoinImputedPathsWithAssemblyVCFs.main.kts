@@ -1,4 +1,4 @@
-@file:DependsOn("net.maizegenetics:tassel:5.2.94")
+@file:DependsOn("net.maizegenetics:tassel:5.2.95")
 @file:DependsOn("org.biokotlin:biokotlin:0.23")
 @file:DependsOn("com.google.guava:guava:33.1.0-jre")
 

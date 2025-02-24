@@ -46,7 +46,7 @@ dependencies {
     implementation("org.jetbrains.lets-plot:lets-plot-image-export:4.3.0")
     implementation("org.jetbrains.lets-plot:lets-plot-batik:4.3.0")
     implementation("org.biokotlin:biokotlin:0.22")
-    implementation("net.maizegenetics:tassel:5.2.94")
+    implementation("net.maizegenetics:tassel:5.2.95")
     implementation("com.github.ajalt.clikt:clikt:4.2.0")
 
     implementation("com.github.samtools:htsjdk:4.0.1")
