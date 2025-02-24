@@ -36,7 +36,7 @@ theme:
     code: Roboto Mono
 
 # Copyright
-copyright: Copyright &copy; 2023 - 2024  <a href="https://www.maizegenetics.net "><b>Buckler Lab</b></a>
+copyright: Copyright &copy; 2023 - 2025  <a href="https://www.maizegenetics.net "><b>Buckler Lab</b></a>
 
 extra:
   social:
@@ -88,14 +88,18 @@ nav:
       - Resequencing: resequencing.md
       - Exporting data: export_data.md
   - Reference:
-      - Convenience commands: convenience_commands.md
-      - hVCF region handling: hvcf_region_handling.md
-      - hVCF specifications: hvcf_specifications.md
-      - Ktor specifications: ktor_specifications.md
-      - QC metrics: qc_metrics.md
-      - SLURM usage: slurm_usage.md
-      - Terminology: terminology.md
-      - Variant caller comparisons: variant_comparisons.md
+      - Specifications:
+          - hVCF specifications: hvcf_specifications.md
+          - Ktor specifications: ktor_specifications.md
+          - PS4G specifications: ps4g_specifications.md
+      - Optional commands:
+          - Convenience commands: convenience_commands.md
+          - QC metrics: qc_metrics.md
+      - Miscellaneous articles:
+          - hVCF region handling: hvcf_region_handling.md
+          - SLURM usage for alignment: slurm_usage.md
+          - Terminology: terminology.md
+          - Variant caller comparisons: variant_comparisons.md
   - Community:
       - References: citations.md
       - Contributing: CONTRIBUTING.md

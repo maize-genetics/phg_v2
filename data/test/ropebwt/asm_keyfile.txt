@@ -1,0 +1,2 @@
+data/test/smallseq/Ref.fa	Ref
+data/test/smallseq/LineA.fa	LineA

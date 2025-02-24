@@ -11,32 +11,42 @@ commands for performing highly used tasks.
 
     ---
 
-    Commands for converting one file type to another
+    Commands for converting one file type to another.
 
     [:octicons-arrow-right-24: Go to section](#conversion)
+
 
 -   :material-table-merge-cells:{ .lg .middle } __Merging__
 
     ---
 
-    Commands for merging various PHG file types
+    Commands for merging various PHG file types.
 
     [:octicons-arrow-right-24: Go to section](#merging)
-
 
 
 -   :material-table:{ .lg .middle } __Statistics__
 
     ---
 
-    Commands for generating summary information in tabular format
+    Commands for generating summary information in tabular format.
 
     [:octicons-arrow-right-24: Go to section](#statistics)
 
+
+-   :material-flask:{ .lg .middle } __Experimental__
+
+    ---
+
+    Prototype commands that are under construction and may have
+    significant changes in future updates.
+
+    [:octicons-arrow-right-24: Go to section](#experimental)
 </div>
 
 
-## Conversion
+
+## :material-arrow-left-right: Conversion
 
 ### Convert gVCF files to hVCF files
 
@@ -146,7 +156,78 @@ phg paths-to-gff \
     class source code for further details.
 
 
-## Merging
+### Create a PS4G file from read mapping data
+
+> Convert [read mapping](imputation.md#read-mapping) data into a
+> [PS4G (positional support for gamete) file](ps4g_specifications.md).
+
+**Command** - `convert-rm2ps4g`
+
+**Example**
+
+```shell
+phg convert-rm2ps4g \
+    --read-mapping-file /path/to/readmapping.txt \
+    --output-dir /dir/for/ps4g/output/ \
+    --hvcf-dir /path/to/hvcf/files/
+```
+
+**Parameters**
+
+| Parameter name        | Description                                                             | Default value | Required?        |
+|-----------------------|-------------------------------------------------------------------------|---------------|------------------|
+| `--read-mapping-file` | Path to [read mapping](imputation.md#read-mapping) file.                | `""`          | :material-check: |
+| `--output-dir`        | Output directory for the generated [PS4G](ps4g_specifications.md) file. | `""`          | :material-check: |
+| `--hvcf-dir`          | Directory containing hVCF files.                                        | `""`          | :material-check: |
+
+
+
+### Create a PS4G file from ropebwt3 BED data
+
+> Convert a [ropebwt3 BED](https://github.com/lh3/ropebwt3?tab=readme-ov-file#finding-maximal-exact-matches) 
+> file into a [PS4G (positional support for gamete) file](ps4g_specifications.md).
+
+!!! note
+    This command will only work with ropebwt3 files where the reads
+    are aligned to the whole assembly chromosome using the 
+    [`mem`](https://github.com/lh3/ropebwt3?tab=readme-ov-file#finding-maximal-exact-matches)
+    command. MEMs (**M**aximal **E**xact **M**atche**s**) are used
+    to determine what the optimal mappping is. One downside to this
+    approach is that if a SNP is in the middle of the read, the
+    mappings will be ignored. We may integrate running this in
+    conjunction with ropebwt3's [Burrows-Wheeler Aligner's Smith-Waterman Alignment (BWA-SW)](https://doi.org/10.1093/bioinformatics/btp698)
+    approach (i.e., the [`sw`](https://github.com/lh3/ropebwt3?tab=readme-ov-file#local-alignment) 
+    command) in a future update.
+
+**Command** - `convert-ropebwt2ps4g`
+
+**Example**
+
+```shell
+phg convert-ropebwt2ps4g \
+    --ropebwt-bed /path/to/readmapping.txt \
+    --output-dir /dir/for/ps4g/output/ \
+    --hvcf-dir /path/to/hvcf/files/
+```
+
+**Parameters**
+
+| Parameter name     | Description                                                                                                                                             | Default value | Required?        |
+|--------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
+| `--ropebwt-bed`    | Path to [ropebwt3 BED](https://github.com/lh3/ropebwt3?tab=readme-ov-file#finding-maximal-exact-matches) file.                                          | `""`          | :material-check: |
+| `--output-dir`     | Output directory for the generated [PS4G](ps4g_specifications.md) file.                                                                                 | `""`          | :material-check: |
+| `--hvcf-dir`       | Directory containing hVCF files.                                                                                                                        | `""`          | :material-check: |
+| `--min-mem-length` | Minimum length of a possible match to be considered a match. Default value is the average length of a short read (150 bp) - 2 bp for possible variance. | `148`         |                  |
+| `--max-num-hits`   | Maximum number of hits to report.                                                                                                                       | `50`          |                  |
+
+!!! note
+    ropebwt3 can hit more than the value provided in the 
+    `--max-num-hits` parameter but any alignment hitting more
+    haplotypes than this will be ignored.
+
+
+
+## :material-table-merge-cells: Merging
 
 ### Merge gVCF files
 
@@ -213,7 +294,8 @@ phg merge-hvcfs \
     ```
 
 
-## Statistics
+
+## :material-table: Statistics
 
 ### List Sample names from datasets
 
@@ -282,7 +364,6 @@ chr1   6001    9000  <471d4abbf0545dede647e65915345648> <d6dd5ecea7fb4e6f77f9e63
 ```
 
 
-
 ### Create a table of haplotype IDs to sample
 
 > Creates a tab-delimited table of haplotype IDs to sample gamete. Can
@@ -321,4 +402,78 @@ phg hapid-sample-table \
 "a935ee46a1a1118df309fc34bdb9e5a5"  B73,Ky21,Ki11
 "b878dec3587e24c4714fec5131d4dbbb"  C3PO
 ```
+
+
+
+## :material-flask: Experimental
+
+### Initialize custom TileDB instance for hVCFs
+
+> Creates a TileDB array instance to house hVCF header data
+
+**Command** - `init-hvcf-array`
+
+**Example**
+
+```shell
+phg init-hvcf-array \
+    --db-path /path/for/tiledb/instance/
+```
+
+**Parameters**
+
+| Parameter name | Description                                                                                                    | Default value               | Required? |
+|----------------|----------------------------------------------------------------------------------------------------------------|-----------------------------|-----------|
+| `--db-path`    | Directory name under which TileDB datasets will be created. If this folder does not exist, it will be created. | _Current working directory_ |           |
+
+
+### Load hVCF data into custom TileDB instance
+
+> Loads hVCF data into TileDB array instance that was created with
+> the command `init-hvcf-array`
+
+**Command** - `load-hvcf`
+
+**Example**
+
+```shell
+phg load-hvcf \
+    --db-path /path/for/tiledb/instance/ \
+    --hvcf-dir /path/to/hvcf/files/
+```
+
+**Parameters**
+
+| Parameter name | Description                                                                                                    | Default value               | Required?        |
+|----------------|----------------------------------------------------------------------------------------------------------------|-----------------------------|------------------|
+| `--db-path`    | Directory name under which TileDB datasets will be created. If this folder does not exist, it will be created. | _Current working directory_ |                  |
+| `--hvcf-dir`   | Full path to an hVCF file directory                                                                            | ""                          | :material-check: |
+
+
+### Query hVCF arrays
+
+> Query TileDB arrays created from `load-hvcf`
+
+**Command** - `query-hvcf-arrays`
+
+**Example**
+```shell
+phg query-hvcf-arrays \
+    --db-path /path/for/tiledb/instance/ \
+    --query-type distinctSamples \
+    --array-type variants \
+    --ref-range-file /path/to/refrange/bed/file.bed \
+    --output-file query_results.txt
+```
+
+**Parameters**
+
+| Parameter name     | Description                                                                                                                                                                       | Default value               | Required?        |
+|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------|------------------|
+| `--db-path`        | Directory name under which TileDB datasets will be created. If this folder does not exist, it will be created.                                                                    | _Current working directory_ |                  |
+| `--query-type`     | Type of query to perform. Options to choose from are: <ul><li>`distinctSamples`</li><li>`distinctRanges`</li></ul>                                                                | ""                          | :material-check: |
+| `--array-type`     | Type of array to query. Options to choose from are: <ul><li>`altHeader`</li><li>`variants`</li></ul>                                                                              | `variants`                  |                  |
+| `--ref-range-file` | Full path to a [BED](https://en.wikipedia.org/wiki/BED_(file_format)) file-formatted list of reference ranges to query. If no file is provided, all reference ranges are queried. | _All reference ranges_      |                  |
+| `--output-file`    | Name of file for query results.                                                                                                                                                   | ""                          | :material-check: |
+
 

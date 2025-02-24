@@ -1,0 +1,7 @@
+read1	0	150	3	3	1_LineA:+:1000	1_LineA:-:2000	1_LineA:+:3000
+read2	0	150	3	3	1_LineA:+:1000	1_LineA:-:2000	1_LineA:+:3000
+read3	2	150	3	3	1_LineA:+:1000	1_LineA:-:2000	1_LineA:+:3000
+read3	1	150	2	2	1_LineA:+:1000	1_LineA:-:2000
+read4	0	150	6	6	1_LineA:+:1000	1_LineA:-:2000	1_LineA:+:3000	1_LineA:+:4000	1_LineA:-:5000	1_LineA:+:6000
+read5	0	150	10	6	1_LineA:+:1000	1_LineA:-:2000	1_LineA:+:3000	1_LineA:+:4000	1_LineA:-:5000	1_LineA:+:6000
+read6	0	150	10	4	1_LineA:+:1000	1_LineA:-:2000	1_LineA:+:3000	1_LineA:+:4000
