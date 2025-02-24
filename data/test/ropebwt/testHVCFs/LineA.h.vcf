@@ -1,0 +1,40 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##ALT=<ID=12f0cec9102e84a161866e37072443b7,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName="LineA",Regions=1:1-1000,Checksum=Md5,RefRange=546d1839623a5b0ea98bbff9a8a320e2>
+##ALT=<ID=3149b3144f93134eb29661bade697fc6,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName="LineA",Regions=1:1001-5500,Checksum=Md5,RefRange=57705b1e2541c7634ea59a48fc52026f>
+##ALT=<ID=1b568197f6f329ec5b71f66e49a732fb,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName="LineA",Regions=1:5501-6500,Checksum=Md5,RefRange=d896e9cc56e74f39fd3f3c665191d727>
+##ALT=<ID=369464a8743d2e40ad83d1375c196bdd,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName="LineA",Regions=1:6501-11000,Checksum=Md5,RefRange=66465399052d8ebe48b06329c60fee03>
+##ALT=<ID=f50fe6d6b3d9a9d305889db977969916,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName="LineA",Regions=1:11001-12000,Checksum=Md5,RefRange=2b4590f722ef9229c15d29e0b4e51a0e>
+##ALT=<ID=d4c8b5505d7046b41d7f69b246063ebb,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName="LineA",Regions=1:12001-16500,Checksum=Md5,RefRange=f2a26406aaa6aefdc20ccdf8cb313dff>
+##ALT=<ID=13417ecbb38b9a159e3ca8c9dade7088,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName="LineA",Regions=2:1-1000,Checksum=Md5,RefRange=5812acb1aff74866003656316c4539a6>
+##ALT=<ID=c16ac825052c0456069f6408652aadf8,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName="LineA",Regions=2:1001-5500,Checksum=Md5,RefRange=799371fe289fbe0046797729659cb5ff>
+##ALT=<ID=50044914d5111c5b5ec58c9d720e3b2d,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName="LineA",Regions=2:5501-6500,Checksum=Md5,RefRange=bbc9274ac9c98fd0f9399ec8f121b9d0>
+##ALT=<ID=c472bb8d63e19218a4089821ae666db3,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName="LineA",Regions=2:6501-11000,Checksum=Md5,RefRange=b8843efbd6adaa261a01518dc2a39aa2>
+##ALT=<ID=3ec680649615da0685b8c245e0f196e2,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName="LineA",Regions=2:11001-12000,Checksum=Md5,RefRange=347f0478b1a553ef107243cb60a9ba7d>
+##FORMAT=<ID=AD,Number=3,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth (only filtered reads used for calling)">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##INFO=<ID=AF,Number=3,Type=Integer,Description="Allele Frequency">
+##INFO=<ID=ASM_Chr,Number=1,Type=String,Description="Assembly chromosome">
+##INFO=<ID=ASM_End,Number=1,Type=Integer,Description="Assembly end position">
+##INFO=<ID=ASM_Start,Number=1,Type=Integer,Description="Assembly start position">
+##INFO=<ID=ASM_Strand,Number=1,Type=String,Description="Assembly strand">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
+##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
+##contig=<ID=1,length=55000>
+##contig=<ID=2,length=55000>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	LineA
+1	1	.	G	<12f0cec9102e84a161866e37072443b7>	.	.	END=1000	GT:AD:DP	1:0,2,0:2
+1	1001	.	A	<3149b3144f93134eb29661bade697fc6>	.	.	END=5500	GT:AD:DP	1:0,2,0:2
+1	5501	.	A	<1b568197f6f329ec5b71f66e49a732fb>	.	.	END=6500	GT:AD:DP	1:0,2,0:2
+1	6501	.	C	<369464a8743d2e40ad83d1375c196bdd>	.	.	END=11000	GT:AD:DP	1:0,2,0:2
+1	11001	.	A	<f50fe6d6b3d9a9d305889db977969916>	.	.	END=12000	GT:AD:DP	1:0,2,0:2
+1	12001	.	A	<d4c8b5505d7046b41d7f69b246063ebb>	.	.	END=16500	GT:AD:DP	1:0,2,0:2
+2	1	.	C	<13417ecbb38b9a159e3ca8c9dade7088>	.	.	END=1000	GT:AD:DP	1:0,2,0:2
+2	1001	.	A	<c16ac825052c0456069f6408652aadf8>	.	.	END=5500	GT:AD:DP	1:0,2,0:2
+2	5501	.	G	<50044914d5111c5b5ec58c9d720e3b2d>	.	.	END=6500	GT:AD:DP	1:0,2,0:2
+2	6501	.	A	<c472bb8d63e19218a4089821ae666db3>	.	.	END=11000	GT:AD:DP	1:0,2,0:2
+2	11001	.	A	<3ec680649615da0685b8c245e0f196e2>	.	.	END=12000	GT:AD:DP	1:0,2,0:2

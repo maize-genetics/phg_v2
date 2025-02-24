@@ -452,7 +452,7 @@ information to the headers of each FASTA file called
 phg prepare-assemblies \
     --keyfile data/annotation_keyfile.txt \
     --threads 10 \
-    -o output/updated_assemblies
+    --output-dir output/updated_assemblies
 ```
 
 This command takes 3 parameters:
