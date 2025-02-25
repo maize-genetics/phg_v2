@@ -74,7 +74,8 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
     /**
      * Function to build spline lookups from the hvcf files in the directory.
-     * This will create Cubic splines based on the PolynomialSplineFunction from the Apache Commons Math3 library.
+     * This will compute Cubic splines based on the Akima algorithm, as originally formulated by Hiroshi Akima, 1970
+     * (http://doi.acm.org/10.1145/321607.321609) implemented via the Apache Commons Math3 library.
      */
     fun buildSplineLookup(hvcfDir: String) : Triple<Map<String, PolynomialSplineFunction>, Map<String,Int>, Map<String,Int>> {
         val hvcfFiles = File(hvcfDir).listFiles()

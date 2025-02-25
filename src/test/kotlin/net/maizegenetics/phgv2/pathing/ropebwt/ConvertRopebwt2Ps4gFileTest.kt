@@ -207,13 +207,25 @@ class ConvertRopebwt2Ps4gFileTest {
             MEM("read1", 0, 18, 2, listOf(MEMHit("chr1_sample1", "+", 3), MEMHit("chr1_sample2", "+", 4)))
         )
 
-        //create a spline lookup
+        // create a spline lookup (NOTE - need at least 5 observations so AkimaSplineInterpolator does not throw exception)
         val splineLookup = mutableMapOf<String, PolynomialSplineFunction>()
         val splineBuilder = AkimaSplineInterpolator()
-        val listOfPoints = mutableListOf(Pair(1.0, 1.0), Pair(3.0, 3.0), Pair(5.0, 5.0))
+        val listOfPoints = mutableListOf(
+            Pair(1.0, 1.0),
+            Pair(3.0, 3.0),
+            Pair(5.0, 5.0),
+            Pair(7.0, 7.0),
+            Pair(9.0, 9.0)
+        )
         convertRopebwt2Ps4gFile.buildSpline(listOfPoints, splineBuilder, splineLookup, "chr1", "sample1")
 
-        val listOfPoints2 = mutableListOf(Pair(1.0, 2.0), Pair(3.0, 4.0), Pair(5.0, 6.0))
+        val listOfPoints2 = mutableListOf(
+            Pair(1.0, 2.0),
+            Pair(3.0, 4.0),
+            Pair(5.0, 6.0),
+            Pair(7.0, 8.0),
+            Pair(9.0, 10.0)
+        )
         convertRopebwt2Ps4gFile.buildSpline(listOfPoints2, splineBuilder, splineLookup, "chr1", "sample2")
 
         val chrIndexMap = mapOf(Pair("chr1", 0), Pair("chr2", 1))
@@ -339,7 +351,7 @@ class ConvertRopebwt2Ps4gFileTest {
 
         assertEquals(0, PS4GUtils.decodePosition(chr1Spline.value(1.0).toInt()).position)
         assertEquals(256, PS4GUtils.decodePosition(chr1Spline.value(256.0).toInt()).position)
-        assertEquals(768, PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()).position) // 1500/256 = 5
+        assertEquals(1024, PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()).position) // 1500/256 = 5
         assertEquals(2560, PS4GUtils.decodePosition(chr1Spline.value(3000.0).toInt()).position) // 3000/256 = 11
 
         assertFalse(chr1Spline.isValidPoint(30000.0))
@@ -359,7 +371,7 @@ class ConvertRopebwt2Ps4gFileTest {
         val chr1Spline = splineMap["1_LineA"]!!
         assertEquals(0, PS4GUtils.decodePosition(chr1Spline.value(1.0).toInt()).position)
         assertEquals(256, PS4GUtils.decodePosition(chr1Spline.value(256.0).toInt()).position)
-        assertEquals(768, PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()).position) // 1500/256 = 5
+        assertEquals(1024, PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()).position) // 1500/256 = 5
         assertEquals(2560, PS4GUtils.decodePosition(chr1Spline.value(3000.0).toInt()).position) // 3000/256 = 11
 
         assertFalse(chr1Spline.isValidPoint(30000.0))
