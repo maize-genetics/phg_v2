@@ -3,7 +3,7 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.utils.Position
-import org.apache.commons.math3.analysis.interpolation.SplineInterpolator
+import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -107,7 +107,7 @@ class ConvertRopebwt2Ps4gFileTest {
     fun testEncodeHitsToPosition() {
         val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
         val splineLookup = mutableMapOf<String, PolynomialSplineFunction>()
-        val splineBuilder = SplineInterpolator()
+        val splineBuilder = AkimaSplineInterpolator()
         val listOfPoints = mutableListOf(Pair(1.0, 1.0), Pair(3.0, 3.0), Pair(5.0, 5.0))
         convertRopebwt2Ps4gFile.buildSpline(listOfPoints, splineBuilder, splineLookup, "chr1", "sample1")
 
@@ -176,7 +176,7 @@ class ConvertRopebwt2Ps4gFileTest {
 
         //Now we test with making the hits pass
         val splineLookup = mutableMapOf<String, PolynomialSplineFunction>()
-        val splineBuilder = SplineInterpolator()
+        val splineBuilder = AkimaSplineInterpolator()
         val listOfPoints = mutableListOf(Pair(1.0, 1.0), Pair(3.0, 3.0), Pair(5.0, 5.0))
         convertRopebwt2Ps4gFile.buildSpline(listOfPoints, splineBuilder, splineLookup, "chr1", "sample1")
 
@@ -209,7 +209,7 @@ class ConvertRopebwt2Ps4gFileTest {
 
         //create a spline lookup
         val splineLookup = mutableMapOf<String, PolynomialSplineFunction>()
-        val splineBuilder = SplineInterpolator()
+        val splineBuilder = AkimaSplineInterpolator()
         val listOfPoints = mutableListOf(Pair(1.0, 1.0), Pair(3.0, 3.0), Pair(5.0, 5.0))
         convertRopebwt2Ps4gFile.buildSpline(listOfPoints, splineBuilder, splineLookup, "chr1", "sample1")
 
@@ -271,7 +271,7 @@ class ConvertRopebwt2Ps4gFileTest {
         val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
         //make a simple linear spline
         val listOfPoints = mutableListOf(Pair(1.0, 1.0), Pair(3.0, 3.0), Pair(5.0, 5.0))
-        val splineBuilder = SplineInterpolator()
+        val splineBuilder = AkimaSplineInterpolator()
         val splineMap = mutableMapOf<String, PolynomialSplineFunction>()
 
         convertRopebwt2Ps4gFile.buildSpline(listOfPoints, splineBuilder, splineMap, "chr1", "sample1")

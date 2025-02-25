@@ -12,7 +12,7 @@ import net.maizegenetics.phgv2.cli.headerCommand
 import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.parseALTHeader
-import org.apache.commons.math3.analysis.interpolation.SplineInterpolator
+import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.apache.logging.log4j.LogManager
 import java.io.File
@@ -99,7 +99,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         VCFFileReader(hvcfFile, false).use { reader ->
             val header = reader.header
             val headerParsed = parseALTHeader(header)
-            val splineBuilder = SplineInterpolator()
+            val splineBuilder = AkimaSplineInterpolator()
             var currentChrom = ""
             val sampleName = reader.fileHeader.sampleNamesInOrder[0]
             checkMapAndAddToIndex(gameteIndexMap, sampleName)
@@ -171,7 +171,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
      */
     fun buildSpline(
         listOfPoints: MutableList<Pair<Double, Double>>,
-        splineBuilder: SplineInterpolator,
+        splineBuilder: AkimaSplineInterpolator,
         splineMap: MutableMap<String, PolynomialSplineFunction>,
         currentChrom: String,
         sampleName: String?
