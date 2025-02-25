@@ -108,13 +108,31 @@ class ConvertRopebwt2Ps4gFileTest {
         val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
         val splineLookup = mutableMapOf<String, PolynomialSplineFunction>()
         val splineBuilder = AkimaSplineInterpolator()
-        val listOfPoints = mutableListOf(Pair(1.0, 1.0), Pair(3.0, 3.0), Pair(5.0, 5.0))
+        val listOfPoints = mutableListOf(
+            Pair(1.0, 1.0),
+            Pair(3.0, 3.0),
+            Pair(5.0, 5.0),
+            Pair(7.0, 7.0),
+            Pair(9.0, 9.0)
+        )
         convertRopebwt2Ps4gFile.buildSpline(listOfPoints, splineBuilder, splineLookup, "chr1", "sample1")
 
-        val listOfPoints2 = mutableListOf(Pair(1.0, 2.0), Pair(3.0, 4.0), Pair(5.0, 6.0))
+        val listOfPoints2 = mutableListOf(
+            Pair(1.0, 2.0),
+            Pair(3.0, 4.0),
+            Pair(5.0, 6.0),
+            Pair(7.0, 8.0),
+            Pair(9.0, 10.0)
+        )
         convertRopebwt2Ps4gFile.buildSpline(listOfPoints2, splineBuilder, splineLookup, "chr1", "sample2")
 
-        val listOfPoints3 = mutableListOf(Pair(1.0, 3.0), Pair(3.0, 5.0), Pair(5.0, 7.0))
+        val listOfPoints3 = mutableListOf(
+            Pair(1.0, 3.0),
+            Pair(3.0, 5.0),
+            Pair(5.0, 7.0),
+            Pair(7.0, 9.0),
+            Pair(11.0, 13.0)
+        )
         convertRopebwt2Ps4gFile.buildSpline(listOfPoints3, splineBuilder, splineLookup, "chr1", "sample3")
 
         //single hit should return the position
@@ -141,7 +159,7 @@ class ConvertRopebwt2Ps4gFileTest {
         //multiple hits with a missing spline should return -1
         val missingSpline = listOf(MEMHit("chr1_sample1", "+", 3), MEMHit("chr1_sample2", "+", 3), MEMHit("chr1_sample3", "+", 10))
         val encodedMissingSpline = convertRopebwt2Ps4gFile.encodeHitsToPosition(missingSpline, splineLookup)
-        assertEquals(2, encodedMissingSpline.size)
+        assertEquals(3, encodedMissingSpline.size)
         assertEquals(Pair("chr1_sample1", 3), encodedMissingSpline[0])
         assertEquals(Pair("chr1_sample2", 4), encodedMissingSpline[1])
 
@@ -177,10 +195,22 @@ class ConvertRopebwt2Ps4gFileTest {
         //Now we test with making the hits pass
         val splineLookup = mutableMapOf<String, PolynomialSplineFunction>()
         val splineBuilder = AkimaSplineInterpolator()
-        val listOfPoints = mutableListOf(Pair(1.0, 1.0), Pair(3.0, 3.0), Pair(5.0, 5.0))
+        val listOfPoints = mutableListOf(
+            Pair(1.0, 1.0),
+            Pair(3.0, 3.0),
+            Pair(5.0, 5.0),
+            Pair(7.0, 7.0),
+            Pair(9.0, 9.0)
+        )
         convertRopebwt2Ps4gFile.buildSpline(listOfPoints, splineBuilder, splineLookup, "chr1", "sample1")
 
-        val listOfPoints2 = mutableListOf(Pair(1.0, 2.0), Pair(3.0, 4.0), Pair(5.0, 6.0))
+        val listOfPoints2 = mutableListOf(
+            Pair(1.0, 2.0),
+            Pair(3.0, 4.0),
+            Pair(5.0, 6.0),
+            Pair(7.0, 8.0),
+            Pair(9.0, 10.0)
+        )
         convertRopebwt2Ps4gFile.buildSpline(listOfPoints2, splineBuilder, splineLookup, "chr1", "sample2")
 
         val processedMems = convertRopebwt2Ps4gFile.processMemsForRead(memList, splineLookup, chrIndexMap, 19, 10, gameteToIdxMap)
@@ -282,7 +312,13 @@ class ConvertRopebwt2Ps4gFileTest {
     fun testBuildSpline() {
         val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
         //make a simple linear spline
-        val listOfPoints = mutableListOf(Pair(1.0, 1.0), Pair(3.0, 3.0), Pair(5.0, 5.0))
+        val listOfPoints = mutableListOf(
+            Pair(1.0, 1.0),
+            Pair(3.0, 3.0),
+            Pair(5.0, 5.0),
+            Pair(7.0, 7.0),
+            Pair(9.0, 9.0)
+        )
         val splineBuilder = AkimaSplineInterpolator()
         val splineMap = mutableMapOf<String, PolynomialSplineFunction>()
 
@@ -302,7 +338,17 @@ class ConvertRopebwt2Ps4gFileTest {
         //make a spline with multiple values for the same x
         //The code should remove one of them based on how it sees things
         //This list of points should be the same as the previous one
-        val listOfPoints2 = mutableListOf(Pair(1.0, 1.0), Pair(3.0, 3.0), Pair(3.0, 4.0), Pair(5.0, 5.0))
+        val listOfPoints2 = mutableListOf(
+            Pair(1.0, 1.0),
+            Pair(3.0, 3.0),
+            Pair(3.0, 4.0),
+            Pair(5.0, 5.0),
+            Pair(5.0, 6.0),
+            Pair(7.0, 7.0),
+            Pair(7.0, 9.0),
+            Pair(9.0, 9.0),
+            Pair(9.0, 11.0)
+        )
         convertRopebwt2Ps4gFile.buildSpline(listOfPoints2, splineBuilder, splineMap, "chr1", "sample2")
 
         assertEquals(2, splineMap.size)
