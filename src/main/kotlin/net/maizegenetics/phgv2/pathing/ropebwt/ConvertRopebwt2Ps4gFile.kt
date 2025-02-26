@@ -12,7 +12,7 @@ import net.maizegenetics.phgv2.cli.headerCommand
 import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.parseALTHeader
-import org.apache.commons.math3.analysis.interpolation.SplineInterpolator
+import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.apache.logging.log4j.LogManager
 import java.io.File
@@ -74,7 +74,8 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
     /**
      * Function to build spline lookups from the hvcf files in the directory.
-     * This will create Cubic splines based on the PolynomialSplineFunction from the Apache Commons Math3 library.
+     * This will compute Cubic splines based on the Akima algorithm, as originally formulated by Hiroshi Akima, 1970
+     * (http://doi.acm.org/10.1145/321607.321609) implemented via the Apache Commons Math3 library.
      */
     fun buildSplineLookup(hvcfDir: String) : Triple<Map<String, PolynomialSplineFunction>, Map<String,Int>, Map<String,Int>> {
         val hvcfFiles = File(hvcfDir).listFiles()
@@ -99,7 +100,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         VCFFileReader(hvcfFile, false).use { reader ->
             val header = reader.header
             val headerParsed = parseALTHeader(header)
-            val splineBuilder = SplineInterpolator()
+            val splineBuilder = AkimaSplineInterpolator()
             var currentChrom = ""
             val sampleName = reader.fileHeader.sampleNamesInOrder[0]
             checkMapAndAddToIndex(gameteIndexMap, sampleName)
@@ -171,7 +172,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
      */
     fun buildSpline(
         listOfPoints: MutableList<Pair<Double, Double>>,
-        splineBuilder: SplineInterpolator,
+        splineBuilder: AkimaSplineInterpolator,
         splineMap: MutableMap<String, PolynomialSplineFunction>,
         currentChrom: String,
         sampleName: String?
