@@ -123,7 +123,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         for (sampleId in rangeByGameteIdToHapid[rangeId].indices) {
             for (gameteId in rangeByGameteIdToHapid[rangeId][sampleId].indices) {
                 val hapid = rangeByGameteIdToHapid[rangeId][sampleId][gameteId]
-                if (hapid != null && hapid.isNotEmpty()) {
+                if (hapid.isNotEmpty()) {
                     result.getOrPut(hapid) { mutableListOf() }.add(SampleGamete(sampleNames[sampleId], gameteId))
                 }
             }
@@ -159,6 +159,15 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
             }
         }
         return result
+    }
+
+    /**
+     * Returns the hapIds for the specified ReferenceRange.
+     */
+    fun hapIds(range: ReferenceRange): Set<String> {
+        val rangeId = refRangeMap[range]
+        require(rangeId != null) { "hapIds: range: $range not found" }
+        return rangeByGameteIdToHapid[rangeId].flatten().filter { it.isNotBlank() }.toSet()
     }
 
     /**
