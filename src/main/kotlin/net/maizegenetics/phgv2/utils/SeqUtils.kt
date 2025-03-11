@@ -273,7 +273,7 @@ fun buildAgcCommandFromList(dbPath:String, agcCmd:String, ranges:List<String>, c
     check(File(agcFile).exists()) { "File assemblies.agc does not exist in folder $dbPath- please send a valid path that indicates the parent folder for your assemblies.agc compressed file." }
 
     val command = mutableListOf<String>()
-    val commandPrefix = if (condaEnvPrefix.isNotBlank()) arrayOf("conda","run","-p","phgv2-conda") else arrayOf("conda","run","-n","phgv2-conda")
+    val commandPrefix = if (condaEnvPrefix.isNotBlank()) arrayOf("conda","run","-p", condaEnvPrefix) else arrayOf("conda","run","-n","phgv2-conda")
     val commandData = arrayOf("agc",agcCmd,agcFile)
     command.addAll(commandPrefix)
     command.addAll(commandData)
