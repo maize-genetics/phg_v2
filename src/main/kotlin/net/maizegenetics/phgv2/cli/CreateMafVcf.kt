@@ -69,6 +69,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         twoGvcfs: Boolean = false,
         legacyMafFile: Boolean = false
     ) {
+        val mafToGVCFObject = MAFToGVCF()
 
         // load the bed file into some data structure
         val ranges = loadRanges(bedFileName)
@@ -87,20 +88,22 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
             .forEach {
                 myLogger.info("CreateASMHvcfs: processing ${it.absolutePath}")
                 val sampleName = it.nameWithoutExtension //This will likely need to change in the future
-                val gvcfVariants = getGVCFVariantsFromMafFile(refGenomeSequence, it.absolutePath, it.nameWithoutExtension, twoGvcfs=twoGvcfs, legacyMafFile=legacyMafFile)
+                val gvcfVariants = getGVCFVariantsFromMafFile(mafToGVCFObject,refGenomeSequence, it.absolutePath, it.nameWithoutExtension, twoGvcfs=twoGvcfs, legacyMafFile=legacyMafFile)
                 //export the gvcfRecords
                 if (gvcfVariants.size == 1){
                     myLogger.info("createASMHvcfs: gvcfVariants.size == 1")
                     val sampleName = gvcfVariants.keys.first()
-                    val variants = gvcfVariants.values.first().sortedWith(VariantContextComparator(contigList))
+                    val variants = gvcfVariants.values.first().sortedBy { variant -> Position(variant.chr,variant.startPos) }
                     myLogger.info("createASMHvcfs: processing sampleName = $sampleName")
-                    exportVariantContext(sampleName, variants, "${outputDirName}/${it.nameWithoutExtension}.g.vcf",refGenomeSequence, setOf())
+                    //convert to VariantContexts
+                    val variantContexts = variants.map { variantInfo -> mafToGVCFObject.convertVariantInfoToContext(sampleName, variantInfo, outJustGT = false, delAsSymbolic = false, maxDeletionSize = 0) }
+                    exportVariantContext(sampleName, variantContexts, "${outputDirName}/${it.nameWithoutExtension}.g.vcf",refGenomeSequence, setOf())
                     bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.g.vcf")
 
                     val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
                     //convert the GVCF records into hvcf records
                     myLogger.info("createASMHvcfs: calling convertGVCFToHVCF for $sampleName")
-                    val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines,condaEnvPrefix)
+                    val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, variantContexts, refGenomeSequence, dbPath, asmHeaderLines,condaEnvPrefix)
                     val asmHeaderSet = asmHeaderLines.values.toSet()
                     //export the hvcfRecords
                     myLogger.info("createASMHvcfs: calling exportVariantContext for $sampleName")
@@ -112,13 +115,15 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                     val gvcfOutput = "${outputDirName}/${it.nameWithoutExtension}.g.vcf"
                     val outputNames = MAFToGVCF().twoOutputFiles(gvcfOutput)
                     gvcfVariants.entries.forEachIndexed { index, (name, variants) ->
-                        val sortedVariants = variants.sortedWith(VariantContextComparator(contigList))
+                        val sortedVariants = variants.sortedBy { variant -> Position(variant.chr,variant.startPos) }
+                        val variantContexts = sortedVariants.map { variantInfo -> mafToGVCFObject.convertVariantInfoToContext(sampleName, variantInfo, outJustGT = false, delAsSymbolic = false, maxDeletionSize = 0) }
+
                         val outputFile =
-                            exportVariantContext(name, sortedVariants, outputNames[index], refGenomeSequence, setOf())
+                            exportVariantContext(name, variantContexts, outputNames[index], refGenomeSequence, setOf())
                         bgzipAndIndexGVCFfile(outputNames[index])
                         val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
                         //convert the GVCF records into hvcf records
-                        val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, sortedVariants, refGenomeSequence, dbPath, asmHeaderLines,condaEnvPrefix)
+                        val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, variantContexts, refGenomeSequence, dbPath, asmHeaderLines,condaEnvPrefix)
                         val asmHeaderSet = asmHeaderLines.values.toSet()
                         //export the hvcfRecords
                         exportVariantContext(sampleName, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, asmHeaderSet)
@@ -153,8 +158,9 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * 7. [outputType] - either gvcf or vcf (BioKotlin doesn't currently have h.vcf, default is gvcf)
      *
      */
-    private fun getGVCFVariantsFromMafFile(refSeq: Map<String,NucSeq>, mafFileName : String, sampleName: String, fillGaps: Boolean = false, twoGvcfs: Boolean = false, legacyMafFile: Boolean = false) : Map<String,List<VariantContext>> {
-        return MAFToGVCF().getVariantContextsfromMAF(
+    private fun getGVCFVariantsFromMafFile(mafToGVCFObject: MAFToGVCF,refSeq: Map<String,NucSeq>, mafFileName : String,
+                                           sampleName: String, fillGaps: Boolean = false, twoGvcfs: Boolean = false, legacyMafFile: Boolean = false) : Map<String,List<AssemblyVariantInfo>> {
+        return mafToGVCFObject.getVariantContextsfromMAF(
             mafFileName,
             refSeq,
             sampleName,
