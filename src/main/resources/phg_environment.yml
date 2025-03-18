@@ -4,9 +4,9 @@ channels:
   - bioconda
   - tiledb
 dependencies:
-  - python=3.8
-  - tiledb-py=0.22
-  - tiledbvcf-py=0.25
+  - python=3.10
+  - tiledb-py=0.33.6
+  - tiledbvcf-py=0.37.0
   - anchorwave=1.2.5
   - bcftools
   - samtools
