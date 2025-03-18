@@ -1,4 +1,5 @@
 ##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
 ##ALT=<ID=06ae4e937668d301e325d43725a38c3f,Description="haplotype data for line: Ref",Source="data/test/smallseq/Ref.fa",SampleName=Ref,Regions=1:45001-49500,Checksum=06ae4e937668d301e325d43725a38c3f,RefRange=1:45001-49500,RefChecksum=06ae4e937668d301e325d43725a38c3f>
 ##ALT=<ID=073286a82fe47d6a370e8a7a3803f1d3,Description="haplotype data for line: Ref",Source="data/test/smallseq/Ref.fa",SampleName=Ref,Regions=1:39501-44000,Checksum=073286a82fe47d6a370e8a7a3803f1d3,RefRange=1:39501-44000,RefChecksum=073286a82fe47d6a370e8a7a3803f1d3>
 ##ALT=<ID=105c85412229b45439db1f03c3f064f4,Description="haplotype data for line: Ref",Source="data/test/smallseq/Ref.fa",SampleName=Ref,Regions=1:27501-28500,Checksum=105c85412229b45439db1f03c3f064f4,RefRange=1:27501-28500,RefChecksum=105c85412229b45439db1f03c3f064f4>
@@ -52,6 +53,8 @@
 ##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
 ##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
 ##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
+##contig=<ID=1>
+##contig=<ID=2>
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Ref
 1	1	.	G	<546d1839623a5b0ea98bbff9a8a320e2>	.	.	END=1000	GT	1
 1	1001	.	A	<57705b1e2541c7634ea59a48fc52026f>	.	.	END=5500	GT	1
