@@ -1,4 +1,5 @@
 ##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
 ##ALT=<ID=0eb9029f3896313aebc69c8489923141,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineA,Regions=2:49501-50300,Checksum=0eb9029f3896313aebc69c8489923141,RefRange=2:49501-50500,RefChecksum=39f96726321b329964435865b3694fd2>
 ##ALT=<ID=12f0cec9102e84a161866e37072443b7,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineA,Regions=1:1-1000,Checksum=12f0cec9102e84a161866e37072443b7,RefRange=1:1-1000,RefChecksum=546d1839623a5b0ea98bbff9a8a320e2>
 ##ALT=<ID=13417ecbb38b9a159e3ca8c9dade7088,Description="haplotype data for line: LineA",Source="/Users/tmc46/temp/phgv2Tests/tempDir/testTileDBURI//assemblies.agc",SampleName=LineA,Regions=2:1-1000,Checksum=13417ecbb38b9a159e3ca8c9dade7088,RefRange=2:1-1000,RefChecksum=5812acb1aff74866003656316c4539a6>
@@ -50,6 +51,8 @@
 ##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
 ##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
 ##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
+##contig=<ID=1>
+##contig=<ID=2>
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	LineA
 1	1	.	G	<12f0cec9102e84a161866e37072443b7>	.	.	END=1000	GT	1
 1	1001	.	A	<3149b3144f93134eb29661bade697fc6>	.	.	END=5500	GT	1
