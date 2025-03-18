@@ -99,7 +99,7 @@ class CreateFastaFromHvcfTest {
         assertEquals(currentHeader2b?.description, "haplotype data for line: Ref")
         assertEquals(currentHeader2b?.source, "data/test/smallseq/Ref.fa")
         assertEquals(currentHeader2b?.regions?.get(0), Pair(Position("1",11001), Position("1",12000)))
-        assertEquals(currentHeader2b?.checksum, "Md5")
+        assertEquals("2b4590f722ef9229c15d29e0b4e51a0e", currentHeader2b?.checksum)
         assertEquals(currentHeader2b?.refRange, "2b4590f722ef9229c15d29e0b4e51a0e")
 //        ##ALT=<ID=db22dfc14799b1aa666eb7d571cf04ec,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=2,Start=16501,End=17500,Checksum=Md5,RefRange=db22dfc14799b1aa666eb7d571cf04ec>
         assertTrue(altHeaders.containsKey("db22dfc14799b1aa666eb7d571cf04ec"))
