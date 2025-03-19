@@ -27,6 +27,8 @@ jobs:
           auto-activate-base: true
           activate-environment: ""
           miniconda-version: "latest"
+      - name: Run Tiledb Conda
+        run: conda env create --solver=libmamba --file src/main/resources/phg_tiledb_environment.yml
       - name: Run Conda
         run: conda env create --solver=libmamba --file src/main/resources/phg_environment.yml
       - name: Run RopeBWT Conda
