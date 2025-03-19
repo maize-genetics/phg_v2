@@ -1,0 +1,9 @@
+name: phgv2-tiledb
+channels:
+  - conda-forge
+  - bioconda
+  - tiledb
+dependencies:
+  - python=3.11
+  - tiledb-py=0.33.6
+  - tiledbvcf-py=0.37.0
