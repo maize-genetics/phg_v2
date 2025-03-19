@@ -155,7 +155,7 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
     // This function runs tiledbvcf list --uri <uri> and returns a list of sample names
     fun getTileDBSampleLists(uri:String ): List<String> {
         try {
-            var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","list","--uri",uri)
+            var builder = ProcessBuilder("conda","run","-n","phgv2-tiledb","tiledbvcf","list","--uri",uri)
                 .start()
             val sampleListOut = BufferedInputStream(builder.inputStream, 5000000)
             var samples = inputStreamProcessing(sampleListOut)
@@ -203,7 +203,7 @@ class LoadVcf : CliktCommand(help = "Load g.vcf and h.vcf files into TileDB data
         myLogger.info("vcfListFile contents: ${File(vcfListFile).readText()}")
 
         val command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix,"tiledbvcf","store","--uri",uri,"-t",threads,"-f",vcfListFile,"--remove-sample-file")
-        else mutableListOf("conda","run","-n","phgv2-conda","tiledbvcf","store","--uri",uri,"-t",threads,"-f",vcfListFile,"--remove-sample-file")
+        else mutableListOf("conda","run","-n","phgv2-tiledb","tiledbvcf","store","--uri",uri,"-t",threads,"-f",vcfListFile,"--remove-sample-file")
         // Store the files to tiledb
         var builder = ProcessBuilder(command)
         var redirectOutput = tempDir + "/tiledb_store_output.log"
