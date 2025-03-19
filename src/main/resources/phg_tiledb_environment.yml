@@ -4,6 +4,6 @@ channels:
   - bioconda
   - tiledb
 dependencies:
-  - python=3.11
+  - python=3.12
   - tiledb-py=0.33.6
   - tiledbvcf-py=0.37.0
