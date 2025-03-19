@@ -3,7 +3,6 @@ package net.maizegenetics.phgv2.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
-import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.SymbolicAllele
 import net.maizegenetics.phgv2.api.exportMultiSampleHVCF
@@ -46,13 +45,4 @@ class UpdateHvcfSpec : CliktCommand(help = "Update HVCF file to latest specifica
         return md5Regex.matches(input)
     }
 
-}
-
-fun main() {
-    val inputFile = "/Users/terry/git/phgv2/data/test/smallseq/LineA.h.vcf"
-    val outputFile = "/Users/terry/git/phgv2/data/test/smallseq/LineA.h.updated.vcf"
-    val refFile = "/Users/terry/git/phgv2/data/test/smallseq/Ref.fa"
-    val result = UpdateHvcfSpec().test(
-        "--input-file $inputFile --output-file $outputFile --reference-file $refFile"
-    )
 }
