@@ -136,11 +136,11 @@ fun altHeaderMetadataToVCFHeaderLine(altHeaderData: AltHeaderMetaData, altHeader
 
     return VCFAltHeaderLine(
         "<ID=${altHeaderId ?: altHeaderData.id}, " +
-                "Description=\"haplotype data for line: ${altHeaderData.sampleName()}\">," +
+                "Description=\"haplotype data for line: ${altHeaderData.sampleName()}\"," +
                 "Source=\"${altHeaderData.source}\",SampleName=\"${altHeaderData.sampleName()}\"," +
                 "Regions=\"${altHeaderData.regions.joinToString(",") { "${it.first.contig}:${it.first.position}-${it.second.position}" }}\"," +
-                "Checksum=\"${altHeaderData.checksum}\",RefRange=\"${altHeaderData.refRange}\">," +
-                refChecksum,
+                "Checksum=\"${altHeaderData.checksum}\",RefRange=\"${altHeaderData.refRange}\"" +
+                refChecksum + ">",
         VCFHeaderVersion.VCF4_2
     )
 
