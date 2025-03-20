@@ -139,7 +139,7 @@ class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT
             Pair("-p",condaEnvPrefix)
         }
         else {
-            Pair("-n", "phgv2-ropebwt-conda")
+            Pair("-n", "phgv2-conda")
         }
 
         val ropebwt3Process = ProcessBuilder("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "mem", "-t$threads", "-l$minMemLength", "-p$maxNumHits", index, readFile)

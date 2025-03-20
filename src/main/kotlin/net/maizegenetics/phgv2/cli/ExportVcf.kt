@@ -120,7 +120,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         val dtype = if (datasetType == "gvcf") "gvcf_dataset" else "hvcf_dataset"
 
         // Setup the conda environment portion of the command
-        var command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix) else mutableListOf("conda","run","-n","phgv2-conda")
+        var command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix) else mutableListOf("conda","run","-n","phgv2-tiledb")
 
         // Tiledbvcf can take either a file with samplenames, or a comma-separated list of sample names
         // setup the command based on user input type.
@@ -128,7 +128,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
             "conda",
             "run",
             "-n",
-            "phgv2-conda",
+            "phgv2-tiledb",
             "tiledbvcf",
             "export",
             "--uri",
@@ -143,7 +143,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
             "conda",
             "run",
             "-n",
-            "phgv2-conda",
+            "phgv2-tiledb",
             "tiledbvcf",
             "export",
             "--uri",
