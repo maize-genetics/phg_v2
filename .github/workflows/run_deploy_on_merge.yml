@@ -61,8 +61,6 @@ jobs:
         run: conda env create --solver=libmamba --file src/main/resources/phg_tiledb_environment.yml
       - name: Run Conda
         run: conda env create --solver=libmamba --file src/main/resources/phg_environment.yml
-      - name: Run RopeBWT Conda
-        run: conda env create --solver=libmamba --file src/main/resources/phg_ropebwt_environment.yml
 
       # Uses semantic commits to automate version bumping.
       # No scope or "fix:" = PATCH, "feat:" or "minor:" = MINOR, "BREAKING CHANGE:", "major:", or fix/feat with appended "!" = MAJOR
