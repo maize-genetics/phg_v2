@@ -39,7 +39,7 @@ class SetupEnvironmentTest {
         val envFile = "src/test/resources/net/maizegenetics/phgv2/cli/test.yml"
 
         val setupEnv = SetupEnvironment()
-        val result = setupEnv.createEnvironment(envFile, tempDir,"", "")
+        val result = setupEnv.createEnvironment(envFile, tempDir,"")
         println("result = $result")
         // To verify, we  check that the outputDir contains the expected files
         val expectedFiles = listOf("condaCreate_error.log", "condaCreate_output.log")
@@ -55,7 +55,7 @@ class SetupEnvironmentTest {
 
         val setupEnv = SetupEnvironment()
 
-        val result = setupEnv.createEnvironment(envFile, tempDir,"", "")
+        val result = setupEnv.createEnvironment(envFile, tempDir,"")
         println("result = $result")
         // To verify, we  check that the outputDir contains the expected files
         val expectedFiles = listOf("condaCreate_error.log", "condaCreate_output.log")
@@ -69,7 +69,7 @@ class SetupEnvironmentTest {
 
         val setupEnv = SetupEnvironment()
         val exceptionThrow = try {
-            setupEnv.createEnvironment(envFile, tempDir,"", "")
+            setupEnv.createEnvironment(envFile, tempDir,"")
             false
         } catch (e: IllegalStateException) {
             assert(e.message!!.contains("file $envFile does not exist"))
