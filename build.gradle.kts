@@ -95,14 +95,6 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
     implementation("io.ktor:ktor-client-websockets:$ktorVersion")
 
-    implementation("org.ehcache:ehcache:3.10.8") {
-        //Need to add this as the ehcache tries to pull down a snapshot jar which no longer is on maven central
-        //This forces it to grab a specific version
-        capabilities {
-            requireCapability("org.ehcache:ehcache-jakarta")
-        }
-    }
-
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
 
 

@@ -1,47 +1,27 @@
 package net.maizegenetics.phgv2.brapi.service
 
+import com.google.common.cache.CacheBuilder
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.brapi.model.TokenPagination
 import net.maizegenetics.phgv2.brapi.model.Variant
 import net.maizegenetics.phgv2.brapi.utilities.BrAPIConfig
 import org.apache.logging.log4j.LogManager
-import org.ehcache.config.builders.CacheConfigurationBuilder
-import org.ehcache.config.builders.CacheManagerBuilder
-import org.ehcache.config.builders.ResourcePoolsBuilder
-import org.ehcache.core.internal.statistics.DefaultStatisticsService
-import org.ehcache.core.spi.service.StatisticsService
 import java.io.File
 import java.util.*
-
-val statisticsVariantsService: StatisticsService = DefaultStatisticsService()
 
 
 /**
  * Class to handle all the Variant creation.
  */
 
-// Cache manager stores the reference range data im memory for
-// quick access.
-private val cacheManager = CacheManagerBuilder.newCacheManagerBuilder()
-    .using(statisticsVariantsService)
-    .withCache(
-        "variantCache",
-        CacheConfigurationBuilder.newCacheConfigurationBuilder(
-            String::class.java,
-            ArrayList::class.java,
-            ResourcePoolsBuilder.heap(1).build()
-        )
-    )
-    .build(true)
-
-private val variantCache = cacheManager.getCache("variantCache",String::class.java, ArrayList::class.java)
+private val variantCache = CacheBuilder.newBuilder()
+    .maximumSize(100)
+    .build<String, List<ReferenceRange>>()
 
 class VariantsService {
     private val myLogger = LogManager.getLogger(VariantsService::class.java)
 
     init {
-        println("VariantsService:init -  heapSIze before create variants cache:")
-        //Sizeof.printMemoryUse()  // copy TASSEL function to phgv2?
 
         // Search the tiledbURI/reference directory for bed files.
         // there should only be 1.  If there are more, we will use the first one.
@@ -59,16 +39,8 @@ class VariantsService {
         } else {
             val bedFile = bedFileList[0]
             val referenceRanges = createRefRangesForCache(bedFile) as ArrayList<ReferenceRange>
-            if (referenceRanges != null) {
-                // This list of reference ranges as stored with key "haplotype"
-                variantCache.put("all",referenceRanges)
-                val ehCacheStat = statisticsVariantsService.getCacheStatistics("variantCache");
-                // using println until we get myLogger working
-                println("variant (reference Range) cache size: ${ehCacheStat.getTierStatistics().get("OnHeap")?.getMappings()}")
-                myLogger.info("variant (reference Range) cache size: ${ehCacheStat.getTierStatistics().get("OnHeap")?.getMappings()}")
-            }
-            println("VariantsService:init -  heapSize after create variants cache:")
-            //Sizeof.printMemoryUse()
+            // This list of reference ranges as stored with key "haplotype"
+            variantCache.put("all", referenceRanges)
         }
 
     }
@@ -97,17 +69,9 @@ class VariantsService {
 
     // Function to query the cache for a set of reference ranges.
     // If the cache doesn't exist, create it.
-    fun getReferenceRanges(groupName:String): List<ReferenceRange>? {
-        var referenceRanges: List<ReferenceRange>? = null
-        if (variantCache.containsKey(groupName)) {
-            myLogger.info("generateVariantsListFromCache - getting reference/variants from cache")
-            println("generateVariantsListFromCache - getting reference/variants from cache")
-            referenceRanges = variantCache[groupName] as ArrayList<ReferenceRange>
-
-        } else {
-            myLogger.info("generateVariantsListFromCache - no variantCache - creating it, heapSIze before create cache:")
-            println("generateVariantsListFromCache - no variantCache - creating it, heapSIze before create cache:")
-            //Sizeof.printMemoryUse()
+    private fun getReferenceRanges(groupName:String): List<ReferenceRange>? {
+        var referenceRanges = variantCache.getIfPresent(groupName)
+        if (referenceRanges == null) {
             val bedFileList = File("${BrAPIConfig.tiledbURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()
             if ( bedFileList.size < 1) {
                 // The bedfile is copied to tiledbURI/references when CreateRefVcf is run.
@@ -121,16 +85,8 @@ class VariantsService {
             } else {
                 val bedFile = bedFileList[0]
                 referenceRanges = createRefRangesForCache(bedFile) as ArrayList<ReferenceRange>
-                if (referenceRanges != null) {
-                    // This list of reference ranges as stored with key "haplotype"
-                    variantCache.put("all",referenceRanges)
-                    val ehCacheStat = statisticsVariantsService.getCacheStatistics("variantCache");
-                    // using println until we get myLogger working
-                    println("variant (reference Range) cache size: ${ehCacheStat.getTierStatistics().get("OnHeap")?.getMappings()}")
-                    myLogger.info("variant (reference Range) cache size: ${ehCacheStat.getTierStatistics().get("OnHeap")?.getMappings()}")
-                }
-                println("VariantsService:init -  heapSize after create variants cache:")
-                //Sizeof.printMemoryUse()
+                // This list of reference ranges as stored with key "haplotype"
+                variantCache.put("all", referenceRanges)
             }
         }
         return referenceRanges
