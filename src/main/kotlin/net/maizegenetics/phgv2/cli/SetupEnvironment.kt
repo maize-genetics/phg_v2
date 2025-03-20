@@ -22,7 +22,7 @@ class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG
     private val myLogger = LogManager.getLogger(SetupEnvironment::class.java)
 
     enum class CONDAENVTYPE {
-        PHG, ROPEBWT, TILEDB
+        PHG, TILEDB
     }
 
     val envFile by option("-e", "--env-file", help = "File containing the conda environment definition")
@@ -57,21 +57,6 @@ class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG
             envFile
         }
 
-        val ropeBwtResultEnvFile = if (ropeBWTFile == "") {
-            val selectedEnvFile = "${outputDir}/phg_ropebwt_environment.yml"
-            val fileContent = this::class.java.classLoader.getResource("phg_ropebwt_environment.yml").readText()
-            myLogger.info("writing default environment file to $selectedEnvFile")
-            // This will overwrite an existing file
-            File(selectedEnvFile).writeText(fileContent)
-            selectedEnvFile
-        } else {
-            if (!File(ropeBWTFile).exists()) {
-                myLogger.error("The specified file $ropeBWTFile does not exist.")
-                throw IllegalStateException("SetupEnvironment: create conda environment failed: file $ropeBWTFile does not exist")
-            }
-            ropeBWTFile
-        }
-
         val tiledbEnvFile = if (tiledbFile == "") {
             val selectedEnvFile = "${outputDir}/phg_tiledb_environment.yml"
             val fileContent = this::class.java.classLoader.getResource("phg_tiledb_environment.yml").readText()
@@ -88,7 +73,6 @@ class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG
         }
 
         runCondaCreate(resultEnvFile, outputDir, envFile, CONDAENVTYPE.PHG)
-        runCondaCreate(ropeBwtResultEnvFile, outputDir, ropeBWTFile, CONDAENVTYPE.ROPEBWT)
         runCondaCreate(tiledbEnvFile, outputDir, tiledbFile, CONDAENVTYPE.TILEDB)
     }
 
@@ -98,13 +82,11 @@ class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG
         val builder = ProcessBuilder("conda", "env", "create", "--solver=libmamba", "--file", resultEnvFile)
         val redirectOutput = when(envType) {
             CONDAENVTYPE.PHG -> "$outputDir/condaCreate_output.log"
-            CONDAENVTYPE.ROPEBWT -> "$outputDir/ropebwtCondaCreate_output.log"
             CONDAENVTYPE.TILEDB -> "$outputDir/tiledbCondaCreate_output.log"
         }
 
         val redirectError = when(envType) {
             CONDAENVTYPE.PHG -> "$outputDir/condaCreate_error.log"
-            CONDAENVTYPE.ROPEBWT -> "$outputDir/ropebwtCondaCreate_error.log"
             CONDAENVTYPE.TILEDB -> "$outputDir/tiledbCondaCreate_error.log"
         }
 
