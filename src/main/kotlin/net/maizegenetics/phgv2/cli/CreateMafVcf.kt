@@ -365,7 +365,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                 //If variant is fully contained in Bed region add to temp list and increment currentVariantIdx
                 //If variant is partially contained in Bed region add to temp list do not increment as we need to see if the next bed also overlaps
                 //If variant is not contained in Bed region, skip and do not increment as we need to see if the next bed overlaps
-                if(bedRegionContainedInVariantInfo(region, currentVariantInfo)) {
+                if(AssemblyVariantInfoUtils.bedRegionContainedInVariantInfo(region, currentVariantInfo)) {
                     outputVariantMetadata.add(
                         convertGVCFRecordsToHVCFMetaDataVariantInfo(
                             sampleName,
@@ -377,20 +377,20 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                     tempVariants.clear()
                     break
                 }
-                if(variantInfoFullyContained(region, currentVariantInfo)) {
+                if(AssemblyVariantInfoUtils.variantInfoFullyContained(region, currentVariantInfo)) {
                     //This is the case where the variant is completely contained within the region
                     tempVariants.add(currentVariantInfo)
                     currentVariantIdx++
                 }
-                else if(variantInfoPartiallyContainedStart(region,currentVariantInfo)) {
+                else if(AssemblyVariantInfoUtils.variantInfoPartiallyContainedStart(region,currentVariantInfo)) {
                     tempVariants.add(currentVariantInfo)
                     break
                 }
-                else if(variantInfoPartiallyContainedEnd(region, currentVariantInfo)) {
+                else if(AssemblyVariantInfoUtils.variantInfoPartiallyContainedEnd(region, currentVariantInfo)) {
                     tempVariants.add(currentVariantInfo)
                     currentVariantIdx++
                 }
-                else if(variantInfoAfterRegion(region, currentVariantInfo)) {
+                else if(AssemblyVariantInfoUtils.variantInfoAfterRegion(region, currentVariantInfo)) {
                     //write out what is in tempVariants
                     if(tempVariants.isNotEmpty()) {
                         outputVariantMetadata.add(
@@ -429,69 +429,6 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         return outputVariants
     }
 
-
-
-    /**
-     * Function to see if the BED region is fully contained within a VariantInfo
-     * Indels are left-justified
-     * Bed:       |---|
-     * Var: |--------------|
-     */
-    fun bedRegionContainedInVariantInfo(region: Pair<Position,Position>, variant: AssemblyVariantInfo) : Boolean {
-        return variant.chr == region.first.contig && variant.startPos <= region.first.position && variant.endPos >= region.second.position
-    }
-
-
-
-    /**
-     * Function to see if the VariantContext is fully contained within a BED region
-     * Indels are left-justified
-     * Bed: |--------------|
-     * Var:       |---|
-     */
-    fun variantInfoFullyContained(region: Pair<Position,Position>, variant: AssemblyVariantInfo) : Boolean {
-        return variant.chr == region.first.contig && variant.startPos >= region.first.position && variant.endPos <= region.second.position
-    }
-
-
-    /**
-     * Function to see if the start of the variant is partially contained in the BED region
-     * Indels are left-justified
-     * Bed: |--------------|
-     * Var:              |---|
-     */
-    fun variantInfoPartiallyContainedStart(region: Pair<Position,Position>, variant: AssemblyVariantInfo) : Boolean {
-        return variant.chr == region.first.contig &&
-                variant.startPos >= region.first.position &&
-                variant.startPos <= region.second.position &&
-                variant.endPos > region.second.position
-    }
-
-
-
-    /**
-     * Function to see if the end of the variant is partially contained in the BED region
-     * Indels are left-justified
-     * Bed:      |--------------|
-     * Var:    |---|
-     */
-    fun variantInfoPartiallyContainedEnd(region: Pair<Position,Position>, variant: AssemblyVariantInfo) : Boolean {
-        return variant.chr == region.first.contig &&
-                variant.endPos <= region.second.position &&
-                variant.endPos >= region.first.position &&
-                variant.startPos < region.first.position
-    }
-
-
-
-    /**
-     * Function to see if the variant is after the bed region
-     * Bed: |--------------|
-     * Var:                   |---|
-     */
-    fun variantInfoAfterRegion(region: Pair<Position,Position>, variant: AssemblyVariantInfo) : Boolean {
-        return variant.chr == region.first.contig && variant.startPos > region.second.position
-    }
 
 
     /**
