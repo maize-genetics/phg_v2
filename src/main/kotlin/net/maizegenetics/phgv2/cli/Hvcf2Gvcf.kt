@@ -397,8 +397,6 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         val refRangeToVariantContext = mutableMapOf<ReferenceRange, MutableList<VariantContext>>() // this will be returned
         var currentVariantIdx = 0
 
-        val createMafVcf = CreateMafVcf()
-
         for (range in ranges) {
             val regionStart = range.start
             val regionEnd = range.end
@@ -409,7 +407,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                 val currentVariant = variantContexts[currentVariantIdx]
 
                 when {
-                    createMafVcf.bedRegionContainedInVariant(Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), currentVariant) -> {
+                    VariantContextUtils.bedRegionContainedInVariant(Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), currentVariant) -> {
                         // This is the case where the region is completely contained within the variant,
                         // meaning the variant may overlap the region.  We need to adjust the asm positions
                         val fixedVariants = fixPositions(sample,Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), listOf(currentVariant),refSeq)
@@ -418,20 +416,20 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                         tempVariants.clear()
                         break
                     }
-                    createMafVcf.variantFullyContained(Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), currentVariant) -> {
+                    VariantContextUtils.variantFullyContained(Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), currentVariant) -> {
                         //This is the case where the variant is completely contained within the region
                         tempVariants.add(currentVariant)
                         currentVariantIdx++
                     }
-                    createMafVcf.variantPartiallyContainedStart(Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), currentVariant) -> {
+                    VariantContextUtils.variantPartiallyContainedStart(Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), currentVariant) -> {
                         tempVariants.add(currentVariant)
                         break
                     }
-                    createMafVcf.variantPartiallyContainedEnd(Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), currentVariant) -> {
+                    VariantContextUtils.variantPartiallyContainedEnd(Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), currentVariant) -> {
                         tempVariants.add(currentVariant)
                         currentVariantIdx++
                     }
-                    createMafVcf.variantAfterRegion(Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), currentVariant) -> {
+                    VariantContextUtils.variantAfterRegion(Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), currentVariant) -> {
                         // write data from tempVariants
                         if (tempVariants.isNotEmpty()) {
                             val fixedVariants = fixPositions(sample,Pair(Position(regionChrom, regionStart), Position(regionChrom, regionEnd)), tempVariants,refSeq)

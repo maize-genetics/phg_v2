@@ -249,7 +249,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                 //If variant is fully contained in Bed region add to temp list and increment currentVariantIdx
                 //If variant is partially contained in Bed region add to temp list do not increment as we need to see if the next bed also overlaps
                 //If variant is not contained in Bed region, skip and do not increment as we need to see if the next bed overlaps
-                if(bedRegionContainedInVariant(region, currentVariant)) {
+                if(VariantContextUtils.bedRegionContainedInVariant(region, currentVariant)) {
                     outputVariantMetadata.add(
                         convertGVCFRecordsToHVCFMetaData(
                             sampleName,
@@ -261,20 +261,20 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                     tempVariants.clear()
                     break
                 }
-                if(variantFullyContained(region, currentVariant)) {
+                if(VariantContextUtils.variantFullyContained(region, currentVariant)) {
                     //This is the case where the variant is completely contained within the region
                     tempVariants.add(currentVariant)
                     currentVariantIdx++
                 }
-                else if(variantPartiallyContainedStart(region,currentVariant)) {
+                else if(VariantContextUtils.variantPartiallyContainedStart(region,currentVariant)) {
                     tempVariants.add(currentVariant)
                     break
                 }
-                else if(variantPartiallyContainedEnd(region, currentVariant)) {
+                else if(VariantContextUtils.variantPartiallyContainedEnd(region, currentVariant)) {
                     tempVariants.add(currentVariant)
                     currentVariantIdx++
                 }
-                else if(variantAfterRegion(region, currentVariant)) {
+                else if(VariantContextUtils.variantAfterRegion(region, currentVariant)) {
                     //write out what is in tempVariants
                     if(tempVariants.isNotEmpty()) {
                         outputVariantMetadata.add(
@@ -429,16 +429,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         return outputVariants
     }
 
-    /**
-     * Function to see if the BED region is fully contained within a VariantContext
-     * Indels are left-justified
-     * Bed:       |---|
-     * Var: |--------------|
-     */
-    fun bedRegionContainedInVariant(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
-        val end = if (variant.type == VariantContext.Type.SYMBOLIC) variant.end else variant.start
-        return variant.contig == region.first.contig && variant.start <= region.first.position && end >= region.second.position
-    }
+
 
     /**
      * Function to see if the BED region is fully contained within a VariantInfo
@@ -450,16 +441,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         return variant.chr == region.first.contig && variant.startPos <= region.first.position && variant.endPos >= region.second.position
     }
 
-    /**
-     * Function to see if the VariantContext is fully contained within a BED region
-     * Indels are left-justified
-     * Bed: |--------------|
-     * Var:       |---|
-     */
-    fun variantFullyContained(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
-        val end = if (variant.type == VariantContext.Type.SYMBOLIC) variant.end else variant.start
-        return variant.contig == region.first.contig && variant.start >= region.first.position && end <= region.second.position
-    }
+
 
     /**
      * Function to see if the VariantContext is fully contained within a BED region
@@ -471,19 +453,6 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         return variant.chr == region.first.contig && variant.startPos >= region.first.position && variant.endPos <= region.second.position
     }
 
-    /**
-     * Function to see if the start of the variant is partially contained in the BED region
-     * Indels are left-justified
-     * Bed: |--------------|
-     * Var:              |---|
-     */
-    fun variantPartiallyContainedStart(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
-        val end = if (variant.type == VariantContext.Type.SYMBOLIC) variant.end else variant.start
-        return variant.contig == region.first.contig &&
-                variant.start >= region.first.position &&
-                variant.start <= region.second.position &&
-                end > region.second.position
-    }
 
     /**
      * Function to see if the start of the variant is partially contained in the BED region
@@ -498,19 +467,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                 variant.endPos > region.second.position
     }
 
-    /**
-     * Function to see if the end of the variant is partially contained in the BED region
-     * Indels are left-justified
-     * Bed:      |--------------|
-     * Var:    |---|
-     */
-    fun variantPartiallyContainedEnd(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
-        val end = if (variant.type == VariantContext.Type.SYMBOLIC) variant.end else variant.start
-        return variant.contig == region.first.contig &&
-                end <= region.second.position &&
-                end >= region.first.position &&
-                variant.start < region.first.position
-    }
+
 
     /**
      * Function to see if the end of the variant is partially contained in the BED region
@@ -525,14 +482,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                 variant.startPos < region.first.position
     }
 
-    /**
-     * Function to see if the variant is after the bed region
-     * Bed: |--------------|
-     * Var:                   |---|
-     */
-    fun variantAfterRegion(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
-        return variant.contig == region.first.contig && variant.start > region.second.position
-    }
+
 
     /**
      * Function to see if the variant is after the bed region

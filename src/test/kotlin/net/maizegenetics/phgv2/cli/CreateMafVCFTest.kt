@@ -218,28 +218,6 @@ class CreateMafVCFTest {
     }
 
     @Test
-    fun testBedRegionContainedInVariant() {
-        val createMafVCF = CreateMafVcf()
-        val variant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
-            Position("chr1",5), Position("chr1",10),
-            Position("chr1",5), Position("chr1",10),"+")
-
-        val fullyContainedBed = Pair(Position("chr1", 3), Position("chr1", 15))
-        val containedBed = Pair(Position("chr1",6),Position("chr1",9))
-        val partiallyContainedStart = Pair(Position("chr1",4),Position("chr1",9))
-        val partiallyContainedEnd = Pair(Position("chr1",6),Position("chr1",11))
-        val notContained = Pair(Position("chr1",1),Position("chr1",4))
-        val notContained2 = Pair(Position("chr1",11),Position("chr1",15))
-
-        assertFalse(createMafVCF.bedRegionContainedInVariant(fullyContainedBed, variant))
-        assertTrue(createMafVCF.bedRegionContainedInVariant(containedBed, variant))
-        assertFalse(createMafVCF.bedRegionContainedInVariant(partiallyContainedStart, variant))
-        assertFalse(createMafVCF.bedRegionContainedInVariant(partiallyContainedEnd, variant))
-        assertFalse(createMafVCF.bedRegionContainedInVariant(notContained, variant))
-        assertFalse(createMafVCF.bedRegionContainedInVariant(notContained2, variant))
-    }
-
-    @Test
     fun testBedRegionContainedInVariantInfo() {
         val createMafVCF = CreateMafVcf()
         val variantInfos = AssemblyVariantInfo("chr1",5,10,"T","A","T",true)
@@ -259,28 +237,7 @@ class CreateMafVCFTest {
         assertFalse(createMafVCF.bedRegionContainedInVariantInfo(notContained2, variantInfos))
     }
 
-    @Test
-    fun testVariantFullyContained() {
-        val createMafVCF = CreateMafVcf()
-        val variant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
-            Position("chr1",5), Position("chr1",10),
-            Position("chr1",5), Position("chr1",10),"+")
 
-        val fullyContainedBed = Pair(Position("chr1", 3), Position("chr1", 15))
-        val containedBed = Pair(Position("chr1",6),Position("chr1",9))
-        val partiallyContainedStart = Pair(Position("chr1",4),Position("chr1",9))
-        val partiallyContainedEnd = Pair(Position("chr1",6),Position("chr1",11))
-        val notContained = Pair(Position("chr1",1),Position("chr1",4))
-        val notContained2 = Pair(Position("chr1",11),Position("chr1",15))
-
-        assertTrue(createMafVCF.variantFullyContained(fullyContainedBed, variant))
-        assertFalse(createMafVCF.variantFullyContained(containedBed, variant))
-        assertFalse(createMafVCF.variantFullyContained(partiallyContainedStart, variant))
-        assertFalse(createMafVCF.variantFullyContained(partiallyContainedEnd, variant))
-        assertFalse(createMafVCF.variantFullyContained(notContained, variant))
-        assertFalse(createMafVCF.variantFullyContained(notContained2, variant))
-
-    }
 
     @Test
     fun testVariantInfoFullyContained() {
@@ -302,27 +259,7 @@ class CreateMafVCFTest {
         assertFalse(createMafVCF.variantInfoFullyContained(notContained2, variantInfo))
     }
 
-    @Test
-    fun testVariantPartiallyContainedStart() {
-        val createMafVCF = CreateMafVcf()
-        val variant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
-            Position("chr1",5), Position("chr1",10),
-            Position("chr1",5), Position("chr1",10),"+")
 
-        val fullyContainedBed = Pair(Position("chr1", 3), Position("chr1", 15))
-        val containedBed = Pair(Position("chr1",6),Position("chr1",9))
-        val partiallyContainedStart = Pair(Position("chr1",4),Position("chr1",9))
-        val partiallyContainedEnd = Pair(Position("chr1",6),Position("chr1",11))
-        val notContained = Pair(Position("chr1",1),Position("chr1",4))
-        val notContained2 = Pair(Position("chr1",11),Position("chr1",15))
-
-        assertFalse(createMafVCF.variantPartiallyContainedStart(fullyContainedBed, variant))
-        assertFalse(createMafVCF.variantPartiallyContainedStart(containedBed, variant))
-        assertTrue(createMafVCF.variantPartiallyContainedStart(partiallyContainedStart, variant))
-        assertFalse(createMafVCF.variantPartiallyContainedStart(partiallyContainedEnd, variant))
-        assertFalse(createMafVCF.variantPartiallyContainedStart(notContained, variant))
-        assertFalse(createMafVCF.variantPartiallyContainedStart(notContained2, variant))
-    }
 
     @Test
     fun testVariantInfoPartiallyContainedStart() {
@@ -345,27 +282,7 @@ class CreateMafVCFTest {
 
     }
 
-    @Test
-    fun testVariantPartiallyContainedEnd() {
-        val createMafVCF = CreateMafVcf()
-        val variant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
-            Position("chr1",5), Position("chr1",10),
-            Position("chr1",5), Position("chr1",10),"+")
 
-        val fullyContainedBed = Pair(Position("chr1", 3), Position("chr1", 15))
-        val containedBed = Pair(Position("chr1",6),Position("chr1",9))
-        val partiallyContainedStart = Pair(Position("chr1",4),Position("chr1",9))
-        val partiallyContainedEnd = Pair(Position("chr1",6),Position("chr1",11))
-        val notContained = Pair(Position("chr1",1),Position("chr1",4))
-        val notContained2 = Pair(Position("chr1",11),Position("chr1",15))
-
-        assertFalse(createMafVCF.variantPartiallyContainedEnd(fullyContainedBed, variant))
-        assertFalse(createMafVCF.variantPartiallyContainedEnd(containedBed, variant))
-        assertFalse(createMafVCF.variantPartiallyContainedEnd(partiallyContainedStart, variant))
-        assertTrue(createMafVCF.variantPartiallyContainedEnd(partiallyContainedEnd, variant))
-        assertFalse(createMafVCF.variantPartiallyContainedEnd(notContained, variant))
-        assertFalse(createMafVCF.variantPartiallyContainedEnd(notContained2, variant))
-    }
 
     @Test
     fun testVariantInfoPartiallyContainedEnd() {
@@ -388,27 +305,6 @@ class CreateMafVCFTest {
 
     }
 
-    @Test
-    fun testVariantAfterRegion() {
-        val createMafVCF = CreateMafVcf()
-        val variant = createRefRangeVC(mapOf("chr1" to NucSeq("A".repeat(100))),"B97",
-            Position("chr1",5), Position("chr1",10),
-            Position("chr1",5), Position("chr1",10),"+")
-
-        val fullyContainedBed = Pair(Position("chr1", 3), Position("chr1", 15))
-        val containedBed = Pair(Position("chr1",6),Position("chr1",9))
-        val partiallyContainedStart = Pair(Position("chr1",4),Position("chr1",9))
-        val partiallyContainedEnd = Pair(Position("chr1",6),Position("chr1",11))
-        val notContained = Pair(Position("chr1",1),Position("chr1",4))
-        val notContained2 = Pair(Position("chr1",11),Position("chr1",15))
-
-        assertFalse(createMafVCF.variantAfterRegion(fullyContainedBed, variant))
-        assertFalse(createMafVCF.variantAfterRegion(containedBed, variant))
-        assertFalse(createMafVCF.variantAfterRegion(partiallyContainedStart, variant))
-        assertFalse(createMafVCF.variantAfterRegion(partiallyContainedEnd, variant))
-        assertFalse(createMafVCF.variantAfterRegion(notContained2, variant))
-        assertTrue(createMafVCF.variantAfterRegion(notContained, variant))
-    }
 
     @Test
     fun testVariantInfoAfterRegion() {
