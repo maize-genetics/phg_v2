@@ -134,13 +134,10 @@ private fun isMd5Checksum(input: String): Boolean {
 private fun createAltHeaderMetaData(
     origAltHeader: AltHeaderMetaData,
     rangeStr: String,
-    //samples: List<SampleGamete>,
     rangeStrIndex: Int,
     symbolicAllele: SymbolicAllele
 ): AltHeaderMetaData {
 
-    // val rangeStr = range.toString()
-    // val sample = samples.first()
     val sample = origAltHeader.sampleGamete
 
     // Find what is the checksum
