@@ -6,6 +6,45 @@ class AssemblyVariantInfoUtils {
     companion object {
         val myLogger = LogManager.getLogger(AssemblyVariantInfoUtils::class.java)
 
+
+        /**
+         * Function will return -1 if unable to resize the variantcontext due to its type(mostly an INDEL)
+         * If the requested position is outside of the current variants coordinates it will return the ASM_Start for + strand and ASM_End for - strand
+         */
+        fun resizeVariantInfo(variant: AssemblyVariantInfo, position: Int, strand : String) : Int {
+            //check to see if the variant is either a RefBlock or is a SNP with equal lengths
+            return if(isVariantInfoResizable(variant)) {
+                when {
+                    position < variant.startPos -> variant.asmStart
+                    position > variant.endPos -> variant.asmEnd
+                    strand == "+" -> {
+                        val offset = position - variant.startPos
+                        variant.asmStart + offset
+                    }
+                    strand == "-" -> {
+                        val offset = position - variant.startPos
+                        variant.asmStart - offset
+                    }
+                    else -> -1
+                }
+            } else {
+                -1
+            }
+        }
+
+
+
+        /**
+         * Function to check if a variant is resizable.  Only RefBlocks and SNPs are resizable
+         */
+        fun isVariantInfoResizable(variant: AssemblyVariantInfo) : Boolean {
+            return when {
+                variant.refAllele.length == 1 && variant.endPos - variant.startPos > 0 -> true //refBlock
+                variant.refAllele.length == variant.altAllele.length -> true //This covers both SNPs and multiallelic polymorphisms
+                else -> false
+            }
+        }
+
         /**
          * Function to see if the BED region is fully contained within a VariantInfo
          * Indels are left-justified

@@ -7,6 +7,43 @@ class VariantContextUtils {
     companion object {
         val myLogger = LogManager.getLogger(VariantContextUtils::class.java)
 
+
+        /**
+         * Function will return -1 if unable to resize the variantcontext due to its type(mostly an INDEL)
+         * If the requested position is outside of the current variants coordinates it will return the ASM_Start for + strand and ASM_End for - strand
+         */
+        fun resizeVariantContext(variant: VariantContext, position: Int, strand : String) : Int {
+            //check to see if the variant is either a RefBlock or is a SNP with equal lengths
+            return if(isVariantResizable(variant)) {
+                when {
+                    position < variant.start -> variant.getAttributeAsInt("ASM_Start",variant.start)
+                    position > variant.end -> variant.getAttributeAsInt("ASM_End",variant.end)
+                    strand == "+" -> {
+                        val offset = position - variant.start
+                        variant.getAttributeAsInt("ASM_Start",variant.start) + offset
+                    }
+                    strand == "-" -> {
+                        val offset = position - variant.start
+                        variant.getAttributeAsInt("ASM_Start",variant.end) - offset
+                    }
+                    else -> -1
+                }
+            } else {
+                -1
+            }
+        }
+
+        /**
+         * Function to check if a variant is resizable.  Only RefBlocks and SNPs are resizable
+         */
+        fun isVariantResizable(variant: VariantContext) : Boolean {
+            return when {
+                variant.getReference().baseString.length == 1 && variant.end - variant.start > 0 && variant.type == VariantContext.Type.SYMBOLIC -> true //refBlock
+                variant.reference.baseString.length == variant.getAlternateAllele(0).baseString.length -> true //This covers both SNPs and multiallelic polymorphisms
+                else -> false
+            }
+        }
+
         /**
          * Function to see if the BED region is fully contained within a VariantContext
          * Indels are left-justified
