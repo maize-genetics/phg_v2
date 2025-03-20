@@ -402,7 +402,7 @@ fun verifyURI(dbPath:String,uri:String,condaEnvPrefix:String): Boolean {
     if (File(dataset).exists()  && Files.isDirectory(Paths.get(dataset))){
         // check if is a tiledb dataset
         var command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix,"tiledbvcf","stat","--uri",dataset)
-        else mutableListOf("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri",dataset)
+        else mutableListOf("conda","run","-n","phgv2-tiledb","tiledbvcf","stat","--uri",dataset)
 
         var builder = ProcessBuilder(command)
         var redirectOutput = tempDir + "/tiledb_statURI_output.log"

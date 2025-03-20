@@ -67,7 +67,7 @@ class Initdb : CliktCommand(help = "Create TileDB datasets for g.vcf and h.vcf f
         var logFile = "${tempDir}/tiledbvcf_createHvcf.log"
 
         val condaCommand = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix)
-        else mutableListOf("conda","run","-n","phgv2-conda")
+        else mutableListOf("conda","run","-n","phgv2-tiledb")
         val hvcfCommand = mutableListOf("tiledbvcf","create","--uri",hvcf_dataset,"-n","--log-level","debug","--log-file",logFile,"--anchor-gap",hvcfAnchorGap.toString())
         var command = condaCommand + hvcfCommand
 

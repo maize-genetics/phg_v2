@@ -26,7 +26,7 @@ object SamplesService {
     // This function runs tiledbvcf list --uri <uri> and returns a map of sample names
     private fun taxaMap(uri: String): Map<String, Sample> {
         try {
-            var builder = ProcessBuilder("conda", "run", "-n", "phgv2-conda", "tiledbvcf", "list", "--uri", uri)
+            var builder = ProcessBuilder("conda", "run", "-n", "phgv2-tiledb", "tiledbvcf", "list", "--uri", uri)
                 .start()
             val sampleListOut = BufferedInputStream(builder.inputStream, 5000000)
             val temp = inputStreamProcessing(sampleListOut)
