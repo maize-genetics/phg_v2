@@ -31,11 +31,8 @@ class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG
     val tiledbEnvFile by option(help = "File containing the conda environment definition for tiledb")
         .default("")
 
-    val ropebwtEnvFile by option(help = "File containing the conda environment definition for ropebwt")
-        .default("")
-
     // This function uses ProcessBuilder to setup the phgv2 conda environment
-    fun createEnvironment(envFile: String, outputDir: String, ropeBWTFile: String, tiledbFile: String) {
+    fun createEnvironment(envFile: String, outputDir: String, tiledbFile: String) {
 
         // if no user defined environment file, use the default
         val resultEnvFile = if (envFile == "") {
@@ -119,6 +116,6 @@ class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG
         val workingDir = System.getProperty("user.dir")
 
         // call method to create the environment
-        createEnvironment(envFile, workingDir, ropebwtEnvFile, tiledbEnvFile)
+        createEnvironment(envFile, workingDir, tiledbEnvFile)
     }
 }
