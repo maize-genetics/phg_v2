@@ -1,6 +1,0 @@
-name: phgv2-ropebwt-conda
-channels:
-  - conda-forge
-  - bioconda
-dependencies:
-  - ropebwt3=3.9
