@@ -562,7 +562,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         val lastVariant = variants.second
 
         //check to see if the variant is either a RefBlock or is a SNP with equal lengths
-        if (CreateMafVcf().isVariantResizable(firstVariant) ) {
+        if (VariantContextUtils.isVariantResizable(firstVariant) ) {
             // if the position is < the start of the variant, then we return <variant.start,asm_start>
 
             //  The "position" must be modified in the above with an offset.
@@ -610,7 +610,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         // This could be the same as the first variant if the list only has 1 variant
         // The updated values depend on whether the refRange overlaps the beginning of the
         // variant, the end, or is completely contained within the variant.
-        if (CreateMafVcf().isVariantResizable(lastVariant)) {
+        if (VariantContextUtils.isVariantResizable(lastVariant)) {
 
             refAsmPos_last = when {
                 positions.second >= lastVariant.end -> {

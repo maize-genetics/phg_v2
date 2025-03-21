@@ -8,4 +8,5 @@ dependencies:
   - bcftools
   - samtools
   - agc=3.1
-  - ropebwt3=3.9
+  - ropebwt3=3.8
+  - minimap2=2.28
