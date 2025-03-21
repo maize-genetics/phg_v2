@@ -2,12 +2,10 @@ name: phgv2-conda
 channels:
   - conda-forge
   - bioconda
-  - tiledb
 dependencies:
-  - python=3.8
-  - tiledb-py=0.22
-  - tiledbvcf-py=0.25
+  - python=3.12
   - anchorwave=1.2.5
   - bcftools
   - samtools
   - agc=3.1
+  - ropebwt3=3.9

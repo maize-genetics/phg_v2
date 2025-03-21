@@ -37,6 +37,7 @@ fun main(args: Array<String>) = Phg()
         CreateFastaFromHvcf(), ListSamples(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer, ExtractEdgeReads(), //Utilities
         QcReadMapping(), ReadMappingCountQc(), PathsToGff(), // Utilities continued
         CompositeToHaplotypeCoords(), // resequencing pipeline
-        InitHvcfArray(), LoadHvcf(), QueryHvcfArrays() // hvcf loading
+        InitHvcfArray(), LoadHvcf(), QueryHvcfArrays(), // hvcf loading
+        UpdateHvcfSpec(), // hvcf updating
     )
     .main(args)

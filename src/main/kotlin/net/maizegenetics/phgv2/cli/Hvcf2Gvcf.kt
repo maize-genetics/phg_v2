@@ -320,7 +320,7 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
         val condaCommandPrefix = if (condaEnvPrefix.isNotBlank()) {
             mutableListOf("conda", "run", "-p", condaEnvPrefix)
         } else {
-            mutableListOf("conda", "run", "-n", "phgv2-conda")
+            mutableListOf("conda", "run", "-n", "phgv2-tiledb")
         }
 
         val batches = sampleNames.chunked(batchSize)
