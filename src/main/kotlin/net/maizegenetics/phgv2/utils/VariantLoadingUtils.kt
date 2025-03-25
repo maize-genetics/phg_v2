@@ -1,5 +1,7 @@
 package net.maizegenetics.phgv2.utils
 
+import biokotlin.genome.AssemblyVariantInfo
+import biokotlin.genome.MAFToGVCF
 import biokotlin.seq.NucSeq
 import biokotlin.util.bufferedReader
 import com.google.common.collect.Range
@@ -61,6 +63,35 @@ fun exportVariantContext(sampleName: String, variantContexts: List<VariantContex
     addSequenceDictionary(header, refGenomeSequence)
     writer.writeHeader(header)
     for(variant in variantContexts) {
+        writer.add(variant)
+    }
+
+    writer.close()
+}
+
+/**
+ * Function to Convert VariantInfos then write out the Variant Contexts to a file in a RAM effective way.
+ */
+fun exportVariantInfo(sampleName: String, variantInfos: List<AssemblyVariantInfo>, outputFileName: String,
+                      refGenomeSequence: Map<String, NucSeq>, altHeaderLines: Set<VCFHeaderLine>, mafToGVCFObject: MAFToGVCF) {
+    val writer = VariantContextWriterBuilder()
+        .unsetOption(Options.INDEX_ON_THE_FLY)
+        .setOutputFile(File(outputFileName))
+        .setOutputFileType(VariantContextWriterBuilder.OutputType.VCF)
+        .setOption(Options.ALLOW_MISSING_FIELDS_IN_HEADER)
+        .build()
+
+    val header = createGenericHeader(listOf(sampleName),altHeaderLines)
+    addSequenceDictionary(header, refGenomeSequence)
+    writer.writeHeader(header)
+    for(variantInfo in variantInfos) {
+        val variant = mafToGVCFObject.convertVariantInfoToContext(
+            sampleName,
+            variantInfo,
+            outJustGT = false,
+            delAsSymbolic = false,
+            maxDeletionSize = 0
+        )
         writer.add(variant)
     }
 
