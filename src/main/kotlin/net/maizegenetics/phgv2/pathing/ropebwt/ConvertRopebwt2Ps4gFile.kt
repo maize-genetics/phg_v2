@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.int
@@ -44,6 +45,10 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         .int()
         .default(50)
 
+    val sortPositions by option(help = "Sort positions in the resulting PS4G file.")
+        .flag(default = true)
+
+
     /**
      * Function to run the command.  This goes from a RopeBWT3 BED file for reads aligned against the whole chromosomes to a PS4G file.
      */
@@ -66,7 +71,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
         myLogger.info("Building PS4G Data")
         //build and write out the PS4G file
-        val (ps4GData, sampleGameteCountMap) = buildPS4GData(ropebwtBed, splineLookup, chrIndexMap, gameteIndexMap,minMemLength, maxNumHits)
+        val (ps4GData, sampleGameteCountMap) = buildPS4GData(ropebwtBed, splineLookup, chrIndexMap, gameteIndexMap,minMemLength, maxNumHits, sortPositions)
 
         myLogger.info("Writing out PS4G File")
         PS4GUtils.writeOutPS4GFile(ps4GData, sampleGameteCountMap, sampleGameteIndexMap, outputFile, listOf(), command)
@@ -190,7 +195,8 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
      */
     fun buildPS4GData(ropebwtBed: String,  splineLookup: Map<String, PolynomialSplineFunction>, chrIndexMap:Map<String,Int>,
                       gameteToIdxMap: Map<String,Int>,
-                      minMEMLength: Int, maxNumHits: Int) : Pair<List<PS4GData>, Map<SampleGamete,Int>> {
+                      minMEMLength: Int, maxNumHits: Int,
+                      sortPositions: Boolean = true) : Pair<List<PS4GData>, Map<SampleGamete,Int>> {
 
         val gameteIdxToSampleGameteMap = gameteToIdxMap.map { it.value to SampleGamete(it.key) }.toMap()
         val bedFileReader = bufferedReader(ropebwtBed)
@@ -235,7 +241,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             gameteIdxToSampleGameteMap
         )
 
-        val ps4gDataList = convertCountMapToPS4GData(countMap)
+        val ps4gDataList = convertCountMapToPS4GData(countMap, sortPositions)
 
 
         return Pair(ps4gDataList, sampleGameteCountMap)
@@ -359,9 +365,16 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     /**
      * Function to convert the count map to a PS4GData class for easy export
      */
-    fun convertCountMapToPS4GData(countMap: Map<Pair<Int,List<Int>>, Int>) : List<PS4GData> {
-        return countMap.map { (pair, count) ->
-            PS4GData(pair.second, pair.first, count)
+    fun convertCountMapToPS4GData(countMap: Map<Pair<Int,List<Int>>, Int>, sortPositions: Boolean) : List<PS4GData> {
+        return if(sortPositions) {
+            countMap.map { (pair, count) ->
+                PS4GData(pair.second.sorted(), pair.first, count)
+            }.sortedBy { PS4GUtils.decodePosition(it.pos) } //Need to decode it because chromosome might be in an unexpected order
+        }
+        else {
+            countMap.map { (pair, count) ->
+                PS4GData(pair.second, pair.first, count)
+            }
         }
     }
 }
