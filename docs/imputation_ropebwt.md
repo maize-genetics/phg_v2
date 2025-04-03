@@ -1,9 +1,7 @@
 # Imputation using RopeBWT3
 
 !!! note
-    This document is a work in progress and will be updated as the
-    imputation pipeline is further developed. Please check back for
-    updates.  As of now the pipeline is in a BETA state but is functional.
+    This is the recommended imputation method. Please let us know if you have any questions or issues.
 
 In this document, we will discuss the steps needed to perform
 imputation using the [ropebwt3](https://github.com/lh3/ropebwt3) tool within the PHG. The steps:

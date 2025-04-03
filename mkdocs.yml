@@ -83,8 +83,8 @@ nav:
       - Installation: installation.md
       - Building and loading: build_and_load.md
       - Imputation:
-          - k-mer Imputation (Original): imputation.md
-          - RopeBWT3 Imputation (BETA): imputation_ropebwt.md
+          - RopeBWT3 Imputation: imputation_ropebwt.md
+          - k-mer Imputation (Deprecated): imputation.md
       - Resequencing: resequencing.md
       - Exporting data: export_data.md
   - Reference:
