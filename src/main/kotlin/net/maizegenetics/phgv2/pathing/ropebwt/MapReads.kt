@@ -17,9 +17,7 @@ import net.maizegenetics.phgv2.pathing.AlignmentUtils
 import net.maizegenetics.phgv2.pathing.KeyFileData
 import net.maizegenetics.phgv2.pathing.ReadInputFile
 import org.apache.logging.log4j.LogManager
-import java.io.BufferedInputStream
 import java.io.BufferedReader
-import java.io.File
 import java.io.InputStreamReader
 
 
@@ -29,7 +27,7 @@ import java.io.InputStreamReader
  * Note that this will take some time to run.  Our internal tests show that WGS files can take about 20 minutes to run.
  * Each file from a pair are processed independently.
  */
-class MapReads : CliktCommand(help="BETA: Map reads to a pangenome using ropeBWT3") {
+class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
 
     private val myLogger = LogManager.getLogger(MapReads::class.java)
 
