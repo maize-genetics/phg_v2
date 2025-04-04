@@ -1,6 +1,7 @@
 package net.maizegenetics.phgv2.api
 
 import htsjdk.variant.variantcontext.VariantContext
+import htsjdk.variant.vcf.VCFContigHeaderLine
 import htsjdk.variant.vcf.VCFFileReader
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -38,6 +39,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
     // Map<ID (checksum), AltHeaderMetaData>
     private lateinit var altHeaderMap: Map<String, AltHeaderMetaData>
+
+    private lateinit var contigHeaderLines: Set<VCFContigHeaderLine>
 
     constructor(hvcfDirectory: String) : this(
         File(hvcfDirectory)
@@ -79,6 +82,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      * Returns a list of samples for this graph.
      */
     fun samples() = sampleNames.toList()
+
+    fun contigHeaderLines() = contigHeaderLines
 
     /**
      * Returns the number of ReferenceRanges for this graph.
@@ -208,7 +213,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         myLogger.info("getSampleNamesALTHeaders: ${hvcfFiles.size} hvcf files")
 
         // Step 1: Get sample names and ALT headers
-        val sampleChannel = Channel<Deferred<Pair<List<String>, Map<String, AltHeaderMetaData>>>>(25)
+        val sampleChannel = Channel<Deferred<Triple<List<String>, Map<String, AltHeaderMetaData>, List<VCFContigHeaderLine>>>>(25)
         CoroutineScope(Dispatchers.IO).launch {
 
             hvcfFiles.forEach { hvcfFile ->
@@ -217,9 +222,10 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
                 sampleChannel.send(async {
                     VCFFileReader(File(hvcfFile), false).use { reader ->
-                        Pair(
+                        Triple(
                             reader.header.sampleNamesInOrder,
-                            parseALTHeader(reader.header)
+                            parseALTHeader(reader.header),
+                            reader.header.contigLines
                         )
                     }
                 })
@@ -232,6 +238,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         val sampleNamesList = mutableListOf<String>()
         val mutableAltHeaderMap: MutableMap<String, AltHeaderMetaData> = mutableMapOf()
+        val mutableContigHeaderLines = mutableSetOf<VCFContigHeaderLine>()
 
         // Single thread to process the sampleChannel
         // This collects the sample names and ALT headers
@@ -246,6 +253,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
                 sampleNamesList.addAll(sampleHeader.first)
 
                 mutableAltHeaderMap.putAll(sampleHeader.second)
+
+                mutableContigHeaderLines.addAll(sampleHeader.third)
             }
 
         }
@@ -254,6 +263,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         // make the alt header map immutable
         altHeaderMap = mutableAltHeaderMap.toMap()
+
+        contigHeaderLines = mutableContigHeaderLines.toSet()
 
         // Step 2: check for duplicate sample names
         myLogger.info("Parsing ALT headers, now checking for duplicate sample names.")

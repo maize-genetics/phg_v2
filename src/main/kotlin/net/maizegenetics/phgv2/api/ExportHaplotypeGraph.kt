@@ -97,6 +97,7 @@ fun exportMultiSampleHVCF(
 
             val headerLines = createGenericHeaderLineSet().toMutableSet()
             headerLines.addAll(hapidToHeaderLine.values.map { it.second })
+            headerLines.addAll(graph.contigHeaderLines())
             val header = VCFHeader(headerLines, graph.samples())
 
             writer.writeHeader(header)

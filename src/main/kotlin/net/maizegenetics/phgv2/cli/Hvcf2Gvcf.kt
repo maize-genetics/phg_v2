@@ -574,7 +574,6 @@ class Hvcf2Gvcf: CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf 
                  // We are adjusting the reference position and the asm position based on how far
                  // away the reference position is from the variant start.
                 positions.first < firstVariant.start -> {
-                    println("firstVariant:positions.first < firstVariant.start")
                     // The reference position starts before the variant, so we keep the new gvcf
                     // entry start equal to the current variant start
                     Pair(firstVariant.start,firstVariant.getAttributeAsInt("ASM_Start",firstVariant.start))
