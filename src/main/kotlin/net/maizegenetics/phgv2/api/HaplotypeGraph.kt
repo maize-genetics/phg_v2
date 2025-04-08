@@ -205,6 +205,13 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      */
     fun altHeaders() = altHeaderMap
 
+    // Data class to hold the sample names, ALT headers, and contig header lines
+    private data class VCFDataFirstPass(
+        val sampleNames: List<String>,
+        val altHeaderMap: Map<String, AltHeaderMetaData>,
+        val contigHeaderLines: List<VCFContigHeaderLine>
+    )
+
     /**
      * Get sample names and ALT headers from the HVCF files.
      */
@@ -213,7 +220,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         myLogger.info("getSampleNamesALTHeaders: ${hvcfFiles.size} hvcf files")
 
         // Step 1: Get sample names and ALT headers
-        val sampleChannel = Channel<Deferred<Triple<List<String>, Map<String, AltHeaderMetaData>, List<VCFContigHeaderLine>>>>(25)
+        val sampleChannel = Channel<Deferred<VCFDataFirstPass>>(25)
         CoroutineScope(Dispatchers.IO).launch {
 
             hvcfFiles.forEach { hvcfFile ->
@@ -222,7 +229,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
                 sampleChannel.send(async {
                     VCFFileReader(File(hvcfFile), false).use { reader ->
-                        Triple(
+                        VCFDataFirstPass(
                             reader.header.sampleNamesInOrder,
                             parseALTHeader(reader.header),
                             reader.header.contigLines
@@ -246,15 +253,15 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         runBlocking {
 
             for (deferred in sampleChannel) {
-                val sampleHeader = deferred.await()
+                val vcfData = deferred.await()
 
                 // sampleNames are being added to both a Set and List so that they can be
                 // compared to detect and report duplicate sample names
-                sampleNamesList.addAll(sampleHeader.first)
+                sampleNamesList.addAll(vcfData.sampleNames)
 
-                mutableAltHeaderMap.putAll(sampleHeader.second)
+                mutableAltHeaderMap.putAll(vcfData.altHeaderMap)
 
-                mutableContigHeaderLines.addAll(sampleHeader.third)
+                mutableContigHeaderLines.addAll(vcfData.contigHeaderLines)
             }
 
         }
