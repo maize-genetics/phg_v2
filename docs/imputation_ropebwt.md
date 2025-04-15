@@ -1,7 +1,9 @@
 # Imputation using RopeBWT3
 
 !!! note
-    This is the recommended imputation method. Please let us know if you have any questions or issues.
+    This is the recommended imputation method. Please 
+    [let us know](https://github.com/maize-genetics/phg_v2/issues/new/choose) if 
+    you have any questions or issues.
 
 In this document, we will discuss the steps needed to perform
 imputation using the [ropebwt3](https://github.com/lh3/ropebwt3) tool within the PHG. The steps:
@@ -137,7 +139,8 @@ This command takes in 4 parameters:
   AGC compressed genomes will be placed here on completion.
 * `--dataset-type` - the type of dataset to export. In this case, we
   are exporting the hVCF data.
-* `--sample-file` - text file with list of sample names to export, one per line.
+* `--sample-file` - text file with list of sample names to export, 
+  one per line.
 * `--output-dir` - the directory to place the exported hVCF files.
 
 In our above example, we use the `--sample-file` parameter, but if
@@ -194,8 +197,14 @@ phg_v2_example/
 
 ### Pangenome indexing
 
-In order to run the later [ropebwt3 read mapping steps](#read-mapping)
-,
+!!! info "Upcoming v2.5 Release Notice"
+    We will soon update how indexing is performed for the imputation 
+    pipeline by replacing the `rope-bwt-index` command with 
+    `rope-bwt-chr-index`. If you wish to try it out now, the indexer 
+    is currently usable as a **standalone command**. More information 
+    about how to use `rope-bwt-chr-index` can be found **[here](convenience_commands.md#run-ropebwt3-indexing-by-full-length-chromosomes)**.
+
+In order to run the later [ropebwt3 read mapping steps](#read-mapping),
 we will first need to **build** a ropebwt3 index. 
 This is performed using the `rope-bwt-index` command:
 
@@ -206,7 +215,6 @@ This is performed using the `rope-bwt-index` command:
       --output-dir output/index_files \
       --index-file-prefix myindex
   ```
-
 
 This command has **4** required parameters:
 
@@ -219,12 +227,14 @@ This command has **4** required parameters:
   required, but will be optional in the future.
 * `--output-dir` - the directory to place the index files.
 * `--index-file-prefix`  - the prefix for the index file
-  name. A number of files will be created all of which start with `--index-file-prefix`.
+  name. A number of files will be created all of which start with 
+  `--index-file-prefix`.
 
-Running rope-bwt-index creates an index file with the extension `.fmd` and some additional files for a sequence suffix array(`.ssa`) and a contig length file (`.len.gz`).
-Both of these are needed to map reads to this index.
-Since we have used defaults, the index files will show up in the
-following `output/index_files` directory of our example:
+Running rope-bwt-index creates an index file with the extension `.fmd` 
+and some additional files for a sequence suffix array(`.ssa`) and a 
+contig length file (`.len.gz`). Both of these are needed to map reads 
+to this index. Since we have used defaults, the index files will show 
+up in the following `output/index_files` directory of our example:
 
 ```
 phg_v2_example/
