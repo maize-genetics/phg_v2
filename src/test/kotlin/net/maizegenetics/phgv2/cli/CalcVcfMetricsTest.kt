@@ -157,7 +157,7 @@ class CalcVcfMetricsTest {
 
         val allChromMetrics = metrics!!.filter { it.chrom == "ALL" }[0]
 
-        //assertEquals(allChromMetrics.refLength, 3000000000)
+        assertEquals(allChromMetrics.refLength, 3000000000)
         assertEquals(28.0/30.0, allChromMetrics.percentMappedToRef)
         assertEquals(2799999975.0/3000000000, allChromMetrics.percentIdentityWithRef)
 
