@@ -288,8 +288,6 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
 
             // build GVCFStats objects
             val stats = baseCounterMap.map {
-
-                val x = it.value.ins.asSequence().map{insertion -> insertion.toLong()}.sum()
                 GVCFStats(
                     sampleName,
                     it.key,
