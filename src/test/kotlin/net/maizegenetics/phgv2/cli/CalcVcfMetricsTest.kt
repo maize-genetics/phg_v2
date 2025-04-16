@@ -151,13 +151,27 @@ class CalcVcfMetricsTest {
         // sorted because it doesn't matter what order the assemblies are listed in
         assertEquals(getTruthTSV().sorted(), gvcfLines.sorted())
     }
+    @Test
+    fun testLongAssembly() {
+        val metrics = CalcVcfMetrics().getGVCFStats(File("$longGvcfDir/$longGvcfFile"))
+
+        val allChromMetrics = metrics!!.filter { it.chrom == "ALL" }[0]
+
+        assertEquals(allChromMetrics.refLength, 3000000000)
+        assertEquals(28.0/30.0, allChromMetrics.percentMappedToRef)
+        assertEquals(2799999975.0/3000000000, allChromMetrics.percentIdentityWithRef)
+
+    }
 
     companion object {
         val testingDir = TestExtension.tempDir + "/VCFMetricsTests/"
         val gvcfDir = testingDir + "/gvcfs/"
+        val longGvcfDir = testingDir + "/longgvcfs/"
         val gvcfFile = "sampleName.gvcf"
         val refGvcfFile = "Ref.g.vcf"
         val NGvcfFile = "n.g.vcf"
+        val refLongGvcfFile = "Reflong.g.vcf"
+        val longGvcfFile = "sampleLong.gvcf"
 
         @JvmStatic
         @BeforeAll
@@ -167,10 +181,13 @@ class CalcVcfMetricsTest {
             File(testingDir).deleteRecursively()
             File(testingDir).mkdirs()
             File(gvcfDir).mkdirs()
+            File(longGvcfDir).mkdirs()
 
             createDummyGVCF("$gvcfDir/$gvcfFile")
             createRefGVCF("$gvcfDir/$refGvcfFile")
             createNGVCF("$testingDir/$NGvcfFile")
+            createLongRefGVCF("$longGvcfDir/$refLongGvcfFile")
+            createLongDummyGVCF("$longGvcfDir/$longGvcfFile")
         }
 
         @JvmStatic
@@ -220,6 +237,40 @@ class CalcVcfMetricsTest {
                             "2\t20001\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=5000;ASM_Start=1;ASM_Strand=+;END=25000\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n" +
                             "2\t25001\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=5000;ASM_Start=1;ASM_Strand=+;END=30000\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n" +
                             "2\t30001\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=2822;ASM_Start=1;ASM_Strand=+;END=32822\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n"
+                )
+            }
+        }
+
+        /**
+         * Helper function creates a dummy reference gvcf. Formatted correctly, but with nonsense data.
+         */
+        private fun createLongRefGVCF(outputFile: String) {
+
+            getBufferedWriter(outputFile).use { output ->
+                output.write(
+                    "##fileformat=VCFv4.2\n" +
+                            "##FORMAT=<ID=AD,Number=3,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">\n" +
+                            "##FORMAT=<ID=DP,Number=1,Type=Integer,Description=\"Read Depth (only filtered reads used for calling)\">\n" +
+                            "##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Genotype Quality\">\n" +
+                            "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n" +
+                            "##FORMAT=<ID=PL,Number=3,Type=Integer,Description=\"Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification\">\n" +
+                            "##INFO=<ID=AF,Number=3,Type=Integer,Description=\"Allele Frequency\">\n" +
+                            "##INFO=<ID=ASM_Chr,Number=1,Type=String,Description=\"Assembly chromosome\">\n" +
+                            "##INFO=<ID=ASM_End,Number=1,Type=Integer,Description=\"Assembly end position\">\n" +
+                            "##INFO=<ID=ASM_Start,Number=1,Type=Integer,Description=\"Assembly start position\">\n" +
+                            "##INFO=<ID=ASM_Strand,Number=1,Type=String,Description=\"Assembly strand\">\n" +
+                            "##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Total Depth\">\n" +
+                            "##INFO=<ID=END,Number=1,Type=Integer,Description=\"Stop position of the interval\">\n" +
+                            "##INFO=<ID=NS,Number=1,Type=Integer,Description=\"Number of Samples With Data\">\n" +
+                            "##contig=<ID=1,length=1400000000>\n" +
+                            "##contig=<ID=2,length=1600000000>\n" +
+                            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tRef\n" +
+                            "1\t1\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=400000000;ASM_Start=1;ASM_Strand=+;END=400000000\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n" +
+                            "1\t400000001\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=600000000;ASM_Start=1;ASM_Strand=+;END=1000000000\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n" +
+                            "1\t1000000001\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=400000000;ASM_Start=1;ASM_Strand=+;END=1400000000\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n" +
+                            "2\t1\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=600000000;ASM_Start=1;ASM_Strand=+;END=600000000\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n" +
+                            "2\t600000001\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=400000000;ASM_Start=1;ASM_Strand=+;END=1000000000\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n" +
+                            "2\t1000000001\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=600000000;ASM_Start=1;ASM_Strand=+;END=1600000000\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n"
                 )
             }
         }
@@ -527,6 +578,47 @@ class CalcVcfMetricsTest {
                         "2\t32822\t.\tA\tGTAGTTCGCTCTCAGGCACCGGGCGCGCTATCGTGGCCTGTAGAGGCTGCGGCGGTTACGAATTGCTGG,<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=5983;ASM_Start=5916;ASM_Strand=+\tGT:AD:DP:PL\t1:0,30,0:30:90,0,90\n")
             }
         }
+
+
+        /**
+         * Helper function creates a dummy gvcf. Formatted correctly, but with nonsense data
+         * Contains two chromosomes, snps, indels, and unaligned segments
+         * The ASM start and end positions are nonsense
+         */
+        private fun createLongDummyGVCF(outputFile: String) {
+            getBufferedWriter(outputFile).use { output ->
+                output.write("##fileformat=VCFv4.2\n" +
+                        "##FORMAT=<ID=AD,Number=3,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">\n" +
+                        "##FORMAT=<ID=DP,Number=1,Type=Integer,Description=\"Read Depth (only filtered reads used for calling)\">\n" +
+                        "##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Genotype Quality\">\n" +
+                        "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n" +
+                        "##FORMAT=<ID=PL,Number=3,Type=Integer,Description=\"Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification\">\n" +
+                        "##INFO=<ID=AF,Number=3,Type=Integer,Description=\"Allele Frequency\">\n" +
+                        "##INFO=<ID=ASM_Chr,Number=1,Type=String,Description=\"Assembly chromosome\">\n" +
+                        "##INFO=<ID=ASM_End,Number=1,Type=Integer,Description=\"Assembly end position\">\n" +
+                        "##INFO=<ID=ASM_Start,Number=1,Type=Integer,Description=\"Assembly start position\">\n" +
+                        "##INFO=<ID=ASM_Strand,Number=1,Type=String,Description=\"Assembly strand\">\n" +
+                        "##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Total Depth\">\n" +
+                        "##INFO=<ID=END,Number=1,Type=Integer,Description=\"Stop position of the interval\">\n" +
+                        "##INFO=<ID=NS,Number=1,Type=Integer,Description=\"Number of Samples With Data\">\n" +
+                        "##contig=<ID=1,length=1400000000>\n" +
+                        "##contig=<ID=2,length=1600000000>\n" +
+                        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tsampleName\n" +
+                        "1\t1\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=52856;ASM_Start=2857;ASM_Strand=+;END=49999\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n"  +
+                        "1\t50000\t.\tT\tA,<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=52857;ASM_Start=52857;ASM_Strand=+\tGT:AD:DP:PL\t1:0,30,0:30:90,0,90\n"  +
+                        "1\t50001\t.\tG\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=200002856;ASM_Start=52858;ASM_Strand=+;END=199999999\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n"  +
+                        "1\t200000000\t.\tA\tAATTCTGCGCCGACTCCCCCGGATGAT,<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=200002884;ASM_Start=200002857;ASM_Strand=+\tGT:AD:DP:PL\t1:0,30,0:30:90,0,90\n"  +
+                        "1\t200000001\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=400002883;ASM_Start=200002885;ASM_Strand=+;END=399999999\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n"  +
+                        "1\t400000000\t.\tGGCCCAGGCTGGACAATACGGAGC\tG,<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=400002884;ASM_Start=400002884;ASM_Strand=+\tGT:AD:DP:PL\t1:0,30,0:30:90,0,90\n"  +
+                        "1\t400000024\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=1400002861;ASM_Start=400002885;ASM_Strand=+;END=1400000000\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n"  +
+                        "2\t1\t.\tC\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=200999;ASM_Start=1001;ASM_Strand=+;END=199999\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n"  +
+                        "2\t200000\t.\tA\tAAAAAANNNN,<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=201009;ASM_Start=201000;ASM_Strand=+\tGT:AD:DP:PL\t1:0,30,0:30:90,0,90\n" +
+                        "2\t200001\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=301008;ASM_Start=201010;ASM_Strand=+;END=299999\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n"  +
+                        "2\t300000\t.\tT\tA,<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=301009;ASM_Start=301009;ASM_Strand=+\tGT:AD:DP:PL\t1:0,30,0:30:90,0,90\n"  +
+                        "2\t300001\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=1400001009;ASM_Start=301010;ASM_Strand=+;END=1400000000\tGT:AD:DP:PL\t0:0,30,0:30:90,0,90\n")
+            }
+        }
+
 
         /**
          * the truth output for dummyGVCF and RefGVCF

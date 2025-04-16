@@ -17,13 +17,13 @@ import kotlin.math.abs
 data class GVCFStats(
     val sample: String,
     val chrom: String,
-    val refLength: Int,
-    val numSNPs: Int,
-    val numIns: Int,
-    val numDel: Int,
-    val numNs: Int,
-    val numBasesInserted: Int,
-    val numBasesDeleted: Int,
+    val refLength: Long,
+    val numSNPs: Long,
+    val numIns: Long,
+    val numDel: Long,
+    val numNs: Long,
+    val numBasesInserted: Long,
+    val numBasesDeleted: Long,
     val percentIdentityWithRef: Double,
     val percentMappedToRef: Double,
     val meanInsertionSize: Double,
@@ -69,9 +69,9 @@ data class BaseCounter(
     val rangesMapped: TreeRangeSet<Int>, // ranges covered by some gvcf record, including missing
     val ins: MutableList<Int>, // sizes of insertions
     val del: MutableList<Int>, // sizes of deletions
-    var snps: Int, // number of SNPs
-    var ns: Int, // number of Ns - includes indels
-    var ref: Int // number of reference bases
+    var snps: Long, // number of SNPs
+    var ns: Long, // number of Ns - includes indels
+    var ref: Long // number of reference bases
 )
 
 
@@ -197,7 +197,7 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
             // includes scaffolds and contigs, where present
             val refChrLengths = header.contigLines
                 .filter{it.genericFields["ID"] != null && it.genericFields["length"] != null}
-                .associate { Pair(it.genericFields["ID"], it.genericFields["length"]!!.toInt())}
+                .associate { Pair(it.genericFields["ID"], it.genericFields["length"]!!.toLong())}
 
 
             // keep track of indels, SNPs, Ns, by contig name
@@ -293,11 +293,11 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
                     it.key,
                     refChrLengths[it.key]!!,
                     it.value.snps,
-                    it.value.ins.size,
-                    it.value.del.size,
+                    it.value.ins.size.toLong(),
+                    it.value.del.size.toLong(),
                     it.value.ns,
-                    it.value.ins.sum(),
-                    it.value.del.sum(),
+                    it.value.ins.asSequence().map{insertion -> insertion.toLong()}.sum(),
+                    it.value.del.asSequence().map{deletion -> deletion.toLong()}.sum(),
                     it.value.ref.toDouble() / refChrLengths[it.key]!!,
                     it.value.rangesMapped.asRanges().map{
                             range -> range.upperEndpoint() - range.lowerEndpoint()}.sum().toDouble() / refChrLengths[it.key]!!,
@@ -315,8 +315,8 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
             // add the aggregate data for the entire sample genome
 
             val totalRefLength = baseCounterMap.keys.sumOf { refChrLengths[it]!! }
-            val totalIns = baseCounterMap.values.sumOf{it.ins.size}
-            val totalDel = baseCounterMap.values.sumOf{it.del.size}
+            val totalIns = baseCounterMap.values.sumOf{it.ins.size.toLong()}
+            val totalDel = baseCounterMap.values.sumOf{it.del.size.toLong()}
 
             stats.add(0, GVCFStats(
                 sampleName,
@@ -326,11 +326,11 @@ class CalcVcfMetrics: CliktCommand(help="Calculate quality control metrics on g.
                 totalIns,
                 totalDel,
                 baseCounterMap.map{it.value.ns}.sum(),
-                baseCounterMap.map{it.value.ins.sum()}.sum(),
-                baseCounterMap.map{it.value.del.sum()}.sum(),
+                baseCounterMap.map{it.value.ins.asSequence().map{insertion -> insertion.toLong()}.sum()}.sum(),
+                baseCounterMap.map{it.value.del.asSequence().map{deletion -> deletion.toLong()}.sum()}.sum(),
                 baseCounterMap.map{it.value.ref}.sum().toDouble() / totalRefLength,
                 baseCounterMap.map{it.value.rangesMapped.asRanges().map{
-                        range -> range.upperEndpoint() - range.lowerEndpoint()}.sum()}.sum().toDouble() / totalRefLength,
+                        range -> range.upperEndpoint() - range.lowerEndpoint()}.sum().toLong()}.sum().toDouble() / totalRefLength,
                 if(totalIns > 0) {baseCounterMap.map{it.value.ins.sum()}.sum().toDouble() / totalIns } else 0.0,
                 median(baseCounterMap.flatMap{it.value.ins}),
                 if(totalIns > 0) { baseCounterMap.flatMap{it.value.ins}.max() } else 0,
