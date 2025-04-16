@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.int
 import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.api.SampleGamete
@@ -34,8 +35,12 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     val outputDir by option(help = "Output directory")
         .required()
 
-    val hvcfDir by option(help = "Directory containing the hvcf files")
+    val vcfDir by option(help = "Directory containing the hvcf or gvcf files")
         .required()
+
+    val vcfType by option(help = "Type of vcfs to build the splines")
+        .choice("hvcf","gvcf")
+        .default("hvcf")
 
     val minMemLength by option(help = "Minimum length of a match to be considered a match.")
         .int()
@@ -48,6 +53,13 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     val sortPositions by option(help = "Sort positions in the resulting PS4G file.")
         .flag(default = true)
 
+    val minIndelLength by option(help="Minimum length of an indel to break up the running block for spline creation of gvcfs.  If --vcf-type is hvcf this option is ignored.")
+        .int()
+        .default(10)
+
+    val maxNumPointsPerChrom by option(help = "Number of points per chrom.  If there are more points for each sample's chromosomes we will downsample randomly..")
+        .int()
+        .default(250_000)
 
     /**
      * Function to run the command.  This goes from a RopeBWT3 BED file for reads aligned against the whole chromosomes to a PS4G file.
@@ -60,7 +72,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         myLogger.info("Convert Ropebwt to PS4G")
 
         myLogger.info("Building Spline Lookup")
-        val (splineLookup, chrIndexMap, gameteIndexMap) = buildSplineLookup(hvcfDir)
+        val (splineLookup, chrIndexMap, gameteIndexMap) = buildSplineLookup(vcfDir, vcfType, minIndelLength, maxNumPointsPerChrom)
 
 
         val sampleGameteIndexMap = gameteIndexMap.map { SampleGamete(it.key) to it.value}.toMap()
@@ -82,17 +94,52 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
      * This will compute Cubic splines based on the Akima algorithm, as originally formulated by Hiroshi Akima, 1970
      * (http://doi.acm.org/10.1145/321607.321609) implemented via the Apache Commons Math3 library.
      */
-    fun buildSplineLookup(hvcfDir: String) : Triple<Map<String, PolynomialSplineFunction>, Map<String,Int>, Map<String,Int>> {
-        val hvcfFiles = File(hvcfDir).listFiles()?.filter { it.name.endsWith("h.vcf") || it.name.endsWith("hvcf") ||
-        it.name.endsWith("h.vcf.gz") || it.name.endsWith("hvcf.gz") }
+    fun buildSplineLookup(hvcfDir: String, vcfType: String, minIndelLength: Int = 10, maxNumPointsPerChrom: Int = 250_000) : Triple<Map<String, PolynomialSplineFunction>, Map<String,Int>, Map<String,Int>> {
+        val vcfFiles = buildVCFFileList(hvcfDir, vcfType)
         val splineMap = mutableMapOf<String, PolynomialSplineFunction>()
         val chrIndexMap = mutableMapOf<String,Int>()
         val gameteIndexMap = mutableMapOf<String,Int>()
-        for (hvcfFile in hvcfFiles!!) {
-            myLogger.info("Reading ${hvcfFile.name}")
-            processHvcfFileIntoSplines(hvcfFile, splineMap, chrIndexMap, gameteIndexMap)
+        for (vcfFile in vcfFiles!!) {
+            myLogger.info("Reading ${vcfFile.name}")
+            processVCFFileIntoSplines(vcfFile, vcfType, splineMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom)
         }
         return Triple(splineMap, chrIndexMap, gameteIndexMap)
+    }
+
+    private fun buildVCFFileList(hvcfDir: String, vcfType: String): List<File> {
+        return File(hvcfDir).listFiles()?.filter {
+            fileMatchesType(it, vcfType)
+        }?: throw Exception("No $vcfType files found in $hvcfDir")
+    }
+
+    private fun fileMatchesType(file: File, vcfType: String): Boolean {
+        return if(vcfType == "hvcf") {
+            file.name.endsWith("h.vcf") || file.name.endsWith("h.vcf.gz") ||
+                    file.name.endsWith("hvcf") || file.name.endsWith("hvcf.gz")
+        } else {
+            file.name.endsWith("g.vcf") || file.name.endsWith("g.vcf.gz") ||
+                    file.name.endsWith("gvcf") || file.name.endsWith("gvcf.gz")
+        }
+    }
+
+    private fun processVCFFileIntoSplines(
+        vcfFile: File,
+        vcfType: String,
+        splineMap: MutableMap<String, PolynomialSplineFunction>,
+        chrIndexMap: MutableMap<String, Int>,
+        gameteIndexMap: MutableMap<String, Int>,
+        minIndelLength: Int=10,
+        maxNumPointsPerChrom: Int = 250_000
+    ) {
+        if(vcfType == "hvcf") {
+            processHvcfFileIntoSplines(vcfFile, splineMap, chrIndexMap, gameteIndexMap)
+        }
+        else if(vcfType == "gvcf") {
+            processGvcfFileIntoSplines(vcfFile, splineMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom)
+        }
+        else {
+            throw Exception("Unknown VCF type $vcfType")
+        }
     }
 
     /**
@@ -162,6 +209,212 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         }
     }
 
+    fun processGvcfFileIntoSplines(
+        gvcfFile: File?,
+        splineMap: MutableMap<String, PolynomialSplineFunction>,
+        chrIndexMap : MutableMap<String,Int>,
+        gameteIndexMap: MutableMap<String, Int>,
+        minIndelLength: Int=10,
+        maxNumPoints: Int = 250_000
+    ) {
+        var nextIndex = 0
+
+        //This is ASM,REF
+        val mapOfASMChrToListOfPoints = mutableMapOf<String, MutableList<Pair<Double, Double>>>()
+
+        // Block tracking variables for regular (positive stranded) SNVs or END variants.
+        var blockRefStart: Int? = null
+        var blockRefEnd: Int? = null
+        var blockAsmStart: Int? = null
+        var blockAsmEnd: Int? = null
+        var blockAsmChr: String? = null
+        var blockAsmChrIdx: Int? = null
+        var currentRefChr: String? = null
+
+        // Flush the current regular block if it exists.
+        fun flushBlock() {
+            if (currentRefChr != null && blockRefStart != null && blockAsmStart != null &&
+                blockAsmChr != null && blockAsmChrIdx != null
+            ) {
+                val refStPositionEncoded = PS4GUtils.encodePosition(Position(currentRefChr!!, blockRefStart!!), chrIndexMap)
+                val refEndPositionEncoded = PS4GUtils.encodePosition(Position(currentRefChr!!, blockRefEnd!!), chrIndexMap)
+
+                if (blockAsmStart == blockAsmEnd || blockRefStart == blockRefEnd) {
+                    addPointsToMap(
+                        mapOfASMChrToListOfPoints,
+                        blockAsmChr!!,
+                        blockAsmStart!!,
+                        refStPositionEncoded
+                    )
+                }
+                else {
+                    //add both sets of points to the list
+                    addPointsToMap(mapOfASMChrToListOfPoints, blockAsmChr!!, blockAsmStart!!, refStPositionEncoded)
+                    addPointsToMap(mapOfASMChrToListOfPoints, blockAsmChr!!, blockAsmEnd!!, refEndPositionEncoded)
+                }
+            }
+            blockRefStart = null
+            blockRefEnd = null
+            blockAsmStart = null
+            blockAsmEnd = null
+            blockAsmChr = null
+            blockAsmChrIdx = null
+        }
+
+        // Helper function to update the regular block values.
+        fun updateBlock(newRefStart: Int, newRefEnd: Int, newAsmStart: Int, newAsmEnd: Int, newAsmChr: String, newAsmChrIdx: Int) {
+            if (blockAsmStart == null) {
+                blockRefStart = newRefStart
+                blockRefEnd = newRefEnd
+                blockAsmStart = newAsmStart
+                blockAsmEnd = newAsmEnd
+                blockAsmChr = newAsmChr
+                blockAsmChrIdx = newAsmChrIdx
+            } else {
+                blockRefEnd = newRefEnd
+                blockAsmEnd = newAsmEnd
+            }
+        }
+
+        // Open the gVCF file using HTSJDK.
+        VCFFileReader(gvcfFile, false).use { reader ->
+            for (variant in reader) {
+                val refChr = variant.contig
+                val refPosStart = variant.start
+                val refPosEnd = variant.end
+
+                //Check to see if we need to add a new entry in our chrIndexMap
+                checkMapAndAddToIndex(chrIndexMap, refChr)
+
+                // Flush regular block if the reference chromosome changes.
+                if (currentRefChr != null && currentRefChr != refChr) {
+                    //Here is where it deviates from the previous idea
+                    //We need to flush the block because they are no longer on the same chromosome
+                    flushBlock()
+                }
+                currentRefChr = refChr
+
+                // Get ASM_Chr; if missing, default to "NA".
+                val asmChr = variant.getAttribute("ASM_Chr", null)?.toString() ?: "NA"
+                val refChrIndex = chrIndexMap.getOrPut(refChr) { nextIndex++ }
+
+                // Parse ASM_Start and ASM_End safely.
+                val asmPosStart = variant.getAttribute("ASM_Start", null)?.toString()?.toIntOrNull()
+                val asmPosEnd = variant.getAttribute("ASM_End", null)?.toString()?.toIntOrNull()
+                if (asmPosStart == null || asmPosEnd == null) {
+                    myLogger.info("WARN - Skipping variant at $refChr:$refPosStart due to invalid ASM_Start/ASM_End.")
+                    continue
+                }
+
+                // Ensure there is at least one alternate allele.
+                if (variant.alternateAlleles.isEmpty()) {
+                    myLogger.info("WARN - Skipping variant at $refChr:$refPosStart due to missing alternate allele.")
+                    continue
+                }
+
+                // Get string attributes for length check (if > 1: indel; else: continue block)
+                val altAllele = variant.getAlternateAllele(0).baseString
+                val refAllele = variant.reference.baseString
+                val hasEnd = variant.hasAttribute("END")
+
+                // Determine the strand, defaulting to "+".
+                val strand = variant.getAttribute("ASM_Strand", "+").toString()
+
+                when {
+                    // Negative stranded variant with an END attribute is written immediately as an inv_block.
+                    (hasEnd && strand == "-") -> {
+                        flushBlock()
+
+                        val encodedRefStart = PS4GUtils.encodePosition(Position(refChr, refPosStart), chrIndexMap)
+                        val encodedRefEnd = PS4GUtils.encodePosition(Position(refChr, refPosEnd), chrIndexMap)
+
+                        addPointsToMap(mapOfASMChrToListOfPoints, asmChr, asmPosStart, encodedRefStart)
+                        addPointsToMap(mapOfASMChrToListOfPoints, asmChr, asmPosEnd, encodedRefEnd)
+                    }
+                    // Collapse SNV and explicit END cases (for positive stranded variants).
+                    (refAllele.length == 1 && (altAllele.length == 1 || hasEnd)) -> {
+                        val effectiveRefEnd = if (hasEnd) refPosEnd else refPosStart
+                        updateBlock(refPosStart, effectiveRefEnd, asmPosStart, asmPosEnd, asmChr, refChrIndex)
+                    }
+                    // Insertion: alternate allele is longer than one base.
+                    (altAllele.length > 1) -> {
+                        // Just update running block if small insertions are encountered
+                        if (altAllele.length <= minIndelLength) {
+                            val effectiveRefEnd = if (hasEnd) refPosEnd else refPosStart
+                            updateBlock(refPosStart, effectiveRefEnd, asmPosStart, asmPosEnd, asmChr, refChrIndex)
+                        } else {
+                            // Report block and reset tracker
+                            flushBlock()
+
+                            // Generate midpoint to ensure monotonicity for spline
+                            val asmPosMid = ((asmPosStart + asmPosEnd) * 0.5).toInt()
+
+                            val encodedRefStart = PS4GUtils.encodePosition(Position(refChr, refPosStart), chrIndexMap)
+                            addPointsToMap(mapOfASMChrToListOfPoints, asmChr, asmPosMid, encodedRefStart)
+                        }
+                    }
+                    // Deletion: reference allele is longer than one base.
+                    (refAllele.length > 1) -> {
+                        // Just update running block if small deletions are encountered
+                        if (refAllele.length <= minIndelLength) {
+                            val effectiveRefEnd = if (hasEnd) refPosEnd else refPosStart
+                            updateBlock(refPosStart, effectiveRefEnd, asmPosStart, asmPosEnd, asmChr, refChrIndex)
+                        } else {
+                            flushBlock()
+                            val refPosMid = (((refPosStart + refAllele.length - 1) + refPosStart) * 0.5).toInt()
+                            val encodedRefMidPoint = PS4GUtils.encodePosition(Position(refChr, refPosMid), chrIndexMap)
+                            addPointsToMap(mapOfASMChrToListOfPoints, asmChr, asmPosStart, encodedRefMidPoint)
+                        }
+                    }
+                    else -> {
+                        flushBlock()
+                        val encodedRefStart = PS4GUtils.encodePosition(Position(refChr, refPosStart), chrIndexMap)
+                        addPointsToMap(mapOfASMChrToListOfPoints, asmChr, asmPosStart, encodedRefStart)
+                    }
+                }
+            }
+        }
+        flushBlock()
+
+        //Downsample the number of points
+        downsamplePoints(mapOfASMChrToListOfPoints, maxNumPoints)
+        //Now we need to build the splines for each of the assembly chromosomes
+        val splineBuilder = AkimaSplineInterpolator()
+        //loop through each of the assembly coordinates and make splines for each
+        for (entry in mapOfASMChrToListOfPoints.entries) {
+            val asmChr = entry.key
+            val listOfPoints = entry.value
+            val sampleName = gameteIndexMap.keys.firstOrNull { it.contains(asmChr) } ?: "NA"
+            checkMapAndAddToIndex(gameteIndexMap, sampleName)
+            buildSpline(listOfPoints, splineBuilder, splineMap, asmChr, sampleName)
+        }
+    }
+
+    fun addPointsToMap(
+        mapOfASMChrToListOfPoints: MutableMap<String, MutableList<Pair<Double, Double>>>,
+        asmChr: String,
+        asmPos: Int,
+        refPos: Int
+    ) {
+        val listOfPoints = mapOfASMChrToListOfPoints.getOrPut(asmChr) { mutableListOf() }
+        listOfPoints.add(Pair(asmPos.toDouble(), refPos.toDouble()))
+    }
+
+    fun downsamplePoints(map:MutableMap<String, MutableList<Pair<Double,Double>>>, maxNumPoints: Int = 250_000) {
+        for (entry in map.entries) {
+            val listOfPoints = entry.value
+            val numPointsToRemove = listOfPoints.size - maxNumPoints
+
+            if(numPointsToRemove > 0) {
+                (0 until numPointsToRemove).forEach {
+                    val randomIndex = (0 until listOfPoints.size).random()
+                    listOfPoints.removeAt(randomIndex)
+                }
+            }
+            map[entry.key] = listOfPoints
+        }
+    }
+
     /**
      * Simple function to check to see if a value already exists in our map and adds to it if not.
      */
@@ -175,7 +428,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     }
 
     /**
-     * Fnction to build the splines based on a list of Pair<Double, Double>
+     * Function to build the splines based on a list of Pair<Double, Double>
      */
     fun buildSpline(
         listOfPoints: MutableList<Pair<Double, Double>>,
