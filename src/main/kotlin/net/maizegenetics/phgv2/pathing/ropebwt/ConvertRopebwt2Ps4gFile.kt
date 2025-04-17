@@ -103,6 +103,10 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             myLogger.info("Reading ${vcfFile.name}")
             processVCFFileIntoSplines(vcfFile, vcfType, splineMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom)
         }
+        myLogger.info("Done reading VCF files")
+        myLogger.info("Number of splines: ${splineMap.size}")
+        myLogger.info("Number of chromosomes: ${chrIndexMap.size}")
+        myLogger.info("Number of gametes: ${gameteIndexMap.size}")
         return Triple(splineMap, chrIndexMap, gameteIndexMap)
     }
 
@@ -282,6 +286,8 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
         // Open the gVCF file using HTSJDK.
         VCFFileReader(gvcfFile, false).use { reader ->
+            val sampleName = reader.fileHeader.sampleNamesInOrder[0]
+
             for (variant in reader) {
                 val refChr = variant.contig
                 val refPosStart = variant.start
@@ -377,21 +383,23 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                     }
                 }
             }
-        }
-        flushBlock()
+            flushBlock()
 
-        //Downsample the number of points
-        downsamplePoints(mapOfASMChrToListOfPoints, maxNumPoints)
-        //Now we need to build the splines for each of the assembly chromosomes
-        val splineBuilder = AkimaSplineInterpolator()
-        //loop through each of the assembly coordinates and make splines for each
-        for (entry in mapOfASMChrToListOfPoints.entries) {
-            val asmChr = entry.key
-            val listOfPoints = entry.value
-            val sampleName = gameteIndexMap.keys.firstOrNull { it.contains(asmChr) } ?: "NA"
-            checkMapAndAddToIndex(gameteIndexMap, sampleName)
-            buildSpline(listOfPoints, splineBuilder, splineMap, asmChr, sampleName)
+            //Downsample the number of points
+            downsamplePoints(mapOfASMChrToListOfPoints, maxNumPoints)
+            //Now we need to build the splines for each of the assembly chromosomes
+            val splineBuilder = AkimaSplineInterpolator()
+            //loop through each of the assembly coordinates and make splines for each
+            for (entry in mapOfASMChrToListOfPoints.entries) {
+                val asmChr = entry.key
+                val listOfPoints = entry.value
+//                val sampleName = gameteIndexMap.keys.firstOrNull { it.contains(asmChr) } ?: "NA"
+                myLogger.info("Building spline for $asmChr $sampleName")
+                checkMapAndAddToIndex(gameteIndexMap, sampleName)
+                buildSpline(listOfPoints, splineBuilder, splineMap, asmChr, sampleName)
+            }
         }
+
     }
 
     fun addPointsToMap(
