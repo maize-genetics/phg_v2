@@ -15,12 +15,12 @@ class ConvertRopebwt2Ps4gFileTest {
     fun testCliktParams() {
         val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
 
-        val noBedFile = convertRopebwt2Ps4gFile.test("--output-dir testDir --hvcf-dir testDir")
+        val noBedFile = convertRopebwt2Ps4gFile.test("--output-dir testDir --vcf-dir testDir")
         assertEquals(1, noBedFile.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
                 "Error: missing option --ropebwt-bed\n", noBedFile.stderr)
 
-        val noOutputDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --hvcf-dir testDir")
+        val noOutputDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --vcf-dir testDir")
         assertEquals(1, noOutputDir.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
                 "Error: missing option --output-dir\n", noOutputDir.stderr)
@@ -28,7 +28,7 @@ class ConvertRopebwt2Ps4gFileTest {
         val noHvcfDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --output-dir testDir")
         assertEquals(1, noHvcfDir.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
-                "Error: missing option --hvcf-dir\n", noHvcfDir.stderr)
+                "Error: missing option --vcf-dir\n", noHvcfDir.stderr)
 
     }
 
@@ -293,7 +293,7 @@ class ConvertRopebwt2Ps4gFileTest {
             PS4GData(listOf(0),8, 1), PS4GData(listOf(0),12, 2)
         )
 
-        val (splineLookup, chrIndexMap, gameteToIdxMap) = convertRopebwt2Ps4gFile.buildSplineLookup(hvcfDir)
+        val (splineLookup, chrIndexMap, gameteToIdxMap) = convertRopebwt2Ps4gFile.buildSplineLookup(hvcfDir, "hvcf")
 
         val ps4gData = convertRopebwt2Ps4gFile.buildPS4GData(ropebwtBed, splineLookup, chrIndexMap, gameteToIdxMap, 148, 10)
 
@@ -408,7 +408,7 @@ class ConvertRopebwt2Ps4gFileTest {
     fun testBuildSplineLookup() {
         val hvcfDir = "data/test/ropebwt/testHVCFs"
         val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
-        val (splineMap, chrIndexMap, gameteIndexMap) = convertRopebwt2Ps4gFile.buildSplineLookup(hvcfDir)
+        val (splineMap, chrIndexMap, gameteIndexMap) = convertRopebwt2Ps4gFile.buildSplineLookup(hvcfDir,"hvcf")
 
         assertEquals(2, splineMap.size)
         assertEquals(2, chrIndexMap.size)

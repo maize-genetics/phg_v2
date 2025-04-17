@@ -132,7 +132,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         maxNumPointsPerChrom: Int = 250_000
     ) {
         if(vcfType == "hvcf") {
-            processHvcfFileIntoSplines(vcfFile, splineMap, chrIndexMap, gameteIndexMap)
+            processHvcfFileIntoSplines(vcfFile, splineMap, chrIndexMap, gameteIndexMap, maxNumPointsPerChrom)
         }
         else if(vcfType == "gvcf") {
             processGvcfFileIntoSplines(vcfFile, splineMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom)
@@ -149,18 +149,18 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         hvcfFile: File?,
         splineMap: MutableMap<String, PolynomialSplineFunction>,
         chrIndexMap : MutableMap<String,Int>,
-        gameteIndexMap: MutableMap<String, Int>
+        gameteIndexMap: MutableMap<String, Int>,
+        maxNumPointsPerChrom: Int = 250_000
     ) {
         VCFFileReader(hvcfFile, false).use { reader ->
             val header = reader.header
             val headerParsed = parseALTHeader(header)
             val splineBuilder = AkimaSplineInterpolator()
-            var currentChrom = ""
             val sampleName = reader.fileHeader.sampleNamesInOrder[0]
             checkMapAndAddToIndex(gameteIndexMap, sampleName)
 
             //This is ASM,REF
-            val listOfPoints = mutableListOf<Pair<Double, Double>>()
+            val mapOfASMChrToListOfPoints = mutableMapOf<String, MutableList<Pair<Double, Double>>>()
 
             val iterator = reader.iterator()
             while (iterator.hasNext()) {
@@ -168,14 +168,6 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                 val chrom = currentVariant.contig
                 //Check to see if we need to add a new entry in our chrIndexMap
                 checkMapAndAddToIndex(chrIndexMap, chrom)
-                if (chrom != currentChrom) {
-                    if (listOfPoints.isEmpty()) {
-                        currentChrom = chrom
-                    } else {
-                        buildSpline(listOfPoints, splineBuilder, splineMap, currentChrom, sampleName)
-                        currentChrom = chrom
-                    }
-                }
 
                 val stPosition = currentVariant.start
                 val endPosition = currentVariant.end
@@ -196,15 +188,27 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                     val asmStart = regions.first().first.position
                     val asmEnd = regions.last().second.position
 
-                    listOfPoints.add(Pair(asmStart.toDouble(), stPositionEncoded.toDouble()))
-                    listOfPoints.add(Pair(asmEnd.toDouble(), endPositionEncoded.toDouble()))
+                    //We can treat each end point separately in case the assembly chromosome is different
+                    val asmStartChr = regions.first().first.contig
+                    val asmEndChr = regions.last().second.contig
+
+                    addPointsToMap(mapOfASMChrToListOfPoints,asmStartChr, asmStart, stPositionEncoded)
+                    addPointsToMap(mapOfASMChrToListOfPoints,asmEndChr, asmEnd, endPositionEncoded)
                 }
 
             }
             iterator.close()
 
-            if (listOfPoints.isNotEmpty()) {
-                buildSpline(listOfPoints, splineBuilder, splineMap, currentChrom, sampleName)
+            //build the splines
+            //Downsample the number of points
+            downsamplePoints(mapOfASMChrToListOfPoints, maxNumPointsPerChrom)
+            //Now we need to build the splines for each of the assembly chromosomes
+            //loop through each of the assembly coordinates and make splines for each
+            for (entry in mapOfASMChrToListOfPoints.entries) {
+                val asmChr = entry.key
+                val listOfPoints = entry.value
+                checkMapAndAddToIndex(gameteIndexMap, sampleName)
+                buildSpline(listOfPoints, splineBuilder, splineMap, asmChr, sampleName)
             }
         }
     }
@@ -590,7 +594,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
         val gameteIndicesHit = bestHitsForChrom
             .map { it.first.split("_") }
-            .map { it[1] }
+            .map { it.last() } //needs to be last because there are scaffolds delimited by _
             .map {
                 if(!gameteToIdxMap.containsKey(it)) {
                     myLogger.info("Gamete $it not found in. Chr: $bestChromosome, Position: $averagePosition")
@@ -598,11 +602,8 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                 gameteToIdxMap[it]!! }
             .toSortedSet()
             .toList()
+
         return Pair(encodedPosition,gameteIndicesHit )
-        //Associate the gametes with the average positions
-//        return Pair(encodedPositions)
-
-
     }
 
     /**
