@@ -6,7 +6,7 @@ import net.maizegenetics.phgv2.utils.parseALTHeader
 import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.apache.logging.log4j.LogManager
-import java.io.File
+import java.io.*
 
 /**
  * Class to hold utility functions for building and saving splines built from hvcfs or gvcfs
@@ -389,7 +389,24 @@ class SplineUtils{
         }
 
         fun writeSplinesToFile(splineLookup: Map<String,PolynomialSplineFunction>, chrIndexMap: Map<String,Int>, gameteIndexMap : Map<String,Int>, outputFile: String) {
-            TODO("Implement writing splines to file")
+            FileOutputStream("${outputFile}_splines.ser").use { fout ->
+                ObjectOutputStream(fout).use { oos ->
+                    oos.writeObject(splineLookup)
+                }
+            }
+
+            FileOutputStream("${outputFile}_chrIndexMap.ser").use { fout ->
+                ObjectOutputStream(fout).use { oos ->
+                    oos.writeObject(chrIndexMap)
+                }
+            }
+
+            FileOutputStream("${outputFile}_gameteIndexMap.ser").use { fout ->
+                ObjectOutputStream(fout).use { oos ->
+                    oos.writeObject(gameteIndexMap)
+                }
+            }
+
         }
 
         /**
@@ -400,7 +417,29 @@ class SplineUtils{
          * TODO(Turn this into a data class)
          */
         fun loadSplinesFromFile(inputFile: String): Triple<Map<String,PolynomialSplineFunction>, Map<String,Int>, Map<String,Int>> {
-            TODO("Implement loading splines from file")
+            var splineLookup: Map<String,PolynomialSplineFunction>
+            var chrIndexMap: Map<String,Int>
+            var gameteIndexMap: Map<String,Int>
+
+            FileInputStream("${inputFile}_splines.ser").use { fin ->
+                ObjectInputStream(fin).use { ois ->
+                    splineLookup = ois.readObject() as Map<String, PolynomialSplineFunction>
+                }
+            }
+
+            FileInputStream("${inputFile}_chrIndexMap.ser").use { fin ->
+                ObjectInputStream(fin).use { ois ->
+                    chrIndexMap = ois.readObject() as Map<String, Int>
+                }
+            }
+
+            FileInputStream("${inputFile}_gameteIndexMap.ser").use { fin ->
+                ObjectInputStream(fin).use { ois ->
+                    gameteIndexMap = ois.readObject() as Map<String, Int>
+                }
+            }
+
+            return Triple(splineLookup, chrIndexMap, gameteIndexMap)
         }
     }
 }
