@@ -13,6 +13,8 @@ import com.github.ajalt.clikt.parameters.types.int
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.variantcontext.VariantContextComparator
 import htsjdk.variant.vcf.VCFFileReader
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.utils.*
 import org.apache.logging.log4j.LogManager
@@ -63,7 +65,7 @@ class Hvcf2Gvcf :
         .default("")
     val batchSize by option(help = "Number of samples to export at a time.")
         .int()
-        .default(5)
+        .default(1)
 
     val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
         .default("")
@@ -164,11 +166,15 @@ class Hvcf2Gvcf :
 
         if (missingSamples.isNotEmpty()) {
             myLogger.info("calling exportGvcfFiles with ${missingSamples.size} missing samples")
-            val exportSuccess = exportGvcfFiles(missingSamples, outputDir, dbPath, condaEnvPrefix, batchSize)
-            if (!exportSuccess) {
-                myLogger.error("Failed to export gvcf files for missing samples")
-                return emptyList()
+
+            runBlocking {
+                val exportSuccess = exportSamplesGvcfFiles(missingSamples, outputDir, dbPath, condaEnvPrefix, batchSize)
+                if (!exportSuccess) {
+                    myLogger.error("Failed to export gvcf files for missing samples")
+                    throw IllegalStateException("Failed to export gvcf files for missing samples")
+                }
             }
+
             // Add missing samples to the map - should be MissingSample -> <outputDir>/<MissingSample>.vcf
             missingSamples.forEach { sampleName ->
                 sampleNameToVCFMap[sampleName] = "$outputDir/$sampleName.vcf"
@@ -317,73 +323,102 @@ class Hvcf2Gvcf :
         )
     }
 
-    // function to export from tiledb the gvcf files if they don't exist
-    // If we get the tiledb-java API working for MAC, we can hold these in memory
-    // while processing and skip the export.
-    fun exportGvcfFiles(
+    suspend fun exportSamplesGvcfFiles(
         sampleNames: Set<String>,
         outputDir: String,
         dbPath: String,
         condaEnvPrefix: String,
         batchSize: Int
     ): Boolean {
-        val success = true
 
-        // Samples were filtered to only those that are missing a gvcf file
-        // Batch the remaining sampleNames and send to tiledbvcf export command, 5 at a time.
+        val processingChannel = Channel<Deferred<Boolean>>(25)
 
-        // Setup the conda enviroment portion of the command
+        CoroutineScope(Dispatchers.IO).launch {
+
+            sampleNames.chunked(batchSize).forEach { sampleList ->
+                processingChannel.send(async {
+                    exportGvcfFiles(
+                        sampleList,
+                        outputDir,
+                        dbPath,
+                        condaEnvPrefix
+                    )
+                })
+            }
+
+            processingChannel.close()
+
+        }
+
+        for (deferred in processingChannel) {
+            try {
+                deferred.await()
+            } catch (e: Exception) {
+                myLogger.error("Error exporting gvcf files: ${e.message}")
+                return false
+            }
+        }
+
+        return true
+
+    }
+
+    // function to export from tiledb the gvcf files if they don't exist
+    // If we get the tiledb-java API working for MAC, we can hold these in memory
+    // while processing and skip the export.
+    private fun exportGvcfFiles(
+        sampleNames: List<String>,
+        outputDir: String,
+        dbPath: String,
+        condaEnvPrefix: String
+    ): Boolean {
+
+        // Set up the conda environment portion of the command
         val condaCommandPrefix = if (condaEnvPrefix.isNotBlank()) {
             mutableListOf("conda", "run", "-p", condaEnvPrefix)
         } else {
             mutableListOf("conda", "run", "-n", "phgv2-tiledb")
         }
 
-        val batches = sampleNames.chunked(batchSize)
-        batches.forEach { batch ->
-            // Create the data portion of the command for this batch
-            val dataCommand = mutableListOf(
-                "tiledbvcf",
-                "export",
-                "--uri",
-                "$dbPath/gvcf_dataset",
-                "-O",
-                "v",
-                "--sample-names",
-                batch.joinToString(","),  // Send only this batch of sample names
-                "--output-dir",
-                outputDir
+        val dataCommand = mutableListOf(
+            "tiledbvcf",
+            "export",
+            "--uri",
+            "$dbPath/gvcf_dataset",
+            "--output-format",
+            "v",
+            "--sample-names",
+            sampleNames.joinToString(","),
+            "--output-dir",
+            outputDir
+        )
+
+        // Join the conda and data portions of the command
+        val command = condaCommandPrefix + dataCommand
+        val builder = ProcessBuilder(command)
+
+        val redirectError = "$outputDir/export_gvcf_error.log"
+        val redirectOutput = "$outputDir/export_gvcf_output.log"
+        builder.redirectOutput(File(redirectOutput))
+        builder.redirectError(File(redirectError))
+
+        // Log the command
+        myLogger.info("Command: " + builder.command().joinToString(" "))
+
+        // Start the process
+        val process = builder.start()
+        val error = process.waitFor()
+
+        // Handle error if the process fails
+        if (error != 0) {
+            myLogger.error("tiledbvcf export returned error code $error")
+            throw IllegalStateException(
+                "Error running tiledbvcf export of dataset $dbPath/gvcf_dataset: $error"
             )
-            // Join the conda and data portions of the command
-            val command = condaCommandPrefix + dataCommand
-            val builder = ProcessBuilder(command)
-
-            val redirectError = "$outputDir/export_gvcf_error_${batch.first()}.log"  // Log file per batch
-            val redirectOutput = "$outputDir/export_gvcf_output_${batch.first()}.log"
-            builder.redirectOutput(File(redirectOutput))
-            builder.redirectError(File(redirectError))
-
-            // Log the command
-            myLogger.info("ExportVcf Command for batch: ${batch.joinToString(",")}")
-            myLogger.info("Command: " + builder.command().joinToString(" "))
-
-            // Start the process
-            val process = builder.start()
-            val error = process.waitFor()
-
-            // Handle error if the process fails
-            if (error != 0) {
-                myLogger.error("tiledbvcf export for batch: ${batch.joinToString(",")} returned error code $error")
-                throw IllegalStateException(
-                    "Error running tiledbvcf export of dataset $dbPath/gvcf_dataset for batch: ${
-                        batch.joinToString(
-                            ","
-                        )
-                    }. error: $error"
-                )
-            }
         }
-        return success
+
+        return true
+
     }
 
 
