@@ -474,13 +474,13 @@ class Hvcf2Gvcf :
             while (currentVariantIdx < variantContexts.size) {
                 val currentVariant = variantContexts[currentVariantIdx]
 
+                val region = Pair(
+                    Position(regionChrom, regionStart),
+                    Position(regionChrom, regionEnd)
+                )
+
                 when {
-                    VariantContextUtils.bedRegionContainedInVariant(
-                        Pair(
-                            Position(regionChrom, regionStart),
-                            Position(regionChrom, regionEnd)
-                        ), currentVariant
-                    ) -> {
+                    VariantContextUtils.bedRegionContainedInVariant(region, currentVariant) -> {
                         // This is the case where the region is completely contained within the variant,
                         // meaning the variant may overlap the region.  We need to adjust the asm positions
                         val fixedVariants = fixPositions(
@@ -495,43 +495,23 @@ class Hvcf2Gvcf :
                         break
                     }
 
-                    VariantContextUtils.variantFullyContained(
-                        Pair(
-                            Position(regionChrom, regionStart),
-                            Position(regionChrom, regionEnd)
-                        ), currentVariant
-                    ) -> {
+                    VariantContextUtils.variantFullyContained(region, currentVariant) -> {
                         // This is the case where the variant is completely contained within the region
                         tempVariants.add(currentVariant)
                         currentVariantIdx++
                     }
 
-                    VariantContextUtils.variantPartiallyContainedStart(
-                        Pair(
-                            Position(regionChrom, regionStart),
-                            Position(regionChrom, regionEnd)
-                        ), currentVariant
-                    ) -> {
+                    VariantContextUtils.variantPartiallyContainedStart(region, currentVariant) -> {
                         tempVariants.add(currentVariant)
                         break
                     }
 
-                    VariantContextUtils.variantPartiallyContainedEnd(
-                        Pair(
-                            Position(regionChrom, regionStart),
-                            Position(regionChrom, regionEnd)
-                        ), currentVariant
-                    ) -> {
+                    VariantContextUtils.variantPartiallyContainedEnd(region, currentVariant) -> {
                         tempVariants.add(currentVariant)
                         currentVariantIdx++
                     }
 
-                    VariantContextUtils.variantAfterRegion(
-                        Pair(
-                            Position(regionChrom, regionStart),
-                            Position(regionChrom, regionEnd)
-                        ), currentVariant
-                    ) -> {
+                    VariantContextUtils.variantAfterRegion(region, currentVariant) -> {
                         // write data from tempVariants
                         if (tempVariants.isNotEmpty()) {
                             val fixedVariants = fixPositions(
