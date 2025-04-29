@@ -28,35 +28,7 @@ import java.nio.charset.StandardCharsets
 import net.openhft.hashing.LongHashFunction
 
 
-
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.VariantLoadingUtils")
-
-// We could use the BioKotlin SeqPosition, but it is heavier than we need
-// as it contains a NucSeqRecord to get the chromosome name, and that includes sequence
-// It needs to be Comparable to be used in a RangeSet
-data class Position (val contig: String, val position: Int) : Comparable<Position> {
-    override fun compareTo(other: Position): Int {
-
-        if (this.contig == other.contig) {
-            return this.position.compareTo(other.position)
-        }
-
-        val thisContig = this.contig.replace("chr", "", ignoreCase = true).trim()
-        val otherContig = other.contig.replace("chr", "", ignoreCase = true).trim()
-
-        return try {
-            thisContig.toInt() - otherContig.toInt()
-        } catch (e: NumberFormatException) {
-            // If we can't convert contigs to an int, then compare the strings
-            contig.compareTo(other.contig)
-        }
-
-    }
-
-    override fun toString(): String {
-        return "$contig:$position"
-    }
-}
 
 /**
  * Function to write out the Variant Contexts to a file.
