@@ -6,9 +6,7 @@ import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.*
 import htsjdk.variant.variantcontext.VariantContext
-import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeaderLine
-import htsjdk.variant.vcf.VCFHeaderVersion
 import net.maizegenetics.phgv2.utils.*
 import net.maizegenetics.phgv2.utils.Position
 import org.apache.logging.log4j.LogManager
