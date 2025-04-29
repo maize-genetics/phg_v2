@@ -21,6 +21,7 @@ class PS4GUtils {
                 writer.write("#PS4G\n")
                 header.forEach { writer.write("#$it\n") }
                 writer.write("#Command: $cliCommand\n")
+                writer.write("#TotalUniqueCounts: ${pS4GData.map { it.count }.sum()}\n")
                 writer.write("#gamete\tgameteIndex\tcount\n")
                 sampleGameteCount.forEach { (sampleGamete, count) ->
                     writer.write("#$sampleGamete\t${gameteToIdxMap[sampleGamete]}\t$count\n")

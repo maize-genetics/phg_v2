@@ -4,6 +4,7 @@ import biokotlin.util.bufferedReader
 import biokotlin.util.bufferedWriter
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.int
@@ -42,6 +43,9 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
     val hvcfDir by option(help = "Directory containing the hvcf files")
         .required()
 
+    val sortPositions by option(help = "Sort positions in the resulting PS4G file.")
+        .flag(default = true)
+
 
     override fun run() {
         logCommand(this)
@@ -50,21 +54,21 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
         myLogger.info("Building Graph")
         val graph = HaplotypeGraph(hvcfDir)
         myLogger.info("Converting read mapping file")
-        convertReadMappingFile(readMappingFile, outputDir, graph, cliCommand)
+        convertReadMappingFile(readMappingFile, outputDir, graph, cliCommand, sortPositions)
 
     }
 
     /**
      * Function to convert the read mapping file into a PS4G file
      */
-    fun convertReadMappingFile(readMappingFile: String, outputDir: String, graph: HaplotypeGraph, cliCommand: String) {
+    fun convertReadMappingFile(readMappingFile: String, outputDir: String, graph: HaplotypeGraph, cliCommand: String, sortPositions: Boolean = true) {
 
         myLogger.info("Loading in readMapping File: $readMappingFile")
         val (header,readMappings) = readInReadMappingFile(readMappingFile)
 
 
         myLogger.info("Converting readMappings to PS4GData")
-        val (ps4GData, sampleGameteCount, gameteToIdxMap) = convertReadMappingDataToPS4G(readMappings, graph)
+        val (ps4GData, sampleGameteCount, gameteToIdxMap) = convertReadMappingDataToPS4G(readMappings, graph, sortPositions)
 
 
         val outputFile = PS4GUtils.buildOutputFileName(readMappingFile, outputDir)
@@ -97,7 +101,8 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
      * Function to create the PS4G data information for the readMappings
      */
     fun convertReadMappingDataToPS4G(readMappings: Map<List<String>,Int>,
-                                     graph: HaplotypeGraph ) : Triple<List<PS4GData>, Map<SampleGamete,Int>,Map<SampleGamete,Int>> {
+                                     graph: HaplotypeGraph,
+                                     sortPositions: Boolean = true) : Triple<List<PS4GData>, Map<SampleGamete,Int>,Map<SampleGamete,Int>> {
 
         val contigToIdxMap = graph.contigs.mapIndexed { index, s -> Pair(s,index)  }.toMap()
 
@@ -107,11 +112,34 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
 
         val gameteCountMap = mutableMapOf<SampleGamete,Int>()
 
-        val ps4GData = readMappings.map { (hapIdSet,count) ->
-            createPS4GFileForSingleMapping(hapIdSet, hapIdToRanges, contigToIdxMap, graph, gameteCountMap, count, gameteToIdxMap)
-        }
+        val ps4GData = buildPS4GData(readMappings, hapIdToRanges, contigToIdxMap, graph, gameteCountMap, gameteToIdxMap, sortPositions)
 
         return Triple(ps4GData, gameteCountMap, gameteToIdxMap)
+    }
+
+    /**
+     * Function to build the PS4GData for all the readMappings with optional sorting
+     */
+    fun buildPS4GData(
+        readMappings: Map<List<String>, Int>,
+        hapIdToRanges: Map<String, List<ReferenceRange>>,
+        contigToIdxMap: Map<String, Int>,
+        graph: HaplotypeGraph,
+        gameteCountMap: MutableMap<SampleGamete, Int>,
+        gameteToIdxMap: Map<SampleGamete, Int>,
+        sortPositions: Boolean = true
+    ) : List<PS4GData> {
+
+        val readMappingsForConversion = if(sortPositions) {
+            readMappings.keys.sortedBy { it.flatMap { hapId -> hapIdToRanges[hapId]!! }.maxBy { hapId -> hapId } }
+        } else {
+            readMappings.keys
+        }
+
+        return readMappingsForConversion.map { hapIdSet ->
+            val count = readMappings[hapIdSet]!!
+            createPS4GFileForSingleMapping(hapIdSet, hapIdToRanges, contigToIdxMap, graph, gameteCountMap, count, gameteToIdxMap)
+        }
     }
 
     /**
