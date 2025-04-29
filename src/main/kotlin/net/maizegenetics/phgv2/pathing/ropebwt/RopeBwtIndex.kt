@@ -33,7 +33,7 @@ sealed class RopeBWTIndexInput {
  *
  * With the output files we can then run ropebwt3 mem and get read mappings.
  */
-class RopeBwtIndex : CliktCommand(help="BETA: Create a ropeBWT3 index") {
+class RopeBwtIndex : CliktCommand(help="Create a ropeBWT3 index") {
 
     private val myLogger = LogManager.getLogger(RopeBwtIndex::class.java)
 

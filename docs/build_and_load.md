@@ -1361,4 +1361,4 @@ instances (in our case, `vcf_dbs/`) can be compressed for backups
 
 ### Where to go from here?
 * [QC Metrics](qc_metrics.md)
-* [Imputation and Path Finding](imputation.md)
+* [Imputation and Path Finding](imputation_ropebwt.md)

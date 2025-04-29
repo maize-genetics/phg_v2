@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.variantcontext.Allele
 import htsjdk.variant.variantcontext.GenotypeBuilder
 import htsjdk.variant.variantcontext.VariantContextBuilder
+import io.kotest.common.runBlocking
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -29,17 +30,19 @@ class Hvcf2GvcfTest {
 
             File(TestExtension.testVCFDir).mkdirs()
             File(TestExtension.testTileDBURI).mkdirs()
-            Initdb().createDataSets(dbPath,"")
+            Initdb().createDataSets(dbPath, "")
 
             // Create the agc compressed file
             println("testSimpleHvcf2Gvcf:running agcCompress")
             val agcCompress = AgcCompress()
-            var agcResult = agcCompress.test("--fasta-list ${TestExtension.smallseqAssembliesListFile} --db-path ${dbPath} --reference-file ${TestExtension.smallseqRefFile}")
+            var agcResult =
+                agcCompress.test("--fasta-list ${TestExtension.smallseqAssembliesListFile} --db-path ${dbPath} --reference-file ${TestExtension.smallseqRefFile}")
             println(agcResult.output)
 
             println("testSimpleHvcf2Gvcf:running CreateRefVcf")
-            var result = CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $refFasta --reference-url ${refUrl} --db-path $dbPath")
-            assertEquals(0, result.statusCode )
+            var result =
+                CreateRefVcf().test("--bed $ranges --reference-name $refName --reference-file $refFasta --reference-url ${refUrl} --db-path $dbPath")
+            assertEquals(0, result.statusCode)
 
             // Run alignAssemblies test to get MAF files.
             // Run createMAFVCf on the assemblies LineA and LIneB to get
@@ -59,7 +62,8 @@ class Hvcf2GvcfTest {
             // Load assemblies using CreateMafVcf - creates and loads gvcf and hvcf
             println("testSimpleHvcf2Gvcf: running CreateMafVcf")
             val createMafVcf = CreateMafVcf()
-            result = createMafVcf.test("--db-path ${dbPath} --bed ${ranges} --reference-file ${refFasta} --maf-dir ${TestExtension.tempDir} -o ${TestExtension.testVCFDir}")
+            result =
+                createMafVcf.test("--db-path ${dbPath} --bed ${ranges} --reference-file ${refFasta} --maf-dir ${TestExtension.tempDir} -o ${TestExtension.testVCFDir}")
             println(result.output)
 
             // Need to load the vcf now!
@@ -111,6 +115,7 @@ class Hvcf2GvcfTest {
         )
 
     }
+
     @Test
     fun testSimpleHvcf2Gvcf() {
         // This is a basic test.  We copy an hvcf file created from CreateMafVcf to a new location
@@ -131,7 +136,8 @@ class Hvcf2GvcfTest {
 
         // Run hvcf2gvcf on the copied file
         val hvcf2gvcf = Hvcf2Gvcf()
-        val result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
+        val result =
+            hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
         // verify the output file exists, which will be LineBPath.g.vcf
         assertTrue(File("${testGVCFdir}/LineBPath.g.vcf").exists())
         // Verify header lines
@@ -184,7 +190,8 @@ class Hvcf2GvcfTest {
 
         // Run hvcf2gvcf on the copied file
         val hvcf2gvcf = Hvcf2Gvcf()
-        val result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
+        val result =
+            hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
         // verify the output file exists, which will be LineBPath.g.vcf
         assertTrue(File("${testGVCFdir}/TestLine2.g.vcf").exists())
 
@@ -206,7 +213,10 @@ class Hvcf2GvcfTest {
         // In additiona, the TestLine2.g.vcf file has entries at the beginning of each reference range as the
         // hvcf file lists the region beginning with the refRange beginning. RefBLocks were created for these
         // positions from refBLock beginning to first variant in the vcf file.
-        CreateMafVCFTest().compareTwoGVCFFiles("data/test/hvcfToGvcf/TestLine2_truth.g.vcf", "${testGVCFdir}/TestLine2.g.vcf")
+        CreateMafVCFTest().compareTwoGVCFFiles(
+            "data/test/hvcfToGvcf/TestLine2_truth.g.vcf",
+            "${testGVCFdir}/TestLine2.g.vcf"
+        )
 
         println("testPathHvcf2Gvcf done !!")
     }
@@ -254,7 +264,8 @@ class Hvcf2GvcfTest {
 
         // Run hvcf2gvcf on the copied file
         val hvcf2gvcf = Hvcf2Gvcf()
-        val result = hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
+        val result =
+            hvcf2gvcf.test("--db-path ${dbPath} --hvcf-dir $testGVCFdir --output-dir ${testGVCFdir} --reference-file ${refFasta}")
         // verify the output file exists, which will be LineBPath.g.vcf
         assertTrue(File("${testGVCFdir}/TestLine2.g.vcf").exists())
 
@@ -276,7 +287,10 @@ class Hvcf2GvcfTest {
         // In additiona, the TestLine2.g.vcf file has entries at the beginning of each reference range as the
         // hvcf file lists the region beginning with the refRange beginning. RefBLocks were created for these
         // positions from refBLock beginning to first variant in the vcf file.
-        CreateMafVCFTest().compareTwoGVCFFiles("data/test/hvcfToGvcf/TestLine2_truth.g.vcf", "${testGVCFdir}/TestLine2.g.vcf")
+        CreateMafVCFTest().compareTwoGVCFFiles(
+            "data/test/hvcfToGvcf/TestLine2_truth.g.vcf",
+            "${testGVCFdir}/TestLine2.g.vcf"
+        )
 
         println("testPathHvcf2Gvcf done !!")
     }
@@ -290,9 +304,12 @@ class Hvcf2GvcfTest {
         // make the exporedFiles folder
         File(outputDir).mkdirs()
         val condaEnvPrefix = ""
-        val missingSamples = setOf("LineA","LineB")
+        val missingSamples = setOf("LineA", "LineB")
         val batchSize = 1 // using 1 as there are only 2 samples in the test tiledbURI
-        val exportSuccess = Hvcf2Gvcf().exportGvcfFiles(missingSamples, outputDir, dbPath, condaEnvPrefix, batchSize)
+        runBlocking {
+            val exportSuccess =
+                Hvcf2Gvcf().exportSamplesGvcfFiles(missingSamples, outputDir, dbPath, condaEnvPrefix, batchSize)
+        }
         // verify the gvcf files exist in the outputDir
         assertTrue(File("$outputDir/LineA.vcf").exists())
         assertTrue(File("$outputDir/LineB.vcf").exists())
@@ -301,14 +318,19 @@ class Hvcf2GvcfTest {
         File("$outputDir/LineA.vcf").delete()
         File("$outputDir/LineB.vcf").delete()
 
-        //  export with all in the same batch, batch size =5
-        val exportSuccess2 = Hvcf2Gvcf().exportGvcfFiles(missingSamples, outputDir, dbPath, condaEnvPrefix, 5)
+        runBlocking {
+            //  export with all in the same batch, batch size = 5
+            val exportSuccess2 =
+                Hvcf2Gvcf().exportSamplesGvcfFiles(missingSamples, outputDir, dbPath, condaEnvPrefix, 5)
+        }
+
         // verify the gvcf files exist in the outputDir
         assertTrue(File("$outputDir/LineA.vcf").exists())
         assertTrue(File("$outputDir/LineB.vcf").exists())
 
 
     }
+
     @Test
     fun testCreateRefGvcf() {
         // This is a test of the Hvcf2Gvcf:createRefGvcf function.  We create a reference gvcf file
@@ -339,8 +361,10 @@ class Hvcf2GvcfTest {
         assertEquals(20, lines.filter { it.startsWith("1") }.size)
         assertEquals(20, lines.filter { it.startsWith("2") }.size)
 
-        val chrom1entry = "1\t1001\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=5500;ASM_Start=1001;ASM_Strand=+;END=5500\tGT:AD:DP:PL\t0:30,0:30:0,90,90"
-        val chom2entry = "2\t1001\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=5500;ASM_Start=1001;ASM_Strand=+;END=5500\tGT:AD:DP:PL\t0:30,0:30:0,90,90"
+        val chrom1entry =
+            "1\t1001\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=1;ASM_End=5500;ASM_Start=1001;ASM_Strand=+;END=5500\tGT:AD:DP:PL\t0:30,0:30:0,90,90"
+        val chom2entry =
+            "2\t1001\t.\tA\t<NON_REF>\t.\t.\tASM_Chr=2;ASM_End=5500;ASM_Start=1001;ASM_Strand=+;END=5500\tGT:AD:DP:PL\t0:30,0:30:0,90,90"
 
         // verify the file contains both the chrom1entry and the chrom2entry
         assertTrue(lines.contains(chrom1entry))
@@ -353,18 +377,20 @@ class Hvcf2GvcfTest {
         // Build a couple variant context objects
         // Make the simple, we don't care about depth or pl at this point,
         // we just want to see if we resize correctly.  But we do need genotypes
-        val alleles = listOf(Allele.create("G",true), Allele.NON_REF_ALLELE)
+        val alleles = listOf(Allele.create("G", true), Allele.NON_REF_ALLELE)
         val genotype = listOf(alleles[0])
 
         val vc1 = VariantContextBuilder(".", "chr1", 1001, 1010, alleles)
-        val currentGenotype = GenotypeBuilder("LineA",genotype).make()
-        vc1.attribute("ASM_Chr", "1").attribute("ASM_Start", 1003).attribute("ASM_End", 1012).attribute("ASM_Strand", "+")
+        val currentGenotype = GenotypeBuilder("LineA", genotype).make()
+        vc1.attribute("ASM_Chr", "1").attribute("ASM_Start", 1003).attribute("ASM_End", 1012)
+            .attribute("ASM_Strand", "+")
         val firstVariant = vc1.genotypes(currentGenotype).make()
 
         // First test sending in single variant context
         // consider the ref range is position 1005-1015, but the variant is at 1001-1010
         // The starts are adjusted, the ends remain the same
-        val resizedVc1 = Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant,firstVariant), Pair(1005,1015), Pair("+","+"))
+        val resizedVc1 =
+            Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant, firstVariant), Pair(1005, 1015), Pair("+", "+"))
         println("resizedVc1 ref/asm start positions: ${resizedVc1[0].first} ${resizedVc1[0].second}")
         println("resizedVc1 ref/asm end positions: ${resizedVc1[1].first} ${resizedVc1[1].second}")
         assertEquals(1005, resizedVc1[0].first) // ref start
@@ -377,10 +403,12 @@ class Hvcf2GvcfTest {
         // second variant is 1011-1020
         // Both start and end are adjusted
         val vc2 = VariantContextBuilder(".", "chr1", 1011, 1020, alleles)
-        val currentGenotype2 = GenotypeBuilder("LineA",genotype).make()
-        vc2.attribute("ASM_Chr", "1").attribute("ASM_Start", 1013).attribute("ASM_End", 1022).attribute("ASM_Strand", "+")
+        val currentGenotype2 = GenotypeBuilder("LineA", genotype).make()
+        vc2.attribute("ASM_Chr", "1").attribute("ASM_Start", 1013).attribute("ASM_End", 1022)
+            .attribute("ASM_Strand", "+")
         val secondVariant = vc2.genotypes(currentGenotype2).make()
-        val resizedVc2 = Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant,secondVariant), Pair(1005,1015), Pair("+","+"))
+        val resizedVc2 =
+            Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant, secondVariant), Pair(1005, 1015), Pair("+", "+"))
 
         println("resizedVc2 ref/asm start positions: ${resizedVc2[0].first} ${resizedVc2[0].second}")
         println("resizedVc2 ref/asm end positions: ${resizedVc2[1].first} ${resizedVc2[1].second}")
@@ -399,20 +427,22 @@ class Hvcf2GvcfTest {
         // Build a couple variant context objects
         // Make it simple, we don't care about depth or pl at this point,
         // we just want to see if we resize correctly.  But we do need genotypes
-        val alleles = listOf(Allele.create("G",true), Allele.NON_REF_ALLELE)
+        val alleles = listOf(Allele.create("G", true), Allele.NON_REF_ALLELE)
         val genotype = listOf(alleles[0])
 
         val vc1 = VariantContextBuilder(".", "chr1", 1001, 1010, alleles)
-        val currentGenotype = GenotypeBuilder("LineA",genotype).make()
+        val currentGenotype = GenotypeBuilder("LineA", genotype).make()
         // WHen the strand is reverse, the start and end are reversed
-        vc1.attribute("ASM_Chr", "1").attribute("ASM_Start", 1022).attribute("ASM_End", 1013).attribute("ASM_Strand", "-")
+        vc1.attribute("ASM_Chr", "1").attribute("ASM_Start", 1022).attribute("ASM_End", 1013)
+            .attribute("ASM_Strand", "-")
         val firstVariant = vc1.genotypes(currentGenotype).make()
 
         // Test a single variant context
         // consider the ref range is position 1005-1010, but the variant is at 1001-1010
         // The starts remain, the ends are adjusted
         println("\nReverse strand test")
-        val resizedVc1 = Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant,firstVariant), Pair(1005,1010), Pair("-","-"))
+        val resizedVc1 =
+            Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant, firstVariant), Pair(1005, 1010), Pair("-", "-"))
 
         println("resizedVc1 ref/asm start positions: ${resizedVc1[0].first} ${resizedVc1[0].second}")
         println("resizedVc1 ref/asm end positions: ${resizedVc1[1].first} ${resizedVc1[1].second}")
@@ -423,13 +453,15 @@ class Hvcf2GvcfTest {
         assertEquals(1013, resizedVc1[1].second) // asm end
 
         val vc2 = VariantContextBuilder(".", "chr1", 1011, 1020, alleles)
-        val currentGenotype2 = GenotypeBuilder("LineA",genotype).make()
+        val currentGenotype2 = GenotypeBuilder("LineA", genotype).make()
         // NOTE: The ASM_Start for the second variant is less than the ASM_Start for the first variant.
         // This is how these sequences would appear in a real file, and is necessary for the
         // string of reverse strand entries to have their positions adjusted correctly.
-        vc2.attribute("ASM_Chr", "1").attribute("ASM_Start", 1012).attribute("ASM_End", 1003).attribute("ASM_Strand", "-")
+        vc2.attribute("ASM_Chr", "1").attribute("ASM_Start", 1012).attribute("ASM_End", 1003)
+            .attribute("ASM_Strand", "-")
         val secondVariant = vc2.genotypes(currentGenotype2).make()
-        val resizedVc2 = Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant,secondVariant), Pair(1005,1015), Pair("-","-"))
+        val resizedVc2 =
+            Hvcf2Gvcf().resizeVCandASMpositions(Pair(firstVariant, secondVariant), Pair(1005, 1015), Pair("-", "-"))
 
         println("\nresizedVc2 ref/asm start positions: ${resizedVc2[0].first} ${resizedVc2[0].second}")
         println("resizedVc2 ref/asm end positions: ${resizedVc2[1].first} ${resizedVc2[1].second}")

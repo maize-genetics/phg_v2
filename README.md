@@ -1,16 +1,6 @@
 # PHG version 2
 [![PHGv2 CI](https://github.com/maize-genetics/phg_v2/actions/workflows/phgv2_ci.yml/badge.svg)](https://github.com/maize-genetics/phg_v2/actions/workflows/phgv2_ci.yml) [![codecov](https://codecov.io/gh/maize-genetics/phg_v2/graph/badge.svg?token=4BVD2QXQ1A)](https://codecov.io/gh/maize-genetics/phg_v2) [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-> [!CAUTION]
-> **Imputation disclaimer**: We are experiencing issues with imputation, where
-> some PHGs have low mapping rates (~20% with WGS reads), causing errors
-> in the path-finding steps. We are working on fixes and will update the
-> documentation once a solution is available.
-> You can still build a PHG without encountering this issue. We apologize
-> for the inconvenience.
-> PHGv2 is under active development and we expect to encounter bugs.
-> We aim to report bugs as soon as they are discovered.
-
 The Practical Haplotype Graph (PHG) is a powerful tool for 
 representing pangenomes. The PHG is optimized for plant breeding 
 and genetics, where genomic diversity can be high, phased haplotypes 
@@ -98,7 +88,7 @@ metrics** can be found [here](https://phg.maizegenetics.net/qc_metrics/)._
 
 ### Imputation
 
-_Long-form documentation for this section can be found [here](https://phg.maizegenetics.net/imputation/)_
+_Long-form documentation for this section can be found [here](https://phg.maizegenetics.net/imputation_ropebwt/)_
 
 
 ```shell
@@ -106,10 +96,10 @@ _Long-form documentation for this section can be found [here](https://phg.maizeg
 ./phg export-vcf --db-path /my/db/uri --dataset-type hvcf --sample-names LineA,LineB --output-dir /my/hvcf/dir
 
 ## Index
-./phg build-kmer-index --db-path /my/db/uri --hvcf-dir /my/hvcf/dir
+./phg rope-bwt-index --db-path /my/db/uri --hvcf-dir /my/hvcf/dir --output-dir /my/index/dir --index-file-prefix myindex
 
 ## Map
-./phg map-kmers --hvcf-dir /my/hvcf/dir --kmer-index /my/hvcf/dir/kmerIndex.txt --key-file /my/path/keyfile --output-dir /my/mapping/dir
+./phg map-reads --hvcf-dir /my/hvcf/dir --index /my/index/dir/myindex.fmd --key-file /my/path/keyfile --output-dir /my/mapping/dir
 
 ## Find paths (impute)
 ./phg find-paths --path-keyfile /my/path/keyfile --hvcf-dir /my/hvcf/dir --reference-genome /my/ref/genome --path-type haploid --output-dir /my/imputed/hvcfs
@@ -197,7 +187,7 @@ More commonly used terms can be found [here](https://phg.maizegenetics.net/termi
 ### PHG workflows
 1. [Installation](https://phg.maizegenetics.net/installation/)
 2. [Building and loading](https://phg.maizegenetics.net/build_and_load/)
-3. [Imputation](https://phg.maizegenetics.net/imputation/)
+3. [Imputation](https://phg.maizegenetics.net/imputation_ropebwt/)
 4. [Resequencing](https://phg.maizegenetics.net/resequencing/)
 5. [Export data](https://phg.maizegenetics.net/export_data/)
 

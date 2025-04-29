@@ -52,6 +52,8 @@
 ##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
 ##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
 ##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
+##contig=<ID=1>
+##contig=<ID=2>
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Ref
 1	1	.	G	<546d1839623a5b0ea98bbff9a8a320e2>	.	.	END=1000	GT	1
 1	1001	.	A	<57705b1e2541c7634ea59a48fc52026f>	.	.	END=5500	GT	1

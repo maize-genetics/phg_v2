@@ -2,17 +2,13 @@
 
 
 !!! danger "Imputation disclaimer"
-    We are experiencing issues with imputation, where some PHGs have low mapping rates (~20% with WGS reads), 
-    causing errors in the path-finding steps. We are working on fixes and will update the documentation once 
-    a solution is available.
+    This Imputation method is deprecated. Please use the new "[RopeBWT3 Imputation](imputation_ropebwt.md)" method instead.
 
-    You can still build a PHG without encountering this issue. We apologize for the inconvenience.
+    With this imputation method, we are experiencing issues, where some PHGs have low mapping rates (~20% with WGS reads), 
+    causing errors in the path-finding steps.
     
     PHGv2 is under active development and we expect to encounter bugs. We aim to report bugs as soon as they are discovered.
 
-!!! note
-    We are currently working on a new imputation pipeline that will be more efficient and accurate.
-    You can test this out by following the steps outlined in the "[RopeBWT3 Imputation](imputation_ropebwt.md)" documentation.
 
 
 In this document, we will discuss the steps needed to perform
