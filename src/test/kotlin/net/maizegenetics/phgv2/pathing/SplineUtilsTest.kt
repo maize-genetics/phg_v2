@@ -1,14 +1,48 @@
 package net.maizegenetics.phgv2.pathing
 
+import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.pathing.ropebwt.PS4GUtils
+import net.maizegenetics.phgv2.pathing.ropebwt.SplineLookup
 import net.maizegenetics.phgv2.pathing.ropebwt.SplineUtils
+import net.maizegenetics.phgv2.utils.setupDebugLogging
 import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.io.File
 
 class SplineUtilsTest {
+
+    companion object {
+        val tempTestDir = "${TestExtension.tempDir}splineTest/"
+
+
+        //Setup/download  files
+        //Resetting on both setup and teardown just to be safe.
+        @JvmStatic
+        @BeforeAll
+        fun setup() {
+            resetDirs()
+            setupDebugLogging()
+        }
+
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+//            resetDirs()
+        }
+
+        private fun resetDirs() {
+
+            File(TestExtension.tempDir).deleteRecursively()
+            File(tempTestDir).deleteRecursively()
+
+            File(TestExtension.tempDir).mkdirs()
+            File(tempTestDir).mkdirs()
+        }
+    }
 
     @Test
     fun testBuildSpline() {
@@ -119,5 +153,103 @@ class SplineUtilsTest {
 
         assertFalse(chr1Spline.isValidPoint(30000.0))
 
+    }
+
+    @Test
+    fun testSerializingSplines() {
+        val hvcfDir = "data/test/ropebwt/testHVCFs"
+        val (splineMap, chrIndexMap, gameteIndexMap) = SplineUtils.buildSplineLookup(hvcfDir,"hvcf")
+
+        val splineArrays = mutableMapOf<String, Pair<DoubleArray,DoubleArray>>()
+        val rand = java.util.Random(123345)
+        for ((key, spline) in splineMap) {
+            val x = DoubleArray(200_000)
+            val y = DoubleArray(200_000)
+            for (i in 0 until 200_000) {
+                x[i] = rand.nextDouble()
+                y[i] = rand.nextDouble()
+            }
+            splineArrays[key] = Pair(x, y)
+        }
+
+        val outputFile = "${tempTestDir}testSplines"
+//        SplineUtils.writeSplinesToFile(splineMap, chrIndexMap, gameteIndexMap, outputFile)
+        SplineUtils.writeSplinesToFile(splineArrays, chrIndexMap, gameteIndexMap, outputFile)
+
+        //Read the file back in and check that the values are the same
+        val (splineMap2, chrIndexMap2, gameteIndexMap2) = SplineUtils.loadSplinesFromFile(outputFile)
+
+        assertEquals(splineArrays.size, splineMap2.size)
+        //check the entries of the arrays are the same
+        for (key in splineArrays.keys) {
+            assertTrue(splineMap2.containsKey(key))
+            val (x, y) = splineArrays[key]!!
+            val (x2, y2) = splineMap2[key]!!
+
+            assertEquals(x.size, x2.size)
+            assertEquals(y.size, y2.size)
+
+            //Check x vs y sizes as well
+            assertEquals(x.size, y.size)
+            assertEquals(x2.size, y2.size)
+
+            for (i in x.indices) {
+                assertEquals(x[i], x2[i])
+                assertEquals(y[i], y2[i])
+            }
+        }
+        assertEquals(chrIndexMap.size, chrIndexMap2.size)
+        assertEquals(gameteIndexMap.size, gameteIndexMap2.size)
+
+//        assertEquals(splineMap["1_LineA"]!!.value(1500.0), splineMap2["1_LineA"]!!.value(1500.0))
+    }
+
+    @Test
+    fun testSerializingSplineLookup() {
+        val hvcfDir = "data/test/ropebwt/testHVCFs"
+        val (splineMap, chrIndexMap, gameteIndexMap) = SplineUtils.buildSplineLookup(hvcfDir,"hvcf")
+
+        val splineArrays = mutableMapOf<String, Pair<DoubleArray,DoubleArray>>()
+        val rand = java.util.Random(123345)
+        for ((key, spline) in splineMap) {
+            val x = DoubleArray(200_000)
+            val y = DoubleArray(200_000)
+            for (i in 0 until 200_000) {
+                x[i] = rand.nextDouble()
+                y[i] = rand.nextDouble()
+            }
+            splineArrays[key] = Pair(x, y)
+        }
+
+        val outputFile = "${tempTestDir}testSplineLookup.json.gz"
+//        SplineUtils.writeSplinesToFile(splineMap, chrIndexMap, gameteIndexMap, outputFile)
+        SplineUtils.writeSplineLookupToFile(SplineLookup(splineArrays, chrIndexMap, gameteIndexMap), outputFile)
+
+        //Read the file back in and check that the values are the same
+        val (splineMap2, chrIndexMap2, gameteIndexMap2) = SplineUtils.loadSplineLookupFromFile(outputFile)
+
+        assertEquals(splineArrays.size, splineMap2.size)
+        //check the entries of the arrays are the same
+        for (key in splineArrays.keys) {
+            assertTrue(splineMap2.containsKey(key))
+            val (x, y) = splineArrays[key]!!
+            val (x2, y2) = splineMap2[key]!!
+
+            assertEquals(x.size, x2.size)
+            assertEquals(y.size, y2.size)
+
+            //Check x vs y sizes as well
+            assertEquals(x.size, y.size)
+            assertEquals(x2.size, y2.size)
+
+            for (i in x.indices) {
+                assertEquals(x[i], x2[i])
+                assertEquals(y[i], y2[i])
+            }
+        }
+        assertEquals(chrIndexMap.size, chrIndexMap2.size)
+        assertEquals(gameteIndexMap.size, gameteIndexMap2.size)
+
+//        assertEquals(splineMap["1_LineA"]!!.value(1500.0), splineMap2["1_LineA"]!!.value(1500.0))
     }
 }

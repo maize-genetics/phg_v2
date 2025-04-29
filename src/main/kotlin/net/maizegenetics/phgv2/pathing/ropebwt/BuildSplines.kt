@@ -38,7 +38,7 @@ class BuildSplines: CliktCommand(help = "Build Splines from gVCFs or hVCFs")  {
 
         myLogger.info("Writing out splines to $outputFile")
 
-        SplineUtils.writeSplinesToFile(splineLookup, chrIndexMap, gameteIndexMap, outputFile)
+//        SplineUtils.writeSplinesToFile(splineLookup, chrIndexMap, gameteIndexMap, outputFile)
     }
 
 }

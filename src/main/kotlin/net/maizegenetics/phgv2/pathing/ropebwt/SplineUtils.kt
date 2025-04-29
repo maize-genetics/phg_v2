@@ -1,12 +1,25 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
+import biokotlin.util.bufferedReader
+import biokotlin.util.bufferedWriter
 import htsjdk.variant.vcf.VCFFileReader
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationStrategy
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToStream
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.parseALTHeader
 import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.apache.logging.log4j.LogManager
 import java.io.*
+
+@Serializable
+data class SplineLookup(
+    val splineMap: Map<String, Pair<DoubleArray, DoubleArray>>,
+    val chrIndexMap: Map<String, Int>,
+    val gameteIndexMap: Map<String, Int>
+)
 
 /**
  * Class to hold utility functions for building and saving splines built from hvcfs or gvcfs
@@ -388,7 +401,7 @@ class SplineUtils{
             }
         }
 
-        fun writeSplinesToFile(splineLookup: Map<String,PolynomialSplineFunction>, chrIndexMap: Map<String,Int>, gameteIndexMap : Map<String,Int>, outputFile: String) {
+        fun writeSplinesToFile(splineLookup: Map<String,Pair<DoubleArray,DoubleArray>>, chrIndexMap: Map<String,Int>, gameteIndexMap : Map<String,Int>, outputFile: String) {
             FileOutputStream("${outputFile}_splines.ser").use { fout ->
                 ObjectOutputStream(fout).use { oos ->
                     oos.writeObject(splineLookup)
@@ -409,6 +422,12 @@ class SplineUtils{
 
         }
 
+        fun writeSplineLookupToFile(splineLookup: SplineLookup, outputFile:String) {
+            bufferedWriter(outputFile).use { writer ->
+                writer.write(Json.encodeToString(splineLookup))
+            }
+        }
+
         /**
          * Function to load the splines into the following classes:
          * Map<String,PolynomialSplineFunction> - splineLookup map
@@ -416,14 +435,14 @@ class SplineUtils{
          * Map<String,Int> - gameteIndexMap
          * TODO(Turn this into a data class)
          */
-        fun loadSplinesFromFile(inputFile: String): Triple<Map<String,PolynomialSplineFunction>, Map<String,Int>, Map<String,Int>> {
-            var splineLookup: Map<String,PolynomialSplineFunction>
+        fun loadSplinesFromFile(inputFile: String): Triple<Map<String,Pair<DoubleArray,DoubleArray>>, Map<String,Int>, Map<String,Int>> {
+            var splineLookup: Map<String,Pair<DoubleArray, DoubleArray>>
             var chrIndexMap: Map<String,Int>
             var gameteIndexMap: Map<String,Int>
 
             FileInputStream("${inputFile}_splines.ser").use { fin ->
                 ObjectInputStream(fin).use { ois ->
-                    splineLookup = ois.readObject() as Map<String, PolynomialSplineFunction>
+                    splineLookup = ois.readObject() as Map<String, Pair<DoubleArray, DoubleArray>>
                 }
             }
 
@@ -440,6 +459,16 @@ class SplineUtils{
             }
 
             return Triple(splineLookup, chrIndexMap, gameteIndexMap)
+        }
+
+        fun loadSplineLookupFromFile(inputFile: String): SplineLookup {
+            var splineLookup: SplineLookup
+
+            //Json.decodeFromString<Data>
+            bufferedReader(inputFile).use { reader ->
+                splineLookup = Json.decodeFromString(SplineLookup.serializer(), reader.readText())
+            }
+            return splineLookup
         }
     }
 }
