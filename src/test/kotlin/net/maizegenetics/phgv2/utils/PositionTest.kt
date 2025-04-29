@@ -36,6 +36,36 @@ class PositionTest {
     }
 
     @Test
+    fun testSortingChrIntChromosomes() {
+
+        val contig1 = "chr1"
+        val contig2 = "chr2"
+        val contig10 = "chr10"
+        val position1_1 = Position(contig1, 1)
+        val position1_100 = Position(contig1, 100)
+        val position2_1 = Position(contig2, 1)
+        val position2_100 = Position(contig2, 100)
+        val position10_1 = Position(contig10, 1)
+        val position10_100 = Position(contig10, 100)
+
+        val expectedSortOrder = listOf(
+            position1_1,
+            position1_100,
+            position2_1,
+            position2_100,
+            position10_1,
+            position10_100
+        )
+
+        val positions = listOf(position1_1, position1_100, position10_1, position10_100, position2_1, position2_100)
+
+        val sortedPositions = positions.sorted()
+
+        assertEquals(expectedSortOrder, sortedPositions, "Positions are not sorted correctly")
+
+    }
+
+    @Test
     fun testSortingWheatChromosomes() {
 
         val contig1A = "1A"
