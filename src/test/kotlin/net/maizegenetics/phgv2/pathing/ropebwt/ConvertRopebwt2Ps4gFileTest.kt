@@ -15,12 +15,12 @@ class ConvertRopebwt2Ps4gFileTest {
     fun testCliktParams() {
         val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
 
-        val noBedFile = convertRopebwt2Ps4gFile.test("--output-dir testDir --vcf-dir testDir")
+        val noBedFile = convertRopebwt2Ps4gFile.test("--output-dir testDir --spline-knot-file dummyFile.json.gz")
         assertEquals(1, noBedFile.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
                 "Error: missing option --ropebwt-bed\n", noBedFile.stderr)
 
-        val noOutputDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --vcf-dir testDir")
+        val noOutputDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --spline-knot-file dummyFile.json.gz")
         assertEquals(1, noOutputDir.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
                 "Error: missing option --output-dir\n", noOutputDir.stderr)
@@ -28,7 +28,7 @@ class ConvertRopebwt2Ps4gFileTest {
         val noHvcfDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --output-dir testDir")
         assertEquals(1, noHvcfDir.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
-                "Error: missing option --vcf-dir\n", noHvcfDir.stderr)
+                "Error: missing option --spline-knot-file\n", noHvcfDir.stderr)
 
     }
 
@@ -106,8 +106,7 @@ class ConvertRopebwt2Ps4gFileTest {
     @Test
     fun testEncodeHitsToPosition() {
         val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
-        val splineLookup = mutableMapOf<String, PolynomialSplineFunction>()
-        val splineBuilder = AkimaSplineInterpolator()
+        val splineKnotLookup = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
         val listOfPoints = mutableListOf(
             Pair(1.0, 1.0),
             Pair(3.0, 3.0),
@@ -115,7 +114,7 @@ class ConvertRopebwt2Ps4gFileTest {
             Pair(7.0, 7.0),
             Pair(9.0, 9.0)
         )
-        SplineUtils.buildSpline(listOfPoints, splineBuilder, splineLookup, "chr1", "sample1")
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints, splineKnotLookup, "chr1", "sample1")
 
         val listOfPoints2 = mutableListOf(
             Pair(1.0, 2.0),
@@ -124,7 +123,7 @@ class ConvertRopebwt2Ps4gFileTest {
             Pair(7.0, 8.0),
             Pair(9.0, 10.0)
         )
-        SplineUtils.buildSpline(listOfPoints2, splineBuilder, splineLookup, "chr1", "sample2")
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints2, splineKnotLookup, "chr1", "sample2")
 
         val listOfPoints3 = mutableListOf(
             Pair(1.0, 3.0),
@@ -133,7 +132,9 @@ class ConvertRopebwt2Ps4gFileTest {
             Pair(7.0, 9.0),
             Pair(11.0, 13.0)
         )
-        SplineUtils.buildSpline(listOfPoints3, splineBuilder, splineLookup, "chr1", "sample3")
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints3, splineKnotLookup, "chr1", "sample3")
+
+        val splineLookup = SplineUtils.convertKnotsToSpline(splineKnotLookup)
 
         //single hit should return the position
         val singleHit = listOf(MEMHit("chr1_sample1", "+", 1))
@@ -193,8 +194,7 @@ class ConvertRopebwt2Ps4gFileTest {
 
 
         //Now we test with making the hits pass
-        val splineLookup = mutableMapOf<String, PolynomialSplineFunction>()
-        val splineBuilder = AkimaSplineInterpolator()
+        val splineKnotLookup = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
         val listOfPoints = mutableListOf(
             Pair(1.0, 1.0),
             Pair(3.0, 3.0),
@@ -202,7 +202,7 @@ class ConvertRopebwt2Ps4gFileTest {
             Pair(7.0, 7.0),
             Pair(9.0, 9.0)
         )
-        SplineUtils.buildSpline(listOfPoints, splineBuilder, splineLookup, "chr1", "sample1")
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints, splineKnotLookup, "chr1", "sample1")
 
         val listOfPoints2 = mutableListOf(
             Pair(1.0, 2.0),
@@ -211,7 +211,9 @@ class ConvertRopebwt2Ps4gFileTest {
             Pair(7.0, 8.0),
             Pair(9.0, 10.0)
         )
-        SplineUtils.buildSpline(listOfPoints2, splineBuilder, splineLookup, "chr1", "sample2")
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints2, splineKnotLookup, "chr1", "sample2")
+
+        val splineLookup = SplineUtils.convertKnotsToSpline(splineKnotLookup)
 
         val processedMems = convertRopebwt2Ps4gFile.processMemsForRead(memList, splineLookup, chrIndexMap, 19, 10, gameteToIdxMap)
 
@@ -238,7 +240,7 @@ class ConvertRopebwt2Ps4gFileTest {
         )
 
         // create a spline lookup (NOTE - need at least 5 observations so AkimaSplineInterpolator does not throw exception)
-        val splineLookup = mutableMapOf<String, PolynomialSplineFunction>()
+        val splineKnotLookup = mutableMapOf<String, Pair<DoubleArray,DoubleArray>>()
         val splineBuilder = AkimaSplineInterpolator()
         val listOfPoints = mutableListOf(
             Pair(1.0, 1.0),
@@ -247,7 +249,7 @@ class ConvertRopebwt2Ps4gFileTest {
             Pair(7.0, 7.0),
             Pair(9.0, 9.0)
         )
-        SplineUtils.buildSpline(listOfPoints, splineBuilder, splineLookup, "chr1", "sample1")
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints, splineKnotLookup, "chr1", "sample1")
 
         val listOfPoints2 = mutableListOf(
             Pair(1.0, 2.0),
@@ -256,7 +258,9 @@ class ConvertRopebwt2Ps4gFileTest {
             Pair(7.0, 8.0),
             Pair(9.0, 10.0)
         )
-        SplineUtils.buildSpline(listOfPoints2, splineBuilder, splineLookup, "chr1", "sample2")
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints2, splineKnotLookup, "chr1", "sample2")
+
+        val splineLookup = SplineUtils.convertKnotsToSpline(splineKnotLookup)
 
         val chrIndexMap = mapOf(Pair("chr1", 0), Pair("chr2", 1))
         val gameteToIdxMap = mapOf(Pair("sample1", 0), Pair("sample2", 1))
@@ -290,7 +294,9 @@ class ConvertRopebwt2Ps4gFileTest {
             PS4GData(listOf(0),8, 1), PS4GData(listOf(0),12, 2)
         )
 
-        val (splineLookup, chrIndexMap, gameteToIdxMap) = SplineUtils.buildSplineLookup(hvcfDir, "hvcf")
+        val (splineKnotLookup, chrIndexMap, gameteToIdxMap) = SplineUtils.buildSplineKnots(hvcfDir, "hvcf")
+
+        val splineLookup = SplineUtils.convertKnotsToSpline(splineKnotLookup)
 
         val ps4gData = convertRopebwt2Ps4gFile.buildPS4GData(ropebwtBed, splineLookup, chrIndexMap, gameteToIdxMap, 148, 10)
 

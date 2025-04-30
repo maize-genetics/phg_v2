@@ -9,9 +9,9 @@ import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.cli.logCommand
 import org.apache.logging.log4j.LogManager
 
-class BuildSplines: CliktCommand(help = "Build Splines from gVCFs or hVCFs")  {
+class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs or hVCFs")  {
 
-    val myLogger = LogManager.getLogger(BuildSplines::class.java)
+    val myLogger = LogManager.getLogger(BuildSplineKnots::class.java)
 
     val vcfDir by option(help = "Directory containing the hvcf or gvcf files")
         .required()
@@ -34,11 +34,10 @@ class BuildSplines: CliktCommand(help = "Build Splines from gVCFs or hVCFs")  {
     override fun run() {
         logCommand(this)
 
-        val (splineLookup, chrIndexMap, gameteIndexMap) = SplineUtils.buildSplineLookup(vcfDir, vcfType, minIndelLength, maxNumPointsPerChrom)
+        val splineKnotLookup = SplineUtils.buildSplineKnots(vcfDir, vcfType, minIndelLength, maxNumPointsPerChrom)
 
-        myLogger.info("Writing out splines to $outputFile")
-
-//        SplineUtils.writeSplinesToFile(splineLookup, chrIndexMap, gameteIndexMap, outputFile)
+        myLogger.info("Writing out spline knots to $outputFile")
+        SplineUtils.writeSplineLookupToFile(splineKnotLookup, outputFile)
     }
 
 }

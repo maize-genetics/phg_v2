@@ -6,18 +6,12 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
-import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.int
-import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.headerCommand
 import net.maizegenetics.phgv2.cli.logCommand
-import net.maizegenetics.phgv2.utils.Position
-import net.maizegenetics.phgv2.utils.parseALTHeader
-import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.apache.logging.log4j.LogManager
-import java.io.File
 
 /**
  * This class will convert a RopebwtBed file to a PS4G file.  It will only work with ropebwt3 files where the reads are
@@ -35,12 +29,8 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     val outputDir by option(help = "Output directory")
         .required()
 
-    val vcfDir by option(help = "Directory containing the hvcf or gvcf files")
+   val splineKnotFile by option(help = "Spline Knot file")
         .required()
-
-    val vcfType by option(help = "Type of vcfs to build the splines")
-        .choice("hvcf","gvcf")
-        .default("hvcf")
 
     val minMemLength by option(help = "Minimum length of a match to be considered a match.")
         .int()
@@ -53,14 +43,6 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     val sortPositions by option(help = "Sort positions in the resulting PS4G file.")
         .flag(default = true)
 
-    val minIndelLength by option(help="Minimum length of an indel to break up the running block for spline creation of gvcfs.  If --vcf-type is hvcf this option is ignored.")
-        .int()
-        .default(10)
-
-    val maxNumPointsPerChrom by option(help = "Number of points per chrom.  If there are more points for each sample's chromosomes we will downsample randomly..")
-        .int()
-        .default(250_000)
-
     /**
      * Function to run the command.  This goes from a RopeBWT3 BED file for reads aligned against the whole chromosomes to a PS4G file.
      */
@@ -71,8 +53,11 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
         myLogger.info("Convert Ropebwt to PS4G")
 
-        myLogger.info("Building Spline Lookup")
-        val (splineLookup, chrIndexMap, gameteIndexMap) = SplineUtils.buildSplineLookup(vcfDir, vcfType, minIndelLength, maxNumPointsPerChrom)
+        myLogger.info("Loading Spline Knot File")
+        val (splineKnots, chrIndexMap, gameteIndexMap) = SplineUtils.loadSplineKnotLookupFromFile(splineKnotFile)
+
+        myLogger.info("Converting Spline Knots to Splines")
+        val splineLookup = SplineUtils.convertKnotsToSpline(splineKnots)
 
         val sampleGameteIndexMap = gameteIndexMap.map { SampleGamete(it.key) to it.value}.toMap()
 

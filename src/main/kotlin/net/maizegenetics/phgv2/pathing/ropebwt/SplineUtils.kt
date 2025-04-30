@@ -4,9 +4,7 @@ import biokotlin.util.bufferedReader
 import biokotlin.util.bufferedWriter
 import htsjdk.variant.vcf.VCFFileReader
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.encodeToStream
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.parseALTHeader
 import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
@@ -15,8 +13,14 @@ import org.apache.logging.log4j.LogManager
 import java.io.*
 
 @Serializable
+data class SplineKnotLookup(
+    val splineKnotMap: Map<String, Pair<DoubleArray, DoubleArray>>,
+    val chrIndexMap: Map<String, Int>,
+    val gameteIndexMap: Map<String, Int>
+)
+
 data class SplineLookup(
-    val splineMap: Map<String, Pair<DoubleArray, DoubleArray>>,
+    val splineMap: Map<String, PolynomialSplineFunction>,
     val chrIndexMap: Map<String, Int>,
     val gameteIndexMap: Map<String, Int>
 )
@@ -33,21 +37,22 @@ class SplineUtils{
          * Function to build spline lookups from the hvcf files in the directory.
          * This will compute Cubic splines based on the Akima algorithm, as originally formulated by Hiroshi Akima, 1970
          * (http://doi.acm.org/10.1145/321607.321609) implemented via the Apache Commons Math3 library.
+         * This does not build the full splines just yet but rather sets up the spline knots for each chromosome.
          */
-        fun buildSplineLookup(hvcfDir: String, vcfType: String, minIndelLength: Int = 10, maxNumPointsPerChrom: Int = 250_000) : Triple<Map<String, PolynomialSplineFunction>, Map<String,Int>, Map<String,Int>> {
-            val vcfFiles = buildVCFFileList(hvcfDir, vcfType)
-            val splineMap = mutableMapOf<String, PolynomialSplineFunction>()
+        fun buildSplineKnots(vcfDir: String, vcfType: String, minIndelLength: Int = 10, maxNumPointsPerChrom: Int = 250_000) : SplineKnotLookup {
+            val vcfFiles = buildVCFFileList(vcfDir, vcfType)
+            val splineKnotMap = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
             val chrIndexMap = mutableMapOf<String,Int>()
             val gameteIndexMap = mutableMapOf<String,Int>()
             for (vcfFile in vcfFiles!!) {
                 myLogger.info("Reading ${vcfFile.name}")
-                processVCFFileIntoSplines(vcfFile, vcfType, splineMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom)
+                processVCFFileIntoSplineKnots(vcfFile, vcfType, splineKnotMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom)
             }
             myLogger.info("Done reading VCF files")
-            myLogger.info("Number of splines: ${splineMap.size}")
+            myLogger.info("Number of splines: ${splineKnotMap.size}")
             myLogger.info("Number of chromosomes: ${chrIndexMap.size}")
             myLogger.info("Number of gametes: ${gameteIndexMap.size}")
-            return Triple(splineMap, chrIndexMap, gameteIndexMap)
+            return SplineKnotLookup(splineKnotMap, chrIndexMap, gameteIndexMap)
         }
 
         private fun buildVCFFileList(hvcfDir: String, vcfType: String): List<File> {
@@ -66,32 +71,33 @@ class SplineUtils{
             }
         }
 
-        private fun processVCFFileIntoSplines(
+        private fun processVCFFileIntoSplineKnots(
             vcfFile: File,
             vcfType: String,
-            splineMap: MutableMap<String, PolynomialSplineFunction>,
+            splineKnotMap: MutableMap<String, Pair<DoubleArray, DoubleArray>>,
             chrIndexMap: MutableMap<String, Int>,
             gameteIndexMap: MutableMap<String, Int>,
             minIndelLength: Int=10,
             maxNumPointsPerChrom: Int = 250_000
         ) {
             if(vcfType == "hvcf") {
-                processHvcfFileIntoSplines(vcfFile, splineMap, chrIndexMap, gameteIndexMap, maxNumPointsPerChrom)
+                processHvcfFileIntoSplineKnots(vcfFile, splineKnotMap, chrIndexMap, gameteIndexMap, maxNumPointsPerChrom)
             }
             else if(vcfType == "gvcf") {
-                processGvcfFileIntoSplines(vcfFile, splineMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom)
+                processGvcfFileIntoSplineKnots(vcfFile, splineKnotMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom)
             }
             else {
                 throw Exception("Unknown VCF type $vcfType")
             }
         }
 
+
         /**
          * Function to process a single HVCF file into the spline map for the PS4G file.
          */
-        fun processHvcfFileIntoSplines(
+        fun processHvcfFileIntoSplineKnots(
             hvcfFile: File?,
-            splineMap: MutableMap<String, PolynomialSplineFunction>,
+            splineMap: MutableMap<String, Pair<DoubleArray, DoubleArray>>,
             chrIndexMap : MutableMap<String,Int>,
             gameteIndexMap: MutableMap<String, Int>,
             maxNumPointsPerChrom: Int = 250_000
@@ -99,7 +105,6 @@ class SplineUtils{
             VCFFileReader(hvcfFile, false).use { reader ->
                 val header = reader.header
                 val headerParsed = parseALTHeader(header)
-                val splineBuilder = AkimaSplineInterpolator()
                 val sampleName = reader.fileHeader.sampleNamesInOrder[0]
                 checkMapAndAddToIndex(gameteIndexMap, sampleName)
 
@@ -146,20 +151,22 @@ class SplineUtils{
                 //build the splines
                 //Downsample the number of points
                 downsamplePoints(mapOfASMChrToListOfPoints, maxNumPointsPerChrom)
+
                 //Now we need to build the splines for each of the assembly chromosomes
                 //loop through each of the assembly coordinates and make splines for each
                 for (entry in mapOfASMChrToListOfPoints.entries) {
                     val asmChr = entry.key
                     val listOfPoints = entry.value
                     checkMapAndAddToIndex(gameteIndexMap, sampleName)
-                    buildSpline(listOfPoints, splineBuilder, splineMap, asmChr, sampleName)
+                    //add to the splineList
+                    buildSplineKnotsForASMChrom(listOfPoints, splineMap, asmChr, sampleName)
                 }
             }
         }
 
-        fun processGvcfFileIntoSplines(
+        fun processGvcfFileIntoSplineKnots(
             gvcfFile: File?,
-            splineMap: MutableMap<String, PolynomialSplineFunction>,
+            splineMap: MutableMap<String, Pair<DoubleArray,DoubleArray>>,
             chrIndexMap : MutableMap<String,Int>,
             gameteIndexMap: MutableMap<String, Int>,
             minIndelLength: Int=10,
@@ -327,15 +334,14 @@ class SplineUtils{
 
                 //Downsample the number of points
                 downsamplePoints(mapOfASMChrToListOfPoints, maxNumPoints)
-                //Now we need to build the splines for each of the assembly chromosomes
-                val splineBuilder = AkimaSplineInterpolator()
+
                 //loop through each of the assembly coordinates and make splines for each
                 for (entry in mapOfASMChrToListOfPoints.entries) {
                     val asmChr = entry.key
                     val listOfPoints = entry.value
                     myLogger.info("Building spline for $asmChr $sampleName")
                     checkMapAndAddToIndex(gameteIndexMap, sampleName)
-                    buildSpline(listOfPoints, splineBuilder, splineMap, asmChr, sampleName)
+                    buildSplineKnotsForASMChrom(listOfPoints, splineMap, asmChr, sampleName)
                 }
             }
 
@@ -369,10 +375,9 @@ class SplineUtils{
         /**
          * Function to build the splines based on a list of Pair<Double, Double>
          */
-        fun buildSpline(
+        fun buildSplineKnotsForASMChrom(
             listOfPoints: MutableList<Pair<Double, Double>>,
-            splineBuilder: AkimaSplineInterpolator,
-            splineMap: MutableMap<String, PolynomialSplineFunction>,
+            splineKnotMap: MutableMap<String, Pair<DoubleArray, DoubleArray>>,
             currentChrom: String,
             sampleName: String?
         ) {
@@ -384,8 +389,7 @@ class SplineUtils{
             }
             val asmArray = sortedPoints.map { it.first }.toDoubleArray()
             val refArray = sortedPoints.map { it.second }.toDoubleArray()
-            val splineFunction = splineBuilder.interpolate(asmArray, refArray)
-            splineMap["${currentChrom}_${sampleName}"] = splineFunction
+            splineKnotMap["${currentChrom}_${sampleName}"] = Pair(asmArray, refArray)
             listOfPoints.clear()
         }
 
@@ -422,9 +426,9 @@ class SplineUtils{
 
         }
 
-        fun writeSplineLookupToFile(splineLookup: SplineLookup, outputFile:String) {
+        fun writeSplineLookupToFile(splineKnotLookup: SplineKnotLookup, outputFile:String) {
             bufferedWriter(outputFile).use { writer ->
-                writer.write(Json.encodeToString(splineLookup))
+                writer.write(Json.encodeToString(splineKnotLookup))
             }
         }
 
@@ -461,14 +465,24 @@ class SplineUtils{
             return Triple(splineLookup, chrIndexMap, gameteIndexMap)
         }
 
-        fun loadSplineLookupFromFile(inputFile: String): SplineLookup {
-            var splineLookup: SplineLookup
+        fun loadSplineKnotLookupFromFile(inputFile: String): SplineKnotLookup {
+            var splineKnotLookup: SplineKnotLookup
 
             //Json.decodeFromString<Data>
             bufferedReader(inputFile).use { reader ->
-                splineLookup = Json.decodeFromString(SplineLookup.serializer(), reader.readText())
+                splineKnotLookup = Json.decodeFromString(SplineKnotLookup.serializer(), reader.readText())
             }
-            return splineLookup
+            return splineKnotLookup
+        }
+
+        fun convertKnotsToSpline(knots: Map<String, Pair<DoubleArray, DoubleArray>>) : Map<String, PolynomialSplineFunction> {
+            val splineMap = mutableMapOf<String, PolynomialSplineFunction>()
+            val interpolator = AkimaSplineInterpolator()
+            knots.forEach { (key, value) ->
+                val splineFunction = interpolator.interpolate(value.first, value.second)
+                splineMap[key] = splineFunction
+            }
+            return splineMap
         }
     }
 }
