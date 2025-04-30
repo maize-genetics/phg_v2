@@ -105,7 +105,7 @@ class Hvcf2Gvcf :
             .forEach { hvcfFile ->
                 myLogger.info("buildGvcfFromHvcf: Processing hvcf file: ${hvcfFile.name}")
                 var time = System.nanoTime()
-                val sample = hvcfFile.toString().substringAfterLast("/").substringBefore(".h.vcf")
+                val sample = hvcfFile.name.substringBefore(".h.vcf")
                 val records =
                     processHVCFtoVariantContext(sample, refSeq, outputDir, hvcfFile, dbPath, condaEnvPrefix, batchSize)
                 myLogger.info("Time to processHVCFtoVariantContext: ${(System.nanoTime() - time) / 1e9} seconds")
