@@ -101,11 +101,22 @@ class Hvcf2Gvcf :
         // walk the gvcf directory process files with g.vcf.gz extension
 
         File(hvcfDir).walk().filter { !it.isHidden && !it.isDirectory }
-            .filter { it.name.endsWith("h.vcf.gz") || it.name.endsWith("h.vcf") }
+            .filter {
+                it.name.endsWith(".h.vcf.gz") || it.name.endsWith(".h.vcf") ||
+                        it.name.endsWith(".hvcf.gz") || it.name.endsWith(".hvcf")
+            }
             .forEach { hvcfFile ->
                 myLogger.info("buildGvcfFromHvcf: Processing hvcf file: ${hvcfFile.name}")
                 var time = System.nanoTime()
-                val sample = hvcfFile.toString().substringAfterLast("/").substringBefore(".")
+                val sample = when {
+                    (hvcfFile.name.endsWith(".h.vcf") || hvcfFile.name.endsWith(".h.vcf.gz")) ->
+                        hvcfFile.name.substringBeforeLast(".h.vcf")
+
+                    (hvcfFile.name.endsWith(".hvcf") || hvcfFile.name.endsWith(".hvcf.gz")) ->
+                        hvcfFile.name.substringBeforeLast(".hvcf")
+
+                    else -> error("Unexpected file extension")
+                }
                 val records =
                     processHVCFtoVariantContext(sample, refSeq, outputDir, hvcfFile, dbPath, condaEnvPrefix, batchSize)
                 myLogger.info("Time to processHVCFtoVariantContext: ${(System.nanoTime() - time) / 1e9} seconds")
