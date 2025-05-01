@@ -160,7 +160,7 @@ class SplineUtilsTest {
 
         //Test some of the values in the spline
         val chr1Spline = splineMap["1_LineA"]!!
-        
+
         assertEquals(0, PS4GUtils.decodePosition(chr1Spline.value(1.0).toInt()).position)
         assertEquals(256, PS4GUtils.decodePosition(chr1Spline.value(256.0).toInt()).position)
         assertEquals(1024, PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()).position) // 1500/256 = 5
@@ -260,5 +260,29 @@ class SplineUtilsTest {
         }
         assertEquals(chrIndexMap.size, chrIndexMap2.size)
         assertEquals(gameteIndexMap.size, gameteIndexMap2.size)
+    }
+
+    @Test
+    fun testDownsamplePoints() {
+        val points = mutableListOf<Pair<Double, Double>>()
+        for (i in 0 until 1000) {
+            points.add(Pair(i.toDouble(), i.toDouble()))
+        }
+
+        val points2 = mutableListOf<Pair<Double, Double>>()
+        for (i in 0 until 99) {
+            points2.add(Pair(i.toDouble(), i.toDouble()))
+        }
+
+        val splineKnotLookup = mutableMapOf<String, MutableList<Pair<Double,Double>>>("chr1" to points, "chr2" to points2)
+
+        assertEquals(1000, splineKnotLookup["chr1"]!!.size)
+        assertEquals(99, splineKnotLookup["chr2"]!!.size)
+
+        SplineUtils.downsamplePoints(splineKnotLookup, 100)
+
+        assertEquals(100, splineKnotLookup["chr1"]!!.size)
+        assertEquals(99, splineKnotLookup["chr2"]!!.size)
+
     }
 }
