@@ -19,12 +19,6 @@ data class SplineKnotLookup(
     val gameteIndexMap: Map<String, Int>
 )
 
-data class SplineLookup(
-    val splineMap: Map<String, PolynomialSplineFunction>,
-    val chrIndexMap: Map<String, Int>,
-    val gameteIndexMap: Map<String, Int>
-)
-
 /**
  * Class to hold utility functions for building and saving splines built from hvcfs or gvcfs
  */
@@ -87,7 +81,7 @@ class SplineUtils{
                 processGvcfFileIntoSplineKnots(vcfFile, splineKnotMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom)
             }
             else {
-                throw Exception("Unknown VCF type $vcfType")
+                throw IllegalArgumentException("Unknown VCF type $vcfType")
             }
         }
 
@@ -405,66 +399,21 @@ class SplineUtils{
             }
         }
 
-        fun writeSplinesToFile(splineLookup: Map<String,Pair<DoubleArray,DoubleArray>>, chrIndexMap: Map<String,Int>, gameteIndexMap : Map<String,Int>, outputFile: String) {
-            FileOutputStream("${outputFile}_splines.ser").use { fout ->
-                ObjectOutputStream(fout).use { oos ->
-                    oos.writeObject(splineLookup)
-                }
-            }
-
-            FileOutputStream("${outputFile}_chrIndexMap.ser").use { fout ->
-                ObjectOutputStream(fout).use { oos ->
-                    oos.writeObject(chrIndexMap)
-                }
-            }
-
-            FileOutputStream("${outputFile}_gameteIndexMap.ser").use { fout ->
-                ObjectOutputStream(fout).use { oos ->
-                    oos.writeObject(gameteIndexMap)
-                }
-            }
-
-        }
-
+        /**
+         * Function to write the SplineKnotLookup to a file
+         * This serializes the object using JSON
+         */
         fun writeSplineLookupToFile(splineKnotLookup: SplineKnotLookup, outputFile:String) {
             bufferedWriter(outputFile).use { writer ->
                 writer.write(Json.encodeToString(splineKnotLookup))
             }
         }
 
+
         /**
-         * Function to load the splines into the following classes:
-         * Map<String,PolynomialSplineFunction> - splineLookup map
-         * Map<String,Int> - chrIndexMap
-         * Map<String,Int> - gameteIndexMap
-         * TODO(Turn this into a data class)
+         * Function to load the spline knots from a file
+         * This assumes that the SplineKnotLookup serialized file was serialized using JSON
          */
-        fun loadSplinesFromFile(inputFile: String): Triple<Map<String,Pair<DoubleArray,DoubleArray>>, Map<String,Int>, Map<String,Int>> {
-            var splineLookup: Map<String,Pair<DoubleArray, DoubleArray>>
-            var chrIndexMap: Map<String,Int>
-            var gameteIndexMap: Map<String,Int>
-
-            FileInputStream("${inputFile}_splines.ser").use { fin ->
-                ObjectInputStream(fin).use { ois ->
-                    splineLookup = ois.readObject() as Map<String, Pair<DoubleArray, DoubleArray>>
-                }
-            }
-
-            FileInputStream("${inputFile}_chrIndexMap.ser").use { fin ->
-                ObjectInputStream(fin).use { ois ->
-                    chrIndexMap = ois.readObject() as Map<String, Int>
-                }
-            }
-
-            FileInputStream("${inputFile}_gameteIndexMap.ser").use { fin ->
-                ObjectInputStream(fin).use { ois ->
-                    gameteIndexMap = ois.readObject() as Map<String, Int>
-                }
-            }
-
-            return Triple(splineLookup, chrIndexMap, gameteIndexMap)
-        }
-
         fun loadSplineKnotLookupFromFile(inputFile: String): SplineKnotLookup {
             var splineKnotLookup: SplineKnotLookup
 
@@ -475,6 +424,9 @@ class SplineUtils{
             return splineKnotLookup
         }
 
+        /**
+         * Function that converts a Spline Knot Map into a Spline Map
+         */
         fun convertKnotsToSpline(knots: Map<String, Pair<DoubleArray, DoubleArray>>) : Map<String, PolynomialSplineFunction> {
             val splineMap = mutableMapOf<String, PolynomialSplineFunction>()
             val interpolator = AkimaSplineInterpolator()

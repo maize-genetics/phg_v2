@@ -106,6 +106,34 @@ class SplineUtilsTest {
     }
 
     @Test
+    fun testBuildSplineNotEnoughPoints() {
+        //make a simple linear spline
+        var listOfPoints = mutableListOf(
+            Pair(1.0, 1.0),
+            Pair(3.0, 3.0),
+            Pair(5.0, 5.0),
+            Pair(7.0, 7.0)
+        )
+
+        val splineKnotMap = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
+
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints, splineKnotMap, "chr1", "sample1")
+
+        assertEquals(0, splineKnotMap.size)
+
+        //Add one more point and recheck the spline
+        listOfPoints = mutableListOf(
+            Pair(1.0, 1.0),
+            Pair(3.0, 3.0),
+            Pair(5.0, 5.0),
+            Pair(7.0, 7.0),
+            Pair(9.0, 9.0)
+        )
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints, splineKnotMap, "chr1", "sample1")
+        assertEquals(1, splineKnotMap.size)
+    }
+
+    @Test
     fun testCheckMapAndAddToIndex() {
         val stringToIndexMap = mutableMapOf(Pair("test1", 0), Pair("test2", 1))
         SplineUtils.checkMapAndAddToIndex(stringToIndexMap, "test3")
@@ -116,6 +144,7 @@ class SplineUtilsTest {
         assertEquals(3, stringToIndexMap.size)
         assertEquals(0, stringToIndexMap["test1"])
     }
+
 
     @Test
     fun testProcessHvcfFileIntoSplines() {
@@ -131,17 +160,36 @@ class SplineUtilsTest {
 
         //Test some of the values in the spline
         val chr1Spline = splineMap["1_LineA"]!!
-
-        println(chr1Spline.value(1500.0))
-        println(chr1Spline.value(1500.0).toInt())
-        println(PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()))
-
+        
         assertEquals(0, PS4GUtils.decodePosition(chr1Spline.value(1.0).toInt()).position)
         assertEquals(256, PS4GUtils.decodePosition(chr1Spline.value(256.0).toInt()).position)
         assertEquals(1024, PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()).position) // 1500/256 = 5
         assertEquals(2560, PS4GUtils.decodePosition(chr1Spline.value(3000.0).toInt()).position) // 3000/256 = 11
 
         assertFalse(chr1Spline.isValidPoint(30000.0))
+    }
+
+    @Test
+    fun testProcessGvcfFileIntoSplines() {
+        val inputFile = "data/test/smallseq/LineA.g.vcf"
+        val chrIndexMap = mutableMapOf("1" to 0, "2" to 1)
+        val gameteIndexMap = mutableMapOf("LineA" to 0, "LineB" to 1)
+        val splineKnots = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
+
+        SplineUtils.processGvcfFileIntoSplineKnots(File(inputFile), splineKnots, chrIndexMap, gameteIndexMap)
+
+        val splineMap = SplineUtils.convertKnotsToSpline(splineKnots)
+
+
+        //Test some of the values in the spline
+        val chr1Spline = splineMap["1_LineA"]!!
+
+        assertEquals(0, PS4GUtils.decodePosition(chr1Spline.value(1.0).toInt()).position)
+        assertEquals(256, PS4GUtils.decodePosition(chr1Spline.value(256.0).toInt()).position)
+        assertEquals(2048, PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()).position) // 1500/256 = 5
+        assertEquals(2816, PS4GUtils.decodePosition(chr1Spline.value(3000.0).toInt()).position) // 3000/256 = 11
+
+        assertFalse(chr1Spline.isValidPoint(3000000.0))
     }
 
     @Test
