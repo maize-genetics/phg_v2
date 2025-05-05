@@ -226,7 +226,6 @@ class MapReadsVcf : CliktCommand(help="Map VCF to a pangenome using ropeBWT3") {
         }
         myLogger.info("readVcf found $count entries")
         // Write regions to a temp file
-        //val regionsFile = File("/project/genolabswheatphg/clay_phg/output/mapping/fastq/regions.txt")
         val regionsFile = File(regionsPath)
         if (regionsFile.exists()) {
             regionsFile.delete()
@@ -258,11 +257,10 @@ class MapReadsVcf : CliktCommand(help="Map VCF to a pangenome using ropeBWT3") {
                           minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String,
                           hapIdToRefRangeMap: Map<String,List<ReferenceRange>>, maxStart: Int, minEnd: Int) {
         myLogger.info("Mapping reads in VCF $readFile2 using FASTA $readFile1 to $index")
-        val regionsPath = "/project/genolabswheatphg/clay_phg/output/mapping/fastq/regions.txt"
-        val fqPath = "/project/genolabswheatphg/clay_phg/output/mapping/fastq/regions.fq"
+        val regionsPath = path + "/fastq/regions.txt"
+        val fqPath = path + "/fastq/regions.fq"
         val results = readVcfAndExtractRegions( filePath1= readFile1, filePath2 = readFile2, regionsPath, fqPath)
-        val readFile4 = "$path/fastq/regions.fq"
-        val fastaMap = parseFastaOutput(readFile4)
+        val fastaMap = parseFastaOutput(fqPath)
         val updatedRecords = mapFastaToVcfRecords(results.records, fastaMap)
         myLogger.info("Done adding fasta to VCF records")
         val qual = CharArray(201) { 'I' }.concatToString()
@@ -293,6 +291,7 @@ class MapReadsVcf : CliktCommand(help="Map VCF to a pangenome using ropeBWT3") {
                     val newStr = cleanSequence.toCharArray().also { it[100] = gt[0] }.concatToString()
                     sb.appendLine("@$id\n$newStr\n+\n$qual\n")
                 } catch (e: Exception) {
+                    e.printStackTrace()
                     println("Error: ${e.message}")
                 }
             }
