@@ -34,9 +34,8 @@ class ConvertRopebwt2Ps4gFileTest {
 
     @Test
     fun testConvertCountMapToPS4GData() {
-        val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
         val countMap = mapOf(Pair(1, listOf(1, 2)) to 3, Pair(2, listOf(3, 4)) to 5)
-        val ps4gData = convertRopebwt2Ps4gFile.convertCountMapToPS4GData(countMap)
+        val ps4gData = PS4GUtils.convertCountMapToPS4GData(countMap)
         assertEquals(2, ps4gData.size)
         assertEquals(PS4GData(listOf(1, 2), 1, 3), ps4gData[0])
         assertEquals(PS4GData(listOf(3, 4), 2, 5), ps4gData[1])
