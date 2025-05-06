@@ -61,5 +61,21 @@ class PS4GUtils {
             val pos = (encodedPos and 0x0FFFFFFF) * 256
             return Position("$idx", pos)
         }
+
+        /**
+         * Function to convert the count map to a PS4GData class for easy export
+         */
+        fun convertCountMapToPS4GData(countMap: Map<Pair<Int,List<Int>>, Int>, sortPositions: Boolean = true) : List<PS4GData> {
+            return if(sortPositions) {
+                countMap.map { (pair, count) ->
+                    PS4GData(pair.second.sorted(), pair.first, count)
+                }.sortedBy { PS4GUtils.decodePosition(it.pos) } //Need to decode it because chromosome might be in an unexpected order
+            }
+            else {
+                countMap.map { (pair, count) ->
+                    PS4GData(pair.second, pair.first, count)
+                }
+            }
+        }
     }
 }

@@ -124,8 +124,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             gameteIdxToSampleGameteMap
         )
 
-        val ps4gDataList = convertCountMapToPS4GData(countMap, sortPositions)
-
+        val ps4gDataList = PS4GUtils.convertCountMapToPS4GData(countMap, sortPositions)
 
         return Pair(ps4gDataList, sampleGameteCountMap)
     }
@@ -251,19 +250,5 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         }
     }
 
-    /**
-     * Function to convert the count map to a PS4GData class for easy export
-     */
-    fun convertCountMapToPS4GData(countMap: Map<Pair<Int,List<Int>>, Int>, sortPositions: Boolean = true) : List<PS4GData> {
-        return if(sortPositions) {
-            countMap.map { (pair, count) ->
-                PS4GData(pair.second.sorted(), pair.first, count)
-            }.sortedBy { PS4GUtils.decodePosition(it.pos) } //Need to decode it because chromosome might be in an unexpected order
-        }
-        else {
-            countMap.map { (pair, count) ->
-                PS4GData(pair.second, pair.first, count)
-            }
-        }
-    }
+
 }
