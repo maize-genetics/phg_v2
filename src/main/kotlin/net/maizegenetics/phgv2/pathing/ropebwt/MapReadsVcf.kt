@@ -256,18 +256,18 @@ class MapReadsVcf : CliktCommand(help="Map VCF to a pangenome using ropeBWT3") {
     fun mapFastaReadFile(index: String, sampleName: String, readFile1: String, readFile2: String, path: String, threads: Int,
                           minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String,
                           hapIdToRefRangeMap: Map<String,List<ReferenceRange>>, maxStart: Int, minEnd: Int) {
+        val fastqLength = 201
+        val fastqGT = (fastqLength -1)/2
         myLogger.info("Mapping reads in VCF $readFile2 using FASTA $readFile1 to $index")
+        val fastqDir = File("$path/fastq/")
+        if (!fastqDir.exists()) fastqDir.mkdirs()
         val regionsPath = path + "/fastq/regions.txt"
         val fqPath = path + "/fastq/regions.fq"
         val results = readVcfAndExtractRegions( filePath1= readFile1, filePath2 = readFile2, regionsPath, fqPath)
         val fastaMap = parseFastaOutput(fqPath)
         val updatedRecords = mapFastaToVcfRecords(results.records, fastaMap)
         myLogger.info("Done adding fasta to VCF records")
-        val qual = CharArray(201) { 'I' }.concatToString()
-        val dir = File(path)
-        if(!dir.exists()) {
-            dir.mkdirs()
-        }
+        val qual = CharArray(fastqLength) { 'I' }.concatToString()
 
         results.header.forEachIndexed {index1, sample ->
             myLogger.info("processing sample $index1 $sample")
@@ -282,10 +282,14 @@ class MapReadsVcf : CliktCommand(help="Map VCF to a pangenome using ropeBWT3") {
                     id = record.chrom + "_" + record.pos
                 }
                 try {
-                    if (ref[0] == cleanSequence[100]) {
-                        //println("Good: $id $ref")
+                    if (cleanSequence.length > 100) {
+                        if (ref[0] == cleanSequence[fastqGT]) {
+                            //println("Good: $id $ref")
+                        } else {
+                            println("Bad: $id $cleanSequence ${ref[0]} ${alt[0]} ${cleanSequence[100]}")
+                        }
                     } else {
-                        println("Bad: $id $cleanSequence ${ref[0]} ${alt[0]} ${cleanSequence[100]}")
+                        println("Bad: $id $cleanSequence minimum number of bases not found")
                     }
                     val gt = genotypes[index1]
                     val newStr = cleanSequence.toCharArray().also { it[100] = gt[0] }.concatToString()
@@ -323,7 +327,7 @@ class MapReadsVcf : CliktCommand(help="Map VCF to a pangenome using ropeBWT3") {
     }
 
     /**
-     * Function to setup the ropebwt3 mem process and pass a BufferedReader for use by the rest of the program
+     * Function to set up the ropebwt3 mem process and pass a BufferedReader for use by the rest of the program
      * //time ../ropebwt3/ropebwt3 mem -t40 -l148 -p50 /workdir/zrm22/phgv2/ropeBWT/fullASMTests/phg_ASMs.fmd /workdir/zrm22/phgv2/ropeBWT/Reads/B97_HVMFTCCXX_L7_1.clean.fq.gz > B97_1_fullASM_pos_matches2NM.bed
      *
      */
