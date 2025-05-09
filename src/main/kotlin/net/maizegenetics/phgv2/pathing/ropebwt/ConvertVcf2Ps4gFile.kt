@@ -57,7 +57,7 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
        val positionMap = mutableMapOf<Position, Map<String, List<SampleGamete>>>()
 
         //TODO use custom reader
-        VCFFileReader(File(gameteVcf)).use { reader ->
+        VCFFileReader(File(gameteVcf),false).use { reader ->
             reader.map { record ->
                 val position = Position(record.contig, record.start)
                 val genotypes = record.genotypes

@@ -1,0 +1,55 @@
+##fileformat=VCFv4.2
+##FORMAT=<ID=AD,Number=3,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth (only filtered reads used for calling)">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##INFO=<ID=AF,Number=3,Type=Integer,Description="Allele Frequency">
+##INFO=<ID=ASM_Chr,Number=1,Type=String,Description="Assembly chromosome">
+##INFO=<ID=ASM_End,Number=1,Type=Integer,Description="Assembly end position">
+##INFO=<ID=ASM_Start,Number=1,Type=Integer,Description="Assembly start position">
+##INFO=<ID=ASM_Strand,Number=1,Type=String,Description="Assembly strand">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
+##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample1	sample2	sample3	sample4
+chr1	1	.	A	C	.	.	.	GT	0	0	1	1
+chr1	11	.	A	C	.	.	.	GT	0	1	0	1
+chr1	21	.	A	C	.	.	.	GT	0	0	1	1
+chr1	31	.	A	C	.	.	.	GT	0	1	1	0
+chr1	41	.	A	C	.	.	.	GT	0	0	1	1
+chr1	51	.	A	C	.	.	.	GT	0	1	0	1
+chr1	61	.	A	C	.	.	.	GT	0	0	1	1
+chr1	71	.	A	C	.	.	.	GT	0	1	0	1
+chr1	81	.	A	C	.	.	.	GT	0	0	1	1
+chr1	91	.	A	C	.	.	.	GT	0	1	1	0
+chr1	101	.	A	C	.	.	.	GT	0	0	1	1
+chr1	111	.	A	C	.	.	.	GT	0	1	0	1
+chr1	121	.	A	C	.	.	.	GT	0	0	1	1
+chr1	131	.	A	C	.	.	.	GT	0	1	0	1
+chr1	141	.	A	C	.	.	.	GT	0	0	1	1
+chr1	151	.	A	C	.	.	.	GT	0	1	1	0
+chr1	161	.	A	C	.	.	.	GT	0	0	1	1
+chr1	171	.	A	C	.	.	.	GT	0	1	0	1
+chr1	181	.	A	C	.	.	.	GT	0	0	1	1
+chr1	191	.	A	C	.	.	.	GT	0	1	0	1
+chr1	201	.	A	C	.	.	.	GT	0	0	1	1
+chr1	211	.	A	C	.	.	.	GT	0	1	1	0
+chr1	221	.	A	C	.	.	.	GT	0	0	1	1
+chr1	231	.	A	C	.	.	.	GT	0	1	0	1
+chr1	241	.	A	C	.	.	.	GT	0	0	1	1
+chr1	251	.	A	C	.	.	.	GT	0	1	0	1
+chr1	261	.	A	C	.	.	.	GT	0	0	1	1
+chr1	271	.	A	C	.	.	.	GT	0	1	1	0
+chr1	281	.	A	C	.	.	.	GT	0	0	1	1
+chr1	291	.	A	C	.	.	.	GT	0	1	0	1
+chr1	301	.	A	C	.	.	.	GT	0	0	1	1
+chr1	311	.	A	C	.	.	.	GT	0	1	0	1
+chr1	321	.	A	C	.	.	.	GT	0	0	1	1
+chr1	331	.	A	C	.	.	.	GT	0	1	1	0
+chr1	341	.	A	C	.	.	.	GT	0	0	1	1
+chr1	351	.	A	C	.	.	.	GT	0	1	0	1
+chr1	361	.	A	C	.	.	.	GT	0	0	1	1
+chr1	371	.	A	C	.	.	.	GT	0	1	0	1
+chr1	381	.	A	C	.	.	.	GT	0	0	1	1
+chr1	391	.	A	C	.	.	.	GT	0	1	1	0
