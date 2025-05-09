@@ -31,10 +31,16 @@ class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs
         .int()
         .default(250_000)
 
+    val contigList by option(help = "List of chromosomes to include in the splines.  If not provided, all chromosomes will be included.")
+        .default("")
+
     override fun run() {
         logCommand(this)
 
-        val splineKnotLookup = SplineUtils.buildSplineKnots(vcfDir, vcfType, minIndelLength, maxNumPointsPerChrom)
+        myLogger.info("Building Spline Knots from $vcfType files in $vcfDir")
+        val contigSet = contigList.split(",").map { it.trim() }.toSet()
+
+        val splineKnotLookup = SplineUtils.buildSplineKnots(vcfDir, vcfType, minIndelLength, maxNumPointsPerChrom, contigSet)
 
         myLogger.info("Writing out spline knots to $outputFile")
         SplineUtils.writeSplineLookupToFile(splineKnotLookup, outputFile)

@@ -33,14 +33,14 @@ class SplineUtils{
          * (http://doi.acm.org/10.1145/321607.321609) implemented via the Apache Commons Math3 library.
          * This does not build the full splines just yet but rather sets up the spline knots for each chromosome.
          */
-        fun buildSplineKnots(vcfDir: String, vcfType: String, minIndelLength: Int = 10, maxNumPointsPerChrom: Int = 250_000) : SplineKnotLookup {
+        fun buildSplineKnots(vcfDir: String, vcfType: String, minIndelLength: Int = 10, maxNumPointsPerChrom: Int = 250_000, contigSet : Set<String> = emptySet()) : SplineKnotLookup {
             val vcfFiles = buildVCFFileList(vcfDir, vcfType)
             val splineKnotMap = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
             val chrIndexMap = mutableMapOf<String,Int>()
             val gameteIndexMap = mutableMapOf<String,Int>()
             for (vcfFile in vcfFiles!!) {
                 myLogger.info("Reading ${vcfFile.name}")
-                processVCFFileIntoSplineKnots(vcfFile, vcfType, splineKnotMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom)
+                processVCFFileIntoSplineKnots(vcfFile, vcfType, splineKnotMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet)
             }
             myLogger.info("Done reading VCF files")
             myLogger.info("Number of splines: ${splineKnotMap.size}")
@@ -72,13 +72,14 @@ class SplineUtils{
             chrIndexMap: MutableMap<String, Int>,
             gameteIndexMap: MutableMap<String, Int>,
             minIndelLength: Int=10,
-            maxNumPointsPerChrom: Int = 250_000
+            maxNumPointsPerChrom: Int = 250_000,
+            contigSet: Set<String> = emptySet()
         ) {
             if(vcfType == "hvcf") {
-                processHvcfFileIntoSplineKnots(vcfFile, splineKnotMap, chrIndexMap, gameteIndexMap, maxNumPointsPerChrom)
+                processHvcfFileIntoSplineKnots(vcfFile, splineKnotMap, chrIndexMap, gameteIndexMap, maxNumPointsPerChrom, contigSet)
             }
             else if(vcfType == "gvcf") {
-                processGvcfFileIntoSplineKnots(vcfFile, splineKnotMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom)
+                processGvcfFileIntoSplineKnots(vcfFile, splineKnotMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet)
             }
             else {
                 throw IllegalArgumentException("Unknown VCF type $vcfType")
@@ -94,7 +95,8 @@ class SplineUtils{
             splineMap: MutableMap<String, Pair<DoubleArray, DoubleArray>>,
             chrIndexMap : MutableMap<String,Int>,
             gameteIndexMap: MutableMap<String, Int>,
-            maxNumPointsPerChrom: Int = 250_000
+            maxNumPointsPerChrom: Int = 250_000,
+            contigSet: Set<String> = emptySet()
         ) {
             VCFFileReader(hvcfFile, false).use { reader ->
                 val header = reader.header
@@ -109,6 +111,11 @@ class SplineUtils{
                 while (iterator.hasNext()) {
                     val currentVariant = iterator.next()
                     val chrom = currentVariant.contig
+
+                    if(contigSet.isNotEmpty() && !contigSet.contains(chrom)) {
+                        continue
+                    }
+
                     //Check to see if we need to add a new entry in our chrIndexMap
                     checkMapAndAddToIndex(chrIndexMap, chrom)
 
@@ -164,7 +171,8 @@ class SplineUtils{
             chrIndexMap : MutableMap<String,Int>,
             gameteIndexMap: MutableMap<String, Int>,
             minIndelLength: Int=10,
-            maxNumPoints: Int = 250_000
+            maxNumPoints: Int = 250_000,
+            contigSet: Set<String> = emptySet()
         ) {
             var nextIndex = 0
 
@@ -231,6 +239,9 @@ class SplineUtils{
 
                 for (variant in reader) {
                     val refChr = variant.contig
+                    if (contigSet.isNotEmpty() && !contigSet.contains(refChr)) {
+                        continue
+                    }
                     val refPosStart = variant.start
                     val refPosEnd = variant.end
 
@@ -375,16 +386,65 @@ class SplineUtils{
             currentChrom: String,
             sampleName: String?
         ) {
-            val sortedPoints = listOfPoints.sortedBy { it.first }.distinctBy { it.first }
-            if (sortedPoints.size <= 4) {
-                myLogger.warn("Not enough points to build spline for $currentChrom $sampleName")
-                listOfPoints.clear()
-                return
-            }
+            val sortedPoints = sortAndSplitPoints(listOfPoints)
             val asmArray = sortedPoints.map { it.first }.toDoubleArray()
             val refArray = sortedPoints.map { it.second }.toDoubleArray()
             splineKnotMap["${currentChrom}_${sampleName}"] = Pair(asmArray, refArray)
             listOfPoints.clear()
+        }
+
+        fun sortAndSplitPoints(listOfPoints: MutableList<Pair<Double, Double>>) : List<Pair<Double, Double>> {
+            val sortedPoints =  listOfPoints.sortedBy { it.first }.distinctBy { it.first }
+
+            if(sortedPoints.size <= 4) {
+                val outputPoints = mutableListOf<Pair<Double, Double>>()
+                //drop that many points between each set of points if the ref chroms match
+                sortedPoints.zipWithNext().map { (firstPair, secondPair) ->
+                    val totalPos = secondPair.first - firstPair.first + 1
+
+                    val firstRef = PS4GUtils.decodePosition(firstPair.second.toInt())
+                    val secondRef = PS4GUtils.decodePosition(secondPair.second.toInt())
+
+                    //Add the first point
+                    outputPoints.add(firstPair)
+
+                    if(firstRef.contig == secondRef.contig) {
+                        addIntermediateSplineKnots(firstPair, totalPos, firstRef, secondRef, outputPoints)
+                    }
+                }
+                //Add the last point
+                if(sortedPoints.isNotEmpty()) {
+                    outputPoints.add(sortedPoints.last())
+                }
+                return outputPoints
+            }
+            else {
+                return sortedPoints
+            }
+        }
+
+        private fun addIntermediateSplineKnots(
+            firstPair: Pair<Double, Double>,
+            totalPos: Double,
+            firstRef: Position,
+            secondRef: Position,
+            outputPoints: MutableList<Pair<Double, Double>>
+        ) {
+            //Contigs are the same so we want to split the region into 4 parts
+            val numPointsToAdd = 4
+            for (i in 1 until numPointsToAdd) {
+                val newPos = firstPair.first + (totalPos * (i.toDouble()) / (numPointsToAdd))
+
+                val newRefPos = if (firstRef.position <= secondRef.position) {
+                    //positive strand
+                    firstRef.position + (totalPos * ((i.toDouble()) / (numPointsToAdd)))
+                } else {
+                    //negative strand
+                    firstRef.position - (totalPos * ((i.toDouble()) / (numPointsToAdd)))
+                }
+                val newRef = PS4GUtils.encodePositionNoLookup(Position(secondRef.contig, newRefPos.toInt()))
+                outputPoints.add(Pair(newPos, newRef.toDouble()))
+            }
         }
 
         /**

@@ -4,6 +4,7 @@ import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.pathing.ropebwt.PS4GUtils
 import net.maizegenetics.phgv2.pathing.ropebwt.SplineKnotLookup
 import net.maizegenetics.phgv2.pathing.ropebwt.SplineUtils
+import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.setupDebugLogging
 import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
@@ -283,6 +284,48 @@ class SplineUtilsTest {
 
         assertEquals(100, splineKnotLookup["chr1"]!!.size)
         assertEquals(99, splineKnotLookup["chr2"]!!.size)
+
+    }
+
+    @Test
+    fun testSortAndSplitPoints() {
+        val firstPoint = Pair(1.0, PS4GUtils.encodePositionNoLookup(Position("0",1)).toDouble())
+        val secondPoint = Pair(10001.0, PS4GUtils.encodePositionNoLookup(Position("0",10001)).toDouble())
+
+        val points = mutableListOf(firstPoint, secondPoint)
+
+        val sortedPoints = SplineUtils.sortAndSplitPoints(points)
+
+        assertEquals(5, sortedPoints.size)
+        assertEquals(0, PS4GUtils.decodePosition(sortedPoints[0].second.toInt()).position)
+        assertEquals(0, PS4GUtils.decodePosition(sortedPoints[0].second.toInt()).contig.toInt())
+
+        for(i in 1 until sortedPoints.size) {
+            assertEquals(0, PS4GUtils.decodePosition(sortedPoints[i].second.toInt()).contig.toInt())
+            // We ask for 4 points so they should be 2500, 5000, 7500, 10000.
+            // We bin them by dividing by 256 and multiplying by 256 to get the binned posisiont
+            assertEquals(((i * 2500)/256) * 256, PS4GUtils.decodePosition(sortedPoints[i].second.toInt()).position)
+        }
+
+        //Test the negative strand too
+        val firstPointNegative = Pair(1.0, PS4GUtils.encodePositionNoLookup(Position("1",10001)).toDouble())
+        val secondPointNegative = Pair(10001.0, PS4GUtils.encodePositionNoLookup(Position("1",1)).toDouble())
+        val pointsNegative = mutableListOf(firstPointNegative, secondPointNegative )
+
+        val sortedPointsNegative = SplineUtils.sortAndSplitPoints(pointsNegative)
+
+
+        assertEquals(5, sortedPointsNegative.size)
+        assertEquals(1, PS4GUtils.decodePosition(sortedPointsNegative[0].second.toInt()).contig.toInt())
+        assertEquals((10001/256) * 256, PS4GUtils.decodePosition(sortedPointsNegative[0].second.toInt()).position)
+
+
+        for(i in 1 until sortedPointsNegative.size) {
+            assertEquals(1, PS4GUtils.decodePosition(sortedPointsNegative[i].second.toInt()).contig.toInt())
+            // We ask for 4 points so they should be 10000. 7500, 5000, 2500, 0
+            // We bin them by dividing by 256 and multiplying by 256 to get the binned posisiont
+            assertEquals(((10001 - (i * 2500))/256) * 256, PS4GUtils.decodePosition(sortedPointsNegative[i].second.toInt()).position)
+        }
 
     }
 }

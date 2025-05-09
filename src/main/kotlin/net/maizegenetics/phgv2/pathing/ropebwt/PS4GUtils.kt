@@ -57,8 +57,8 @@ class PS4GUtils {
 
         //This is a lossy function as we /256 the position during encoding.  So it will be in a bin of 256
         fun decodePosition(encodedPos : Int) : Position {
-            val idx = encodedPos shr 24
-            val pos = (encodedPos and 0x0FFFFFFF) * 256
+            val idx = encodedPos.toUInt() shr 24
+            val pos = (encodedPos and 0x0FFFFFF) * 256
             return Position("$idx", pos)
         }
 
