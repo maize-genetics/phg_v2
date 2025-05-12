@@ -100,12 +100,67 @@ class ConvertVcf2Ps4gFileTest {
 
     @Test
     fun testProcessVariantPosition() {
-        fail("Not yet implemented")
+        // fun processVariantPosition(
+        //        position: Position,
+        //        sampleNameToIdxMap: Map<String, Int>,
+        //        positionSampleGameteLookup: Map<Position, Map<String, List<SampleGamete>>>,
+        //        record: VariantContext,
+        //        sampleGameteCount: MutableMap<SampleGamete, MutableMap<SampleGamete, Int>>,
+        //        gameteToCountMap: MutableMap<SampleGamete, SampleGameteCountMaps>,
+        //        gameteToIdxMap: Map<SampleGamete, Int>
+        //    )
+        
+
+
     }
 
     @Test
     fun testProcessSingleGenotype() {
-        fail("Not yet implemented")
+        //create the allele map
+        val alleleMap = mapOf(
+            "A" to listOf(SampleGamete("LineA",0), SampleGamete("LineB",0)),
+            "C" to listOf(SampleGamete("LineC",0), SampleGamete("LineD",0)),
+            "G" to listOf(SampleGamete("LineD",1), SampleGamete("LineF",0))
+        )
+
+        val gameteToIdxMap = mapOf<SampleGamete,Int>(SampleGamete("LineA",0) to 1,
+            SampleGamete("LineB",0) to 2,
+            SampleGamete("LineC",0) to 3,
+            SampleGamete("LineD",0) to 4,
+            SampleGamete("LineD",1) to 5,
+            SampleGamete("LineF",0) to 6
+        )
+
+        val genotype1 = GenotypeBuilder().name("genotype1")
+            .alleles(listOf(Allele.REF_A, Allele.ALT_C)).make()
+
+        val encodedPosition1 = PS4GUtils.encodePositionFromIdxAndPos(1,1000)
+
+        val convertVcf2Ps4gFile = ConvertVcf2Ps4gFile()
+
+        val sampleGameteCountMap = mutableMapOf<SampleGamete, MutableMap<SampleGamete,Int>>()
+        val gameteToCountMap = mutableMapOf<SampleGamete, SampleGameteCountMaps>()
+
+        assertEquals(0, sampleGameteCountMap.size)
+        assertEquals(0, gameteToCountMap.size)
+
+        convertVcf2Ps4gFile.processSingleGenotype(genotype1, 0, Allele.REF_A, alleleMap,
+            sampleGameteCountMap, gameteToCountMap, gameteToIdxMap, encodedPosition1)
+
+        assertEquals(1, sampleGameteCountMap.size)
+        assertEquals(1, gameteToCountMap.size)
+        assertEquals(2, sampleGameteCountMap[SampleGamete("genotype1",0)]?.size)
+        val genotype1CountMap = gameteToCountMap[SampleGamete("genotype1",0)]?.countMap!!
+
+        assertEquals(1, genotype1CountMap.get(Pair(encodedPosition1, listOf(1,2))))
+
+        convertVcf2Ps4gFile.processSingleGenotype(genotype1, 1, Allele.ALT_C, alleleMap,
+            sampleGameteCountMap, gameteToCountMap, gameteToIdxMap, encodedPosition1)
+
+        assertEquals(2, sampleGameteCountMap.size)
+        assertEquals(2, gameteToCountMap.size)
+        assertEquals(2, sampleGameteCountMap[SampleGamete("genotype1",1)]?.size)
+
     }
 
     @Test
