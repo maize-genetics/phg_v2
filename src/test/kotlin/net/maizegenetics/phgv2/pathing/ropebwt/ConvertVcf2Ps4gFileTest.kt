@@ -99,6 +99,16 @@ class ConvertVcf2Ps4gFileTest {
     }
 
     @Test
+    fun testProcessVariantPosition() {
+        fail("Not yet implemented")
+    }
+
+    @Test
+    fun testProcessSingleGenotype() {
+        fail("Not yet implemented")
+    }
+
+    @Test
     fun testCreateGameteToIdxMap() {
         val convertVcf2Ps4gFile = ConvertVcf2Ps4gFile()
 
@@ -135,6 +145,7 @@ class ConvertVcf2Ps4gFileTest {
     @Ignore
     @Test
     fun buildSimpleReferencePanelVCF() {
+        //This test was what was run to get the refPanel.vcf.  I am leaving it in so it is clear what was done to make the file
         val outputFile = "data/test/ps4gTests/refPanel.vcf"
         val header = createGenericHeader(listOf("sample1", "sample2", "sample3", "sample4"),emptySet())
         val writer = VariantContextWriterBuilder()

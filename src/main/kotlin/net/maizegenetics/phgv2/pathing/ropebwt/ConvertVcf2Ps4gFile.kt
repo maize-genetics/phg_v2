@@ -3,6 +3,9 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import htsjdk.variant.variantcontext.Allele
+import htsjdk.variant.variantcontext.Genotype
+import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.headerCommand
@@ -17,6 +20,16 @@ import kotlin.collections.mutableMapOf
  */
 data class SingleSamplePS4GData(val ps4gData: List<PS4GData>, val gameteCountMap: Map<SampleGamete,Int>)
 data class VCFPS4GData(val knownGameteToIdxMap: Map<SampleGamete,Int>, val sampleToPS4GMap : Map<String, SingleSamplePS4GData>)
+
+data class PS4GDataWithMaps(val ps4gData: List<PS4GData>, val sampleGameteCount: Map<SampleGamete,Int>, val gameteToIdxMap: Map<SampleGamete,Int>)
+
+/**
+ * This data class holds the two SampleGameteCountMaps that are used to create the PS4GData
+ * The first map is the overall positional count.  The key is Pair<encodedPosition, listOfReferenceSampleGameteIndices>
+ * The second is the reference sample gamete count map.  The key is the SampleGamete and the value is the count of how many times this SampleGamete was seen in the reference panel.
+ */
+data class SampleGameteCountMaps(val countMap: MutableMap<Pair<Int, List<Int>>, Int>, val refSampleGameteCountMap: MutableMap<SampleGamete, Int>)
+
 
 class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
 
@@ -76,9 +89,10 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
 
 
 
-    fun createPS4GData(sampleVcf: String, positionSampleGameteLookup: Map<Position, Map<String, List<SampleGamete>>>): Map<SampleGamete,Triple<List<PS4GData>, Map<SampleGamete,Int>,Map<SampleGamete,Int>>> {
+    fun createPS4GData(sampleVcf: String,
+                       positionSampleGameteLookup: Map<Position, Map<String, List<SampleGamete>>>): Map<SampleGamete, PS4GDataWithMaps> {
 
-        val gameteToCountMap = mutableMapOf<SampleGamete,Pair<MutableMap<Pair<Int, List<Int>>, Int>, MutableMap<SampleGamete,Int>>>()
+        val gameteToCountMap = mutableMapOf<SampleGamete, SampleGameteCountMaps>()
 
         //Make a global map of gametes to index
         val gameteToIdxMap = createGameteToIdxMap(positionSampleGameteLookup)
@@ -101,51 +115,104 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
                     return@forEach
                 }
 
-                val encodedPosition = PS4GUtils.encodePosition(position, sampleNameToIdxMap)
-
-                //Get out the alleles and lists of SampleGametes for this position
-                val alleleMap = positionSampleGameteLookup[position]!!
-
-                //Need to loop through each genotype
-                val genotypes = record.genotypes
-
-                genotypes.forEach { genotype ->
-                    genotype.alleles.forEachIndexed { index, allele ->
-                        val sampleGamete = SampleGamete(genotype.sampleName, index)
-                        val alleleString = allele.baseString
-
-                        //Get the list of SampleGametes for this allele
-                        val sampleGametes = alleleMap[alleleString] ?: emptyList()
-
-                        //Add to the map of counts
-                        sampleGameteCount.getOrPut(sampleGamete) { mutableMapOf() }.let { countMap ->
-                            sampleGametes.forEach { refSampleGamete ->
-                                countMap[refSampleGamete] = countMap.getOrDefault(refSampleGamete, 0) + 1
-                            }
-                        }
-                        //Need to add this set of SampleGametes to the specific PS4GData
-                        val (countMap, sampleGameteCountMap) = gameteToCountMap[sampleGamete] ?: Pair(mutableMapOf(), mutableMapOf())
-
-                        //increment the count for these hits from SampleGametes
-                        //First convert SampleGametes to indices
-                        val sampleGameteIndices = sampleGametes.map { gameteToIdxMap[it] ?: throw IllegalStateException("SampleGamete $it not found in gameteToIdxMap") }
-                        //Get the count for this position and sampleGamete
-                        countMap[Pair(encodedPosition, sampleGameteIndices)] = countMap.getOrDefault(Pair(encodedPosition, sampleGameteIndices), 0) + 1
-
-                        //update the count for these SampleGametes
-                        for(sampleGamete in sampleGametes) {
-                            sampleGameteCountMap[sampleGamete] = sampleGameteCountMap.getOrDefault(sampleGamete, 0) + 1
-                        }
-
-                        gameteToCountMap[sampleGamete] = Pair(countMap, sampleGameteCountMap)
-                    }
-                }
+                processVariantPosition(
+                    position,
+                    sampleNameToIdxMap,
+                    positionSampleGameteLookup,
+                    record,
+                    sampleGameteCount,
+                    gameteToCountMap,
+                    gameteToIdxMap
+                )
             }
         }
         //Go through the toImputeMap and create the PS4GData
         //First thing we need to do is convert the count map to a list of PS4G data
 
         return convertCountMapsToData(gameteToCountMap, gameteToIdxMap)
+    }
+
+    fun processVariantPosition(
+        position: Position,
+        sampleNameToIdxMap: Map<String, Int>,
+        positionSampleGameteLookup: Map<Position, Map<String, List<SampleGamete>>>,
+        record: VariantContext,
+        sampleGameteCount: MutableMap<SampleGamete, MutableMap<SampleGamete, Int>>,
+        gameteToCountMap: MutableMap<SampleGamete, SampleGameteCountMaps>,
+        gameteToIdxMap: Map<SampleGamete, Int>
+    ) {
+        val encodedPosition = PS4GUtils.encodePosition(position, sampleNameToIdxMap)
+
+        //Get out the alleles and lists of SampleGametes for this position
+        val alleleMap = positionSampleGameteLookup[position]!!
+
+        //Need to loop through each genotype
+        val genotypes = record.genotypes
+
+        genotypes.forEach { genotype ->
+            genotype.alleles.forEachIndexed { alleleIndex, allele ->
+                processSingleGenotype(
+                    genotype,
+                    alleleIndex,
+                    allele,
+                    alleleMap,
+                    sampleGameteCount,
+                    gameteToCountMap,
+                    gameteToIdxMap,
+                    encodedPosition
+                )
+            }
+        }
+    }
+
+    /**
+     * Function to process a single genotype and add it to the count map
+     * We update teh sampleGameteCount to have a running count of each of the reference gametes that were hit by this SNP
+     * We also update the gameteToIdxMap as we may have seen a new gamete this time.
+     */
+    fun processSingleGenotype(
+        genotype: Genotype,
+        alleleIndex: Int,
+        allele: Allele,
+        alleleMap: Map<String, List<SampleGamete>>, //This is coming from the refPanel
+        sampleGameteCount: MutableMap<SampleGamete, MutableMap<SampleGamete, Int>>,
+        gameteToCountMap: MutableMap<SampleGamete, SampleGameteCountMaps>,
+        gameteToIdxMap: Map<SampleGamete, Int>,
+        encodedPosition: Int
+    ) {
+        val sampleGamete = SampleGamete(genotype.sampleName, alleleIndex)
+        val alleleString = allele.baseString
+
+        //Get the list of RefPanel SampleGametes for this allele
+        val refPanelSampleGametes = alleleMap[alleleString] ?: emptyList()
+
+        //Add to the map of counts
+        sampleGameteCount.getOrPut(sampleGamete) { mutableMapOf() }.let { countMap ->
+            refPanelSampleGametes.forEach { refSampleGamete ->
+                countMap[refSampleGamete] = countMap.getOrDefault(refSampleGamete, 0) + 1
+            }
+        }
+        //Need to add this set of SampleGametes to the specific PS4GData
+        val (countMap, refSampleGameteCountMap) = gameteToCountMap[sampleGamete] ?: SampleGameteCountMaps(
+            mutableMapOf(),
+            mutableMapOf()
+        )
+
+        //increment the count for these hits from RefPanel SampleGametes
+        //First convert SampleGametes to indices
+        val sampleGameteIndices = refPanelSampleGametes.map {
+            gameteToIdxMap[it] ?: throw IllegalStateException("SampleGamete $it not found in gameteToIdxMap")
+        }
+        //Get the count for this position and sampleGamete
+        countMap[Pair(encodedPosition, sampleGameteIndices)] =
+            countMap.getOrDefault(Pair(encodedPosition, sampleGameteIndices), 0) + 1
+
+        //update the count for these SampleGametes
+        for (refSampleGamete in refPanelSampleGametes) {
+            refSampleGameteCountMap[refSampleGamete] = refSampleGameteCountMap.getOrDefault(refSampleGamete, 0) + 1
+        }
+
+        gameteToCountMap[sampleGamete] = SampleGameteCountMaps(countMap, refSampleGameteCountMap)
     }
 
     fun createGameteToIdxMap(positionSampleGameteLookup: Map<Position, Map<String, List<SampleGamete>>>): Map<SampleGamete, Int> {
@@ -158,11 +225,11 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
             }.toMap()
     }
 
-    fun convertCountMapsToData(countMaps: Map<SampleGamete,Pair<Map<Pair<Int, List<Int>>, Int>, Map<SampleGamete,Int>>>, gameteToIdxMap: Map<SampleGamete, Int>) : Map<SampleGamete,Triple<List<PS4GData>, Map<SampleGamete,Int>,Map<SampleGamete,Int>>> {
+    fun convertCountMapsToData(countMaps: Map<SampleGamete, SampleGameteCountMaps>, gameteToIdxMap: Map<SampleGamete, Int>) : Map<SampleGamete, PS4GDataWithMaps> {
         return countMaps.map { (sampleGamete, pair) ->
             val (countMap, sampleGameteCountMap) = pair
             val ps4GDataList = PS4GUtils.convertCountMapToPS4GData(countMap)
-            Pair(sampleGamete, Triple(ps4GDataList, sampleGameteCountMap, gameteToIdxMap))
+            Pair(sampleGamete, PS4GDataWithMaps(ps4GDataList, sampleGameteCountMap, gameteToIdxMap))
         }.toMap()
     }
 }
