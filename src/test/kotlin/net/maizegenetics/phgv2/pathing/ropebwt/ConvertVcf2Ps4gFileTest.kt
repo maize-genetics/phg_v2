@@ -7,6 +7,7 @@ import htsjdk.variant.variantcontext.GenotypeBuilder
 import htsjdk.variant.variantcontext.VariantContextBuilder
 import htsjdk.variant.variantcontext.writer.Options
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder
+import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeader
 import htsjdk.variant.vcf.VCFHeaderLine
 import net.maizegenetics.phgv2.api.SampleGamete
@@ -54,8 +55,8 @@ class ConvertVcf2Ps4gFileTest {
         val sample4Gamete = SampleGamete("sample4", 0)
 
 
-        assertEquals(40, positionSampleGameteLookup.size)
-        for(i in 0 until 40) {
+        assertEquals(400, positionSampleGameteLookup.size)
+        for(i in 0 until 400) {
             val position = Position("chr1", i * 10 + 1)
             val sampleGameteMap = positionSampleGameteLookup[position]
             assertEquals(2, sampleGameteMap?.size)
@@ -109,7 +110,49 @@ class ConvertVcf2Ps4gFileTest {
         //        gameteToCountMap: MutableMap<SampleGamete, SampleGameteCountMaps>,
         //        gameteToIdxMap: Map<SampleGamete, Int>
         //    )
-        
+
+        //Load in the first variant from the refPanel
+        val inputVCFFile = "data/test/ps4gTests/refPanel.vcf"
+        val convertVcf2Ps4gFile = ConvertVcf2Ps4gFile()
+
+        VCFFileReader(File(inputVCFFile), false).use { vcfReader ->
+            val header: VCFHeader = vcfReader.header
+            val sampleNameToIdxMap = header
+            val firstVC = vcfReader.iterator().next()
+
+            val position = Position(firstVC.contig, firstVC.start)
+
+            val contigNameToIdxMap = mapOf("chr1" to 0, "chr2" to 1, "chr3" to 2)
+            val sampleGameteCountMap = mutableMapOf<SampleGamete, MutableMap<SampleGamete, Int>>()
+            val gameteToCountMap = mutableMapOf<SampleGamete, SampleGameteCountMaps>()
+            val gameteToIdxMap = mutableMapOf<SampleGamete, Int>(SampleGamete("sample1", 0) to 0,
+                SampleGamete("sample2", 0) to 1,
+                SampleGamete("sample3", 0) to 2,
+                SampleGamete("sample4", 0) to 3,
+            )
+
+            convertVcf2Ps4gFile.processVariantPosition(position, contigNameToIdxMap,
+                convertVcf2Ps4gFile.createPositionSampleGameteLookup(inputVCFFile),
+                firstVC, sampleGameteCountMap, gameteToCountMap, gameteToIdxMap)
+
+            //check that the gameteToCountMap is correct
+            assertEquals(4, gameteToCountMap.size)
+            assertEquals(4, sampleGameteCountMap.size)
+            assertEquals(1, gameteToCountMap[SampleGamete("sample1",0)]?.countMap?.size)
+            assertEquals(1, gameteToCountMap[SampleGamete("sample2",0)]?.countMap?.size)
+            assertEquals(1, gameteToCountMap[SampleGamete("sample3",0)]?.countMap?.size)
+            assertEquals(1, gameteToCountMap[SampleGamete("sample4",0)]?.countMap?.size)
+            assertEquals(2, sampleGameteCountMap[SampleGamete("sample1",0)]?.size)
+            assertEquals(2, sampleGameteCountMap[SampleGamete("sample2",0)]?.size)
+            assertEquals(2, sampleGameteCountMap[SampleGamete("sample3",0)]?.size)
+            assertEquals(2, sampleGameteCountMap[SampleGamete("sample4",0)]?.size)
+
+
+
+
+        }
+
+
 
 
     }
@@ -212,7 +255,7 @@ class ConvertVcf2Ps4gFileTest {
 
         writer.writeHeader(header)
 
-        (0 until 400 step 10).forEach { idx ->
+        (0 until 4000 step 10).forEach { idx ->
             //build a variant context for the 4 samples
             val vcb = VariantContextBuilder("src", "chr1", (idx+1).toLong(), (idx + 1.toLong()), listOf(Allele.REF_A, Allele.ALT_C),)
 
