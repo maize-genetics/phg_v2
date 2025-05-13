@@ -8,8 +8,6 @@ import htsjdk.variant.variantcontext.VariantContextBuilder
 import htsjdk.variant.variantcontext.writer.Options
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder
 import htsjdk.variant.vcf.VCFFileReader
-import htsjdk.variant.vcf.VCFHeader
-import htsjdk.variant.vcf.VCFHeaderLine
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.createGenericHeader
@@ -18,7 +16,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
-import kotlin.test.junit5.JUnit5Asserter.fail
 
 class ConvertVcf2Ps4gFileTest {
 
@@ -26,17 +23,17 @@ class ConvertVcf2Ps4gFileTest {
     fun testCliktParams() {
         val convertVcf2Ps4gFile = ConvertVcf2Ps4gFile()
 
-        val noSampleVCF = convertVcf2Ps4gFile.test("--gamete-vcf testDir.vcf --output-dir testDir")
+        val noSampleVCF = convertVcf2Ps4gFile.test("--ref-panel-vcf testDir.vcf --output-dir testDir")
         assertEquals(1, noSampleVCF.statusCode)
         assertEquals("Usage: convert-vcf2ps4g-file [<options>]\n\n" +
-                "Error: missing option --sample-vcf\n", noSampleVCF.stderr)
+                "Error: missing option --to-impute-vcf\n", noSampleVCF.stderr)
 
-        val noGameteVCF = convertVcf2Ps4gFile.test("--sample-vcf testDir.vcf --output-dir testDir")
+        val noGameteVCF = convertVcf2Ps4gFile.test("--to-impute-vcf testDir.vcf --output-dir testDir")
         assertEquals(1, noGameteVCF.statusCode)
         assertEquals("Usage: convert-vcf2ps4g-file [<options>]\n\n" +
-                "Error: missing option --gamete-vcf\n", noGameteVCF.stderr)
+                "Error: missing option --ref-panel-vcf\n", noGameteVCF.stderr)
 
-        val noOutputDir = convertVcf2Ps4gFile.test("--sample-vcf testDir.vcf --gamete-vcf testDir.vcf")
+        val noOutputDir = convertVcf2Ps4gFile.test("--to-impute-vcf testDir.vcf --ref-panel-vcf testDir.vcf")
         assertEquals(1, noOutputDir.statusCode)
         assertEquals("Usage: convert-vcf2ps4g-file [<options>]\n\n" +
                 "Error: missing option --output-dir\n", noOutputDir.stderr)
@@ -44,10 +41,10 @@ class ConvertVcf2Ps4gFileTest {
 
 
     @Test
-    fun testCreatePositionSampleGameteLookup() {
+    fun testCreateRefPanelPositionSampleGameteLookup() {
         val inputVCFFile = File("data/test/ps4gTests/refPanel.vcf")
         val convertVcf2Ps4gFile = ConvertVcf2Ps4gFile()
-        val positionSampleGameteLookup = convertVcf2Ps4gFile.createPositionSampleGameteLookup(inputVCFFile.path)
+        val positionSampleGameteLookup = convertVcf2Ps4gFile.createRefPanelPositionSampleGameteLookup(inputVCFFile.path)
 
         val sample1Gamete = SampleGamete("sample1", 0)
         val sample2Gamete = SampleGamete("sample2", 0)
@@ -102,7 +99,7 @@ class ConvertVcf2Ps4gFileTest {
         val convertVcf2Ps4gFile = ConvertVcf2Ps4gFile()
 
         //fun createPS4GData(sampleVcf: String, positionSampleGameteLookup: Map<Position, Map<String, List<SampleGamete>>>): Map<SampleGamete, PS4GDataWithMaps> {
-        val positionSampleGameteLookup = convertVcf2Ps4gFile.createPositionSampleGameteLookup(refVCFFile)
+        val positionSampleGameteLookup = convertVcf2Ps4gFile.createRefPanelPositionSampleGameteLookup(refVCFFile)
         val ps4GData = convertVcf2Ps4gFile.createPS4GData(inputVCFFile, positionSampleGameteLookup)
 
         assertEquals(4, ps4GData.size)
@@ -205,7 +202,7 @@ class ConvertVcf2Ps4gFileTest {
             )
 
             convertVcf2Ps4gFile.processVariantPosition(position, contigNameToIdxMap,
-                convertVcf2Ps4gFile.createPositionSampleGameteLookup(refVCFFile),
+                convertVcf2Ps4gFile.createRefPanelPositionSampleGameteLookup(refVCFFile),
                 firstVC, sampleGameteCountMap, gameteToCountMap, gameteToIdxMap)
 
             val encodedPos = PS4GUtils.encodePositionFromIdxAndPos(0,firstVC.start)

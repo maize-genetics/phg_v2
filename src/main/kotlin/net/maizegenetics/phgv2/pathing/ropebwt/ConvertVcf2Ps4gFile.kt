@@ -15,14 +15,7 @@ import org.apache.logging.log4j.LogManager
 import java.io.File
 import kotlin.collections.mutableMapOf
 
-/**
- * NOTE This class is currently a WIP.  This will need to be finished eventually but was started as a hackathon project that got pivoted away from.
- */
-data class SingleSamplePS4GData(val ps4gData: List<PS4GData>, val gameteCountMap: Map<SampleGamete,Int>)
-data class VCFPS4GData(val knownGameteToIdxMap: Map<SampleGamete,Int>, val sampleToPS4GMap : Map<String, SingleSamplePS4GData>)
-
 data class PS4GDataWithMaps(val ps4gData: List<PS4GData>, val sampleGameteCount: Map<SampleGamete,Int>, val gameteToIdxMap: Map<SampleGamete,Int>)
-
 /**
  * This data class holds the two SampleGameteCountMaps that are used to create the PS4GData
  * The first map is the overall positional count.  The key is Pair<encodedPosition, listOfReferenceSampleGameteIndices>
@@ -31,14 +24,17 @@ data class PS4GDataWithMaps(val ps4gData: List<PS4GData>, val sampleGameteCount:
 data class SampleGameteCountMaps(val countMap: MutableMap<Pair<Int, List<Int>>, Int>, val refSampleGameteCountMap: MutableMap<SampleGamete, Int>)
 
 
+/**
+ * Class to convert VCF files into PS4G files using an input reference panel vcf.
+ */
 class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
 
     private val myLogger = LogManager.getLogger(ConvertVcf2Ps4gFile::class.java)
 
-    val sampleVcf by option(help = "Sample VCF file")
+    val toImputeVcf by option(help = "Sample VCF file")
         .required()
 
-    val gameteVcf by option(help = "Gamete VCF file")
+    val refPanelVCF by option(help = "RefPanel VCF file")
         .required()
 
     val outputDir by option(help = "Output file")
@@ -53,24 +49,29 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
 
         val header = listOf<String>() //TODO update this eventually to take the needed parts out of the header
 
-        val positionSampleGameteLookup = createPositionSampleGameteLookup(gameteVcf)
+        val positionSampleGameteLookup = createRefPanelPositionSampleGameteLookup(refPanelVCF)
 
-        val toImputeMap = createPS4GData(sampleVcf, positionSampleGameteLookup)
+        val toImputeMap = createPS4GData(toImputeVcf, positionSampleGameteLookup)
 
+        //Because we have multiple sample gametes we need to export we need to loop through each of them
         toImputeMap.forEach { (sampleGamete, triple) ->
             val (ps4GData, sampleGameteCount, gameteToIdxMap) = triple
-            val outputFile = PS4GUtils.buildOutputFileName(sampleVcf,outputDir)
+            val outputFile = PS4GUtils.buildOutputFileName(toImputeVcf,outputDir)
+            myLogger.info("Exporting $sampleGamete to ${outputFile}")
 
             PS4GUtils.writeOutPS4GFile(ps4GData, sampleGameteCount, gameteToIdxMap, outputFile, header, command)
         }
     }
 
 
-    fun createPositionSampleGameteLookup(gameteVcf: String): Map<Position, Map<String, List<SampleGamete>>> {
+    /**
+     * Function to create the mapping for the refPanel vcf file.  This will be in the form Map<Position, Map<AlleleString, List<GametesWithThatAllele>>
+     */
+    fun createRefPanelPositionSampleGameteLookup(refPanelVCF: String): Map<Position, Map<String, List<SampleGamete>>> {
        val positionMap = mutableMapOf<Position, Map<String, List<SampleGamete>>>()
 
         //TODO use custom reader
-        VCFFileReader(File(gameteVcf),false).use { reader ->
+        VCFFileReader(File(refPanelVCF),false).use { reader ->
             reader.map { record ->
                 val position = Position(record.contig, record.start)
                 val genotypes = record.genotypes
@@ -88,7 +89,10 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
     }
 
 
-
+    /**
+     * Main function to create the PS4GData from the VCF file and the positionSampleGameteLookup
+     * This will do all the samples in the sampleVCF file in one go without needing to walk through the VCF multiple times.
+     */
     fun createPS4GData(sampleVcf: String,
                        positionSampleGameteLookup: Map<Position, Map<String, List<SampleGamete>>>): Map<SampleGamete, PS4GDataWithMaps> {
 
@@ -129,12 +133,13 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
 
         myLogger.info("Number of positions not found in the reference panel: $missedPositionCount")
 
-        //Go through the toImputeMap and create the PS4GData
-        //First thing we need to do is convert the count map to a list of PS4G data
-
+        //Create the PS4G data objects
         return convertCountMapsToData(gameteToCountMap, gameteToIdxMap)
     }
 
+    /**
+     * Function to process a single Variant by adding it to the count map and updating the count for the specific reference gamete
+     */
     fun processVariantPosition(
         position: Position,
         contigNameToIdxMap: Map<String, Int>,
@@ -218,6 +223,10 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
         gameteToCountMap[sampleGamete] = SampleGameteCountMaps(countMap, refSampleGameteCountMap)
     }
 
+    /**
+     * Function to create a global gamete To Index map from the refPanel positionSampleGameteLookup class.
+     * This will be used for each sample to impute
+     */
     fun createGameteToIdxMap(positionSampleGameteLookup: Map<Position, Map<String, List<SampleGamete>>>): Map<SampleGamete, Int> {
         return positionSampleGameteLookup.values.flatMap { it.values }
             .flatten()
@@ -228,6 +237,9 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
             }.toMap()
     }
 
+    /**
+     * Function to convert the count maps to a PS4GData class for easy export using the same structure as the other exports
+     */
     fun convertCountMapsToData(countMaps: Map<SampleGamete, SampleGameteCountMaps>, gameteToIdxMap: Map<SampleGamete, Int>) : Map<SampleGamete, PS4GDataWithMaps> {
         return countMaps.map { (sampleGamete, pair) ->
             val (countMap, sampleGameteCountMap) = pair
