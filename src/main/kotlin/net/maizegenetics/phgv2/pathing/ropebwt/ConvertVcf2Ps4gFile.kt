@@ -97,7 +97,7 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
         //Make a global map of gametes to index
         val gameteToIdxMap = createGameteToIdxMap(positionSampleGameteLookup)
 
-        val contigNameToIdxMap = positionSampleGameteLookup.keys.map { position -> position.contig }
+        val contigNameToIdxMap = positionSampleGameteLookup.keys.map { position -> position.contig }.distinct()
             .mapIndexed { index, contig ->
                 contig to index
             }.toMap()
@@ -107,7 +107,7 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
         val sampleGameteCount = mutableMapOf<SampleGamete, MutableMap<SampleGamete,Int>>() //Need to build this on the fly
         var missedPositionCount = 0
 
-        VCFFileReader(File(sampleVcf)).use { reader ->
+        VCFFileReader(File(sampleVcf), false).use { reader ->
             reader.forEach { record ->
                 val position = Position(record.contig, record.start)
                 if(!positionSampleGameteLookup.containsKey(position)) {
@@ -126,6 +126,9 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
                 )
             }
         }
+
+        myLogger.info("Number of positions not found in the reference panel: $missedPositionCount")
+
         //Go through the toImputeMap and create the PS4GData
         //First thing we need to do is convert the count map to a list of PS4G data
 
