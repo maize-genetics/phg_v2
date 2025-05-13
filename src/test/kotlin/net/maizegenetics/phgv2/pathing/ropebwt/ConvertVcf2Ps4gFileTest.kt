@@ -101,16 +101,6 @@ class ConvertVcf2Ps4gFileTest {
 
     @Test
     fun testProcessVariantPosition() {
-        // fun processVariantPosition(
-        //        position: Position,
-        //        sampleNameToIdxMap: Map<String, Int>,
-        //        positionSampleGameteLookup: Map<Position, Map<String, List<SampleGamete>>>,
-        //        record: VariantContext,
-        //        sampleGameteCount: MutableMap<SampleGamete, MutableMap<SampleGamete, Int>>,
-        //        gameteToCountMap: MutableMap<SampleGamete, SampleGameteCountMaps>,
-        //        gameteToIdxMap: Map<SampleGamete, Int>
-        //    )
-
         //Load in the first variant from the refPanel
         val inputVCFFile = "data/test/ps4gTests/refPanel.vcf"
         val convertVcf2Ps4gFile = ConvertVcf2Ps4gFile()
@@ -135,26 +125,31 @@ class ConvertVcf2Ps4gFileTest {
                 convertVcf2Ps4gFile.createPositionSampleGameteLookup(inputVCFFile),
                 firstVC, sampleGameteCountMap, gameteToCountMap, gameteToIdxMap)
 
+            val encodedPos = PS4GUtils.encodePositionFromIdxAndPos(0,firstVC.start)
             //check that the gameteToCountMap is correct
             assertEquals(4, gameteToCountMap.size)
             assertEquals(4, sampleGameteCountMap.size)
             assertEquals(1, gameteToCountMap[SampleGamete("sample1",0)]?.countMap?.size)
+            assertTrue(gameteToCountMap[SampleGamete("sample1",0)]?.countMap?.containsKey(Pair(encodedPos, listOf(0,1))) ?: false)
+            assertEquals(1, gameteToCountMap[SampleGamete("sample1",0)]?.countMap?.get(Pair(encodedPos, listOf(0,1))))
+
             assertEquals(1, gameteToCountMap[SampleGamete("sample2",0)]?.countMap?.size)
+            assertTrue(gameteToCountMap[SampleGamete("sample2",0)]?.countMap?.containsKey(Pair(encodedPos, listOf(0,1))) ?: false)
+            assertEquals(1, gameteToCountMap[SampleGamete("sample2",0)]?.countMap?.get(Pair(encodedPos, listOf(0,1))) ?: 0)
+
             assertEquals(1, gameteToCountMap[SampleGamete("sample3",0)]?.countMap?.size)
+            assertTrue(gameteToCountMap[SampleGamete("sample3",0)]?.countMap?.containsKey(Pair(encodedPos, listOf(2,3))) ?: false)
+            assertEquals(1, gameteToCountMap[SampleGamete("sample3",0)]?.countMap?.get(Pair(encodedPos, listOf(2,3))) ?: 0)
+
             assertEquals(1, gameteToCountMap[SampleGamete("sample4",0)]?.countMap?.size)
+            assertTrue(gameteToCountMap[SampleGamete("sample4",0)]?.countMap?.containsKey(Pair(encodedPos, listOf(2,3))) ?: false)
+            assertEquals(1, gameteToCountMap[SampleGamete("sample4",0)]?.countMap?.get(Pair(encodedPos, listOf(2,3))) ?: 0)
+
             assertEquals(2, sampleGameteCountMap[SampleGamete("sample1",0)]?.size)
             assertEquals(2, sampleGameteCountMap[SampleGamete("sample2",0)]?.size)
             assertEquals(2, sampleGameteCountMap[SampleGamete("sample3",0)]?.size)
             assertEquals(2, sampleGameteCountMap[SampleGamete("sample4",0)]?.size)
-
-
-
-
         }
-
-
-
-
     }
 
     @Test
