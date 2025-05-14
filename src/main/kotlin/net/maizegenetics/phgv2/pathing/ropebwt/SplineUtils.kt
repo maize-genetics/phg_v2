@@ -430,7 +430,9 @@ class SplineUtils{
             secondRef: Position,
             outputPoints: MutableList<Pair<Double, Double>>
         ) {
-            //Contigs are the same so we want to split the region into 4 parts
+            //Contigs are the same so we want to split the region into 4 parts.
+            // We need 4 as it is the minumum number of knots that the Akima spline function requires.
+            // If there are less it will throw an error.
             val numPointsToAdd = 4
             for (i in 1 until numPointsToAdd) {
                 val newPos = firstPair.first + (totalPos * (i.toDouble()) / (numPointsToAdd))

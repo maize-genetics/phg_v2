@@ -33,7 +33,7 @@ fun main(args: Array<String>) = Phg()
         CreateAnchorwaveDotplot(), CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), Hvcf2Gvcf(), LoadVcf(), ExportVcf(),
         BuildKmerIndex(), MapKmers(), FindPaths(), HapidSampleTable(), SampleHapidByRange(),
         RopeBwtIndex(), RopeBwtChrIndex(),MapReads(), // Imputation
-        BuildSplineKnots(),ConvertRm2Ps4gFile(), ConvertRopebwt2Ps4gFile(), // PS4G File creations.
+        BuildSplineKnots(),ConvertRm2Ps4gFile(), ConvertRopebwt2Ps4gFile(), ConvertVcf2Ps4gFile(), // PS4G File creations.
         CreateFastaFromHvcf(), ListSamples(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer, ExtractEdgeReads(), //Utilities
         QcReadMapping(), ReadMappingCountQc(), PathsToGff(), // Utilities continued
         CompositeToHaplotypeCoords(), // resequencing pipeline
