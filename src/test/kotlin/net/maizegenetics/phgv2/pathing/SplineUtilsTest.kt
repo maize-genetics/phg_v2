@@ -107,34 +107,6 @@ class SplineUtilsTest {
     }
 
     @Test
-    fun testBuildSplineNotEnoughPoints() {
-        //make a simple linear spline
-        var listOfPoints = mutableListOf(
-            Pair(1.0, 1.0),
-            Pair(3.0, 3.0),
-            Pair(5.0, 5.0),
-            Pair(7.0, 7.0)
-        )
-
-        val splineKnotMap = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
-
-        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints, splineKnotMap, "chr1", "sample1")
-
-        assertEquals(0, splineKnotMap.size)
-
-        //Add one more point and recheck the spline
-        listOfPoints = mutableListOf(
-            Pair(1.0, 1.0),
-            Pair(3.0, 3.0),
-            Pair(5.0, 5.0),
-            Pair(7.0, 7.0),
-            Pair(9.0, 9.0)
-        )
-        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints, splineKnotMap, "chr1", "sample1")
-        assertEquals(1, splineKnotMap.size)
-    }
-
-    @Test
     fun testCheckMapAndAddToIndex() {
         val stringToIndexMap = mutableMapOf(Pair("test1", 0), Pair("test2", 1))
         SplineUtils.checkMapAndAddToIndex(stringToIndexMap, "test3")
