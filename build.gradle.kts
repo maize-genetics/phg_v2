@@ -6,7 +6,7 @@ plugins {
     kotlin("jvm") version "1.9.24"
     application
     id("org.jetbrains.kotlinx.kover") version "0.7.3"
-    kotlin("plugin.serialization") version "1.6.21"
+    kotlin("plugin.serialization") version "2.1.20"
 }
 
 group = "net.maizegenetics"
@@ -57,7 +57,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-script-runtime:${kotlinVersion}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
 
     implementation("org.apache.commons:commons-math3:3.6.1")
     implementation("org.apache.logging.log4j:log4j-core:2.20.0")
