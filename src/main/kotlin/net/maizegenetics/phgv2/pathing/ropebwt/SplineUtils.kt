@@ -235,7 +235,7 @@ class SplineUtils{
 
             // Open the gVCF file using HTSJDK.
             VCFFileReader(gvcfFile, false).use { reader ->
-                val sampleName = reader.fileHeader.sampleNamesInOrder[0]
+                val sampleName = reader.fileHeader.sampleNamesInOrder[0].replace("_","-")
 
                 for (variant in reader) {
                     val refChr = variant.contig
