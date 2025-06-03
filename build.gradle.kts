@@ -33,7 +33,6 @@ buildscript {
 repositories {
     mavenCentral()
     gradlePluginPortal()
-    //maven("https://maven.imagej.net/content/groups/public/")
 }
 
 dependencies {
