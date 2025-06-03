@@ -1,13 +1,13 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
-val ktorVersion = "2.3.7"
+val ktorVersion = "3.1.3"
 
 plugins {
     kotlin("jvm") version "2.1.21"
     application
     id("org.jetbrains.kotlinx.kover") version "0.9.1"
-    kotlin("plugin.serialization") version "2.1.20"
+    kotlin("plugin.serialization") version "2.1.21"
 }
 
 group = "net.maizegenetics"
@@ -57,8 +57,9 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-test:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-script-runtime:${kotlinVersion}")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
+    runtimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:1.10.2")
 
     implementation("org.apache.commons:commons-math3:3.6.1")
     implementation("org.apache.logging.log4j:log4j-core:2.20.0")
@@ -95,6 +96,8 @@ dependencies {
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
     implementation("io.ktor:ktor-client-websockets:$ktorVersion")
+    implementation("io.ktor:ktor-http-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-http-cio-jvm:$ktorVersion")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
 
