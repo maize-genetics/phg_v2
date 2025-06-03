@@ -1,9 +1,10 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 val ktorVersion = "2.3.7"
 
 plugins {
-    kotlin("jvm") version "1.9.24"
+    kotlin("jvm") version "2.1.21"
     application
     id("org.jetbrains.kotlinx.kover") version "0.7.3"
     kotlin("plugin.serialization") version "2.1.20"
@@ -15,7 +16,7 @@ group = "net.maizegenetics"
 This build script is need to use the early access
  */
 buildscript {
-    val kotlinVersion by extra("1.9.24")
+    val kotlinVersion by extra("2.1.21")
 
     repositories {
         mavenCentral()
@@ -32,7 +33,7 @@ buildscript {
 repositories {
     mavenCentral()
     gradlePluginPortal()
-    maven("https://maven.imagej.net/content/groups/public/")
+    //maven("https://maven.imagej.net/content/groups/public/")
 }
 
 dependencies {
@@ -45,7 +46,7 @@ dependencies {
     implementation("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.7.0")
     implementation("org.jetbrains.lets-plot:lets-plot-image-export:4.3.0")
     implementation("org.jetbrains.lets-plot:lets-plot-batik:4.3.0")
-    implementation("org.biokotlin:biokotlin:0.25")
+    implementation("org.biokotlin:biokotlin:1.0.0")
     implementation("com.github.ajalt.clikt:clikt:4.2.0")
 
     implementation("com.github.samtools:htsjdk:4.0.1")
@@ -56,8 +57,8 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-test:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-script-runtime:${kotlinVersion}")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
 
     implementation("org.apache.commons:commons-math3:3.6.1")
     implementation("org.apache.logging.log4j:log4j-core:2.20.0")
@@ -74,13 +75,13 @@ dependencies {
 
     // Use these jar files when compiling for Mac with Intel chip
     // Keep the Linux and Mac ARM jar inclusions commented out
-//    implementation(files("repo/MacIntel_tiledb-vcf-java-0.28.0.jar"))
-//    implementation(files("repo/MacIntel_tiledb-java-0.21.1-SNAPSHOT.jar"))
+    // implementation(files("repo/MacIntel_tiledb-vcf-java-0.28.0.jar"))
+    // implementation(files("repo/MacIntel_tiledb-java-0.21.1-SNAPSHOT.jar"))
 
     // Use these jar files when compiling for Mac with ARM chip
     // Keep the Linux and Mac Intel jar inclusions commented out
-//    implementation(files("repo/MacARM_tiledb-vcf-java-0.28.0.jar"))
-//    implementation(files("repo/MacARM_tiledb-java-0.21.1-SNAPSHOT.jar"))
+    // implementation(files("repo/MacARM_tiledb-vcf-java-0.28.0.jar"))
+    // implementation(files("repo/MacARM_tiledb-java-0.21.1-SNAPSHOT.jar"))
 
     implementation("io.ktor:ktor-server-netty:$ktorVersion")
     implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
@@ -157,12 +158,12 @@ tasks.test {
     testLogging {
         events("passed", "skipped", "failed")
     }
-//    Uncomment this if you want to increase the heap size for testing
-//    maxHeapSize = "10G"
+// Uncomment this if you want to increase the heap size for testing
+// maxHeapSize = "10G"
 }
 
 tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "17"
+    compilerOptions.jvmTarget.set(JvmTarget.JVM_21)
 }
 
 application {
