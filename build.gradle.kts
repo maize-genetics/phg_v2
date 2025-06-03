@@ -6,7 +6,7 @@ val ktorVersion = "2.3.7"
 plugins {
     kotlin("jvm") version "2.1.21"
     application
-    id("org.jetbrains.kotlinx.kover") version "0.7.3"
+    id("org.jetbrains.kotlinx.kover") version "0.9.1"
     kotlin("plugin.serialization") version "2.1.20"
 }
 
@@ -140,16 +140,29 @@ tasks.startScripts {
     }
 }
 
-koverReport {
-    verify {
-        rule {
-            "Minimal line coverage rate as a percentage"
-            bound {
-                minValue = 70
+kover {
+    reports {
+        verify {
+            rule {
+                "Minimal line coverage rate as a percentage"
+                bound {
+                    minValue = 70
+                }
             }
         }
     }
 }
+
+//koverReport {
+//    verify {
+//        rule {
+//            "Minimal line coverage rate as a percentage"
+//            bound {
+//                minValue = 70
+//            }
+//        }
+//    }
+//}
 
 
 tasks.test {
