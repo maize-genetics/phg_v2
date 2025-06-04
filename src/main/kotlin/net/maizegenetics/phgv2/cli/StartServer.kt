@@ -4,12 +4,15 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
+import com.typesafe.config.ConfigFactory
+import io.ktor.server.config.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import net.maizegenetics.phgv2.brapi.service.VariantSetsService
 import net.maizegenetics.phgv2.utils.setupDebugLogging
 import net.maizegenetics.phgv2.utils.verifyURI
 import org.apache.logging.log4j.LogManager
+import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Paths
 
@@ -33,14 +36,14 @@ object StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
         .int()
         .default(8080)
 
-    val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
+    val condaEnvPrefix by option(help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
 
     lateinit var server: NettyApplicationEngine
 
-    fun serverURL(): String {
-        val actualPort = server.environment.connectors.map { it.port }.firstOrNull()
-        val host = server.environment.connectors.map { it.host }.firstOrNull() ?: "localhost"
+    suspend fun serverURL(): String {
+        val actualPort = server.resolvedConnectors().map { it.port }.firstOrNull()
+        val host = server.resolvedConnectors().map { it.host }.firstOrNull() ?: "localhost"
 
         return "http://$host:$actualPort/brapi/v2/"
     }
@@ -75,7 +78,7 @@ object StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
         } else { // dbPath has a value
             if (configPath != null && configPath.isNotBlank()) {
                 if (configPath != dbPath) {
-                    if (!verifyURI(dbPath, "hvcf_dataset",condaEnvPrefix)) {
+                    if (!verifyURI(dbPath, "hvcf_dataset", condaEnvPrefix)) {
                         myLogger.error("start-server:  \ndp-path does not contain a valid tiledb created hvcf_dataset.  \nPlease re-run start-server with a valid value for db-path parameter.")
                         throw IllegalArgumentException("start-server:  \nTILEDB_URI is not valid.  \nPlease re-run start-server with a valid value for dbPath parameter.")
                     }
@@ -84,7 +87,7 @@ object StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
                     myLogger.info("\nstart-server:  Running server with db-path/TILEDB_URI of ${configPath}.")
                 }
             } else {
-                if (!verifyURI(tiledbPath, "hvcf_dataset",condaEnvPrefix)) {
+                if (!verifyURI(tiledbPath, "hvcf_dataset", condaEnvPrefix)) {
                     myLogger.error("hvcf_dataset does not exist in $dbPath.  Please check your path, and/or run Initdb to create the datasets.")
                     throw IllegalArgumentException("A valid hvcf_dataset does not exist in $dbPath.")
                 }
@@ -99,8 +102,17 @@ object StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
         // Checks have passed - Ready to start the server!
         // commandLineEnvironment reads the application.config file
         // https://ktor.io/docs/configuration.html#hocon-file
-        server = embeddedServer(Netty, commandLineEnvironment(emptyArray()))
-        server.start(wait = true)
+        //server = embeddedServer(Netty, commandLineEnvironment(emptyArray()))
+        //server.start(wait = true)
+
+        val config = HoconApplicationConfig(ConfigFactory.load()) // loads application.conf
+
+        val env = applicationEnvironment {
+            log = LoggerFactory.getLogger("ktor.application")
+            config.apply { config }
+        }
+
+        embeddedServer(Netty, environment = env).start(wait = true)
 
     }
 
