@@ -99,7 +99,7 @@ dependencies {
     implementation("io.ktor:ktor-http-jvm:$ktorVersion")
     implementation("io.ktor:ktor-http-cio-jvm:$ktorVersion")
 
-    testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.13.0")
 
 
     // for testing ktor
