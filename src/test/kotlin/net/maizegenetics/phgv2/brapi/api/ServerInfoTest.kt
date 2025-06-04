@@ -1,15 +1,15 @@
 package net.maizegenetics.phgv2.brapi.api
 
-import net.maizegenetics.phgv2.brapi.model.ServerInfoResponse
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.request.get
-import io.ktor.http.HttpStatusCode
+import io.ktor.client.request.*
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.routing.*
 import io.ktor.server.testing.*
-
-import org.junit.jupiter.api.Test
+import net.maizegenetics.phgv2.brapi.model.ServerInfoResponse
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 /**
  * This class tests the Brapi ServerInfo endpoint.
@@ -26,6 +26,12 @@ class ServerInfoTest {
 
     @Test
     fun testServerInfo() = testApplication {
+
+        application {
+            routing {
+                apiRoute()
+            }
+        }
 
         // This is needed or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
