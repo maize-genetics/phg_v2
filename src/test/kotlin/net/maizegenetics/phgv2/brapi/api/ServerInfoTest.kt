@@ -5,6 +5,8 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.engine.*
+import io.ktor.server.netty.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import net.maizegenetics.phgv2.brapi.model.ServerInfoResponse
@@ -27,11 +29,11 @@ class ServerInfoTest {
     @Test
     fun testServerInfo() = testApplication {
 
-        application {
+        embeddedServer(Netty, port = 8080) {
             routing {
                 apiRoute()
             }
-        }
+        }.start(wait = true)
 
         // This is needed or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
