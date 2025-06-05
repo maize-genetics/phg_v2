@@ -33,7 +33,7 @@ class ServerInfoTest {
             routing {
                 apiRoute()
             }
-        }.start(wait = true)
+        }.start(wait = false)
 
         // This is needed or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
