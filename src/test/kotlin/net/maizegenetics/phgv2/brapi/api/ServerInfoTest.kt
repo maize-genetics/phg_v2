@@ -29,11 +29,11 @@ class ServerInfoTest {
     @Test
     fun testServerInfo() = testApplication {
 
-        embeddedServer(Netty, port = 8080) {
+        application {
             routing {
                 apiRoute()
             }
-        }.start(wait = false)
+        }
 
         // This is needed or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
