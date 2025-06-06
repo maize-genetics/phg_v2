@@ -5,13 +5,14 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
+import io.ktor.server.application.*
+import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import net.maizegenetics.phgv2.brapi.model.ServerInfoResponse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.slf4j.event.Level
 
 /**
  * This class tests the Brapi ServerInfo endpoint.
@@ -30,6 +31,9 @@ class ServerInfoTest {
     fun testServerInfo() = testApplication {
 
         application {
+            this@application.install(CallLogging) {
+                level = Level.DEBUG
+            }
             routing {
                 apiRoute()
             }
