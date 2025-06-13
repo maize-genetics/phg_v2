@@ -9,7 +9,6 @@ import com.google.common.collect.TreeRangeSet
 import htsjdk.tribble.annotation.Strand
 import htsjdk.tribble.gff.Gff3Feature
 import htsjdk.tribble.gff.SequenceRegion
-import junit.framework.TestCase
 import net.maizegenetics.phgv2.cli.PathsToGff
 import net.maizegenetics.phgv2.cli.TestExtension
 import org.junit.jupiter.api.AfterAll
@@ -20,7 +19,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
-import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
@@ -255,9 +253,9 @@ class GFFUtilsTest {
         val gffFeaturesReturned = readGFFtoGff3Feature(testOutputFile)
         assertEquals(gffFeatures.size, gffFeaturesReturned.size)
         val aFeature = gffFeatures.first()
-        TestCase.assertTrue(gffFeaturesReturned.contains(aFeature))
+        assertTrue(gffFeaturesReturned.contains(aFeature))
         val lastFeature = gffFeatures.last()
-        TestCase.assertTrue(gffFeaturesReturned.contains(lastFeature))
+        assertTrue(gffFeaturesReturned.contains(lastFeature))
     }
 
     @Test
@@ -307,10 +305,10 @@ class GFFUtilsTest {
     fun testGetTaxonToGffFileMap() {
         val taxaFileMap = getTaxonToGffFileMap(keyFile)
         assertEquals(2,taxaFileMap.size)
-        TestCase.assertTrue(taxaFileMap.containsKey("B73"))
-        TestCase.assertTrue(taxaFileMap.containsKey("CML103"))
-        TestCase.assertTrue(taxaFileMap["B73"]!!.contains("smallFullGff_withHeaders_withTE_B73.txt"))
-        TestCase.assertTrue(taxaFileMap["CML103"]!!.contains("smallFullGff_withHeaders_CML103.txt"))
+        assertTrue(taxaFileMap.containsKey("B73"))
+        assertTrue(taxaFileMap.containsKey("CML103"))
+        assertTrue(taxaFileMap["B73"]!!.contains("smallFullGff_withHeaders_withTE_B73.txt"))
+        assertTrue(taxaFileMap["CML103"]!!.contains("smallFullGff_withHeaders_CML103.txt"))
     }
 
     @Test
@@ -359,30 +357,30 @@ class GFFUtilsTest {
 
         // featureTreeMap will have fewer entries than features, as some of the features are
         // combined into a list and stored against a mid-point position
-        TestCase.assertTrue(features.size > featureTreeMap.entries.size)
+        assertTrue(features.size > featureTreeMap.entries.size)
 
         val pos43988 = Position("chr1",43988)
-        TestCase.assertTrue(featureTreeMap.keys.contains(pos43988))
+        assertTrue(featureTreeMap.keys.contains(pos43988))
 
         // There are 2 GFF file entries with start/stop of 41214/46762 - mid point = 43988 (on chromosome 1)
         // They are for ID=gene:Zm00001e000002 and ID=transcript:Zm00001e000002_T002
-        TestCase.assertTrue(featureTreeMap.get(pos43988)?.size!! == 2)
+        assertTrue(featureTreeMap.get(pos43988)?.size!! == 2)
         val entries43988 = featureTreeMap.get(pos43988)
 
         // The same 2 entries will be on the list, but their order isn't guaranteed
         // so verify the ID is one of those from the list.
         val id43988List = listOf("transcript:Zm00001e000002_T002","gene:Zm00001e000002")
-        TestCase.assertTrue(id43988List.contains(entries43988!!.get(0).baseData.id))
-        TestCase.assertTrue(id43988List.contains(entries43988!!.get(1).baseData.id))
+        assertTrue(id43988List.contains(entries43988!!.get(0).baseData.id))
+        assertTrue(id43988List.contains(entries43988!!.get(1).baseData.id))
 
         // There is 1 GFF File entry with start/stop of 1005003/1006003 - mid point = 1005803 (on chromosome 2)
         // Verify this mid-point position appears in the featureTreeMap with a single value against it
         val pos1005803 = Position("chr2", 1005803)
-        TestCase.assertTrue(featureTreeMap.keys.contains(pos1005803))
+        assertTrue(featureTreeMap.keys.contains(pos1005803))
 
         val entries1005803 = featureTreeMap.get(pos1005803)
-        TestCase.assertTrue(entries1005803?.size!! == 1)
-        TestCase.assertTrue(entries1005803!!.get(0).baseData.id == "TE:Lynn_TE22")
+        assertTrue(entries1005803?.size!! == 1)
+        assertTrue(entries1005803!!.get(0).baseData.id == "TE:Lynn_TE22")
 
 
         // THere are 3 entries in the gff file for chrom 2 with start/end of 29923/31419, midpoint=30671
@@ -393,10 +391,10 @@ class GFFUtilsTest {
         // e.g. gene and mRNAs) and for those that span multiple lines.  The "exon" entry here has
         // a Parent attribute but no ID, so we'll verify the type of the 3 entries instead of ID
         val type30671List = listOf("exon","gene","mRNA")
-        TestCase.assertTrue(entries30671!!.size == 3)
-        TestCase.assertTrue(type30671List.contains(entries30671!!.get(0).baseData.type))
-        TestCase.assertTrue(type30671List.contains(entries30671!!.get(1).baseData.type))
-        TestCase.assertTrue(type30671List.contains(entries30671!!.get(2).baseData.type))
+        assertTrue(entries30671!!.size == 3)
+        assertTrue(type30671List.contains(entries30671!!.get(0).baseData.type))
+        assertTrue(type30671List.contains(entries30671!!.get(1).baseData.type))
+        assertTrue(type30671List.contains(entries30671!!.get(2).baseData.type))
 
     }
 
@@ -581,15 +579,15 @@ class GFFUtilsTest {
     @Test   fun testSumPerChromBPs() {
         val gffFeatures = readGFFtoGff3Feature(gffFileShortBPTesting).toSet()
         var chromCount = sumPerChromGFFBasePairs(gffFeatures)
-        TestCase.assertTrue(chromCount.containsKey("chr1"))
-        TestCase.assertTrue(chromCount.containsKey("chr2"))
+        assertTrue(chromCount.containsKey("chr1"))
+        assertTrue(chromCount.containsKey("chr2"))
 
         assertEquals(87, chromCount["chr1"])
         assertEquals(29,chromCount["chr2"])
 
         chromCount = sumPerChromNonGFFBasePairs(gffFeatures)
-        TestCase.assertTrue(chromCount.containsKey("chr1"))
-        TestCase.assertTrue(chromCount.containsKey("chr2"))
+        assertTrue(chromCount.containsKey("chr1"))
+        assertTrue(chromCount.containsKey("chr2"))
 
         assertEquals(113, chromCount["chr1"])
         assertEquals(71,chromCount["chr2"])
@@ -634,8 +632,8 @@ class GFFUtilsTest {
 
         val gffFeatures = readGFFtoGff3Feature(gffFileShortBPTesting).toSet()
         val chromCount = sumPerChromGFFBasePairs(gffFeatures)
-        TestCase.assertTrue(chromCount.containsKey("chr1"))
-        TestCase.assertTrue(chromCount.containsKey("chr2"))
+        assertTrue(chromCount.containsKey("chr1"))
+        assertTrue(chromCount.containsKey("chr2"))
 
         assertEquals(87, chromCount["chr1"])
         assertEquals(29,chromCount["chr2"])

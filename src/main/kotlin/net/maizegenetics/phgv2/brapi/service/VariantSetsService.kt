@@ -33,7 +33,7 @@ object VariantSetsService {
         File(variantSetsDir).mkdirs()
     }
 
-    fun getVariantSet(): VariantSet {
+    suspend fun getVariantSet(): VariantSet {
 
         val availableFormats = VariantSetAvailableFormats(DataFormatEnum.VCF, fileFormat = FileFormatEnum.TEXT_TSV, fileURL = "${StartServer.serverURL()}$allSamplesFileName")
 
