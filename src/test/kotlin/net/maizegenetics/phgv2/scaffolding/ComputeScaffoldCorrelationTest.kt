@@ -8,8 +8,12 @@ class ComputeScaffoldCorrelationTest {
 
     @Test
     fun testComputeScaffoldCorrelation() {
-        val collectedCountsDir = "/Users/zrm22/Desktop/JuneHackathon2025/scaffolding/mem100s/lm12lm05/CollectedCounts_2"
-        val outputFile = "/Users/zrm22/Desktop/JuneHackathon2025/scaffolding/mem100s/lm12lm05/correlation_output_2.txt"
+//        val collectedCountsDir = "/Users/zrm22/Desktop/JuneHackathon2025/scaffolding/mem100s/lm12lm05/CollectedCounts_2"
+//        val outputFile = "/Users/zrm22/Desktop/JuneHackathon2025/scaffolding/mem100s/lm12lm05/correlation_output_2.txt"
+
+        val collectedCountsDir = "/Users/zrm22/Desktop/JuneHackathon2025/scaffolding/mem100s/lm12lm05/infoCounts"
+        val outputFile = "/Users/zrm22/Desktop/JuneHackathon2025/scaffolding/mem100s/lm12lm05/correlation_output_2_info.txt"
+
 
         val computeScaffoldCorrelation = ComputeScaffoldCorrelation()
 
