@@ -35,7 +35,7 @@ class ComputeScaffoldCorrelation: CliktCommand(help = "Compute scaffold correlat
 
     val correlationThreshold by option(help = "Correlation threshold for filtering results")
         .double()
-        .default(0.01)
+        .default(0.90)
 
     val correlationType by option(help = "Type of correlation to compute (PEARSON or SPEARMAN)")
         .convert { CORRELATION_TYPE.valueOf(it.uppercase()) }
