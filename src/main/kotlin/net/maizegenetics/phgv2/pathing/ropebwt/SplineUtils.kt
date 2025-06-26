@@ -149,6 +149,7 @@ class SplineUtils{
                 }
                 iterator.close()
 
+                myLogger.info ("Done reading HVCF file: ${hvcfFile?.name} with ${mapOfASMChrToListOfPoints.size} assembly chromosomes.")
                 //build the splines
                 //Downsample the number of points
                 downsamplePoints(mapOfASMChrToListOfPoints, maxNumPointsPerChrom)
@@ -336,6 +337,9 @@ class SplineUtils{
                     }
                 }
                 flushBlock()
+
+                myLogger.info ("Done reading GVCF file: ${gvcfFile?.name} with ${mapOfASMChrToListOfPoints.size} assembly chromosomes.")
+
 
                 //Downsample the number of points
                 downsamplePoints(mapOfASMChrToListOfPoints, maxNumPoints)

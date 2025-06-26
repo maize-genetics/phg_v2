@@ -40,18 +40,26 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
     val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
 
+    val tempOutputDir by option(help = "Temporary output directory for intermediate index files.  If not provided, nothing will be written out.")
+        .default("")
+
     override fun run() {
         logCommand(this)
-        createChrIndex(keyfile, outputDir, indexFilePrefix, threads, deleteFmrIndex, condaEnvPrefix)
+        createChrIndex(keyfile, outputDir, indexFilePrefix, threads, deleteFmrIndex, condaEnvPrefix, tempOutputDir)
     }
 
     /**
      * Function to create the chrom length index for a set of assemblies.
      */
-    fun createChrIndex(keyfile: String, outputDir: String, indexFilePrefix: String, threads: Int, deleteFmrIndex: Boolean, condaEnvPrefix: String) {
+    fun createChrIndex(keyfile: String, outputDir: String, indexFilePrefix: String, threads: Int, deleteFmrIndex: Boolean, condaEnvPrefix: String, tempOutputDir: String = "") {
         myLogger.info("Creating Rename Fasta directory")
         val renameFastaDir = "$outputDir/renamedFastas/"
         File("$outputDir/renamedFastas/").mkdirs()
+
+        if( tempOutputDir.isNotEmpty()) {
+            myLogger.info("Creating Temp Output Directory: $tempOutputDir")
+            File(tempOutputDir).mkdirs()
+        }
 
         val allSeqLengths = mutableListOf<Pair<String,Int>>()
 
@@ -63,7 +71,7 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
             allSeqLengths.addAll(outputSeqLengths)
 
             myLogger.info("Indexing ${renamedFile}")
-            addSeqToIndex(renamedFile, "$outputDir/$indexFilePrefix", threads, condaEnvPrefix)
+            addSeqToIndex(renamedFile, "$outputDir/$indexFilePrefix", threads, condaEnvPrefix, tempOutputDir)
         }
 
         RopeBWTUtils.convertBWTIndex("$outputDir/$indexFilePrefix", condaEnvPrefix)
@@ -140,7 +148,7 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
      * If it is the first fasta seen, it will use the intial build command.
      * If it is not the first fasta seen, it will use the update version of the build command.
      */
-    fun addSeqToIndex(inputFasta: String, indexFilePrefix: String, threads: Int, condaEnvPrefix: String) {
+    fun addSeqToIndex(inputFasta: String, indexFilePrefix: String, threads: Int, condaEnvPrefix: String, tempOutputDir: String = "") {
         val isFirst = !File("$indexFilePrefix.fmr").exists()
 
         if(isFirst) {
@@ -149,7 +157,7 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
         }
         else {
             //Use the update command
-            RopeBWTUtils.runBuildUpdateStep(inputFasta, indexFilePrefix, threads, condaEnvPrefix)
+            RopeBWTUtils.runBuildUpdateStep(inputFasta, indexFilePrefix, threads, condaEnvPrefix, tempOutputDir)
         }
     }
 

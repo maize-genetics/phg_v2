@@ -95,6 +95,8 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
     implementation("io.ktor:ktor-client-websockets:$ktorVersion")
 
+    implementation("org.ejml:ejml-core:0.43")
+
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
 
 
@@ -158,7 +160,7 @@ tasks.test {
         events("passed", "skipped", "failed")
     }
 //    Uncomment this if you want to increase the heap size for testing
-//    maxHeapSize = "10G"
+    maxHeapSize = "40G"
 }
 
 tasks.withType<KotlinCompile> {

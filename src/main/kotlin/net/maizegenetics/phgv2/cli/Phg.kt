@@ -7,6 +7,11 @@ import com.github.ajalt.clikt.output.MordantHelpFormatter
 import com.github.ajalt.clikt.parameters.options.versionOption
 import net.maizegenetics.phgv2.pathing.*
 import net.maizegenetics.phgv2.pathing.ropebwt.*
+import net.maizegenetics.phgv2.scaffolding.ComputeScaffoldCorrelation
+import net.maizegenetics.phgv2.scaffolding.ProcessMemFile
+import net.maizegenetics.phgv2.scaffolding.ProcessPafFile
+import net.maizegenetics.phgv2.scaffolding.ProcessSamFile
+import net.maizegenetics.phgv2.scaffolding.ReportMemAlignments
 import net.maizegenetics.phgv2.utils.phgVersion
 import net.maizegenetics.phgv2.utils.setupDebugLogging
 
@@ -39,5 +44,7 @@ fun main(args: Array<String>) = Phg()
         CompositeToHaplotypeCoords(), // resequencing pipeline
         InitHvcfArray(), LoadHvcf(), QueryHvcfArrays(), // hvcf loading
         UpdateHvcfSpec(), // hvcf updating
+        ProcessPafFile(), ProcessSamFile(), ProcessMemFile(), ReportMemAlignments(),ComputeScaffoldCorrelation() //Scaffolding  TODO delete and move to better place
+
     )
     .main(args)

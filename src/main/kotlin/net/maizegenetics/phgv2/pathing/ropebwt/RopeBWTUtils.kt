@@ -58,7 +58,7 @@ class RopeBWTUtils {
          * Function to run the ropebwt3 build Command but writing to a temp file and then deleting it.
          *
          */
-        fun runBuildUpdateStep(inputFasta:String, indexFilePrefix:String, numThreads: Int, condaEnvPrefix:String) {
+        fun runBuildUpdateStep(inputFasta:String, indexFilePrefix:String, numThreads: Int, condaEnvPrefix:String, tempOutputDir:String = "") {
             val tempIndex = "${indexFilePrefix}_temp.fmr"
             val prefixArg = getRopeBWTCondaPrefix(condaEnvPrefix)
             val buildCommand = listOf("conda","run",prefixArg.first,prefixArg.second,"ropebwt3", "build", "-t$numThreads", "-i", "$indexFilePrefix.fmr", "-bo", tempIndex, "$inputFasta")
@@ -73,6 +73,11 @@ class RopeBWTUtils {
                 throw e
             }
             File(tempIndex).renameTo(File("$indexFilePrefix.fmr"))
+
+            if(tempOutputDir.isNotBlank()) {
+                //Move the index to the temp output directory
+                File("$indexFilePrefix.fmr").copyTo(File("$tempOutputDir/${File(indexFilePrefix).name}_${File(inputFasta).nameWithoutExtension}.fmr"), overwrite = true)
+            }
         }
 
         /**
