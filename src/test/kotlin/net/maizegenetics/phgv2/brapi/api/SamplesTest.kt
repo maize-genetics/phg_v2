@@ -50,6 +50,12 @@ class SamplesTest {
     @Test
     fun testSamples() = testApplication {
 
+        application {
+            routing {
+                apiRoute()
+            }
+        }
+
         // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
             install(ContentNegotiation) {
@@ -57,7 +63,9 @@ class SamplesTest {
             }
         }
 
-        val response = client.get("/brapi/v2/samples")
+        val response = client.get("/brapi/v2/samples") {
+            contentType(ContentType.Application.Json)
+        }
         assertEquals(HttpStatusCode.OK, response.status)
         val samples = response.body<SampleListResponse>().result
         println("samples: $samples")
@@ -85,7 +93,9 @@ class SamplesTest {
             }
         }
 
-        val response = client.get("/brapi/v2/samples/1")
+        val response = client.get("/brapi/v2/samples/1") {
+            contentType(ContentType.Application.Json)
+        }
         assertEquals(HttpStatusCode.OK, response.status)
         val samples = response.body<SampleListResponse>().result
         println("samples: $samples")
