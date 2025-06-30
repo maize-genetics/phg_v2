@@ -5,6 +5,7 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import net.maizegenetics.phgv2.brapi.createSmallSeqTiledb
 import net.maizegenetics.phgv2.brapi.model.SampleListResponse
@@ -13,8 +14,8 @@ import net.maizegenetics.phgv2.cli.TestExtension
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
-import java.io.File
 import org.junit.jupiter.api.Test
+import java.io.File
 
 /**
  * Test the brapi samples endpoint
@@ -70,6 +71,12 @@ class SamplesTest {
 
     @Test
     fun testSampleID() = testApplication {
+
+        application {
+            routing {
+                apiRoute()
+            }
+        }
 
         // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
