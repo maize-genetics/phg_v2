@@ -13,6 +13,7 @@ import net.maizegenetics.phgv2.brapi.model.ServerInfoResponse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.slf4j.event.Level
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 
 /**
  * This class tests the Brapi ServerInfo endpoint.
@@ -33,6 +34,9 @@ class ServerInfoTest {
         application {
             this@application.install(CallLogging) {
                 level = Level.DEBUG
+            }
+            this@application.install(ServerContentNegotiation) {
+                json()
             }
             routing {
                 apiRoute()

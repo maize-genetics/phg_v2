@@ -4,6 +4,7 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import net.maizegenetics.phgv2.brapi.createSmallSeqTiledb
@@ -52,6 +53,9 @@ class SamplesTest {
     fun testSamples() = testApplication {
 
         application {
+            this@application.install(ServerContentNegotiation) {
+                json()
+            }
             routing {
                 apiRoute()
             }
@@ -82,6 +86,9 @@ class SamplesTest {
     fun testSampleID() = testApplication {
 
         application {
+            this@application.install(ServerContentNegotiation) {
+                json()
+            }
             routing {
                 apiRoute()
             }
