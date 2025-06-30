@@ -1,7 +1,6 @@
 package net.maizegenetics.phgv2.brapi.api
 
 import io.ktor.client.call.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -16,6 +15,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.io.File
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 
 /**
  * Test the brapi samples endpoint
@@ -58,7 +59,7 @@ class SamplesTest {
 
         // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
-            install(ContentNegotiation) {
+            install(ClientContentNegotiation) {
                 json()
             }
         }
@@ -88,14 +89,12 @@ class SamplesTest {
 
         // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
-            install(ContentNegotiation) {
+            install(ClientContentNegotiation) {
                 json()
             }
         }
 
-        val response = client.get("/brapi/v2/samples/1") {
-            contentType(ContentType.Application.Json)
-        }
+        val response = client.get("/brapi/v2/samples/1")
         assertEquals(HttpStatusCode.OK, response.status)
         val samples = response.body<SampleListResponse>().result
         println("samples: $samples")
