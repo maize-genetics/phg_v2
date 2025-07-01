@@ -54,7 +54,7 @@ object VariantSetsService {
 
         val exportVcfCommand = "--db-path ${BrAPIConfig.tiledbURI} --sample-names $sampleNames -o $individualSamplesDir"
         myLogger.info("createSingleSampleHVCFs: ExportVcf Command: $exportVcfCommand")
-        val result = ExportVcf().test(exportVcfCommand)
+        ExportVcf().test(exportVcfCommand)
 
     }
 
