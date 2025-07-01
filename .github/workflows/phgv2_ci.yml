@@ -57,3 +57,8 @@ jobs:
           check_name: PHGv2 Test Report
           job_summary: true
           detailed_summary: true
+      - name: Upload HTML test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: html-test-report
+          path: build/reports/tests/
