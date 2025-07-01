@@ -2,15 +2,17 @@ package net.maizegenetics.phgv2.brapi.api
 
 import io.kotest.matchers.shouldBe
 import io.ktor.client.call.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.application.*
+import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import kotlinx.serialization.json.Json
-import net.maizegenetics.phgv2.brapi.model.Variant
-import net.maizegenetics.phgv2.brapi.model.VariantsListResponse
 import net.maizegenetics.phgv2.brapi.createSmallSeqTiledb
+import net.maizegenetics.phgv2.brapi.model.Variant
+import net.maizegenetics.phgv2.brapi.model.VariantSingleResponse
+import net.maizegenetics.phgv2.brapi.model.VariantsListResponse
 import net.maizegenetics.phgv2.brapi.resetDirs
 import net.maizegenetics.phgv2.brapi.service.VariantsService
 import net.maizegenetics.phgv2.cli.TestExtension
@@ -20,10 +22,8 @@ import org.junit.jupiter.api.Test
 import java.io.File
 import java.time.OffsetDateTime
 import kotlin.test.assertEquals
-
-import kotlinx.serialization.encodeToString
-import net.maizegenetics.phgv2.brapi.model.VariantSingleResponse
-import kotlin.test.assertTrue
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 
 class VariantsTest {
     companion object {
@@ -97,9 +97,18 @@ class VariantsTest {
     @Test
     fun testVariantsNoBedFile() = testApplication {
 
+        application {
+            this@application.install(ServerContentNegotiation) {
+                json()
+            }
+            routing {
+                apiRoute()
+            }
+        }
+
         // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
-            install(ContentNegotiation) {
+            install(ClientContentNegotiation) {
                 json()
             }
         }
@@ -127,9 +136,18 @@ class VariantsTest {
     @Test
     fun testVariantsDefaultPageSize() = testApplication {
 
+        application {
+            this@application.install(ServerContentNegotiation) {
+                json()
+            }
+            routing {
+                apiRoute()
+            }
+        }
+
         // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
-            install(ContentNegotiation) {
+            install(ClientContentNegotiation) {
                 json()
             }
         }
@@ -149,9 +167,18 @@ class VariantsTest {
     @Test
     fun testVariantsPageSize3() = testApplication {
 
+        application {
+            this@application.install(ServerContentNegotiation) {
+                json()
+            }
+            routing {
+                apiRoute()
+            }
+        }
+
         // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
-            install(ContentNegotiation) {
+            install(ClientContentNegotiation) {
                 json()
             }
         }
@@ -176,9 +203,19 @@ class VariantsTest {
 
     @Test
     fun testVariantDbIdExists() = testApplication{
+
+        application {
+            this@application.install(ServerContentNegotiation) {
+                json()
+            }
+            routing {
+                apiRoute()
+            }
+        }
+
         // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
-            install(ContentNegotiation) {
+            install(ClientContentNegotiation) {
                 json()
             }
         }
@@ -192,6 +229,15 @@ class VariantsTest {
     }
     @Test
     fun testVariantDbIdBad() = testApplication{
+
+        application {
+            this@application.install(ServerContentNegotiation) {
+                json()
+            }
+            routing {
+                apiRoute()
+            }
+        }
 
         val response = client.get("/brapi/v2/variants/1:200-957")
         println("response: $response")
