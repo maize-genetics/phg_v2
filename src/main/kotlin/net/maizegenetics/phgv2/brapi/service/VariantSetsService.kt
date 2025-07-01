@@ -29,7 +29,11 @@ object VariantSetsService {
     val allSamplesHvcf = "${variantSetsDir}$allSamplesFileName"
 
     init {
-        File(individualSamplesDir).mkdirs()
+        val individualDir = File(individualSamplesDir)
+        individualDir.mkdirs()
+        individualDir.setReadable(true, false)
+        individualDir.setWritable(true, false)
+        individualDir.setExecutable(true, false)
         File(variantSetsDir).mkdirs()
     }
 

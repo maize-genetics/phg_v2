@@ -182,7 +182,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         val redirectOutput = "$outputDir/export_${dtype}_output.log"
 
         val listDirCmd = listOf("conda", "run", "-n", "phgv2-tiledb", "ls", "-alh", outputDir)
-        ProcessBuilder(listDirCmd).start()
+        ProcessBuilder(listDirCmd).start().waitFor()
 
 
         builder.redirectOutput(File(redirectOutput))
