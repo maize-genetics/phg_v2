@@ -178,16 +178,16 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         command.addAll(dataCommand)
         val builder = ProcessBuilder(command)
 
-        val redirectError = "$outputDir/export_${dtype}_error.log"
-        val redirectOutput = "$outputDir/export_${dtype}_output.log"
+        //val redirectError = "$outputDir/export_${dtype}_error.log"
+        //val redirectOutput = "$outputDir/export_${dtype}_output.log"
 
         val listDirCmd = listOf("conda", "run", "-n", "phgv2-tiledb", "ls", "-alh", outputDir)
         ProcessBuilder(listDirCmd).start().waitFor()
 
 
         try {
-            builder.redirectOutput(File(redirectOutput))
-            builder.redirectError(File(redirectError))
+            //builder.redirectOutput(File(redirectOutput))
+            //builder.redirectError(File(redirectError))
         } catch (e: Exception) {
             myLogger.error("Error setting up ProcessBuilder for tiledbvcf export command: ${e.message}")
             throw IllegalStateException("Error setting up ProcessBuilder redirect: ${e.message}", e)
