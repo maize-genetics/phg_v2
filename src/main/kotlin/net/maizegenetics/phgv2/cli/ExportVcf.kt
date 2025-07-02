@@ -202,7 +202,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
             throw IllegalStateException("Error running tiledbvcf export command: ${e.message}", e)
         }
         val error = process.waitFor()
-        val errorMsg = process.errorReader().toString()
+        val errorMsg = process.errorReader().readText()
         if (error != 0) {
             myLogger.error("tiledbvcf export for: $samples run via ProcessBuilder returned error code $error")
             throw IllegalStateException("Error running tiledbvcf export of dataset $dbPath/$dtype for: $samples. exportCommand: $exportCommand errorMsg: $errorMsg error: $error")
