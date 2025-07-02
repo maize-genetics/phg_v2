@@ -193,6 +193,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
             throw IllegalStateException("Error setting up ProcessBuilder redirect: ${e.message}", e)
         }
 
+        val exportCommand = builder.command().joinToString(" ")
         myLogger.info("ExportVcf Command: " + builder.command().joinToString(" "))
         val process = try {
             builder.start()
@@ -201,9 +202,10 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
             throw IllegalStateException("Error running tiledbvcf export command: ${e.message}", e)
         }
         val error = process.waitFor()
+        val errorMsg = process.errorReader().toString()
         if (error != 0) {
             myLogger.error("tiledbvcf export for: $samples run via ProcessBuilder returned error code $error")
-            throw IllegalStateException("Error running tiledbvcf export of dataset $dbPath/$dtype for: $samples. error: $error")
+            throw IllegalStateException("Error running tiledbvcf export of dataset $dbPath/$dtype for: $samples. exportCommand: $exportCommand errorMsg: $errorMsg error: $error")
         }
 
         if (regionsFile.isNotBlank()) {
