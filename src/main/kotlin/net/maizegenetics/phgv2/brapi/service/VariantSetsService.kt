@@ -72,7 +72,7 @@ object VariantSetsService {
             createSingleSampleHVCFs()
         } catch (ex: Throwable) {
             myLogger.error("Error creating single sample HVCFs: ${ex.message}")
-            throw Exception
+            throw ex
         }
 
         val graph = try {
