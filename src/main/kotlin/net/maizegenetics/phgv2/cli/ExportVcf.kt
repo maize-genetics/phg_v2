@@ -125,10 +125,10 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         // Tiledbvcf can take either a file with samplenames, or a comma-separated list of sample names
         // setup the command based on user input type.
         var dataCommand = if (samples.getExportCommand()[0] == SampleFormatEnum.FILE.toString()) mutableListOf(
-            "conda",
-            "run",
-            "-n",
-            "phgv2-tiledb",
+            //"conda",
+            //"run",
+            //"-n",
+            //"phgv2-tiledb",
             "tiledbvcf",
             "export",
             "--uri",
@@ -140,10 +140,10 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
             "--output-dir",
             workingOutputDirectory.absolutePath
         ) else mutableListOf(
-            "conda",
-            "run",
-            "-n",
-            "phgv2-tiledb",
+            //"conda",
+            //"run",
+            //"-n",
+            //"phgv2-tiledb",
             "tiledbvcf",
             "export",
             "--uri",
