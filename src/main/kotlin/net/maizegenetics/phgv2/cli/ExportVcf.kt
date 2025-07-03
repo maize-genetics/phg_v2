@@ -196,7 +196,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         val exportCommand = builder.command().joinToString(" ")
         myLogger.info("ExportVcf Command: " + builder.command().joinToString(" "))
         val process = try {
-            workingOutputDirectory.mkdirs()
+            // workingOutputDirectory.mkdirs()
             builder.start()
         } catch (e: Exception) {
             myLogger.error("Error running tiledbvcf export command: ${e.message}")
