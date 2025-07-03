@@ -29,11 +29,7 @@ object VariantSetsService {
     val allSamplesHvcf = "${variantSetsDir}$allSamplesFileName"
 
     init {
-        val individualDir = File(individualSamplesDir)
-        individualDir.mkdirs()
-        individualDir.setReadable(true, false)
-        individualDir.setWritable(true, false)
-        individualDir.setExecutable(true, false)
+        File(individualSamplesDir).mkdirs()
         File(variantSetsDir).mkdirs()
     }
 
@@ -83,6 +79,7 @@ object VariantSetsService {
         }
 
         try {
+            File(variantSetsDir).mkdirs()
             exportMultiSampleHVCF(graph, allSamplesHvcf)
         } catch (e: Throwable) {
             myLogger.error("Error exporting multi-sample HVCF: ${e.message}")
