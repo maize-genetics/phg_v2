@@ -64,28 +64,10 @@ object VariantSetsService {
      */
     fun createAllSamplesHVCF(): String {
 
-        try {
-            createSingleSampleHVCFs()
-        } catch (ex: Throwable) {
-            myLogger.error("Error creating single sample HVCFs: ${ex.message}")
-            throw IllegalStateException("Error creating single sample HVCFs: ${ex.message}", ex)
-        }
-
-        val graph = try {
-            HaplotypeGraph(individualSamplesDir)
-        } catch (e: Throwable) {
-            myLogger.error("Error creating HaplotypeGraph from individual samples: ${e.message}")
-            throw IllegalStateException("Error creating HaplotypeGraph from individual samples: ${e.message}", e)
-        }
-
-        try {
-            File(variantSetsDir).mkdirs()
-            exportMultiSampleHVCF(graph, allSamplesHvcf)
-        } catch (e: Throwable) {
-            myLogger.error("Error exporting multi-sample HVCF: ${e.message}")
-            throw IllegalStateException("Error exporting multi-sample HVCF: ${e.message}", e)
-        }
-
+        createSingleSampleHVCFs()
+        val graph = HaplotypeGraph(individualSamplesDir)
+        File(variantSetsDir).mkdirs()
+        exportMultiSampleHVCF(graph, allSamplesHvcf)
         return allSamplesHvcf
 
     }

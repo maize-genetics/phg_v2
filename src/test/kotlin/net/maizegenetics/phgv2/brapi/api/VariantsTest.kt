@@ -127,12 +127,15 @@ class VariantsTest {
         assertEquals(HttpStatusCode.OK, response.status)
         val variants = response.body<VariantsListResponse>().result
         println("variants: $variants")
+        val variantsStr = variants.data.map { it.variantDbId }.joinToString { "," }
+        throw IllegalStateException("Expected no variants, but got: $variantsStr")
         assertEquals(0, variants.data.size)
 
-        //Restore the bedFile
+        // Restore the bedFile
         bedFileSave.copyTo(bedFile)
 
     }
+
     @Test
     fun testVariantsDefaultPageSize() = testApplication {
 
