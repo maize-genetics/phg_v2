@@ -127,8 +127,10 @@ class VariantsTest {
         assertEquals(HttpStatusCode.OK, response.status)
         val variants = response.body<VariantsListResponse>().result
         println("variants: $variants")
-        val variantsStr = variants.data.map { it.variantDbId }.joinToString { "," }
-        throw IllegalStateException("Expected no variants, but got: $variantsStr")
+        val variantStart = variants.data.map { it.start }.joinToString { "," }
+        val variantEnd = variants.data.map { it.end }.joinToString { "," }
+        val variantNames = variants.data.map { it.variantNames }.joinToString { "," }
+        throw IllegalStateException("Expected no variants, but got variantStart: $variantStart, variantEnd: $variantEnd, variantNames: $variantNames")
         assertEquals(0, variants.data.size)
 
         // Restore the bedFile
