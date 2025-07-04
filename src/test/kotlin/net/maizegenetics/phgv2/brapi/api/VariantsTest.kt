@@ -130,7 +130,8 @@ class VariantsTest {
         val variantStart = variants.data.map { it.start }.joinToString { "," }
         val variantEnd = variants.data.map { it.end }.joinToString { "," }
         val variantNames = variants.data.map { it.variantNames }.joinToString { "," }
-        throw IllegalStateException("Expected no variants, but got variantStart: $variantStart, variantEnd: $variantEnd, variantNames: $variantNames")
+        val referenceNames = variants.data.map { it.referenceName }.joinToString { "," }
+        throw IllegalStateException("Expected no variants, but got variantStart: $variantStart, variantEnd: $variantEnd, variantNames: $variantNames, referenceNames: $referenceNames")
         assertEquals(0, variants.data.size)
 
         // Restore the bedFile

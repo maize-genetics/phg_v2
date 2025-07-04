@@ -1,7 +1,6 @@
 package net.maizegenetics.phgv2.brapi.api
 
 import io.ktor.http.*
-import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import net.maizegenetics.phgv2.brapi.model.*
@@ -35,7 +34,7 @@ fun Route.variants() {
 
             val pagination = variantsAndPagination.first
             val variants = variantsAndPagination.second
-            var metadata = MetadataTokenPagination(pagination = pagination)
+            val metadata = MetadataTokenPagination(pagination = pagination)
             call.respond(VariantsListResponse(metadata, VariantsListResponseResult(variants.toTypedArray())))
         }
 

@@ -120,7 +120,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         val dtype = if (datasetType == "gvcf") "gvcf_dataset" else "hvcf_dataset"
 
         // Setup the conda environment portion of the command
-        var command = if (condaEnvPrefix.isNotBlank()) mutableListOf(
+        val command = if (condaEnvPrefix.isNotBlank()) mutableListOf(
             "conda",
             "run",
             "-p",
@@ -129,11 +129,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
 
         // Tiledbvcf can take either a file with samplenames, or a comma-separated list of sample names
         // setup the command based on user input type.
-        var dataCommand = if (samples.getExportCommand()[0] == SampleFormatEnum.FILE.toString()) mutableListOf(
-            //"conda",
-            //"run",
-            //"-n",
-            //"phgv2-tiledb",
+        val dataCommand = if (samples.getExportCommand()[0] == SampleFormatEnum.FILE.toString()) mutableListOf(
             "tiledbvcf",
             "export",
             "--uri",
@@ -145,10 +141,6 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
             "--output-dir",
             workingOutputDirectory.absolutePath
         ) else mutableListOf(
-            //"conda",
-            //"run",
-            //"-n",
-            //"phgv2-tiledb",
             "tiledbvcf",
             "export",
             "--uri",
@@ -183,29 +175,22 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         command.addAll(dataCommand)
         val builder = ProcessBuilder(command)
 
-        val redirectError = "$outputDir/export_${dtype}_error.log"
-        val redirectOutput = "$outputDir/export_${dtype}_output.log"
-        builder.redirectOutput(File(redirectOutput))
-        builder.redirectError(File(redirectError))
+        builder.redirectOutput(File("$outputDir/export_${dtype}_output.log"))
+        builder.redirectError(File("$outputDir/export_${dtype}_error.log"))
 
         val exportCommand = builder.command().joinToString(" ")
-        myLogger.info("ExportVcf Command: " + builder.command().joinToString(" "))
-        val process = try {
-            workingOutputDirectory.mkdirs()
-            builder.start()
-        } catch (e: Exception) {
-            myLogger.error("Error running tiledbvcf export command: ${e.message}")
-            throw IllegalStateException("Error running tiledbvcf export command: ${e.message}", e)
-        }
-        val stderr = process.errorStream.bufferedReader().readText()
+        myLogger.info("ExportVcf Command: $exportCommand")
+
+        workingOutputDirectory.mkdirs()
+        val process = builder.start()
         val error = process.waitFor()
         if (error != 0) {
             myLogger.error("tiledbvcf export for: $samples run via ProcessBuilder returned error code $error")
-            throw IllegalStateException("Error running tiledbvcf export of dataset $dbPath/$dtype for: $samples. exportCommand: $exportCommand error: $error stderr: $stderr")
+            throw IllegalStateException("Error running tiledbvcf export of dataset $dbPath/$dtype for: $samples. exportCommand: $exportCommand error: $error")
         }
 
         if (regionsFile.isNotBlank()) {
-            //get rid of duplicate reference blocks and write the resulting files to the output directory
+            // get rid of duplicate reference blocks and write the resulting files to the output directory
             val fileList = workingOutputDirectory.listFiles().filter { it.name.endsWith(".vcf") }
             val finalOutputDirectory = File(outputDir)
             for (tmpFile in fileList) {
@@ -213,7 +198,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
                 deleteDuplicateSequentialRefBlocks(tmpFile, outputFile)
             }
 
-            //finished with the temporary workingOutputDirectory so delete it and contents
+            // finished with the temporary workingOutputDirectory so delete it and contents
             workingOutputDirectory.deleteRecursively()
         }
 

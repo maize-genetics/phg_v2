@@ -96,10 +96,8 @@ class VariantsService {
     // next index into the ReferenceRange list.  The pageSize is the number of variants to return.
     // Currently, there is only a single group named "all".  This will be used to get the
     // reference ranges from the cache.  having the groupName parameter allows for this to change.
-    fun generateVariantsListFromCache(currentPageToken:Int, pageSize:Int, groupName:String = "all"): Pair<TokenPagination,List<Variant>> {
-        //check for cache - if it doesn't exist, create it
-        // remove println when myLogger is working
-        //var referenceRanges: ArrayList<ReferenceRange>? = null
+    fun generateVariantsListFromCache(currentPageToken:Int, pageSize:Int, groupName:String = "all"): Pair<TokenPagination, List<Variant>> {
+
         val referenceRanges = getReferenceRanges(groupName)
 
         // if no reference ranges were found, return empty list
@@ -118,7 +116,7 @@ class VariantsService {
         val sortedRangeList = referenceRanges.toList()
         Collections.sort(sortedRangeList)
 
-        val startId = currentPageToken-1 // because tokens are 1 based, but list is 0-based
+        val startId = currentPageToken - 1 // because tokens are 1 based, but list is 0-based
         val endId = if(startId + pageSize  < referenceRanges.size) startId + pageSize else referenceRanges.size  // endId is exclusive
 
         val totalCount = referenceRanges.size
@@ -127,7 +125,7 @@ class VariantsService {
         // and write them to a new list
         println("\nLCJ VariantsService:generateVariantsListFromCache - startId: $startId, endId: $endId \n")
         // Note: subList the endId is exclusive, accounted for when creating the endId above
-        val variants = sortedRangeList.subList(startId,endId).map { range ->
+        val variants = sortedRangeList.subList(startId, endId).map { range ->
             Variant(
                 referenceName = range.contig,
                 start = range.start,
@@ -156,14 +154,15 @@ class VariantsService {
             nextPageToken = null
         }
 
-        var pagination = TokenPagination(pageSize=pageSize, nextPageToken=nextPageToken, currentPageToken=currentPageToken.toString(), totalCount=totalCount, totalPages=totalPages)
-        return Pair<TokenPagination, List<Variant>>(pagination,variants)
+        val pagination = TokenPagination(pageSize=pageSize, nextPageToken=nextPageToken, currentPageToken=currentPageToken.toString(), totalCount=totalCount, totalPages=totalPages)
+        return Pair(pagination,variants)
 
     }
 
     // Find the data for a specific Variant (ie referenceRange)
     fun generateVariantFromID(variantDbId:String, pageToken:Int, pageSize:Int, groupName:String = "all"):Variant? {
-        var referenceRanges = getReferenceRanges(groupName)
+
+        val referenceRanges = getReferenceRanges(groupName)
 
         // if no reference ranges were found, return empty list
         if (referenceRanges == null) {
