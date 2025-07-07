@@ -148,9 +148,6 @@ class VariantsService {
             )
         }
 
-        val dbIds = variants.map { it.variantDbId }
-        throw IllegalStateException("VariantsService:generateVariantsListFromCache - dbIds: $dbIds")
-
         // add 1 to get to the next page token.  If the endId is the last reference range,
         var nextPageToken: String? = (endId+1).toString()
         if (endId > referenceRanges.size) {

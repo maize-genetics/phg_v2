@@ -115,12 +115,12 @@ class VariantsTest {
 
         // copy the bedFile created by createSmallSeqTiledb() to a file named the same but with ".save" appended
         // This will allow us to delete the bedFile and then restore it after the test
-        val bedFile = File("${TestExtension.testTileDBURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()[0]
-        val bedFileSave = File("${TestExtension.testTileDBURI}/reference/${bedFile.name}.save")
-        bedFile.copyTo(bedFileSave)
+        // TERRY val bedFile = File("${TestExtension.testTileDBURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()[0]
+        // TERRY val bedFileSave = File("${TestExtension.testTileDBURI}/reference/${bedFile.name}.save")
+        // TERRY bedFile.copyTo(bedFileSave)
 
         // Delete the bedFile created by createSmallSeqTiledb()
-        bedFile.delete()
+        // TERRY bedFile.delete()
 
         // Run test to verify that the server returns no data
         val response = client.get("/brapi/v2/variants")
@@ -135,7 +135,7 @@ class VariantsTest {
         assertEquals(0, variants.data.size)
 
         // Restore the bedFile
-        bedFileSave.copyTo(bedFile)
+        // TERRY bedFileSave.copyTo(bedFile)
 
     }
 
