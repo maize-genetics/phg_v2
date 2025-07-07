@@ -69,13 +69,13 @@ class VariantsService {
 
     // Function to query the cache for a set of reference ranges.
     // If the cache doesn't exist, create it.
-    private fun getReferenceRanges(groupName:String): List<ReferenceRange>? {
+    private fun getReferenceRanges(groupName: String): List<ReferenceRange>? {
         var referenceRanges = variantCache.getIfPresent(groupName)
         if (referenceRanges == null) {
             val bedFileList = File("${BrAPIConfig.tiledbURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()
-            if ( bedFileList.size < 1) {
+            if (bedFileList.isEmpty()) {
                 // The bedfile is copied to tiledbURI/references when CreateRefVcf is run.
-                // When running specific juint tests (e.g. ServerInfoTest) which do not run CreateRefVcf
+                // When running specific junit tests (e.g. ServerInfoTest) which do not run CreateRefVcf
                 // as a prerequisite, compilation will fail on this init because there is no bedfile.
                 // This conditional takes care of that problem.
                 // Need to think through if this is a general problem or just a testing problem.
@@ -105,7 +105,7 @@ class VariantsService {
             return Pair(TokenPagination(pageSize = pageSize, nextPageToken = null, currentPageToken = currentPageToken.toString(), totalCount = 0), emptyList())
         }
         // This calculation rounds up
-        val totalPages = (referenceRanges.size + pageSize - 1)/pageSize
+        val totalPages = (referenceRanges.size + pageSize - 1) / pageSize
         if (currentPageToken >= referenceRanges.size) {
             return Pair(TokenPagination(pageSize = pageSize, nextPageToken = null, currentPageToken = currentPageToken.toString(), totalCount = totalPages), emptyList())
         }
@@ -147,6 +147,9 @@ class VariantsService {
                 updated = null
             )
         }
+
+        val dbIds = variants.map { it.variantDbId }
+        throw IllegalStateException("VariantsService:generateVariantsListFromCache - dbIds: $dbIds")
 
         // add 1 to get to the next page token.  If the endId is the last reference range,
         var nextPageToken: String? = (endId+1).toString()

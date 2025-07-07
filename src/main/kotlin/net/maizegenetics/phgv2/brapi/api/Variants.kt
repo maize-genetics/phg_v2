@@ -38,8 +38,8 @@ fun Route.variants() {
             call.respond(VariantsListResponse(metadata, VariantsListResponseResult(variants.toTypedArray())))
         }
 
-        //This end point will return data for a specific variant corresponding to a variantDbId.
-        //If the id is not found a 404 will be thrown.
+        // This end point will return data for a specific variant corresponding to a variantDbId.
+        // If the id is not found a 404 will be thrown.
         get("/{variantDbId}") {
             val pageToken = call.parameters["page"]?.toInt() ?: 1 // page token is reference range id, which starts at 1
             val pageSize = call.parameters["pageSize"]?.toInt() ?: BrAPIConfig.defaultVariantsPageSize
