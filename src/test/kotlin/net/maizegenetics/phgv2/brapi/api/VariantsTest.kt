@@ -56,7 +56,7 @@ class VariantsTest {
     @Test
     fun testSerializeVariants() {
         val variant1 = Variant(
-            referenceName ="chr1",
+            referenceName = "chr1",
             start = 1,
             end = 500,
             variantDbId = "chr1:1-500",
@@ -86,7 +86,8 @@ class VariantsTest {
         // This test will verify the VariantService.createRefRangesForCache() method
         // The createSmallSeqTiledb() should have created the tileDB folder, and copied
         // the bed file to it. That bedfile is used for testing.
-        val bedFile = File("${TestExtension.testTileDBURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()[0]
+        val bedFile =
+            File("${TestExtension.testTileDBURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()[0]
         val referenceRanges = VariantsService().createRefRangesForCache(bedFile)
         // Verify the number of lines in the file bedFile matches the number of reference ranges
         // in the referenceRanges list
@@ -118,6 +119,14 @@ class VariantsTest {
         // TERRY val bedFile = File("${TestExtension.testTileDBURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()[0]
         // TERRY val bedFileSave = File("${TestExtension.testTileDBURI}/reference/${bedFile.name}.save")
         // TERRY bedFile.copyTo(bedFileSave)
+        val bedFiles =
+            File("${TestExtension.testTileDBURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()
+        val bedFilesSaved = bedFiles.map { bedFile ->
+            val bedFileSave = File("${TestExtension.testTileDBURI}/reference/${bedFile.name}.save")
+            bedFile.copyTo(bedFileSave)
+            bedFile.delete()
+            bedFileSave
+        }.toList()
 
         // Delete the bedFile created by createSmallSeqTiledb()
         // TERRY bedFile.delete()
@@ -136,6 +145,9 @@ class VariantsTest {
 
         // Restore the bedFile
         // TERRY bedFileSave.copyTo(bedFile)
+        bedFilesSaved.forEachIndexed { index, bedFileSave ->
+            bedFileSave.copyTo(bedFiles[index])
+        }
 
     }
 
@@ -208,7 +220,7 @@ class VariantsTest {
     }
 
     @Test
-    fun testVariantDbIdExists() = testApplication{
+    fun testVariantDbIdExists() = testApplication {
 
         application {
             this@application.install(ServerContentNegotiation) {
@@ -233,8 +245,9 @@ class VariantsTest {
         assertEquals("1:1-1000", variant?.variantDbId)
 
     }
+
     @Test
-    fun testVariantDbIdBad() = testApplication{
+    fun testVariantDbIdBad() = testApplication {
 
         application {
             this@application.install(ServerContentNegotiation) {
