@@ -27,9 +27,9 @@ class VariantsService {
         // there should only be 1.  If there are more, we will use the first one.
         // return the name of that file
         val bedFileList = File("${BrAPIConfig.tiledbURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()
-        if ( bedFileList.size < 1) {
+        if (bedFileList.isEmpty()) {
             // The bedfile is copied to tiledbURI/references when CreateRefVcf is run.
-            // When running specific juint tests (e.g. ServerInfoTest) which do not run CreateRefVcf
+            // When running specific junit tests (e.g. ServerInfoTest) which do not run CreateRefVcf
             // as a prerequisite, compilation will fail on this init because there is no bedfile.
             // This conditional takes care of that problem.
             // Need to think through if this is a general problem or just a testing problem.
@@ -155,7 +155,7 @@ class VariantsService {
         }
 
         val pagination = TokenPagination(pageSize=pageSize, nextPageToken=nextPageToken, currentPageToken=currentPageToken.toString(), totalCount=totalCount, totalPages=totalPages)
-        return Pair(pagination,variants)
+        return Pair(pagination, variants)
 
     }
 

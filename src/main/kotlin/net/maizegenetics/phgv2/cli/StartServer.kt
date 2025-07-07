@@ -102,8 +102,6 @@ object StartServer : CliktCommand(help = "Starts PHGv2 BrAPI Server") {
         // Checks have passed - Ready to start the server!
         // commandLineEnvironment reads the application.config file
         // https://ktor.io/docs/configuration.html#hocon-file
-        //server = embeddedServer(Netty, commandLineEnvironment(emptyArray()))
-        //server.start(wait = true)
 
         val config = HoconApplicationConfig(ConfigFactory.load()) // loads application.conf
 
