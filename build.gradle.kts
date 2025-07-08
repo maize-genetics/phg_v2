@@ -45,8 +45,10 @@ dependencies {
     implementation("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.7.0")
     implementation("org.jetbrains.lets-plot:lets-plot-image-export:4.3.0")
     implementation("org.jetbrains.lets-plot:lets-plot-batik:4.3.0")
-    implementation("org.biokotlin:biokotlin:0.22")
+    implementation("org.biokotlin:biokotlin:0.25")
     implementation("com.github.ajalt.clikt:clikt:4.2.0")
+
+    implementation("net.maizegenetics:tassel:5.2.96")
 
     implementation("com.github.samtools:htsjdk:4.0.1")
 
@@ -57,7 +59,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-script-runtime:${kotlinVersion}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
 
     implementation("org.apache.commons:commons-math3:3.6.1")
     implementation("org.apache.logging.log4j:log4j-core:2.20.0")
@@ -94,8 +96,6 @@ dependencies {
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
     implementation("io.ktor:ktor-client-websockets:$ktorVersion")
-
-    implementation("org.ehcache:ehcache:3.10.8")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.0")
 
