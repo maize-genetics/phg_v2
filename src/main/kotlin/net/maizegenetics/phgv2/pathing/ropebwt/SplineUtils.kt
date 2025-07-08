@@ -366,8 +366,15 @@ class SplineUtils{
             listOfPoints.add(Pair(asmPos.toDouble(), refPos.toDouble()))
         }
 
-        fun downsamplePoints(map:MutableMap<String, MutableList<Pair<Double,Double>>>, maxNumPoints: Int = 250_000, randomSeed : Long = 12345) {
-            for (entry in map.entries) {
+        /**
+         * Function to downsample the points so the splines are not too big for each contig.  This is randomly selected using the randomSeed provided by the user or a default of 12345.
+         *
+         * We first determine how many points need to be removed then we randomly select that many indices to remove from the list of points for each chromosome.
+         *
+         * If there are fewer points in the list for a given chromosome than the maxNumPoints, it will not downsample.
+         */
+        fun downsamplePoints(splineKnotMap:MutableMap<String, MutableList<Pair<Double,Double>>>, maxNumPoints: Int = 250_000, randomSeed : Long = 12345) {
+            for (entry in splineKnotMap.entries) {
                 val listOfPoints = entry.value
                 val numPointsToRemove = listOfPoints.size - maxNumPoints
 
@@ -375,6 +382,7 @@ class SplineUtils{
                     //Build a list of unique indices to remove
                     val indicesToRemove = mutableSetOf<Int>()
                     val random = Random(randomSeed)
+                    // Loop until we have enough unique indices to remove
                     while (indicesToRemove.size < numPointsToRemove) {
                         val randomIndex = random.nextInt(listOfPoints.size)
                         if(!indicesToRemove.contains(randomIndex)) {
@@ -382,14 +390,16 @@ class SplineUtils{
                         }
                     }
 
+                    //Filter out any of the indices that are in the set and write to the map overwriting the existing contig.
                     listOfPoints.filterIndexed { index, pair -> !indicesToRemove.contains(index) }
                         .let { filteredList ->
-                            map[entry.key] = filteredList.toMutableList()
+                            splineKnotMap[entry.key] = filteredList.toMutableList()
                         }
 
                 }
                 else {
-                    map[entry.key] = listOfPoints
+                    // If there are fewer points than the maxNumPoints, we do not need to downsample
+                    splineKnotMap[entry.key] = listOfPoints
                 }
             }
         }
