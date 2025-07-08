@@ -7,6 +7,7 @@ import biokotlin.util.bufferedReader
 import com.google.common.collect.ArrayListMultimap
 import com.google.common.collect.Multimap
 import net.maizegenetics.analysis.association.FixedEffectLMPlugin
+import net.maizegenetics.analysis.data.GenotypeSummaryPlugin
 import net.maizegenetics.analysis.data.IntersectionAlignmentPlugin
 import net.maizegenetics.analysis.filter.FilterSiteBuilderPlugin
 import net.maizegenetics.dna.snp.*
@@ -50,6 +51,8 @@ val writeVCFFiles = true
 
 val writeGLMResults = true
 
+val writeVCFSummaries = true
+
 // Filtering options
 // Set to null if option not used
 val siteMinCount: Int? = null
@@ -92,6 +95,13 @@ imputedTable.posToLine.forEach { (pos, line) ->
             filteredGenotypeTable,
             "impute-by-range/${vcfFilename.substringAfterLast('/').replace("Zh", "Impute")}"
         )
+
+        if (writeVCFSummaries) {
+            writeGenotypeSummary(
+                filteredGenotypeTable,
+                "genotype-summary/${vcfFilename.substringAfterLast('/').replace("Zh", "Summary").replace(".vcf", "")}"
+            )
+        }
 
         val glmOutput = runGLM(filteredGenotypeTable, phenotype, populationStructure)
 
@@ -283,4 +293,15 @@ fun addPValueColumn(table: TableReport): TableReport {
 
     return builder.build()
 
+}
+
+fun writeGenotypeSummary(
+    genotypetable: GenotypeTable,
+    filename: String
+) {
+    val summaryTables = GenotypeSummaryPlugin(null, false).runPlugin(genotypetable)
+    summaryTables.forEachIndexed { i, summaryTable ->
+        val outputFileName = "${filename}_$i.txt"
+        TableReportUtils.saveDelimitedTableReport(summaryTable, File(outputFileName))
+    }
 }
