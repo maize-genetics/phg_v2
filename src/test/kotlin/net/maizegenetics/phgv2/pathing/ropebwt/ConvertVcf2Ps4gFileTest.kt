@@ -11,9 +11,9 @@ import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.createGenericHeader
-import org.junit.Ignore
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import java.io.File
 
@@ -315,7 +315,7 @@ class ConvertVcf2Ps4gFileTest {
 
     }
 
-    @Ignore
+    @Disabled
     @Test
     fun buildSimpleReferencePanelVCF() {
         //This test was what was run to get the refPanel.vcf.  I am leaving it in so it is clear what was done to make the file

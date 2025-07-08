@@ -38,7 +38,7 @@ class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs
         logCommand(this)
 
         myLogger.info("Building Spline Knots from $vcfType files in $vcfDir")
-        val contigSet = contigList.split(",").map { it.trim() }.toSet()
+        val contigSet = contigList.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
 
         val splineKnotLookup = SplineUtils.buildSplineKnots(vcfDir, vcfType, minIndelLength, maxNumPointsPerChrom, contigSet)
 

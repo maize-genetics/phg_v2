@@ -22,7 +22,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Setup Miniconda
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
           auto-activate-base: true
           activate-environment: ""
@@ -35,7 +35,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
           cache: 'gradle'
       - name: Update applications.conf
         run: src/scripts/update_applications_conf.sh

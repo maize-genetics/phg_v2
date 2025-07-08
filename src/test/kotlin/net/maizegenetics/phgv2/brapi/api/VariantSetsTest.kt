@@ -23,6 +23,8 @@ class VariantSetsTest {
             // create the tiledb datasets, load them with from the vcf files
             // This will also create the AGC compressed file
             createSmallSeqTiledb()
+
+            VariantSetsService
         }
 
         @JvmStatic
