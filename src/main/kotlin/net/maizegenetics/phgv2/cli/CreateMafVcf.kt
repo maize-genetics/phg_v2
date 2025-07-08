@@ -6,10 +6,7 @@ import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.*
 import htsjdk.variant.variantcontext.VariantContext
-import htsjdk.variant.variantcontext.VariantContextComparator
-import htsjdk.variant.vcf.VCFAltHeaderLine
 import htsjdk.variant.vcf.VCFHeaderLine
-import htsjdk.variant.vcf.VCFHeaderVersion
 import net.maizegenetics.phgv2.utils.*
 import net.maizegenetics.phgv2.utils.Position
 import org.apache.logging.log4j.LogManager
@@ -69,6 +66,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         twoGvcfs: Boolean = false,
         legacyMafFile: Boolean = false
     ) {
+        val mafToGVCFObject = MAFToGVCF()
 
         // load the bed file into some data structure
         val ranges = loadRanges(bedFileName)
@@ -84,46 +82,35 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         // loop through the maf files in mafDirName and getGVCFVariantsFromMafFile
         File(mafDirName).walk().filter { !it.isHidden && !it.isDirectory }
             .filter { it.extension == "maf" }
-            .forEach {
-                myLogger.info("CreateASMHvcfs: processing ${it.absolutePath}")
-                val sampleName = it.nameWithoutExtension //This will likely need to change in the future
-                val gvcfVariants = getGVCFVariantsFromMafFile(refGenomeSequence, it.absolutePath, it.nameWithoutExtension, twoGvcfs=twoGvcfs, legacyMafFile=legacyMafFile)
+            .forEach { originalFileName ->
+                myLogger.info("CreateASMHvcfs: processing ${originalFileName.absolutePath}")
+                val sampleName = originalFileName.nameWithoutExtension //This will likely need to change in the future
+                val gvcfVariants = getGVCFVariantsFromMafFile(mafToGVCFObject,refGenomeSequence, originalFileName.absolutePath, originalFileName.nameWithoutExtension, twoGvcfs=twoGvcfs, legacyMafFile=legacyMafFile)
                 //export the gvcfRecords
                 if (gvcfVariants.size == 1){
                     myLogger.info("createASMHvcfs: gvcfVariants.size == 1")
                     val sampleName = gvcfVariants.keys.first()
-                    val variants = gvcfVariants.values.first().sortedWith(VariantContextComparator(contigList))
-                    myLogger.info("createASMHvcfs: processing sampleName = $sampleName")
-                    exportVariantContext(sampleName, variants, "${outputDirName}/${it.nameWithoutExtension}.g.vcf",refGenomeSequence, setOf())
-                    bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.g.vcf")
 
-                    val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
-                    //convert the GVCF records into hvcf records
-                    myLogger.info("createASMHvcfs: calling convertGVCFToHVCF for $sampleName")
-                    val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines,condaEnvPrefix)
-                    val asmHeaderSet = asmHeaderLines.values.toSet()
-                    //export the hvcfRecords
-                    myLogger.info("createASMHvcfs: calling exportVariantContext for $sampleName")
-                    exportVariantContext(sampleName, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, asmHeaderSet)
-                    //bgzip the files
-                    bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.h.vcf")
+                    processGameteGVCFToHVCF(gvcfVariants.values.first(), mafToGVCFObject, sampleName, sampleName, arrayOf("${outputDirName}/${originalFileName.nameWithoutExtension}.g.vcf"), 0, refGenomeSequence, dbPath, ranges, outputDirName, originalFileName)
+
                 } else if (gvcfVariants.size == 2) {
                     myLogger.info("createASMHvcfs: gvcfVariants.size == 2")
-                    val gvcfOutput = "${outputDirName}/${it.nameWithoutExtension}.g.vcf"
+                    val gvcfOutput = "${outputDirName}/${originalFileName.nameWithoutExtension}.g.vcf"
                     val outputNames = MAFToGVCF().twoOutputFiles(gvcfOutput)
                     gvcfVariants.entries.forEachIndexed { index, (name, variants) ->
-                        val sortedVariants = variants.sortedWith(VariantContextComparator(contigList))
-                        val outputFile =
-                            exportVariantContext(name, sortedVariants, outputNames[index], refGenomeSequence, setOf())
-                        bgzipAndIndexGVCFfile(outputNames[index])
-                        val asmHeaderLines = mutableMapOf<String,VCFHeaderLine>()
-                        //convert the GVCF records into hvcf records
-                        val hvcfVariants = convertGVCFToHVCF(dbPath,sampleName, ranges, sortedVariants, refGenomeSequence, dbPath, asmHeaderLines,condaEnvPrefix)
-                        val asmHeaderSet = asmHeaderLines.values.toSet()
-                        //export the hvcfRecords
-                        exportVariantContext(sampleName, hvcfVariants, "${outputDirName}/${it.nameWithoutExtension}.h.vcf",refGenomeSequence, asmHeaderSet)
-                        //bgzip the files
-                        bgzipAndIndexGVCFfile("${outputDirName}/${it.nameWithoutExtension}.h.vcf")
+                        processGameteGVCFToHVCF(
+                            variants,
+                            mafToGVCFObject,
+                            sampleName,
+                            name,
+                            outputNames,
+                            index,
+                            refGenomeSequence,
+                            dbPath,
+                            ranges,
+                            outputDirName,
+                            originalFileName
+                        )
                     }
 
                 }
@@ -134,6 +121,50 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
             CalcVcfMetrics().calculateVcfMetrics(outputDir, metricsFile)
         }
 
+    }
+
+    /**
+     * Function to process the VariantInfo GVCF objects into VariantContexts and then into hvcf variants
+     */
+    private fun processGameteGVCFToHVCF(
+        variants: List<AssemblyVariantInfo>,
+        mafToGVCFObject: MAFToGVCF,
+        sampleName: String,
+        exportName: String,
+        outputNames: Array<String>,
+        index: Int,
+        refGenomeSequence: Map<String, NucSeq>,
+        dbPath: String,
+        ranges: List<Pair<Position, Position>>,
+        outputDirName: String,
+        originalFileName: File
+    ) {
+        val sortedVariants = variants.sortedBy { variant -> Position(variant.chr, variant.startPos) }
+
+        exportVariantInfo(exportName, sortedVariants, outputNames[index], refGenomeSequence, setOf(),mafToGVCFObject)
+        bgzipAndIndexGVCFfile(outputNames[index])
+        val asmHeaderLines = mutableMapOf<String, VCFHeaderLine>()
+        //convert the GVCF records into hvcf records
+        val hvcfVariants = convertGVCFToHVCFVariantInfo(
+            dbPath,
+            sampleName,
+            ranges,
+            sortedVariants,
+            refGenomeSequence,
+            asmHeaderLines,
+            condaEnvPrefix
+        )
+        val asmHeaderSet = asmHeaderLines.values.toSet()
+        //export the hvcfRecords
+        exportVariantContext(
+            sampleName,
+            hvcfVariants,
+            "${outputDirName}/${originalFileName.nameWithoutExtension}.h.vcf",
+            refGenomeSequence,
+            asmHeaderSet
+        )
+        //bgzip the files
+        bgzipAndIndexGVCFfile("${outputDirName}/${originalFileName.nameWithoutExtension}.h.vcf")
     }
 
     // Function to load in the reference using Biokotlin
@@ -153,8 +184,9 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * 7. [outputType] - either gvcf or vcf (BioKotlin doesn't currently have h.vcf, default is gvcf)
      *
      */
-    private fun getGVCFVariantsFromMafFile(refSeq: Map<String,NucSeq>, mafFileName : String, sampleName: String, fillGaps: Boolean = false, twoGvcfs: Boolean = false, legacyMafFile: Boolean = false) : Map<String,List<VariantContext>> {
-        return MAFToGVCF().getVariantContextsfromMAF(
+    private fun getGVCFVariantsFromMafFile(mafToGVCFObject: MAFToGVCF,refSeq: Map<String,NucSeq>, mafFileName : String,
+                                           sampleName: String, fillGaps: Boolean = false, twoGvcfs: Boolean = false, legacyMafFile: Boolean = false) : Map<String,List<AssemblyVariantInfo>> {
+        return mafToGVCFObject.getVariantContextsfromMAF(
             mafFileName,
             refSeq,
             sampleName,
@@ -167,10 +199,10 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
     /**
      * Function to convert a GVCF file into an HCVF file
      */
-    fun convertGVCFToHVCF(dbPath: String,sampleName: String, bedRanges : List<Pair<Position,Position>>, gvcfVariants: List<VariantContext>,
-                          refGenomeSequence : Map<String, NucSeq>, agcArchiveName: String, asmHeaders: MutableMap<String,VCFHeaderLine>,condaEnvPrefix:String = "") : List<VariantContext> {
+    fun convertGVCFToHVCFVariantInfo(dbPath: String,sampleName: String, bedRanges : List<Pair<Position,Position>>, gvcfVariants: List<AssemblyVariantInfo>,
+                          refGenomeSequence : Map<String, NucSeq>, asmHeaders: MutableMap<String,VCFHeaderLine>,condaEnvPrefix:String = "") : List<VariantContext> {
         // group the gvcfVariants by contig
-        val gvcfVariantsByContig = gvcfVariants.groupBy { it.contig }
+        val gvcfVariantsByContig = gvcfVariants.groupBy { it.chr }
 
         val bedRegionsByContig = bedRanges.groupBy { it.first.contig }
 
@@ -179,11 +211,12 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         return gvcfVariantsByContig.keys
             .sortedWith(compareBy(SeqRangeSort.alphaThenNumberSort){ name:String -> name}) //Need to do a sort here as we need to make sure we process the chromosomes in
             .filter { bedRegionsByContig.containsKey(it) }
-            .flatMap { convertGVCFToHVCFForChrom(dbPath, sampleName, bedRegionsByContig[it]!!, refGenomeSequence, agcArchiveName, gvcfVariantsByContig[it]!!, asmHeaders,condaEnvPrefix) }
+            .flatMap { convertGVCFToHVCFForChromVariantInfo(dbPath, sampleName, bedRegionsByContig[it]!!, refGenomeSequence, gvcfVariantsByContig[it]!!, asmHeaders,condaEnvPrefix) }
     }
 
-    private fun convertGVCFToHVCFForChrom(dbPath: String, sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, agcArchiveName: String, variantContexts: List<VariantContext>, asmHeaders: MutableMap<String,VCFHeaderLine>, condaEnvPrefix:String = "" ) : List<VariantContext> {
-        
+
+    private fun convertGVCFToHVCFForChromVariantInfo(dbPath: String, sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, variantInfos: List<AssemblyVariantInfo>, asmHeaders: MutableMap<String,VCFHeaderLine>, condaEnvPrefix:String = "" ) : List<VariantContext> {
+
         /**
          * Loop through the bed file
          * Loop through the gvcf records as well
@@ -201,50 +234,50 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
             val regionStart = region.first.position
             val regionEnd = region.second.position
             val regionChrom = region.first.contig
-            val tempVariants = mutableListOf<VariantContext>()
+            val tempVariants = mutableListOf<AssemblyVariantInfo>()
 
             check(regionChrom in refGenomeSequence.keys) { "Chromosome $regionChrom not found in reference" }
 
             //Need to subtract here as the Biokotlin NucSeq is 0 based
             val refRangeSeq = refGenomeSequence[regionChrom]!![regionStart-1..regionEnd-1]
 
-            while (currentVariantIdx < variantContexts.size) {
-                val currentVariant = variantContexts[currentVariantIdx]
+            while (currentVariantIdx < variantInfos.size) {
+                val currentVariantInfo = variantInfos[currentVariantIdx]
 
                 //check different cases for the variant
                 //If variant is fully contained in Bed region add to temp list and increment currentVariantIdx
                 //If variant is partially contained in Bed region add to temp list do not increment as we need to see if the next bed also overlaps
                 //If variant is not contained in Bed region, skip and do not increment as we need to see if the next bed overlaps
-                if(bedRegionContainedInVariant(region, currentVariant)) {
+                if(AssemblyVariantInfoUtils.bedRegionContainedInVariantInfo(region, currentVariantInfo)) {
                     outputVariantMetadata.add(
-                        convertGVCFRecordsToHVCFMetaData(
+                        convertGVCFRecordsToHVCFMetaDataVariantInfo(
                             sampleName,
                             region,
                             refRangeSeq,
-                            listOf(currentVariant)
+                            listOf(currentVariantInfo)
                         )
                     )
                     tempVariants.clear()
                     break
                 }
-                if(variantFullyContained(region, currentVariant)) {
+                if(AssemblyVariantInfoUtils.variantInfoFullyContained(region, currentVariantInfo)) {
                     //This is the case where the variant is completely contained within the region
-                    tempVariants.add(currentVariant)
+                    tempVariants.add(currentVariantInfo)
                     currentVariantIdx++
                 }
-                else if(variantPartiallyContainedStart(region,currentVariant)) {
-                    tempVariants.add(currentVariant)
+                else if(AssemblyVariantInfoUtils.variantInfoPartiallyContainedStart(region,currentVariantInfo)) {
+                    tempVariants.add(currentVariantInfo)
                     break
                 }
-                else if(variantPartiallyContainedEnd(region, currentVariant)) {
-                    tempVariants.add(currentVariant)
+                else if(AssemblyVariantInfoUtils.variantInfoPartiallyContainedEnd(region, currentVariantInfo)) {
+                    tempVariants.add(currentVariantInfo)
                     currentVariantIdx++
                 }
-                else if(variantAfterRegion(region, currentVariant)) {
+                else if(AssemblyVariantInfoUtils.variantInfoAfterRegion(region, currentVariantInfo)) {
                     //write out what is in tempVariants
                     if(tempVariants.isNotEmpty()) {
                         outputVariantMetadata.add(
-                            convertGVCFRecordsToHVCFMetaData(sampleName,
+                            convertGVCFRecordsToHVCFMetaDataVariantInfo(sampleName,
                                 region,
                                 refRangeSeq,
                                 tempVariants
@@ -263,7 +296,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
             }
 
             if(tempVariants.isNotEmpty()) {
-                outputVariantMetadata.add(convertGVCFRecordsToHVCFMetaData(
+                outputVariantMetadata.add(convertGVCFRecordsToHVCFMetaDataVariantInfo(
                     sampleName,
                     region,
                     refRangeSeq,
@@ -273,69 +306,10 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
             }
         }
 
-        val metaDataWithSequence = addSequencesToMetaData(dbPath, outputVariantMetadata, condaEnvPrefix)
-        val outputVariants = convertMetaDataToHVCFContexts(metaDataWithSequence, asmHeaders, dbPath)
+        val metaDataWithSequence = CreateMafVcfUtils.addSequencesToMetaData(dbPath, outputVariantMetadata, condaEnvPrefix)
+        val outputVariants = CreateMafVcfUtils.convertMetaDataToHVCFContexts(metaDataWithSequence, asmHeaders, dbPath)
 
         return outputVariants
-    }
-
-    /**
-     * Function to see if the BED region is fully contained within a VariantContext
-     * Indels are left-justified
-     * Bed:       |---|
-     * Var: |--------------|
-     */
-    fun bedRegionContainedInVariant(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
-        val end = if (variant.type == VariantContext.Type.SYMBOLIC) variant.end else variant.start
-        return variant.contig == region.first.contig && variant.start <= region.first.position && end >= region.second.position
-    }
-
-    /**
-     * Function to see if the VariantContext is fully contained within a BED region
-     * Indels are left-justified
-     * Bed: |--------------|
-     * Var:       |---|
-     */
-    fun variantFullyContained(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
-        val end = if (variant.type == VariantContext.Type.SYMBOLIC) variant.end else variant.start
-        return variant.contig == region.first.contig && variant.start >= region.first.position && end <= region.second.position
-    }
-
-    /**
-     * Function to see if the start of the variant is partially contained in the BED region
-     * Indels are left-justified
-     * Bed: |--------------|
-     * Var:              |---|
-     */
-    fun variantPartiallyContainedStart(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
-        val end = if (variant.type == VariantContext.Type.SYMBOLIC) variant.end else variant.start
-        return variant.contig == region.first.contig &&
-                variant.start >= region.first.position &&
-                variant.start <= region.second.position &&
-                end > region.second.position
-    }
-
-    /**
-     * Function to see if the end of the variant is partially contained in the BED region
-     * Indels are left-justified
-     * Bed:      |--------------|
-     * Var:    |---|
-     */
-    fun variantPartiallyContainedEnd(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
-        val end = if (variant.type == VariantContext.Type.SYMBOLIC) variant.end else variant.start
-        return variant.contig == region.first.contig &&
-                end <= region.second.position &&
-                end >= region.first.position &&
-                variant.start < region.first.position
-    }
-
-    /**
-     * Function to see if the variant is after the bed region
-     * Bed: |--------------|
-     * Var:                   |---|
-     */
-    fun variantAfterRegion(region: Pair<Position,Position>, variant: VariantContext) : Boolean {
-        return variant.contig == region.first.contig && variant.start > region.second.position
     }
 
 
@@ -343,29 +317,29 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
      * Function to extract all the needed information out of the ASM gVCF record and put them into HVCFRecordMetadata objects
      * This will first try to resize the positions based on the ref start position and then will extract out all the other information.
      */
-    private fun convertGVCFRecordsToHVCFMetaData(sampleName: String, region: Pair<Position,Position>, refRangeSeq: NucSeq, variants: List<VariantContext> ) : HVCFRecordMetadata {
-        //Take the first and the last variantContext
+    private fun convertGVCFRecordsToHVCFMetaDataVariantInfo(sampleName: String, region: Pair<Position,Position>, refRangeSeq: NucSeq, variants: List<AssemblyVariantInfo> ) : HVCFRecordMetadata {
+        //Take the first and the last variantVariantInfo
         val firstVariant = variants.first()
         val lastVariant = variants.last()
 
         //val check strandedness of the variants
-        val firstStrand = firstVariant.getAttributeAsString("ASM_Strand","+")
+        val firstStrand = firstVariant.asmStrand
 
-        val lastStrand = lastVariant.getAttributeAsString("ASM_Strand","+")
+        val lastStrand = lastVariant.asmStrand
         //Resize the first and last variantContext ASM start and end based on the regions
-        var newASMStart = resizeVariantContext(firstVariant, region.first.position, firstStrand)
+        var newASMStart = AssemblyVariantInfoUtils.resizeVariantInfo(firstVariant, region.first.position, firstStrand)
         if(newASMStart == -1) {
-            newASMStart = if(firstStrand == "+") firstVariant.getAttributeAsInt("ASM_Start",region.first.position)
-                else firstVariant.getAttributeAsInt("ASM_End",region.first.position)
+            newASMStart = if(firstStrand == "+") firstVariant.asmStart
+            else firstVariant.asmEnd
         }
 
-        var newASMEnd = resizeVariantContext(lastVariant, region.second.position, lastStrand)
+        var newASMEnd = AssemblyVariantInfoUtils.resizeVariantInfo(lastVariant, region.second.position, lastStrand)
         if(newASMEnd == -1) {
-            newASMEnd = if(lastStrand == "+") lastVariant.getAttributeAsInt("ASM_End",region.second.position)
-                else lastVariant.getAttributeAsInt("ASM_Start",region.second.position)
+            newASMEnd = if(lastStrand == "+") lastVariant.asmEnd
+            else lastVariant.asmStart
         }
 
-        val regions = buildNewAssemblyRegions(newASMStart,newASMEnd,variants)
+        val regions = buildNewAssemblyRegionsVariantInfo(newASMStart,newASMEnd,variants)
 
 
         return HVCFRecordMetadata(sampleName=sampleName, refSeq = refRangeSeq.toString(), asmSeq = "",
@@ -374,22 +348,25 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
 
     }
 
+
+
+
     /**
      * Function to build the new assembly region coordinates based on the new Start and end and the list of VariantContexts
      * Any consecutive regions should be merged together so we do not make the eventual string too long
      * The output will be a List<Pair<Position,Position>> which will be the new coordinates for the all the  assembly regions
      */
-    fun buildNewAssemblyRegions(newStart: Int, newEnd: Int, variants: List<VariantContext>) : List<Pair<Position,Position>> {
-        val variantsConverted = variants.map { convertVariantContextToPositionRange(it) }
+    fun buildNewAssemblyRegionsVariantInfo(newStart: Int, newEnd: Int, variants: List<AssemblyVariantInfo>) : List<Pair<Position,Position>> {
+        val variantsConverted = variants.map { convertVariantInfoToPositionRange(it) }
 
         //resize the first and last position based on the strand
-        val resizedFirst = resizePositionRange(variantsConverted.first(),newStart,true)
-        val resizedLast = resizePositionRange(variantsConverted.last(),newEnd,false)
+        val resizedFirst = CreateMafVcfUtils.resizePositionRange(variantsConverted.first(),newStart,true)
+        val resizedLast = CreateMafVcfUtils.resizePositionRange(variantsConverted.last(),newEnd,false)
 
         //merge the first and last with the rest of the variants
         val mergedVariants = mutableListOf<Pair<Position,Position>>()
         if(variantsConverted.size == 1) {
-            val resizedFirstAndLast = resizePositionRange(resizePositionRange(variantsConverted.first(), newStart, true), newEnd, false)
+            val resizedFirstAndLast = CreateMafVcfUtils.resizePositionRange(CreateMafVcfUtils.resizePositionRange(variantsConverted.first(), newStart, true), newEnd, false)
             mergedVariants.add(resizedFirstAndLast)
         } else {
             mergedVariants.add(resizedFirst) // add the first variant
@@ -400,218 +377,33 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
         }
 
         //merge the consecutive regions
-        val mergedConsecutiveVariants = mergeConsecutiveRegions(mergedVariants)
+        val mergedConsecutiveVariants = CreateMafVcfUtils.mergeConsecutiveRegions(mergedVariants)
 
         return mergedConsecutiveVariants
     }
 
-    /**
-     * Strand aware function to merge together consecutive assembly regions.  This is done to reduce the number of entries in the hvcf alt header.
-     */
-    fun mergeConsecutiveRegions(variants: List<Pair<Position,Position>>) : List<Pair<Position,Position>> {
-        val mergedConsecutiveVariants = mutableListOf<Pair<Position,Position>>()
-        var currentStart = variants.first().first
-        var currentEnd = variants.first().second
-        for(i in 1 until variants.size) {
-            val nextStart = variants[i].first
-            val nextEnd = variants[i].second
 
-            //Check to see if the next region is only 1 bp long.  If so we need to check both normal and inverted boundaries and extend if it makes sense, if not reset the currentStart and currentEnd
-            if(nextStart.position == nextEnd.position) {
-                //Check to see if the next region is on the + strand
-                //Using nextStart here as it equals nextEnd
-                if(nextStart.position == currentEnd.position + 1 || nextStart.position == currentEnd.position -1) {
-                    currentEnd = nextStart
-                }
-                else {
-                    mergedConsecutiveVariants.add(Pair(currentStart,currentEnd))
-                    currentStart = nextStart
-                    currentEnd = nextEnd
-                }
-            }
-            else if(currentEnd < currentStart && nextEnd < nextStart) {
-                //This is the case where we have a variant that is on the - strand
-                //We need to check if the next variant is consecutive
-                if(nextStart.position == (currentEnd.position - 1)) {
-                    currentEnd = nextEnd
-                }
-                else {
-                    mergedConsecutiveVariants.add(Pair(currentStart,currentEnd))
-                    currentStart = nextStart
-                    currentEnd = nextEnd
-                }
-            }
-            else if(nextStart.position == (currentEnd.position + 1)) {
-                currentEnd = nextEnd
-            }
-            else {
-                mergedConsecutiveVariants.add(Pair(currentStart,currentEnd))
-                currentStart = nextStart
-                currentEnd = nextEnd
-            }
-        }
-        mergedConsecutiveVariants.add(Pair(currentStart,currentEnd))
-        return mergedConsecutiveVariants
-    }
+
+
+
 
     /**
-     * Function to convert a VariantContext into a Pair<Position,Position> which will be the assembly starts and ends of the variantContext
+     * Function to convert a AssemblyVariantInfo into a Pair<Position,Position> which will be the assembly starts and ends of the AssemblyVariantInfo
      */
-    fun convertVariantContextToPositionRange(variant: VariantContext) : Pair<Position,Position> {
+    fun convertVariantInfoToPositionRange(variant: AssemblyVariantInfo) : Pair<Position,Position> {
         //get out the assembly coords
-        val contig = variant.getAttributeAsString("ASM_Chr","")
-        val start = variant.getAttributeAsInt("ASM_Start",variant.start)
-        val end = variant.getAttributeAsInt("ASM_End",variant.end)
+        val contig = variant.asmChrom
+        val start = variant.asmStart
+        val end = variant.asmEnd
         return Pair(Position(contig, start), Position(contig, end))
     }
 
-    /**
-     * Function to resize the Position range based on the new position.  If isFirst is true then it will resize the start position, otherwise it will resize the end position
-     */
-    fun resizePositionRange(positionRange: Pair<Position,Position>, newPosition : Int, isFirst: Boolean) : Pair<Position,Position> {
-        return if(isFirst) {
-            //Slide the start position to the new position
-            Pair(Position(positionRange.first.contig,newPosition),positionRange.second)
-        } else {
-            //Slide the end position to the new position
-            Pair(positionRange.first,Position(positionRange.second.contig,newPosition))
-        }
-    }
 
 
-    /**
-     * This function will bulk load sequences in from the AGC record and then will associate the returned sequences
-     * with the metadata record which contains the coordiantes for the query and will add in the asmSeq.
-     */
-    private fun addSequencesToMetaData(dbPath: String, metadata: List<HVCFRecordMetadata>, condaEnvPrefix:String="") : List<HVCFRecordMetadata> {
-        //get out the assembly coordinates and build them into the regions
-        val metaDataToRangeLookup = metadata.map {
-            val queries = mutableListOf<String>()
-            val displayNames = mutableListOf<String>()
-
-            for(range in it.asmRegions) {
-                if(range.first.position-1 > range.second.position-1) {
-                    queries.add("${range.first.contig}@${it.sampleName}:${range.second.position-1}-${range.first.position-1}")
-                    displayNames.add("${range.first.contig}:${range.second.position-1}-${range.first.position-1}")
-                }
-                else {
-                    queries.add("${range.first.contig}@${it.sampleName}:${range.first.position - 1}-${range.second.position - 1}")
-                    displayNames.add("${range.first.contig}:${range.first.position-1}-${range.second.position-1}")
-                }
-            }
-
-            Triple(it,queries, displayNames)
-        }
-
-        val ranges = metaDataToRangeLookup.flatMap { it.second }
-
-        val seqs = retrieveAgcContigs(dbPath,ranges,condaEnvPrefix)
-
-        return metaDataToRangeLookup.map { it.first.copy(asmSeq = buildSeq(seqs,it.third,it.first)) } //This is a useful way to keep things immutable
-    }
 
 
-    /**
-     * Function to build the haplotype sequence based on the list of display regions and the given haplotype sequence object.
-     * The sequence is already extracted out of AGC and stored in the seqs map.
-     * The seqs map is keyed by a Pair of (sampleName, displayRegion) and the value is the NucSeq object.
-     * The Pair may look something like ("B97", "1:1-1000") or ("B97", "chr1")
-     */
-    fun buildSeq(seqs: Map<Pair<String,String>,NucSeq> ,displayRegions : List<String>, hvcfRecordMetadata: HVCFRecordMetadata) : String {
-        val hapSeqRegions = hvcfRecordMetadata.asmRegions
-
-        return displayRegions.mapIndexed{ idx, currentDisplayRegion ->
-            val currentHapSeqRegion = hapSeqRegions[idx]
-
-            val seq = seqs[Pair(hvcfRecordMetadata.sampleName,currentDisplayRegion)]!!
-
-            //Means it is the first region
-            if(currentHapSeqRegion.first.position > currentHapSeqRegion.second.position) {
-                //Means it needs to be reverse complemented
-                seq.reverse_complement().seq()
-            }
-            else {
-                seq.seq()
-            }
-        }.joinToString()
-    }
-
-    /**
-     * Simple function to convert the all the HVCFRecordMetadata records into VariantContext records
-     */
-    fun convertMetaDataToHVCFContexts(metaData: List<HVCFRecordMetadata>, asmHeaders: MutableMap<String,VCFHeaderLine>, dbPath:String): List<VariantContext> {
-        return metaData.map { convertMetaDataRecordToHVCF(it, asmHeaders, dbPath) }
-    }
-
-    /**
-     * Simple function to convert a single metadata record into a VariantContext.
-     * This will also create the ALT tag and add it to the asmHeaders object for use during export.
-     */
-    private fun convertMetaDataRecordToHVCF(metaDataRecord: HVCFRecordMetadata, asmHeaders: MutableMap<String, VCFHeaderLine>, dbPath: String): VariantContext {
-        val assemblyHaplotypeSeq:String = metaDataRecord.asmSeq
-        //md5 hash the assembly sequence
-        val assemblyHaplotypeHash = getChecksumForString(assemblyHaplotypeSeq)
-        check(metaDataRecord.refSeq.isNotEmpty()) { "Reference sequence is empty" }
-        //md5 has the refSequence
-        val refSeqHash = getChecksumForString(metaDataRecord.refSeq)
-
-        //create the asmHeader lines
-        if(!asmHeaders.containsKey(assemblyHaplotypeHash)) {
-            asmHeaders[assemblyHaplotypeHash] =
-            VCFAltHeaderLine(
-                "<ID=${assemblyHaplotypeHash}, Description=\"haplotype data for line: ${metaDataRecord.sampleName}\">," +
-                        "Source=\"${dbPath}/assemblies.agc\",SampleName=\"${metaDataRecord.sampleName}\"," +
-                        "Regions=\"${metaDataRecord.asmRegions.map { "${it.first.contig}:${it.first.position}-${it.second.position}" }.joinToString(",")}\"," +
-                        "Checksum=\"${assemblyHaplotypeHash}\",RefChecksum=\"${refSeqHash}\",RefRange=\"${metaDataRecord.refContig}:${metaDataRecord.refStart}-${metaDataRecord.refEnd}\">",
-                VCFHeaderVersion.VCF4_2
-            )
-        } else {
-           myLogger.info("convertMetaDataRecordToHVCF: asmHeaders already contains key ${assemblyHaplotypeHash}")
-        }
 
 
-        //build a variant context of the HVCF with the hashes
-        return createHVCFRecord(metaDataRecord.sampleName, Position(metaDataRecord.refContig,metaDataRecord.refStart),
-            Position(metaDataRecord.refContig, metaDataRecord.refEnd ),
-            Pair(metaDataRecord.refSeq[0].toString(), assemblyHaplotypeHash))
-    }
-
-
-    /**
-     * Function will return -1 if unable to resize the variantcontext due to its type(mostly an INDEL)
-     * If the requested position is outside of the current variants coordinates it will return the ASM_Start for + strand and ASM_End for - strand
-     */
-    fun resizeVariantContext(variant: VariantContext, position: Int, strand : String) : Int {
-        //check to see if the variant is either a RefBlock or is a SNP with equal lengths
-        return if(isVariantResizable(variant)) {
-            when {
-                position < variant.start -> variant.getAttributeAsInt("ASM_Start",variant.start)
-                position > variant.end -> variant.getAttributeAsInt("ASM_End",variant.end)
-                strand == "+" -> {
-                    val offset = position - variant.start
-                    variant.getAttributeAsInt("ASM_Start",variant.start) + offset
-                }
-                strand == "-" -> {
-                    val offset = position - variant.start
-                    variant.getAttributeAsInt("ASM_Start",variant.end) - offset
-                }
-                else -> -1
-            }
-        } else {
-            -1
-        }
-    }
-
-    /**
-     * Function to check if a variant is resizable.  Only RefBlocks and SNPs are resizable
-     */
-    fun isVariantResizable(variant: VariantContext) : Boolean {
-        return when {
-            variant.getReference().baseString.length == 1 && variant.end - variant.start > 0 && variant.type == VariantContext.Type.SYMBOLIC -> true //refBlock
-            variant.reference.baseString.length == variant.getAlternateAllele(0).baseString.length -> true //This covers both SNPs and multiallelic polymorphisms
-            else -> false
-        }
-    }
 
     override fun run() {
 

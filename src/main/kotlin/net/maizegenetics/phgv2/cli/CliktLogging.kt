@@ -8,7 +8,7 @@ private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.cli.CliktLo
 
 
 /**
- * Log the command name and all parameters and their values.
+ * Log the command name and all parameters with their values.
  */
 fun logCommand(command: CliktCommand) {
 

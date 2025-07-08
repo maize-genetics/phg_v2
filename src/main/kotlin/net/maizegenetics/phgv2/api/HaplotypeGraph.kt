@@ -1,6 +1,7 @@
 package net.maizegenetics.phgv2.api
 
 import htsjdk.variant.variantcontext.VariantContext
+import htsjdk.variant.vcf.VCFContigHeaderLine
 import htsjdk.variant.vcf.VCFFileReader
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -38,6 +39,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
     // Map<ID (checksum), AltHeaderMetaData>
     private lateinit var altHeaderMap: Map<String, AltHeaderMetaData>
+
+    private lateinit var contigHeaderLines: Set<VCFContigHeaderLine>
 
     constructor(hvcfDirectory: String) : this(
         File(hvcfDirectory)
@@ -79,6 +82,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      * Returns a list of samples for this graph.
      */
     fun samples() = sampleNames.toList()
+
+    fun contigHeaderLines() = contigHeaderLines
 
     /**
      * Returns the number of ReferenceRanges for this graph.
@@ -123,7 +128,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         for (sampleId in rangeByGameteIdToHapid[rangeId].indices) {
             for (gameteId in rangeByGameteIdToHapid[rangeId][sampleId].indices) {
                 val hapid = rangeByGameteIdToHapid[rangeId][sampleId][gameteId]
-                if (hapid != null && hapid.isNotEmpty()) {
+                if (hapid.isNotEmpty()) {
                     result.getOrPut(hapid) { mutableListOf() }.add(SampleGamete(sampleNames[sampleId], gameteId))
                 }
             }
@@ -162,6 +167,15 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
     }
 
     /**
+     * Returns the hapIds for the specified ReferenceRange.
+     */
+    fun hapIds(range: ReferenceRange): Set<String> {
+        val rangeId = refRangeMap[range]
+        require(rangeId != null) { "hapIds: range: $range not found" }
+        return rangeByGameteIdToHapid[rangeId].flatten().filter { it.isNotBlank() }.toSet()
+    }
+
+    /**
      * Returns the hapId for the sample in the specified ReferenceRange.
      */
     fun sampleToHapId(range: ReferenceRange, sample: SampleGamete): String? {
@@ -191,6 +205,13 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
      */
     fun altHeaders() = altHeaderMap
 
+    // Data class to hold the sample names, ALT headers, and contig header lines
+    private data class VCFDataFirstPass(
+        val sampleNames: List<String>,
+        val altHeaderMap: Map<String, AltHeaderMetaData>,
+        val contigHeaderLines: List<VCFContigHeaderLine>
+    )
+
     /**
      * Get sample names and ALT headers from the HVCF files.
      */
@@ -199,7 +220,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         myLogger.info("getSampleNamesALTHeaders: ${hvcfFiles.size} hvcf files")
 
         // Step 1: Get sample names and ALT headers
-        val sampleChannel = Channel<Deferred<Pair<List<String>, Map<String, AltHeaderMetaData>>>>(25)
+        val sampleChannel = Channel<Deferred<VCFDataFirstPass>>(25)
         CoroutineScope(Dispatchers.IO).launch {
 
             hvcfFiles.forEach { hvcfFile ->
@@ -208,9 +229,10 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
                 sampleChannel.send(async {
                     VCFFileReader(File(hvcfFile), false).use { reader ->
-                        Pair(
+                        VCFDataFirstPass(
                             reader.header.sampleNamesInOrder,
-                            parseALTHeader(reader.header)
+                            parseALTHeader(reader.header),
+                            reader.header.contigLines
                         )
                     }
                 })
@@ -223,6 +245,7 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         val sampleNamesList = mutableListOf<String>()
         val mutableAltHeaderMap: MutableMap<String, AltHeaderMetaData> = mutableMapOf()
+        val mutableContigHeaderLines = mutableSetOf<VCFContigHeaderLine>()
 
         // Single thread to process the sampleChannel
         // This collects the sample names and ALT headers
@@ -230,13 +253,15 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
         runBlocking {
 
             for (deferred in sampleChannel) {
-                val sampleHeader = deferred.await()
+                val vcfData = deferred.await()
 
                 // sampleNames are being added to both a Set and List so that they can be
                 // compared to detect and report duplicate sample names
-                sampleNamesList.addAll(sampleHeader.first)
+                sampleNamesList.addAll(vcfData.sampleNames)
 
-                mutableAltHeaderMap.putAll(sampleHeader.second)
+                mutableAltHeaderMap.putAll(vcfData.altHeaderMap)
+
+                mutableContigHeaderLines.addAll(vcfData.contigHeaderLines)
             }
 
         }
@@ -245,6 +270,8 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
 
         // make the alt header map immutable
         altHeaderMap = mutableAltHeaderMap.toMap()
+
+        contigHeaderLines = mutableContigHeaderLines.toSet()
 
         // Step 2: check for duplicate sample names
         myLogger.info("Parsing ALT headers, now checking for duplicate sample names.")

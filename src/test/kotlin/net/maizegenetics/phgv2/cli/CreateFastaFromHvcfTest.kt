@@ -86,7 +86,6 @@ class CreateFastaFromHvcfTest {
     fun testParseALTHeader() {
         val refHVCFFile = File("data/test/smallseq/Ref.h.vcf")
         val vcfReader = VCFFileReader(refHVCFFile, false)
-        val createFastaFromHvcf = CreateFastaFromHvcf()
         val altHeaders= parseALTHeader(vcfReader.header)
 
         assertEquals(altHeaders.size, 40)
@@ -99,8 +98,8 @@ class CreateFastaFromHvcfTest {
         assertEquals(currentHeader2b?.description, "haplotype data for line: Ref")
         assertEquals(currentHeader2b?.source, "data/test/smallseq/Ref.fa")
         assertEquals(currentHeader2b?.regions?.get(0), Pair(Position("1",11001), Position("1",12000)))
-        assertEquals(currentHeader2b?.checksum, "Md5")
-        assertEquals(currentHeader2b?.refRange, "2b4590f722ef9229c15d29e0b4e51a0e")
+        assertEquals("2b4590f722ef9229c15d29e0b4e51a0e", currentHeader2b?.checksum)
+        assertEquals("1:11001-12000", currentHeader2b?.refRange)
 //        ##ALT=<ID=db22dfc14799b1aa666eb7d571cf04ec,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=2,Start=16501,End=17500,Checksum=Md5,RefRange=db22dfc14799b1aa666eb7d571cf04ec>
         assertTrue(altHeaders.containsKey("db22dfc14799b1aa666eb7d571cf04ec"))
         val currentHeaderdb = altHeaders["db22dfc14799b1aa666eb7d571cf04ec"]
@@ -108,8 +107,8 @@ class CreateFastaFromHvcfTest {
         assertEquals(currentHeaderdb?.description, "haplotype data for line: Ref")
         assertEquals(currentHeaderdb?.source, "data/test/smallseq/Ref.fa")
         assertEquals(currentHeaderdb?.regions?.get(0), Pair(Position("2",16501), Position("2",17500)))
-        assertEquals(currentHeaderdb?.checksum, "Md5")
-        assertEquals(currentHeaderdb?.refRange, "db22dfc14799b1aa666eb7d571cf04ec")
+        assertEquals("db22dfc14799b1aa666eb7d571cf04ec", currentHeaderdb?.checksum)
+        assertEquals("2:16501-17500", currentHeaderdb?.refRange)
 
     //        ##ALT=<ID=5812acb1aff74866003656316c4539a6,Description="haplotype data for line: Ref",Number=6,Source="data/test/smallseq/Ref.fa",Contig=2,Start=1,End=1000,Checksum=Md5,RefRange=5812acb1aff74866003656316c4539a6>
         assertTrue(altHeaders.containsKey("5812acb1aff74866003656316c4539a6"))
@@ -118,8 +117,8 @@ class CreateFastaFromHvcfTest {
         assertEquals(currentHeader581?.description, "haplotype data for line: Ref")
         assertEquals(currentHeader581?.source, "data/test/smallseq/Ref.fa")
         assertEquals(currentHeader581?.regions?.get(0), Pair(Position("2",1), Position("2",1000)))
-        assertEquals(currentHeader581?.checksum, "Md5")
-        assertEquals(currentHeader581?.refRange, "5812acb1aff74866003656316c4539a6")
+        assertEquals("5812acb1aff74866003656316c4539a6", currentHeader581?.checksum)
+        assertEquals("2:1-1000", currentHeader581?.refRange)
 
 
         assertFailsWith<IllegalStateException>(
@@ -155,6 +154,7 @@ class CreateFastaFromHvcfTest {
                         "RefRange_bad=\"id\">", VCFHeaderVersion.VCF4_2))))
             }
         )
+        vcfReader.close()
     }
 
 

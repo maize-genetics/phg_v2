@@ -3,19 +3,15 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.int
-import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.headerCommand
 import net.maizegenetics.phgv2.cli.logCommand
-import net.maizegenetics.phgv2.utils.Position
-import net.maizegenetics.phgv2.utils.parseALTHeader
-import org.apache.commons.math3.analysis.interpolation.SplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.apache.logging.log4j.LogManager
-import java.io.File
 
 /**
  * This class will convert a RopebwtBed file to a PS4G file.  It will only work with ropebwt3 files where the reads are
@@ -33,7 +29,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     val outputDir by option(help = "Output directory")
         .required()
 
-    val hvcfDir by option(help = "Directory containing the hvcf files")
+   val splineKnotFile by option(help = "Spline Knot file")
         .required()
 
     val minMemLength by option(help = "Minimum length of a match to be considered a match.")
@@ -43,6 +39,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     val maxNumHits by option(help = "Number of hits to report.  Note ropebwt can hit more than --max-num-hits but any alignment hitting more haplotypes than this will be ignored.")
         .int()
         .default(50)
+
+    val sortPositions by option(help = "Sort positions in the resulting PS4G file.")
+        .flag(default = true)
 
     /**
      * Function to run the command.  This goes from a RopeBWT3 BED file for reads aligned against the whole chromosomes to a PS4G file.
@@ -54,9 +53,11 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
         myLogger.info("Convert Ropebwt to PS4G")
 
-        myLogger.info("Building Spline Lookup")
-        val (splineLookup, chrIndexMap, gameteIndexMap) = buildSplineLookup(hvcfDir)
+        myLogger.info("Loading Spline Knot File")
+        val (splineKnots, chrIndexMap, gameteIndexMap) = SplineUtils.loadSplineKnotLookupFromFile(splineKnotFile)
 
+        myLogger.info("Converting Spline Knots to Splines")
+        val splineLookup = SplineUtils.convertKnotsToSpline(splineKnots)
 
         val sampleGameteIndexMap = gameteIndexMap.map { SampleGamete(it.key) to it.value}.toMap()
 
@@ -66,122 +67,10 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
         myLogger.info("Building PS4G Data")
         //build and write out the PS4G file
-        val (ps4GData, sampleGameteCountMap) = buildPS4GData(ropebwtBed, splineLookup, chrIndexMap, gameteIndexMap,minMemLength, maxNumHits)
+        val (ps4GData, sampleGameteCountMap) = buildPS4GData(ropebwtBed, splineLookup, chrIndexMap, gameteIndexMap,minMemLength, maxNumHits, sortPositions)
 
         myLogger.info("Writing out PS4G File")
         PS4GUtils.writeOutPS4GFile(ps4GData, sampleGameteCountMap, sampleGameteIndexMap, outputFile, listOf(), command)
-    }
-
-    /**
-     * Function to build spline lookups from the hvcf files in the directory.
-     * This will create Cubic splines based on the PolynomialSplineFunction from the Apache Commons Math3 library.
-     */
-    fun buildSplineLookup(hvcfDir: String) : Triple<Map<String, PolynomialSplineFunction>, Map<String,Int>, Map<String,Int>> {
-        val hvcfFiles = File(hvcfDir).listFiles()
-        val splineMap = mutableMapOf<String, PolynomialSplineFunction>()
-        val chrIndexMap = mutableMapOf<String,Int>()
-        val gameteIndexMap = mutableMapOf<String,Int>()
-        for (hvcfFile in hvcfFiles!!) {
-            processHvcfFileIntoSplines(hvcfFile, splineMap, chrIndexMap, gameteIndexMap)
-        }
-        return Triple(splineMap, chrIndexMap, gameteIndexMap)
-    }
-
-    /**
-     * Function to process a single HVCF file into the spline map for the PS4G file.
-     */
-    fun processHvcfFileIntoSplines(
-        hvcfFile: File?,
-        splineMap: MutableMap<String, PolynomialSplineFunction>,
-        chrIndexMap : MutableMap<String,Int>,
-        gameteIndexMap: MutableMap<String, Int>
-    ) {
-        VCFFileReader(hvcfFile, false).use { reader ->
-            val header = reader.header
-            val headerParsed = parseALTHeader(header)
-            val splineBuilder = SplineInterpolator()
-            var currentChrom = ""
-            val sampleName = reader.fileHeader.sampleNamesInOrder[0]
-            checkMapAndAddToIndex(gameteIndexMap, sampleName)
-
-            //This is ASM,REF
-            val listOfPoints = mutableListOf<Pair<Double, Double>>()
-
-            val iterator = reader.iterator()
-            while (iterator.hasNext()) {
-                val currentVariant = iterator.next()
-                val chrom = currentVariant.contig
-                //Check to see if we need to add a new entry in our chrIndexMap
-                checkMapAndAddToIndex(chrIndexMap, chrom)
-                if (chrom != currentChrom) {
-                    if (listOfPoints.isEmpty()) {
-                        currentChrom = chrom
-                    } else {
-                        buildSpline(listOfPoints, splineBuilder, splineMap, currentChrom, sampleName)
-                        currentChrom = chrom
-                    }
-                }
-
-                val stPosition = currentVariant.start
-                val endPosition = currentVariant.end
-
-                val stPositionEncoded = PS4GUtils.encodePosition(Position(chrom, stPosition), chrIndexMap)
-                val endPositionEncoded = PS4GUtils.encodePosition(Position(chrom, endPosition), chrIndexMap)
-
-                val genotype = currentVariant.genotypes
-                    .get(0)
-                    .alleles
-                    .first()
-                    .displayString
-                    .replace("<", "")
-                    .replace(">", "")
-
-                headerParsed[genotype]?.let { altHeaderMetaData ->
-                    val regions = altHeaderMetaData.regions
-                    val asmStart = regions.first().first.position
-                    val asmEnd = regions.last().second.position
-
-                    listOfPoints.add(Pair(asmStart.toDouble(), stPositionEncoded.toDouble()))
-                    listOfPoints.add(Pair(asmEnd.toDouble(), endPositionEncoded.toDouble()))
-                }
-
-            }
-            iterator.close()
-
-            if (listOfPoints.isNotEmpty()) {
-                buildSpline(listOfPoints, splineBuilder, splineMap, currentChrom, sampleName)
-            }
-        }
-    }
-
-    /**
-     * Simple function to check to see if a value already exists in our map and adds to it if not.
-     */
-    fun checkMapAndAddToIndex(
-        stringToIndexMap: MutableMap<String, Int>,
-        sampleName: String
-    ) {
-        if (!stringToIndexMap.containsKey(sampleName)) {
-            stringToIndexMap[sampleName] = stringToIndexMap.size
-        }
-    }
-
-    /**
-     * Fnction to build the splines based on a list of Pair<Double, Double>
-     */
-    fun buildSpline(
-        listOfPoints: MutableList<Pair<Double, Double>>,
-        splineBuilder: SplineInterpolator,
-        splineMap: MutableMap<String, PolynomialSplineFunction>,
-        currentChrom: String,
-        sampleName: String?
-    ) {
-        val sortedPoints = listOfPoints.sortedBy { it.first }.distinctBy { it.first }
-        val asmArray = sortedPoints.map { it.first }.toDoubleArray()
-        val refArray = sortedPoints.map { it.second }.toDoubleArray()
-        val splineFunction = splineBuilder.interpolate(asmArray, refArray)
-        splineMap["${currentChrom}_${sampleName}"] = splineFunction
-        listOfPoints.clear()
     }
 
     /**
@@ -189,7 +78,8 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
      */
     fun buildPS4GData(ropebwtBed: String,  splineLookup: Map<String, PolynomialSplineFunction>, chrIndexMap:Map<String,Int>,
                       gameteToIdxMap: Map<String,Int>,
-                      minMEMLength: Int, maxNumHits: Int) : Pair<List<PS4GData>, Map<SampleGamete,Int>> {
+                      minMEMLength: Int, maxNumHits: Int,
+                      sortPositions: Boolean = true) : Pair<List<PS4GData>, Map<SampleGamete,Int>> {
 
         val gameteIdxToSampleGameteMap = gameteToIdxMap.map { it.value to SampleGamete(it.key) }.toMap()
         val bedFileReader = bufferedReader(ropebwtBed)
@@ -234,8 +124,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             gameteIdxToSampleGameteMap
         )
 
-        val ps4gDataList = convertCountMapToPS4GData(countMap)
-
+        val ps4gDataList = PS4GUtils.convertCountMapToPS4GData(countMap, sortPositions)
 
         return Pair(ps4gDataList, sampleGameteCountMap)
     }
@@ -321,12 +210,18 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         //Best chromosome is already in index form
         val encodedPosition = PS4GUtils.encodePositionFromIdxAndPos(bestChromosome.toInt(), averagePosition)
 
-        val gameteIndicesHit = bestHitsForChrom.map { it.first.split("_")[1] }.map { gameteToIdxMap[it]!! }.toSortedSet().toList()
+        val gameteIndicesHit = bestHitsForChrom
+            .map { it.first.split("_") }
+            .map { it.last() } //needs to be last because there are scaffolds delimited by _
+            .map {
+                if(!gameteToIdxMap.containsKey(it)) {
+                    myLogger.info("Gamete $it not found in. Chr: $bestChromosome, Position: $averagePosition")
+                }
+                gameteToIdxMap[it]!! }
+            .toSortedSet()
+            .toList()
+
         return Pair(encodedPosition,gameteIndicesHit )
-        //Associate the gametes with the average positions
-//        return Pair(encodedPositions)
-
-
     }
 
     /**
@@ -355,12 +250,5 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         }
     }
 
-    /**
-     * Function to convert the count map to a PS4GData class for easy export
-     */
-    fun convertCountMapToPS4GData(countMap: Map<Pair<Int,List<Int>>, Int>) : List<PS4GData> {
-        return countMap.map { (pair, count) ->
-            PS4GData(pair.second, pair.first, count)
-        }
-    }
+
 }

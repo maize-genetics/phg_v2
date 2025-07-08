@@ -77,7 +77,7 @@ class InitdbTest {
         assertEquals(result.statusCode, 0)
 
         // get stats to show that anchor-gap was set correctly for gvcf
-        var builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri", "$dbPath/gvcf_dataset/")
+        var builder = ProcessBuilder("conda","run","-n","phgv2-tiledb","tiledbvcf","stat","--uri", "$dbPath/gvcf_dataset/")
         var process = builder.start()
         var stats = process.inputStream.readAllBytes().decodeToString()
         process.waitFor()
@@ -86,7 +86,7 @@ class InitdbTest {
         assertEquals(gGap_truth, gGap)
 
         // get stats to show that anchor-gap was set correctly for hvcf
-        builder = ProcessBuilder("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri", "$dbPath/hvcf_dataset/")
+        builder = ProcessBuilder("conda","run","-n","phgv2-tiledb","tiledbvcf","stat","--uri", "$dbPath/hvcf_dataset/")
         process = builder.start()
         stats = process.inputStream.readAllBytes().decodeToString()
         process.waitFor()

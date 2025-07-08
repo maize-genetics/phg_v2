@@ -7,6 +7,7 @@ import com.github.ajalt.clikt.parameters.options.required
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeaderLine
+import net.maizegenetics.phgv2.utils.VCFConversionUtils
 import net.maizegenetics.phgv2.utils.bgzipAndIndexGVCFfile
 import net.maizegenetics.phgv2.utils.exportVariantContext
 import net.maizegenetics.phgv2.utils.loadRanges
@@ -75,7 +76,7 @@ class Gvcf2Hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
                 val variants = vcfSampleAndVCs.second
                 //convert the GVCF records into hvcf records
                 myLogger.info("createASMHvcfs: calling convertGVCFToHVCF for $sampleName")
-                val hvcfVariants = CreateMafVcf().convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines, condaEnvPrefix)
+                val hvcfVariants = VCFConversionUtils.convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines, condaEnvPrefix)
                 val asmHeaderSet = asmHeaderLines.values.toSet()
                 //export the hvcfRecords
                 myLogger.info("createASMHvcfs: calling exportVariantContext for $sampleName")

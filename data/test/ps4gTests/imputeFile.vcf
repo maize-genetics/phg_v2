@@ -1,0 +1,21 @@
+##fileformat=VCFv4.2
+##FORMAT=<ID=AD,Number=3,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth (only filtered reads used for calling)">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##INFO=<ID=AF,Number=3,Type=Integer,Description="Allele Frequency">
+##INFO=<ID=ASM_Chr,Number=1,Type=String,Description="Assembly chromosome">
+##INFO=<ID=ASM_End,Number=1,Type=Integer,Description="Assembly end position">
+##INFO=<ID=ASM_Start,Number=1,Type=Integer,Description="Assembly start position">
+##INFO=<ID=ASM_Strand,Number=1,Type=String,Description="Assembly strand">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
+##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	impute1	impute2	impute3	impute4
+chr1	1	.	A	C	.	.	.	GT	0	0	1	1
+chr1	21	.	A	C	.	.	.	GT	0	0	1	1
+chr1	31	.	A	C	.	.	.	GT	0	1	1	0
+chr1	41	.	A	C	.	.	.	GT	0	0	1	1
+chr1	551	.	A	C	.	.	.	GT	0	1	0	1
+chr1	552	.	A	C	.	.	.	GT	0	1	0	1

@@ -128,7 +128,7 @@ class RopeBWTUtils {
         private fun getRopeBWTCondaPrefix(condaEnvPrefix: String) = if (condaEnvPrefix.isNotBlank()) {
             Pair("-p", condaEnvPrefix)
         } else {
-            Pair("-n", "phgv2-ropebwt-conda")
+            Pair("-n", "phgv2-conda")
         }
 
     }

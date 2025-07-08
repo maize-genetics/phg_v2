@@ -3,7 +3,7 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.utils.Position
-import org.apache.commons.math3.analysis.interpolation.SplineInterpolator
+import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -15,12 +15,12 @@ class ConvertRopebwt2Ps4gFileTest {
     fun testCliktParams() {
         val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
 
-        val noBedFile = convertRopebwt2Ps4gFile.test("--output-dir testDir --hvcf-dir testDir")
+        val noBedFile = convertRopebwt2Ps4gFile.test("--output-dir testDir --spline-knot-file dummyFile.json.gz")
         assertEquals(1, noBedFile.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
                 "Error: missing option --ropebwt-bed\n", noBedFile.stderr)
 
-        val noOutputDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --hvcf-dir testDir")
+        val noOutputDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --spline-knot-file dummyFile.json.gz")
         assertEquals(1, noOutputDir.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
                 "Error: missing option --output-dir\n", noOutputDir.stderr)
@@ -28,15 +28,14 @@ class ConvertRopebwt2Ps4gFileTest {
         val noHvcfDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --output-dir testDir")
         assertEquals(1, noHvcfDir.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
-                "Error: missing option --hvcf-dir\n", noHvcfDir.stderr)
+                "Error: missing option --spline-knot-file\n", noHvcfDir.stderr)
 
     }
 
     @Test
     fun testConvertCountMapToPS4GData() {
-        val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
         val countMap = mapOf(Pair(1, listOf(1, 2)) to 3, Pair(2, listOf(3, 4)) to 5)
-        val ps4gData = convertRopebwt2Ps4gFile.convertCountMapToPS4GData(countMap)
+        val ps4gData = PS4GUtils.convertCountMapToPS4GData(countMap)
         assertEquals(2, ps4gData.size)
         assertEquals(PS4GData(listOf(1, 2), 1, 3), ps4gData[0])
         assertEquals(PS4GData(listOf(3, 4), 2, 5), ps4gData[1])
@@ -106,16 +105,35 @@ class ConvertRopebwt2Ps4gFileTest {
     @Test
     fun testEncodeHitsToPosition() {
         val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
-        val splineLookup = mutableMapOf<String, PolynomialSplineFunction>()
-        val splineBuilder = SplineInterpolator()
-        val listOfPoints = mutableListOf(Pair(1.0, 1.0), Pair(3.0, 3.0), Pair(5.0, 5.0))
-        convertRopebwt2Ps4gFile.buildSpline(listOfPoints, splineBuilder, splineLookup, "chr1", "sample1")
+        val splineKnotLookup = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
+        val listOfPoints = mutableListOf(
+            Pair(1.0, 1.0),
+            Pair(3.0, 3.0),
+            Pair(5.0, 5.0),
+            Pair(7.0, 7.0),
+            Pair(9.0, 9.0)
+        )
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints, splineKnotLookup, "chr1", "sample1")
 
-        val listOfPoints2 = mutableListOf(Pair(1.0, 2.0), Pair(3.0, 4.0), Pair(5.0, 6.0))
-        convertRopebwt2Ps4gFile.buildSpline(listOfPoints2, splineBuilder, splineLookup, "chr1", "sample2")
+        val listOfPoints2 = mutableListOf(
+            Pair(1.0, 2.0),
+            Pair(3.0, 4.0),
+            Pair(5.0, 6.0),
+            Pair(7.0, 8.0),
+            Pair(9.0, 10.0)
+        )
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints2, splineKnotLookup, "chr1", "sample2")
 
-        val listOfPoints3 = mutableListOf(Pair(1.0, 3.0), Pair(3.0, 5.0), Pair(5.0, 7.0))
-        convertRopebwt2Ps4gFile.buildSpline(listOfPoints3, splineBuilder, splineLookup, "chr1", "sample3")
+        val listOfPoints3 = mutableListOf(
+            Pair(1.0, 3.0),
+            Pair(3.0, 5.0),
+            Pair(5.0, 7.0),
+            Pair(7.0, 9.0),
+            Pair(11.0, 13.0)
+        )
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints3, splineKnotLookup, "chr1", "sample3")
+
+        val splineLookup = SplineUtils.convertKnotsToSpline(splineKnotLookup)
 
         //single hit should return the position
         val singleHit = listOf(MEMHit("chr1_sample1", "+", 1))
@@ -141,7 +159,7 @@ class ConvertRopebwt2Ps4gFileTest {
         //multiple hits with a missing spline should return -1
         val missingSpline = listOf(MEMHit("chr1_sample1", "+", 3), MEMHit("chr1_sample2", "+", 3), MEMHit("chr1_sample3", "+", 10))
         val encodedMissingSpline = convertRopebwt2Ps4gFile.encodeHitsToPosition(missingSpline, splineLookup)
-        assertEquals(2, encodedMissingSpline.size)
+        assertEquals(3, encodedMissingSpline.size)
         assertEquals(Pair("chr1_sample1", 3), encodedMissingSpline[0])
         assertEquals(Pair("chr1_sample2", 4), encodedMissingSpline[1])
 
@@ -175,13 +193,26 @@ class ConvertRopebwt2Ps4gFileTest {
 
 
         //Now we test with making the hits pass
-        val splineLookup = mutableMapOf<String, PolynomialSplineFunction>()
-        val splineBuilder = SplineInterpolator()
-        val listOfPoints = mutableListOf(Pair(1.0, 1.0), Pair(3.0, 3.0), Pair(5.0, 5.0))
-        convertRopebwt2Ps4gFile.buildSpline(listOfPoints, splineBuilder, splineLookup, "chr1", "sample1")
+        val splineKnotLookup = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
+        val listOfPoints = mutableListOf(
+            Pair(1.0, 1.0),
+            Pair(3.0, 3.0),
+            Pair(5.0, 5.0),
+            Pair(7.0, 7.0),
+            Pair(9.0, 9.0)
+        )
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints, splineKnotLookup, "chr1", "sample1")
 
-        val listOfPoints2 = mutableListOf(Pair(1.0, 2.0), Pair(3.0, 4.0), Pair(5.0, 6.0))
-        convertRopebwt2Ps4gFile.buildSpline(listOfPoints2, splineBuilder, splineLookup, "chr1", "sample2")
+        val listOfPoints2 = mutableListOf(
+            Pair(1.0, 2.0),
+            Pair(3.0, 4.0),
+            Pair(5.0, 6.0),
+            Pair(7.0, 8.0),
+            Pair(9.0, 10.0)
+        )
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints2, splineKnotLookup, "chr1", "sample2")
+
+        val splineLookup = SplineUtils.convertKnotsToSpline(splineKnotLookup)
 
         val processedMems = convertRopebwt2Ps4gFile.processMemsForRead(memList, splineLookup, chrIndexMap, 19, 10, gameteToIdxMap)
 
@@ -207,14 +238,28 @@ class ConvertRopebwt2Ps4gFileTest {
             MEM("read1", 0, 18, 2, listOf(MEMHit("chr1_sample1", "+", 3), MEMHit("chr1_sample2", "+", 4)))
         )
 
-        //create a spline lookup
-        val splineLookup = mutableMapOf<String, PolynomialSplineFunction>()
-        val splineBuilder = SplineInterpolator()
-        val listOfPoints = mutableListOf(Pair(1.0, 1.0), Pair(3.0, 3.0), Pair(5.0, 5.0))
-        convertRopebwt2Ps4gFile.buildSpline(listOfPoints, splineBuilder, splineLookup, "chr1", "sample1")
+        // create a spline lookup (NOTE - need at least 5 observations so AkimaSplineInterpolator does not throw exception)
+        val splineKnotLookup = mutableMapOf<String, Pair<DoubleArray,DoubleArray>>()
+        val splineBuilder = AkimaSplineInterpolator()
+        val listOfPoints = mutableListOf(
+            Pair(1.0, 1.0),
+            Pair(3.0, 3.0),
+            Pair(5.0, 5.0),
+            Pair(7.0, 7.0),
+            Pair(9.0, 9.0)
+        )
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints, splineKnotLookup, "chr1", "sample1")
 
-        val listOfPoints2 = mutableListOf(Pair(1.0, 2.0), Pair(3.0, 4.0), Pair(5.0, 6.0))
-        convertRopebwt2Ps4gFile.buildSpline(listOfPoints2, splineBuilder, splineLookup, "chr1", "sample2")
+        val listOfPoints2 = mutableListOf(
+            Pair(1.0, 2.0),
+            Pair(3.0, 4.0),
+            Pair(5.0, 6.0),
+            Pair(7.0, 8.0),
+            Pair(9.0, 10.0)
+        )
+        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints2, splineKnotLookup, "chr1", "sample2")
+
+        val splineLookup = SplineUtils.convertKnotsToSpline(splineKnotLookup)
 
         val chrIndexMap = mapOf(Pair("chr1", 0), Pair("chr2", 1))
         val gameteToIdxMap = mapOf(Pair("sample1", 0), Pair("sample2", 1))
@@ -238,9 +283,6 @@ class ConvertRopebwt2Ps4gFileTest {
         assertEquals(2, countMap[Pair(2, listOf(0,1))])
     }
 
-    //buildPS4GData(ropebwtBed: String,  splineLookup: Map<String, PolynomialSplineFunction>, chrIndexMap:Map<String,Int>,
-    //                      gameteToIdxMap: Map<String,Int>,
-    //                      minMEMLength: Int, maxNumHits: Int) : Pair<List<PS4GData>, Map<SampleGamete,Int>>
     @Test
     fun testBuildPS4GData() {
         val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
@@ -251,7 +293,9 @@ class ConvertRopebwt2Ps4gFileTest {
             PS4GData(listOf(0),8, 1), PS4GData(listOf(0),12, 2)
         )
 
-        val (splineLookup, chrIndexMap, gameteToIdxMap) = convertRopebwt2Ps4gFile.buildSplineLookup(hvcfDir)
+        val (splineKnotLookup, chrIndexMap, gameteToIdxMap) = SplineUtils.buildSplineKnots(hvcfDir, "hvcf")
+
+        val splineLookup = SplineUtils.convertKnotsToSpline(splineKnotLookup)
 
         val ps4gData = convertRopebwt2Ps4gFile.buildPS4GData(ropebwtBed, splineLookup, chrIndexMap, gameteToIdxMap, 148, 10)
 
@@ -265,106 +309,4 @@ class ConvertRopebwt2Ps4gFileTest {
         }
 
     }
-
-    @Test
-    fun testBuildSpline() {
-        val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
-        //make a simple linear spline
-        val listOfPoints = mutableListOf(Pair(1.0, 1.0), Pair(3.0, 3.0), Pair(5.0, 5.0))
-        val splineBuilder = SplineInterpolator()
-        val splineMap = mutableMapOf<String, PolynomialSplineFunction>()
-
-        convertRopebwt2Ps4gFile.buildSpline(listOfPoints, splineBuilder, splineMap, "chr1", "sample1")
-
-        assertEquals(1, splineMap.size)
-        assertTrue(splineMap.containsKey("chr1_sample1"))
-        val spline = splineMap["chr1_sample1"]!!
-        assertEquals(1.0, spline.value(1.0))
-        assertEquals(3.0, spline.value(3.0))
-        assertEquals(5.0, spline.value(5.0))
-        assertEquals(2.0, spline.value(2.0), 0.0001)
-        assertEquals(4.0, spline.value(4.0), 0.0001)
-        assertFalse(spline.isValidPoint(10.0))
-
-
-        //make a spline with multiple values for the same x
-        //The code should remove one of them based on how it sees things
-        //This list of points should be the same as the previous one
-        val listOfPoints2 = mutableListOf(Pair(1.0, 1.0), Pair(3.0, 3.0), Pair(3.0, 4.0), Pair(5.0, 5.0))
-        convertRopebwt2Ps4gFile.buildSpline(listOfPoints2, splineBuilder, splineMap, "chr1", "sample2")
-
-        assertEquals(2, splineMap.size)
-        assertTrue(splineMap.containsKey("chr1_sample2"))
-        val spline2 = splineMap["chr1_sample2"]!!
-        assertEquals(1.0, spline2.value(1.0))
-        assertEquals(3.0, spline2.value(3.0))
-        assertEquals(5.0, spline2.value(5.0))
-        assertEquals(2.0, spline2.value(2.0), 0.0001)
-        assertEquals(4.0, spline2.value(4.0), 0.0001)
-        assertFalse(spline2.isValidPoint(10.0))
-
-
-    }
-
-    @Test
-    fun testCheckMapAndAddToIndex() {
-        val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
-        val stringToIndexMap = mutableMapOf(Pair("test1", 0), Pair("test2", 1))
-        convertRopebwt2Ps4gFile.checkMapAndAddToIndex(stringToIndexMap, "test3")
-        assertEquals(3, stringToIndexMap.size)
-        assertEquals(2, stringToIndexMap["test3"])
-
-        convertRopebwt2Ps4gFile.checkMapAndAddToIndex(stringToIndexMap, "test1")
-        assertEquals(3, stringToIndexMap.size)
-        assertEquals(0, stringToIndexMap["test1"])
-    }
-
-    @Test
-    fun testProcessHvcfFileIntoSplines() {
-        val inputFile = "data/test/ropebwt/testHVCFs/LineA.h.vcf"
-        val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
-        val splineMap = mutableMapOf<String, PolynomialSplineFunction>()
-        val chrIndexMap = mutableMapOf("1" to 0, "2" to 1)
-        val gameteIndexMap = mutableMapOf("LineA" to 0, "LineB" to 1)
-
-        convertRopebwt2Ps4gFile.processHvcfFileIntoSplines(File(inputFile), splineMap, chrIndexMap, gameteIndexMap)
-
-
-        //Test some of the values in the spline
-        val chr1Spline = splineMap["1_LineA"]!!
-
-        println(chr1Spline.value(1500.0))
-        println(chr1Spline.value(1500.0).toInt())
-        println(PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()))
-
-        assertEquals(0, PS4GUtils.decodePosition(chr1Spline.value(1.0).toInt()).position)
-        assertEquals(256, PS4GUtils.decodePosition(chr1Spline.value(256.0).toInt()).position)
-        assertEquals(768, PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()).position) // 1500/256 = 5
-        assertEquals(2560, PS4GUtils.decodePosition(chr1Spline.value(3000.0).toInt()).position) // 3000/256 = 11
-
-        assertFalse(chr1Spline.isValidPoint(30000.0))
-    }
-
-    //buildSplineLookup(hvcfDir: String) : Triple<Map<String, PolynomialSplineFunction>, Map<String,Int>, Map<String,Int>>
-    @Test
-    fun testBuildSplineLookup() {
-        val hvcfDir = "data/test/ropebwt/testHVCFs"
-        val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
-        val (splineMap, chrIndexMap, gameteIndexMap) = convertRopebwt2Ps4gFile.buildSplineLookup(hvcfDir)
-
-        assertEquals(2, splineMap.size)
-        assertEquals(2, chrIndexMap.size)
-        assertEquals(1, gameteIndexMap.size)
-
-        val chr1Spline = splineMap["1_LineA"]!!
-        assertEquals(0, PS4GUtils.decodePosition(chr1Spline.value(1.0).toInt()).position)
-        assertEquals(256, PS4GUtils.decodePosition(chr1Spline.value(256.0).toInt()).position)
-        assertEquals(768, PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()).position) // 1500/256 = 5
-        assertEquals(2560, PS4GUtils.decodePosition(chr1Spline.value(3000.0).toInt()).position) // 3000/256 = 11
-
-        assertFalse(chr1Spline.isValidPoint(30000.0))
-
-    }
-
-
 }

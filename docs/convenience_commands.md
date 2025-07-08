@@ -74,6 +74,8 @@ phg gvcf2hvcf \
 | `--conda-env-prefix` | Prefix for the Conda environment to use. If provided, this should be the full path to the Conda environment.        | _Current active Conda environment_ |                  |
 | `--db-path`          | Folder name where TileDB datasets and AGC record is stored. If not provided, the current working directory is used. | _Current working dir_              |                  |
 
+<br>
+<hr/>
 
 ### Convert hVCF files to gVCF files
 
@@ -102,6 +104,8 @@ phg hvcf2gvcf \
 | `--output-dir`       | Output directory for the gVCF files. If not provided, the current working directory is used.                        | _Current working dir_              |                  |
 | `--batch-size`       | Number of sample vcf files to export in a single batch from tiledb                                                  | `5`                                |                  |
 
+<br>
+<hr/>
 
 ### Create a GFF file from an imputed hVCF file
 
@@ -155,6 +159,8 @@ phg paths-to-gff \
     object that can be used for downstream purposes. See the [`PathsToGff`](https://github.com/maize-genetics/phg_v2/blob/main/src/main/kotlin/net/maizegenetics/phgv2/cli/PathsToGff.kt)
     class source code for further details.
 
+<br>
+<hr/>
 
 ### Create a PS4G file from read mapping data
 
@@ -180,7 +186,8 @@ phg convert-rm2ps4g \
 | `--output-dir`        | Output directory for the generated [PS4G](ps4g_specifications.md) file. | `""`          | :material-check: |
 | `--hvcf-dir`          | Directory containing hVCF files.                                        | `""`          | :material-check: |
 
-
+<br>
+<hr/>
 
 ### Create a PS4G file from ropebwt3 BED data
 
@@ -250,6 +257,8 @@ phg merge-gvcfs \
 | `--input-dir`  | Path to input gVCF file directory.         | `""`          | :material-check: |
 | `--output-dir` | Path and/or filename for merged gVCF file. | `""`          | :material-check: |
 
+<br>
+<hr/>
 
 ### Merge hVCF files
 
@@ -331,6 +340,8 @@ Mo18W
 Ki3
 ```
 
+<br>
+<hr/>
 
 ### Create a table of haplotype IDs by reference range
 
@@ -407,6 +418,53 @@ phg hapid-sample-table \
 
 ## :material-flask: Experimental
 
+### Run ropebwt3 indexing by full length chromosomes
+
+> Creates a ropeBWT3 index for a set of assemblies using the full 
+> length indexing method. Each FASTA is taken one at a time and is 
+> processed and indexed into the ropeBWT3 index. Once the initial 
+> index is finished, the `.fmr` index is converted to `.fmd` and the 
+> suffix array is built.
+
+**Command** - `rope-bwt-chr-index`
+
+**Example**
+
+```shell
+phg rope-bwt-chr-index \
+    --keyfile keyfile.txt \
+    --output-dir /path/to/output/bed/files/ \
+    --index-file-prefix phgIndex \
+    --threads 20 
+```
+
+**Parameters**
+
+| Parameter name        | Description                                                                                                                                               | Default value | Required?        |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
+| `--keyfile`           | Tab-delimited file containing 2 columns: `Fasta` and `SampleName`. `Fasta` is the full path to the FASTA file, and `SampleName` is the name for assembly. | _None_        | :material-check: |
+| `--output-dir`        | Output directory where the index files will be written.                                                                                                   | _None_        | :material-check: |
+| `--index-file-prefix` | Prefix for the ropebwt3 index file. This prefix will be added to the output directory and used for generated index files.                                 | _None_        | :material-check: |
+| `--threads`           | Number of threads to use for index creation.                                                                                                              | `3`           |                  |
+| `--delete-fmr-index`  | Delete the `.fmr` index file after converting to `.fmd`.                                                                                                  | `true`        |                  |
+| `--conda-env-prefix`  | Prefix for the Conda environment to use. If provided, this should be the full path to the Conda environment.                                              | `""`          |                  |
+
+!!! note
+    * `--keyfile` is a tab-delimited file with 2 columns with names 
+      `Fasta` and `SampleName`. `Fasta` needs the **full path** for each 
+      assembly FASTA file and `SampleName` needs to be the name you want 
+      included in the contig name. The first step of the indexer is to 
+      open up each FASTA file and rename the contigs to include the 
+      provided sample name separated by an '_' (e.g., `lineA_chr1`).
+    * `--index-file-prefix` is the prefix for all the output index files. 
+      This tool will make a number of files (some temporary) while it is 
+      running each with this prefix. **There should not be an extension 
+      here as this will be added as need be**.
+
+
+<br>
+<hr/>
+
 ### Initialize custom TileDB instance for hVCFs
 
 > Creates a TileDB array instance to house hVCF header data
@@ -426,6 +484,8 @@ phg init-hvcf-array \
 |----------------|----------------------------------------------------------------------------------------------------------------|-----------------------------|-----------|
 | `--db-path`    | Directory name under which TileDB datasets will be created. If this folder does not exist, it will be created. | _Current working directory_ |           |
 
+<br>
+<hr/>
 
 ### Load hVCF data into custom TileDB instance
 
@@ -449,6 +509,8 @@ phg load-hvcf \
 | `--db-path`    | Directory name under which TileDB datasets will be created. If this folder does not exist, it will be created. | _Current working directory_ |                  |
 | `--hvcf-dir`   | Full path to an hVCF file directory                                                                            | ""                          | :material-check: |
 
+<br>
+<hr/>
 
 ### Query hVCF arrays
 

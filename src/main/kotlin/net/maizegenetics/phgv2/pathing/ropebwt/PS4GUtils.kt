@@ -21,6 +21,7 @@ class PS4GUtils {
                 writer.write("#PS4G\n")
                 header.forEach { writer.write("#$it\n") }
                 writer.write("#Command: $cliCommand\n")
+                writer.write("#TotalUniqueCounts: ${pS4GData.map { it.count }.sum()}\n")
                 writer.write("#gamete\tgameteIndex\tcount\n")
                 sampleGameteCount.forEach { (sampleGamete, count) ->
                     writer.write("#$sampleGamete\t${gameteToIdxMap[sampleGamete]}\t$count\n")
@@ -56,9 +57,25 @@ class PS4GUtils {
 
         //This is a lossy function as we /256 the position during encoding.  So it will be in a bin of 256
         fun decodePosition(encodedPos : Int) : Position {
-            val idx = encodedPos shr 24
-            val pos = (encodedPos and 0x0FFFFFFF) * 256
+            val idx = encodedPos.toUInt() shr 24
+            val pos = (encodedPos and 0x0FFFFFF) * 256
             return Position("$idx", pos)
+        }
+
+        /**
+         * Function to convert the count map to a PS4GData class for easy export
+         */
+        fun convertCountMapToPS4GData(countMap: Map<Pair<Int,List<Int>>, Int>, sortPositions: Boolean = true) : List<PS4GData> {
+            return if(sortPositions) {
+                countMap.map { (pair, count) ->
+                    PS4GData(pair.second.sorted(), pair.first, count)
+                }.sortedBy { PS4GUtils.decodePosition(it.pos) } //Need to decode it because chromosome might be in an unexpected order
+            }
+            else {
+                countMap.map { (pair, count) ->
+                    PS4GData(pair.second, pair.first, count)
+                }
+            }
         }
     }
 }

@@ -1,5 +1,7 @@
 package net.maizegenetics.phgv2.utils
 
+import biokotlin.genome.AssemblyVariantInfo
+import biokotlin.genome.MAFToGVCF
 import biokotlin.seq.NucSeq
 import biokotlin.util.bufferedReader
 import com.google.common.collect.Range
@@ -21,30 +23,12 @@ import java.nio.file.Paths
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import java.util.*
-import kotlin.collections.LinkedHashSet
 import com.google.common.hash.Hashing
 import java.nio.charset.StandardCharsets
 import net.openhft.hashing.LongHashFunction
 
 
-
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.VariantLoadingUtils")
-
-// We could use the BioKotlin SeqPosition, but it is heavier than we need
-// as it contains a NucSeqRecord to get the chromosome name, and that includes sequence
-// It needs to be Comparable to be used in a RangeSet
-data class Position (val contig: String, val position: Int) : Comparable<Position> {
-    override fun compareTo(other: Position): Int {
-        if (this.contig == other.contig) {
-            return this.position.compareTo(other.position)
-        }
-        return this.contig.compareTo(other.contig)
-    }
-
-    override fun toString(): String {
-        return "$contig:$position"
-    }
-}
 
 /**
  * Function to write out the Variant Contexts to a file.
@@ -62,6 +46,35 @@ fun exportVariantContext(sampleName: String, variantContexts: List<VariantContex
     addSequenceDictionary(header, refGenomeSequence)
     writer.writeHeader(header)
     for(variant in variantContexts) {
+        writer.add(variant)
+    }
+
+    writer.close()
+}
+
+/**
+ * Function to Convert VariantInfos then write out the Variant Contexts to a file in a RAM effective way.
+ */
+fun exportVariantInfo(sampleName: String, variantInfos: List<AssemblyVariantInfo>, outputFileName: String,
+                      refGenomeSequence: Map<String, NucSeq>, altHeaderLines: Set<VCFHeaderLine>, mafToGVCFObject: MAFToGVCF) {
+    val writer = VariantContextWriterBuilder()
+        .unsetOption(Options.INDEX_ON_THE_FLY)
+        .setOutputFile(File(outputFileName))
+        .setOutputFileType(VariantContextWriterBuilder.OutputType.VCF)
+        .setOption(Options.ALLOW_MISSING_FIELDS_IN_HEADER)
+        .build()
+
+    val header = createGenericHeader(listOf(sampleName),altHeaderLines)
+    addSequenceDictionary(header, refGenomeSequence)
+    writer.writeHeader(header)
+    for(variantInfo in variantInfos) {
+        val variant = mafToGVCFObject.convertVariantInfoToContext(
+            sampleName,
+            variantInfo,
+            outJustGT = false,
+            delAsSymbolic = false,
+            maxDeletionSize = 0
+        )
         writer.add(variant)
     }
 
@@ -403,7 +416,7 @@ fun verifyURI(dbPath:String,uri:String,condaEnvPrefix:String): Boolean {
     if (File(dataset).exists()  && Files.isDirectory(Paths.get(dataset))){
         // check if is a tiledb dataset
         var command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix,"tiledbvcf","stat","--uri",dataset)
-        else mutableListOf("conda","run","-n","phgv2-conda","tiledbvcf","stat","--uri",dataset)
+        else mutableListOf("conda","run","-n","phgv2-tiledb","tiledbvcf","stat","--uri",dataset)
 
         var builder = ProcessBuilder(command)
         var redirectOutput = tempDir + "/tiledb_statURI_output.log"
