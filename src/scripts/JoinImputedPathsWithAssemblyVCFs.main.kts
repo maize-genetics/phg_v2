@@ -1,4 +1,4 @@
-@file:DependsOn("net.maizegenetics:tassel:5.2.95")
+@file:DependsOn("net.maizegenetics:tassel:5.2.96")
 @file:DependsOn("org.biokotlin:biokotlin:0.23")
 @file:DependsOn("com.google.guava:guava:33.1.0-jre")
 
@@ -168,11 +168,27 @@ fun processRange(pos: Position, line: String, vcfFilename: String, indelToMissin
 
     // Set the genotypes for each sample in the pangenome
     val genotype = GenotypeCallTableBuilder.getUnphasedNucleotideGenotypeBuilder(numSamples, numSites)
-    hapids.forEachIndexed { i, hapid ->
-        if (hapid == ".") return@forEachIndexed
-        val sampleIndex =
-            pangenomeHapidToSample[hapid] ?: error("No pangenome sample found for hapid: $hapid at position: $pos")
-        genotype.setBaseRangeForTaxon(i, 0, pangenomeGenotypesBySample[sampleIndex])
+    hapids.forEachIndexed { i, hapidsSeparatedByComma ->
+        val alleles = hapidsSeparatedByComma.split(",")
+        require(alleles.isNotEmpty() && alleles.size <= 2) {
+            "Invalid genotype format for sample $i at position $pos: $genotype"
+        }
+        val genotypeResult = byteArrayOf(GenotypeTable.UNKNOWN_ALLELE, GenotypeTable.UNKNOWN_ALLELE)
+        if (alleles[0] != ".") {
+            val sampleIndex =
+                pangenomeHapidToSample[alleles[0]]
+                    ?: error("No pangenome sample found for hapid: $alleles[0] at position: $pos")
+            genotypeResult[0] = pangenomeGenotypesBySample[sampleIndex][0]
+        }
+        if (alleles.size > 1 && alleles[1] != ".") {
+            val sampleIndex =
+                pangenomeHapidToSample[alleles[1]]
+                    ?: error("No pangenome sample found for hapid: $alleles[1] at position: $pos")
+            genotypeResult[1] = pangenomeGenotypesBySample[sampleIndex][0]
+        } else {
+            genotypeResult[1] = genotypeResult[0]
+        }
+        genotype.setBaseRangeForTaxon(i, 0, genotypeResult)
     }
 
     val taxon = TaxaListBuilder().addAll(imputedTable.samples).build()
