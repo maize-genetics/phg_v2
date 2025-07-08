@@ -11,6 +11,7 @@ import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.apache.logging.log4j.LogManager
 import java.io.*
+import kotlin.random.Random
 
 @Serializable
 data class SplineKnotLookup(
@@ -368,12 +369,25 @@ class SplineUtils{
                 val numPointsToRemove = listOfPoints.size - maxNumPoints
 
                 if(numPointsToRemove > 0) {
-                    (0 until numPointsToRemove).forEach {
-                        val randomIndex = (0 until listOfPoints.size).random()
-                        listOfPoints.removeAt(randomIndex)
+                    //Build a list of unique indices to remove
+                    val indicesToRemove = mutableSetOf<Int>()
+                    val random = Random(12345)
+                    while (indicesToRemove.size < numPointsToRemove) {
+                        val randomIndex = random.nextInt(listOfPoints.size)
+                        if(!indicesToRemove.contains(randomIndex)) {
+                            indicesToRemove.add(randomIndex)
+                        }
                     }
+
+                    listOfPoints.filterIndexed { index, pair -> !indicesToRemove.contains(index) }
+                        .let { filteredList ->
+                            map[entry.key] = filteredList.toMutableList()
+                        }
+
                 }
-                map[entry.key] = listOfPoints
+                else {
+                    map[entry.key] = listOfPoints
+                }
             }
         }
 
