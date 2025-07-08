@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.int
+import com.github.ajalt.clikt.parameters.types.long
 import net.maizegenetics.phgv2.cli.logCommand
 import org.apache.logging.log4j.LogManager
 
@@ -34,13 +35,17 @@ class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs
     val contigList by option(help = "List of chromosomes to include in the splines.  If not provided, all chromosomes will be included.")
         .default("")
 
+    val randomSeed by option(help = "Random seed for downsampling the number of points per chromosome.  If not provided, the seed 12345 will be used.")
+        .long()
+        .default(12345)
+
     override fun run() {
         logCommand(this)
 
         myLogger.info("Building Spline Knots from $vcfType files in $vcfDir")
         val contigSet = contigList.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
 
-        val splineKnotLookup = SplineUtils.buildSplineKnots(vcfDir, vcfType, minIndelLength, maxNumPointsPerChrom, contigSet)
+        val splineKnotLookup = SplineUtils.buildSplineKnots(vcfDir, vcfType, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
 
         myLogger.info("Writing out spline knots to $outputFile")
         SplineUtils.writeSplineLookupToFile(splineKnotLookup, outputFile)

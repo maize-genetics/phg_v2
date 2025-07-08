@@ -34,14 +34,14 @@ class SplineUtils{
          * (http://doi.acm.org/10.1145/321607.321609) implemented via the Apache Commons Math3 library.
          * This does not build the full splines just yet but rather sets up the spline knots for each chromosome.
          */
-        fun buildSplineKnots(vcfDir: String, vcfType: String, minIndelLength: Int = 10, maxNumPointsPerChrom: Int = 250_000, contigSet : Set<String> = emptySet()) : SplineKnotLookup {
+        fun buildSplineKnots(vcfDir: String, vcfType: String, minIndelLength: Int = 10, maxNumPointsPerChrom: Int = 250_000, contigSet : Set<String> = emptySet(), randomSeed: Long = 12345) : SplineKnotLookup {
             val vcfFiles = buildVCFFileList(vcfDir, vcfType)
             val splineKnotMap = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
             val chrIndexMap = mutableMapOf<String,Int>()
             val gameteIndexMap = mutableMapOf<String,Int>()
             for (vcfFile in vcfFiles!!) {
                 myLogger.info("Reading ${vcfFile.name}")
-                processVCFFileIntoSplineKnots(vcfFile, vcfType, splineKnotMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet)
+                processVCFFileIntoSplineKnots(vcfFile, vcfType, splineKnotMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
             }
             myLogger.info("Done reading VCF files")
             myLogger.info("Number of splines: ${splineKnotMap.size}")
@@ -74,13 +74,14 @@ class SplineUtils{
             gameteIndexMap: MutableMap<String, Int>,
             minIndelLength: Int=10,
             maxNumPointsPerChrom: Int = 250_000,
-            contigSet: Set<String> = emptySet()
+            contigSet: Set<String> = emptySet(),
+            randomSeed: Long = 12345
         ) {
             if(vcfType == "hvcf") {
-                processHvcfFileIntoSplineKnots(vcfFile, splineKnotMap, chrIndexMap, gameteIndexMap, maxNumPointsPerChrom, contigSet)
+                processHvcfFileIntoSplineKnots(vcfFile, splineKnotMap, chrIndexMap, gameteIndexMap, maxNumPointsPerChrom, contigSet, randomSeed)
             }
             else if(vcfType == "gvcf") {
-                processGvcfFileIntoSplineKnots(vcfFile, splineKnotMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet)
+                processGvcfFileIntoSplineKnots(vcfFile, splineKnotMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
             }
             else {
                 throw IllegalArgumentException("Unknown VCF type $vcfType")
@@ -97,7 +98,8 @@ class SplineUtils{
             chrIndexMap : MutableMap<String,Int>,
             gameteIndexMap: MutableMap<String, Int>,
             maxNumPointsPerChrom: Int = 250_000,
-            contigSet: Set<String> = emptySet()
+            contigSet: Set<String> = emptySet(),
+            randomSeed: Long = 12345
         ) {
             VCFFileReader(hvcfFile, false).use { reader ->
                 val header = reader.header
@@ -152,7 +154,7 @@ class SplineUtils{
 
                 //build the splines
                 //Downsample the number of points
-                downsamplePoints(mapOfASMChrToListOfPoints, maxNumPointsPerChrom)
+                downsamplePoints(mapOfASMChrToListOfPoints, maxNumPointsPerChrom, randomSeed)
 
                 //Now we need to build the splines for each of the assembly chromosomes
                 //loop through each of the assembly coordinates and make splines for each
@@ -173,7 +175,8 @@ class SplineUtils{
             gameteIndexMap: MutableMap<String, Int>,
             minIndelLength: Int=10,
             maxNumPoints: Int = 250_000,
-            contigSet: Set<String> = emptySet()
+            contigSet: Set<String> = emptySet(),
+            randomSeed: Long = 12345
         ) {
             var nextIndex = 0
 
@@ -339,7 +342,7 @@ class SplineUtils{
                 flushBlock()
 
                 //Downsample the number of points
-                downsamplePoints(mapOfASMChrToListOfPoints, maxNumPoints)
+                downsamplePoints(mapOfASMChrToListOfPoints, maxNumPoints,randomSeed)
 
                 //loop through each of the assembly coordinates and make splines for each
                 for (entry in mapOfASMChrToListOfPoints.entries) {
@@ -363,7 +366,7 @@ class SplineUtils{
             listOfPoints.add(Pair(asmPos.toDouble(), refPos.toDouble()))
         }
 
-        fun downsamplePoints(map:MutableMap<String, MutableList<Pair<Double,Double>>>, maxNumPoints: Int = 250_000) {
+        fun downsamplePoints(map:MutableMap<String, MutableList<Pair<Double,Double>>>, maxNumPoints: Int = 250_000, randomSeed : Long = 12345) {
             for (entry in map.entries) {
                 val listOfPoints = entry.value
                 val numPointsToRemove = listOfPoints.size - maxNumPoints
@@ -371,7 +374,7 @@ class SplineUtils{
                 if(numPointsToRemove > 0) {
                     //Build a list of unique indices to remove
                     val indicesToRemove = mutableSetOf<Int>()
-                    val random = Random(12345)
+                    val random = Random(randomSeed)
                     while (indicesToRemove.size < numPointsToRemove) {
                         val randomIndex = random.nextInt(listOfPoints.size)
                         if(!indicesToRemove.contains(randomIndex)) {
