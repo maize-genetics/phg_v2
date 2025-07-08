@@ -33,7 +33,7 @@ object VariantSetsService {
         File(variantSetsDir).mkdirs()
     }
 
-    fun getVariantSet(): VariantSet {
+    suspend fun getVariantSet(): VariantSet {
 
         val availableFormats = VariantSetAvailableFormats(DataFormatEnum.VCF, fileFormat = FileFormatEnum.TEXT_TSV, fileURL = "${StartServer.serverURL()}$allSamplesFileName")
 
@@ -54,7 +54,7 @@ object VariantSetsService {
 
         val exportVcfCommand = "--db-path ${BrAPIConfig.tiledbURI} --sample-names $sampleNames -o $individualSamplesDir"
         myLogger.info("createSingleSampleHVCFs: ExportVcf Command: $exportVcfCommand")
-        val result = ExportVcf().test(exportVcfCommand)
+        ExportVcf().test(exportVcfCommand)
 
     }
 
@@ -65,11 +65,9 @@ object VariantSetsService {
     fun createAllSamplesHVCF(): String {
 
         createSingleSampleHVCFs()
-
         val graph = HaplotypeGraph(individualSamplesDir)
-
+        File(variantSetsDir).mkdirs()
         exportMultiSampleHVCF(graph, allSamplesHvcf)
-
         return allSamplesHvcf
 
     }
