@@ -883,6 +883,44 @@ class SplineUtils{
         }
 
         /**
+         * Function to load in the spline knot lookups using the directory of a spline file for each assembly.
+         * This adds a marginal amount of time to processing but allows for more flexibility and faster writes.
+         */
+        fun loadSplineKnotLookupFromDirectory(inputDir: String) : SplineKnotLookup {
+            //load in the indexMaps
+            //index_maps.json.gz
+            val indexMapsFile = "${inputDir}/index_maps.json.gz"
+            var indexMaps: IndexMaps
+            bufferedReader(indexMapsFile).use { reader ->
+                indexMaps = Json.decodeFromString(IndexMaps.serializer(), reader.readText())
+            }
+
+            val allSplineKnots = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
+
+            //get list of all spline knot json files
+            //"${outputDir}/${vcfFile.nameWithoutExtension}_spline_knots.json.gz"
+
+            val splineKnotFiles = File(inputDir).listFiles { file ->
+                file.isFile && file.name.endsWith("_spline_knots.json.gz")
+            } ?: throw IllegalArgumentException("No spline knot files found in directory $inputDir")
+
+            for(splineKnotFile in splineKnotFiles) {
+                bufferedReader(splineKnotFile.toString()).use { reader ->
+                    val splineKnots = Json.decodeFromString<Map<String, Pair<DoubleArray, DoubleArray>>>(reader.readText())
+                    allSplineKnots.putAll(splineKnots)
+                }
+            }
+
+            return SplineKnotLookup(
+                allSplineKnots,
+                indexMaps.chrIndexMap,
+                indexMaps.gameteIndexMap
+            )
+
+        }
+
+
+        /**
          * Function that converts a Spline Knot Map into a Spline Map
          */
         fun convertKnotsToSpline(knots: Map<String, Pair<DoubleArray, DoubleArray>>) : Map<String, PolynomialSplineFunction> {
