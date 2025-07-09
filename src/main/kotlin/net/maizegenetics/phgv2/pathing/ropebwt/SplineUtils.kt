@@ -887,9 +887,24 @@ class SplineUtils{
          * This adds a marginal amount of time to processing but allows for more flexibility and faster writes.
          */
         fun loadSplineKnotLookupFromDirectory(inputDir: String) : SplineKnotLookup {
+            //Check to see if there is a directory
+            val inputDirectory = File(inputDir)
+            if (!inputDirectory.isDirectory) {
+                throw IllegalArgumentException("Input directory $inputDir is not a directory")
+            }
+
+
+
             //load in the indexMaps
             //index_maps.json.gz
             val indexMapsFile = "${inputDir}/index_maps.json.gz"
+
+            //Check to see if we have index maps
+            if (!File(indexMapsFile).exists()) {
+                throw IllegalArgumentException("Index maps file $indexMapsFile does not exist")
+            }
+
+
             var indexMaps: IndexMaps
             bufferedReader(indexMapsFile).use { reader ->
                 indexMaps = Json.decodeFromString(IndexMaps.serializer(), reader.readText())
@@ -903,6 +918,11 @@ class SplineUtils{
             val splineKnotFiles = File(inputDir).listFiles { file ->
                 file.isFile && file.name.endsWith("_spline_knots.json.gz")
             } ?: throw IllegalArgumentException("No spline knot files found in directory $inputDir")
+
+            //Make sure we have at least one spline knot file to process
+            if (splineKnotFiles.isEmpty()) {
+                throw IllegalArgumentException("No spline knot files found in directory $inputDir")
+            }
 
             for(splineKnotFile in splineKnotFiles) {
                 bufferedReader(splineKnotFile.toString()).use { reader ->

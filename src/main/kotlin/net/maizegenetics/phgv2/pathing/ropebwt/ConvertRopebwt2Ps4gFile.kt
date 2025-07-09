@@ -29,7 +29,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     val outputDir by option(help = "Output directory")
         .required()
 
-   val splineKnotFile by option(help = "Spline Knot file")
+   val splineKnotDir by option(help = "Spline Knot Directory")
         .required()
 
     val minMemLength by option(help = "Minimum length of a match to be considered a match.")
@@ -54,7 +54,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         myLogger.info("Convert Ropebwt to PS4G")
 
         myLogger.info("Loading Spline Knot File")
-        val (splineKnots, chrIndexMap, gameteIndexMap) = SplineUtils.loadSplineKnotLookupFromFile(splineKnotFile)
+        val (splineKnots, chrIndexMap, gameteIndexMap) = SplineUtils.loadSplineKnotLookupFromDirectory(splineKnotDir)
 
         myLogger.info("Converting Spline Knots to Splines")
         val splineLookup = SplineUtils.convertKnotsToSpline(splineKnots)
