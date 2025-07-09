@@ -168,7 +168,10 @@ class SplineUtilsTest {
     @Test
     fun testBuildSplineLookup() {
         val hvcfDir = "data/test/ropebwt/testHVCFs"
-        val (splineKnotMap, chrIndexMap, gameteIndexMap) = SplineUtils.buildSplineKnots(hvcfDir,"hvcf")
+        //(vcfDir: String, vcfType: String, outputDir: String ,minIndelLength: Int = 10, maxNumPointsPerChrom: Int = 250_000, contigSet : Set<String> = emptySet(), randomSeed: Long = 12345)
+        SplineUtils.buildSplineKnots(hvcfDir,"hvcf", tempTestDir)
+
+        val (splineKnotMap, chrIndexMap, gameteIndexMap) = SplineUtils.loadSplineKnotLookupFromDirectory(tempTestDir)
 
         val splineMap = SplineUtils.convertKnotsToSpline(splineKnotMap)
 
@@ -184,12 +187,16 @@ class SplineUtilsTest {
 
         assertFalse(chr1Spline.isValidPoint(30000.0))
 
+        resetDirs()
     }
 
     @Test
     fun testSerializingSplineLookup() {
         val hvcfDir = "data/test/ropebwt/testHVCFs"
-        val (splineKnotMap, chrIndexMap, gameteIndexMap) = SplineUtils.buildSplineKnots(hvcfDir,"hvcf")
+
+        SplineUtils.buildSplineKnots(hvcfDir,"hvcf", tempTestDir)
+
+        val (splineKnotMap, chrIndexMap, gameteIndexMap) = SplineUtils.loadSplineKnotLookupFromDirectory(tempTestDir)
 
         val splineMap = SplineUtils.convertKnotsToSpline(splineKnotMap)
 
@@ -233,6 +240,8 @@ class SplineUtilsTest {
         }
         assertEquals(chrIndexMap.size, chrIndexMap2.size)
         assertEquals(gameteIndexMap.size, gameteIndexMap2.size)
+
+        resetDirs()
     }
 
     @Test
@@ -275,7 +284,7 @@ class SplineUtilsTest {
         for(i in 1 until sortedPoints.size) {
             assertEquals(0, PS4GUtils.decodePosition(sortedPoints[i].second.toInt()).contig.toInt())
             // We ask for 4 points so they should be 2500, 5000, 7500, 10000.
-            // We bin them by dividing by 256 and multiplying by 256 to get the binned posisiont
+            // We bin them by dividing by 256 and multiplying by 256 to get the binned position
             assertEquals(((i * 2500)/256) * 256, PS4GUtils.decodePosition(sortedPoints[i].second.toInt()).position)
         }
 
@@ -295,7 +304,7 @@ class SplineUtilsTest {
         for(i in 1 until sortedPointsNegative.size) {
             assertEquals(1, PS4GUtils.decodePosition(sortedPointsNegative[i].second.toInt()).contig.toInt())
             // We ask for 4 points so they should be 10000. 7500, 5000, 2500, 0
-            // We bin them by dividing by 256 and multiplying by 256 to get the binned posisiont
+            // We bin them by dividing by 256 and multiplying by 256 to get the binned position
             assertEquals(((10001 - (i * 2500))/256) * 256, PS4GUtils.decodePosition(sortedPointsNegative[i].second.toInt()).position)
         }
 

@@ -9,6 +9,7 @@ import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
 import net.maizegenetics.phgv2.cli.logCommand
 import org.apache.logging.log4j.LogManager
+import java.io.File
 
 class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs or hVCFs")  {
 
@@ -21,7 +22,7 @@ class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs
         .choice("hvcf","gvcf")
         .default("hvcf")
 
-    val outputFile by option(help = "Output file")
+    val outputDir by option(help = "Output Directory to write the spline knots to.")
         .required()
 
     val minIndelLength by option(help="Minimum length of an indel to break up the running block for spline creation of gvcfs.  If --vcf-type is hvcf this option is ignored.")
@@ -42,13 +43,32 @@ class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs
     override fun run() {
         logCommand(this)
 
-        myLogger.info("Building Spline Knots from $vcfType files in $vcfDir")
+        //Check to see if outputDir exists, if not create it
+        if( !File(outputDir).exists() ) {
+            myLogger.info("Output directory $outputDir does not exist, creating it.")
+            File(outputDir).mkdirs()
+        }
+
+
+        myLogger.info("Building Spline Knots from $vcfType files in $vcfDir and writing Knot Files to $outputDir")
         val contigSet = contigList.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
 
-        val splineKnotLookup = SplineUtils.buildSplineKnots(vcfDir, vcfType, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
+//        val splineKnotLookup = SplineUtils.buildSplineKnots(vcfDir, vcfType, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
+//
+//        myLogger.info("Writing out spline knots to $outputFile")
+//        SplineUtils.writeSplineLookupToFile(splineKnotLookup, outputFile)
 
-        myLogger.info("Writing out spline knots to $outputFile")
-        SplineUtils.writeSplineLookupToFile(splineKnotLookup, outputFile)
+        SplineUtils.buildSplineKnots(
+            vcfDir,
+            vcfType,
+            outputDir,
+            minIndelLength,
+            maxNumPointsPerChrom,
+            contigSet,
+            randomSeed
+        )
+
+        myLogger.info("Spline Knot building complete.")
     }
 
 }

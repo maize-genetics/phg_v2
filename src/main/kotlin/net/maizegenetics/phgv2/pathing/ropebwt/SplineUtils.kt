@@ -40,28 +40,6 @@ class SplineUtils{
          * (http://doi.acm.org/10.1145/321607.321609) implemented via the Apache Commons Math3 library.
          * This does not build the full splines just yet but rather sets up the spline knots for each chromosome.
          */
-        fun buildSplineKnots(vcfDir: String, vcfType: String, minIndelLength: Int = 10, maxNumPointsPerChrom: Int = 250_000, contigSet : Set<String> = emptySet(), randomSeed: Long = 12345) : SplineKnotLookup {
-            val vcfFiles = buildVCFFileList(vcfDir, vcfType)
-            val splineKnotMap = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
-            val chrIndexMap = mutableMapOf<String,Int>()
-            val gameteIndexMap = mutableMapOf<String,Int>()
-            for (vcfFile in vcfFiles!!) {
-                myLogger.info("Reading ${vcfFile.name}")
-                processVCFFileIntoSplineKnots(vcfFile, vcfType, splineKnotMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
-            }
-            myLogger.info("Done reading VCF files")
-            myLogger.info("Number of splines: ${splineKnotMap.size}")
-            myLogger.info("Number of chromosomes: ${chrIndexMap.size}")
-            myLogger.info("Number of gametes: ${gameteIndexMap.size}")
-            return SplineKnotLookup(splineKnotMap, chrIndexMap, gameteIndexMap)
-        }
-
-        /**
-         * Function to build spline lookups from the hvcf files in the directory.
-         * This will compute Cubic splines based on the Akima algorithm, as originally formulated by Hiroshi Akima, 1970
-         * (http://doi.acm.org/10.1145/321607.321609) implemented via the Apache Commons Math3 library.
-         * This does not build the full splines just yet but rather sets up the spline knots for each chromosome.
-         */
         fun buildSplineKnots(vcfDir: String, vcfType: String, outputDir: String ,minIndelLength: Int = 10, maxNumPointsPerChrom: Int = 250_000, contigSet : Set<String> = emptySet(), randomSeed: Long = 12345) {
             val vcfFiles = buildVCFFileList(vcfDir, vcfType)
 

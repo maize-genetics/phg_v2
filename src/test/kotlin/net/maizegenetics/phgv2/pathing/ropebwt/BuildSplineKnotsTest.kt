@@ -11,7 +11,7 @@ class BuildSplineKnotsTest {
     fun testCliktParams() {
         val buildSplineKnots = BuildSplineKnots()
 
-        val noVcfDir = buildSplineKnots.test("--output-file dummyFile.json.gz")
+        val noVcfDir = buildSplineKnots.test("--output-dir ./knotFiles/")
         assertEquals(1, noVcfDir.statusCode)
         assertEquals("Usage: build-spline-knots [<options>]\n\n" +
                 "Error: missing option --vcf-dir\n", noVcfDir.stderr)
@@ -19,7 +19,7 @@ class BuildSplineKnotsTest {
         val noOutputFile = buildSplineKnots.test("--vcf-dir testDir")
         assertEquals(1, noOutputFile.statusCode)
         assertEquals("Usage: build-spline-knots [<options>]\n\n" +
-                "Error: missing option --output-file\n", noOutputFile.stderr)
+                "Error: missing option --output-dir\n", noOutputFile.stderr)
     }
 
     fun oldSplitter(chrList: String): Set<String> =
