@@ -199,16 +199,18 @@ fun processRange(pos: Position, line: String, vcfFilename: String, indelToMissin
             }
         }
 
-        if (alleles.size > 1 && alleles[1] != ".") {
-            val sampleIndex =
-                pangenomeHapidToSample[alleles[1]]
-                    ?: error("No pangenome sample found for hapid: $alleles[1] at position: $pos")
-            for (i in pangenomeGenotypesBySample[sampleIndex].indices) {
-                val rightFourBits = (pangenomeGenotypesBySample[sampleIndex][i].toInt() and 0xF0) ushr 4
-                val leftFourBits = genotypeFromTaxon[i].toInt() and 0xF0
-                genotypeFromTaxon[i] = (leftFourBits or rightFourBits).toByte()
+        if (alleles.size > 1) {
+            if (alleles[1] != ".") {
+                val sampleIndex =
+                    pangenomeHapidToSample[alleles[1]]
+                        ?: error("No pangenome sample found for hapid: $alleles[1] at position: $pos")
+                for (i in pangenomeGenotypesBySample[sampleIndex].indices) {
+                    val rightFourBits = (pangenomeGenotypesBySample[sampleIndex][i].toInt() and 0xF0) ushr 4
+                    val leftFourBits = genotypeFromTaxon[i].toInt() and 0xF0
+                    genotypeFromTaxon[i] = (leftFourBits or rightFourBits).toByte()
+                }
             }
-        } else {
+        } else if (alleles[0] != ".") {
             for (i in genotypeFromTaxon.indices) {
                 val leftFourBits = (genotypeFromTaxon[i].toInt() and 0xF0)
                 val rightFourBits = leftFourBits ushr 4
