@@ -179,26 +179,45 @@ fun processRange(pos: Position, line: String, vcfFilename: String, indelToMissin
     // Set the genotypes for each sample in the pangenome
     val genotype = GenotypeCallTableBuilder.getUnphasedNucleotideGenotypeBuilder(numSamples, numSites)
     hapids.forEachIndexed { i, hapidsSeparatedByComma ->
+
         val alleles = hapidsSeparatedByComma.split(",")
         require(alleles.isNotEmpty() && alleles.size <= 2) {
             "Invalid genotype format for sample $i at position $pos: $genotype"
         }
-        val genotypeResult = byteArrayOf(GenotypeTable.UNKNOWN_ALLELE, GenotypeTable.UNKNOWN_ALLELE)
+
+        val genotypeFromTaxon = ByteArray(numSites) { GenotypeTable.UNKNOWN_DIPLOID_ALLELE }
+
         if (alleles[0] != ".") {
             val sampleIndex =
                 pangenomeHapidToSample[alleles[0]]
                     ?: error("No pangenome sample found for hapid: $alleles[0] at position: $pos")
-            genotypeResult[0] = pangenomeGenotypesBySample[sampleIndex][0]
+            pangenomeGenotypesBySample[sampleIndex]
+            for (i in pangenomeGenotypesBySample[sampleIndex].indices) {
+                val leftFourBits = (pangenomeGenotypesBySample[sampleIndex][i].toInt() and 0xF0)
+                val rightFourBits = genotypeFromTaxon[i].toInt() and 0x0F
+                genotypeFromTaxon[i] = (leftFourBits or rightFourBits).toByte()
+            }
         }
+
         if (alleles.size > 1 && alleles[1] != ".") {
             val sampleIndex =
                 pangenomeHapidToSample[alleles[1]]
                     ?: error("No pangenome sample found for hapid: $alleles[1] at position: $pos")
-            genotypeResult[1] = pangenomeGenotypesBySample[sampleIndex][0]
+            for (i in pangenomeGenotypesBySample[sampleIndex].indices) {
+                val rightFourBits = (pangenomeGenotypesBySample[sampleIndex][i].toInt() and 0xF0) ushr 4
+                val leftFourBits = genotypeFromTaxon[i].toInt() and 0xF0
+                genotypeFromTaxon[i] = (leftFourBits or rightFourBits).toByte()
+            }
         } else {
-            genotypeResult[1] = genotypeResult[0]
+            for (i in genotypeFromTaxon.indices) {
+                val leftFourBits = (genotypeFromTaxon[i].toInt() and 0xF0)
+                val rightFourBits = leftFourBits ushr 4
+                genotypeFromTaxon[i] = (leftFourBits or rightFourBits).toByte()
+            }
         }
-        genotype.setBaseRangeForTaxon(i, 0, genotypeResult)
+
+        genotype.setBaseRangeForTaxon(i, 0, genotypeFromTaxon)
+
     }
 
     val taxon = TaxaListBuilder().addAll(imputedTable.samples).build()
