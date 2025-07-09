@@ -106,28 +106,6 @@ class SplineUtils{
         private fun processVCFFileIntoSplineKnots(
             vcfFile: File,
             vcfType: String,
-            splineKnotMap: MutableMap<String, Pair<DoubleArray, DoubleArray>>,
-            chrIndexMap: MutableMap<String, Int>,
-            gameteIndexMap: MutableMap<String, Int>,
-            minIndelLength: Int=10,
-            maxNumPointsPerChrom: Int = 250_000,
-            contigSet: Set<String> = emptySet(),
-            randomSeed: Long = 12345
-        ) {
-            if(vcfType == "hvcf") {
-                processHvcfFileIntoSplineKnots(vcfFile, splineKnotMap, chrIndexMap, gameteIndexMap, maxNumPointsPerChrom, contigSet, randomSeed)
-            }
-            else if(vcfType == "gvcf") {
-                processGvcfFileIntoSplineKnots(vcfFile, splineKnotMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
-            }
-            else {
-                throw IllegalArgumentException("Unknown VCF type $vcfType")
-            }
-        }
-
-        private fun processVCFFileIntoSplineKnots(
-            vcfFile: File,
-            vcfType: String,
             chrIndexMap: MutableMap<String, Int>,
             gameteIndexMap: MutableMap<String, Int>,
             minIndelLength: Int=10,
@@ -818,15 +796,8 @@ class SplineUtils{
         }
 
         /**
-         * Function to write the SplineKnotLookup to a file
-         * This serializes the object using JSON
+         * Function to write out the spline knot map to a file.
          */
-        fun writeSplineLookupToFile(splineKnotLookup: SplineKnotLookup, outputFile:String) {
-            bufferedWriter(outputFile).use { writer ->
-                writer.write(Json.encodeToString(splineKnotLookup))
-            }
-        }
-
         fun writeSplineKnotsToFile(
             splineKnotMap: Map<String, Pair<DoubleArray, DoubleArray>>,
             outputFile: String
@@ -836,6 +807,9 @@ class SplineUtils{
             }
         }
 
+        /**
+         * File to write out the global index maps to a file.
+         */
         fun writeIndexMapsToFile(
             indexMaps: IndexMaps,
             outputFile: String
@@ -846,19 +820,6 @@ class SplineUtils{
         }
 
 
-        /**
-         * Function to load the spline knots from a file
-         * This assumes that the SplineKnotLookup serialized file was serialized using JSON
-         */
-        fun loadSplineKnotLookupFromFile(inputFile: String): SplineKnotLookup {
-            var splineKnotLookup: SplineKnotLookup
-
-            //Json.decodeFromString<Data>
-            bufferedReader(inputFile).use { reader ->
-                splineKnotLookup = Json.decodeFromString(SplineKnotLookup.serializer(), reader.readText())
-            }
-            return splineKnotLookup
-        }
 
         /**
          * Function to load in the spline knot lookups using the directory of a spline file for each assembly.

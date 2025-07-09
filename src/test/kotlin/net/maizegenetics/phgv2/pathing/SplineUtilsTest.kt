@@ -1,6 +1,7 @@
 package net.maizegenetics.phgv2.pathing
 
 import net.maizegenetics.phgv2.cli.TestExtension
+import net.maizegenetics.phgv2.pathing.ropebwt.IndexMaps
 import net.maizegenetics.phgv2.pathing.ropebwt.PS4GUtils
 import net.maizegenetics.phgv2.pathing.ropebwt.SplineKnotLookup
 import net.maizegenetics.phgv2.pathing.ropebwt.SplineUtils
@@ -212,12 +213,16 @@ class SplineUtilsTest {
             splineArrays[key] = Pair(x, y)
         }
 
-        val outputFile = "${tempTestDir}testSplineLookup.json.gz"
-//        SplineUtils.writeSplinesToFile(splineMap, chrIndexMap, gameteIndexMap, outputFile)
-        SplineUtils.writeSplineLookupToFile(SplineKnotLookup(splineArrays, chrIndexMap, gameteIndexMap), outputFile)
+
+        val outputSplineFile = "${tempTestDir}Sample1_spline_knots.json.gz"
+        val outputIndexFile = "${tempTestDir}index_maps.json.gz"
+
+        SplineUtils.writeSplineKnotsToFile(splineArrays, outputSplineFile)
+        SplineUtils.writeIndexMapsToFile(IndexMaps(chrIndexMap, gameteIndexMap), outputIndexFile)
+
 
         //Read the file back in and check that the values are the same
-        val (splineMap2, chrIndexMap2, gameteIndexMap2) = SplineUtils.loadSplineKnotLookupFromFile(outputFile)
+        val (splineMap2, chrIndexMap2, gameteIndexMap2) = SplineUtils.loadSplineKnotLookupFromDirectory(tempTestDir)
 
         assertEquals(splineArrays.size, splineMap2.size)
         //check the entries of the arrays are the same
