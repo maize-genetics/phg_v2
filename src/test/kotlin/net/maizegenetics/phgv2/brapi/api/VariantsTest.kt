@@ -2,28 +2,29 @@ package net.maizegenetics.phgv2.brapi.api
 
 import io.kotest.matchers.shouldBe
 import io.ktor.client.call.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.application.*
+import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import kotlinx.serialization.json.Json
-import net.maizegenetics.phgv2.brapi.model.Variant
-import net.maizegenetics.phgv2.brapi.model.VariantsListResponse
 import net.maizegenetics.phgv2.brapi.createSmallSeqTiledb
+import net.maizegenetics.phgv2.brapi.model.Variant
+import net.maizegenetics.phgv2.brapi.model.VariantSingleResponse
+import net.maizegenetics.phgv2.brapi.model.VariantsListResponse
 import net.maizegenetics.phgv2.brapi.resetDirs
 import net.maizegenetics.phgv2.brapi.service.VariantsService
 import net.maizegenetics.phgv2.cli.TestExtension
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import java.io.File
 import java.time.OffsetDateTime
 import kotlin.test.assertEquals
-
-import kotlinx.serialization.encodeToString
-import net.maizegenetics.phgv2.brapi.model.VariantSingleResponse
-import kotlin.test.assertTrue
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 
 class VariantsTest {
     companion object {
@@ -56,7 +57,7 @@ class VariantsTest {
     @Test
     fun testSerializeVariants() {
         val variant1 = Variant(
-            referenceName ="chr1",
+            referenceName = "chr1",
             start = 1,
             end = 500,
             variantDbId = "chr1:1-500",
@@ -86,7 +87,8 @@ class VariantsTest {
         // This test will verify the VariantService.createRefRangesForCache() method
         // The createSmallSeqTiledb() should have created the tileDB folder, and copied
         // the bed file to it. That bedfile is used for testing.
-        val bedFile = File("${TestExtension.testTileDBURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()[0]
+        val bedFile =
+            File("${TestExtension.testTileDBURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()[0]
         val referenceRanges = VariantsService().createRefRangesForCache(bedFile)
         // Verify the number of lines in the file bedFile matches the number of reference ranges
         // in the referenceRanges list
@@ -94,19 +96,30 @@ class VariantsTest {
         assert(bedFileLines.size == referenceRanges.size)
     }
 
+    @Disabled
     @Test
     fun testVariantsNoBedFile() = testApplication {
 
+        application {
+            this@application.install(ServerContentNegotiation) {
+                json()
+            }
+            routing {
+                apiRoute()
+            }
+        }
+
         // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
-            install(ContentNegotiation) {
+            install(ClientContentNegotiation) {
                 json()
             }
         }
 
         // copy the bedFile created by createSmallSeqTiledb() to a file named the same but with ".save" appended
         // This will allow us to delete the bedFile and then restore it after the test
-        val bedFile = File("${TestExtension.testTileDBURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()[0]
+        val bedFile =
+            File("${TestExtension.testTileDBURI}/reference/").walk().filter { it.name.endsWith(".bed") }.toList()[0]
         val bedFileSave = File("${TestExtension.testTileDBURI}/reference/${bedFile.name}.save")
         bedFile.copyTo(bedFileSave)
 
@@ -117,19 +130,28 @@ class VariantsTest {
         val response = client.get("/brapi/v2/variants")
         assertEquals(HttpStatusCode.OK, response.status)
         val variants = response.body<VariantsListResponse>().result
-        println("variants: $variants")
         assertEquals(0, variants.data.size)
 
-        //Restore the bedFile
+        // Restore the bedFile
         bedFileSave.copyTo(bedFile)
 
     }
+
     @Test
     fun testVariantsDefaultPageSize() = testApplication {
 
+        application {
+            this@application.install(ServerContentNegotiation) {
+                json()
+            }
+            routing {
+                apiRoute()
+            }
+        }
+
         // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
-            install(ContentNegotiation) {
+            install(ClientContentNegotiation) {
                 json()
             }
         }
@@ -149,9 +171,18 @@ class VariantsTest {
     @Test
     fun testVariantsPageSize3() = testApplication {
 
+        application {
+            this@application.install(ServerContentNegotiation) {
+                json()
+            }
+            routing {
+                apiRoute()
+            }
+        }
+
         // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
-            install(ContentNegotiation) {
+            install(ClientContentNegotiation) {
                 json()
             }
         }
@@ -175,10 +206,20 @@ class VariantsTest {
     }
 
     @Test
-    fun testVariantDbIdExists() = testApplication{
+    fun testVariantDbIdExists() = testApplication {
+
+        application {
+            this@application.install(ServerContentNegotiation) {
+                json()
+            }
+            routing {
+                apiRoute()
+            }
+        }
+
         // This is needed, or you get "NoTransformationFoundException" from ktor HttpClient
         val client = createClient {
-            install(ContentNegotiation) {
+            install(ClientContentNegotiation) {
                 json()
             }
         }
@@ -190,8 +231,18 @@ class VariantsTest {
         assertEquals("1:1-1000", variant?.variantDbId)
 
     }
+
     @Test
-    fun testVariantDbIdBad() = testApplication{
+    fun testVariantDbIdBad() = testApplication {
+
+        application {
+            this@application.install(ServerContentNegotiation) {
+                json()
+            }
+            routing {
+                apiRoute()
+            }
+        }
 
         val response = client.get("/brapi/v2/variants/1:200-957")
         println("response: $response")

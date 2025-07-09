@@ -84,7 +84,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
     val regionsFile by option(help = "A bedfile or vcf file containing the regions to be exported. Regions can be single base pair positions. File extension must be either .bed or .vcf.")
         .default("")
 
-    val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
+    val condaEnvPrefix by option(help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
 
     override fun run() {
@@ -95,7 +95,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         // in that case write the vcf files to a temp directory, then write the de-duped vcfs to the output.
         // If a regions-file is specified, check for its existence
         val workingOutputDirectory = if (regionsFile.isNotBlank()) {
-            require(File(regionsFile).exists()) {"$regionsFile does not exist."}
+            require(File(regionsFile).exists()) { "$regionsFile does not exist." }
             val tmpDir = Files.createTempDirectory("vcfOut").toFile()
             tmpDir.deleteOnExit()
             tmpDir
@@ -109,7 +109,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         }
 
         // Verify the tiledbURI - an exception is thrown from verifyURI if the URI is not valid
-        val validDB = verifyURI(dbPath, "hvcf_dataset",condaEnvPrefix)
+        verifyURI(dbPath, "hvcf_dataset", condaEnvPrefix)
 
         // This is the tiledbvcf command we want to run:
         // Doing this with a ProcessBuilder and using the phg_v2 conda environment
@@ -120,15 +120,16 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         val dtype = if (datasetType == "gvcf") "gvcf_dataset" else "hvcf_dataset"
 
         // Setup the conda environment portion of the command
-        var command = if (condaEnvPrefix.isNotBlank()) mutableListOf("conda","run","-p",condaEnvPrefix) else mutableListOf("conda","run","-n","phgv2-tiledb")
+        val command = if (condaEnvPrefix.isNotBlank()) mutableListOf(
+            "conda",
+            "run",
+            "-p",
+            condaEnvPrefix
+        ) else mutableListOf("conda", "run", "-n", "phgv2-tiledb")
 
         // Tiledbvcf can take either a file with samplenames, or a comma-separated list of sample names
         // setup the command based on user input type.
-        var dataCommand = if (samples.getExportCommand()[0] == SampleFormatEnum.FILE.toString()) mutableListOf(
-            "conda",
-            "run",
-            "-n",
-            "phgv2-tiledb",
+        val dataCommand = if (samples.getExportCommand()[0] == SampleFormatEnum.FILE.toString()) mutableListOf(
             "tiledbvcf",
             "export",
             "--uri",
@@ -140,10 +141,6 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
             "--output-dir",
             workingOutputDirectory.absolutePath
         ) else mutableListOf(
-            "conda",
-            "run",
-            "-n",
-            "phgv2-tiledb",
             "tiledbvcf",
             "export",
             "--uri",
@@ -178,21 +175,22 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
         command.addAll(dataCommand)
         val builder = ProcessBuilder(command)
 
-        val redirectError = "$outputDir/export_${dtype}_error.log"
-        val redirectOutput = "$outputDir/export_${dtype}_output.log"
-        builder.redirectOutput(File(redirectOutput))
-        builder.redirectError(File(redirectError))
+        builder.redirectOutput(File("$outputDir/export_${dtype}_output.log"))
+        builder.redirectError(File("$outputDir/export_${dtype}_error.log"))
 
-        myLogger.info("ExportVcf Command: " + builder.command().joinToString(" "))
+        val exportCommand = builder.command().joinToString(" ")
+        myLogger.info("ExportVcf Command: $exportCommand")
+
+        workingOutputDirectory.mkdirs()
         val process = builder.start()
         val error = process.waitFor()
         if (error != 0) {
             myLogger.error("tiledbvcf export for: $samples run via ProcessBuilder returned error code $error")
-            throw IllegalStateException("Error running tiledbvcf export of dataset $dbPath/$dtype for: $samples. error: $error")
+            throw IllegalStateException("Error running tiledbvcf export of dataset $dbPath/$dtype for: $samples. exportCommand: $exportCommand error: $error")
         }
 
         if (regionsFile.isNotBlank()) {
-            //get rid of duplicate reference blocks and write the resulting files to the output directory
+            // get rid of duplicate reference blocks and write the resulting files to the output directory
             val fileList = workingOutputDirectory.listFiles().filter { it.name.endsWith(".vcf") }
             val finalOutputDirectory = File(outputDir)
             for (tmpFile in fileList) {
@@ -200,7 +198,7 @@ class ExportVcf : CliktCommand(help = "Export given samples to an h.vcf file") {
                 deleteDuplicateSequentialRefBlocks(tmpFile, outputFile)
             }
 
-            //finished with the temporary workingOutputDirectory so delete it and contents
+            // finished with the temporary workingOutputDirectory so delete it and contents
             workingOutputDirectory.deleteRecursively()
         }
 

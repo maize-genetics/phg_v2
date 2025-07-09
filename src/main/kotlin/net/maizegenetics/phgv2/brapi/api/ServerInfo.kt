@@ -3,7 +3,6 @@ package net.maizegenetics.phgv2.brapi.api
 /**
  * This file returns information containing the list of brAPI endpoints supported by this server.
  */
-import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import net.maizegenetics.phgv2.brapi.model.*
