@@ -15,12 +15,12 @@ class ConvertRopebwt2Ps4gFileTest {
     fun testCliktParams() {
         val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
 
-        val noBedFile = convertRopebwt2Ps4gFile.test("--output-dir testDir --spline-knot-file dummyFile.json.gz")
+        val noBedFile = convertRopebwt2Ps4gFile.test("--output-dir testDir --spline-knot-dir ./knotFiles/")
         assertEquals(1, noBedFile.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
                 "Error: missing option --ropebwt-bed\n", noBedFile.stderr)
 
-        val noOutputDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --spline-knot-file dummyFile.json.gz")
+        val noOutputDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --spline-knot-dir ./knotFiles/")
         assertEquals(1, noOutputDir.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
                 "Error: missing option --output-dir\n", noOutputDir.stderr)
@@ -28,7 +28,7 @@ class ConvertRopebwt2Ps4gFileTest {
         val noHvcfDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --output-dir testDir")
         assertEquals(1, noHvcfDir.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
-                "Error: missing option --spline-knot-file\n", noHvcfDir.stderr)
+                "Error: missing option --spline-knot-dir\n", noHvcfDir.stderr)
 
     }
 
