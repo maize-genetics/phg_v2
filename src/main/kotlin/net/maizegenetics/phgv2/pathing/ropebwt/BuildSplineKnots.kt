@@ -53,11 +53,8 @@ class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs
         myLogger.info("Building Spline Knots from $vcfType files in $vcfDir and writing Knot Files to $outputDir")
         val contigSet = contigList.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
 
-//        val splineKnotLookup = SplineUtils.buildSplineKnots(vcfDir, vcfType, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
-//
-//        myLogger.info("Writing out spline knots to $outputFile")
-//        SplineUtils.writeSplineLookupToFile(splineKnotLookup, outputFile)
 
+        //This now will write out the spline knots for each assembly to the output directory automatically.
         SplineUtils.buildSplineKnots(
             vcfDir,
             vcfType,
