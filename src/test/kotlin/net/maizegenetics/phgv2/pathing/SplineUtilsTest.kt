@@ -12,6 +12,7 @@ import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.io.File
 
@@ -25,7 +26,15 @@ class SplineUtilsTest {
         //Resetting on both setup and teardown just to be safe.
         @JvmStatic
         @BeforeAll
-        fun setup() {
+        fun setupBeforeAll() {
+            resetDirs()
+            setupDebugLogging()
+        }
+
+
+//        @JvmStatic
+        @BeforeEach
+        fun setupBeforeEach() {
             resetDirs()
             setupDebugLogging()
         }
@@ -125,11 +134,10 @@ class SplineUtilsTest {
         val inputFile = "data/test/ropebwt/testHVCFs/LineA.h.vcf"
         val chrIndexMap = mutableMapOf("1" to 0, "2" to 1)
         val gameteIndexMap = mutableMapOf("LineA" to 0, "LineB" to 1)
-        val splineKnots = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
 
-        SplineUtils.processHvcfFileIntoSplineKnots(File(inputFile), splineKnots, chrIndexMap, gameteIndexMap)
+        val splineKnotLookup = SplineUtils.processHvcfFileIntoSplineKnots(File(inputFile), chrIndexMap, gameteIndexMap)
 
-        val splineMap = SplineUtils.convertKnotsToSpline(splineKnots)
+        val splineMap = SplineUtils.convertKnotsToSpline(splineKnotLookup.splineKnotMap)
 
 
         //Test some of the values in the spline
@@ -148,11 +156,10 @@ class SplineUtilsTest {
         val inputFile = "data/test/smallseq/LineA.g.vcf"
         val chrIndexMap = mutableMapOf("1" to 0, "2" to 1)
         val gameteIndexMap = mutableMapOf("LineA" to 0, "LineB" to 1)
-        val splineKnots = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
 
-        SplineUtils.processGvcfFileIntoSplineKnots(File(inputFile), splineKnots, chrIndexMap, gameteIndexMap)
+        val splineKnotLookup = SplineUtils.processGvcfFileIntoSplineKnots(File(inputFile), chrIndexMap, gameteIndexMap)
 
-        val splineMap = SplineUtils.convertKnotsToSpline(splineKnots)
+        val splineMap = SplineUtils.convertKnotsToSpline(splineKnotLookup.splineKnotMap)
 
 
         //Test some of the values in the spline
