@@ -20,6 +20,12 @@ data class SplineKnotLookup(
     val gameteIndexMap: Map<String, Int>
 )
 
+@Serializable
+data class IndexMaps(
+    val chrIndexMap: Map<String, Int>,
+    val gameteIndexMap: Map<String, Int>
+)
+
 /**
  * Class to hold utility functions for building and saving splines built from hvcfs or gvcfs
  */
@@ -34,21 +40,48 @@ class SplineUtils{
          * (http://doi.acm.org/10.1145/321607.321609) implemented via the Apache Commons Math3 library.
          * This does not build the full splines just yet but rather sets up the spline knots for each chromosome.
          */
-        fun buildSplineKnots(vcfDir: String, vcfType: String, minIndelLength: Int = 10, maxNumPointsPerChrom: Int = 250_000, contigSet : Set<String> = emptySet(), randomSeed: Long = 12345) : SplineKnotLookup {
+        fun buildSplineKnots(vcfDir: String, vcfType: String, outputDir: String ,minIndelLength: Int = 10, maxNumPointsPerChrom: Int = 250_000, contigSet : Set<String> = emptySet(), randomSeed: Long = 12345) {
             val vcfFiles = buildVCFFileList(vcfDir, vcfType)
-            val splineKnotMap = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
-            val chrIndexMap = mutableMapOf<String,Int>()
-            val gameteIndexMap = mutableMapOf<String,Int>()
+
+            var chrIndexMap = mutableMapOf<String,Int>()
+            var gameteIndexMap = mutableMapOf<String,Int>()
+
+
             for (vcfFile in vcfFiles!!) {
+
+                val splineOutputFile = "${outputDir}/${vcfFile.nameWithoutExtension}_spline_knots.json.gz"
+
+                if( File(splineOutputFile).exists()) {
+                    myLogger.info("Skipping ${vcfFile.name} as $splineOutputFile already exists")
+                    continue
+                }
+
                 myLogger.info("Reading ${vcfFile.name}")
-                processVCFFileIntoSplineKnots(vcfFile, vcfType, splineKnotMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
+                val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
+
+                myLogger.info("Done processing ${vcfFile.name}")
+                myLogger.info("Number of splines: ${splineKnotLookup.splineKnotMap.size}")
+                myLogger.info("Number of chromosomes: ${splineKnotLookup.chrIndexMap.size}")
+                myLogger.info("Number of gametes: ${splineKnotLookup.gameteIndexMap.size}")
+
+                //update the index maps
+                chrIndexMap = splineKnotLookup.chrIndexMap.toMutableMap()
+                gameteIndexMap = splineKnotLookup.gameteIndexMap.toMutableMap()
+
+                //need to export the spline knots to a file
+                myLogger.info("Writing spline knots to $splineOutputFile")
+                writeSplineKnotsToFile(splineKnotLookup.splineKnotMap, splineOutputFile)
             }
             myLogger.info("Done reading VCF files")
-            myLogger.info("Number of splines: ${splineKnotMap.size}")
-            myLogger.info("Number of chromosomes: ${chrIndexMap.size}")
-            myLogger.info("Number of gametes: ${gameteIndexMap.size}")
-            return SplineKnotLookup(splineKnotMap, chrIndexMap, gameteIndexMap)
+            myLogger.info("Total number of chromosomes: ${chrIndexMap.keys.size}")
+            myLogger.info("Total number of gametes: ${gameteIndexMap.keys.size}")
+
+            val outputIndexFile = "${outputDir}/index_maps.json.gz"
+
+            myLogger.info("Writing out Chromosome and Gamete Index Maps to: $outputIndexFile")
+            writeIndexMapsToFile(IndexMaps(chrIndexMap, gameteIndexMap), outputIndexFile)
         }
+
 
         private fun buildVCFFileList(hvcfDir: String, vcfType: String): List<File> {
             return File(hvcfDir).listFiles()?.filter {
@@ -69,21 +102,18 @@ class SplineUtils{
         private fun processVCFFileIntoSplineKnots(
             vcfFile: File,
             vcfType: String,
-            splineKnotMap: MutableMap<String, Pair<DoubleArray, DoubleArray>>,
             chrIndexMap: MutableMap<String, Int>,
             gameteIndexMap: MutableMap<String, Int>,
             minIndelLength: Int=10,
             maxNumPointsPerChrom: Int = 250_000,
             contigSet: Set<String> = emptySet(),
             randomSeed: Long = 12345
-        ) {
-            if(vcfType == "hvcf") {
-                processHvcfFileIntoSplineKnots(vcfFile, splineKnotMap, chrIndexMap, gameteIndexMap, maxNumPointsPerChrom, contigSet, randomSeed)
-            }
-            else if(vcfType == "gvcf") {
-                processGvcfFileIntoSplineKnots(vcfFile, splineKnotMap, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
-            }
-            else {
+        ) : SplineKnotLookup {
+            return if(vcfType == "hvcf") {
+                processHvcfFileIntoSplineKnots(vcfFile, chrIndexMap, gameteIndexMap, maxNumPointsPerChrom, contigSet, randomSeed)
+            } else if(vcfType == "gvcf") {
+                processGvcfFileIntoSplineKnots(vcfFile,chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
+            } else {
                 throw IllegalArgumentException("Unknown VCF type $vcfType")
             }
         }
@@ -94,13 +124,14 @@ class SplineUtils{
          */
         fun processHvcfFileIntoSplineKnots(
             hvcfFile: File?,
-            splineMap: MutableMap<String, Pair<DoubleArray, DoubleArray>>,
-            chrIndexMap : MutableMap<String,Int>,
+            chrIndexMap: MutableMap<String, Int>,
             gameteIndexMap: MutableMap<String, Int>,
             maxNumPointsPerChrom: Int = 250_000,
             contigSet: Set<String> = emptySet(),
             randomSeed: Long = 12345
-        ) {
+        ) : SplineKnotLookup {
+            val splineKnotMap = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
+
             VCFFileReader(hvcfFile, false).use { reader ->
                 val header = reader.header
                 val headerParsed = parseALTHeader(header)
@@ -163,22 +194,23 @@ class SplineUtils{
                     val listOfPoints = entry.value
                     checkMapAndAddToIndex(gameteIndexMap, sampleName)
                     //add to the splineList
-                    buildSplineKnotsForASMChrom(listOfPoints, splineMap, asmChr, sampleName)
+                    buildSplineKnotsForASMChrom(listOfPoints, splineKnotMap, asmChr, sampleName)
                 }
             }
+            return SplineKnotLookup(splineKnotMap, chrIndexMap, gameteIndexMap)
         }
 
         fun processGvcfFileIntoSplineKnots(
             gvcfFile: File?,
-            splineMap: MutableMap<String, Pair<DoubleArray,DoubleArray>>,
-            chrIndexMap : MutableMap<String,Int>,
+            chrIndexMap: MutableMap<String, Int>,
             gameteIndexMap: MutableMap<String, Int>,
             minIndelLength: Int=10,
             maxNumPoints: Int = 250_000,
             contigSet: Set<String> = emptySet(),
             randomSeed: Long = 12345
-        ) {
-            var nextIndex = 0
+        ) : SplineKnotLookup {
+
+            val splineKnotMap = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
 
             //This is ASM,REF
             val mapOfASMChrToListOfPoints = mutableMapOf<String, MutableList<Pair<Double, Double>>>()
@@ -262,7 +294,9 @@ class SplineUtils{
 
                     // Get ASM_Chr; if missing, default to "NA".
                     val asmChr = variant.getAttribute("ASM_Chr", null)?.toString() ?: "NA"
-                    val refChrIndex = chrIndexMap.getOrPut(refChr) { nextIndex++ }
+                    checkMapAndAddToIndex(chrIndexMap, refChr)
+                    val refChrIndex = chrIndexMap[refChr]
+                        ?: throw IllegalStateException("Reference chromosome $refChr not found in chrIndexMap.")
 
                     // Parse ASM_Start and ASM_End safely.
                     val asmPosStart = variant.getAttribute("ASM_Start", null)?.toString()?.toIntOrNull()
@@ -350,11 +384,13 @@ class SplineUtils{
                     val listOfPoints = entry.value
                     myLogger.info("Building spline for $asmChr $sampleName")
                     checkMapAndAddToIndex(gameteIndexMap, sampleName)
-                    buildSplineKnotsForASMChrom(listOfPoints, splineMap, asmChr, sampleName)
+                    buildSplineKnotsForASMChrom(listOfPoints, splineKnotMap, asmChr, sampleName)
                 }
             }
+            return SplineKnotLookup(splineKnotMap, chrIndexMap, gameteIndexMap)
 
         }
+
 
         fun addPointsToMap(
             mapOfASMChrToListOfPoints: MutableMap<String, MutableList<Pair<Double, Double>>>,
@@ -450,6 +486,11 @@ class SplineUtils{
             }
         }
 
+
+        /**
+         * Function to add the spline knots to the output points.
+         * This makes sure there are at least 4 points for each spline so the Akima spline function will work.
+         */
         private fun addIntermediateSplineKnots(
             firstPair: Pair<Double, Double>,
             totalPos: Double,
@@ -489,29 +530,88 @@ class SplineUtils{
         }
 
         /**
-         * Function to write the SplineKnotLookup to a file
-         * This serializes the object using JSON
+         * Function to write out the spline knot map to a file.
          */
-        fun writeSplineLookupToFile(splineKnotLookup: SplineKnotLookup, outputFile:String) {
+        fun writeSplineKnotsToFile(
+            splineKnotMap: Map<String, Pair<DoubleArray, DoubleArray>>,
+            outputFile: String
+        ) {
             bufferedWriter(outputFile).use { writer ->
-                writer.write(Json.encodeToString(splineKnotLookup))
+                writer.write(Json.encodeToString(splineKnotMap))
             }
         }
+
+        /**
+         * File to write out the global index maps to a file.
+         */
+        fun writeIndexMapsToFile(
+            indexMaps: IndexMaps,
+            outputFile: String
+        ) {
+            bufferedWriter(outputFile).use { writer ->
+                writer.write(Json.encodeToString(indexMaps))
+            }
+        }
+
 
 
         /**
-         * Function to load the spline knots from a file
-         * This assumes that the SplineKnotLookup serialized file was serialized using JSON
+         * Function to load in the spline knot lookups using the directory of a spline file for each assembly.
+         * This adds a marginal amount of time to processing but allows for more flexibility and faster writes.
          */
-        fun loadSplineKnotLookupFromFile(inputFile: String): SplineKnotLookup {
-            var splineKnotLookup: SplineKnotLookup
-
-            //Json.decodeFromString<Data>
-            bufferedReader(inputFile).use { reader ->
-                splineKnotLookup = Json.decodeFromString(SplineKnotLookup.serializer(), reader.readText())
+        fun loadSplineKnotLookupFromDirectory(inputDir: String) : SplineKnotLookup {
+            //Check to see if there is a directory
+            val inputDirectory = File(inputDir)
+            if (!inputDirectory.isDirectory) {
+                throw IllegalArgumentException("Input directory $inputDir is not a directory")
             }
-            return splineKnotLookup
+
+
+
+            //load in the indexMaps
+            //index_maps.json.gz
+            val indexMapsFile = "${inputDir}/index_maps.json.gz"
+
+            //Check to see if we have index maps
+            if (!File(indexMapsFile).exists()) {
+                throw IllegalArgumentException("Index maps file $indexMapsFile does not exist")
+            }
+
+
+            var indexMaps: IndexMaps
+            bufferedReader(indexMapsFile).use { reader ->
+                indexMaps = Json.decodeFromString(IndexMaps.serializer(), reader.readText())
+            }
+
+            val allSplineKnots = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
+
+            //get list of all spline knot json files
+            //"${outputDir}/${vcfFile.nameWithoutExtension}_spline_knots.json.gz"
+
+            val splineKnotFiles = File(inputDir).listFiles { file ->
+                file.isFile && file.name.endsWith("_spline_knots.json.gz")
+            } ?: throw IllegalArgumentException("No spline knot files found in directory $inputDir")
+
+            //Make sure we have at least one spline knot file to process
+            if (splineKnotFiles.isEmpty()) {
+                throw IllegalArgumentException("No spline knot files found in directory $inputDir")
+            }
+
+            for(splineKnotFile in splineKnotFiles) {
+                bufferedReader(splineKnotFile.toString()).use { reader ->
+                    val splineKnots = Json.decodeFromString<Map<String, Pair<DoubleArray, DoubleArray>>>(reader.readText())
+                    allSplineKnots.putAll(splineKnots)
+                }
+            }
+
+            return SplineKnotLookup(
+                allSplineKnots,
+                indexMaps.chrIndexMap,
+                indexMaps.gameteIndexMap
+            )
+
         }
+
 
         /**
          * Function that converts a Spline Knot Map into a Spline Map

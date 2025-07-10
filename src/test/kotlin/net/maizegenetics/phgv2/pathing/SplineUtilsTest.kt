@@ -1,6 +1,7 @@
 package net.maizegenetics.phgv2.pathing
 
 import net.maizegenetics.phgv2.cli.TestExtension
+import net.maizegenetics.phgv2.pathing.ropebwt.IndexMaps
 import net.maizegenetics.phgv2.pathing.ropebwt.PS4GUtils
 import net.maizegenetics.phgv2.pathing.ropebwt.SplineKnotLookup
 import net.maizegenetics.phgv2.pathing.ropebwt.SplineUtils
@@ -11,6 +12,7 @@ import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.io.File
 
@@ -24,7 +26,15 @@ class SplineUtilsTest {
         //Resetting on both setup and teardown just to be safe.
         @JvmStatic
         @BeforeAll
-        fun setup() {
+        fun setupBeforeAll() {
+            resetDirs()
+            setupDebugLogging()
+        }
+
+
+//        @JvmStatic
+        @BeforeEach
+        fun setupBeforeEach() {
             resetDirs()
             setupDebugLogging()
         }
@@ -124,11 +134,10 @@ class SplineUtilsTest {
         val inputFile = "data/test/ropebwt/testHVCFs/LineA.h.vcf"
         val chrIndexMap = mutableMapOf("1" to 0, "2" to 1)
         val gameteIndexMap = mutableMapOf("LineA" to 0, "LineB" to 1)
-        val splineKnots = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
 
-        SplineUtils.processHvcfFileIntoSplineKnots(File(inputFile), splineKnots, chrIndexMap, gameteIndexMap)
+        val splineKnotLookup = SplineUtils.processHvcfFileIntoSplineKnots(File(inputFile), chrIndexMap, gameteIndexMap)
 
-        val splineMap = SplineUtils.convertKnotsToSpline(splineKnots)
+        val splineMap = SplineUtils.convertKnotsToSpline(splineKnotLookup.splineKnotMap)
 
 
         //Test some of the values in the spline
@@ -147,11 +156,10 @@ class SplineUtilsTest {
         val inputFile = "data/test/smallseq/LineA.g.vcf"
         val chrIndexMap = mutableMapOf("1" to 0, "2" to 1)
         val gameteIndexMap = mutableMapOf("LineA" to 0, "LineB" to 1)
-        val splineKnots = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
 
-        SplineUtils.processGvcfFileIntoSplineKnots(File(inputFile), splineKnots, chrIndexMap, gameteIndexMap)
+        val splineKnotLookup = SplineUtils.processGvcfFileIntoSplineKnots(File(inputFile), chrIndexMap, gameteIndexMap)
 
-        val splineMap = SplineUtils.convertKnotsToSpline(splineKnots)
+        val splineMap = SplineUtils.convertKnotsToSpline(splineKnotLookup.splineKnotMap)
 
 
         //Test some of the values in the spline
@@ -163,12 +171,16 @@ class SplineUtilsTest {
         assertEquals(2816, PS4GUtils.decodePosition(chr1Spline.value(3000.0).toInt()).position) // 3000/256 = 11
 
         assertFalse(chr1Spline.isValidPoint(3000000.0))
+        resetDirs()
     }
 
     @Test
     fun testBuildSplineLookup() {
         val hvcfDir = "data/test/ropebwt/testHVCFs"
-        val (splineKnotMap, chrIndexMap, gameteIndexMap) = SplineUtils.buildSplineKnots(hvcfDir,"hvcf")
+        //(vcfDir: String, vcfType: String, outputDir: String ,minIndelLength: Int = 10, maxNumPointsPerChrom: Int = 250_000, contigSet : Set<String> = emptySet(), randomSeed: Long = 12345)
+        SplineUtils.buildSplineKnots(hvcfDir,"hvcf", tempTestDir)
+
+        val (splineKnotMap, chrIndexMap, gameteIndexMap) = SplineUtils.loadSplineKnotLookupFromDirectory(tempTestDir)
 
         val splineMap = SplineUtils.convertKnotsToSpline(splineKnotMap)
 
@@ -184,12 +196,16 @@ class SplineUtilsTest {
 
         assertFalse(chr1Spline.isValidPoint(30000.0))
 
+        resetDirs()
     }
 
     @Test
     fun testSerializingSplineLookup() {
         val hvcfDir = "data/test/ropebwt/testHVCFs"
-        val (splineKnotMap, chrIndexMap, gameteIndexMap) = SplineUtils.buildSplineKnots(hvcfDir,"hvcf")
+
+        SplineUtils.buildSplineKnots(hvcfDir,"hvcf", tempTestDir)
+
+        val (splineKnotMap, chrIndexMap, gameteIndexMap) = SplineUtils.loadSplineKnotLookupFromDirectory(tempTestDir)
 
         val splineMap = SplineUtils.convertKnotsToSpline(splineKnotMap)
 
@@ -205,12 +221,19 @@ class SplineUtilsTest {
             splineArrays[key] = Pair(x, y)
         }
 
-        val outputFile = "${tempTestDir}testSplineLookup.json.gz"
-//        SplineUtils.writeSplinesToFile(splineMap, chrIndexMap, gameteIndexMap, outputFile)
-        SplineUtils.writeSplineLookupToFile(SplineKnotLookup(splineArrays, chrIndexMap, gameteIndexMap), outputFile)
+        //Need to do a reset otherwise we have too many files and the map gets too big
+        resetDirs()
+
+        val outputSplineFile = "${tempTestDir}Sample1_spline_knots.json.gz"
+        val outputIndexFile = "${tempTestDir}index_maps.json.gz"
+
+        SplineUtils.writeSplineKnotsToFile(splineArrays, outputSplineFile)
+        SplineUtils.writeIndexMapsToFile(IndexMaps(chrIndexMap, gameteIndexMap), outputIndexFile)
+
+
 
         //Read the file back in and check that the values are the same
-        val (splineMap2, chrIndexMap2, gameteIndexMap2) = SplineUtils.loadSplineKnotLookupFromFile(outputFile)
+        val (splineMap2, chrIndexMap2, gameteIndexMap2) = SplineUtils.loadSplineKnotLookupFromDirectory(tempTestDir)
 
         assertEquals(splineArrays.size, splineMap2.size)
         //check the entries of the arrays are the same
@@ -233,6 +256,8 @@ class SplineUtilsTest {
         }
         assertEquals(chrIndexMap.size, chrIndexMap2.size)
         assertEquals(gameteIndexMap.size, gameteIndexMap2.size)
+
+        resetDirs()
     }
 
     @Test
@@ -275,7 +300,7 @@ class SplineUtilsTest {
         for(i in 1 until sortedPoints.size) {
             assertEquals(0, PS4GUtils.decodePosition(sortedPoints[i].second.toInt()).contig.toInt())
             // We ask for 4 points so they should be 2500, 5000, 7500, 10000.
-            // We bin them by dividing by 256 and multiplying by 256 to get the binned posisiont
+            // We bin them by dividing by 256 and multiplying by 256 to get the binned position
             assertEquals(((i * 2500)/256) * 256, PS4GUtils.decodePosition(sortedPoints[i].second.toInt()).position)
         }
 
@@ -295,7 +320,7 @@ class SplineUtilsTest {
         for(i in 1 until sortedPointsNegative.size) {
             assertEquals(1, PS4GUtils.decodePosition(sortedPointsNegative[i].second.toInt()).contig.toInt())
             // We ask for 4 points so they should be 10000. 7500, 5000, 2500, 0
-            // We bin them by dividing by 256 and multiplying by 256 to get the binned posisiont
+            // We bin them by dividing by 256 and multiplying by 256 to get the binned position
             assertEquals(((10001 - (i * 2500))/256) * 256, PS4GUtils.decodePosition(sortedPointsNegative[i].second.toInt()).position)
         }
 

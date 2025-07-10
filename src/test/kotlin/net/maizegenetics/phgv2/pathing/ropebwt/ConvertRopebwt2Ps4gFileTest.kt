@@ -2,25 +2,58 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.api.SampleGamete
+import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.setupDebugLogging
 import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.io.File
 
 class ConvertRopebwt2Ps4gFileTest {
 
+    companion object {
+        val tempTestDir = "${TestExtension.tempDir}ConvertRopeBwt2PS4GTestDir/"
+
+
+        //Setup/download  files
+        //Resetting on both setup and teardown just to be safe.
+        @JvmStatic
+        @BeforeAll
+        fun setup() {
+            resetDirs()
+            setupDebugLogging()
+        }
+
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+            resetDirs()
+        }
+
+        private fun resetDirs() {
+
+            File(TestExtension.tempDir).deleteRecursively()
+            File(tempTestDir).deleteRecursively()
+
+            File(TestExtension.tempDir).mkdirs()
+            File(tempTestDir).mkdirs()
+        }
+    }
+
     @Test
     fun testCliktParams() {
         val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
 
-        val noBedFile = convertRopebwt2Ps4gFile.test("--output-dir testDir --spline-knot-file dummyFile.json.gz")
+        val noBedFile = convertRopebwt2Ps4gFile.test("--output-dir testDir --spline-knot-dir ./knotFiles/")
         assertEquals(1, noBedFile.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
                 "Error: missing option --ropebwt-bed\n", noBedFile.stderr)
 
-        val noOutputDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --spline-knot-file dummyFile.json.gz")
+        val noOutputDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --spline-knot-dir ./knotFiles/")
         assertEquals(1, noOutputDir.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
                 "Error: missing option --output-dir\n", noOutputDir.stderr)
@@ -28,7 +61,7 @@ class ConvertRopebwt2Ps4gFileTest {
         val noHvcfDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --output-dir testDir")
         assertEquals(1, noHvcfDir.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
-                "Error: missing option --spline-knot-file\n", noHvcfDir.stderr)
+                "Error: missing option --spline-knot-dir\n", noHvcfDir.stderr)
 
     }
 
@@ -293,7 +326,9 @@ class ConvertRopebwt2Ps4gFileTest {
             PS4GData(listOf(0),8, 1), PS4GData(listOf(0),12, 2)
         )
 
-        val (splineKnotLookup, chrIndexMap, gameteToIdxMap) = SplineUtils.buildSplineKnots(hvcfDir, "hvcf")
+        SplineUtils.buildSplineKnots(hvcfDir, "hvcf", tempTestDir)
+
+        val (splineKnotLookup, chrIndexMap, gameteToIdxMap) = SplineUtils.loadSplineKnotLookupFromDirectory(tempTestDir)
 
         val splineLookup = SplineUtils.convertKnotsToSpline(splineKnotLookup)
 
@@ -308,5 +343,6 @@ class ConvertRopebwt2Ps4gFileTest {
             assertTrue(truthData.contains(data))
         }
 
+        resetDirs()
     }
 }
