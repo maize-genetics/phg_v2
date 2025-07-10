@@ -46,9 +46,6 @@ class SplineUtils{
             var chrIndexMap = mutableMapOf<String,Int>()
             var gameteIndexMap = mutableMapOf<String,Int>()
 
-            var totalNumSplines = 0
-            var totalNumChroms = 0
-            var totalNumGametes = 0
 
             for (vcfFile in vcfFiles!!) {
 
@@ -76,9 +73,8 @@ class SplineUtils{
                 writeSplineKnotsToFile(splineKnotLookup.splineKnotMap, splineOutputFile)
             }
             myLogger.info("Done reading VCF files")
-            myLogger.info("Total number of splines: $totalNumSplines")
-            myLogger.info("Total number of chromosomes: $totalNumChroms")
-            myLogger.info("Total number of gametes: $totalNumGametes")
+            myLogger.info("Total number of chromosomes: ${chrIndexMap.keys.size}")
+            myLogger.info("Total number of gametes: ${gameteIndexMap.keys.size}")
 
             val outputIndexFile = "${outputDir}/index_maps.json.gz"
 

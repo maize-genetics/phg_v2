@@ -164,6 +164,7 @@ class SplineUtilsTest {
         assertEquals(2816, PS4GUtils.decodePosition(chr1Spline.value(3000.0).toInt()).position) // 3000/256 = 11
 
         assertFalse(chr1Spline.isValidPoint(3000000.0))
+        resetDirs()
     }
 
     @Test
@@ -213,12 +214,15 @@ class SplineUtilsTest {
             splineArrays[key] = Pair(x, y)
         }
 
+        //Need to do a reset otherwise we have too many files and the map gets too big
+        resetDirs()
 
         val outputSplineFile = "${tempTestDir}Sample1_spline_knots.json.gz"
         val outputIndexFile = "${tempTestDir}index_maps.json.gz"
 
         SplineUtils.writeSplineKnotsToFile(splineArrays, outputSplineFile)
         SplineUtils.writeIndexMapsToFile(IndexMaps(chrIndexMap, gameteIndexMap), outputIndexFile)
+
 
 
         //Read the file back in and check that the values are the same
