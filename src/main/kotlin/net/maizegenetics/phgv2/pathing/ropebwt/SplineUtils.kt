@@ -416,15 +416,7 @@ class SplineUtils{
 
                 if(numPointsToRemove > 0) {
                     //Build a list of unique indices to remove
-                    val indicesToRemove = mutableSetOf<Int>()
-                    val random = Random(randomSeed)
-                    // Loop until we have enough unique indices to remove
-                    while (indicesToRemove.size < numPointsToRemove) {
-                        val randomIndex = random.nextInt(listOfPoints.size)
-                        if(!indicesToRemove.contains(randomIndex)) {
-                            indicesToRemove.add(randomIndex)
-                        }
-                    }
+                    val indicesToRemove = buildRemoveIndexSet(randomSeed, numPointsToRemove, listOfPoints)
 
                     //Filter out any of the indices that are in the set and write to the map overwriting the existing contig.
                     listOfPoints.filterIndexed { index, pair -> !indicesToRemove.contains(index) }
@@ -438,6 +430,65 @@ class SplineUtils{
                     splineKnotMap[entry.key] = listOfPoints
                 }
             }
+        }
+
+        /**
+         * Function to downsample the points in the spline taking into account the number of BPs per knot.
+         */
+        fun downsamplePointsByChrLength(splineKnotMap:MutableMap<String, MutableList<Pair<Double,Double>>>, numBpsPerKnot: Int = 50_000, randomSeed : Long = 12345) {
+            //numBpsPerKnot is the number of base pairs per knot
+            for (entry in splineKnotMap.entries) {
+                val listOfPoints = entry.value
+
+                if(listOfPoints.isEmpty()) {
+                    //If there are no points for this chromosome, skip it
+                    myLogger.info("Skipping ${entry.key} as there are no points to downsample.")
+                    continue
+                }
+
+                //get the length of the chromosome.  Should be the max of the first values in the pairs
+                val chromLength = listOfPoints.maxOf { it.first }
+                if( chromLength <= numBpsPerKnot) {
+                    //If the chromosome length is less than the number of base pairs per knot, we do not need to downsample
+                    continue
+                }
+                //Calculate the number of knots we need
+                val numKnots = (chromLength / numBpsPerKnot).toInt()
+                if(numKnots <= 1) {
+                    //If we only need one knot, we do not need to downsample
+                    continue
+                }
+                //Calculate the number of points to remove
+                val numPointsToRemove = listOfPoints.size - numKnots
+                if(numPointsToRemove > 0) {
+                    val indicesToRemove = buildRemoveIndexSet(randomSeed, numPointsToRemove, listOfPoints)
+
+                    //Filter out any of the indices that are in the set and write to the map overwriting the existing contig.
+                    listOfPoints.filterIndexed { index, pair -> !indicesToRemove.contains(index) }
+                        .let { filteredList ->
+                            splineKnotMap[entry.key] = filteredList.toMutableList()
+                        }
+
+                }
+            }
+        }
+
+        private fun buildRemoveIndexSet(
+            randomSeed: Long,
+            numPointsToRemove: Int,
+            listOfPoints: MutableList<Pair<Double, Double>>
+        ): MutableSet<Int> {
+            //Build a list of unique indices to remove
+            val indicesToRemove = mutableSetOf<Int>()
+            val random = Random(randomSeed)
+            // Loop until we have enough unique indices to remove
+            while (indicesToRemove.size < numPointsToRemove) {
+                val randomIndex = random.nextInt(listOfPoints.size)
+                if (!indicesToRemove.contains(randomIndex)) {
+                    indicesToRemove.add(randomIndex)
+                }
+            }
+            return indicesToRemove
         }
 
         /**

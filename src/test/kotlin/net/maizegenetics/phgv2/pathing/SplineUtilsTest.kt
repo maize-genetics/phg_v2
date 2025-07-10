@@ -325,4 +325,56 @@ class SplineUtilsTest {
         }
 
     }
+
+    @Test
+    fun testDownsamplePointsByChrLength() {
+        //downsamplePointsByChrLength(splineKnotMap:MutableMap<String, MutableList<Pair<Double,Double>>>, numBpsPerKnot: Int = 50_000, randomSeed : Long = 12345)
+        //make a spline map with random increasing values
+        val splineKnotMap = mutableMapOf<String, MutableList<Pair<Double, Double>>>()
+        val rand = java.util.Random(12345)
+        for (i in 1..5) {
+            val points = mutableListOf<Pair<Double, Double>>()
+            for (j in 0 until 10_000) {
+                points.add(Pair(j.toDouble() * i, rand.nextDouble() * 1000 + i * 1000))
+            }
+            splineKnotMap["$i"] = points
+        }
+        //Add one for 0 that has 999 points
+        splineKnotMap["0"] = mutableListOf<Pair<Double, Double>>()
+        for (j in 0 until 999) {
+            splineKnotMap["0"]!!.add(Pair(j.toDouble(), rand.nextDouble() * 1000))
+        }
+
+        assertEquals(6, splineKnotMap.size)
+        for (key in splineKnotMap.keys) {
+            if(key == "0") {
+                //The 0 chromosome should have 999 points
+                assertEquals(999, splineKnotMap[key]!!.size)
+            } else {
+                //The other chromosomes should have 10_000 points
+                assertEquals(10_000, splineKnotMap[key]!!.size)
+            }
+        }
+        SplineUtils.downsamplePointsByChrLength(splineKnotMap, 1000, 12345)
+        //Check that the number of points is reduced
+        assertEquals(6, splineKnotMap.size)
+        for (key in splineKnotMap.keys) {
+            if(key == "0") {
+                //The 0 chromosome should have 999 points
+                assertEquals(999, splineKnotMap[key]!!.size)
+            } else {
+
+                //The number of points should be reduced to 1000
+                assertTrue(
+                    splineKnotMap[key]!!.size <= (key.toInt() * 10),
+                    "Spline map for $key has more than 1000 points: ${splineKnotMap[key]!!.size}"
+                )
+//            //Check that the points are still increasing
+//            for (j in 1 until splineKnotMap[key]!!.size) {
+//                assertTrue(splineKnotMap[key]!![j].first > splineKnotMap[key]!![j - 1].first, "Points are not increasing for $key at index $j")
+//            }
+            }
+        }
+
+    }
 }
