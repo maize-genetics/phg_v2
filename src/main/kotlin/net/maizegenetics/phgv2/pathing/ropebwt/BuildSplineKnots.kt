@@ -29,7 +29,7 @@ class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs
         .int()
         .default(10)
 
-    val numBpsPerKnot by option(help = "Number of points per chrom.  If there are more points for each sample's chromosomes we will downsample randomly..")
+    val numBpsPerKnot by option(help = "Number of bps per knot for each contig's spline.  This is the maximum number of bps per knot, so the actual number may be less if there are not enough bps in the contig.")
         .int()
         .default(50_000)
 

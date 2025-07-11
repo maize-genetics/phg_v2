@@ -409,7 +409,9 @@ class SplineUtils{
          *
          * If there are fewer points in the list for a given chromosome than the maxNumPoints, it will not downsample.
          */
-        @Deprecated("Use downsamplePointsByChrLength instead for more accurate downsampling based on chromosome length.")
+        @Deprecated("Use downsamplePointsByChrLength instead for more accurate downsampling based on chromosome length.", replaceWith = ReplaceWith(
+            "downsamplePointsByChrLength(splineKnotMap, maxNumPoints, randomSeed)"
+        ))
         fun downsamplePoints(splineKnotMap:MutableMap<String, MutableList<Pair<Double,Double>>>, maxNumPoints: Int = 250_000, randomSeed : Long = 12345) {
             for (entry in splineKnotMap.entries) {
                 val listOfPoints = entry.value
