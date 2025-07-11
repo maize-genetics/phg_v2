@@ -202,7 +202,7 @@ phg_v2_example/
     pipeline by replacing the `rope-bwt-index` command with 
     `rope-bwt-chr-index`. If you wish to try it out now, the indexer 
     is currently usable as a **standalone command**. More information 
-    about how to use `rope-bwt-chr-index` can be found **[here](convenience_commands.md#run-ropebwt3-indexing-by-full-length-chromosomes)**.
+    about how to use `rope-bwt-chr-index` can be found **[here](imputation_ml.md#run-ropebwt3-indexing-by-full-length-chromosomes)**.
 
 In order to run the later [ropebwt3 read mapping steps](#read-mapping),
 we will first need to **build** a ropebwt3 index. 
