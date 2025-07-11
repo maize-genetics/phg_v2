@@ -29,9 +29,9 @@ class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs
         .int()
         .default(10)
 
-    val maxNumPointsPerChrom by option(help = "Number of points per chrom.  If there are more points for each sample's chromosomes we will downsample randomly..")
+    val numBpsPerKnot by option(help = "Number of points per chrom.  If there are more points for each sample's chromosomes we will downsample randomly..")
         .int()
-        .default(250_000)
+        .default(50_000)
 
     val contigList by option(help = "List of chromosomes to include in the splines.  If not provided, all chromosomes will be included.")
         .default("")
@@ -60,7 +60,7 @@ class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs
             vcfType,
             outputDir,
             minIndelLength,
-            maxNumPointsPerChrom,
+            numBpsPerKnot,
             contigSet,
             randomSeed
         )

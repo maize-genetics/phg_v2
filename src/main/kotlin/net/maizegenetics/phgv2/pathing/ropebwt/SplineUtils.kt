@@ -40,7 +40,7 @@ class SplineUtils{
          * (http://doi.acm.org/10.1145/321607.321609) implemented via the Apache Commons Math3 library.
          * This does not build the full splines just yet but rather sets up the spline knots for each chromosome.
          */
-        fun buildSplineKnots(vcfDir: String, vcfType: String, outputDir: String ,minIndelLength: Int = 10, maxNumPointsPerChrom: Int = 250_000, contigSet : Set<String> = emptySet(), randomSeed: Long = 12345) {
+        fun buildSplineKnots(vcfDir: String, vcfType: String, outputDir: String, minIndelLength: Int = 10, numBpsPerKnot: Int = 50_000, contigSet : Set<String> = emptySet(), randomSeed: Long = 12345) {
             val vcfFiles = buildVCFFileList(vcfDir, vcfType)
 
             var chrIndexMap = mutableMapOf<String,Int>()
@@ -57,7 +57,7 @@ class SplineUtils{
                 }
 
                 myLogger.info("Reading ${vcfFile.name}")
-                val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
+                val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, randomSeed)
 
                 myLogger.info("Done processing ${vcfFile.name}")
                 myLogger.info("Number of splines: ${splineKnotLookup.splineKnotMap.size}")
@@ -105,14 +105,14 @@ class SplineUtils{
             chrIndexMap: MutableMap<String, Int>,
             gameteIndexMap: MutableMap<String, Int>,
             minIndelLength: Int=10,
-            maxNumPointsPerChrom: Int = 250_000,
+            numBpsPerKnot: Int = 50_000,
             contigSet: Set<String> = emptySet(),
             randomSeed: Long = 12345
         ) : SplineKnotLookup {
             return if(vcfType == "hvcf") {
-                processHvcfFileIntoSplineKnots(vcfFile, chrIndexMap, gameteIndexMap, maxNumPointsPerChrom, contigSet, randomSeed)
+                processHvcfFileIntoSplineKnots(vcfFile, chrIndexMap, gameteIndexMap, numBpsPerKnot, contigSet, randomSeed)
             } else if(vcfType == "gvcf") {
-                processGvcfFileIntoSplineKnots(vcfFile,chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
+                processGvcfFileIntoSplineKnots(vcfFile,chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, randomSeed)
             } else {
                 throw IllegalArgumentException("Unknown VCF type $vcfType")
             }
@@ -126,7 +126,7 @@ class SplineUtils{
             hvcfFile: File?,
             chrIndexMap: MutableMap<String, Int>,
             gameteIndexMap: MutableMap<String, Int>,
-            maxNumPointsPerChrom: Int = 250_000,
+            numBpsPerKnot: Int = 50_000,
             contigSet: Set<String> = emptySet(),
             randomSeed: Long = 12345
         ) : SplineKnotLookup {
@@ -185,7 +185,7 @@ class SplineUtils{
 
                 //build the splines
                 //Downsample the number of points
-                downsamplePoints(mapOfASMChrToListOfPoints, maxNumPointsPerChrom, randomSeed)
+                downsamplePointsByChrLength(mapOfASMChrToListOfPoints, numBpsPerKnot, randomSeed)
 
                 //Now we need to build the splines for each of the assembly chromosomes
                 //loop through each of the assembly coordinates and make splines for each
@@ -205,7 +205,7 @@ class SplineUtils{
             chrIndexMap: MutableMap<String, Int>,
             gameteIndexMap: MutableMap<String, Int>,
             minIndelLength: Int=10,
-            maxNumPoints: Int = 250_000,
+            numBpsPerKnot: Int = 50_000,
             contigSet: Set<String> = emptySet(),
             randomSeed: Long = 12345
         ) : SplineKnotLookup {
@@ -376,7 +376,7 @@ class SplineUtils{
                 flushBlock()
 
                 //Downsample the number of points
-                downsamplePoints(mapOfASMChrToListOfPoints, maxNumPoints,randomSeed)
+                downsamplePointsByChrLength(mapOfASMChrToListOfPoints, numBpsPerKnot, randomSeed)
 
                 //loop through each of the assembly coordinates and make splines for each
                 for (entry in mapOfASMChrToListOfPoints.entries) {
@@ -409,6 +409,7 @@ class SplineUtils{
          *
          * If there are fewer points in the list for a given chromosome than the maxNumPoints, it will not downsample.
          */
+        @Deprecated("Use downsamplePointsByChrLength instead for more accurate downsampling based on chromosome length.")
         fun downsamplePoints(splineKnotMap:MutableMap<String, MutableList<Pair<Double,Double>>>, maxNumPoints: Int = 250_000, randomSeed : Long = 12345) {
             for (entry in splineKnotMap.entries) {
                 val listOfPoints = entry.value
@@ -434,6 +435,9 @@ class SplineUtils{
 
         /**
          * Function to downsample the points in the spline taking into account the number of BPs per knot.
+         *
+         * First we determine how many knots we need to remove to hit the threshold then we randomly remove that many knots.
+         * A lower numBpsPerKnot value will result in more knots being created which in turn will result in more detailed and accurate splines.
          */
         fun downsamplePointsByChrLength(splineKnotMap:MutableMap<String, MutableList<Pair<Double,Double>>>, numBpsPerKnot: Int = 50_000, randomSeed : Long = 12345) {
             //numBpsPerKnot is the number of base pairs per knot
@@ -448,16 +452,15 @@ class SplineUtils{
 
                 //get the length of the chromosome.  Should be the max of the first values in the pairs
                 val chromLength = listOfPoints.maxOf { it.first }
-                if( chromLength <= numBpsPerKnot) {
+
+                //Calculate the number of knots we need to keep.  If numBpsPerKnot is greater than the chromosome length, we do not need to downsample.
+                val numKnots = (chromLength / numBpsPerKnot).toInt()
+                if( chromLength <= numBpsPerKnot || numKnots <= 1) {
                     //If the chromosome length is less than the number of base pairs per knot, we do not need to downsample
                     continue
                 }
-                //Calculate the number of knots we need
-                val numKnots = (chromLength / numBpsPerKnot).toInt()
-                if(numKnots <= 1) {
-                    //If we only need one knot, we do not need to downsample
-                    continue
-                }
+
+
                 //Calculate the number of points to remove
                 val numPointsToRemove = listOfPoints.size - numKnots
                 if(numPointsToRemove > 0) {

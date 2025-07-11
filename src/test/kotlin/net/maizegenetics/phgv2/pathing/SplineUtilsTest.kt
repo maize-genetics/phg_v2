@@ -32,7 +32,6 @@ class SplineUtilsTest {
         }
 
 
-//        @JvmStatic
         @BeforeEach
         fun setupBeforeEach() {
             resetDirs()
@@ -272,7 +271,7 @@ class SplineUtilsTest {
             points2.add(Pair(i.toDouble(), i.toDouble()))
         }
 
-        val splineKnotLookup = mutableMapOf<String, MutableList<Pair<Double,Double>>>("chr1" to points, "chr2" to points2)
+        val splineKnotLookup = mutableMapOf("chr1" to points, "chr2" to points2)
 
         assertEquals(1000, splineKnotLookup["chr1"]!!.size)
         assertEquals(99, splineKnotLookup["chr2"]!!.size)
@@ -369,12 +368,17 @@ class SplineUtilsTest {
                     splineKnotMap[key]!!.size <= (key.toInt() * 10),
                     "Spline map for $key has more than 1000 points: ${splineKnotMap[key]!!.size}"
                 )
-//            //Check that the points are still increasing
-//            for (j in 1 until splineKnotMap[key]!!.size) {
-//                assertTrue(splineKnotMap[key]!![j].first > splineKnotMap[key]!![j - 1].first, "Points are not increasing for $key at index $j")
-//            }
             }
         }
+
+        //Make a spline map with no knots
+        val emptySplineKnotMap = mutableMapOf<String, MutableList<Pair<Double, Double>>>()
+        emptySplineKnotMap["0"] = mutableListOf<Pair<Double, Double>>()
+        SplineUtils.downsamplePointsByChrLength(emptySplineKnotMap, 1000, 12345)
+        //Check that the empty spline map is still empty
+        assertEquals(1, emptySplineKnotMap.size)
+        assertEquals(0, emptySplineKnotMap["0"]!!.size)
+
 
     }
 }
