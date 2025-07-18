@@ -2,6 +2,9 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 
 import biokotlin.util.bufferedReader
 import biokotlin.util.bufferedWriter
+import com.google.common.collect.Range
+import com.google.common.collect.RangeMap
+import com.google.common.collect.TreeRangeMap
 import htsjdk.variant.vcf.VCFFileReader
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -11,6 +14,7 @@ import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.apache.logging.log4j.LogManager
 import java.io.*
+import kotlin.math.abs
 import kotlin.random.Random
 
 @Serializable
@@ -51,10 +55,10 @@ class SplineUtils{
 
                 val splineOutputFile = "${outputDir}/${vcfFile.nameWithoutExtension}_spline_knots.json.gz"
 
-                if( File(splineOutputFile).exists()) {
-                    myLogger.info("Skipping ${vcfFile.name} as $splineOutputFile already exists")
-                    continue
-                }
+//                if( File(splineOutputFile).exists()) {
+//                    myLogger.info("Skipping ${vcfFile.name} as $splineOutputFile already exists")
+//                    continue
+//                }
 
                 myLogger.info("Reading ${vcfFile.name}")
                 val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, randomSeed)
@@ -312,6 +316,10 @@ class SplineUtils{
                         continue
                     }
 
+//                    if(asmChr=="ptg001762l" && (asmPosStart == 35170 || asmPosEnd == 35170)) {
+//                        println("DEBUG - Processing variant at $refChr:$refPosStart with ASM_Chr: $asmChr, ASM_Start: $asmPosStart, ASM_End: $asmPosEnd")
+//                    }
+
                     // Get string attributes for length check (if > 1: indel; else: continue block)
                     val altAllele = variant.getAlternateAllele(0).baseString
                     val refAllele = variant.reference.baseString
@@ -373,10 +381,16 @@ class SplineUtils{
                         }
                     }
                 }
+//                println("PreFinal flush: Error spline size: ${mapOfASMChrToListOfPoints["ptg001762l"]?.size ?: 0}")
                 flushBlock()
+
+//                println("PostFinal flush: Error spline size: ${mapOfASMChrToListOfPoints["ptg001762l"]?.size ?: 0}")
+//
 
                 //Downsample the number of points
                 downsamplePointsByChrLength(mapOfASMChrToListOfPoints, numBpsPerKnot, randomSeed)
+
+//                println("Post downsample: Error spline size: ${mapOfASMChrToListOfPoints["ptg001762l"]?.size ?: 0}")
 
                 //loop through each of the assembly coordinates and make splines for each
                 for (entry in mapOfASMChrToListOfPoints.entries) {
@@ -384,9 +398,18 @@ class SplineUtils{
                     val listOfPoints = entry.value
                     myLogger.info("Building spline for $asmChr $sampleName")
                     checkMapAndAddToIndex(gameteIndexMap, sampleName)
+//                    if(asmChr=="ptg001762l" ) {
+//                        println("PostCheckMap: Error spline size: ${listOfPoints.size}")
+//                    }
                     buildSplineKnotsForASMChrom(listOfPoints, splineKnotMap, asmChr, sampleName)
+//                    if(asmChr=="ptg001762l" ) {
+//                        println("postBuildSplineKnots: Error spline size: ${listOfPoints.size}")
+//                    }
                 }
             }
+//            println("DEBUG - Finished processing gvcf file: ${gvcfFile?.name}")
+//            println("DEBUG - Number of splines: ${splineKnotMap.size}")
+//            println("DEBUG - Number of knots in error: ${splineKnotMap["ptg001762l_9_PHT69-Buckler.p_ctg.gfa"]?.first?.size ?: 0}")
             return SplineKnotLookup(splineKnotMap, chrIndexMap, gameteIndexMap)
 
         }
@@ -398,6 +421,9 @@ class SplineUtils{
             asmPos: Int,
             refPos: Int
         ) {
+//            if(asmChr=="ptg001762l" && asmPos == 35170) {
+//                println("DEBUG - Processing variant at")
+//            }
             val listOfPoints = mapOfASMChrToListOfPoints.getOrPut(asmChr) { mutableListOf() }
             listOfPoints.add(Pair(asmPos.toDouble(), refPos.toDouble()))
         }
@@ -505,7 +531,13 @@ class SplineUtils{
             currentChrom: String,
             sampleName: String?
         ) {
+//            if(currentChrom=="ptg001762l" ) {
+//                println("Pre sortAndSplit: Error spline size: ${listOfPoints.size}")
+//            }
             val sortedPoints = sortAndSplitPoints(listOfPoints)
+//            if(currentChrom=="ptg001762l" ) {
+//                println("post sortAndSplit: Error spline size: ${sortedPoints.size}")
+//            }
             val asmArray = sortedPoints.map { it.first }.toDoubleArray()
             val refArray = sortedPoints.map { it.second }.toDoubleArray()
             splineKnotMap["${currentChrom}_${sampleName}"] = Pair(asmArray, refArray)
@@ -528,7 +560,7 @@ class SplineUtils{
                     outputPoints.add(firstPair)
 
                     if(firstRef.contig == secondRef.contig) {
-                        addIntermediateSplineKnots(firstPair, totalPos, firstRef, secondRef, outputPoints)
+                            addIntermediateSplineKnots(firstPair, totalPos, firstRef, secondRef, outputPoints)
                     }
                 }
                 //Add the last point
@@ -557,7 +589,7 @@ class SplineUtils{
             //Contigs are the same so we want to split the region into 4 parts.
             // We need 4 as it is the minumum number of knots that the Akima spline function requires.
             // If there are less it will throw an error.
-            val numPointsToAdd = 4
+            val numPointsToAdd = minOf(4, totalPos.toInt()-1)
             for (i in 1 until numPointsToAdd) {
                 val newPos = firstPair.first + (totalPos * (i.toDouble()) / (numPointsToAdd))
 
@@ -668,6 +700,29 @@ class SplineUtils{
 
         }
 
+        fun insureMonotonicity(
+            asmPositions: DoubleArray,
+            refPositions: DoubleArray
+        ) : Pair<DoubleArray, DoubleArray> {
+            val removeSet = mutableSetOf<Int>()
+            for(idx in 1 until asmPositions.size) {
+                if(asmPositions[idx] <= asmPositions[idx - 1]) {
+                    removeSet.add(idx)
+                }
+            }
+
+            return if(removeSet.isNotEmpty()) {
+                val newAsmPositions = asmPositions.filterIndexed { index, _ -> !removeSet.contains(index) }.toDoubleArray()
+                val newRefPositions = refPositions.filterIndexed { index, _ -> !removeSet.contains(index) }.toDoubleArray()
+                if(newAsmPositions.size != newRefPositions.size) {
+                    throw IllegalStateException("ASM and REF positions are not the same size after removing non-monotonic points.")
+                }
+                Pair(newAsmPositions, newRefPositions)
+            }
+            else {
+                Pair(asmPositions, refPositions)
+            }
+        }
 
         /**
          * Function that converts a Spline Knot Map into a Spline Map
@@ -676,10 +731,99 @@ class SplineUtils{
             val splineMap = mutableMapOf<String, PolynomialSplineFunction>()
             val interpolator = AkimaSplineInterpolator()
             knots.forEach { (key, value) ->
-                val splineFunction = interpolator.interpolate(value.first, value.second)
+                println("Processing spline for $key")
+                val asmPositions = value.first
+                val refPositions = value.second
+//                val (asmPositions, refPositions) = insureMonotonicity(value.first, value.second)
+                val splineFunction = interpolator.interpolate(asmPositions,refPositions)
                 splineMap[key] = splineFunction
             }
             return splineMap
+        }
+
+        fun convertKnotsToLinearSpline(knots: Map<String,Pair<DoubleArray,DoubleArray>>) : RangeMap<Position,Pair<Position,Position>> {
+            //Need to make the splines into linear blocks
+
+            //loop through each assembly chromosome:
+            val knotMap = TreeRangeMap.create<Position,Pair<Position,Position>>()
+            knots.forEach { (key, value) ->
+                val asmPositions = value.first
+                val refPositions = value.second
+
+                if(asmPositions.size != refPositions.size) {
+                    throw IllegalStateException("ASM and REF positions are not the same size for $key")
+                }
+
+                //We need to create a range for each pair of asm and ref positions
+                for (i in 0 until asmPositions.size - 1) {
+                    val asmStart = Position(key, asmPositions[i].toInt())
+                    val asmEnd = Position(key, asmPositions[i + 1].toInt())
+
+                    //Convert the ref positions to Position objects as they are encoded
+                    val refStartPos = PS4GUtils.decodePosition(refPositions[i].toInt())
+                    val refEndPos = PS4GUtils.decodePosition(refPositions[i + 1].toInt())
+
+                    if(refStartPos.contig != refEndPos.contig) {
+                        continue // Skip if the contigs are not the same  We do not want a spline between them
+                    }
+
+                    knotMap.put(Range.closed(asmStart, asmEnd), Pair(refStartPos, refEndPos))
+                }
+            }
+            return knotMap
+        }
+
+        fun convertKnotMapToLinearLookupFunction(
+            knotMap: RangeMap<Position,Pair<Position,Position>>
+        ) : LinearLookupFunction {
+            return LinearLookupFunction(knotMap)
+        }
+    }
+}
+
+
+class LinearLookupFunction(val knotMap: RangeMap<Position,Pair<Position,Position>>) {
+    fun value(position: Position): Position {
+        //Find the range that contains the position
+
+        val range = knotMap.getEntry(position)
+        return if(range != null) {
+            val asmRange = range.key
+            val asmSt = asmRange.lowerEndpoint()
+            val asmEnd = asmRange.upperEndpoint()
+            resolveLinearInterpolation(position,Pair(asmSt,asmEnd), range.value)
+        } else {
+            Position("unknown", 0) // Return a default position if not found
+        }
+    }
+
+    fun resolveLinearInterpolation(
+        asmPosition: Position,
+        asmRange : Pair<Position, Position>,
+        referenceRange : Pair<Position, Position>
+    ): Position {
+
+        val offsetProp = (asmPosition.position - asmRange.first.position).toDouble() /
+                (asmRange.second.position - asmRange.first.position).toDouble()
+
+        val offsetPos = abs(referenceRange.second.position - referenceRange.first.position) * offsetProp
+
+        if(referenceRange.first.contig != referenceRange.second.contig) {
+            //If the contigs are not the same, we cannot interpolate
+            throw IllegalArgumentException("Reference range contigs are not the same: ${referenceRange.first.contig} != ${referenceRange.second.contig}")
+        }
+        return if(referenceRange.first.position == referenceRange.second.position) {
+            //If the positions are the same, all values are equal
+            Position(referenceRange.first.contig, referenceRange.first.position.toInt())
+        }
+        else if(referenceRange.first.position < referenceRange.second.position) {
+            //Positive strand
+            val newPos = referenceRange.first.position + offsetPos
+            Position(referenceRange.first.contig, newPos.toInt())
+        } else {
+            //Negative strand
+            val newPos = referenceRange.first.position - offsetPos
+            Position(referenceRange.first.contig, newPos.toInt())
         }
     }
 }
