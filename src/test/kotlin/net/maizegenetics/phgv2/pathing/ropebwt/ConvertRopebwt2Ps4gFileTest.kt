@@ -322,7 +322,7 @@ class ConvertRopebwt2Ps4gFileTest {
         val ropebwtBed = "data/test/ropebwt/LineA_FullChr.bed"
         val hvcfDir = "data/test/ropebwt/testHVCFs"
 
-        val truthData=  setOf(PS4GData(listOf(0),6, 2), PS4GData(listOf(0),4,1),
+        val truthData=  setOf(PS4GData(listOf(0),5, 2), PS4GData(listOf(0),4,1),
             PS4GData(listOf(0),8, 1), PS4GData(listOf(0),12, 2)
         )
 
