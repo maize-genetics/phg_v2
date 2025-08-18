@@ -54,11 +54,7 @@ class SplineUtils{
             for (vcfFile in vcfFiles!!) {
 
                 val splineOutputFile = "${outputDir}/${vcfFile.nameWithoutExtension}_spline_knots.json.gz"
-
-//                if( File(splineOutputFile).exists()) {
-//                    myLogger.info("Skipping ${vcfFile.name} as $splineOutputFile already exists")
-//                    continue
-//                }
+                
 
                 myLogger.info("Reading ${vcfFile.name}")
                 val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, randomSeed)
@@ -316,9 +312,6 @@ class SplineUtils{
                         continue
                     }
 
-//                    if(asmChr=="ptg001762l" && (asmPosStart == 35170 || asmPosEnd == 35170)) {
-//                        println("DEBUG - Processing variant at $refChr:$refPosStart with ASM_Chr: $asmChr, ASM_Start: $asmPosStart, ASM_End: $asmPosEnd")
-//                    }
 
                     // Get string attributes for length check (if > 1: indel; else: continue block)
                     val altAllele = variant.getAlternateAllele(0).baseString
@@ -381,16 +374,10 @@ class SplineUtils{
                         }
                     }
                 }
-//                println("PreFinal flush: Error spline size: ${mapOfASMChrToListOfPoints["ptg001762l"]?.size ?: 0}")
                 flushBlock()
-
-//                println("PostFinal flush: Error spline size: ${mapOfASMChrToListOfPoints["ptg001762l"]?.size ?: 0}")
-//
 
                 //Downsample the number of points
                 downsamplePointsByChrLength(mapOfASMChrToListOfPoints, numBpsPerKnot, randomSeed)
-
-//                println("Post downsample: Error spline size: ${mapOfASMChrToListOfPoints["ptg001762l"]?.size ?: 0}")
 
                 //loop through each of the assembly coordinates and make splines for each
                 for (entry in mapOfASMChrToListOfPoints.entries) {
@@ -398,20 +385,12 @@ class SplineUtils{
                     val listOfPoints = entry.value
                     myLogger.info("Building spline for $asmChr $sampleName")
                     checkMapAndAddToIndex(gameteIndexMap, sampleName)
-//                    if(asmChr=="ptg001762l" ) {
-//                        println("PostCheckMap: Error spline size: ${listOfPoints.size}")
-//                    }
+
                     buildSplineKnotsForASMChrom(listOfPoints, splineKnotMap, asmChr, sampleName)
-//                    if(asmChr=="ptg001762l" ) {
-//                        println("postBuildSplineKnots: Error spline size: ${listOfPoints.size}")
-//                    }
                 }
             }
-//            println("DEBUG - Finished processing gvcf file: ${gvcfFile?.name}")
-//            println("DEBUG - Number of splines: ${splineKnotMap.size}")
-//            println("DEBUG - Number of knots in error: ${splineKnotMap["ptg001762l_9_PHT69-Buckler.p_ctg.gfa"]?.first?.size ?: 0}")
-            return SplineKnotLookup(splineKnotMap, chrIndexMap, gameteIndexMap)
 
+            return SplineKnotLookup(splineKnotMap, chrIndexMap, gameteIndexMap)
         }
 
 
