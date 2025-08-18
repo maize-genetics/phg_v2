@@ -200,11 +200,12 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         val decodePositions = encodedPositions.map { Pair(it.first,PS4GUtils.decodePosition(it.second)) }
 
         //determine chromosome majority
-        val bestChromosome = decodePositions.map { it.second }.maxOf { it.contig }
+        val chrCounts = decodePositions.groupingBy { it.second.contig }.eachCount()
+        val bestChromosome = chrCounts.maxBy { it.value }.key
         //remove hits that don't hit our chosen chromosome
         val bestHitsForChrom = decodePositions.filter { it.second.contig == bestChromosome }
         //compute the average position
-        val averagePosition = bestHitsForChrom.sumOf { it.second.position } / bestHitsForChrom.size
+        val averagePosition = bestHitsForChrom.sumOf { it.second.position / bestHitsForChrom.size }
         //TODO future task remove hits that are too far from average...
         //for now we just use the average position
         //Best chromosome is already in index form
@@ -221,6 +222,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             .toSortedSet()
             .toList()
 
+        if(encodedPosition < 0) {
+            myLogger.warn("Encoded position is negative: $encodedPosition for chromosome $bestChromosome at position $averagePosition")
+        }
         return Pair(encodedPosition,gameteIndicesHit )
     }
 

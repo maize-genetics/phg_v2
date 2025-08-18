@@ -2,6 +2,9 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 
 import biokotlin.util.bufferedReader
 import biokotlin.util.bufferedWriter
+import com.google.common.collect.Range
+import com.google.common.collect.RangeMap
+import com.google.common.collect.TreeRangeMap
 import htsjdk.variant.vcf.VCFFileReader
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -11,6 +14,7 @@ import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.apache.logging.log4j.LogManager
 import java.io.*
+import kotlin.math.abs
 import kotlin.random.Random
 
 @Serializable
@@ -40,7 +44,7 @@ class SplineUtils{
          * (http://doi.acm.org/10.1145/321607.321609) implemented via the Apache Commons Math3 library.
          * This does not build the full splines just yet but rather sets up the spline knots for each chromosome.
          */
-        fun buildSplineKnots(vcfDir: String, vcfType: String, outputDir: String ,minIndelLength: Int = 10, maxNumPointsPerChrom: Int = 250_000, contigSet : Set<String> = emptySet(), randomSeed: Long = 12345) {
+        fun buildSplineKnots(vcfDir: String, vcfType: String, outputDir: String, minIndelLength: Int = 10, numBpsPerKnot: Int = 50_000, contigSet : Set<String> = emptySet(), randomSeed: Long = 12345) {
             val vcfFiles = buildVCFFileList(vcfDir, vcfType)
 
             var chrIndexMap = mutableMapOf<String,Int>()
@@ -50,14 +54,10 @@ class SplineUtils{
             for (vcfFile in vcfFiles!!) {
 
                 val splineOutputFile = "${outputDir}/${vcfFile.nameWithoutExtension}_spline_knots.json.gz"
-
-                if( File(splineOutputFile).exists()) {
-                    myLogger.info("Skipping ${vcfFile.name} as $splineOutputFile already exists")
-                    continue
-                }
+                
 
                 myLogger.info("Reading ${vcfFile.name}")
-                val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
+                val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, randomSeed)
 
                 myLogger.info("Done processing ${vcfFile.name}")
                 myLogger.info("Number of splines: ${splineKnotLookup.splineKnotMap.size}")
@@ -105,14 +105,14 @@ class SplineUtils{
             chrIndexMap: MutableMap<String, Int>,
             gameteIndexMap: MutableMap<String, Int>,
             minIndelLength: Int=10,
-            maxNumPointsPerChrom: Int = 250_000,
+            numBpsPerKnot: Int = 50_000,
             contigSet: Set<String> = emptySet(),
             randomSeed: Long = 12345
         ) : SplineKnotLookup {
             return if(vcfType == "hvcf") {
-                processHvcfFileIntoSplineKnots(vcfFile, chrIndexMap, gameteIndexMap, maxNumPointsPerChrom, contigSet, randomSeed)
+                processHvcfFileIntoSplineKnots(vcfFile, chrIndexMap, gameteIndexMap, numBpsPerKnot, contigSet, randomSeed)
             } else if(vcfType == "gvcf") {
-                processGvcfFileIntoSplineKnots(vcfFile,chrIndexMap, gameteIndexMap, minIndelLength, maxNumPointsPerChrom, contigSet, randomSeed)
+                processGvcfFileIntoSplineKnots(vcfFile,chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, randomSeed)
             } else {
                 throw IllegalArgumentException("Unknown VCF type $vcfType")
             }
@@ -126,7 +126,7 @@ class SplineUtils{
             hvcfFile: File?,
             chrIndexMap: MutableMap<String, Int>,
             gameteIndexMap: MutableMap<String, Int>,
-            maxNumPointsPerChrom: Int = 250_000,
+            numBpsPerKnot: Int = 50_000,
             contigSet: Set<String> = emptySet(),
             randomSeed: Long = 12345
         ) : SplineKnotLookup {
@@ -185,7 +185,7 @@ class SplineUtils{
 
                 //build the splines
                 //Downsample the number of points
-                downsamplePoints(mapOfASMChrToListOfPoints, maxNumPointsPerChrom, randomSeed)
+                downsamplePointsByChrLength(mapOfASMChrToListOfPoints, numBpsPerKnot, randomSeed)
 
                 //Now we need to build the splines for each of the assembly chromosomes
                 //loop through each of the assembly coordinates and make splines for each
@@ -205,7 +205,7 @@ class SplineUtils{
             chrIndexMap: MutableMap<String, Int>,
             gameteIndexMap: MutableMap<String, Int>,
             minIndelLength: Int=10,
-            maxNumPoints: Int = 250_000,
+            numBpsPerKnot: Int = 50_000,
             contigSet: Set<String> = emptySet(),
             randomSeed: Long = 12345
         ) : SplineKnotLookup {
@@ -312,6 +312,7 @@ class SplineUtils{
                         continue
                     }
 
+
                     // Get string attributes for length check (if > 1: indel; else: continue block)
                     val altAllele = variant.getAlternateAllele(0).baseString
                     val refAllele = variant.reference.baseString
@@ -376,7 +377,7 @@ class SplineUtils{
                 flushBlock()
 
                 //Downsample the number of points
-                downsamplePoints(mapOfASMChrToListOfPoints, maxNumPoints,randomSeed)
+                downsamplePointsByChrLength(mapOfASMChrToListOfPoints, numBpsPerKnot, randomSeed)
 
                 //loop through each of the assembly coordinates and make splines for each
                 for (entry in mapOfASMChrToListOfPoints.entries) {
@@ -384,11 +385,12 @@ class SplineUtils{
                     val listOfPoints = entry.value
                     myLogger.info("Building spline for $asmChr $sampleName")
                     checkMapAndAddToIndex(gameteIndexMap, sampleName)
+
                     buildSplineKnotsForASMChrom(listOfPoints, splineKnotMap, asmChr, sampleName)
                 }
             }
-            return SplineKnotLookup(splineKnotMap, chrIndexMap, gameteIndexMap)
 
+            return SplineKnotLookup(splineKnotMap, chrIndexMap, gameteIndexMap)
         }
 
 
@@ -398,6 +400,9 @@ class SplineUtils{
             asmPos: Int,
             refPos: Int
         ) {
+//            if(asmChr=="ptg001762l" && asmPos == 35170) {
+//                println("DEBUG - Processing variant at")
+//            }
             val listOfPoints = mapOfASMChrToListOfPoints.getOrPut(asmChr) { mutableListOf() }
             listOfPoints.add(Pair(asmPos.toDouble(), refPos.toDouble()))
         }
@@ -409,6 +414,9 @@ class SplineUtils{
          *
          * If there are fewer points in the list for a given chromosome than the maxNumPoints, it will not downsample.
          */
+        @Deprecated("Use downsamplePointsByChrLength instead for more accurate downsampling based on chromosome length.", replaceWith = ReplaceWith(
+            "downsamplePointsByChrLength(splineKnotMap, maxNumPoints, randomSeed)"
+        ))
         fun downsamplePoints(splineKnotMap:MutableMap<String, MutableList<Pair<Double,Double>>>, maxNumPoints: Int = 250_000, randomSeed : Long = 12345) {
             for (entry in splineKnotMap.entries) {
                 val listOfPoints = entry.value
@@ -416,15 +424,7 @@ class SplineUtils{
 
                 if(numPointsToRemove > 0) {
                     //Build a list of unique indices to remove
-                    val indicesToRemove = mutableSetOf<Int>()
-                    val random = Random(randomSeed)
-                    // Loop until we have enough unique indices to remove
-                    while (indicesToRemove.size < numPointsToRemove) {
-                        val randomIndex = random.nextInt(listOfPoints.size)
-                        if(!indicesToRemove.contains(randomIndex)) {
-                            indicesToRemove.add(randomIndex)
-                        }
-                    }
+                    val indicesToRemove = buildRemoveIndexSet(randomSeed, numPointsToRemove, listOfPoints)
 
                     //Filter out any of the indices that are in the set and write to the map overwriting the existing contig.
                     listOfPoints.filterIndexed { index, pair -> !indicesToRemove.contains(index) }
@@ -441,6 +441,67 @@ class SplineUtils{
         }
 
         /**
+         * Function to downsample the points in the spline taking into account the number of BPs per knot.
+         *
+         * First we determine how many knots we need to remove to hit the threshold then we randomly remove that many knots.
+         * A lower numBpsPerKnot value will result in more knots being created which in turn will result in more detailed and accurate splines.
+         */
+        fun downsamplePointsByChrLength(splineKnotMap:MutableMap<String, MutableList<Pair<Double,Double>>>, numBpsPerKnot: Int = 50_000, randomSeed : Long = 12345) {
+            //numBpsPerKnot is the number of base pairs per knot
+            for (entry in splineKnotMap.entries) {
+                val listOfPoints = entry.value
+
+                if(listOfPoints.isEmpty()) {
+                    //If there are no points for this chromosome, skip it
+                    myLogger.info("Skipping ${entry.key} as there are no points to downsample.")
+                    continue
+                }
+
+                //get the length of the chromosome.  Should be the max of the first values in the pairs
+                val chromLength = listOfPoints.maxOf { it.first }
+
+                //Calculate the number of knots we need to keep.  If numBpsPerKnot is greater than the chromosome length, we do not need to downsample.
+                val numKnots = (chromLength / numBpsPerKnot).toInt()
+                if( chromLength <= numBpsPerKnot || numKnots <= 1) {
+                    //If the chromosome length is less than the number of base pairs per knot, we do not need to downsample
+                    continue
+                }
+
+
+                //Calculate the number of points to remove
+                val numPointsToRemove = listOfPoints.size - numKnots
+                if(numPointsToRemove > 0) {
+                    val indicesToRemove = buildRemoveIndexSet(randomSeed, numPointsToRemove, listOfPoints)
+
+                    //Filter out any of the indices that are in the set and write to the map overwriting the existing contig.
+                    listOfPoints.filterIndexed { index, pair -> !indicesToRemove.contains(index) }
+                        .let { filteredList ->
+                            splineKnotMap[entry.key] = filteredList.toMutableList()
+                        }
+
+                }
+            }
+        }
+
+        private fun buildRemoveIndexSet(
+            randomSeed: Long,
+            numPointsToRemove: Int,
+            listOfPoints: MutableList<Pair<Double, Double>>
+        ): MutableSet<Int> {
+            //Build a list of unique indices to remove
+            val indicesToRemove = mutableSetOf<Int>()
+            val random = Random(randomSeed)
+            // Loop until we have enough unique indices to remove
+            while (indicesToRemove.size < numPointsToRemove) {
+                val randomIndex = random.nextInt(listOfPoints.size)
+                if (!indicesToRemove.contains(randomIndex)) {
+                    indicesToRemove.add(randomIndex)
+                }
+            }
+            return indicesToRemove
+        }
+
+        /**
          * Function to build the splines based on a list of Pair<Double, Double>
          */
         fun buildSplineKnotsForASMChrom(
@@ -449,7 +510,13 @@ class SplineUtils{
             currentChrom: String,
             sampleName: String?
         ) {
+//            if(currentChrom=="ptg001762l" ) {
+//                println("Pre sortAndSplit: Error spline size: ${listOfPoints.size}")
+//            }
             val sortedPoints = sortAndSplitPoints(listOfPoints)
+//            if(currentChrom=="ptg001762l" ) {
+//                println("post sortAndSplit: Error spline size: ${sortedPoints.size}")
+//            }
             val asmArray = sortedPoints.map { it.first }.toDoubleArray()
             val refArray = sortedPoints.map { it.second }.toDoubleArray()
             splineKnotMap["${currentChrom}_${sampleName}"] = Pair(asmArray, refArray)
@@ -472,7 +539,7 @@ class SplineUtils{
                     outputPoints.add(firstPair)
 
                     if(firstRef.contig == secondRef.contig) {
-                        addIntermediateSplineKnots(firstPair, totalPos, firstRef, secondRef, outputPoints)
+                            addIntermediateSplineKnots(firstPair, totalPos, firstRef, secondRef, outputPoints)
                     }
                 }
                 //Add the last point
@@ -501,7 +568,7 @@ class SplineUtils{
             //Contigs are the same so we want to split the region into 4 parts.
             // We need 4 as it is the minumum number of knots that the Akima spline function requires.
             // If there are less it will throw an error.
-            val numPointsToAdd = 4
+            val numPointsToAdd = minOf(4, totalPos.toInt()-1)
             for (i in 1 until numPointsToAdd) {
                 val newPos = firstPair.first + (totalPos * (i.toDouble()) / (numPointsToAdd))
 
@@ -612,6 +679,29 @@ class SplineUtils{
 
         }
 
+        fun insureMonotonicity(
+            asmPositions: DoubleArray,
+            refPositions: DoubleArray
+        ) : Pair<DoubleArray, DoubleArray> {
+            val removeSet = mutableSetOf<Int>()
+            for(idx in 1 until asmPositions.size) {
+                if(asmPositions[idx] <= asmPositions[idx - 1]) {
+                    removeSet.add(idx)
+                }
+            }
+
+            return if(removeSet.isNotEmpty()) {
+                val newAsmPositions = asmPositions.filterIndexed { index, _ -> !removeSet.contains(index) }.toDoubleArray()
+                val newRefPositions = refPositions.filterIndexed { index, _ -> !removeSet.contains(index) }.toDoubleArray()
+                if(newAsmPositions.size != newRefPositions.size) {
+                    throw IllegalStateException("ASM and REF positions are not the same size after removing non-monotonic points.")
+                }
+                Pair(newAsmPositions, newRefPositions)
+            }
+            else {
+                Pair(asmPositions, refPositions)
+            }
+        }
 
         /**
          * Function that converts a Spline Knot Map into a Spline Map
@@ -620,10 +710,99 @@ class SplineUtils{
             val splineMap = mutableMapOf<String, PolynomialSplineFunction>()
             val interpolator = AkimaSplineInterpolator()
             knots.forEach { (key, value) ->
-                val splineFunction = interpolator.interpolate(value.first, value.second)
+                println("Processing spline for $key")
+                val asmPositions = value.first
+                val refPositions = value.second
+//                val (asmPositions, refPositions) = insureMonotonicity(value.first, value.second)
+                val splineFunction = interpolator.interpolate(asmPositions,refPositions)
                 splineMap[key] = splineFunction
             }
             return splineMap
+        }
+
+        fun convertKnotsToLinearSpline(knots: Map<String,Pair<DoubleArray,DoubleArray>>) : RangeMap<Position,Pair<Position,Position>> {
+            //Need to make the splines into linear blocks
+
+            //loop through each assembly chromosome:
+            val knotMap = TreeRangeMap.create<Position,Pair<Position,Position>>()
+            knots.forEach { (key, value) ->
+                val asmPositions = value.first
+                val refPositions = value.second
+
+                if(asmPositions.size != refPositions.size) {
+                    throw IllegalStateException("ASM and REF positions are not the same size for $key")
+                }
+
+                //We need to create a range for each pair of asm and ref positions
+                for (i in 0 until asmPositions.size - 1) {
+                    val asmStart = Position(key, asmPositions[i].toInt())
+                    val asmEnd = Position(key, asmPositions[i + 1].toInt())
+
+                    //Convert the ref positions to Position objects as they are encoded
+                    val refStartPos = PS4GUtils.decodePosition(refPositions[i].toInt())
+                    val refEndPos = PS4GUtils.decodePosition(refPositions[i + 1].toInt())
+
+                    if(refStartPos.contig != refEndPos.contig) {
+                        continue // Skip if the contigs are not the same  We do not want a spline between them
+                    }
+
+                    knotMap.put(Range.closed(asmStart, asmEnd), Pair(refStartPos, refEndPos))
+                }
+            }
+            return knotMap
+        }
+
+        fun convertKnotMapToLinearLookupFunction(
+            knotMap: RangeMap<Position,Pair<Position,Position>>
+        ) : LinearLookupFunction {
+            return LinearLookupFunction(knotMap)
+        }
+    }
+}
+
+
+class LinearLookupFunction(val knotMap: RangeMap<Position,Pair<Position,Position>>) {
+    fun value(position: Position): Position {
+        //Find the range that contains the position
+
+        val range = knotMap.getEntry(position)
+        return if(range != null) {
+            val asmRange = range.key
+            val asmSt = asmRange.lowerEndpoint()
+            val asmEnd = asmRange.upperEndpoint()
+            resolveLinearInterpolation(position,Pair(asmSt,asmEnd), range.value)
+        } else {
+            Position("unknown", 0) // Return a default position if not found
+        }
+    }
+
+    fun resolveLinearInterpolation(
+        asmPosition: Position,
+        asmRange : Pair<Position, Position>,
+        referenceRange : Pair<Position, Position>
+    ): Position {
+
+        val offsetProp = (asmPosition.position - asmRange.first.position).toDouble() /
+                (asmRange.second.position - asmRange.first.position).toDouble()
+
+        val offsetPos = abs(referenceRange.second.position - referenceRange.first.position) * offsetProp
+
+        if(referenceRange.first.contig != referenceRange.second.contig) {
+            //If the contigs are not the same, we cannot interpolate
+            throw IllegalArgumentException("Reference range contigs are not the same: ${referenceRange.first.contig} != ${referenceRange.second.contig}")
+        }
+        return if(referenceRange.first.position == referenceRange.second.position) {
+            //If the positions are the same, all values are equal
+            Position(referenceRange.first.contig, referenceRange.first.position.toInt())
+        }
+        else if(referenceRange.first.position < referenceRange.second.position) {
+            //Positive strand
+            val newPos = referenceRange.first.position + offsetPos
+            Position(referenceRange.first.contig, newPos.toInt())
+        } else {
+            //Negative strand
+            val newPos = referenceRange.first.position - offsetPos
+            Position(referenceRange.first.contig, newPos.toInt())
         }
     }
 }

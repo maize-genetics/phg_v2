@@ -32,7 +32,6 @@ class SplineUtilsTest {
         }
 
 
-//        @JvmStatic
         @BeforeEach
         fun setupBeforeEach() {
             resetDirs()
@@ -272,7 +271,7 @@ class SplineUtilsTest {
             points2.add(Pair(i.toDouble(), i.toDouble()))
         }
 
-        val splineKnotLookup = mutableMapOf<String, MutableList<Pair<Double,Double>>>("chr1" to points, "chr2" to points2)
+        val splineKnotLookup = mutableMapOf("chr1" to points, "chr2" to points2)
 
         assertEquals(1000, splineKnotLookup["chr1"]!!.size)
         assertEquals(99, splineKnotLookup["chr2"]!!.size)
@@ -323,6 +322,63 @@ class SplineUtilsTest {
             // We bin them by dividing by 256 and multiplying by 256 to get the binned position
             assertEquals(((10001 - (i * 2500))/256) * 256, PS4GUtils.decodePosition(sortedPointsNegative[i].second.toInt()).position)
         }
+
+    }
+
+    @Test
+    fun testDownsamplePointsByChrLength() {
+        //downsamplePointsByChrLength(splineKnotMap:MutableMap<String, MutableList<Pair<Double,Double>>>, numBpsPerKnot: Int = 50_000, randomSeed : Long = 12345)
+        //make a spline map with random increasing values
+        val splineKnotMap = mutableMapOf<String, MutableList<Pair<Double, Double>>>()
+        val rand = java.util.Random(12345)
+        for (i in 1..5) {
+            val points = mutableListOf<Pair<Double, Double>>()
+            for (j in 0 until 10_000) {
+                points.add(Pair(j.toDouble() * i, rand.nextDouble() * 1000 + i * 1000))
+            }
+            splineKnotMap["$i"] = points
+        }
+        //Add one for 0 that has 999 points
+        splineKnotMap["0"] = mutableListOf<Pair<Double, Double>>()
+        for (j in 0 until 999) {
+            splineKnotMap["0"]!!.add(Pair(j.toDouble(), rand.nextDouble() * 1000))
+        }
+
+        assertEquals(6, splineKnotMap.size)
+        for (key in splineKnotMap.keys) {
+            if(key == "0") {
+                //The 0 chromosome should have 999 points
+                assertEquals(999, splineKnotMap[key]!!.size)
+            } else {
+                //The other chromosomes should have 10_000 points
+                assertEquals(10_000, splineKnotMap[key]!!.size)
+            }
+        }
+        SplineUtils.downsamplePointsByChrLength(splineKnotMap, 1000, 12345)
+        //Check that the number of points is reduced
+        assertEquals(6, splineKnotMap.size)
+        for (key in splineKnotMap.keys) {
+            if(key == "0") {
+                //The 0 chromosome should have 999 points
+                assertEquals(999, splineKnotMap[key]!!.size)
+            } else {
+
+                //The number of points should be reduced to 1000
+                assertTrue(
+                    splineKnotMap[key]!!.size <= (key.toInt() * 10),
+                    "Spline map for $key has more than 1000 points: ${splineKnotMap[key]!!.size}"
+                )
+            }
+        }
+
+        //Make a spline map with no knots
+        val emptySplineKnotMap = mutableMapOf<String, MutableList<Pair<Double, Double>>>()
+        emptySplineKnotMap["0"] = mutableListOf<Pair<Double, Double>>()
+        SplineUtils.downsamplePointsByChrLength(emptySplineKnotMap, 1000, 12345)
+        //Check that the empty spline map is still empty
+        assertEquals(1, emptySplineKnotMap.size)
+        assertEquals(0, emptySplineKnotMap["0"]!!.size)
+
 
     }
 }

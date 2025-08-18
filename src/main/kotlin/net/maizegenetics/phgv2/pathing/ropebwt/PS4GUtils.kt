@@ -47,10 +47,15 @@ class PS4GUtils {
         }
 
         fun encodePositionFromIdxAndPos(idx: Int, pos: Int) : Int {
+
             //Pack into an Int
             //pack last 8 bits of idx into first 8 bits of output then pack the position minus 8 bits into the last 24 bits
             val idxBits = idx and 0xFF //If there are more than 256 contigs this will have unexpected issues
             val posBits = pos/256 // div 256 effectively bitshifts by 8
+
+            if(posBits > 16_777_216 || posBits < 0) {
+                throw IllegalArgumentException("Position $pos is too large to encode in an Int. Maximum position is 16,777,216 (2^24).  We only have 24 bits of room for the position.")
+            }
 
             return (idxBits shl 24) or posBits //we dont care if its negative as we arent comparing them
         }
@@ -58,8 +63,8 @@ class PS4GUtils {
         //This is a lossy function as we /256 the position during encoding.  So it will be in a bin of 256
         fun decodePosition(encodedPos : Int) : Position {
             val idx = encodedPos.toUInt() shr 24
-            val pos = (encodedPos and 0x0FFFFFF) * 256
-            return Position("$idx", pos)
+            val pos = (encodedPos.toUInt() and 0x0FFFFFFu) * 256u
+            return Position("$idx", pos.toInt())
         }
 
         /**
