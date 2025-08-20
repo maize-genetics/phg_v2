@@ -54,7 +54,7 @@ class SplineUtils{
             for (vcfFile in vcfFiles!!) {
 
                 val splineOutputFile = "${outputDir}/${vcfFile.nameWithoutExtension}_spline_knots.json.gz"
-                
+
 
                 myLogger.info("Reading ${vcfFile.name}")
                 val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, randomSeed)
@@ -400,9 +400,6 @@ class SplineUtils{
             asmPos: Int,
             refPos: Int
         ) {
-//            if(asmChr=="ptg001762l" && asmPos == 35170) {
-//                println("DEBUG - Processing variant at")
-//            }
             val listOfPoints = mapOfASMChrToListOfPoints.getOrPut(asmChr) { mutableListOf() }
             listOfPoints.add(Pair(asmPos.toDouble(), refPos.toDouble()))
         }
@@ -510,13 +507,8 @@ class SplineUtils{
             currentChrom: String,
             sampleName: String?
         ) {
-//            if(currentChrom=="ptg001762l" ) {
-//                println("Pre sortAndSplit: Error spline size: ${listOfPoints.size}")
-//            }
+
             val sortedPoints = sortAndSplitPoints(listOfPoints)
-//            if(currentChrom=="ptg001762l" ) {
-//                println("post sortAndSplit: Error spline size: ${sortedPoints.size}")
-//            }
             val asmArray = sortedPoints.map { it.first }.toDoubleArray()
             val refArray = sortedPoints.map { it.second }.toDoubleArray()
             splineKnotMap["${currentChrom}_${sampleName}"] = Pair(asmArray, refArray)
@@ -789,11 +781,11 @@ class LinearLookupFunction(val knotMap: RangeMap<Position,Pair<Position,Position
 
         if(referenceRange.first.contig != referenceRange.second.contig) {
             //If the contigs are not the same, we cannot interpolate
-            throw IllegalArgumentException("Reference range contigs are not the same: ${referenceRange.first.contig} != ${referenceRange.second.contig}")
+            Position("unknown", 0)
         }
         return if(referenceRange.first.position == referenceRange.second.position) {
             //If the positions are the same, all values are equal
-            Position(referenceRange.first.contig, referenceRange.first.position.toInt())
+            Position(referenceRange.first.contig, referenceRange.first.position)
         }
         else if(referenceRange.first.position < referenceRange.second.position) {
             //Positive strand

@@ -10,6 +10,7 @@ import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.headerCommand
 import net.maizegenetics.phgv2.cli.logCommand
+import net.maizegenetics.phgv2.utils.Position
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.apache.logging.log4j.LogManager
 
@@ -57,7 +58,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         val (splineKnots, chrIndexMap, gameteIndexMap) = SplineUtils.loadSplineKnotLookupFromDirectory(splineKnotDir)
 
         myLogger.info("Converting Spline Knots to Splines")
-        val splineLookup = SplineUtils.convertKnotsToSpline(splineKnots)
+
+        val linearSplineKnots = SplineUtils.convertKnotsToLinearSpline(splineKnots)
+        val splineLookup = SplineUtils.convertKnotMapToLinearLookupFunction(linearSplineKnots)
 
         val sampleGameteIndexMap = gameteIndexMap.map { SampleGamete(it.key) to it.value}.toMap()
 
@@ -76,7 +79,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     /**
      * Function to build the output PS4G file.
      */
-    fun buildPS4GData(ropebwtBed: String,  splineLookup: Map<String, PolynomialSplineFunction>, chrIndexMap:Map<String,Int>,
+    fun buildPS4GData(ropebwtBed: String,
+                      splineLookup: LinearLookupFunction,
+                      chrIndexMap:Map<String,Int>,
                       gameteToIdxMap: Map<String,Int>,
                       minMEMLength: Int, maxNumHits: Int,
                       sortPositions: Boolean = true) : Pair<List<PS4GData>, Map<SampleGamete,Int>> {
@@ -136,7 +141,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
      */
     fun processTempMEMs(
         tempMems: MutableList<MEM>,
-        splineLookup: Map<String, PolynomialSplineFunction>,
+        splineLookup: LinearLookupFunction,
         chrIndexMap: Map<String, Int>,
         minMEMLength: Int,
         maxNumHits: Int,
@@ -159,8 +164,10 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     /**
      * Function to process the MEMs collected for a given read.
      */
-    fun processMemsForRead(tempMems: List<MEM>, splineLookup: Map<String, PolynomialSplineFunction>,
-                           chrIndexMap: Map<String, Int>, minMEMLength: Int, maxNumHits: Int,
+    fun processMemsForRead(tempMems: List<MEM>,
+                           splineLookup: LinearLookupFunction,
+                           chrIndexMap: Map<String, Int>,
+                           minMEMLength: Int, maxNumHits: Int,
                            gameteToIdxMap: Map<String, Int>): Pair<Int, List<Int>> {
         val bestHits = findBestMems(tempMems, minMEMLength, maxNumHits)
         if(bestHits.isEmpty()) {
@@ -168,6 +175,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         }
 
         //convert MEMHits into Encoded Positions
+        //TODO Rename as we are outside of int packing
         val encodedPositions = encodeHitsToPosition(bestHits, splineLookup)
 
         //Create consensus Position
@@ -191,25 +199,43 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     }
 
     /**
+     * Function to do the spline positional lookup from the RopeBWT3 MEMs
+     */
+    fun encodeHitsToPosition(bestHits: List<MEMHit>, splineLookup: LinearLookupFunction) : List<Pair<String,Int>> {
+        return bestHits.map { hit ->
+            val position = Position(hit.contig, hit.pos)
+
+            val lookupValue = splineLookup.value(position)
+
+            if (lookupValue == Position("unknown", 0)) {
+                Pair(hit.contig, -1)
+            }
+            else {
+                Pair(hit.contig, lookupValue.position)
+            }
+        }.filter { it.second != -1 }
+    }
+
+    /**
      *  Function to find a consensus position for the gametes and output a Pair that can be used to increase counts
      */
-    fun createConsensusPositionAndGametes(encodedPositions: List<Pair<String,Int>>, chrIndexMap: Map<String,Int>, gameteToIdxMap: Map<String, Int>) : Pair<Int, List<Int>> {
-        if(encodedPositions.isEmpty()) {
+    fun createConsensusPositionAndGametes(decodedPositions: List<Pair<String,Int>>,chrIndexMap: Map<String,Int> ,gameteToIdxMap: Map<String, Int>) : Pair<Int, List<Int>> {
+        if(decodedPositions.isEmpty()) {
             return Pair(-1, listOf())
         }
-        val decodePositions = encodedPositions.map { Pair(it.first,PS4GUtils.decodePosition(it.second)) }
 
         //determine chromosome majority
-        val chrCounts = decodePositions.groupingBy { it.second.contig }.eachCount()
+        val chrCounts = decodedPositions.groupingBy { it.first.substringBeforeLast("_") }.eachCount()
         val bestChromosome = chrCounts.maxBy { it.value }.key
         //remove hits that don't hit our chosen chromosome
-        val bestHitsForChrom = decodePositions.filter { it.second.contig == bestChromosome }
+        val bestHitsForChrom = decodedPositions.filter { it.first.substringBeforeLast("_") == bestChromosome }
         //compute the average position
-        val averagePosition = bestHitsForChrom.sumOf { it.second.position / bestHitsForChrom.size }
+        val averagePosition = bestHitsForChrom.sumOf { it.second / bestHitsForChrom.size }
         //TODO future task remove hits that are too far from average...
         //for now we just use the average position
         //Best chromosome is already in index form
-        val encodedPosition = PS4GUtils.encodePositionFromIdxAndPos(bestChromosome.toInt(), averagePosition)
+        val bestChromosomeIndex = chrIndexMap[bestChromosome.substringBeforeLast("_")] ?: throw IllegalArgumentException("Chromosome $bestChromosome not found in chrIndexMap")
+        val encodedPosition = PS4GUtils.encodePositionFromIdxAndPos(bestChromosomeIndex, averagePosition)
 
         val gameteIndicesHit = bestHitsForChrom
             .map { it.first.split("_") }
