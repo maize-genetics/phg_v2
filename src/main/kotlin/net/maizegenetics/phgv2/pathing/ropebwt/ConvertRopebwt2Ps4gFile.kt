@@ -59,8 +59,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
         myLogger.info("Converting Spline Knots to Splines")
 
-        val linearSplineKnots = SplineUtils.convertKnotsToLinearSpline(splineKnots)
-        val splineLookup = SplineUtils.convertKnotMapToLinearLookupFunction(linearSplineKnots)
+        val splineLookup = LinearLookupFunction(splineKnots)
 
         val sampleGameteIndexMap = gameteIndexMap.map { SampleGamete(it.key) to it.value}.toMap()
 

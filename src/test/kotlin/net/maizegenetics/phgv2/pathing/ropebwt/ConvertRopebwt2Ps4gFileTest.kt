@@ -217,7 +217,7 @@ class ConvertRopebwt2Ps4gFileTest {
         val chrIndexMap = mapOf(Pair("chr1", 0), Pair("chr2", 1))
         val gameteToIdxMap = mapOf(Pair("sample1", 0), Pair("sample2", 1))
 
-        val emptySplines = LinearLookupFunction(TreeRangeMap.create())
+        val emptySplines = LinearLookupFunction(emptyMap())
 
         val noPassingHits = convertRopebwt2Ps4gFile.processMemsForRead(memList, emptySplines, chrIndexMap, 5, 1, gameteToIdxMap)
         //Pair(-1, listOf())
@@ -232,9 +232,7 @@ class ConvertRopebwt2Ps4gFileTest {
         val knots = mapOf("chr1_sample1" to Pair(doubleArrayOf(1.0, 3.0, 5.0, 7.0, 9.0), doubleArrayOf(1.0, 3.0, 5.0, 7.0, 9.0)),
             "chr1_sample2" to Pair(doubleArrayOf(1.0, 3.0, 5.0, 7.0, 9.0), doubleArrayOf(2.0, 4.0, 6.0, 8.0, 10.0)))
 
-        val splineKnotLookup = SplineUtils.convertKnotsToLinearSpline(knots)
-        val splineLookup = SplineUtils.convertKnotMapToLinearLookupFunction(splineKnotLookup)
-
+        val splineLookup =LinearLookupFunction(knots)
 
         val processedMems = convertRopebwt2Ps4gFile.processMemsForRead(memList, splineLookup, chrIndexMap, 19, 10, gameteToIdxMap)
 
@@ -264,8 +262,7 @@ class ConvertRopebwt2Ps4gFileTest {
         val knots = mapOf("chr1_sample1" to Pair(doubleArrayOf(1.0, 3.0, 5.0, 7.0, 9.0), doubleArrayOf(1.0, 3.0, 5.0, 7.0, 9.0)),
             "chr1_sample2" to Pair(doubleArrayOf(1.0, 3.0, 5.0, 7.0, 9.0), doubleArrayOf(2.0, 4.0, 6.0, 8.0, 10.0)))
 
-        val splineKnotLookup = SplineUtils.convertKnotsToLinearSpline(knots)
-        val splineLookup = SplineUtils.convertKnotMapToLinearLookupFunction(splineKnotLookup)
+        val splineLookup = LinearLookupFunction(knots)
 
 
         val chrIndexMap = mapOf(Pair("chr1", 0), Pair("chr2", 1))
@@ -304,8 +301,7 @@ class ConvertRopebwt2Ps4gFileTest {
 
         val (splineKnots, chrIndexMap, gameteToIdxMap) = SplineUtils.loadSplineKnotLookupFromDirectory(tempTestDir)
 
-        val splineKnotLookup = SplineUtils.convertKnotsToLinearSpline(splineKnots)
-        val splineLookup = SplineUtils.convertKnotMapToLinearLookupFunction(splineKnotLookup)
+        val splineLookup = LinearLookupFunction(splineKnots)
 
 
         val ps4gData = convertRopebwt2Ps4gFile.buildPS4GData(ropebwtBed, splineLookup, chrIndexMap, gameteToIdxMap, 148, 10)
@@ -326,8 +322,8 @@ class ConvertRopebwt2Ps4gFileTest {
         val knots = mapOf("chr1_sample1" to Pair(doubleArrayOf(1.0, 3.0, 5.0, 7.0, 9.0), doubleArrayOf(1.0, 3.0, 5.0, 7.0, 9.0)),)
         "chr1_sample2" to Pair(doubleArrayOf(1.0, 3.0, 5.0, 7.0, 9.0), doubleArrayOf(2.0, 4.0, 6.0, 8.0, 10.0))
 
-        val splineKnotLookup = SplineUtils.convertKnotsToLinearSpline(knots)
-        val splineLookup = SplineUtils.convertKnotMapToLinearLookupFunction(splineKnotLookup)
+
+        val splineLookup = LinearLookupFunction(knots)
 
         //MEMHit("chr1_sample1", "+", 1), MEMHit("chr1_sample2", "+", 2))
         val lookup1 = splineLookup.value(Position("chr1_sample1", 1))
@@ -354,9 +350,7 @@ class ConvertRopebwt2Ps4gFileTest {
         val negativeKnots = mapOf("chr1_sample1" to Pair(doubleArrayOf(1.0, 3.0, 5.0, 7.0, 9.0), doubleArrayOf(9.0, 7.0, 5.0, 3.0, 1.0)),)
         "chr1_sample2" to Pair(doubleArrayOf(1.0, 3.0, 5.0, 7.0, 9.0), doubleArrayOf(2.0, 4.0, 6.0, 8.0, 10.0))
 
-        val negativeSplineKnotLookup = SplineUtils.convertKnotsToLinearSpline(negativeKnots)
-        val negativeSplineLookup = SplineUtils.convertKnotMapToLinearLookupFunction(negativeSplineKnotLookup)
-
+        val negativeSplineLookup = LinearLookupFunction(negativeKnots)
 
         val lookup1Negative = negativeSplineLookup.value(Position("chr1_sample1", 1))
         assertNotNull(lookup1Negative)
