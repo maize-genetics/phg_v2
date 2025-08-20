@@ -341,9 +341,20 @@ class ConvertRopebwt2Ps4gFileTest {
         assertEquals("0", lookup1.contig)
         assertEquals(256, lookup1.position)
 
-        val lookupUnknown = splineLookup.value(Position("chr1_sample3", 100))
-        assertEquals("unknown", lookupUnknown.contig)
-        assertEquals(0, lookupUnknown.position)
+
+        val lookup2 = splineLookup.value(Position("chr1_sample1", 2))
+        assertNotNull(lookup2)
+        assertEquals("0", lookup2.contig)
+        assertEquals(512, lookup2.position)
+
+
+        val lookupUnknownContig = splineLookup.value(Position("chr1_sample3", 1))
+        assertEquals("unknown", lookupUnknownContig.contig)
+        assertEquals(0, lookupUnknownContig.position)
+
+        val lookupUnknownPosition = splineLookup.value(Position("chr1_sample1", 100))
+        assertEquals("unknown", lookupUnknownPosition.contig)
+        assertEquals(0, lookupUnknownPosition.position)
 
         val negativeKnots = mapOf("chr1_sample1" to Pair(doubleArrayOf(1.0, 3.0, 5.0, 7.0, 9.0), doubleArrayOf(9.0, 7.0, 5.0, 3.0, 1.0)),)
         "chr1_sample2" to Pair(doubleArrayOf(1.0, 3.0, 5.0, 7.0, 9.0), doubleArrayOf(2.0, 4.0, 6.0, 8.0, 10.0))
