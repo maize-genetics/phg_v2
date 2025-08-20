@@ -1,21 +1,16 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
 import com.github.ajalt.clikt.testing.test
-import com.google.common.collect.RangeMap
 import com.google.common.collect.TreeRangeMap
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.setupDebugLogging
-import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
-import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.io.File
-import kotlin.test.fail
 
 class ConvertRopebwt2Ps4gFileTest {
 
