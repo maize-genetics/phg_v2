@@ -710,43 +710,5 @@ class SplineUtils{
             }
             return splineMap
         }
-
-//        fun convertKnotsToLinearSpline(knots: Map<String,Pair<DoubleArray,DoubleArray>>) : RangeMap<Position,Pair<Position,Position>> {
-//            //Need to make the splines into linear blocks
-//
-//            //loop through each assembly chromosome:
-//            val knotMap = TreeRangeMap.create<Position,Pair<Position,Position>>()
-//            knots.forEach { (key, value) ->
-//                val asmPositions = value.first
-//                val refPositions = value.second
-//
-//                if(asmPositions.size != refPositions.size) {
-//                    throw IllegalStateException("ASM and REF positions are not the same size for $key")
-//                }
-//
-//                //We need to create a range for each pair of asm and ref positions
-//                for (i in 0 until asmPositions.size - 1) {
-//                    val asmStart = Position(key, asmPositions[i].toInt())
-//                    val asmEnd = Position(key, asmPositions[i + 1].toInt())
-//
-//                    //Convert the ref positions to Position objects as they are encoded
-//                    val refStartPos = PS4GUtils.decodePosition(refPositions[i].toInt())
-//                    val refEndPos = PS4GUtils.decodePosition(refPositions[i + 1].toInt())
-//
-//                    if(refStartPos.contig != refEndPos.contig) {
-//                        continue // Skip if the contigs are not the same  We do not want a spline between them
-//                    }
-//
-//                    knotMap.put(Range.closed(asmStart, asmEnd), Pair(refStartPos, refEndPos))
-//                }
-//            }
-//            return knotMap
-//        }
-//
-//        fun convertKnotMapToLinearLookupFunction(
-//            knotMap: RangeMap<Position,Pair<Position,Position>>
-//        ) : LinearLookupFunction {
-//            return LinearLookupFunction(knotMap)
-//        }
     }
 }
