@@ -20,7 +20,10 @@ class LinearLookupFunction( knots: Map<String,Pair<DoubleArray,DoubleArray>>) {
 
         //loop through each assembly chromosome:
         val knotMap = TreeRangeMap.create<Position,Pair<Position,Position>>()
+        var counter = 0
         knots.forEach { (key, value) ->
+            println("Processing $key: ${counter++}/${knots.size-1}")
+
             val asmPositions = value.first
             val refPositions = value.second
 

@@ -121,14 +121,14 @@ class ConvertRopebwt2Ps4gFileTest {
         val gameteToIdxMap = mapOf(Pair("gamete1", 1), Pair("gamete2", 2))
         val consensus = convertRopebwt2Ps4gFile.createConsensusPositionAndGametes(encodedPositions, chrIndexMap, gameteToIdxMap)
 
-        assertEquals(PS4GUtils.encodePositionFromIdxAndPos(1,6400), consensus.first)
+        assertEquals(6400, consensus.first)
         assertEquals(listOf(1, 2), consensus.second)
 
         //check if the encoded positions are the exact same
         val encodedPositionsSamePos = listOf(Pair("chr1_gamete1", 5120), Pair("chr1_gamete2", 5120))
         val consensusSamePos = convertRopebwt2Ps4gFile.createConsensusPositionAndGametes(encodedPositionsSamePos, chrIndexMap, gameteToIdxMap)
 
-        assertEquals(PS4GUtils.encodePositionFromIdxAndPos(1,5120), consensusSamePos.first)
+        assertEquals(5120, consensusSamePos.first)
         assertEquals(listOf(1, 2), consensusSamePos.second)
 
         //Try empty list
@@ -358,4 +358,6 @@ class ConvertRopebwt2Ps4gFileTest {
         assertEquals("0", lookup1Negative.contig)
         assertEquals(2304, lookup1Negative.position)
     }
+
+
 }

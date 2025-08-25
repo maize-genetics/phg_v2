@@ -210,7 +210,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                 Pair(hit.contig, -1)
             }
             else {
-                Pair(hit.contig, lookupValue.position)
+                Pair(hit.contig, PS4GUtils.encodePositionNoLookup(lookupValue))
             }
         }.filter { it.second != -1 }
     }
@@ -218,23 +218,24 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     /**
      *  Function to find a consensus position for the gametes and output a Pair that can be used to increase counts
      */
-    fun createConsensusPositionAndGametes(decodedPositions: List<Pair<String,Int>>,chrIndexMap: Map<String,Int> ,gameteToIdxMap: Map<String, Int>) : Pair<Int, List<Int>> {
-        if(decodedPositions.isEmpty()) {
+    fun createConsensusPositionAndGametes(encodedPositions: List<Pair<String,Int>>,chrIndexMap: Map<String,Int> ,gameteToIdxMap: Map<String, Int>) : Pair<Int, List<Int>> {
+        if(encodedPositions.isEmpty()) {
             return Pair(-1, listOf())
         }
 
+        val decodedPositions = encodedPositions.map { Pair(it.first,PS4GUtils.decodePosition(it.second)) }
+
         //determine chromosome majority
-        val chrCounts = decodedPositions.groupingBy { it.first.substringBeforeLast("_") }.eachCount()
+        val chrCounts = decodedPositions.groupingBy { it.second.contig }.eachCount()
         val bestChromosome = chrCounts.maxBy { it.value }.key
         //remove hits that don't hit our chosen chromosome
-        val bestHitsForChrom = decodedPositions.filter { it.first.substringBeforeLast("_") == bestChromosome }
+        val bestHitsForChrom = decodedPositions.filter { it.second.contig == bestChromosome }
         //compute the average position
-        val averagePosition = bestHitsForChrom.sumOf { it.second / bestHitsForChrom.size }
+        val averagePosition = bestHitsForChrom.sumOf { it.second.position / bestHitsForChrom.size }
         //TODO future task remove hits that are too far from average...
         //for now we just use the average position
         //Best chromosome is already in index form
-        val bestChromosomeIndex = chrIndexMap[bestChromosome.substringBeforeLast("_")] ?: throw IllegalArgumentException("Chromosome $bestChromosome not found in chrIndexMap")
-        val encodedPosition = PS4GUtils.encodePositionFromIdxAndPos(bestChromosomeIndex, averagePosition)
+        val encodedPosition = PS4GUtils.encodePositionFromIdxAndPos(bestChromosome.toInt(), averagePosition)
 
         val gameteIndicesHit = bestHitsForChrom
             .map { it.first.split("_") }
