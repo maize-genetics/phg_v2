@@ -14,7 +14,6 @@ import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.apache.logging.log4j.LogManager
 import java.io.*
-import kotlin.math.abs
 import kotlin.random.Random
 
 @Serializable
@@ -54,7 +53,7 @@ class SplineUtils{
             for (vcfFile in vcfFiles!!) {
 
                 val splineOutputFile = "${outputDir}/${vcfFile.nameWithoutExtension}_spline_knots.json.gz"
-                
+
 
                 myLogger.info("Reading ${vcfFile.name}")
                 val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, randomSeed)
@@ -400,9 +399,6 @@ class SplineUtils{
             asmPos: Int,
             refPos: Int
         ) {
-//            if(asmChr=="ptg001762l" && asmPos == 35170) {
-//                println("DEBUG - Processing variant at")
-//            }
             val listOfPoints = mapOfASMChrToListOfPoints.getOrPut(asmChr) { mutableListOf() }
             listOfPoints.add(Pair(asmPos.toDouble(), refPos.toDouble()))
         }
@@ -510,13 +506,8 @@ class SplineUtils{
             currentChrom: String,
             sampleName: String?
         ) {
-//            if(currentChrom=="ptg001762l" ) {
-//                println("Pre sortAndSplit: Error spline size: ${listOfPoints.size}")
-//            }
+
             val sortedPoints = sortAndSplitPoints(listOfPoints)
-//            if(currentChrom=="ptg001762l" ) {
-//                println("post sortAndSplit: Error spline size: ${sortedPoints.size}")
-//            }
             val asmArray = sortedPoints.map { it.first }.toDoubleArray()
             val refArray = sortedPoints.map { it.second }.toDoubleArray()
             splineKnotMap["${currentChrom}_${sampleName}"] = Pair(asmArray, refArray)
@@ -718,91 +709,6 @@ class SplineUtils{
                 splineMap[key] = splineFunction
             }
             return splineMap
-        }
-
-        fun convertKnotsToLinearSpline(knots: Map<String,Pair<DoubleArray,DoubleArray>>) : RangeMap<Position,Pair<Position,Position>> {
-            //Need to make the splines into linear blocks
-
-            //loop through each assembly chromosome:
-            val knotMap = TreeRangeMap.create<Position,Pair<Position,Position>>()
-            knots.forEach { (key, value) ->
-                val asmPositions = value.first
-                val refPositions = value.second
-
-                if(asmPositions.size != refPositions.size) {
-                    throw IllegalStateException("ASM and REF positions are not the same size for $key")
-                }
-
-                //We need to create a range for each pair of asm and ref positions
-                for (i in 0 until asmPositions.size - 1) {
-                    val asmStart = Position(key, asmPositions[i].toInt())
-                    val asmEnd = Position(key, asmPositions[i + 1].toInt())
-
-                    //Convert the ref positions to Position objects as they are encoded
-                    val refStartPos = PS4GUtils.decodePosition(refPositions[i].toInt())
-                    val refEndPos = PS4GUtils.decodePosition(refPositions[i + 1].toInt())
-
-                    if(refStartPos.contig != refEndPos.contig) {
-                        continue // Skip if the contigs are not the same  We do not want a spline between them
-                    }
-
-                    knotMap.put(Range.closed(asmStart, asmEnd), Pair(refStartPos, refEndPos))
-                }
-            }
-            return knotMap
-        }
-
-        fun convertKnotMapToLinearLookupFunction(
-            knotMap: RangeMap<Position,Pair<Position,Position>>
-        ) : LinearLookupFunction {
-            return LinearLookupFunction(knotMap)
-        }
-    }
-}
-
-
-class LinearLookupFunction(val knotMap: RangeMap<Position,Pair<Position,Position>>) {
-    fun value(position: Position): Position {
-        //Find the range that contains the position
-
-        val range = knotMap.getEntry(position)
-        return if(range != null) {
-            val asmRange = range.key
-            val asmSt = asmRange.lowerEndpoint()
-            val asmEnd = asmRange.upperEndpoint()
-            resolveLinearInterpolation(position,Pair(asmSt,asmEnd), range.value)
-        } else {
-            Position("unknown", 0) // Return a default position if not found
-        }
-    }
-
-    fun resolveLinearInterpolation(
-        asmPosition: Position,
-        asmRange : Pair<Position, Position>,
-        referenceRange : Pair<Position, Position>
-    ): Position {
-
-        val offsetProp = (asmPosition.position - asmRange.first.position).toDouble() /
-                (asmRange.second.position - asmRange.first.position).toDouble()
-
-        val offsetPos = abs(referenceRange.second.position - referenceRange.first.position) * offsetProp
-
-        if(referenceRange.first.contig != referenceRange.second.contig) {
-            //If the contigs are not the same, we cannot interpolate
-            throw IllegalArgumentException("Reference range contigs are not the same: ${referenceRange.first.contig} != ${referenceRange.second.contig}")
-        }
-        return if(referenceRange.first.position == referenceRange.second.position) {
-            //If the positions are the same, all values are equal
-            Position(referenceRange.first.contig, referenceRange.first.position.toInt())
-        }
-        else if(referenceRange.first.position < referenceRange.second.position) {
-            //Positive strand
-            val newPos = referenceRange.first.position + offsetPos
-            Position(referenceRange.first.contig, newPos.toInt())
-        } else {
-            //Negative strand
-            val newPos = referenceRange.first.position - offsetPos
-            Position(referenceRange.first.contig, newPos.toInt())
         }
     }
 }
