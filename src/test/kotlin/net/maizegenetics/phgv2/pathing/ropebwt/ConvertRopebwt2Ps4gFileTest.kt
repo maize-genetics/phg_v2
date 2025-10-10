@@ -1,7 +1,6 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
 import com.github.ajalt.clikt.testing.test
-import com.google.common.collect.TreeRangeMap
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.Position
@@ -139,7 +138,7 @@ class ConvertRopebwt2Ps4gFileTest {
     }
 
     @Test
-    fun testEncodeHitsToPosition() {
+    fun testLookupHitsToRefPosition() {
         val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
         val splineKnotLookup = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
         val listOfPoints = mutableListOf(
@@ -173,12 +172,12 @@ class ConvertRopebwt2Ps4gFileTest {
 
         //single hit should return the position
         val singleHit = listOf(MEMHit("chr1_sample1", "+", 1))
-        val encodedSingleHit = convertRopebwt2Ps4gFile.encodeHitsToPosition(singleHit, splineLookup)
+        val encodedSingleHit = convertRopebwt2Ps4gFile.lookupHitsToRefPosition(singleHit, splineLookup)
         assertEquals(1, encodedSingleHit.size)
         assertEquals(Pair("chr1_sample1", 1), encodedSingleHit[0])
 
         val singleHitPos4 = listOf(MEMHit("chr1_sample1", "+", 4))
-        val encodedSingleHitPos4 = convertRopebwt2Ps4gFile.encodeHitsToPosition(singleHitPos4, splineLookup)
+        val encodedSingleHitPos4 = convertRopebwt2Ps4gFile.lookupHitsToRefPosition(singleHitPos4, splineLookup)
         assertEquals(1, encodedSingleHitPos4.size)
         assertEquals(Pair("chr1_sample1", 4), encodedSingleHitPos4[0])
 
@@ -186,7 +185,7 @@ class ConvertRopebwt2Ps4gFileTest {
         //multiple hits should return the position from the spline
         // in this simple case they are 3,4,5
         val multipleHits = listOf(MEMHit("chr1_sample1", "+", 3), MEMHit("chr1_sample2", "+", 3), MEMHit("chr1_sample3", "+", 3))
-        val encodedMultipleHits = convertRopebwt2Ps4gFile.encodeHitsToPosition(multipleHits, splineLookup)
+        val encodedMultipleHits = convertRopebwt2Ps4gFile.lookupHitsToRefPosition(multipleHits, splineLookup)
         assertEquals(3, encodedMultipleHits.size)
         assertEquals(Pair("chr1_sample1", 3), encodedMultipleHits[0])
         assertEquals(Pair("chr1_sample2", 4), encodedMultipleHits[1])
@@ -194,13 +193,13 @@ class ConvertRopebwt2Ps4gFileTest {
 
         //multiple hits with a missing spline should return -1
         val missingSpline = listOf(MEMHit("chr1_sample1", "+", 3), MEMHit("chr1_sample2", "+", 3), MEMHit("chr1_sample3", "+", 10))
-        val encodedMissingSpline = convertRopebwt2Ps4gFile.encodeHitsToPosition(missingSpline, splineLookup)
+        val encodedMissingSpline = convertRopebwt2Ps4gFile.lookupHitsToRefPosition(missingSpline, splineLookup)
         assertEquals(3, encodedMissingSpline.size)
         assertEquals(Pair("chr1_sample1", 3), encodedMissingSpline[0])
         assertEquals(Pair("chr1_sample2", 4), encodedMissingSpline[1])
 
         val missingChrSpline = listOf(MEMHit("chr1_sample1", "+", 3), MEMHit("chr1_sample2", "+", 3), MEMHit("chr1_sample10", "+", 5))
-        val encodedMissingChrSpline = convertRopebwt2Ps4gFile.encodeHitsToPosition(missingChrSpline, splineLookup)
+        val encodedMissingChrSpline = convertRopebwt2Ps4gFile.lookupHitsToRefPosition(missingChrSpline, splineLookup)
         assertEquals(2, encodedMissingChrSpline.size)
         assertEquals(Pair("chr1_sample1", 3), encodedMissingChrSpline[0])
         assertEquals(Pair("chr1_sample2", 4), encodedMissingChrSpline[1])
