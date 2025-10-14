@@ -151,6 +151,7 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
         gameteToIdxMap: Map<SampleGamete, Int>
     ) {
 //        val encodedPosition = PS4GUtils.encodePosition(position, contigNameToIdxMap)
+        val encodedPosition = Position("${contigNameToIdxMap[position.contig]}", position.position/256)
 
         //Get out the alleles and lists of SampleGametes for this position
         val alleleMap = positionSampleGameteLookup[position]!!
@@ -168,8 +169,8 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
                     sampleGameteCount,
                     gameteToCountMap,
                     gameteToIdxMap,
-//                    encodedPosition
-                    position
+                    encodedPosition
+//                    position
                 )
             }
         }

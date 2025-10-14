@@ -122,58 +122,58 @@ class ConvertVcf2Ps4gFileTest {
         //Check the ps4g entries
         val impute1PS4GList = impute1PS4GData.ps4gData
         assertEquals(listOf(0,1) ,impute1PS4GList[0].gameteList)
-        assertEquals(0, impute1PS4GList[0].pos)
+        assertEquals(Position("0",0), impute1PS4GList[0].refPos)
         assertEquals(3, impute1PS4GList[0].count)
 
         assertEquals(listOf(0,3) ,impute1PS4GList[1].gameteList)
-        assertEquals(0, impute1PS4GList[1].pos)
+        assertEquals(Position("0",0), impute1PS4GList[1].refPos)
         assertEquals(1, impute1PS4GList[1].count)
 
         assertEquals(listOf(0,2) ,impute1PS4GList[2].gameteList)
-        assertEquals(2, impute1PS4GList[2].pos)
+        assertEquals(Position("0",2), impute1PS4GList[2].refPos)
         assertEquals(1, impute1PS4GList[2].count)
 
         //check impute2
         val impute2PS4GList = impute2PS4GData.ps4gData
         assertEquals(listOf(0,1) ,impute2PS4GList[0].gameteList)
-        assertEquals(0, impute2PS4GList[0].pos)
+        assertEquals(Position("0",0), impute2PS4GList[0].refPos)
         assertEquals(3, impute2PS4GList[0].count)
 
         assertEquals(listOf(1,2) ,impute2PS4GList[1].gameteList)
-        assertEquals(0, impute2PS4GList[1].pos)
+        assertEquals(Position("0",0), impute2PS4GList[1].refPos)
         assertEquals(1, impute2PS4GList[1].count)
 
         assertEquals(listOf(1,3) ,impute2PS4GList[2].gameteList)
-        assertEquals(2, impute2PS4GList[2].pos)
+        assertEquals(Position("0",2), impute2PS4GList[2].refPos)
         assertEquals(1, impute2PS4GList[2].count)
 
         //check impute3
         val impute3PS4GList = impute3PS4GData.ps4gData
         assertEquals(listOf(2,3) ,impute3PS4GList[0].gameteList)
-        assertEquals(0, impute3PS4GList[0].pos)
+        assertEquals(Position("0",0), impute3PS4GList[0].refPos)
         assertEquals(3, impute3PS4GList[0].count)
 
         assertEquals(listOf(1,2) ,impute3PS4GList[1].gameteList)
-        assertEquals(0, impute3PS4GList[1].pos)
+        assertEquals(Position("0",0), impute3PS4GList[1].refPos)
         assertEquals(1, impute3PS4GList[1].count)
 
         assertEquals(listOf(0,2) ,impute3PS4GList[2].gameteList)
-        assertEquals(2, impute3PS4GList[2].pos)
+        assertEquals(Position("0",2), impute3PS4GList[2].refPos)
         assertEquals(1, impute3PS4GList[2].count)
 
 
         //check impute4
         val impute4PS4GList = impute4PS4GData.ps4gData
         assertEquals(listOf(2,3) ,impute4PS4GList[0].gameteList)
-        assertEquals(0, impute4PS4GList[0].pos)
+        assertEquals(Position("0",0), impute4PS4GList[0].refPos)
         assertEquals(3, impute4PS4GList[0].count)
 
         assertEquals(listOf(0,3) ,impute4PS4GList[1].gameteList)
-        assertEquals(0, impute4PS4GList[1].pos)
+        assertEquals(Position("0",0,), impute4PS4GList[1].refPos)
         assertEquals(1, impute4PS4GList[1].count)
 
         assertEquals(listOf(1,3) ,impute4PS4GList[2].gameteList)
-        assertEquals(2, impute4PS4GList[2].pos)
+        assertEquals(Position("0",2), impute4PS4GList[2].refPos)
         assertEquals(1, impute4PS4GList[2].count)
 
 
@@ -205,7 +205,7 @@ class ConvertVcf2Ps4gFileTest {
                 convertVcf2Ps4gFile.createRefPanelPositionSampleGameteLookup(refVCFFile),
                 firstVC, sampleGameteCountMap, gameteToCountMap, gameteToIdxMap)
 
-            val encodedPos = PS4GUtils.encodePositionFromIdxAndPos(0,firstVC.start)
+            val encodedPos = Position("0",firstVC.start/256)
             //check that the gameteToCountMap is correct
             assertEquals(4, gameteToCountMap.size)
             assertEquals(4, sampleGameteCountMap.size)
@@ -252,7 +252,7 @@ class ConvertVcf2Ps4gFileTest {
         val genotype1 = GenotypeBuilder().name("genotype1")
             .alleles(listOf(Allele.REF_A, Allele.ALT_C)).make()
 
-        val encodedPosition1 = PS4GUtils.encodePositionFromIdxAndPos(1,1000)
+        val encodedPosition1 = Position("1",1000/256)
 
         val convertVcf2Ps4gFile = ConvertVcf2Ps4gFile()
 
@@ -382,10 +382,10 @@ class ConvertVcf2Ps4gFileTest {
             SampleGamete("sample3", 0) to 2,
             SampleGamete("sample4", 0) to 3,
         )
-        val imputeSample1CountMap = mutableMapOf<Pair<Int, List<Int>>, Int>(
-            Pair(0, listOf(0, 1)) to 20,
-            Pair(1, listOf(0)) to 10,
-            Pair(2, listOf(0, 2)) to 5,
+        val imputeSample1CountMap = mutableMapOf<Pair<Position, List<Int>>, Int>(
+            Pair(Position("0",0), listOf(0, 1)) to 20,
+            Pair(Position("0",1), listOf(0)) to 10,
+            Pair(Position("0",2), listOf(0, 2)) to 5,
         )
         val imputeSample1RefCount = mutableMapOf<SampleGamete, Int>(
             SampleGamete("sample1", 0) to 35,
@@ -393,10 +393,10 @@ class ConvertVcf2Ps4gFileTest {
             SampleGamete("sample3", 0) to 5
         )
 
-        val imputeSample2CountMap = mutableMapOf<Pair<Int, List<Int>>, Int>(
-            Pair(0, listOf(0,)) to 10,
-            Pair(1, listOf(0,1)) to 5,
-            Pair(2, listOf(1, 2)) to 15,
+        val imputeSample2CountMap = mutableMapOf<Pair<Position, List<Int>>, Int>(
+            Pair(Position("0",0), listOf(0,)) to 10,
+            Pair(Position("0",1), listOf(0,1)) to 5,
+            Pair(Position("0",2), listOf(1, 2)) to 15,
         )
 
         val imputeSample2RefCount = mutableMapOf<SampleGamete, Int>(
@@ -423,13 +423,13 @@ class ConvertVcf2Ps4gFileTest {
         val ps4gList = impute1PS4GData.ps4gData
         assertEquals(3, ps4gList.size)
         assertEquals(listOf(0,1), ps4gList[0].gameteList)
-        assertEquals(0, ps4gList[0].pos)
+        assertEquals(Position("0",0), ps4gList[0].refPos)
         assertEquals(20, ps4gList[0].count)
         assertEquals(listOf(0), ps4gList[1].gameteList)
-        assertEquals(1, ps4gList[1].pos)
+        assertEquals(Position("0",1), ps4gList[1].refPos)
         assertEquals(10, ps4gList[1].count)
         assertEquals(listOf(0,2), ps4gList[2].gameteList)
-        assertEquals(2, ps4gList[2].pos)
+        assertEquals(Position("0",2), ps4gList[2].refPos)
         assertEquals(5, ps4gList[2].count)
         assertEquals(35, impute1PS4GData.sampleGameteCount[SampleGamete("sample1",0)])
         assertEquals(20, impute1PS4GData.sampleGameteCount[SampleGamete("sample2",0)])
@@ -439,22 +439,15 @@ class ConvertVcf2Ps4gFileTest {
         val ps4gList2 = impute2PS4GData.ps4gData
         assertEquals(3, ps4gList2.size)
         assertEquals(listOf(0), ps4gList2[0].gameteList)
-        assertEquals(0, ps4gList2[0].pos)
+        assertEquals(Position("0",0), ps4gList2[0].refPos)
         assertEquals(10, ps4gList2[0].count)
         assertEquals(listOf(0,1), ps4gList2[1].gameteList)
-        assertEquals(1, ps4gList2[1].pos)
+        assertEquals(Position("0",1), ps4gList2[1].refPos)
         assertEquals(5, ps4gList2[1].count)
         assertEquals(listOf(1,2), ps4gList2[2].gameteList)
-        assertEquals(2, ps4gList2[2].pos)
+        assertEquals(Position("0",2), ps4gList2[2].refPos)
         assertEquals(15, impute2PS4GData.sampleGameteCount[SampleGamete("sample1",0)])
         assertEquals(20, impute2PS4GData.sampleGameteCount[SampleGamete("sample2",0)])
         assertEquals(15, impute2PS4GData.sampleGameteCount[SampleGamete("sample3",0)])
-
-
-
-
     }
-
-
-
 }
