@@ -103,7 +103,13 @@ class ConvertRm2Ps4gFileTest {
 
         assertEquals(93, ps4GData.size)
 
-        val ps4gMap = ps4GData.map { Pair(it[0].split(",").map { it.toInt() } ,it[1].toInt()) to it[2].toInt() }.toMap()
+        val ps4gMap = ps4GData.associate {
+            Triple(
+                it[0].split(",").map { it.toInt() },
+                chrToIndexMap[it[1]],
+                it[2].toInt()
+            ) to it[3].toInt()
+        }
 
         for(readMapping in readMappings) {
             val expectedHapIdSet = readMapping.key
@@ -113,8 +119,7 @@ class ConvertRm2Ps4gFileTest {
             val expectedData = readMapping.value
             val refRange = graph.hapIdToRefRangeMap()[readMapping.key[0]]!!.first()
 
-            val encodedPos = PS4GUtils.encodePosition(Position(refRange.contig, refRange.start), chrToIndexMap)
-            val observedDataCount = ps4gMap[Pair(expectedGameteIdx,encodedPos)]!!
+            val observedDataCount = ps4gMap[Triple(expectedGameteIdx,chrToIndexMap[refRange.contig],refRange.start/256)]!!
 
             assertEquals(expectedData, observedDataCount)
         }
@@ -160,7 +165,7 @@ class ConvertRm2Ps4gFileTest {
         assertEquals(1, ps4GData[0].gameteList.size)
         assertEquals(0, ps4GData[0].gameteList[0])
         assertEquals(853, ps4GData[0].count)
-        assertEquals(PS4GUtils.encodePositionFromIdxAndPos(0,graph.hapIdToRefRangeMap()["12f0cec9102e84a161866e37072443b7"]!!.first().start), ps4GData[0].pos)
+        assertEquals(Position("1", 0), ps4GData[0].refPos)
 
         //25413a93cd7622fa44d015d6914f344d,9650638ee16a4853495610120e1323f8,bb4b6391a180e13f4e2448674cba6d43	5
         assertEquals(3, ps4GData[1].gameteList.size)
@@ -168,7 +173,8 @@ class ConvertRm2Ps4gFileTest {
         assertEquals(1, ps4GData[1].gameteList[1])
         assertEquals(2, ps4GData[1].gameteList[2])
         assertEquals(5, ps4GData[1].count)
-        assertEquals(PS4GUtils.encodePositionFromIdxAndPos(0,graph.hapIdToRefRangeMap()["25413a93cd7622fa44d015d6914f344d"]!!.first().start), ps4GData[1].pos)
+        //34001 /256 = 132
+        assertEquals(Position("1", 132), ps4GData[1].refPos)
 
         //8f2731708b30e1c402c6d6a69a983fe4,c052e7e5a036bddc9f364324b203f1b3	24
         assertEquals(2, ps4GData[2].gameteList.size)
@@ -176,13 +182,15 @@ class ConvertRm2Ps4gFileTest {
         assertEquals(0, ps4GData[2].gameteList[0])
         assertEquals(1, ps4GData[2].gameteList[1])
         assertEquals(24, ps4GData[2].count)
-        assertEquals(PS4GUtils.encodePositionFromIdxAndPos(1,graph.hapIdToRefRangeMap()["8f2731708b30e1c402c6d6a69a983fe4"]!!.first().start), ps4GData[2].pos)
+        //28501 /256 = 111
+        assertEquals(Position("2", 111), ps4GData[2].refPos)
 
         //8f2731708b30e1c402c6d6a69a983fe4	15
         assertEquals(1, ps4GData[3].gameteList.size)
         assertEquals(1, ps4GData[3].gameteList[0])
         assertEquals(15, ps4GData[3].count)
-        assertEquals(PS4GUtils.encodePositionFromIdxAndPos(1,graph.hapIdToRefRangeMap()["8f2731708b30e1c402c6d6a69a983fe4"]!!.first().start), ps4GData[3].pos)
+        //28501 /256 = 111
+        assertEquals(Position("2", 111), ps4GData[3].refPos)
 
 
         //check the sampleGameteCount
@@ -219,7 +227,7 @@ class ConvertRm2Ps4gFileTest {
         assertEquals(1, ps4GDataFirst.gameteList.size)
         assertEquals(0, ps4GDataFirst.gameteList[0])
         assertEquals(853, ps4GDataFirst.count)
-        assertEquals(PS4GUtils.encodePositionFromIdxAndPos(0,hapIdToRanges["12f0cec9102e84a161866e37072443b7"]!!.first().start), ps4GDataFirst.pos)
+        assertEquals(Position("1", 0), ps4GDataFirst.refPos)
 
 
         //3149b3144f93134eb29661bade697fc6,8967fabf10e55d881caa6fe192e7d4ca	40
@@ -231,7 +239,8 @@ class ConvertRm2Ps4gFileTest {
         assertEquals(0, ps4GDataSecond.gameteList[0])
         assertEquals(1, ps4GDataSecond.gameteList[1])
         assertEquals(40, ps4GDataSecond.count)
-        assertEquals(PS4GUtils.encodePositionFromIdxAndPos(0,hapIdToRanges["3149b3144f93134eb29661bade697fc6"]!!.first().start), ps4GDataSecond.pos)
+        //1001/256 = 3.9 -> 3
+        assertEquals(Position("1", 3), ps4GDataSecond.refPos)
 
         //5be0e52ccfe573a6e42e4dd1e8658105,a7214fe07512b511ddf13edade461b39,fafafee7c250c76b7e0571fde286022e	33
         val hapIdSet3 = listOf("5be0e52ccfe573a6e42e4dd1e8658105", "a7214fe07512b511ddf13edade461b39", "fafafee7c250c76b7e0571fde286022e")
@@ -243,6 +252,7 @@ class ConvertRm2Ps4gFileTest {
         assertEquals(1, ps4GDataThird.gameteList[1])
         assertEquals(2, ps4GDataThird.gameteList[2])
         assertEquals(33, ps4GDataThird.count)
-        assertEquals(PS4GUtils.encodePositionFromIdxAndPos(0,hapIdToRanges["5be0e52ccfe573a6e42e4dd1e8658105"]!!.first().start), ps4GDataThird.pos)
+        //49501/256 = 193
+        assertEquals(Position("1", 193), ps4GDataThird.refPos)
     }
 }

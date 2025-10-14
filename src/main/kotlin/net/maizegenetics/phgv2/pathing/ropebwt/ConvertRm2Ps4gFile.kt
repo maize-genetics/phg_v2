@@ -156,7 +156,7 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
     ): PS4GData {
         val mostHitRefRange = hapIdSet.flatMap { hapId -> hapIdToRanges[hapId] ?: listOf() }.maxOf { it }
         //build binned position:
-        val pos = Position(mostHitRefRange.contig, mostHitRefRange.start)
+        val pos = Position(mostHitRefRange.contig, mostHitRefRange.start/256) //Need to bin here otherwise it won't be consistent
 //        val posEncoded = PS4GUtils.encodePosition(pos, contigToIdxMap)
 
         //convert the hapIdSet into gametes

@@ -209,7 +209,7 @@ class SplineUtils{
         ) : SplineKnotLookup {
 
             val splineKnotMap = mutableMapOf<String, MutableList<Triple<Int,String,Int>>>()
-            
+
             // Block tracking variables for regular (positive stranded) SNVs or END variants.
             var blockRefStart: Int? = null
             var blockRefEnd: Int? = null
