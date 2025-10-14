@@ -209,8 +209,7 @@ class SplineUtils{
         ) : SplineKnotLookup {
 
             val splineKnotMap = mutableMapOf<String, MutableList<Triple<Int,String,Int>>>()
-
-
+            
             // Block tracking variables for regular (positive stranded) SNVs or END variants.
             var blockRefStart: Int? = null
             var blockRefEnd: Int? = null
@@ -225,24 +224,13 @@ class SplineUtils{
                 if (currentRefChr != null && blockRefStart != null && blockAsmStart != null &&
                     blockAsmChr != null && blockAsmChrIdx != null
                 ) {
-//                    val refStPositionEncoded = PS4GUtils.encodePosition(Position(currentRefChr!!, blockRefStart!!), chrIndexMap)
-//                    val refEndPositionEncoded = PS4GUtils.encodePosition(Position(currentRefChr!!, blockRefEnd!!), chrIndexMap)
-
                     if (blockAsmStart == blockAsmEnd || blockRefStart == blockRefEnd) {
-//                        addPointsToMap(
-//                            mapOfASMChrToListOfPoints,
-//                            blockAsmChr!!,
-//                            blockAsmStart!!,
-//                            refStPositionEncoded
-//                        )
                         addPointsToMap(splineKnotMap, blockAsmChr!!, blockAsmStart!!, currentRefChr!!, blockRefStart!!)
                     }
                     else {
                         //add both sets of points to the list
                         addPointsToMap(splineKnotMap, blockAsmChr!!, blockAsmStart!!, currentRefChr!!, blockRefStart!!)
                         addPointsToMap(splineKnotMap, blockAsmChr!!, blockAsmEnd!!, currentRefChr!!, blockRefEnd!!)
-//                        addPointsToMap(mapOfASMChrToListOfPoints, blockAsmChr!!, blockAsmStart!!, refStPositionEncoded)
-//                        addPointsToMap(mapOfASMChrToListOfPoints, blockAsmChr!!, blockAsmEnd!!, refEndPositionEncoded)
                     }
                 }
                 blockRefStart = null
@@ -325,12 +313,6 @@ class SplineUtils{
                         (hasEnd && strand == "-") -> {
                             flushBlock()
 
-//                            val encodedRefStart = PS4GUtils.encodePosition(Position(refChr, refPosStart), chrIndexMap)
-//                            val encodedRefEnd = PS4GUtils.encodePosition(Position(refChr, refPosEnd), chrIndexMap)
-
-//                            addPointsToMap(mapOfASMChrToListOfPoints, asmChr, asmPosStart, encodedRefStart)
-//                            addPointsToMap(mapOfASMChrToListOfPoints, asmChr, asmPosEnd, encodedRefEnd)
-
                             addPointsToMap(splineKnotMap, asmChr, asmPosStart, refChr, refPosStart)
                             addPointsToMap(splineKnotMap, asmChr, asmPosEnd, refChr, refPosEnd)
                         }
@@ -351,9 +333,6 @@ class SplineUtils{
 
                                 // Generate midpoint to ensure monotonicity for spline
                                 val asmPosMid = ((asmPosStart + asmPosEnd) * 0.5).toInt()
-
-//                                val encodedRefStart = PS4GUtils.encodePosition(Position(refChr, refPosStart), chrIndexMap)
-//                                addPointsToMap(mapOfASMChrToListOfPoints, asmChr, asmPosMid, encodedRefStart)
                                 addPointsToMap(splineKnotMap, asmChr, asmPosMid, refChr, refPosStart)
                             }
                         }
@@ -366,15 +345,11 @@ class SplineUtils{
                             } else {
                                 flushBlock()
                                 val refPosMid = (((refPosStart + refAllele.length - 1) + refPosStart) * 0.5).toInt()
-//                                val encodedRefMidPoint = PS4GUtils.encodePosition(Position(refChr, refPosMid), chrIndexMap)
-//                                addPointsToMap(mapOfASMChrToListOfPoints, asmChr, asmPosStart, encodedRefMidPoint)
                                 addPointsToMap(splineKnotMap, asmChr, asmPosStart, refChr, refPosMid)
                             }
                         }
                         else -> {
                             flushBlock()
-//                            val encodedRefStart = PS4GUtils.encodePosition(Position(refChr, refPosStart), chrIndexMap)
-//                            addPointsToMap(mapOfASMChrToListOfPoints, asmChr, asmPosStart, encodedRefStart)
                             addPointsToMap(splineKnotMap, asmChr, asmPosStart, refChr, refPosStart)
                         }
                     }
@@ -382,7 +357,6 @@ class SplineUtils{
                 flushBlock()
 
                 //Downsample the number of points
-//                downsamplePointsByChrLength(mapOfASMChrToListOfPoints, numBpsPerKnot, randomSeed)
                 downsamplePointsByChrLength(splineKnotMap, numBpsPerKnot, randomSeed)
 
                 checkMapAndAddToIndex(gameteIndexMap, sampleName)
@@ -394,30 +368,11 @@ class SplineUtils{
                     splineKnotMap[asmChr] = sortedKnots
                 }
 
-//                //loop through each of the assembly coordinates and make splines for each
-//                for (entry in mapOfASMChrToListOfPoints.entries) {
-//                    val asmChr = entry.key
-//                    val listOfPoints = entry.value
-//                    myLogger.info("Building spline for $asmChr $sampleName")
-//                    checkMapAndAddToIndex(gameteIndexMap, sampleName)
-//
-//                    buildSplineKnotsForASMChrom(listOfPoints, splineKnotMap, asmChr, sampleName)
-//                }
             }
 
             return SplineKnotLookup(splineKnotMap, chrIndexMap, gameteIndexMap)
         }
 
-
-//        fun addPointsToMap(
-//            mapOfASMChrToListOfPoints: MutableMap<String, MutableList<Pair<Double, Double>>>,
-//            asmChr: String,
-//            asmPos: Int,
-//            refPos: Int
-//        ) {
-//            val listOfPoints = mapOfASMChrToListOfPoints.getOrPut(asmChr) { mutableListOf() }
-//            listOfPoints.add(Pair(asmPos.toDouble(), refPos.toDouble()))
-//        }
 
         /**
          * This function will do the ref position binning as well as it adds the point to the map.
@@ -493,84 +448,6 @@ class SplineUtils{
             }
             return indicesToRemove
         }
-
-//        /**
-//         * Function to build the splines based on a list of Pair<Double, Double>
-//         */
-//        fun buildSplineKnotsForASMChrom(
-//            listOfPoints: MutableList<Pair<Double, Double>>,
-//            splineKnotMap: MutableMap<String, Pair<DoubleArray, DoubleArray>>,
-//            currentChrom: String,
-//            sampleName: String?
-//        ) {
-//
-//            val sortedPoints = sortAndSplitPoints(listOfPoints)
-//            val asmArray = sortedPoints.map { it.first }.toDoubleArray()
-//            val refArray = sortedPoints.map { it.second }.toDoubleArray()
-//            splineKnotMap["${currentChrom}_${sampleName}"] = Pair(asmArray, refArray)
-//            listOfPoints.clear()
-//        }
-
-//        fun sortAndSplitPoints(listOfPoints: MutableList<Pair<Double, Double>>) : List<Pair<Double, Double>> {
-//            val sortedPoints =  listOfPoints.sortedBy { it.first }.distinctBy { it.first }
-//
-//            if(sortedPoints.size <= 4) {
-//                val outputPoints = mutableListOf<Pair<Double, Double>>()
-//                //drop that many points between each set of points if the ref chroms match
-//                sortedPoints.zipWithNext().map { (firstPair, secondPair) ->
-//                    val totalPos = secondPair.first - firstPair.first + 1
-//
-//                    val firstRef = PS4GUtils.decodePosition(firstPair.second.toInt())
-//                    val secondRef = PS4GUtils.decodePosition(secondPair.second.toInt())
-//
-//                    //Add the first point
-//                    outputPoints.add(firstPair)
-//
-//                    if(firstRef.contig == secondRef.contig) {
-//                            addIntermediateSplineKnots(firstPair, totalPos, firstRef, secondRef, outputPoints)
-//                    }
-//                }
-//                //Add the last point
-//                if(sortedPoints.isNotEmpty()) {
-//                    outputPoints.add(sortedPoints.last())
-//                }
-//                return outputPoints
-//            }
-//            else {
-//                return sortedPoints
-//            }
-//        }
-
-
-//        /**
-//         * Function to add the spline knots to the output points.
-//         * This makes sure there are at least 4 points for each spline so the Akima spline function will work.
-//         */
-//        private fun addIntermediateSplineKnots(
-//            firstPair: Pair<Double, Double>,
-//            totalPos: Double,
-//            firstRef: Position,
-//            secondRef: Position,
-//            outputPoints: MutableList<Pair<Double, Double>>
-//        ) {
-//            //Contigs are the same so we want to split the region into 4 parts.
-//            // We need 4 as it is the minumum number of knots that the Akima spline function requires.
-//            // If there are less it will throw an error.
-//            val numPointsToAdd = minOf(4, totalPos.toInt()-1)
-//            for (i in 1 until numPointsToAdd) {
-//                val newPos = firstPair.first + (totalPos * (i.toDouble()) / (numPointsToAdd))
-//
-//                val newRefPos = if (firstRef.position <= secondRef.position) {
-//                    //positive strand
-//                    firstRef.position + (totalPos * ((i.toDouble()) / (numPointsToAdd)))
-//                } else {
-//                    //negative strand
-//                    firstRef.position - (totalPos * ((i.toDouble()) / (numPointsToAdd)))
-//                }
-//                val newRef = PS4GUtils.encodePositionNoLookup(Position(secondRef.contig, newRefPos.toInt()))
-//                outputPoints.add(Pair(newPos, newRef.toDouble()))
-//            }
-//        }
 
         /**
          * Simple function to check to see if a value already exists in our map and adds to it if not.
@@ -665,47 +542,6 @@ class SplineUtils{
                 indexMaps.gameteIndexMap
             )
 
-        }
-
-        fun insureMonotonicity(
-            asmPositions: DoubleArray,
-            refPositions: DoubleArray
-        ) : Pair<DoubleArray, DoubleArray> {
-            val removeSet = mutableSetOf<Int>()
-            for(idx in 1 until asmPositions.size) {
-                if(asmPositions[idx] <= asmPositions[idx - 1]) {
-                    removeSet.add(idx)
-                }
-            }
-
-            return if(removeSet.isNotEmpty()) {
-                val newAsmPositions = asmPositions.filterIndexed { index, _ -> !removeSet.contains(index) }.toDoubleArray()
-                val newRefPositions = refPositions.filterIndexed { index, _ -> !removeSet.contains(index) }.toDoubleArray()
-                if(newAsmPositions.size != newRefPositions.size) {
-                    throw IllegalStateException("ASM and REF positions are not the same size after removing non-monotonic points.")
-                }
-                Pair(newAsmPositions, newRefPositions)
-            }
-            else {
-                Pair(asmPositions, refPositions)
-            }
-        }
-
-        /**
-         * Function that converts a Spline Knot Map into a Spline Map
-         */
-        fun convertKnotsToSpline(knots: Map<String, Pair<DoubleArray, DoubleArray>>) : Map<String, PolynomialSplineFunction> {
-            val splineMap = mutableMapOf<String, PolynomialSplineFunction>()
-            val interpolator = AkimaSplineInterpolator()
-            knots.forEach { (key, value) ->
-                println("Processing spline for $key")
-                val asmPositions = value.first
-                val refPositions = value.second
-//                val (asmPositions, refPositions) = insureMonotonicity(value.first, value.second)
-                val splineFunction = interpolator.interpolate(asmPositions,refPositions)
-                splineMap[key] = splineFunction
-            }
-            return splineMap
         }
     }
 }

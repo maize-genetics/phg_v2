@@ -1,7 +1,10 @@
 package net.maizegenetics.phgv2.pathing
 
+import htsjdk.variant.variantcontext.VariantContext
+import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.pathing.ropebwt.IndexMaps
+import net.maizegenetics.phgv2.pathing.ropebwt.LinearLookupFunction
 import net.maizegenetics.phgv2.pathing.ropebwt.PS4GUtils
 import net.maizegenetics.phgv2.pathing.ropebwt.SplineKnotLookup
 import net.maizegenetics.phgv2.pathing.ropebwt.SplineUtils
@@ -55,67 +58,6 @@ class SplineUtilsTest {
     }
 
     @Test
-    fun testBuildSpline() {
-        //make a simple linear spline
-        val listOfPoints = mutableListOf(
-            Pair(1.0, 1.0),
-            Pair(3.0, 3.0),
-            Pair(5.0, 5.0),
-            Pair(7.0, 7.0),
-            Pair(9.0, 9.0)
-        )
-
-        val splineKnotMap = mutableMapOf<String, Pair<DoubleArray, DoubleArray>>()
-
-        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints, splineKnotMap, "chr1", "sample1")
-
-        val splineMap = SplineUtils.convertKnotsToSpline(splineKnotMap)
-
-        assertEquals(1, splineMap.size)
-        assertTrue(splineMap.containsKey("chr1_sample1"))
-        val spline = splineMap["chr1_sample1"]!!
-        assertEquals(1.0, spline.value(1.0))
-        assertEquals(3.0, spline.value(3.0))
-        assertEquals(5.0, spline.value(5.0))
-        assertEquals(2.0, spline.value(2.0), 0.0001)
-        assertEquals(4.0, spline.value(4.0), 0.0001)
-        assertFalse(spline.isValidPoint(10.0))
-
-
-        //make a spline with multiple values for the same x
-        //The code should remove one of them based on how it sees things
-        //This list of points should be the same as the previous one
-        val listOfPoints2 = mutableListOf(
-            Pair(1.0, 1.0),
-            Pair(3.0, 3.0),
-            Pair(3.0, 4.0),
-            Pair(5.0, 5.0),
-            Pair(5.0, 6.0),
-            Pair(7.0, 7.0),
-            Pair(7.0, 9.0),
-            Pair(9.0, 9.0),
-            Pair(9.0, 11.0)
-        )
-        //Add more points to the existing knots and build new splines
-        SplineUtils.buildSplineKnotsForASMChrom(listOfPoints2, splineKnotMap, "chr1", "sample2")
-
-        val splineMap2 = SplineUtils.convertKnotsToSpline(splineKnotMap)
-
-
-        assertEquals(2, splineMap2.size)
-        assertTrue(splineMap2.containsKey("chr1_sample2"))
-        val spline2 = splineMap2["chr1_sample2"]!!
-        assertEquals(1.0, spline2.value(1.0))
-        assertEquals(3.0, spline2.value(3.0))
-        assertEquals(5.0, spline2.value(5.0))
-        assertEquals(2.0, spline2.value(2.0), 0.0001)
-        assertEquals(4.0, spline2.value(4.0), 0.0001)
-        assertFalse(spline2.isValidPoint(10.0))
-
-
-    }
-
-    @Test
     fun testCheckMapAndAddToIndex() {
         val stringToIndexMap = mutableMapOf(Pair("test1", 0), Pair("test2", 1))
         SplineUtils.checkMapAndAddToIndex(stringToIndexMap, "test3")
@@ -136,18 +78,23 @@ class SplineUtilsTest {
 
         val splineKnotLookup = SplineUtils.processHvcfFileIntoSplineKnots(File(inputFile), chrIndexMap, gameteIndexMap)
 
-        val splineMap = SplineUtils.convertKnotsToSpline(splineKnotLookup.splineKnotMap)
+        //check to see if the maps have exactly what we expect
+        //We do not need to test convertKnotsToSpline as it needs to be tested as part of the LinearLookupFunction
 
+        assertEquals(2, splineKnotLookup.splineKnotMap.size)
+        assertEquals(2, chrIndexMap.size)
+        assertEquals(chrIndexMap["1"]!!, splineKnotLookup.chrIndexMap["1"])
+        assertEquals(chrIndexMap["2"]!!, splineKnotLookup.chrIndexMap["2"])
+        assertEquals(2, gameteIndexMap.size)
+        assertEquals(gameteIndexMap["LineA"]!!, splineKnotLookup.gameteIndexMap["LineA"])
+        assertEquals(gameteIndexMap["LineB"]!!, splineKnotLookup.gameteIndexMap["LineB"])
 
-        //Test some of the values in the spline
-        val chr1Spline = splineMap["1_LineA"]!!
-
-        assertEquals(0, PS4GUtils.decodePosition(chr1Spline.value(1.0).toInt()).position)
-        assertEquals(256, PS4GUtils.decodePosition(chr1Spline.value(256.0).toInt()).position)
-        assertEquals(1024, PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()).position) // 1500/256 = 5
-        assertEquals(2560, PS4GUtils.decodePosition(chr1Spline.value(3000.0).toInt()).position) // 3000/256 = 11
-
-        assertFalse(chr1Spline.isValidPoint(30000.0))
+        for((key, value) in splineKnotLookup.splineKnotMap) {
+            for((asmPos,refChr,refPos) in value) {
+                assertEquals(key, refChr)
+                assertEquals(asmPos/256, refPos)
+            }
+        }
     }
 
     @Test
@@ -158,19 +105,21 @@ class SplineUtilsTest {
 
         val splineKnotLookup = SplineUtils.processGvcfFileIntoSplineKnots(File(inputFile), chrIndexMap, gameteIndexMap)
 
-        val splineMap = SplineUtils.convertKnotsToSpline(splineKnotLookup.splineKnotMap)
+        assertEquals(2, splineKnotLookup.splineKnotMap.size)
+        assertEquals(2, chrIndexMap.size)
+        assertEquals(chrIndexMap["1"]!!, splineKnotLookup.chrIndexMap["1"])
+        assertEquals(chrIndexMap["2"]!!, splineKnotLookup.chrIndexMap["2"])
+        assertEquals(2, gameteIndexMap.size)
+        assertEquals(gameteIndexMap["LineA"]!!, splineKnotLookup.gameteIndexMap["LineA"])
+        assertEquals(gameteIndexMap["LineB"]!!, splineKnotLookup.gameteIndexMap["LineB"])
 
 
-        //Test some of the values in the spline
-        val chr1Spline = splineMap["1_LineA"]!!
-
-        assertEquals(0, PS4GUtils.decodePosition(chr1Spline.value(1.0).toInt()).position)
-        assertEquals(256, PS4GUtils.decodePosition(chr1Spline.value(256.0).toInt()).position)
-        assertEquals(2048, PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()).position) // 1500/256 = 5
-        assertEquals(2816, PS4GUtils.decodePosition(chr1Spline.value(3000.0).toInt()).position) // 3000/256 = 11
-
-        assertFalse(chr1Spline.isValidPoint(3000000.0))
-        resetDirs()
+        //These have been verified manually
+        val chr1Knots = splineKnotLookup.splineKnotMap["1"]!!
+        assertEquals(chr1Knots[0],Triple(1, "1", 0))
+        assertEquals(chr1Knots[1],Triple(3106, "1", 12))
+        assertEquals(chr1Knots[2],Triple(3357, "1", 12))
+        assertEquals(chr1Knots[4],Triple(3893, "1", 13))
     }
 
     @Test
@@ -181,19 +130,30 @@ class SplineUtilsTest {
 
         val (splineKnotMap, chrIndexMap, gameteIndexMap) = SplineUtils.loadSplineKnotLookupFromDirectory(tempTestDir)
 
-        val splineMap = SplineUtils.convertKnotsToSpline(splineKnotMap)
-
-        assertEquals(2, splineMap.size)
+        assertEquals(2, splineKnotMap.size)
         assertEquals(2, chrIndexMap.size)
         assertEquals(1, gameteIndexMap.size)
 
-        val chr1Spline = splineMap["1_LineA"]!!
-        assertEquals(0, PS4GUtils.decodePosition(chr1Spline.value(1.0).toInt()).position)
-        assertEquals(256, PS4GUtils.decodePosition(chr1Spline.value(256.0).toInt()).position)
-        assertEquals(1024, PS4GUtils.decodePosition(chr1Spline.value(1500.0).toInt()).position) // 1500/256 = 5
-        assertEquals(2560, PS4GUtils.decodePosition(chr1Spline.value(3000.0).toInt()).position) // 3000/256 = 11
+        val lookup = LinearLookupFunction(splineKnotMap)
 
-        assertFalse(chr1Spline.isValidPoint(30000.0))
+
+        //Check some values
+        val pos1 = lookup.value(Position("1",1))
+        assertEquals("1", pos1.contig)
+        assertEquals(0, pos1.position)
+        val pos2 = lookup.value(Position("1",256))
+        assertEquals("1", pos2.contig)
+        assertEquals(0, pos2.position)
+        val pos3 = lookup.value(Position("1",3000))
+        assertEquals("1", pos3.contig)
+        assertEquals(10, pos3.position) // 3000/256 = 11
+        val pos4 = lookup.value(Position("1",5000))
+        assertEquals("1", pos4.contig)
+        assertEquals(18, pos4.position) // 5000/256 = 19
+
+        val unknown = lookup.value(Position("1",30000))
+        assertEquals("unknown", unknown.contig)
+        assertEquals(0, unknown.position)
 
         resetDirs()
     }
@@ -206,53 +166,31 @@ class SplineUtilsTest {
 
         val (splineKnotMap, chrIndexMap, gameteIndexMap) = SplineUtils.loadSplineKnotLookupFromDirectory(tempTestDir)
 
-        val splineMap = SplineUtils.convertKnotsToSpline(splineKnotMap)
-
-        val splineArrays = mutableMapOf<String, Pair<DoubleArray,DoubleArray>>()
-        val rand = java.util.Random(123345)
-        for ((key, spline) in splineMap) {
-            val x = DoubleArray(200_000)
-            val y = DoubleArray(200_000)
-            for (i in 0 until 200_000) {
-                x[i] = rand.nextDouble()
-                y[i] = rand.nextDouble()
-            }
-            splineArrays[key] = Pair(x, y)
-        }
-
         //Need to do a reset otherwise we have too many files and the map gets too big
         resetDirs()
 
         val outputSplineFile = "${tempTestDir}Sample1_spline_knots.json.gz"
         val outputIndexFile = "${tempTestDir}index_maps.json.gz"
 
-        SplineUtils.writeSplineKnotsToFile(splineArrays, outputSplineFile)
+        SplineUtils.writeSplineKnotsToFile(splineKnotMap, outputSplineFile)
         SplineUtils.writeIndexMapsToFile(IndexMaps(chrIndexMap, gameteIndexMap), outputIndexFile)
-
-
 
         //Read the file back in and check that the values are the same
         val (splineMap2, chrIndexMap2, gameteIndexMap2) = SplineUtils.loadSplineKnotLookupFromDirectory(tempTestDir)
 
-        assertEquals(splineArrays.size, splineMap2.size)
-        //check the entries of the arrays are the same
-        for (key in splineArrays.keys) {
+        assertEquals(splineKnotMap.size, splineMap2.size)
+
+        //check that the entries of the maps are the same
+        for(key in splineKnotMap.keys) {
             assertTrue(splineMap2.containsKey(key))
-            val (x, y) = splineArrays[key]!!
-            val (x2, y2) = splineMap2[key]!!
-
-            assertEquals(x.size, x2.size)
-            assertEquals(y.size, y2.size)
-
-            //Check x vs y sizes as well
-            assertEquals(x.size, y.size)
-            assertEquals(x2.size, y2.size)
-
-            for (i in x.indices) {
-                assertEquals(x[i], x2[i])
-                assertEquals(y[i], y2[i])
+            val list1 = splineKnotMap[key]!!
+            val list2 = splineMap2[key]!!
+            assertEquals(list1.size, list2.size)
+            for(i in list1.indices) {
+                assertEquals(list1[i], list2[i])
             }
         }
+
         assertEquals(chrIndexMap.size, chrIndexMap2.size)
         assertEquals(gameteIndexMap.size, gameteIndexMap2.size)
 
@@ -261,14 +199,14 @@ class SplineUtilsTest {
 
     @Test
     fun testDownsamplePoints() {
-        val points = mutableListOf<Pair<Double, Double>>()
+        val points = mutableListOf<Triple<Int,String,Int>>()
         for (i in 0 until 1000) {
-            points.add(Pair(i.toDouble(), i.toDouble()))
+            points.add(Triple(i,"chr1", i))
         }
 
-        val points2 = mutableListOf<Pair<Double, Double>>()
+        val points2 = mutableListOf<Triple<Int,String,Int>>()
         for (i in 0 until 99) {
-            points2.add(Pair(i.toDouble(), i.toDouble()))
+            points2.add(Triple(i,"chr2", i))
         }
 
         val splineKnotLookup = mutableMapOf("chr1" to points, "chr2" to points2)
@@ -276,52 +214,10 @@ class SplineUtilsTest {
         assertEquals(1000, splineKnotLookup["chr1"]!!.size)
         assertEquals(99, splineKnotLookup["chr2"]!!.size)
 
-        SplineUtils.downsamplePoints(splineKnotLookup, 100)
+        SplineUtils.downsamplePointsByChrLength(splineKnotLookup, 100)
 
-        assertEquals(100, splineKnotLookup["chr1"]!!.size)
+        assertEquals(9, splineKnotLookup["chr1"]!!.size)
         assertEquals(99, splineKnotLookup["chr2"]!!.size)
-
-    }
-
-    @Test
-    fun testSortAndSplitPoints() {
-        val firstPoint = Pair(1.0, PS4GUtils.encodePositionNoLookup(Position("0",1)).toDouble())
-        val secondPoint = Pair(10001.0, PS4GUtils.encodePositionNoLookup(Position("0",10001)).toDouble())
-
-        val points = mutableListOf(firstPoint, secondPoint)
-
-        val sortedPoints = SplineUtils.sortAndSplitPoints(points)
-
-        assertEquals(5, sortedPoints.size)
-        assertEquals(0, PS4GUtils.decodePosition(sortedPoints[0].second.toInt()).position)
-        assertEquals(0, PS4GUtils.decodePosition(sortedPoints[0].second.toInt()).contig.toInt())
-
-        for(i in 1 until sortedPoints.size) {
-            assertEquals(0, PS4GUtils.decodePosition(sortedPoints[i].second.toInt()).contig.toInt())
-            // We ask for 4 points so they should be 2500, 5000, 7500, 10000.
-            // We bin them by dividing by 256 and multiplying by 256 to get the binned position
-            assertEquals(((i * 2500)/256) * 256, PS4GUtils.decodePosition(sortedPoints[i].second.toInt()).position)
-        }
-
-        //Test the negative strand too
-        val firstPointNegative = Pair(1.0, PS4GUtils.encodePositionNoLookup(Position("1",10001)).toDouble())
-        val secondPointNegative = Pair(10001.0, PS4GUtils.encodePositionNoLookup(Position("1",1)).toDouble())
-        val pointsNegative = mutableListOf(firstPointNegative, secondPointNegative )
-
-        val sortedPointsNegative = SplineUtils.sortAndSplitPoints(pointsNegative)
-
-
-        assertEquals(5, sortedPointsNegative.size)
-        assertEquals(1, PS4GUtils.decodePosition(sortedPointsNegative[0].second.toInt()).contig.toInt())
-        assertEquals((10001/256) * 256, PS4GUtils.decodePosition(sortedPointsNegative[0].second.toInt()).position)
-
-
-        for(i in 1 until sortedPointsNegative.size) {
-            assertEquals(1, PS4GUtils.decodePosition(sortedPointsNegative[i].second.toInt()).contig.toInt())
-            // We ask for 4 points so they should be 10000. 7500, 5000, 2500, 0
-            // We bin them by dividing by 256 and multiplying by 256 to get the binned position
-            assertEquals(((10001 - (i * 2500))/256) * 256, PS4GUtils.decodePosition(sortedPointsNegative[i].second.toInt()).position)
-        }
 
     }
 
@@ -329,19 +225,19 @@ class SplineUtilsTest {
     fun testDownsamplePointsByChrLength() {
         //downsamplePointsByChrLength(splineKnotMap:MutableMap<String, MutableList<Pair<Double,Double>>>, numBpsPerKnot: Int = 50_000, randomSeed : Long = 12345)
         //make a spline map with random increasing values
-        val splineKnotMap = mutableMapOf<String, MutableList<Pair<Double, Double>>>()
+        val splineKnotMap = mutableMapOf<String, MutableList<Triple<Int,String,Int>>>()
         val rand = java.util.Random(12345)
         for (i in 1..5) {
-            val points = mutableListOf<Pair<Double, Double>>()
+            val points = mutableListOf<Triple<Int,String,Int>>()
             for (j in 0 until 10_000) {
-                points.add(Pair(j.toDouble() * i, rand.nextDouble() * 1000 + i * 1000))
+                points.add(Triple(j * i, "$i",rand.nextInt() * 1000 + i * 1000))
             }
             splineKnotMap["$i"] = points
         }
         //Add one for 0 that has 999 points
-        splineKnotMap["0"] = mutableListOf<Pair<Double, Double>>()
+        splineKnotMap["0"] = mutableListOf<Triple<Int,String,Int>>()
         for (j in 0 until 999) {
-            splineKnotMap["0"]!!.add(Pair(j.toDouble(), rand.nextDouble() * 1000))
+            splineKnotMap["0"]!!.add(Triple(j,"0", rand.nextInt() * 1000))
         }
 
         assertEquals(6, splineKnotMap.size)
@@ -372,8 +268,8 @@ class SplineUtilsTest {
         }
 
         //Make a spline map with no knots
-        val emptySplineKnotMap = mutableMapOf<String, MutableList<Pair<Double, Double>>>()
-        emptySplineKnotMap["0"] = mutableListOf<Pair<Double, Double>>()
+        val emptySplineKnotMap = mutableMapOf<String, MutableList<Triple<Int,String,Int>>>()
+        emptySplineKnotMap["0"] = mutableListOf<Triple<Int,String,Int>>()
         SplineUtils.downsamplePointsByChrLength(emptySplineKnotMap, 1000, 12345)
         //Check that the empty spline map is still empty
         assertEquals(1, emptySplineKnotMap.size)
