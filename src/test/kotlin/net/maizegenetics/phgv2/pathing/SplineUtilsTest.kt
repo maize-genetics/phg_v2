@@ -115,7 +115,7 @@ class SplineUtilsTest {
 
 
         //These have been verified manually
-        val chr1Knots = splineKnotLookup.splineKnotMap["1"]!!
+        val chr1Knots = splineKnotLookup.splineKnotMap["1_LineA"]!!
         assertEquals(chr1Knots[0],Triple(1, "1", 0))
         assertEquals(chr1Knots[1],Triple(3106, "1", 12))
         assertEquals(chr1Knots[2],Triple(3357, "1", 12))

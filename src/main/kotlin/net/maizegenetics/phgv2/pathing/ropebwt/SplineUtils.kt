@@ -176,9 +176,7 @@ class SplineUtils{
                         val asmStartChr = regions.first().first.contig
                         val asmEndChr = regions.last().second.contig
 
-//                        addPointsToMap(splineKnotMap, asmStartChr, asmStart, chrom, stPosition)
                         addPointsToMap(currentASMSplineMap, asmStartChr, asmStart, chrom, stPosition)
-//                        addPointsToMap(splineKnotMap, asmEndChr, asmEnd, chrom, endPosition)
                         addPointsToMap(currentASMSplineMap, asmEndChr, asmEnd, chrom, endPosition)
                     }
 
@@ -187,17 +185,14 @@ class SplineUtils{
 
                 //build the splines
                 //Downsample the number of points
-//                downsamplePointsByChrLength(splineKnotMap, numBpsPerKnot, randomSeed)
                 downsamplePointsByChrLength(currentASMSplineMap, numBpsPerKnot, randomSeed)
 
                 checkMapAndAddToIndex(gameteIndexMap, sampleName)
 
                 //Need to sort the points by asm position just in case
-//                for (entry in splineKnotMap.entries) {
                 for (entry in currentASMSplineMap.entries) {
                     val asmChr = entry.key
                     val sortedKnots = entry.value.sortedBy { it.first }.toMutableList()
-//                    splineKnotMap[asmChr] = sortedKnots
                     splineKnotMap["${asmChr}_${sampleName}"] = sortedKnots
                 }
             }
@@ -215,6 +210,9 @@ class SplineUtils{
         ) : SplineKnotLookup {
 
             val splineKnotMap = mutableMapOf<String, MutableList<Triple<Int,String,Int>>>()
+            //TODO rework this to not need to have a global variable that we need to clear each time.  Could lead to some issues if not careful.
+            val currentASMSplineMap =  mutableMapOf<String, MutableList<Triple<Int,String,Int>>>()
+
 
             // Block tracking variables for regular (positive stranded) SNVs or END variants.
             var blockRefStart: Int? = null
@@ -231,12 +229,12 @@ class SplineUtils{
                     blockAsmChr != null && blockAsmChrIdx != null
                 ) {
                     if (blockAsmStart == blockAsmEnd || blockRefStart == blockRefEnd) {
-                        addPointsToMap(splineKnotMap, blockAsmChr!!, blockAsmStart!!, currentRefChr!!, blockRefStart!!)
+                        addPointsToMap(currentASMSplineMap, blockAsmChr!!, blockAsmStart!!, currentRefChr!!, blockRefStart!!)
                     }
                     else {
                         //add both sets of points to the list
-                        addPointsToMap(splineKnotMap, blockAsmChr!!, blockAsmStart!!, currentRefChr!!, blockRefStart!!)
-                        addPointsToMap(splineKnotMap, blockAsmChr!!, blockAsmEnd!!, currentRefChr!!, blockRefEnd!!)
+                        addPointsToMap(currentASMSplineMap, blockAsmChr!!, blockAsmStart!!, currentRefChr!!, blockRefStart!!)
+                        addPointsToMap(currentASMSplineMap, blockAsmChr!!, blockAsmEnd!!, currentRefChr!!, blockRefEnd!!)
                     }
                 }
                 blockRefStart = null
@@ -265,6 +263,7 @@ class SplineUtils{
             // Open the gVCF file using HTSJDK.
             VCFFileReader(gvcfFile, false).use { reader ->
                 val sampleName = reader.fileHeader.sampleNamesInOrder[0]
+                currentASMSplineMap.clear()
 
                 for (variant in reader) {
                     val refChr = variant.contig
@@ -319,8 +318,8 @@ class SplineUtils{
                         (hasEnd && strand == "-") -> {
                             flushBlock()
 
-                            addPointsToMap(splineKnotMap, asmChr, asmPosStart, refChr, refPosStart)
-                            addPointsToMap(splineKnotMap, asmChr, asmPosEnd, refChr, refPosEnd)
+                            addPointsToMap(currentASMSplineMap, asmChr, asmPosStart, refChr, refPosStart)
+                            addPointsToMap(currentASMSplineMap, asmChr, asmPosEnd, refChr, refPosEnd)
                         }
                         // Collapse SNV and explicit END cases (for positive stranded variants).
                         (refAllele.length == 1 && (altAllele.length == 1 || hasEnd)) -> {
@@ -339,7 +338,7 @@ class SplineUtils{
 
                                 // Generate midpoint to ensure monotonicity for spline
                                 val asmPosMid = ((asmPosStart + asmPosEnd) * 0.5).toInt()
-                                addPointsToMap(splineKnotMap, asmChr, asmPosMid, refChr, refPosStart)
+                                addPointsToMap(currentASMSplineMap, asmChr, asmPosMid, refChr, refPosStart)
                             }
                         }
                         // Deletion: reference allele is longer than one base.
@@ -351,27 +350,27 @@ class SplineUtils{
                             } else {
                                 flushBlock()
                                 val refPosMid = (((refPosStart + refAllele.length - 1) + refPosStart) * 0.5).toInt()
-                                addPointsToMap(splineKnotMap, asmChr, asmPosStart, refChr, refPosMid)
+                                addPointsToMap(currentASMSplineMap, asmChr, asmPosStart, refChr, refPosMid)
                             }
                         }
                         else -> {
                             flushBlock()
-                            addPointsToMap(splineKnotMap, asmChr, asmPosStart, refChr, refPosStart)
+                            addPointsToMap(currentASMSplineMap, asmChr, asmPosStart, refChr, refPosStart)
                         }
                     }
                 }
                 flushBlock()
 
                 //Downsample the number of points
-                downsamplePointsByChrLength(splineKnotMap, numBpsPerKnot, randomSeed)
+                downsamplePointsByChrLength(currentASMSplineMap, numBpsPerKnot, randomSeed)
 
                 checkMapAndAddToIndex(gameteIndexMap, sampleName)
 
                 //Need to sort the points by asm position just in case
-                for (entry in splineKnotMap.entries) {
+                for (entry in currentASMSplineMap.entries) {
                     val asmChr = entry.key
                     val sortedKnots = entry.value.sortedBy { it.first }.toMutableList()
-                    splineKnotMap[asmChr] = sortedKnots
+                    splineKnotMap["${asmChr}_${sampleName}"] = sortedKnots
                 }
 
             }
