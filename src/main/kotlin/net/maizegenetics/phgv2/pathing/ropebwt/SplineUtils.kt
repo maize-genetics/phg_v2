@@ -141,6 +141,7 @@ class SplineUtils{
                 val header = reader.header
                 val headerParsed = parseALTHeader(header)
                 val sampleName = reader.fileHeader.sampleNamesInOrder[0]
+                val currentASMSplineMap =  mutableMapOf<String, MutableList<Triple<Int,String,Int>>>()
                 checkMapAndAddToIndex(gameteIndexMap, sampleName)
 
                 val iterator = reader.iterator()
@@ -175,8 +176,10 @@ class SplineUtils{
                         val asmStartChr = regions.first().first.contig
                         val asmEndChr = regions.last().second.contig
 
-                        addPointsToMap(splineKnotMap, asmStartChr, asmStart, chrom, stPosition)
-                        addPointsToMap(splineKnotMap, asmEndChr, asmEnd, chrom, endPosition)
+//                        addPointsToMap(splineKnotMap, asmStartChr, asmStart, chrom, stPosition)
+                        addPointsToMap(currentASMSplineMap, asmStartChr, asmStart, chrom, stPosition)
+//                        addPointsToMap(splineKnotMap, asmEndChr, asmEnd, chrom, endPosition)
+                        addPointsToMap(currentASMSplineMap, asmEndChr, asmEnd, chrom, endPosition)
                     }
 
                 }
@@ -184,15 +187,18 @@ class SplineUtils{
 
                 //build the splines
                 //Downsample the number of points
-                downsamplePointsByChrLength(splineKnotMap, numBpsPerKnot, randomSeed)
+//                downsamplePointsByChrLength(splineKnotMap, numBpsPerKnot, randomSeed)
+                downsamplePointsByChrLength(currentASMSplineMap, numBpsPerKnot, randomSeed)
 
                 checkMapAndAddToIndex(gameteIndexMap, sampleName)
 
                 //Need to sort the points by asm position just in case
-                for (entry in splineKnotMap.entries) {
+//                for (entry in splineKnotMap.entries) {
+                for (entry in currentASMSplineMap.entries) {
                     val asmChr = entry.key
                     val sortedKnots = entry.value.sortedBy { it.first }.toMutableList()
-                    splineKnotMap[asmChr] = sortedKnots
+//                    splineKnotMap[asmChr] = sortedKnots
+                    splineKnotMap["${asmChr}_${sampleName}"] = sortedKnots
                 }
             }
             return SplineKnotLookup(splineKnotMap, chrIndexMap, gameteIndexMap)

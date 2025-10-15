@@ -233,11 +233,10 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         //remove hits that don't hit our chosen chromosome
         val bestHitsForChrom = referenceLookupPositions.filter { it.second.contig == bestChromosome }
         //compute the average position
-        val averagePosition = bestHitsForChrom.sumOf { it.second.position / bestHitsForChrom.size }
+        val averagePosition = bestHitsForChrom.sumOf { it.second.position} / bestHitsForChrom.size
         //TODO future task remove hits that are too far from average...
         //for now we just use the average position
         //Best chromosome is already in index form
-//        val encodedPosition = PS4GUtils.encodePositionFromIdxAndPos(bestChromosome.toInt(), averagePosition)
         val binnedPosition = Position(bestChromosome, averagePosition)
 
         val gameteIndicesHit = bestHitsForChrom

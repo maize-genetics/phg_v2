@@ -91,7 +91,7 @@ class SplineUtilsTest {
 
         for((key, value) in splineKnotLookup.splineKnotMap) {
             for((asmPos,refChr,refPos) in value) {
-                assertEquals(key, refChr)
+                assertEquals(key.split("_").first(), refChr)
                 assertEquals(asmPos/256, refPos)
             }
         }
@@ -138,20 +138,20 @@ class SplineUtilsTest {
 
 
         //Check some values
-        val pos1 = lookup.value(Position("1",1))
+        val pos1 = lookup.value(Position("1_LineA",1))
         assertEquals("1", pos1.contig)
         assertEquals(0, pos1.position)
-        val pos2 = lookup.value(Position("1",256))
+        val pos2 = lookup.value(Position("1_LineA",256))
         assertEquals("1", pos2.contig)
         assertEquals(0, pos2.position)
-        val pos3 = lookup.value(Position("1",3000))
+        val pos3 = lookup.value(Position("1_LineA",3000))
         assertEquals("1", pos3.contig)
         assertEquals(10, pos3.position) // 3000/256 = 11
-        val pos4 = lookup.value(Position("1",5000))
+        val pos4 = lookup.value(Position("1_LineA",5000))
         assertEquals("1", pos4.contig)
         assertEquals(18, pos4.position) // 5000/256 = 19
 
-        val unknown = lookup.value(Position("1",30000))
+        val unknown = lookup.value(Position("1_LineA",30000))
         assertEquals("unknown", unknown.contig)
         assertEquals(0, unknown.position)
 
