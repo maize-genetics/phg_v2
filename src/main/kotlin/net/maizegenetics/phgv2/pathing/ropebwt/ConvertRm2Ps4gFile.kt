@@ -104,15 +104,13 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
                                      graph: HaplotypeGraph,
                                      sortPositions: Boolean = true) : Triple<List<PS4GData>, Map<SampleGamete,Int>,Map<SampleGamete,Int>> {
 
-        val contigToIdxMap = graph.contigs.mapIndexed { index, s -> Pair(s,index)  }.toMap()
-
         val gameteToIdxMap = graph.sampleGametesInGraph().mapIndexed { index, s -> Pair(s,index) }.toMap()
 
         val hapIdToRanges = graph.hapIdToRefRangeMap()
 
         val gameteCountMap = mutableMapOf<SampleGamete,Int>()
 
-        val ps4GData = buildPS4GData(readMappings, hapIdToRanges, contigToIdxMap, graph, gameteCountMap, gameteToIdxMap, sortPositions)
+        val ps4GData = buildPS4GData(readMappings, hapIdToRanges, graph, gameteCountMap, gameteToIdxMap, sortPositions)
 
         return Triple(ps4GData, gameteCountMap, gameteToIdxMap)
     }
@@ -123,7 +121,6 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
     fun buildPS4GData(
         readMappings: Map<List<String>, Int>,
         hapIdToRanges: Map<String, List<ReferenceRange>>,
-        contigToIdxMap: Map<String, Int>,
         graph: HaplotypeGraph,
         gameteCountMap: MutableMap<SampleGamete, Int>,
         gameteToIdxMap: Map<SampleGamete, Int>,
@@ -138,7 +135,7 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
 
         return readMappingsForConversion.map { hapIdSet ->
             val count = readMappings[hapIdSet]!!
-            createPS4GFileForSingleMapping(hapIdSet, hapIdToRanges, contigToIdxMap, graph, gameteCountMap, count, gameteToIdxMap)
+            createPS4GFileForSingleMapping(hapIdSet, hapIdToRanges, graph, gameteCountMap, count, gameteToIdxMap)
         }
     }
 
@@ -148,7 +145,6 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
     fun createPS4GFileForSingleMapping(
         hapIdSet: List<String>,
         hapIdToRanges: Map<String, List<ReferenceRange>>,
-        contigToIdxMap: Map<String, Int>,
         graph: HaplotypeGraph,
         gameteCountMap: MutableMap<SampleGamete, Int>,
         count: Int,
@@ -157,7 +153,6 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
         val mostHitRefRange = hapIdSet.flatMap { hapId -> hapIdToRanges[hapId] ?: listOf() }.maxOf { it }
         //build binned position:
         val pos = Position(mostHitRefRange.contig, mostHitRefRange.start/256) //Need to bin here otherwise it won't be consistent
-//        val posEncoded = PS4GUtils.encodePosition(pos, contigToIdxMap)
 
         //convert the hapIdSet into gametes
         val hapIdForSampleGameteMap = graph.hapIdToSampleGametes(mostHitRefRange)
@@ -169,7 +164,6 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
             }
             .sorted()
 
-//        return PS4GData(sampleGameteIdxSorted, posEncoded, count)
         return PS4GData(sampleGameteIdxSorted, pos, count)
     }
 

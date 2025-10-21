@@ -334,7 +334,7 @@ class ConvertRopebwt2Ps4gFileTest {
         val splineLookup = LinearLookupFunction(splineKnots)
 
 
-        val ps4gData = convertRopebwt2Ps4gFile.buildPS4GData(ropebwtBed, splineLookup, chrIndexMap, gameteToIdxMap, 148, 10)
+        val ps4gData = convertRopebwt2Ps4gFile.buildPS4GData(ropebwtBed, splineLookup, gameteToIdxMap, 148, 10)
 
 
         assertEquals(4, ps4gData.first.size)

@@ -68,7 +68,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
         myLogger.info("Building PS4G Data")
         //build and write out the PS4G file
-        val (ps4GData, sampleGameteCountMap) = buildPS4GData(ropebwtBed, splineLookup, chrIndexMap, gameteIndexMap,minMemLength, maxNumHits, sortPositions)
+        val (ps4GData, sampleGameteCountMap) = buildPS4GData(ropebwtBed, splineLookup, gameteIndexMap,minMemLength, maxNumHits, sortPositions)
 
         myLogger.info("Writing out PS4G File")
         PS4GUtils.writeOutPS4GFile(ps4GData, sampleGameteCountMap, sampleGameteIndexMap, outputFile, listOf(), command)
@@ -79,7 +79,6 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
      */
     fun buildPS4GData(ropebwtBed: String,
                       splineLookup: LinearLookupFunction,
-                      chrIndexMap:Map<String,Int>,
                       gameteToIdxMap: Map<String,Int>,
                       minMEMLength: Int, maxNumHits: Int,
                       sortPositions: Boolean = true) : Pair<List<PS4GData>, Map<SampleGamete,Int>> {
@@ -88,7 +87,6 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         val bedFileReader = bufferedReader(ropebwtBed)
         var currentLine = bedFileReader.readLine()
         val tempMems = mutableListOf<MEM>()
-//        val countMap = mutableMapOf<Pair<Int, List<Int>>, Int>()
         val countMap = mutableMapOf<Pair<Position, List<Int>>, Int>()
         val sampleGameteCountMap = mutableMapOf<SampleGamete,Int>()
         while (currentLine != null) {
@@ -102,7 +100,6 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                 processTempMEMs(
                     tempMems,
                     splineLookup,
-//                    chrIndexMap,
                     minMEMLength,
                     maxNumHits,
                     gameteToIdxMap,
@@ -119,7 +116,6 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         processTempMEMs(
             tempMems,
             splineLookup,
-//            chrIndexMap,
             minMEMLength,
             maxNumHits,
             gameteToIdxMap,
@@ -141,11 +137,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     fun processTempMEMs(
         tempMems: MutableList<MEM>,
         splineLookup: LinearLookupFunction,
-//        chrIndexMap: Map<String, Int>,
         minMEMLength: Int,
         maxNumHits: Int,
         gameteToIdxMap: Map<String, Int>,
-//        countMap: MutableMap<Pair<Int, List<Int>>, Int>,
         countMap: MutableMap<Pair<Position, List<Int>>, Int>,
         sampleGameteCountMap: MutableMap<SampleGamete, Int>,
         gameteIdxToSampleGameteMap: Map<Int, SampleGamete>
@@ -164,12 +158,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     /**
      * Function to process the MEMs collected for a given read.
      */
-//    fun processMemsForRead(tempMems: List<MEM>,
-//                           splineLookup: LinearLookupFunction,
-//                           chrIndexMap: Map<String, Int>,
-//                           minMEMLength: Int, maxNumHits: Int,
-//                           gameteToIdxMap: Map<String, Int>): Pair<Int, List<Int>> {
-        fun processMemsForRead(tempMems: List<MEM>,
+    fun processMemsForRead(tempMems: List<MEM>,
                            splineLookup: LinearLookupFunction,
                            minMEMLength: Int, maxNumHits: Int,
                            gameteToIdxMap: Map<String, Int>): Pair<Position, List<Int>> {
@@ -185,22 +174,6 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         //Create consensus Position
         return createConsensusPositionAndGametes(referenceLookupPositions, gameteToIdxMap)
     }
-
-//    /**
-//     * Function to do the spline positional lookup from the RopeBWT3 MEMs
-//     */
-//    fun encodeHitsToPosition(bestHits: List<MEMHit>, splineLookup: Map<String, PolynomialSplineFunction>) : List<Pair<String,Int>> {
-//        return bestHits.map { hit ->
-//            //hit.contig is chr_SampleGamete
-//            val spline = splineLookup[hit.contig] ?: return@map Pair(hit.contig, -1)
-//            val position = hit.pos
-//            if (spline.isValidPoint(position.toDouble())) {
-//                Pair(hit.contig, spline.value(position.toDouble()).toInt())
-//            } else {
-//                Pair(hit.contig, -1)
-//            }
-//        }.filter { it.second != -1 }
-//    }
 
     /**
      * Function to do the Linear spline positional lookup from the RopeBWT3 MEMs
@@ -220,7 +193,6 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     /**
      *  Function to find a consensus position for the gametes and output a Pair that can be used to increase counts
      */
-//    fun createConsensusPositionAndGametes(encodedPositions: List<Pair<String,Int>>,chrIndexMap: Map<String,Int> ,gameteToIdxMap: Map<String, Int>) : Pair<Int, List<Int>> {
     fun createConsensusPositionAndGametes(referenceLookupPositions: List<Pair<String,Position>>,gameteToIdxMap: Map<String, Int>) : Pair<Position, List<Int>> {
         if(referenceLookupPositions.isEmpty()) {
             return Pair(Position("unknown",-1), listOf())
@@ -250,10 +222,6 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             .toSortedSet()
             .toList()
 
-//        if(encodedPosition < 0) {
-//            myLogger.warn("Encoded position is negative: $encodedPosition for chromosome $bestChromosome at position $averagePosition")
-//        }
-//        return Pair(encodedPosition,gameteIndicesHit )
         return Pair(binnedPosition,gameteIndicesHit )
     }
 
@@ -282,6 +250,4 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             listOf()
         }
     }
-
-
 }

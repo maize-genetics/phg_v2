@@ -215,14 +215,13 @@ class ConvertRm2Ps4gFileTest {
 
         val graph = HaplotypeGraph(hvcfFiles)
         val hapIdToRanges = graph.hapIdToRefRangeMap()
-        val contigToIdxMap = graph.contigs.mapIndexed { index, s -> Pair(s, index) }.toMap()
         val gameteCountMap = mutableMapOf<SampleGamete, Int>()
         val gameteToIdxMap = graph.sampleGametesInGraph().mapIndexed { index, s -> Pair(s, index) }.toMap()
 
         //12f0cec9102e84a161866e37072443b7	853
         val hapIdSet = listOf("12f0cec9102e84a161866e37072443b7")
         val ps4GDataFirst = convertRm2Ps4gFile.createPS4GFileForSingleMapping(
-            hapIdSet, hapIdToRanges, contigToIdxMap, graph, gameteCountMap, 853, gameteToIdxMap
+            hapIdSet, hapIdToRanges, graph, gameteCountMap, 853, gameteToIdxMap
         )
         assertEquals(1, ps4GDataFirst.gameteList.size)
         assertEquals(0, ps4GDataFirst.gameteList[0])
@@ -233,7 +232,7 @@ class ConvertRm2Ps4gFileTest {
         //3149b3144f93134eb29661bade697fc6,8967fabf10e55d881caa6fe192e7d4ca	40
         val hapIdSet2 = listOf("3149b3144f93134eb29661bade697fc6", "8967fabf10e55d881caa6fe192e7d4ca")
         val ps4GDataSecond = convertRm2Ps4gFile.createPS4GFileForSingleMapping(
-            hapIdSet2, hapIdToRanges, contigToIdxMap, graph, gameteCountMap, 40, gameteToIdxMap
+            hapIdSet2, hapIdToRanges, graph, gameteCountMap, 40, gameteToIdxMap
         )
         assertEquals(2, ps4GDataSecond.gameteList.size)
         assertEquals(0, ps4GDataSecond.gameteList[0])
@@ -245,7 +244,7 @@ class ConvertRm2Ps4gFileTest {
         //5be0e52ccfe573a6e42e4dd1e8658105,a7214fe07512b511ddf13edade461b39,fafafee7c250c76b7e0571fde286022e	33
         val hapIdSet3 = listOf("5be0e52ccfe573a6e42e4dd1e8658105", "a7214fe07512b511ddf13edade461b39", "fafafee7c250c76b7e0571fde286022e")
         val ps4GDataThird = convertRm2Ps4gFile.createPS4GFileForSingleMapping(
-            hapIdSet3, hapIdToRanges, contigToIdxMap, graph, gameteCountMap, 33, gameteToIdxMap
+            hapIdSet3, hapIdToRanges, graph, gameteCountMap, 33, gameteToIdxMap
         )
         assertEquals(3, ps4GDataThird.gameteList.size)
         assertEquals(0, ps4GDataThird.gameteList[0])
