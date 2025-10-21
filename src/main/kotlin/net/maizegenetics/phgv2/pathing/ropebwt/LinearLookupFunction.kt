@@ -6,8 +6,7 @@ import com.google.common.collect.TreeRangeMap
 import net.maizegenetics.phgv2.utils.Position
 import kotlin.math.abs
 
-//class LinearLookupFunction(val knotMap: RangeMap<Position, Pair<Position, Position>>) {
-class LinearLookupFunction( knots: Map<String,Pair<DoubleArray,DoubleArray>>) {
+class LinearLookupFunction( knots: Map<String,List<Triple<Int,String,Int>>>) {
 
     var knotMap : RangeMap<Position,Pair<Position,Position>>
 
@@ -15,7 +14,7 @@ class LinearLookupFunction( knots: Map<String,Pair<DoubleArray,DoubleArray>>) {
         knotMap = convertKnotsToLinearSpline(knots)
     }
 
-    fun convertKnotsToLinearSpline(knots: Map<String,Pair<DoubleArray,DoubleArray>>) : RangeMap<Position,Pair<Position,Position>> {
+    fun convertKnotsToLinearSpline(knots: Map<String,List<Triple<Int,String,Int>>>) : RangeMap<Position,Pair<Position,Position>> {
         //Need to make the splines into linear blocks
 
         //loop through each assembly chromosome:
@@ -24,25 +23,15 @@ class LinearLookupFunction( knots: Map<String,Pair<DoubleArray,DoubleArray>>) {
         knots.forEach { (key, value) ->
             println("Processing $key: ${counter++}/${knots.size-1}")
 
-            val asmPositions = value.first
-            val refPositions = value.second
+            //Take the list of triples and do a zip with next.  then filter out any that are on different contigs then add them to the map
+            value.zipWithNext().filter { (firstTriple, secondTriple) ->
+                firstTriple.second == secondTriple.second
+            }.forEach { (firstTriple, secondTriple) ->
+                val asmStart = Position(key, firstTriple.first)
+                val asmEnd = Position(key, secondTriple.first)
 
-            if(asmPositions.size != refPositions.size) {
-                throw IllegalStateException("ASM and REF positions are not the same size for $key")
-            }
-
-            //We need to create a range for each pair of asm and ref positions
-            for (i in 0 until asmPositions.size - 1) {
-                val asmStart = Position(key, asmPositions[i].toInt())
-                val asmEnd = Position(key, asmPositions[i + 1].toInt())
-
-                //Convert the ref positions to Position objects as they are encoded
-                val refStartPos = PS4GUtils.decodePosition(refPositions[i].toInt())
-                val refEndPos = PS4GUtils.decodePosition(refPositions[i + 1].toInt())
-
-                if(refStartPos.contig != refEndPos.contig) {
-                    continue // Skip if the contigs are not the same  We do not want a spline between them
-                }
+                val refStartPos = Position(firstTriple.second, firstTriple.third)
+                val refEndPos = Position(secondTriple.second, secondTriple.third)
 
                 knotMap.put(Range.closed(asmStart, asmEnd), Pair(refStartPos, refEndPos))
             }

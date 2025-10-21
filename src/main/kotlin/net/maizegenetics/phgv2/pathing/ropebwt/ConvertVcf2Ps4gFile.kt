@@ -18,10 +18,11 @@ import kotlin.collections.mutableMapOf
 data class PS4GDataWithMaps(val ps4gData: List<PS4GData>, val sampleGameteCount: Map<SampleGamete,Int>, val gameteToIdxMap: Map<SampleGamete,Int>)
 /**
  * This data class holds the two SampleGameteCountMaps that are used to create the PS4GData
- * The first map is the overall positional count.  The key is Pair<encodedPosition, listOfReferenceSampleGameteIndices>
+ * The first map is the overall positional count.  The key is Pair<Position, listOfReferenceSampleGameteIndices>
  * The second is the reference sample gamete count map.  The key is the SampleGamete and the value is the count of how many times this SampleGamete was seen in the reference panel.
  */
-data class SampleGameteCountMaps(val countMap: MutableMap<Pair<Int, List<Int>>, Int>, val refSampleGameteCountMap: MutableMap<SampleGamete, Int>)
+//data class SampleGameteCountMaps(val countMap: MutableMap<Pair<Int, List<Int>>, Int>, val refSampleGameteCountMap: MutableMap<SampleGamete, Int>)
+data class SampleGameteCountMaps(val countMap: MutableMap<Pair<Position, List<Int>>, Int>, val refSampleGameteCountMap: MutableMap<SampleGamete, Int>)
 
 
 /**
@@ -149,7 +150,7 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
         gameteToCountMap: MutableMap<SampleGamete, SampleGameteCountMaps>,
         gameteToIdxMap: Map<SampleGamete, Int>
     ) {
-        val encodedPosition = PS4GUtils.encodePosition(position, contigNameToIdxMap)
+        val encodedPosition = Position("${contigNameToIdxMap[position.contig]}", position.position/256)
 
         //Get out the alleles and lists of SampleGametes for this position
         val alleleMap = positionSampleGameteLookup[position]!!
@@ -186,7 +187,7 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
         sampleGameteCount: MutableMap<SampleGamete, MutableMap<SampleGamete, Int>>,
         gameteToCountMap: MutableMap<SampleGamete, SampleGameteCountMaps>,
         gameteToIdxMap: Map<SampleGamete, Int>,
-        encodedPosition: Int
+        position: Position
     ) {
         val sampleGamete = SampleGamete(genotype.sampleName, alleleIndex)
         val alleleString = allele.baseString
@@ -212,8 +213,9 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
             gameteToIdxMap[it] ?: throw IllegalStateException("SampleGamete $it not found in gameteToIdxMap")
         }
         //Get the count for this position and sampleGamete
-        countMap[Pair(encodedPosition, sampleGameteIndices)] =
-            countMap.getOrDefault(Pair(encodedPosition, sampleGameteIndices), 0) + 1
+        countMap[Pair(position, sampleGameteIndices)] =
+            countMap.getOrDefault(Pair(position, sampleGameteIndices), 0) + 1
+
 
         //update the count for these SampleGametes
         for (refSampleGamete in refPanelSampleGametes) {
