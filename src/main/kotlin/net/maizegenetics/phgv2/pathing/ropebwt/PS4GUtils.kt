@@ -24,7 +24,7 @@ class PS4GUtils {
                 writer.write("#Command: $cliCommand\n")
                 writer.write("#TotalUniqueCounts: ${pS4GData.map { it.count }.sum()}\n")
                 writer.write("#gamete\tgameteIndex\tcount\n")
-                gameteToIdxMap.forEach { (sampleGamete, index) ->
+                gameteToIdxMap.toList().sortedBy { it.second }.forEach { (sampleGamete, index) ->
                     val count = sampleGameteCount.getOrDefault(sampleGamete, 0)
                     writer.write("#$sampleGamete\t$index\t$count\n")
                 }
