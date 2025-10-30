@@ -1,7 +1,7 @@
 # PS4G - **P**ositional **S**upport **for** **G**ametes Specification
 
-* **_Specification version:_** `v1.0`
-* **_Date:_** 2025-02-19
+* **_Specification version:_** `v2.0`
+* **_Date:_** 2025-10-24
 
 ## Overview
 A PS4G (**P**ositional **S**upport **for** **G**ametes) file is a standardized
@@ -30,6 +30,7 @@ The header contains metadata about the file creation and reference gametes:
 
 ```
 #PS4G
+#version=2.0
 #<metadata lines>
 #Command: <CLI command used to generate this file>
 #TotalUniqueCounts: <sum of all counts in the file>
@@ -43,6 +44,7 @@ The header contains metadata about the file creation and reference gametes:
 | Field | Description |
 |-------|-------------|
 | `#PS4G` | File format identifier (required first line) |
+| `#version` | PS4G format version (2.0 for current specification) |
 | `#Command` | Full CLI command used to generate the file |
 | `#TotalUniqueCounts` | Sum of all unique position counts in the file |
 | `#gamete` | Reference panel gamete identifier (format: `SampleName` or `SampleName:gameteIndex`) |
@@ -53,8 +55,8 @@ The header contains metadata about the file creation and reference gametes:
 After the header, the column names are defined, followed by data rows:
 
 ```
-gameteSet	pos	count
-<comma-separated gamete indices>	<encoded position>	<count>
+gameteSet	refContig	refPosBinned	count
+<comma-separated gamete indices>	<contig>	<binned position>	<count>
 ```
 
 **Data fields:**
@@ -62,60 +64,61 @@ gameteSet	pos	count
 | Field | Type | Description |
 |-------|------|-------------|
 | `gameteSet` | String | Comma-separated list of gamete indices (from header) that are supported at this position |
-| `pos` | Integer | Encoded genomic position (see [Position Encoding](#position-encoding)) |
+| `refContig` | String | Reference contig/chromosome identifier |
+| `refPosBinned` | Integer | Binned genomic position (actual position divided by 256) |
 | `count` | Integer | Number of reads/variants supporting this gamete set at this position |
 
 ### Example
 ```
 #PS4G
+#version=2.0
 #Command: phg convert-rm2ps4g-file --read-mapping-file input.txt --hvcf-dir /path/to/hvcfs --output-dir output/
 #TotalUniqueCounts: 1234
 #gamete	gameteIndex	count
 #LineA	0	853
 #LineB	1	381
 #Ref	2	100
-gameteSet	pos	count
-0	256	853
-0,1	512	24
-1	768	15
-0,1,2	1024	5
+gameteSet	refContig	refPosBinned	count
+0	chr1	1000	853
+0,1	chr1	2000	24
+1	chr2	500	15
+0,1,2	chr2	1500	5
 ```
 
 In this example:
 
-- Row 1: Gamete 0 (`LineA`) is supported at encoded position 256 by 853 reads
-- Row 2: Gametes 0 and 1 (`LineA` and `LineB`) are both supported at position 512 by 24 reads
-- Row 3: Gamete 1 (`LineB`) is supported at position 768 by 15 reads
-- Row 4: All three gametes are supported at position 1024 by 5 reads
+- Row 1: Gamete 0 (`LineA`) is supported at chr1 binned position 1000 (actual position ~256,000 bp) by 853 reads
+- Row 2: Gametes 0 and 1 (`LineA` and `LineB`) are both supported at chr1 position 2000 (~512,000 bp) by 24 reads
+- Row 3: Gamete 1 (`LineB`) is supported at chr2 position 500 (~128,000 bp) by 15 reads
+- Row 4: All three gametes are supported at chr2 position 1500 (~384,000 bp) by 5 reads
 
-## Position Encoding
+## Position Binning
 
-Genomic positions are encoded into a 32-bit integer to enable efficient storage and processing:
+To reduce file size and provide efficient storage, genomic positions are binned into 256 bp windows:
 
-**Encoding scheme:**
+**Binning process:**
 
-- **Bits 24-31** (8 bits): Chromosome/contig index (supports up to 256 chromosomes)
-- **Bits 0-23** (24 bits): Position divided by 256 (supports positions up to ~4.3 Gb)
+The `refPosBinned` field stores the genomic position divided by 256 (integer division):
 
-**Formula:**
 ```
-encodedPosition = (contigIndex << 24) | (genomicPosition / 256)
+refPosBinned = genomicPosition / 256
 ```
 
-**Decoding:**
+**Converting back to approximate genomic position:**
+
 ```
-contigIndex = encodedPosition >> 24
-genomicPosition = (encodedPosition & 0x0FFFFFF) * 256
+approximateGenomicPosition = refPosBinned * 256
 ```
 
-!!! note "Position Binning"
-    Positions are binned in 256 bp windows. This provides a balance between
-    resolution and compression. The actual genomic position is rounded down
-    to the nearest 256 bp boundary during encoding.
+!!! note "Resolution and Compression"
+    The 256 bp binning provides a balance between positional resolution and file compression.
+    The actual genomic position is rounded down to the nearest 256 bp boundary during binning.
+    This resolution is suitable for chromosome-scale imputation and pathfinding algorithms.
 
-!!! warning "Maximum Values"
-    - Maximum chromosomes: 256 (0-255)
-    - Maximum position per chromosome: 4,294,967,296 bp (2^24 * 256)
+!!! example "Binning Example"
+    - Genomic position 256,000 bp → Binned position 1,000
+    - Genomic position 256,255 bp → Binned position 1,000 (same bin)
+    - Genomic position 256,256 bp → Binned position 1,001 (next bin)
 
 ## Generation Methods
 
@@ -257,6 +260,7 @@ Examples:
 
 ### Version History
 
+- **v2.0** (2025-10-24): Major format update - removed position encoding, split position into separate `refContig` and `refPosBinned` columns for improved readability and flexibility
 - **v1.0** (2025-02-19): Initial complete specification
 - **v0.1** (2025-02-19): Draft specification
 
@@ -266,4 +270,4 @@ PS4G files are generated by PHGv2 commands in the `net.maizegenetics.phgv2.pathi
 - `ConvertRm2Ps4gFile.kt` - Read mapping conversion
 - `ConvertRopebwt2Ps4gFile.kt` - RopeBWT conversion
 - `ConvertVcf2Ps4gFile.kt` - VCF conversion
-- `PS4GUtils.kt` - Shared utilities for encoding/decoding
+- `PS4GUtils.kt` - Shared utilities for file writing and data formatting
