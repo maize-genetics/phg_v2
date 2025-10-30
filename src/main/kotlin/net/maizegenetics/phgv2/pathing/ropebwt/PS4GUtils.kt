@@ -24,8 +24,9 @@ class PS4GUtils {
                 writer.write("#Command: $cliCommand\n")
                 writer.write("#TotalUniqueCounts: ${pS4GData.map { it.count }.sum()}\n")
                 writer.write("#gamete\tgameteIndex\tcount\n")
-                sampleGameteCount.forEach { (sampleGamete, count) ->
-                    writer.write("#$sampleGamete\t${gameteToIdxMap[sampleGamete]}\t$count\n")
+                gameteToIdxMap.forEach { (sampleGamete, index) ->
+                    val count = sampleGameteCount.getOrDefault(sampleGamete, 0)
+                    writer.write("#$sampleGamete\t$index\t$count\n")
                 }
                 writer.write("gameteSet\trefContig\trefPosBinned\tcount\n")
                 pS4GData.forEach { (gameteList, pos, count) ->
