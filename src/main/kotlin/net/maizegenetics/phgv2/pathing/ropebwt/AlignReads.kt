@@ -24,21 +24,31 @@ class AlignReads : CliktCommand(help = "Align reads to ropebwt3 index using maxi
     private val myLogger = LogManager.getLogger(AlignReads::class.java)
 
     val index by option(
-        help = "Path to the ropebwt3 FM-index (.fmd) file used as the reference for read alignment."
+        help = "Path to the ropebwt3 FM-index (.fmd) file used as the reference for read alignment. Maps to ropebwt3 mem's <index> argument."
     ).required()
 
     val query by option(
-        help = "Input FASTQ file containing reads to align. Supports both uncompressed and .gz-compressed files."
+        help = "Input FASTQ file containing reads to align. Supports both uncompressed and .gz-compressed files. Maps to ropebwt3 mem's <query> argument."
     ).required()
 
     val minSmemLen by option(
         "--min-smem-len",
-        help = "Minimum SMEM (Super-Maximal Exact Match) length used as a seed for alignment. Larger values produce fewer but more specific matches."
+        help = "Minimum SMEM (Super-Maximal Exact Match) length used as a seed for alignment. Larger values produce fewer but more specific matches. Maps to ropebwt3 mem's -l parameter."
     ).int()
         .default(31)
 
+    val subsetPositions by option(
+        "--subset-positions",
+        help = "Get the positions of a subset of SMEMs. When specified, limits output to this number of SMEM hits per query. Maps to ropebwt3 mem's -p parameter."
+    ).int()
+
+    val gapMinLength by option(
+        "--gap",
+        help = "Report genomic regions of at least this length that are NOT covered by long SMEMs. Output shows poorly aligned or unmapped regions of reads. Value of 0 disables gap reporting. Maps to ropebwt3 mem's --gap parameter."
+    ).int()
+
     val threads by option(
-        help = "Number of threads to use for parallel processing during alignment. Improves performance on multicore systems."
+        help = "Number of threads to use for parallel processing during alignment. Improves performance on multicore systems. Maps to ropebwt3 mem's -t parameter."
     ).int()
         .default(1)
 
@@ -62,6 +72,8 @@ class AlignReads : CliktCommand(help = "Align reads to ropebwt3 index using maxi
         myLogger.info("  Query: $query")
         myLogger.info("  Min SMEM length: $minSmemLen")
         myLogger.info("  Threads: $threads")
+        subsetPositions?.let { myLogger.info("  Subset positions: $it") }
+        gapMinLength?.let { myLogger.info("  Gap min length: $it") }
         myLogger.info("  Output: $output")
 
         runRopebwt3Mem()
@@ -88,7 +100,7 @@ class AlignReads : CliktCommand(help = "Align reads to ropebwt3 index using maxi
     /**
      * Execute the ropebwt3 mem command using ProcessBuilder.
      *
-     * Command structure: ropebwt3 mem -t<threads> -l<minSmemLen> <index> <query> > <output>
+     * Command structure: ropebwt3 mem -t<threads> -l<minSmemLen> [-p<subsetPositions>] [--gap=<gapMinLength>] <index> <query> > <output>
      */
     private fun runRopebwt3Mem() {
         val prefixArg = if (condaEnvPrefix.isNotBlank()) {
@@ -101,10 +113,18 @@ class AlignReads : CliktCommand(help = "Align reads to ropebwt3 index using maxi
             "conda", "run", prefixArg.first, prefixArg.second,
             "ropebwt3", "mem",
             "-t$threads",
-            "-l$minSmemLen",
-            index,
-            query
+            "-l$minSmemLen"
         )
+
+        // Add optional -p parameter for subset positions
+        subsetPositions?.let { ropebwt3Command.add("-p$it") }
+
+        // Add optional --gap parameter with minimum length
+        gapMinLength?.let { ropebwt3Command.add("--gap=$it") }
+
+        // Add index and query files
+        ropebwt3Command.add(index)
+        ropebwt3Command.add(query)
 
         myLogger.info("Executing command: ${ropebwt3Command.joinToString(" ")} > $output")
 
