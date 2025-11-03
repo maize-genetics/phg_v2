@@ -96,3 +96,7 @@ uiDesigner.xml
 lets-plot-images
 documentation_resources/raw_tutorials/.ipynb_checkpoints
 b73.gff
+
+# Misc LLM IDE integrations
+CLAUDE.md
+.claude/
