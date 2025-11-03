@@ -279,4 +279,52 @@ class AlignReadsTest {
         val outputFile = File(testOutput)
         assertTrue(outputFile.exists(), "Output BED file should exist")
     }
+
+    @Test
+    fun testAlignReadsOutputFileParentNull() {
+        // Test case where output file has no parent directory (current directory)
+        val alignReads = AlignReads()
+        val simpleOutputName = "simple_output.bed"
+        val testOutput = tempTestDir + simpleOutputName
+
+        val result = alignReads.test(
+            "--index $indexFilePrefix.fmd --query $testQueryReads --output $testOutput"
+        )
+
+        assertEquals(0, result.statusCode)
+
+        // Verify output file was created
+        val outputFile = File(testOutput)
+        assertTrue(outputFile.exists(), "Output BED file should exist")
+
+        // Cleanup
+        outputFile.delete()
+    }
+
+    @Test
+    fun testAlignReadsLoggingWithOptionalParams() {
+        // This test verifies that optional parameter logging works correctly
+        val alignReads = AlignReads()
+        val testOutput = tempTestDir + "test_logging.bed"
+
+        // Test with subset positions only
+        val result1 = alignReads.test(
+            "--index $indexFilePrefix.fmd --query $testQueryReads --output $testOutput --subset-positions 20"
+        )
+        assertEquals(0, result1.statusCode)
+
+        // Test with gap only
+        val testOutput2 = tempTestDir + "test_logging2.bed"
+        val result2 = alignReads.test(
+            "--index $indexFilePrefix.fmd --query $testQueryReads --output $testOutput2 --gap 30"
+        )
+        assertEquals(0, result2.statusCode)
+
+        // Test with both
+        val testOutput3 = tempTestDir + "test_logging3.bed"
+        val result3 = alignReads.test(
+            "--index $indexFilePrefix.fmd --query $testQueryReads --output $testOutput3 --subset-positions 25 --gap 35"
+        )
+        assertEquals(0, result3.statusCode)
+    }
 }
