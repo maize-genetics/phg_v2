@@ -2,10 +2,27 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 
 import net.maizegenetics.phgv2.pathing.ropebwt.RopeBwtIndexTest.Companion.indexFilePrefix
 import net.maizegenetics.phgv2.pathing.ropebwt.RopeBwtIndexTest.Companion.inputFasta
+import net.maizegenetics.phgv2.pathing.ropebwt.RopeBwtIndexTest.Companion.tempTestDir
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.io.File
 
 class RopeBWTUtilsTest {
+
+    companion object {
+        @JvmStatic
+        @BeforeAll
+        fun setup() {
+            File(tempTestDir).mkdirs()
+        }
+
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+            File(tempTestDir).deleteRecursively()
+        }
+    }
     //runBuildStep(inputFasta:String, indexFilePrefix:String, numThreads: Int, condaEnvPrefix:String)
     @Test
     fun testRunBuildStep() {
