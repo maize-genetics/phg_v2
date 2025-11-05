@@ -47,7 +47,11 @@ class RopeBWTUtils {
                 val process = ProcessBuilder(buildCommand)
                     .inheritIO()
                     .start()
-                process.waitFor()
+                val exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    myLogger.error("ropebwt3 build command failed with exit code: $exitCode")
+                    throw IllegalStateException("ropebwt3 build command failed with exit code: $exitCode")
+                }
             } catch (e: Exception) {
                 myLogger.error("Error running ropebwt3 build command: ${buildCommand.joinToString(" ")}")
                 throw e
@@ -67,7 +71,11 @@ class RopeBWTUtils {
                 val process = ProcessBuilder(buildCommand)
                     .inheritIO()
                     .start()
-                process.waitFor()
+                val exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    myLogger.error("ropebwt3 build command failed with exit code: $exitCode")
+                    throw IllegalStateException("ropebwt3 build command failed with exit code: $exitCode")
+                }
             } catch (e: Exception) {
                 myLogger.error("Error running ropebwt3 build command: ${buildCommand.joinToString(" ")}")
                 throw e
@@ -88,7 +96,11 @@ class RopeBWTUtils {
                 val process = ProcessBuilder(convertCommand)
                     .inheritIO()
                     .start()
-                process.waitFor()
+                val exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    myLogger.error("ropebwt3 convert command failed with exit code: $exitCode")
+                    throw IllegalStateException("ropebwt3 convert command failed with exit code: $exitCode")
+                }
             } catch (e: Exception) {
                 myLogger.error("Error running ropebwt3 convert command: ${convertCommand.joinToString(" ")}")
                 throw e
@@ -118,7 +130,11 @@ class RopeBWTUtils {
                 val process = ProcessBuilder(ssaCommand)
                     .inheritIO()
                     .start()
-                process.waitFor()
+                val exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    myLogger.error("ropebwt3 ssa command failed with exit code: $exitCode")
+                    throw IllegalStateException("ropebwt3 ssa command failed with exit code: $exitCode")
+                }
             } catch (e: Exception) {
                 myLogger.error("Error running ropebwt3 ssa command: ${ssaCommand.joinToString(" ")}")
                 throw e
