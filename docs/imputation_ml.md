@@ -45,6 +45,12 @@ imputation using the PHG:
       --contig-list chr1,chr2,chr3
   ```
 
+  !!! note "Getting gVCF files without reference ranges"
+      When not using reference ranges (skipping `phg create-ranges`), you cannot
+      run the standard `phg create-ref-vcf` and `phg create-maf-vcf` commands.
+      Instead, you can convert MAF alignment files directly to gVCF format using
+      the `maf-to-gvcf-converter` command from [biokotlin-tools](https://github.com/maize-genetics/biokotlin-tools?tab=readme-ov-file#1-maf-to-gvcf-converter).
+
 * Find maximal exact matches between ropebwt3 index and reads:
   ```shell
   phg align-reads \
