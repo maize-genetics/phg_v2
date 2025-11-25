@@ -211,19 +211,19 @@ class ConvertVcf2Ps4gFileTest {
             assertEquals(4, sampleGameteCountMap.size)
             assertEquals(1, gameteToCountMap[SampleGamete("impute1",0)]?.countMap?.size)
             assertTrue(gameteToCountMap[SampleGamete("impute1",0)]?.countMap?.containsKey(Pair(encodedPos, listOf(0,1))) ?: false)
-            assertEquals(1, gameteToCountMap[SampleGamete("impute1",0)]?.countMap?.get(Pair(encodedPos, listOf(0,1))))
+            assertEquals(PS4GCountValue(1,1,1,0), gameteToCountMap[SampleGamete("impute1",0)]?.countMap?.get(Pair(encodedPos, listOf(0,1))))
 
             assertEquals(1, gameteToCountMap[SampleGamete("impute2",0)]?.countMap?.size)
             assertTrue(gameteToCountMap[SampleGamete("impute2",0)]?.countMap?.containsKey(Pair(encodedPos, listOf(0,1))) ?: false)
-            assertEquals(1, gameteToCountMap[SampleGamete("impute2",0)]?.countMap?.get(Pair(encodedPos, listOf(0,1))) ?: 0)
+            assertEquals(PS4GCountValue(1,1,1,0), gameteToCountMap[SampleGamete("impute2",0)]?.countMap?.get(Pair(encodedPos, listOf(0,1))) ?: 0)
 
             assertEquals(1, gameteToCountMap[SampleGamete("impute3",0)]?.countMap?.size)
             assertTrue(gameteToCountMap[SampleGamete("impute3",0)]?.countMap?.containsKey(Pair(encodedPos, listOf(2,3))) ?: false)
-            assertEquals(1, gameteToCountMap[SampleGamete("impute3",0)]?.countMap?.get(Pair(encodedPos, listOf(2,3))) ?: 0)
+            assertEquals(PS4GCountValue(1,1,1,0), gameteToCountMap[SampleGamete("impute3",0)]?.countMap?.get(Pair(encodedPos, listOf(2,3))) ?: 0)
 
             assertEquals(1, gameteToCountMap[SampleGamete("impute4",0)]?.countMap?.size)
             assertTrue(gameteToCountMap[SampleGamete("impute4",0)]?.countMap?.containsKey(Pair(encodedPos, listOf(2,3))) ?: false)
-            assertEquals(1, gameteToCountMap[SampleGamete("impute4",0)]?.countMap?.get(Pair(encodedPos, listOf(2,3))) ?: 0)
+            assertEquals(PS4GCountValue(1,1,1,0), gameteToCountMap[SampleGamete("impute4",0)]?.countMap?.get(Pair(encodedPos, listOf(2,3))) ?: 0)
 
             assertEquals(2, sampleGameteCountMap[SampleGamete("impute1",0)]?.size)
             assertEquals(2, sampleGameteCountMap[SampleGamete("impute2",0)]?.size)
@@ -270,7 +270,12 @@ class ConvertVcf2Ps4gFileTest {
         assertEquals(2, sampleGameteCountMap[SampleGamete("genotype1",0)]?.size)
         val genotype1CountMap = gameteToCountMap[SampleGamete("genotype1",0)]?.countMap!!
 
-        assertEquals(1, genotype1CountMap.get(Pair(encodedPosition1, listOf(1,2))))
+        val genotype1Ps4GCountValue = genotype1CountMap[Pair(encodedPosition1, listOf(1,2))]!!
+        assertEquals(1, genotype1Ps4GCountValue.count)
+        assertEquals(1, genotype1Ps4GCountValue.numMapped)
+        assertEquals(1, genotype1Ps4GCountValue.numMappedOnMainContig)
+        assertEquals(0, genotype1Ps4GCountValue.totalMaxPosDistOnMainContig)
+
 
         convertVcf2Ps4gFile.processSingleGenotype(genotype1, 1, Allele.ALT_C, alleleMap,
             sampleGameteCountMap, gameteToCountMap, gameteToIdxMap, encodedPosition1)
@@ -382,10 +387,11 @@ class ConvertVcf2Ps4gFileTest {
             SampleGamete("sample3", 0) to 2,
             SampleGamete("sample4", 0) to 3,
         )
-        val imputeSample1CountMap = mutableMapOf<Pair<Position, List<Int>>, Int>(
-            Pair(Position("0",0), listOf(0, 1)) to 20,
-            Pair(Position("0",1), listOf(0)) to 10,
-            Pair(Position("0",2), listOf(0, 2)) to 5,
+
+        val imputeSample1CountMap = mutableMapOf<Pair<Position, List<Int>>, PS4GCountValue>(
+            Pair(Position("0",0), listOf(0, 1)) to PS4GCountValue(20,20,20,0),
+            Pair(Position("0",1), listOf(0)) to PS4GCountValue(10,10,10,0),
+            Pair(Position("0",2), listOf(0, 2)) to PS4GCountValue(5,5,5,0),
         )
         val imputeSample1RefCount = mutableMapOf<SampleGamete, Int>(
             SampleGamete("sample1", 0) to 35,
@@ -393,10 +399,10 @@ class ConvertVcf2Ps4gFileTest {
             SampleGamete("sample3", 0) to 5
         )
 
-        val imputeSample2CountMap = mutableMapOf<Pair<Position, List<Int>>, Int>(
-            Pair(Position("0",0), listOf(0,)) to 10,
-            Pair(Position("0",1), listOf(0,1)) to 5,
-            Pair(Position("0",2), listOf(1, 2)) to 15,
+        val imputeSample2CountMap = mutableMapOf<Pair<Position, List<Int>>, PS4GCountValue>(
+            Pair(Position("0",0), listOf(0,)) to PS4GCountValue(10,10,10,0),
+            Pair(Position("0",1), listOf(0,1)) to PS4GCountValue(5,5,5,0),
+            Pair(Position("0",2), listOf(1, 2)) to PS4GCountValue(15,15,15,0),
         )
 
         val imputeSample2RefCount = mutableMapOf<SampleGamete, Int>(

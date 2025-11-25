@@ -341,17 +341,6 @@ class PS4GUtilsTest {
         assertEquals("2\t2\t200\t3\t3\t1.0\t0.0", dataLines[1])
     }
 
-    //fun incrementCountValue(countMap: MutableMap<Pair<Position, List<Int>>, PS4GCountValue>, posToGameteSetAndStats: Pair<Position, GameteIdsWithMappingStats>) {
-    //            val key = Pair(posToGameteSetAndStats.first, posToGameteSetAndStats.second.gameteIdsHit)
-    //            val currentPS4GCountValue = countMap.getOrDefault(key, PS4GCountValue(0,0,0,0))
-    //            val newPS4GCountValue = PS4GCountValue(
-    //                currentPS4GCountValue.count + 1,
-    //                currentPS4GCountValue.numMapped + posToGameteSetAndStats.second.numMapped,
-    //                currentPS4GCountValue.numMappedOnMainContig + posToGameteSetAndStats.second.numMappedOnMainContig,
-    //                currentPS4GCountValue.totalMaxPosDistOnMainContig + posToGameteSetAndStats.second.maxPosDistOnMainContig
-    //            )
-    //            countMap[key] = newPS4GCountValue
-    //        }
     @Test
     fun testIncrementCounterValue() {
         val countMap = mutableMapOf<Pair<Position, List<Int>>, PS4GCountValue>()
