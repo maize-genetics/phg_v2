@@ -164,7 +164,8 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
             }
             .sorted()
 
-        return PS4GData(sampleGameteIdxSorted, pos, count)
+        //return numMapped and numMappedOnMainContig as 1 for now since we don't have that info from read mapping file
+        return PS4GData(sampleGameteIdxSorted, pos, count,1,1,0)
     }
 
 }

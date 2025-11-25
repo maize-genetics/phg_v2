@@ -22,7 +22,8 @@ data class PS4GDataWithMaps(val ps4gData: List<PS4GData>, val sampleGameteCount:
  * The second is the reference sample gamete count map.  The key is the SampleGamete and the value is the count of how many times this SampleGamete was seen in the reference panel.
  */
 //data class SampleGameteCountMaps(val countMap: MutableMap<Pair<Int, List<Int>>, Int>, val refSampleGameteCountMap: MutableMap<SampleGamete, Int>)
-data class SampleGameteCountMaps(val countMap: MutableMap<Pair<Position, List<Int>>, Int>, val refSampleGameteCountMap: MutableMap<SampleGamete, Int>)
+//data class SampleGameteCountMaps(val countMap: MutableMap<Pair<Position, List<Int>>, Int>, val refSampleGameteCountMap: MutableMap<SampleGamete, Int>)
+data class SampleGameteCountMaps(val countMap: MutableMap<Pair<Position, List<Int>>, PS4GCountValue>, val refSampleGameteCountMap: MutableMap<SampleGamete, Int>)
 
 
 /**
@@ -213,9 +214,7 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
             gameteToIdxMap[it] ?: throw IllegalStateException("SampleGamete $it not found in gameteToIdxMap")
         }
         //Get the count for this position and sampleGamete
-        countMap[Pair(position, sampleGameteIndices)] =
-            countMap.getOrDefault(Pair(position, sampleGameteIndices), 0) + 1
-
+        PS4GUtils.incrementCountValue(countMap, Pair(position, GameteIdsWithMappingStats(sampleGameteIndices,1,1,0)))
 
         //update the count for these SampleGametes
         for (refSampleGamete in refPanelSampleGametes) {
