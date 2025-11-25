@@ -53,8 +53,8 @@ class PS4GUtilsTest {
     @Test
     fun testConvertCountMapToPS4GData() {
         val countMap = mapOf(
-            Pair(Position("1", 100), listOf(2, 1, 3)) to 5,
-            Pair(Position("1", 50), listOf(1, 2)) to 3
+            Pair(Position("1", 100), listOf(2, 1, 3)) to PS4GCountValue(5,10,8,15),
+            Pair(Position("1", 50), listOf(1, 2)) to PS4GCountValue(3,6,5,7)
         )
         val ps4gData = PS4GUtils.convertCountMapToPS4GData(countMap, sortPositions = true)
 
@@ -65,13 +65,23 @@ class PS4GUtilsTest {
         // Gamete lists should be sorted within each entry
         assertEquals(listOf(1, 2), ps4gData[0].gameteList)
         assertEquals(listOf(1, 2, 3), ps4gData[1].gameteList)
+
+        // Check counts and additional fields
+        assertEquals(3, ps4gData[0].count)
+        assertEquals(6, ps4gData[0].numMapped)
+        assertEquals(5, ps4gData[0].numMappedOnMainContig)
+        assertEquals(7, ps4gData[0].totalMaxPosDistOnMainContig)
+        assertEquals(5, ps4gData[1].count)
+        assertEquals(10, ps4gData[1].numMapped)
+        assertEquals(8, ps4gData[1].numMappedOnMainContig)
+        assertEquals(15, ps4gData[1].totalMaxPosDistOnMainContig)
     }
 
     @Test
     fun testConvertCountMapToPS4GDataUnsorted() {
-        val countMap = linkedMapOf(
-            Pair(Position("1", 100), listOf(2, 1, 3)) to 5,
-            Pair(Position("1", 50), listOf(1, 2)) to 3
+        val countMap = mapOf(
+            Pair(Position("1", 100), listOf(2, 1, 3)) to PS4GCountValue(5,10,8,15),
+            Pair(Position("1", 50), listOf(1, 2)) to PS4GCountValue(3,6,5,7)
         )
         val ps4gData = PS4GUtils.convertCountMapToPS4GData(countMap, sortPositions = false)
 
@@ -82,14 +92,24 @@ class PS4GUtilsTest {
         // Gamete lists should NOT be sorted when sortPositions is false
         assertEquals(listOf(2, 1, 3), ps4gData[0].gameteList)
         assertEquals(listOf(1, 2), ps4gData[1].gameteList)
+
+        // Check counts and additional fields
+        assertEquals(5, ps4gData[0].count)
+        assertEquals(10, ps4gData[0].numMapped)
+        assertEquals(8, ps4gData[0].numMappedOnMainContig)
+        assertEquals(15, ps4gData[0].totalMaxPosDistOnMainContig)
+        assertEquals(3, ps4gData[1].count)
+        assertEquals(6, ps4gData[1].numMapped)
+        assertEquals(5, ps4gData[1].numMappedOnMainContig)
+        assertEquals(7, ps4gData[1].totalMaxPosDistOnMainContig)
     }
 
     @Test
     fun testWriteOutPS4GFileIncludesAllGametes() {
         // Create test data
         val ps4gData = listOf(
-            PS4GData(listOf(0, 2), Position("1", 100), 5),
-            PS4GData(listOf(1, 3), Position("1", 200), 3)
+            PS4GData(listOf(0, 2), Position("1", 100), 5, 5, 5, 0),
+            PS4GData(listOf(1, 3), Position("1", 200), 3, 3, 3, 0)
         )
 
         // Create gameteToIdxMap with 5 gametes (0-4)
@@ -141,7 +161,7 @@ class PS4GUtilsTest {
     @Test
     fun testWriteOutPS4GFileGametesSortedByIndex() {
         // Create test data
-        val ps4gData = listOf(PS4GData(listOf(0, 1), Position("1", 100), 5))
+        val ps4gData = listOf(PS4GData(listOf(0, 1), Position("1", 100), 5, 5, 5, 0))
 
         // Create gameteToIdxMap with indices NOT in alphabetical order by gamete name
         val gameteToIdxMap = mapOf(
@@ -205,7 +225,7 @@ class PS4GUtilsTest {
     fun testWriteOutPS4GFileZeroCountGametes() {
         // Create test data with only gametes 0 and 1 having data
         val ps4gData = listOf(
-            PS4GData(listOf(0, 1), Position("1", 100), 10)
+            PS4GData(listOf(0, 1), Position("1", 100), 10, 10, 10, 0)
         )
 
         // Create gameteToIdxMap with 4 gametes
@@ -269,8 +289,8 @@ class PS4GUtilsTest {
     fun testWriteOutPS4GFileFormat() {
         // Create simple test data
         val ps4gData = listOf(
-            PS4GData(listOf(0, 1), Position("1", 100), 5),
-            PS4GData(listOf(2), Position("2", 200), 3)
+            PS4GData(listOf(0, 1), Position("1", 100), 5, 5, 5, 0),
+            PS4GData(listOf(2), Position("2", 200), 3, 3, 3, 0)
         )
 
         val gameteToIdxMap = mapOf(
@@ -303,7 +323,7 @@ class PS4GUtilsTest {
 
         // Check file format
         assertEquals("#PS4G", lines[0])
-        assertEquals("#version=2.0", lines[1])
+        assertEquals("#version=3.0", lines[1])
         assertEquals("#test header line 1", lines[2])
         assertEquals("#test header line 2", lines[3])
         assertEquals("#Command: test command line", lines[4])
@@ -311,13 +331,56 @@ class PS4GUtilsTest {
         assertEquals("#gamete\tgameteIndex\tcount", lines[6])
 
         // Check data header line
-        val dataHeaderIndex = lines.indexOfFirst { it == "gameteSet\trefContig\trefPosBinned\tcount" }
+        val dataHeaderIndex = lines.indexOfFirst { it == "gameteSet\trefContig\trefPosBinned\tcount\tnumMappings\tpropOnTopContig\tavgPosVariation" }
         assertTrue(dataHeaderIndex > 6, "Data header should appear after gamete section")
 
         // Check data lines
         val dataLines = lines.subList(dataHeaderIndex + 1, lines.size)
         assertEquals(2, dataLines.size)
-        assertEquals("0,1\t1\t100\t5", dataLines[0])
-        assertEquals("2\t2\t200\t3", dataLines[1])
+        assertEquals("0,1\t1\t100\t5\t5\t1.0\t0.0", dataLines[0])
+        assertEquals("2\t2\t200\t3\t3\t1.0\t0.0", dataLines[1])
+    }
+
+    //fun incrementCountValue(countMap: MutableMap<Pair<Position, List<Int>>, PS4GCountValue>, posToGameteSetAndStats: Pair<Position, GameteIdsWithMappingStats>) {
+    //            val key = Pair(posToGameteSetAndStats.first, posToGameteSetAndStats.second.gameteIdsHit)
+    //            val currentPS4GCountValue = countMap.getOrDefault(key, PS4GCountValue(0,0,0,0))
+    //            val newPS4GCountValue = PS4GCountValue(
+    //                currentPS4GCountValue.count + 1,
+    //                currentPS4GCountValue.numMapped + posToGameteSetAndStats.second.numMapped,
+    //                currentPS4GCountValue.numMappedOnMainContig + posToGameteSetAndStats.second.numMappedOnMainContig,
+    //                currentPS4GCountValue.totalMaxPosDistOnMainContig + posToGameteSetAndStats.second.maxPosDistOnMainContig
+    //            )
+    //            countMap[key] = newPS4GCountValue
+    //        }
+    @Test
+    fun testIncrementCounterValue() {
+        val countMap = mutableMapOf<Pair<Position, List<Int>>, PS4GCountValue>()
+        val pos = Position("1", 100)
+        val gameteIds = listOf(0, 1)
+        val mappingStats = GameteIdsWithMappingStats(
+            gameteIdsHit = gameteIds,
+            numMapped = 2,
+            numMappedOnMainContig = 2,
+            maxPosDistOnMainContig = 5
+        )
+        val posToGameteSetAndStats = Pair(pos, mappingStats)
+
+        // First increment
+        PS4GUtils.incrementCountValue(countMap, posToGameteSetAndStats)
+        var countValue = countMap[Pair(pos, gameteIds)]
+        assertNotNull(countValue)
+        assertEquals(1, countValue!!.count)
+        assertEquals(2, countValue.numMapped)
+        assertEquals(2, countValue.numMappedOnMainContig)
+        assertEquals(5, countValue.totalMaxPosDistOnMainContig)
+
+        // Second increment
+        PS4GUtils.incrementCountValue(countMap, posToGameteSetAndStats)
+        countValue = countMap[Pair(pos, gameteIds)]
+        assertNotNull(countValue)
+        assertEquals(2, countValue!!.count)
+        assertEquals(4, countValue.numMapped)
+        assertEquals(4, countValue.numMappedOnMainContig)
+        assertEquals(10, countValue.totalMaxPosDistOnMainContig)
     }
 }
