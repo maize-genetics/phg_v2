@@ -217,6 +217,153 @@ class CreateMafVCFTest {
 
     }
 
+    @Test
+    fun testCreateOutputVariantMetadata() {
+        val createMafVcf = CreateMafVcf()
+        // bedRanges: List<Pair<Position, Position>>,
+        //        refGenomeSequence: Map<String, NucSeq>,
+        //        variantInfos: List<AssemblyVariantInfo>,
+        //        sampleName: String
+
+        val bedRanges = listOf(Pair(Position("chr1",1),Position("chr1",10)),
+            Pair(Position("chr1",11),Position("chr1",30)),
+            Pair(Position("chr1",31),Position("chr1",40)),
+            Pair(Position("chr1",41),Position("chr1",60))
+        )
+
+        //make a ref genome sequence with chr1 of length 60
+        val refGenomeSequence = mapOf("chr1" to NucSeq("A".repeat(60)))
+
+        val sampleName = "test"
+        //make simple variant infos
+        //data class AssemblyVariantInfo(
+        //    var chr: String, var startPos: Int, var endPos: Int, var genotype: String, var refAllele: String,
+        //    var altAllele: String, var isVariant: Boolean, var alleleDepths: IntArray = intArrayOf(),
+        //    var asmChrom: String = "", var asmStart: Int = -1, var asmEnd: Int = -1, var asmStrand: String = "",
+        //    var isMissing: Boolean = false
+        //)
+        val variantInfos = listOf(
+            AssemblyVariantInfo("chr1", 1,10,"A","A",".",false, intArrayOf(10,0),"asm1",100,109,"+",false),
+            AssemblyVariantInfo("chr1", 11,15,"A","A",".",false, intArrayOf(5,0),"asm1",110,114,"+",false),
+            AssemblyVariantInfo("chr1", 16,16,"G","A","G",true, intArrayOf(3,7),"asm1",115,115,"+",false),
+            AssemblyVariantInfo("chr1", 17,35,"A","A",".",false, intArrayOf(10,0),"asm1",116,134,"+",false),
+            AssemblyVariantInfo("chr1", 36,36,"TTT","A","TTT",true, intArrayOf(4,6),"asm1",135,137,"+",false),
+            AssemblyVariantInfo("chr1", 37,50,"A","A",".",false, intArrayOf(15,0),"asm1",138,149,"+",false),
+            AssemblyVariantInfo("chr1", 51,53,"G","AAA","G",true, intArrayOf(10,0),"asm1",150,152,"+",false),
+            AssemblyVariantInfo("chr1", 54,60,"A","A",".",false, intArrayOf(7,0),"asm1",153,159,"+",false)
+        )
+
+        val outputMetadata = createMafVcf.createOutputVariantMetadata(
+            bedRanges,
+            refGenomeSequence,
+            variantInfos,
+            sampleName
+        )
+        //data class HVCFRecordMetadata(val sampleName: String, val refSeq : String = "", val asmSeq : String = "",
+        //                              val refContig : String, val refStart: Int, val refEnd: Int,
+        //                              val asmRegions: List<Pair<Position,Position>>)
+        assertEquals(4, outputMetadata.size)
+        //check first metadata
+        val firstMeta = outputMetadata[0]
+        assertEquals("test", firstMeta.sampleName)
+        assertEquals("A".repeat(10), firstMeta.refSeq)
+        assertEquals("", firstMeta.asmSeq) //We put a "" for asmSeq in this function
+        assertEquals("chr1", firstMeta.refContig)
+        assertEquals(1, firstMeta.refStart)
+        assertEquals(10, firstMeta.refEnd)
+        assertEquals(1, firstMeta.asmRegions.size)
+        assertEquals(Position("asm1",100), firstMeta.asmRegions[0].first)
+        assertEquals(Position("asm1",109), firstMeta.asmRegions[0].second)
+
+        val secondMeta = outputMetadata[1]
+        assertEquals("test", secondMeta.sampleName)
+        assertEquals("A".repeat(20), secondMeta.refSeq)
+        assertEquals("", secondMeta.asmSeq)
+        assertEquals("chr1", secondMeta.refContig)
+        assertEquals(11, secondMeta.refStart)
+        assertEquals(30, secondMeta.refEnd)
+        assertEquals(1, secondMeta.asmRegions.size) //This merges the SNP into the refRange as it is consecutive ASM position wise
+        assertEquals(Position("asm1",110), secondMeta.asmRegions[0].first)
+        assertEquals(Position("asm1",129), secondMeta.asmRegions[0].second)
+
+
+        val thirdMeta = outputMetadata[2]
+        assertEquals("test", thirdMeta.sampleName)
+        assertEquals("A".repeat(10), thirdMeta.refSeq)
+        assertEquals("", thirdMeta.asmSeq)
+        assertEquals("chr1", thirdMeta.refContig)
+        assertEquals(31, thirdMeta.refStart)
+        assertEquals(40, thirdMeta.refEnd)
+        assertEquals(1, thirdMeta.asmRegions.size)
+        assertEquals(Position("asm1",130), thirdMeta.asmRegions[0].first)
+        assertEquals(Position("asm1",141), thirdMeta.asmRegions[0].second)
+
+        val fourthMeta = outputMetadata[3]
+        assertEquals("test", fourthMeta.sampleName)
+        assertEquals("A".repeat(20), fourthMeta.refSeq)
+        assertEquals("", fourthMeta.asmSeq)
+        assertEquals("chr1", fourthMeta.refContig)
+        assertEquals(41, fourthMeta.refStart)
+        assertEquals(60, fourthMeta.refEnd)
+        assertEquals(1, fourthMeta.asmRegions.size)
+        assertEquals(Position("asm1",142), fourthMeta.asmRegions[0].first)
+        assertEquals(Position("asm1",159), fourthMeta.asmRegions[0].second)
+
+
+        //Test some more difficult indels
+        //Overlapping the bed range start and end and a BED fully contained within a deletion
+        val bedRanges2 = listOf(Pair(Position("chr1",5),Position("chr1",25)),
+            Pair(Position("chr1",26),Position("chr1",40)),
+            Pair(Position("chr1",41),Position("chr1",45)),
+            Pair(Position("chr1",46),Position("chr1",60)))
+
+        val variantInfos2 = listOf(
+            AssemblyVariantInfo("chr1", 1,10,"AAAAAAAAAA","AAAAAAAAAA","A",true, intArrayOf(10,0),"asm1",200,200,"+",false),
+            AssemblyVariantInfo("chr1",24,27,"A","AAAA","A",true, intArrayOf(8,2),"asm1",210,210,"+",false),
+            AssemblyVariantInfo("chr1", 38,47,"A","AAAAAAAAAA","A",true, intArrayOf(5,5),"asm1",220,220,"+",false),
+
+//            AssemblyVariantInfo("chr2", 11,20,"A","A",".",false, intArrayOf(5,0),"asm2",210,219,"+",false),
+//            AssemblyVariantInfo("chr2", 21,21,"G","A","G",true, intArrayOf(3,7),"asm2",220,220,"+",false),
+//            AssemblyVariantInfo("chr2", 22,40,"A","A",".",false, intArrayOf(10,0),"asm2",221,239,"+",false),
+//            AssemblyVariantInfo("chr2", 41,60,"TTT","A","TTT",true, intArrayOf(4,6),"asm2",240,242,"+",false),
+//            AssemblyVariantInfo("chr2", 61,70,"A","A",".",false, intArrayOf(15,0),"asm2",243,252,"+",false),
+//            AssemblyVariantInfo("chr2", 71,80,"G","AAA","G",true, intArrayOf(10,0),"asm2",253,262,"+",false),
+//            AssemblyVariantInfo("chr2", 81,90,"A","A",".",false, intArrayOf(7,0),"asm2",263,272,"+",false)
+        )
+
+        val outputMetadata2 = createMafVcf.createOutputVariantMetadata(
+            bedRanges2,
+            refGenomeSequence,
+            variantInfos2,
+            sampleName
+        )
+        assertEquals(2, outputMetadata2.size)
+        //Even though this should span 2 ref ranges, the left alignment means that it is assigned to 5-25 not 26-40 and definitely not both
+        val metaData2_0 = outputMetadata2[0]
+        assertEquals("test", metaData2_0.sampleName)
+        assertEquals("A".repeat(21), metaData2_0.refSeq) //5 to 25 inclusive  full ref seq from BED
+        assertEquals("", metaData2_0.asmSeq)
+        assertEquals("chr1", metaData2_0.refContig)
+        assertEquals(5, metaData2_0.refStart)
+        assertEquals(25, metaData2_0.refEnd)
+        assertEquals(1, metaData2_0.asmRegions.size)
+        assertEquals(Position("asm1",210), metaData2_0.asmRegions[0].first)
+        assertEquals(Position("asm1",210), metaData2_0.asmRegions[0].second)
+
+        //This one should be assigned to 26-40 even though it fully overlaps 41-45 and partially overlaps 46-60 because of left alignment
+        val metaData2_1 = outputMetadata2[1]
+        assertEquals("test", metaData2_1.sampleName)
+        assertEquals("A".repeat(15), metaData2_1.refSeq) //
+        assertEquals("", metaData2_1.asmSeq)
+        assertEquals("chr1", metaData2_1.refContig)
+        assertEquals(26, metaData2_1.refStart)
+        assertEquals(40, metaData2_1.refEnd)
+        assertEquals(1, metaData2_1.asmRegions.size)
+        assertEquals(Position("asm1",220), metaData2_1.asmRegions[0].first)
+        assertEquals(Position("asm1",220), metaData2_1.asmRegions[0].second)
+
+    }
+
     /**
      * Function to compare the output gVCF file with the expected gVCF
      * It compares the alleles, depths, genotypes and the ASM metadata.

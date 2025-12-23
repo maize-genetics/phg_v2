@@ -228,9 +228,23 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
          * Then call the createHVCFRecord with this information
          */
         myLogger.info("in convertGVCFToHVCFForChrom: bedRanges.size = ${bedRanges.size}")
+        val outputVariantMetadata = createOutputVariantMetadata(bedRanges, refGenomeSequence, variantInfos, sampleName)
+
+        val metaDataWithSequence = CreateMafVcfUtils.addSequencesToMetaData(dbPath, outputVariantMetadata, condaEnvPrefix)
+        val outputVariants = CreateMafVcfUtils.convertMetaDataToHVCFContexts(metaDataWithSequence, asmHeaders, dbPath)
+
+        return outputVariants
+    }
+
+    fun createOutputVariantMetadata(
+        bedRanges: List<Pair<Position, Position>>,
+        refGenomeSequence: Map<String, NucSeq>,
+        variantInfos: List<AssemblyVariantInfo>,
+        sampleName: String
+    ): MutableList<HVCFRecordMetadata> {
         val outputVariantMetadata = mutableListOf<HVCFRecordMetadata>()
         var currentVariantIdx = 0
-        for(region in bedRanges) {
+        for (region in bedRanges) {
             val regionStart = region.first.position
             val regionEnd = region.second.position
             val regionChrom = region.first.contig
@@ -239,7 +253,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
             check(regionChrom in refGenomeSequence.keys) { "Chromosome $regionChrom not found in reference" }
 
             //Need to subtract here as the Biokotlin NucSeq is 0 based
-            val refRangeSeq = refGenomeSequence[regionChrom]!![regionStart-1..regionEnd-1]
+            val refRangeSeq = refGenomeSequence[regionChrom]!![regionStart - 1..regionEnd - 1]
 
             while (currentVariantIdx < variantInfos.size) {
                 val currentVariantInfo = variantInfos[currentVariantIdx]
@@ -248,36 +262,45 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                 //If variant is fully contained in Bed region add to temp list and increment currentVariantIdx
                 //If variant is partially contained in Bed region add to temp list do not increment as we need to see if the next bed also overlaps
                 //If variant is not contained in Bed region, skip and do not increment as we need to see if the next bed overlaps
-                if(AssemblyVariantInfoUtils.bedRegionContainedInVariantInfo(region, currentVariantInfo)) {
-                    outputVariantMetadata.add(
-                        convertGVCFRecordsToHVCFMetaDataVariantInfo(
-                            sampleName,
-                            region,
-                            refRangeSeq,
-                            listOf(currentVariantInfo)
+                if (AssemblyVariantInfoUtils.bedRegionContainedInVariantInfo(region, currentVariantInfo)) {
+                    //Check to see if the variant is a refBlock or indel that starts at the beginning of the bed region
+                    //If so we need to just add it and move on as the bed region is fully contained within the variant and the variant will only be assigned to this BED range
+                    if((currentVariantInfo.refAllele.length == 1 && currentVariantInfo.altAllele == ".") ||
+                        ((currentVariantInfo.refAllele.length != 1 || currentVariantInfo.altAllele.length != 1) &&
+                                    currentVariantInfo.startPos == regionStart)) {
+                        outputVariantMetadata.add(
+                            convertGVCFRecordsToHVCFMetaDataVariantInfo(
+                                sampleName,
+                                region,
+                                refRangeSeq,
+                                listOf(currentVariantInfo)
+                            )
                         )
-                    )
-                    tempVariants.clear()
+                        tempVariants.clear()
+                    }
                     break
                 }
-                if(AssemblyVariantInfoUtils.variantInfoFullyContained(region, currentVariantInfo)) {
+                if (AssemblyVariantInfoUtils.variantInfoFullyContained(region, currentVariantInfo)) {
                     //This is the case where the variant is completely contained within the region
                     tempVariants.add(currentVariantInfo)
                     currentVariantIdx++
-                }
-                else if(AssemblyVariantInfoUtils.variantInfoPartiallyContainedStart(region,currentVariantInfo)) {
+                } else if (AssemblyVariantInfoUtils.variantInfoPartiallyContainedStart(region, currentVariantInfo)) {
                     tempVariants.add(currentVariantInfo)
                     break
-                }
-                else if(AssemblyVariantInfoUtils.variantInfoPartiallyContainedEnd(region, currentVariantInfo)) {
-                    tempVariants.add(currentVariantInfo)
+                } else if (AssemblyVariantInfoUtils.variantInfoPartiallyContainedEnd(region, currentVariantInfo)) {
+                    //Need to handle if its an overlapping indel
+                    //if refBlock we can add it SNPs will match and not be a partial overlap
+                    if(currentVariantInfo.refAllele.length == 1 &&
+                        currentVariantInfo.altAllele == ".") {
+                        tempVariants.add(currentVariantInfo)
+                    }
                     currentVariantIdx++
-                }
-                else if(AssemblyVariantInfoUtils.variantInfoAfterRegion(region, currentVariantInfo)) {
+                } else if (AssemblyVariantInfoUtils.variantInfoAfterRegion(region, currentVariantInfo)) {
                     //write out what is in tempVariants
-                    if(tempVariants.isNotEmpty()) {
+                    if (tempVariants.isNotEmpty()) {
                         outputVariantMetadata.add(
-                            convertGVCFRecordsToHVCFMetaDataVariantInfo(sampleName,
+                            convertGVCFRecordsToHVCFMetaDataVariantInfo(
+                                sampleName,
                                 region,
                                 refRangeSeq,
                                 tempVariants
@@ -288,28 +311,25 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
                     }
                     //move up Bed region
                     break
-                }
-                else { //this is the case if the Variant is behind the BED region
+                } else { //this is the case if the Variant is behind the BED region
                     //move up Variant
                     currentVariantIdx++
                 }
             }
 
-            if(tempVariants.isNotEmpty()) {
-                outputVariantMetadata.add(convertGVCFRecordsToHVCFMetaDataVariantInfo(
-                    sampleName,
-                    region,
-                    refRangeSeq,
-                    tempVariants
-                ))
+            if (tempVariants.isNotEmpty()) {
+                outputVariantMetadata.add(
+                    convertGVCFRecordsToHVCFMetaDataVariantInfo(
+                        sampleName,
+                        region,
+                        refRangeSeq,
+                        tempVariants
+                    )
+                )
                 tempVariants.clear()
             }
         }
-
-        val metaDataWithSequence = CreateMafVcfUtils.addSequencesToMetaData(dbPath, outputVariantMetadata, condaEnvPrefix)
-        val outputVariants = CreateMafVcfUtils.convertMetaDataToHVCFContexts(metaDataWithSequence, asmHeaders, dbPath)
-
-        return outputVariants
+        return outputVariantMetadata
     }
 
 
