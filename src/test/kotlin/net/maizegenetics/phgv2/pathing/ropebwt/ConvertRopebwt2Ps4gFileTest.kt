@@ -61,8 +61,26 @@ class ConvertRopebwt2Ps4gFileTest {
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
                 "Error: missing option --spline-knot-dir\n", noHvcfDir.stderr)
 
+        val negativeRange = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --output-dir testDir --spline-knot-dir ./knotFiles/ --max-range -2")
+        assertEquals(1, negativeRange.statusCode)
+        assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
+                "Error: invalid value for --max-range: max range must be non-negative\n", negativeRange.stderr)
     }
 
+    @Test
+    fun testWriteOutput() {
+        val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
+        val ropebwtBed = "data/test/ropebwt/LineA_FullChr.bed"
+        val hvcfDir = "data/test/ropebwt/testHVCFs"
+
+        SplineUtils.buildSplineKnots(hvcfDir, "hvcf", tempTestDir)
+
+        convertRopebwt2Ps4gFile.test("--output-dir $tempTestDir --spline-knot-dir $tempTestDir --ropebwt-bed $ropebwtBed")
+        assertEquals(File("$tempTestDir/LineA_FullChr.ps4g").exists(), true)
+
+        convertRopebwt2Ps4gFile.test("--output-dir $tempTestDir/test_A.ps4g --spline-knot-dir $tempTestDir --ropebwt-bed $ropebwtBed")
+        assertEquals(File("$tempTestDir/test_A.ps4g").exists(), true)
+    }
     @Test
     fun testConvertCountMapToPS4GData() {
         val countMap = mapOf(Pair(Position("1",1), listOf(1, 2)) to 3, Pair(Position("1",2), listOf(3, 4)) to 5)
