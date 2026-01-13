@@ -354,7 +354,6 @@ class ConvertRopebwt2Ps4gFileTest {
 
         val ps4gData2 = convertRopebwt2Ps4gFile.buildPS4GData(ropebwtBed, splineLookup, gameteToIdxMap, 148, 10, 15)
 
-        println(ps4gData)
         assertEquals(3, ps4gData2.first.size)
         assertEquals(1, ps4gData2.second.size)
         assertEquals(4, ps4gData2.second[SampleGamete("LineA", 0)])
