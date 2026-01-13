@@ -2,6 +2,7 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.choice
@@ -33,6 +34,9 @@ class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs
         .int()
         .default(50_000)
 
+    val disableSplineDownsampling by option(help = "Keep all spline knots regardless of --num-bps-per-knot")
+        .flag()
+
     val contigList by option(help = "List of chromosomes to include in the splines.  If not provided, all chromosomes will be included.")
         .default("")
 
@@ -62,6 +66,7 @@ class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs
             minIndelLength,
             numBpsPerKnot,
             contigSet,
+            disableSplineDownsampling,
             randomSeed
         )
 
