@@ -86,7 +86,7 @@ class ConvertRm2Ps4gFileTest {
         convertRm2Ps4gFile.convertReadMappingFile(readMappingFile, outputDir, graph, cliCommand)
 
         //check the output file
-        val outputFile = File("$outputDir/LineA_1_readMapping_ps4g.txt")
+        val outputFile = File("$outputDir/LineA_1_readMapping.ps4g")
         val outputLines = outputFile.readLines()
         val header = outputLines.filter { it.startsWith("#") }
         val sampleGameteCountOutput = header.filter { it.startsWith("#Line") || it.startsWith("#Ref") }.map { it.split("\t") }.map { Triple(it.first(), it[1].toInt(), it[2].toInt()) }
