@@ -9,6 +9,7 @@ import net.maizegenetics.phgv2.cli.headerCommand
 import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.utils.Position
 import org.apache.logging.log4j.LogManager
+import java.io.File
 
 /**
  * This class will convert a RopebwtBed file to a PS4G file.  It will only work with ropebwt3 files where the reads are
@@ -23,7 +24,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     val ropebwtBed by option(help = "RopebwtBed file")
         .required()
 
-    val outputDir by option(help = "Output directory")
+    val outputDir by option(help = "Output directory or file name")
         .required()
 
    val splineKnotDir by option(help = "Spline Knot Directory")
@@ -66,7 +67,11 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
         myLogger.info("Building PS4G Output File Name")
         //build the output file name
-        val outputFile = PS4GUtils.buildOutputFileName(ropebwtBed, outputDir)
+        val outputFile  = if(File(outputDir).isDirectory){
+            PS4GUtils.buildOutputFileName(ropebwtBed, outputDir)
+        } else {
+            outputDir
+        }
 
         myLogger.info("Building PS4G Data")
         //build and write out the PS4G file
@@ -221,7 +226,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         //compute the average position
         val averagePosition = bestHitsForChrom.sumOf { it.second.position} / bestHitsForChrom.size
         val rangePosition = bestHitsForChrom.maxOf{ it.second.position } - bestHitsForChrom.minOf{ it.second.position }
-        //TODO future task remove hits that are too far from average...
+
         //for now we just use the average position
         //Best chromosome is already in index form
         val binnedPosition = Position(bestChromosome, averagePosition)
@@ -237,7 +242,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             .toSortedSet()
             .toList()
 
-        return Triple(binnedPosition, gameteIndicesHit, averagePosition)
+        return Triple(binnedPosition, gameteIndicesHit, rangePosition)
     }
 
     /**
