@@ -2,16 +2,14 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 
 import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.options.default
-import com.github.ajalt.clikt.parameters.options.flag
-import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.*
 import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.headerCommand
 import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.utils.Position
 import org.apache.logging.log4j.LogManager
+import java.io.File
 
 /**
  * This class will convert a RopebwtBed file to a PS4G file.  It will only work with ropebwt3 files where the reads are
@@ -26,7 +24,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     val ropebwtBed by option(help = "RopebwtBed file")
         .required()
 
-    val outputDir by option(help = "Output directory")
+    val outputDir by option(help = "Output directory or file name")
         .required()
 
    val splineKnotDir by option(help = "Spline Knot Directory")
@@ -39,6 +37,11 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     val maxNumHits by option(help = "Number of hits to report.  Note ropebwt can hit more than --max-num-hits but any alignment hitting more haplotypes than this will be ignored.")
         .int()
         .default(50)
+
+    val maxRange by option(help = "Maximum range (in bins) that a single alignment can hit on different haplotypes. Alignments that hit a wider range than this will be ignored.")
+        .int()
+        .default(50)
+        .validate { require(it >= 0) {"max range must be non-negative"}  }
 
     val sortPositions by option(help = "Sort positions in the resulting PS4G file.")
         .flag(default = true)
@@ -64,11 +67,15 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
         myLogger.info("Building PS4G Output File Name")
         //build the output file name
-        val outputFile = PS4GUtils.buildOutputFileName(ropebwtBed, outputDir)
+        val outputFile  = if(File(outputDir).isDirectory){
+            PS4GUtils.buildOutputFileName(ropebwtBed, outputDir)
+        } else {
+            outputDir
+        }
 
         myLogger.info("Building PS4G Data")
         //build and write out the PS4G file
-        val (ps4GData, sampleGameteCountMap) = buildPS4GData(ropebwtBed, splineLookup, gameteIndexMap,minMemLength, maxNumHits, sortPositions)
+        val (ps4GData, sampleGameteCountMap) = buildPS4GData(ropebwtBed, splineLookup, gameteIndexMap,minMemLength, maxNumHits, maxRange, sortPositions)
 
         myLogger.info("Writing out PS4G File")
         PS4GUtils.writeOutPS4GFile(ps4GData, sampleGameteCountMap, sampleGameteIndexMap, outputFile, listOf(), command)
@@ -81,6 +88,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                       splineLookup: LinearLookupFunction,
                       gameteToIdxMap: Map<String,Int>,
                       minMEMLength: Int, maxNumHits: Int,
+                      maxRange: Int,
                       sortPositions: Boolean = true) : Pair<List<PS4GData>, Map<SampleGamete,Int>> {
 
         val gameteIdxToSampleGameteMap = gameteToIdxMap.map { it.value to SampleGamete(it.key) }.toMap()
@@ -102,6 +110,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                     splineLookup,
                     minMEMLength,
                     maxNumHits,
+                    maxRange,
                     gameteToIdxMap,
                     countMap,
                     sampleGameteCountMap,
@@ -118,6 +127,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             splineLookup,
             minMEMLength,
             maxNumHits,
+            maxRange,
             gameteToIdxMap,
             countMap,
             sampleGameteCountMap,
@@ -139,13 +149,14 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         splineLookup: LinearLookupFunction,
         minMEMLength: Int,
         maxNumHits: Int,
+        maxRange: Int,
         gameteToIdxMap: Map<String, Int>,
         countMap: MutableMap<Pair<Position, List<Int>>, Int>,
         sampleGameteCountMap: MutableMap<SampleGamete, Int>,
         gameteIdxToSampleGameteMap: Map<Int, SampleGamete>
     ) {
         val pairPosAndGameteSet =
-            processMemsForRead(tempMems, splineLookup, minMEMLength, maxNumHits, gameteToIdxMap)
+            processMemsForRead(tempMems, splineLookup, minMEMLength, maxNumHits, maxRange, gameteToIdxMap)
         if (pairPosAndGameteSet.first.position != -1) {
             countMap[pairPosAndGameteSet] = countMap.getOrDefault(pairPosAndGameteSet, 0) + 1
             for (gameteIdx in pairPosAndGameteSet.second) { //Need to convert this to a set otherwise we get multiple counts for a given gamete
@@ -161,6 +172,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     fun processMemsForRead(tempMems: List<MEM>,
                            splineLookup: LinearLookupFunction,
                            minMEMLength: Int, maxNumHits: Int,
+                           maxRange: Int,
                            gameteToIdxMap: Map<String, Int>): Pair<Position, List<Int>> {
         val bestHits = findBestMems(tempMems, minMEMLength, maxNumHits)
         if(bestHits.isEmpty()) {
@@ -172,7 +184,14 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         val referenceLookupPositions = lookupHitsToRefPosition(bestHits, splineLookup)
 
         //Create consensus Position
-        return createConsensusPositionAndGametes(referenceLookupPositions, gameteToIdxMap)
+        val consensusPositionsAndGametes = createConsensusPositionAndGametes(referenceLookupPositions, gameteToIdxMap)
+
+        //Filter on maximum range
+        if(consensusPositionsAndGametes.third > maxRange) {
+            return Pair(Position("unknown",-1), listOf())
+        }
+
+        return Pair(consensusPositionsAndGametes.first, consensusPositionsAndGametes.second)
     }
 
     /**
@@ -193,9 +212,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     /**
      *  Function to find a consensus position for the gametes and output a Pair that can be used to increase counts
      */
-    fun createConsensusPositionAndGametes(referenceLookupPositions: List<Pair<String,Position>>,gameteToIdxMap: Map<String, Int>) : Pair<Position, List<Int>> {
+    fun createConsensusPositionAndGametes(referenceLookupPositions: List<Pair<String,Position>>,gameteToIdxMap: Map<String, Int>) : Triple<Position, List<Int>, Int> {
         if(referenceLookupPositions.isEmpty()) {
-            return Pair(Position("unknown",-1), listOf())
+            return Triple(Position("unknown",-1), listOf(), 0)
         }
 
 
@@ -206,7 +225,8 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         val bestHitsForChrom = referenceLookupPositions.filter { it.second.contig == bestChromosome }
         //compute the average position
         val averagePosition = bestHitsForChrom.sumOf { it.second.position} / bestHitsForChrom.size
-        //TODO future task remove hits that are too far from average...
+        val rangePosition = bestHitsForChrom.maxOf{ it.second.position } - bestHitsForChrom.minOf{ it.second.position }
+
         //for now we just use the average position
         //Best chromosome is already in index form
         val binnedPosition = Position(bestChromosome, averagePosition)
@@ -222,7 +242,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             .toSortedSet()
             .toList()
 
-        return Pair(binnedPosition,gameteIndicesHit )
+        return Triple(binnedPosition, gameteIndicesHit, rangePosition)
     }
 
     /**

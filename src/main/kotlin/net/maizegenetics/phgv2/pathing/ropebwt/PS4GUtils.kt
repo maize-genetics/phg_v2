@@ -11,9 +11,9 @@ class PS4GUtils {
         fun buildOutputFileName(inputFile: String, outputDir: String, sampleGamete: String = "") : String {
             val fileName = inputFile.split("/").last().removeSuffix(".txt").removeSuffix(".bed")
             return if (sampleGamete.isNotEmpty()) {
-                "$outputDir/${fileName}_${sampleGamete}_ps4g.txt"
+                "$outputDir/${fileName}_${sampleGamete}.ps4g"
             } else {
-                "$outputDir/${fileName}_ps4g.txt"
+                "$outputDir/${fileName}.ps4g"
             }
         }
         fun writeOutPS4GFile(pS4GData: List<PS4GData>, sampleGameteCount: Map<SampleGamete,Int>, gameteToIdxMap: Map<SampleGamete,Int>, outputFile: String, header: List<String>, cliCommand: String) {
