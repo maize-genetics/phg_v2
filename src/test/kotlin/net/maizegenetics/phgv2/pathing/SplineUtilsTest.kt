@@ -134,7 +134,7 @@ class SplineUtilsTest {
         assertEquals(2, chrIndexMap.size)
         assertEquals(1, gameteIndexMap.size)
 
-        val lookup = LinearLookupFunction(splineKnotMap)
+        val lookup = LinearLookupFunction(splineKnotMap, chrIndexMap)
 
 
         //Check some values

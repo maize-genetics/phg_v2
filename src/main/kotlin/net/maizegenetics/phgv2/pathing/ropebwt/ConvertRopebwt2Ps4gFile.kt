@@ -61,7 +61,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
         myLogger.info("Converting Spline Knots to Splines")
 
-        val splineLookup = LinearLookupFunction(splineKnots)
+        val splineLookup = LinearLookupFunction(splineKnots, chrIndexMap)
 
         val sampleGameteIndexMap = gameteIndexMap.map { SampleGamete(it.key) to it.value}.toMap()
 
@@ -216,8 +216,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         if(referenceLookupPositions.isEmpty()) {
             return Triple(Position("unknown",-1), listOf(), 0)
         }
-
-
+        
         //determine chromosome majority
         val chrCounts = referenceLookupPositions.groupingBy { it.second.contig }.eachCount()
         val bestChromosome = chrCounts.maxBy { it.value }.key

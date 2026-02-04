@@ -3,83 +3,131 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 import com.google.common.collect.Range
 import com.google.common.collect.RangeMap
 import com.google.common.collect.TreeRangeMap
+import it.unimi.dsi.fastutil.longs.Long2LongAVLTreeMap
+import it.unimi.dsi.fastutil.longs.Long2LongSortedMap
 import net.maizegenetics.phgv2.utils.Position
 import kotlin.math.abs
 
-class LinearLookupFunction( knots: Map<String,List<Triple<Int,String,Int>>>) {
+class LinearLookupFunction(knots: Map<String,List<Triple<Int,String,Int>>>, refChrIndexMap : Map<String,Int>) {
 
-    var knotMap : RangeMap<Position,Pair<Position,Position>>
+    var knotMap : Long2LongSortedMap
+    var asmChrIndexMap : Map<String,Int>
+    var refChrIndexMap : Map<String,Int>
+    var indexRefChrMap : Map<Int,String> //Need this to do the reverse lookup to build a position to return
 
     init {
-        knotMap = convertKnotsToLinearSpline(knots)
+        //I tried to do this but it didn't work:
+        //val (knotMap, asmChrIndexMap) = convertKnotsToLinearSplinePrimitiveAVL(knots, refChrIndexMap)
+        val knotMapAndAsmChrMap = convertKnotsToLinearSplinePrimitiveAVL(knots, refChrIndexMap)
+        knotMap = knotMapAndAsmChrMap.first
+        asmChrIndexMap = knotMapAndAsmChrMap.second
+        this.refChrIndexMap = refChrIndexMap
+        this.indexRefChrMap = refChrIndexMap.entries.associate { (k, v) -> v to k }
     }
 
-    fun convertKnotsToLinearSpline(knots: Map<String,List<Triple<Int,String,Int>>>) : RangeMap<Position,Pair<Position,Position>> {
-        //Need to make the splines into linear blocks
 
-        //loop through each assembly chromosome:
-        val knotMap = TreeRangeMap.create<Position,Pair<Position,Position>>()
-        var counter = 0
+    /**
+     * Function to setup the linear spline mapping using a Long2LongAVLTreeMap for efficiency.
+     */
+    fun convertKnotsToLinearSplinePrimitiveAVL(knots: Map<String,List<Triple<Int,String,Int>>>, refChrIndexMap: Map<String,Int>) : Pair<Long2LongAVLTreeMap,Map<String,Int>>{
+        val treeMap = Long2LongAVLTreeMap()
+        val asmChrIdLookup = mutableMapOf<String,Int>()
         knots.forEach { (key, value) ->
-            println("Processing $key: ${counter++}/${knots.size-1}")
+            for(triple in value) {
+                if(!asmChrIdLookup.containsKey(key)) {
+                    asmChrIdLookup[key] = asmChrIdLookup.size
+                }
 
-            //Take the list of triples and do a zip with next.  then filter out any that are on different contigs then add them to the map
-            value.zipWithNext().filter { (firstTriple, secondTriple) ->
-                firstTriple.second == secondTriple.second
-            }.forEach { (firstTriple, secondTriple) ->
-                val asmStart = Position(key, firstTriple.first)
-                val asmEnd = Position(key, secondTriple.first)
+                val asmChromId = asmChrIdLookup[key]!!
+                val refChromId = refChrIndexMap[triple.second]!!
 
-                val refStartPos = Position(firstTriple.second, firstTriple.third)
-                val refEndPos = Position(secondTriple.second, secondTriple.third)
+                //Maybe update this to leave more bits for the position?
+                val asmPosLong = (asmChromId.toLong() shl 32) or triple.first.toLong()
+                val refPosLong = (refChromId.toLong() shl 32) or triple.third.toLong()
 
-                knotMap.put(Range.closed(asmStart, asmEnd), Pair(refStartPos, refEndPos))
+                treeMap[asmPosLong] = refPosLong
             }
         }
-        return knotMap
+
+        return Pair(treeMap, asmChrIdLookup)
     }
 
+
+    /**
+     * Function to get the mapped position for a given input position.
+     */
     fun value(position: Position): Position {
-        //Find the range that contains the position
+        if(!asmChrIndexMap.containsKey(position.contig)) {
+            return Position("unknown", 0)
+        }
+        val encoded = (asmChrIndexMap[position.contig]!!.toLong() shl 32) or position.position.toLong()
 
-        val range = knotMap.getEntry(position)
-        return if(range != null) {
-            val asmRange = range.key
-            val asmSt = asmRange.lowerEndpoint()
-            val asmEnd = asmRange.upperEndpoint()
-            resolveLinearInterpolation(position,Pair(asmSt,asmEnd), range.value)
+        val floorKey = if (knotMap.containsKey(encoded)) {
+            encoded
         } else {
-            Position("unknown", 0) // Return a default position if not found
+            knotMap.headMap(encoded)?.lastLongKey()
         }
-    }
 
-    fun resolveLinearInterpolation(
-        asmPosition: Position,
-        asmRegion : Pair<Position, Position>,
-        referenceRegion : Pair<Position, Position>
-    ): Position {
 
-        val offsetProp = (asmPosition.position - asmRegion.first.position).toDouble() /
-                (asmRegion.second.position - asmRegion.first.position).toDouble()
-
-        val offsetPos = abs(referenceRegion.second.position - referenceRegion.first.position) * offsetProp
-
-        return if(referenceRegion.first.contig != referenceRegion.second.contig) {
-            //If the contigs are not the same, we cannot interpolate
-            Position("unknown", 0)
+        if(floorKey == null) {
+            return Position("unknown", 0)
         }
-        else if(referenceRegion.first.position == referenceRegion.second.position) {
+
+
+        val ceilingKey = if( knotMap.containsKey(encoded)) {
+            encoded
+        }
+        else {
+            knotMap.tailMap(encoded)?.firstLongKey()
+        }
+
+
+        if(ceilingKey == null) {
+            return Position("unknown", 0)
+        }
+
+        //check that the chromosomes match
+        val floorASMChromId = (floorKey shr 32).toInt()
+        val ceilingASMChromId = (ceilingKey shr 32).toInt()
+        if(floorASMChromId != ceilingASMChromId) {
+            return Position("unknown", 0)
+        }
+
+        //KeyPos variables are the positions for the input assembly
+        val floorKeyPos = floorKey and 0xFFFFFFFF
+        val ceilingKeyPos = ceilingKey and 0xFFFFFFFF
+
+        val floorEncodedValue = knotMap[floorKey]
+        val ceilingEncodedValue = knotMap[ceilingKey]
+
+        val floorChromId = (floorEncodedValue shr 32).toInt()
+        val ceilingChromId = (ceilingEncodedValue shr 32).toInt()
+        if(floorChromId != ceilingChromId) {
+            return Position("unknown", 0)
+        }
+        //get the positions and remove the chrom idx bits
+        val floorRefPos = floorEncodedValue and 0xFFFFFFFF
+        val ceilingRefPos = ceilingEncodedValue and 0xFFFFFFFF
+
+        val offsetProp = (position.position - floorKeyPos).toDouble() /
+                (ceilingKeyPos - floorKeyPos).toDouble()
+        val offsetPos = abs(ceilingRefPos - floorRefPos) * offsetProp
+
+
+        val finalPosition = if(floorRefPos == ceilingRefPos) {
             //If the positions are the same, all values are equal
-            Position(referenceRegion.first.contig, referenceRegion.first.position)
+            floorRefPos
         }
-        else if(referenceRegion.first.position < referenceRegion.second.position) {
+        else if(floorRefPos < ceilingRefPos) {
             //Positive strand
-            val newPos = referenceRegion.first.position + offsetPos
-            Position(referenceRegion.first.contig, newPos.toInt())
+            (floorRefPos + offsetPos.toLong())
         } else {
             //Negative strand
-            val newPos = referenceRegion.first.position - offsetPos
-            Position(referenceRegion.first.contig, newPos.toInt())
+            (floorRefPos - offsetPos.toLong())
         }
+
+        val chromName = indexRefChrMap[floorChromId]
+        return Position(chromName!!, (finalPosition and 0xFFFFFFFF).toInt())
     }
+
 }
