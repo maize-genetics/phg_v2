@@ -65,7 +65,11 @@ class LinearLookupFunction(knots: Map<String,List<Triple<Int,String,Int>>>, refC
         val floorKey = if (knotMap.containsKey(encoded)) {
             encoded
         } else {
-            knotMap.headMap(encoded)?.lastLongKey()
+            val headMap = knotMap.headMap(encoded)
+            if(headMap.isEmpty() || headMap == null) {
+                return Position("unknown", 0)
+            }
+            headMap.lastLongKey()
         }
 
 
@@ -78,7 +82,11 @@ class LinearLookupFunction(knots: Map<String,List<Triple<Int,String,Int>>>, refC
             encoded
         }
         else {
-            knotMap.tailMap(encoded)?.firstLongKey()
+            val tailMap = knotMap.tailMap(encoded)
+            if(tailMap.isEmpty() || tailMap == null) {
+                return Position("unknown", 0)
+            }
+            tailMap.firstLongKey()
         }
 
 
