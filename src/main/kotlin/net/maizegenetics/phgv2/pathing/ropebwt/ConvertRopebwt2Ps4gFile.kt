@@ -47,6 +47,18 @@ sealed class BedInputFile {
             return lines
         }
     }
+
+    data class BedDir(val bedDir: String) : BedInputFile() {
+        @Override
+        override fun getBedFiles(): List<String> {
+            val dir = File(bedDir)
+            check(dir.exists()) { "Bed directory $bedDir does not exist." }
+            check(dir.isDirectory) { "$bedDir is not a directory." }
+            val bedFiles = dir.listFiles { file -> file.extension == "bed" }?.map { it.absolutePath } ?: listOf()
+            check(bedFiles.isNotEmpty()) { "No .bed files found in directory $bedDir." }
+            return bedFiles
+        }
+    }
 }
 
 
@@ -63,7 +75,8 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     val ropebwtBedFiles: BedInputFile by mutuallyExclusiveOptions<BedInputFile>(
             option("--ropebwt-bed", help = "RopebwtBed file.").convert{ BedInputFile.BedFile(it) },
             option("--ropebwt-bed-files", help = "Comma separated list of RopebwtBed files.").convert{ BedInputFile.BedFileList(it) },
-            option("--ropebwt-bed-list-file", help = "File containing list of RopebwtBed files, one per line.").convert{ BedInputFile.BedListFile(it) }
+            option("--ropebwt-bed-list-file", help = "File containing list of RopebwtBed files, one per line.").convert{ BedInputFile.BedListFile(it) },
+        option("--ropebwt-bed-dir", help = "Directory containing RopebwtBed files.  Will process all files in the directory with .bed extension.").convert{ BedInputFile.BedDir(it) }
         ).single().required()
 
     val outputDir by option(help = "Output directory or file name")

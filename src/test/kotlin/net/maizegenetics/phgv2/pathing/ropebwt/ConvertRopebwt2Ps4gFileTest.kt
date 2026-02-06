@@ -49,7 +49,7 @@ class ConvertRopebwt2Ps4gFileTest {
         val noBedFile = convertRopebwt2Ps4gFile.test("--output-dir testDir --spline-knot-dir ./knotFiles/")
         assertEquals(1, noBedFile.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
-                "Error: must provide one of --ropebwt-bed, --ropebwt-bed-files, --ropebwt-bed-list-file\n", noBedFile.stderr)
+                "Error: must provide one of --ropebwt-bed, --ropebwt-bed-files, --ropebwt-bed-list-file, --ropebwt-bed-dir\n", noBedFile.stderr)
 
         val noOutputDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --spline-knot-dir ./knotFiles/")
         assertEquals(1, noOutputDir.statusCode)
