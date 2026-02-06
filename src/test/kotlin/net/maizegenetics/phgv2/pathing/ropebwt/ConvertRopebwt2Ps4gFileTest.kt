@@ -278,6 +278,26 @@ class ConvertRopebwt2Ps4gFileTest {
         return knots
     }
 
+    private fun buildSimpleKnotMapOffset(): MutableMap<String, List<Triple<Int, String, Int>>> {
+        val knots = mutableMapOf<String, List<Triple<Int, String, Int>>>()
+
+        knots["chr1_sample1"] = listOf(
+            Triple(11, "1", 1),
+            Triple(13, "1", 3),
+            Triple(15, "1", 5),
+            Triple(17, "1", 7),
+            Triple(19, "1", 9)
+        )
+        knots["chr1_sample2"] = listOf(
+            Triple(11, "1", 2),
+            Triple(13, "1", 4),
+            Triple(15, "1", 6),
+            Triple(17, "1", 8),
+            Triple(19, "1", 10)
+        )
+        return knots
+    }
+
     private fun buildSimpleKnotMapReversed(): MutableMap<String, List<Triple<Int, String, Int>>> {
         val knots = mutableMapOf<String, List<Triple<Int, String, Int>>>()
 
@@ -418,6 +438,22 @@ class ConvertRopebwt2Ps4gFileTest {
 
         assertEquals("1", lookup1Negative.contig)
         assertEquals(9, lookup1Negative.position)
+
+
+        val offsetMap = buildSimpleKnotMapOffset()
+        val offsetSplineLookup = LinearLookupFunction(offsetMap, mapOf("1" to 0, "2" to 1))
+        val lookup1Offset = offsetSplineLookup.value(Position("chr1_sample1", 11))
+        assertNotNull(lookup1Offset)
+        assertEquals("1", lookup1Offset.contig)
+        assertEquals(1, lookup1Offset.position)
+        //Check positions before the knots should be unknown
+        val lookupBeforeKnots = offsetSplineLookup.value(Position("chr1_sample1", 10))
+        assertEquals("unknown", lookupBeforeKnots.contig)
+        assertEquals(0, lookupBeforeKnots.position)
+        //Check positions after the knots should be unknown
+        val lookupAfterKnots = offsetSplineLookup.value(Position("chr1_sample1", 20))
+        assertEquals("unknown", lookupAfterKnots.contig)
+        assertEquals(0, lookupAfterKnots.position)
     }
 
 

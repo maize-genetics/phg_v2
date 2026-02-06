@@ -73,11 +73,6 @@ class LinearLookupFunction(knots: Map<String,List<Triple<Int,String,Int>>>, refC
         }
 
 
-        if(floorKey == null) {
-            return Position("unknown", 0)
-        }
-
-
         val ceilingKey = if( knotMap.containsKey(encoded)) {
             encoded
         }
@@ -89,10 +84,6 @@ class LinearLookupFunction(knots: Map<String,List<Triple<Int,String,Int>>>, refC
             tailMap.firstLongKey()
         }
 
-
-        if(ceilingKey == null) {
-            return Position("unknown", 0)
-        }
 
         //check that the chromosomes match
         val floorASMChromId = (floorKey shr 32).toInt()
