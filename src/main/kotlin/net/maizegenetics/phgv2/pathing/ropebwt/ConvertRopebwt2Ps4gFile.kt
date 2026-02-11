@@ -2,6 +2,9 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 
 import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
+import com.github.ajalt.clikt.parameters.groups.required
+import com.github.ajalt.clikt.parameters.groups.single
 import com.github.ajalt.clikt.parameters.options.*
 import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.api.SampleGamete
@@ -10,6 +13,50 @@ import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.utils.Position
 import org.apache.logging.log4j.LogManager
 import java.io.File
+
+sealed class BedInputFile {
+    abstract fun getBedFiles(): List<String>
+    data class BedFile(val bedFile: String) : BedInputFile() {
+        override fun getBedFiles(): List<String> {
+            check(File(bedFile).exists()) { "Bed file $bedFile does not exist." }
+            return listOf(bedFile)
+        }
+    }
+
+    data class BedFileList(val bedFiles: String) : BedInputFile() {
+        override fun getBedFiles(): List<String> {
+            check(bedFiles.isNotEmpty()) { "--bed-files must have at least one file." }
+            val fileNames = bedFiles.split(",")
+            fileNames.forEach {
+                check(File(it).exists()) { "Bed file $it does not exist." }
+            }
+            return fileNames
+        }
+    }
+
+    data class BedListFile(val bedListFile: String) : BedInputFile() {
+        override fun getBedFiles(): List<String> {
+            check(File(bedListFile).exists()) { "Bed list file $bedListFile does not exist." }
+            val lines = File(bedListFile).bufferedReader().readLines()
+            lines.forEach {
+                check(File(it).exists()) { "Bed file $it listed in $bedListFile does not exist." }
+            }
+            return lines
+        }
+    }
+
+    data class BedDir(val bedDir: String) : BedInputFile() {
+        override fun getBedFiles(): List<String> {
+            val dir = File(bedDir)
+            check(dir.exists()) { "Bed directory $bedDir does not exist." }
+            check(dir.isDirectory) { "$bedDir is not a directory." }
+            val bedFiles = dir.listFiles { file -> file.extension == "bed" }?.map { it.absolutePath } ?: listOf()
+            check(bedFiles.isNotEmpty()) { "No .bed files found in directory $bedDir." }
+            return bedFiles
+        }
+    }
+}
+
 
 /**
  * This class will convert a RopebwtBed file to a PS4G file.  It will only work with ropebwt3 files where the reads are
@@ -21,8 +68,12 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
     val myLogger = LogManager.getLogger(ConvertRopebwt2Ps4gFile::class.java)
 
-    val ropebwtBed by option(help = "RopebwtBed file")
-        .required()
+    val ropebwtBedFiles: BedInputFile by mutuallyExclusiveOptions<BedInputFile>(
+            option("--ropebwt-bed", help = "RopebwtBed file.").convert{ BedInputFile.BedFile(it) },
+            option("--ropebwt-bed-files", help = "Comma separated list of RopebwtBed files.").convert{ BedInputFile.BedFileList(it) },
+            option("--ropebwt-bed-list-file", help = "File containing list of RopebwtBed files, one per line.").convert{ BedInputFile.BedListFile(it) },
+        option("--ropebwt-bed-dir", help = "Directory containing RopebwtBed files.  Will process all files in the directory with .bed extension.").convert{ BedInputFile.BedDir(it) }
+        ).single().required()
 
     val outputDir by option(help = "Output directory or file name")
         .required()
@@ -61,21 +112,51 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
 
         myLogger.info("Converting Spline Knots to Splines")
 
-        val splineLookup = LinearLookupFunction(splineKnots)
+        val splineLookup = LinearLookupFunction(splineKnots, chrIndexMap)
 
         val sampleGameteIndexMap = gameteIndexMap.map { SampleGamete(it.key) to it.value}.toMap()
 
-        myLogger.info("Building PS4G Output File Name")
+        val bedFilesToProcess = ropebwtBedFiles.getBedFiles()
+        myLogger.info("Processing ${bedFilesToProcess.size} Ropebwt Bed Files")
+        //check to make sure its not empty and the files exist
+        check(bedFilesToProcess.isNotEmpty()) {"No Ropebwt Bed files provided"}
+        bedFilesToProcess.forEach { ropebwtBed ->
+            processSingleRopeBwtBed(ropebwtBed, outputDir,splineLookup, gameteIndexMap, sampleGameteIndexMap, command,minMemLength, maxNumHits, maxRange, sortPositions)
+        }
+    }
+
+    private fun processSingleRopeBwtBed(
+        ropebwtBed: String,
+        outputDir: String,
+        splineLookup: LinearLookupFunction,
+        gameteIndexMap: Map<String, Int>,
+        sampleGameteIndexMap: Map<SampleGamete, Int>,
+        command: String,
+        minMemLength: Int,
+        maxNumHits: Int,
+        maxRange: Int,
+        sortPositions: Boolean = true
+    ) {
+        myLogger.info("Building PS4G Output File Name for file: $ropebwtBed")
         //build the output file name
-        val outputFile  = if(File(outputDir).isDirectory){
+        val outputFile = if (File(outputDir).isDirectory) {
             PS4GUtils.buildOutputFileName(ropebwtBed, outputDir)
         } else {
             outputDir
         }
 
+        myLogger.info("Processing Ropebwt Bed File: $ropebwtBed")
         myLogger.info("Building PS4G Data")
         //build and write out the PS4G file
-        val (ps4GData, sampleGameteCountMap) = buildPS4GData(ropebwtBed, splineLookup, gameteIndexMap,minMemLength, maxNumHits, maxRange, sortPositions)
+        val (ps4GData, sampleGameteCountMap) = buildPS4GData(
+            ropebwtBed,
+            splineLookup,
+            gameteIndexMap,
+            minMemLength,
+            maxNumHits,
+            maxRange,
+            sortPositions
+        )
 
         myLogger.info("Writing out PS4G File")
         PS4GUtils.writeOutPS4GFile(ps4GData, sampleGameteCountMap, sampleGameteIndexMap, outputFile, listOf(), command)
@@ -216,8 +297,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         if(referenceLookupPositions.isEmpty()) {
             return Triple(Position("unknown",-1), listOf(), 0)
         }
-
-
+        
         //determine chromosome majority
         val chrCounts = referenceLookupPositions.groupingBy { it.second.contig }.eachCount()
         val bestChromosome = chrCounts.maxBy { it.value }.key
