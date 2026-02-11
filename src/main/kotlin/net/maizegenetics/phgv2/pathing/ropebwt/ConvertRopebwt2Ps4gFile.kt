@@ -17,7 +17,6 @@ import java.io.File
 sealed class BedInputFile {
     abstract fun getBedFiles(): List<String>
     data class BedFile(val bedFile: String) : BedInputFile() {
-        @Override
         override fun getBedFiles(): List<String> {
             check(File(bedFile).exists()) { "Bed file $bedFile does not exist." }
             return listOf(bedFile)
@@ -25,7 +24,6 @@ sealed class BedInputFile {
     }
 
     data class BedFileList(val bedFiles: String) : BedInputFile() {
-        @Override
         override fun getBedFiles(): List<String> {
             check(bedFiles.isNotEmpty()) { "--bed-files must have at least one file." }
             val fileNames = bedFiles.split(",")
@@ -37,7 +35,6 @@ sealed class BedInputFile {
     }
 
     data class BedListFile(val bedListFile: String) : BedInputFile() {
-        @Override
         override fun getBedFiles(): List<String> {
             check(File(bedListFile).exists()) { "Bed list file $bedListFile does not exist." }
             val lines = File(bedListFile).bufferedReader().readLines()
@@ -49,7 +46,6 @@ sealed class BedInputFile {
     }
 
     data class BedDir(val bedDir: String) : BedInputFile() {
-        @Override
         override fun getBedFiles(): List<String> {
             val dir = File(bedDir)
             check(dir.exists()) { "Bed directory $bedDir does not exist." }

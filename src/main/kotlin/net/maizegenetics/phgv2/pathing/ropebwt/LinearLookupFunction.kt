@@ -10,10 +10,10 @@ import kotlin.math.abs
 
 class LinearLookupFunction(knots: Map<String,List<Triple<Int,String,Int>>>, refChrIndexMap : Map<String,Int>) {
 
-    var knotMap : Long2LongSortedMap
-    var asmChrIndexMap : Map<String,Int>
-    var refChrIndexMap : Map<String,Int>
-    var indexRefChrMap : Map<Int,String> //Need this to do the reverse lookup to build a position to return
+    val knotMap : Long2LongSortedMap
+    val asmChrIndexMap : Map<String,Int>
+    val refChrIndexMap : Map<String,Int>
+    val indexRefChrMap : Map<Int,String> //Need this to do the reverse lookup to build a position to return
 
     init {
         //I tried to do this but it didn't work:
@@ -108,16 +108,20 @@ class LinearLookupFunction(knots: Map<String,List<Triple<Int,String,Int>>>, refC
         val floorRefPos = floorEncodedValue and 0xFFFFFFFF
         val ceilingRefPos = ceilingEncodedValue and 0xFFFFFFFF
 
+        val chromName = indexRefChrMap[floorChromId]
+
+        if(floorRefPos == ceilingRefPos) {
+            //If the positions are the same, all values are equal
+            return Position(chromName!!,(floorRefPos and 0xFFFFFFFF).toInt())
+        }
+
+
         val offsetProp = (position.position - floorKeyPos).toDouble() /
                 (ceilingKeyPos - floorKeyPos).toDouble()
         val offsetPos = abs(ceilingRefPos - floorRefPos) * offsetProp
 
 
-        val finalPosition = if(floorRefPos == ceilingRefPos) {
-            //If the positions are the same, all values are equal
-            floorRefPos
-        }
-        else if(floorRefPos < ceilingRefPos) {
+        val finalPosition = if(floorRefPos < ceilingRefPos) {
             //Positive strand
             (floorRefPos + offsetPos.toLong())
         } else {
@@ -125,7 +129,7 @@ class LinearLookupFunction(knots: Map<String,List<Triple<Int,String,Int>>>, refC
             (floorRefPos - offsetPos.toLong())
         }
 
-        val chromName = indexRefChrMap[floorChromId]
+
         return Position(chromName!!, (finalPosition and 0xFFFFFFFF).toInt())
     }
 
