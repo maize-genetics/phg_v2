@@ -40,14 +40,14 @@ class PS4GUtilsTest {
         val inputFile = "/path/to/input/file.txt"
         val outputDir = "/output/dir"
         val result = PS4GUtils.buildOutputFileName(inputFile, outputDir)
-        assertEquals("/output/dir/file_ps4g.txt", result)
+        assertEquals("/output/dir/file.ps4g", result)
 
         val inputFileBed = "/path/to/input/file.bed"
         val resultBed = PS4GUtils.buildOutputFileName(inputFileBed, outputDir)
-        assertEquals("/output/dir/file_ps4g.txt", resultBed)
+        assertEquals("/output/dir/file.ps4g", resultBed)
 
         val withSampleGamete = PS4GUtils.buildOutputFileName(inputFile, outputDir, "sampleA:0")
-        assertEquals("/output/dir/file_sampleA:0_ps4g.txt", withSampleGamete)
+        assertEquals("/output/dir/file_sampleA:0.ps4g", withSampleGamete)
     }
 
     @Test

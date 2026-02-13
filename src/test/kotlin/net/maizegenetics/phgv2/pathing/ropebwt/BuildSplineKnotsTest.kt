@@ -3,10 +3,44 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.cli.TestExtension
+import net.maizegenetics.phgv2.utils.setupDebugLogging
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeAll
+import java.io.File
 
 
 class BuildSplineKnotsTest {
+
+    companion object {
+        val tempTestDir = "${TestExtension.tempDir}BuildSplineKnitsTestDir/"
+
+
+        //Setup/download  files
+        //Resetting on both setup and teardown just to be safe.
+        @JvmStatic
+        @BeforeAll
+        fun setup() {
+            resetDirs()
+            setupDebugLogging()
+        }
+
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+            resetDirs()
+        }
+
+        private fun resetDirs() {
+
+            File(TestExtension.tempDir).deleteRecursively()
+            File(tempTestDir).deleteRecursively()
+
+            File(TestExtension.tempDir).mkdirs()
+            File(tempTestDir).mkdirs()
+        }
+    }
     @Test
     fun testCliktParams() {
         val buildSplineKnots = BuildSplineKnots()
@@ -20,6 +54,17 @@ class BuildSplineKnotsTest {
         assertEquals(1, noOutputFile.statusCode)
         assertEquals("Usage: build-spline-knots [<options>]\n\n" +
                 "Error: missing option --output-dir\n", noOutputFile.stderr)
+    }
+
+    @Test
+    fun testWriteFiles() {
+        val buildSplineKnots = BuildSplineKnots()
+        val hvcfDir = "data/test/ropebwt/testHVCFs"
+
+        buildSplineKnots.test("--vcf-dir $hvcfDir --output-dir $tempTestDir --disable-spline-downsampling")
+
+        assertEquals(true, File("$tempTestDir/LineA.h_spline_knots.json.gz").exists())
+        assertEquals(true, File("$tempTestDir/index_maps.json.gz").exists())
     }
 
     fun oldSplitter(chrList: String): Set<String> =

@@ -49,7 +49,7 @@ class SplineUtils{
          * (http://doi.acm.org/10.1145/321607.321609) implemented via the Apache Commons Math3 library.
          * This does not build the full splines just yet but rather sets up the spline knots for each chromosome.
          */
-        fun buildSplineKnots(vcfDir: String, vcfType: String, outputDir: String, minIndelLength: Int = 10, numBpsPerKnot: Int = 50_000, contigSet : Set<String> = emptySet(), randomSeed: Long = 12345) {
+        fun buildSplineKnots(vcfDir: String, vcfType: String, outputDir: String, minIndelLength: Int = 10, numBpsPerKnot: Int = 50_000, contigSet : Set<String> = emptySet(), disableSplineDownsampling: Boolean = false, randomSeed: Long = 12345) {
             val vcfFiles = buildVCFFileList(vcfDir, vcfType)
 
             var chrIndexMap = mutableMapOf<String,Int>()
@@ -62,7 +62,7 @@ class SplineUtils{
 
 
                 myLogger.info("Reading ${vcfFile.name}")
-                val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, randomSeed)
+                val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed)
 
                 myLogger.info("Done processing ${vcfFile.name}")
                 myLogger.info("Number of splines: ${splineKnotLookup.splineKnotMap.size}")
@@ -112,12 +112,13 @@ class SplineUtils{
             minIndelLength: Int=10,
             numBpsPerKnot: Int = 50_000,
             contigSet: Set<String> = emptySet(),
+            disableSplineDownsampling: Boolean = false,
             randomSeed: Long = 12345
         ) : SplineKnotLookup {
             return if(vcfType == "hvcf") {
-                processHvcfFileIntoSplineKnots(vcfFile, chrIndexMap, gameteIndexMap, numBpsPerKnot, contigSet, randomSeed)
+                processHvcfFileIntoSplineKnots(vcfFile, chrIndexMap, gameteIndexMap, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed)
             } else if(vcfType == "gvcf") {
-                processGvcfFileIntoSplineKnots(vcfFile,chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, randomSeed)
+                processGvcfFileIntoSplineKnots(vcfFile,chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed)
             } else {
                 throw IllegalArgumentException("Unknown VCF type $vcfType")
             }
@@ -133,6 +134,7 @@ class SplineUtils{
             gameteIndexMap: MutableMap<String, Int>,
             numBpsPerKnot: Int = 50_000,
             contigSet: Set<String> = emptySet(),
+            disableSplineDownsampling: Boolean = false,
             randomSeed: Long = 12345
         ) : SplineKnotLookup {
             val splineKnotMap = mutableMapOf<String, MutableList<Triple<Int,String,Int>>>()
@@ -185,7 +187,9 @@ class SplineUtils{
 
                 //build the splines
                 //Downsample the number of points
-                downsamplePointsByChrLength(currentASMSplineMap, numBpsPerKnot, randomSeed)
+                if(!disableSplineDownsampling) {
+                    downsamplePointsByChrLength(currentASMSplineMap, numBpsPerKnot, randomSeed)
+                }
 
                 checkMapAndAddToIndex(gameteIndexMap, sampleName)
 
@@ -206,6 +210,7 @@ class SplineUtils{
             minIndelLength: Int=10,
             numBpsPerKnot: Int = 50_000,
             contigSet: Set<String> = emptySet(),
+            disableSplineDownsampling: Boolean = false,
             randomSeed: Long = 12345
         ) : SplineKnotLookup {
 
@@ -362,7 +367,9 @@ class SplineUtils{
                 flushBlock()
 
                 //Downsample the number of points
-                downsamplePointsByChrLength(currentASMSplineMap, numBpsPerKnot, randomSeed)
+                if(!disableSplineDownsampling) {
+                    downsamplePointsByChrLength(currentASMSplineMap, numBpsPerKnot, randomSeed)
+                }
 
                 checkMapAndAddToIndex(gameteIndexMap, sampleName)
 

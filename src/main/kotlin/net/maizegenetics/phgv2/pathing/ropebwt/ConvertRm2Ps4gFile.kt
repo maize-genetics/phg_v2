@@ -15,6 +15,7 @@ import net.maizegenetics.phgv2.cli.headerCommand
 import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.utils.Position
 import org.apache.logging.log4j.LogManager
+import java.io.File
 
 
 /**
@@ -37,7 +38,7 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
     val readMappingFile by option(help = "Read Mapping file")
         .required()
 
-    val outputDir by option(help = "Output directory")
+    val outputDir by option(help = "Output directory or file name")
         .required()
 
     val hvcfDir by option(help = "Directory containing the hvcf files")
@@ -71,7 +72,12 @@ class ConvertRm2Ps4gFile : CliktCommand(help = "Convert Read Mapping file to Pos
         val (ps4GData, sampleGameteCount, gameteToIdxMap) = convertReadMappingDataToPS4G(readMappings, graph, sortPositions)
 
 
-        val outputFile = PS4GUtils.buildOutputFileName(readMappingFile, outputDir)
+        val outputFile = if(File(outputDir).isDirectory) {
+            PS4GUtils.buildOutputFileName(readMappingFile, outputDir)
+        } else {
+            outputDir
+        }
+
         myLogger.info("Writing out PS4G file to $outputFile")
         PS4GUtils.writeOutPS4GFile(ps4GData, sampleGameteCount, gameteToIdxMap, outputFile, header, cliCommand)
 

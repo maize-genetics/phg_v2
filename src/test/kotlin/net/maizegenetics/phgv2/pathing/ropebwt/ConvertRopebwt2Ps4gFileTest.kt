@@ -49,7 +49,7 @@ class ConvertRopebwt2Ps4gFileTest {
         val noBedFile = convertRopebwt2Ps4gFile.test("--output-dir testDir --spline-knot-dir ./knotFiles/")
         assertEquals(1, noBedFile.statusCode)
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
-                "Error: missing option --ropebwt-bed\n", noBedFile.stderr)
+                "Error: must provide one of --ropebwt-bed, --ropebwt-bed-files, --ropebwt-bed-list-file, --ropebwt-bed-dir\n", noBedFile.stderr)
 
         val noOutputDir = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --spline-knot-dir ./knotFiles/")
         assertEquals(1, noOutputDir.statusCode)
@@ -61,8 +61,26 @@ class ConvertRopebwt2Ps4gFileTest {
         assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
                 "Error: missing option --spline-knot-dir\n", noHvcfDir.stderr)
 
+        val negativeRange = convertRopebwt2Ps4gFile.test("--ropebwt-bed testDir --output-dir testDir --spline-knot-dir ./knotFiles/ --max-range -2")
+        assertEquals(1, negativeRange.statusCode)
+        assertEquals("Usage: convert-ropebwt2ps4g-file [<options>]\n\n" +
+                "Error: invalid value for --max-range: max range must be non-negative\n", negativeRange.stderr)
     }
 
+    @Test
+    fun testWriteOutput() {
+        val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
+        val ropebwtBed = "data/test/ropebwt/LineA_FullChr.bed"
+        val hvcfDir = "data/test/ropebwt/testHVCFs"
+
+        SplineUtils.buildSplineKnots(hvcfDir, "hvcf", tempTestDir)
+
+        convertRopebwt2Ps4gFile.test("--output-dir $tempTestDir --spline-knot-dir $tempTestDir --ropebwt-bed $ropebwtBed")
+        assertEquals(File("$tempTestDir/LineA_FullChr.ps4g").exists(), true)
+
+        convertRopebwt2Ps4gFile.test("--output-dir $tempTestDir/test_A.ps4g --spline-knot-dir $tempTestDir --ropebwt-bed $ropebwtBed")
+        assertEquals(File("$tempTestDir/test_A.ps4g").exists(), true)
+    }
     @Test
     fun testConvertCountMapToPS4GData() {
         val countMap = mapOf(Pair(Position("1",1), listOf(1, 2)) to 3, Pair(Position("1",2), listOf(3, 4)) to 5)
@@ -163,7 +181,7 @@ class ConvertRopebwt2Ps4gFileTest {
             Triple(11, "chr1", 13)
         )
 
-        val splineLookup = LinearLookupFunction(splineKnotLookup)
+        val splineLookup = LinearLookupFunction(splineKnotLookup, mapOf("chr1" to 0))
 
         //single hit should return the position
         val singleHit = listOf(MEMHit("chr1_sample1", "+", 1))
@@ -207,26 +225,31 @@ class ConvertRopebwt2Ps4gFileTest {
             MEM("read1", 1, 20, 2, listOf(MEMHit("chr1_sample1", "+", 1), MEMHit("chr1_sample2", "+", 2))),
             MEM("read1", 0, 18, 2, listOf(MEMHit("chr1_sample1", "+", 3), MEMHit("chr1_sample2", "+", 4)))
         )
-        val chrIndexMap = mapOf(Pair("chr1", 0), Pair("chr2", 1))
+        val chrIndexMap = mapOf(Pair("1", 0), Pair("2", 1))
         val gameteToIdxMap = mapOf(Pair("sample1", 0), Pair("sample2", 1))
 
-        val emptySplines = LinearLookupFunction(emptyMap())
+        val emptySplines = LinearLookupFunction(emptyMap(), emptyMap())
 
-        val noPassingHits = convertRopebwt2Ps4gFile.processMemsForRead(memList, emptySplines, 5, 1, gameteToIdxMap)
+        val noPassingHits = convertRopebwt2Ps4gFile.processMemsForRead(memList, emptySplines, 5, 1, 10, gameteToIdxMap)
         //Pair(-1, listOf())
         assertEquals(-1, noPassingHits.first.position)
         assertEquals(0, noPassingHits.second.size)
 
-        val noPassingHits2 = convertRopebwt2Ps4gFile.processMemsForRead(memList, emptySplines, 50, 30, gameteToIdxMap)
+        val noPassingHits2 = convertRopebwt2Ps4gFile.processMemsForRead(memList, emptySplines, 50, 30, 10, gameteToIdxMap)
         //Also should be Pair(-1, listOf())
         assertEquals(-1, noPassingHits2.first.position)
         assertEquals(0, noPassingHits2.second.size)
 
+        val noPassingHits3 = convertRopebwt2Ps4gFile.processMemsForRead(memList, emptySplines, 5, 30, 0, gameteToIdxMap)
+        //Also should be Pair(-1, listOf())
+        assertEquals(-1, noPassingHits3.first.position)
+        assertEquals(0, noPassingHits3.second.size)
+
         val knots = buildSimpleKnotMap()
 
-        val splineLookup =LinearLookupFunction(knots)
+        val splineLookup =LinearLookupFunction(knots,chrIndexMap)
 
-        val processedMems = convertRopebwt2Ps4gFile.processMemsForRead(memList, splineLookup, 19, 10, gameteToIdxMap)
+        val processedMems = convertRopebwt2Ps4gFile.processMemsForRead(memList, splineLookup, 19, 10, 10, gameteToIdxMap)
 
         assertEquals(2, processedMems.first.position) // 1 + 3 = 4 /2 = 2
         assertEquals(2, processedMems.second.size)
@@ -251,6 +274,26 @@ class ConvertRopebwt2Ps4gFileTest {
             Triple(5, "1", 6),
             Triple(7, "1", 8),
             Triple(9, "1", 10)
+        )
+        return knots
+    }
+
+    private fun buildSimpleKnotMapOffset(): MutableMap<String, List<Triple<Int, String, Int>>> {
+        val knots = mutableMapOf<String, List<Triple<Int, String, Int>>>()
+
+        knots["chr1_sample1"] = listOf(
+            Triple(11, "1", 1),
+            Triple(13, "1", 3),
+            Triple(15, "1", 5),
+            Triple(17, "1", 7),
+            Triple(19, "1", 9)
+        )
+        knots["chr1_sample2"] = listOf(
+            Triple(11, "1", 2),
+            Triple(13, "1", 4),
+            Triple(15, "1", 6),
+            Triple(17, "1", 8),
+            Triple(19, "1", 10)
         )
         return knots
     }
@@ -292,26 +335,26 @@ class ConvertRopebwt2Ps4gFileTest {
         )
 
         val knots = buildSimpleKnotMap()
-        val splineLookup = LinearLookupFunction(knots)
+        val chrIndexMap = mapOf(Pair("1", 0), Pair("2", 1))
+        val splineLookup = LinearLookupFunction(knots, chrIndexMap)
 
 
-        val chrIndexMap = mapOf(Pair("chr1", 0), Pair("chr2", 1))
         val gameteToIdxMap = mapOf(Pair("sample1", 0), Pair("sample2", 1))
 
         val countMap = mutableMapOf<Pair<Position, List<Int>>, Int>()
         val sampleGameteCountMap = mutableMapOf<SampleGamete, Int>()
         val gameteIdxToSampleGameteMap = mapOf(Pair(0, SampleGamete("sample1", 0)), Pair(1, SampleGamete("sample2", 1)))
 
-        convertRopebwt2Ps4gFile.processTempMEMs(tempMems1, splineLookup,  5, 10, gameteToIdxMap, countMap, sampleGameteCountMap, gameteIdxToSampleGameteMap)
+        convertRopebwt2Ps4gFile.processTempMEMs(tempMems1, splineLookup,  5, 10, 10, gameteToIdxMap, countMap, sampleGameteCountMap, gameteIdxToSampleGameteMap)
         assertEquals(1, countMap.size)
         assertEquals(1, countMap[Pair(Position("1",2), listOf(0,1))])
 
-        convertRopebwt2Ps4gFile.processTempMEMs(tempMems2, splineLookup,  5, 10, gameteToIdxMap, countMap, sampleGameteCountMap, gameteIdxToSampleGameteMap)
+        convertRopebwt2Ps4gFile.processTempMEMs(tempMems2, splineLookup,  5, 10, 10, gameteToIdxMap, countMap, sampleGameteCountMap, gameteIdxToSampleGameteMap)
         assertEquals(2, countMap.size)
         assertEquals(1, countMap[Pair(Position( "1",1), listOf(0))])
         assertEquals(1, countMap[Pair(Position("1",2), listOf(0,1))])
 
-        convertRopebwt2Ps4gFile.processTempMEMs(tempMems3, splineLookup,  19, 10, gameteToIdxMap, countMap, sampleGameteCountMap, gameteIdxToSampleGameteMap)
+        convertRopebwt2Ps4gFile.processTempMEMs(tempMems3, splineLookup,  19, 10, 10, gameteToIdxMap, countMap, sampleGameteCountMap, gameteIdxToSampleGameteMap)
         assertEquals(2, countMap.size)
         assertEquals(1, countMap[Pair(Position("1",1), listOf(0))])
         assertEquals(2, countMap[Pair(Position("1",2), listOf(0,1))])
@@ -323,25 +366,37 @@ class ConvertRopebwt2Ps4gFileTest {
         val ropebwtBed = "data/test/ropebwt/LineA_FullChr.bed"
         val hvcfDir = "data/test/ropebwt/testHVCFs"
 
-        val truthData=  setOf(PS4GData(listOf(0),Position("1",6), 2), PS4GData(listOf(0),Position("1",4),1),
+        val truthDataWideRange=  setOf(PS4GData(listOf(0),Position("1",6), 2), PS4GData(listOf(0),Position("1",4),1),
             PS4GData(listOf(0),Position("1",8), 1), PS4GData(listOf(0),Position("1",12), 2)
+        )
+
+        val truthDataNarrowRange=  setOf(PS4GData(listOf(0),Position("1",6), 2), PS4GData(listOf(0),Position("1",4),1),
+            PS4GData(listOf(0),Position("1",8), 1)
         )
 
         SplineUtils.buildSplineKnots(hvcfDir, "hvcf", tempTestDir)
 
         val (splineKnots, chrIndexMap, gameteToIdxMap) = SplineUtils.loadSplineKnotLookupFromDirectory(tempTestDir)
 
-        val splineLookup = LinearLookupFunction(splineKnots)
+        val splineLookup = LinearLookupFunction(splineKnots, chrIndexMap)
 
 
-        val ps4gData = convertRopebwt2Ps4gFile.buildPS4GData(ropebwtBed, splineLookup, gameteToIdxMap, 148, 10)
-
+        val ps4gData = convertRopebwt2Ps4gFile.buildPS4GData(ropebwtBed, splineLookup, gameteToIdxMap, 148, 10, 50)
 
         assertEquals(4, ps4gData.first.size)
         assertEquals(1, ps4gData.second.size)
         assertEquals(6, ps4gData.second[SampleGamete("LineA", 0)])
         for(data in ps4gData.first) {
-            assertTrue(truthData.contains(data))
+            assertTrue(truthDataWideRange.contains(data))
+        }
+
+        val ps4gData2 = convertRopebwt2Ps4gFile.buildPS4GData(ropebwtBed, splineLookup, gameteToIdxMap, 148, 10, 15)
+
+        assertEquals(3, ps4gData2.first.size)
+        assertEquals(1, ps4gData2.second.size)
+        assertEquals(4, ps4gData2.second[SampleGamete("LineA", 0)])
+        for(data in ps4gData2.first) {
+            assertTrue(truthDataNarrowRange.contains(data))
         }
 
         resetDirs()
@@ -350,7 +405,7 @@ class ConvertRopebwt2Ps4gFileTest {
     @Test
     fun testLinearLookup() {
         val knots = buildSimpleKnotMap()
-        val splineLookup = LinearLookupFunction(knots)
+        val splineLookup = LinearLookupFunction(knots, mapOf("1" to 0, "2" to 1))
 
         //MEMHit("chr1_sample1", "+", 1), MEMHit("chr1_sample2", "+", 2))
         val lookup1 = splineLookup.value(Position("chr1_sample1", 1))
@@ -376,13 +431,29 @@ class ConvertRopebwt2Ps4gFileTest {
 
         val negativeKnots = buildSimpleKnotMapReversed()
 
-        val negativeSplineLookup = LinearLookupFunction(negativeKnots)
+        val negativeSplineLookup = LinearLookupFunction(negativeKnots, mapOf("1" to 0, "2" to 1))
 
         val lookup1Negative = negativeSplineLookup.value(Position("chr1_sample1", 1))
         assertNotNull(lookup1Negative)
 
         assertEquals("1", lookup1Negative.contig)
         assertEquals(9, lookup1Negative.position)
+
+
+        val offsetMap = buildSimpleKnotMapOffset()
+        val offsetSplineLookup = LinearLookupFunction(offsetMap, mapOf("1" to 0, "2" to 1))
+        val lookup1Offset = offsetSplineLookup.value(Position("chr1_sample1", 11))
+        assertNotNull(lookup1Offset)
+        assertEquals("1", lookup1Offset.contig)
+        assertEquals(1, lookup1Offset.position)
+        //Check positions before the knots should be unknown
+        val lookupBeforeKnots = offsetSplineLookup.value(Position("chr1_sample1", 10))
+        assertEquals("unknown", lookupBeforeKnots.contig)
+        assertEquals(0, lookupBeforeKnots.position)
+        //Check positions after the knots should be unknown
+        val lookupAfterKnots = offsetSplineLookup.value(Position("chr1_sample1", 20))
+        assertEquals("unknown", lookupAfterKnots.contig)
+        assertEquals(0, lookupAfterKnots.position)
     }
 
 

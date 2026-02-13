@@ -38,7 +38,7 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
     val refPanelVCF by option(help = "RefPanel VCF file")
         .required()
 
-    val outputDir by option(help = "Output file")
+    val outputDir by option(help = "Output directory")
         .required()
 
 
