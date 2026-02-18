@@ -1,5 +1,15 @@
 # Convenience Commands
 
+!!! danger "Diploid hVCF to gVCF disclaimer"
+There is a known bug in the `hvcf2gvcf` command that affects **diploid** hVCF
+files. This affects all PHGv2 versions after 2.3.7.144.
+The output gVCF will only contain variants from the first haplotype -
+variants from the second haplotype are omitted entirely. **Haploid hVCF files
+are not affected.**
+We are actively working on a fix and will update the documentation when it is
+resolved. If you have questions or need assistance, please [comment on the announcement discussion] (https://github.com/maize-genetics/phg_v2/discussions/347)
+
+
 In addition to the primary commands for the build, imputation, and
 resequencing pipelines, PHGv2 also provides a suite of "convenience
 commands" for miscellaneous "quality of life (QoL)" improvements. In 
