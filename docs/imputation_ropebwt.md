@@ -56,6 +56,16 @@ imputation using the [ropebwt3](https://github.com/lh3/ropebwt3) tool within the
       --index-file-prefix myindex
   ```
 
+* OPTIONAL: Align reads to index for BED generation:
+  ```shell
+  phg align-reads \
+      --index /my/index/dir/myindex.fmd \
+      --query /my/reads.fq \
+      --min-smem-len 31 \
+      --threads 4 \
+      --output /my/mapping/dir/output.bed
+  ```
+
 * Map short reads
   ```shell
   phg map-reads \
@@ -286,6 +296,51 @@ parameters:
 | `--threads`                | Number of threads to use during indexing.                                                                                                                                   | `3`                                       |
 | `--delete-fmr-index`       | RopeBWT3 will originally output a .fmr index file.  This is converted to fmd for efficiency.  If this flag is set to false it will keep that original file.                 | `true`                                     |
 | `--no-diagnostics` or `-n` | A flag that eliminates the diagnostic report                                                                                                                                | Disabled (report is written)              |
+
+
+### Align reads to ropebwt3 index (optional)
+
+> This command serves as a high-level wrapper around the
+> [`ropebwt3 mem`](https://github.com/lh3/ropebwt3?tab=readme-ov-file#finding-maximal-exact-matches) 
+> algorithm, providing a streamlined interface for aligning short 
+> sequencing reads to a pre-built **FM-index** reference.
+> 
+> This command identifies **Super-Maximal Exact Matches (SMEMs)** between 
+> query reads and the indexed reference, efficiently mapping reads to genomic 
+> coordinates. Results are exported in **BED** format for easy visualization 
+> and downstream analysis.
+
+!!! tip
+    This step is **optional** if you plan to use the `map-reads` command
+    directly, which performs alignment internally. Use `align-reads` when
+    you want the intermediate BED file for inspection, debugging, or use
+    with `map-reads-from-bed`.
+
+**Command** - `align-reads`
+
+**Example**
+
+```shell
+phg align-reads \
+    --index output/index_files/myindex.fmd \
+    --query data/short_reads/LineA_LineB_1.fq \
+    --min-smem-len 31 \
+    --threads 4 \
+    --output output/read_mappings/LineA_LineB_1.bed
+```
+
+**Parameters**
+
+| Parameter name     | Description                                                                                                                                     | Default value | Required?        |
+|--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
+| `--index`          | Path to the [ropebwt3](https://github.com/lh3/ropebwt3) **FM-index** (`.fmd`) file used as the reference for read alignment.                    | `""`          | :material-check: |
+| `--query`          | Input FASTQ file containing reads to align. Supports both uncompressed and `.gz`-compressed files.                                              | `""`          | :material-check: |
+| `--min-smem-len`   | Minimum **SMEM (Super-Maximal Exact Match)** length used as a seed for alignment. Larger values produce fewer but more specific matches.        | `31`          |                  |
+| `--threads`        | Number of threads to use for parallel processing during alignment. Improves performance on multicore systems.                                   | `1`           |                  |
+| `--output`         | Output file in **BED** format containing aligned read intervals, mapping quality, and strand information.                                       | `""`          | :material-check: |
+
+<br>
+<hr/>
 
 
 ### Read mapping
