@@ -1,0 +1,2780 @@
+<!-- Elements added to main will be displayed on all pages -->
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Pangenome system for plant breeding and genetics">
+      
+      
+        <meta name="author" content="Buckler Lab">
+      
+      
+        <link rel="canonical" href="https://phg.maizegenetics.net/imputation/">
+      
+      
+        <link rel="prev" href="../imputation_ropebwt/">
+      
+      
+        <link rel="next" href="../resequencing/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../img/product/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.2">
+    
+    
+      
+        <title>k-mer Imputation (Deprecated) - Practical Haplotype Graph</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="green">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#imputation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Practical Haplotype Graph" class="md-header__button md-logo" aria-label="Practical Haplotype Graph" data-md-component="logo">
+      
+  <img src="../img/product/phg_logo_white.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Practical Haplotype Graph
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              k-mer Imputation (Deprecated)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/maize-genetics/phg_v2" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    PHGv2
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href=".." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../installation/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../hvcf_specifications/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../citations/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Community
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Practical Haplotype Graph" class="md-nav__button md-logo" aria-label="Practical Haplotype Graph" data-md-component="logo">
+      
+  <img src="../img/product/phg_logo_white.svg" alt="logo">
+
+    </a>
+    Practical Haplotype Graph
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/maize-genetics/phg_v2" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    PHGv2
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href=".." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Home
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../build_and_load/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building and loading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Imputation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Imputation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imputation_ropebwt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RopeBWT3 Imputation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    k-mer Imputation (Deprecated)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    k-mer Imputation (Deprecated)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#detailed-walkthrough" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detailed walkthrough
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Detailed walkthrough">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hvcf-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hVCF export
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#k-mer-indexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        K-mer indexing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="K-mer indexing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optional-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kmer-index-diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kmer index diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#read-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read mapping
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Read mapping">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optional-parameters_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#find-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Find Paths
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Find Paths">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-parameters_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#likely-ancestors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Likely ancestors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#general-output-and-next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        General output and next steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-gvcf-files-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create g.vcf files (OPTIONAL)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resequencing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resequencing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../export_data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exporting data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specifications
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Specifications
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hvcf_specifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    hVCF specifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ktor_specifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ktor specifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ps4g_specifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PS4G specifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional commands
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Optional commands
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../convenience_commands/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Convenience commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../qc_metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QC metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Miscellaneous articles
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Miscellaneous articles
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hvcf_region_handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    hVCF region handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../slurm_usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SLURM usage for alignment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../terminology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../variant_comparisons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Variant caller comparisons
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Community
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Community
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../citations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    References
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CONTRIBUTING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CODE_OF_CONDUCT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code of Conduct
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#detailed-walkthrough" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detailed walkthrough
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Detailed walkthrough">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hvcf-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hVCF export
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#k-mer-indexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        K-mer indexing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="K-mer indexing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optional-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kmer-index-diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kmer index diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#read-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read mapping
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Read mapping">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optional-parameters_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#find-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Find Paths
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Find Paths">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-parameters_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#likely-ancestors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Likely ancestors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#general-output-and-next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        General output and next steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-gvcf-files-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create g.vcf files (OPTIONAL)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="imputation">Imputation<a class="headerlink" href="#imputation" title="Permanent link">&para;</a></h1>
+<div class="admonition danger">
+<p class="admonition-title">Imputation disclaimer</p>
+<p>This Imputation method is deprecated. Please use the new "<a href="../imputation_ropebwt/">RopeBWT3 Imputation</a>" method instead.</p>
+<p>With this imputation method, we are experiencing issues, where some PHGs have low mapping rates (~20% with WGS reads), 
+causing errors in the path-finding steps.</p>
+<p>PHGv2 is under active development and we expect to encounter bugs. We aim to report bugs as soon as they are discovered.</p>
+</div>
+<p>In this document, we will discuss the steps needed to perform
+imputation using the PHG:</p>
+<ol>
+<li>Export hVCF data</li>
+<li>Index k-mers from exported hVCF data</li>
+<li>Map short reads</li>
+<li>Find paths</li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The steps detailed in this document build on the materials from
+the "<a href="../build_and_load/">Building and Loading</a>" documentation. 
+Please review this if you have not worked with the PHG before!</p>
+</div>
+<h2 id="quick-start">Quick start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
+<ul>
+<li>
+<p>Get list of samples to export:
+  <div class="language-shell highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>phg<span class="w"> </span>list-samples<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span>--db-path<span class="w"> </span>/my/db/uri<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span>--data-set<span class="w"> </span>hvcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span>--output-file<span class="w"> </span>/my/sample_names.txt
+</span></code></pre></div></p>
+</li>
+<li>
+<p>Export hVCF data:
+  <div class="language-shell highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>phg<span class="w"> </span>export-vcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>--db-path<span class="w"> </span>/my/db/uri<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>--dataset-type<span class="w"> </span>hvcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span>--sample-file<span class="w"> </span>/my/sample_names.txt<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span>--output-dir<span class="w"> </span>/my/hvcf/dir
+</span></code></pre></div></p>
+</li>
+<li>
+<p>Index k-mers:
+  <div class="language-shell highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>phg<span class="w"> </span>build-kmer-index<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>--db-path<span class="w"> </span>/my/db/uri<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span>--hvcf-dir<span class="w"> </span>/my/hvcf/dir
+</span></code></pre></div></p>
+</li>
+<li>
+<p>Map short reads
+  <div class="language-shell highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>phg<span class="w"> </span>map-kmers<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--hvcf-dir<span class="w"> </span>/my/hvcf/dir<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span>--kmer-index<span class="w"> </span>/my/hvcf/dir/kmerIndex.txt<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span>--key-file<span class="w"> </span>/my/path/keyfile<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span>--output-dir<span class="w"> </span>/my/mapping/dir
+</span></code></pre></div></p>
+</li>
+<li>
+<p>Find paths
+  <div class="language-shell highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>phg<span class="w"> </span>find-paths<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--path-keyfile<span class="w"> </span>/my/path/keyfile<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>--hvcf-dir<span class="w"> </span>/my/hvcf/dir<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span>--reference-genome<span class="w"> </span>/my/ref/genome<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span>--path-type<span class="w"> </span>haploid<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span>--output-dir<span class="w"> </span>/my/imputed/hvcfs
+</span></code></pre></div></p>
+</li>
+<li>
+<p>OPTIONAL: Get SNPs from imputed hVCFs
+  <div class="language-shell highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>phg<span class="w"> </span>hvcf2gvcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>--hvcf-dir<span class="w"> </span>/my/imputed/hvcfs<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span>--db-path<span class="w"> </span>/my/db/uri<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span>--reference-file<span class="w"> </span>/my/ref/genome<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span>--output-dir<span class="w"> </span>/my/gvcf/dir
+</span></code></pre></div></p>
+</li>
+</ul>
+<h2 id="detailed-walkthrough">Detailed walkthrough<a class="headerlink" href="#detailed-walkthrough" title="Permanent link">&para;</a></h2>
+<h3 id="hvcf-export">hVCF export<a class="headerlink" href="#hvcf-export" title="Permanent link">&para;</a></h3>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This step is currently needed, but will be removed in the future as 
+we can do direct connections to the hVCF TileDB instance.</p>
+</div>
+<p>Where we last left off in the "<a href="../build_and_load/">Build and Load</a>"
+steps, we had an example directory that looks similar to the
+following:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>phg_v2_example/
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>├── data
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>│   ├── anchors.gff
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>│   ├── Ref-v5.fa
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>│   ├── LineA-final-01.fa
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>│   └── LineB-final-04.fa
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>├── output
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>│   ├── alignment_files/
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>│   ├── ref_ranges.bed
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>│   ├── updated_assemblies
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>│   │   ├── Ref.fa
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>│   │   ├── LineA.fa
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>│   │   └── LineB.fa
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>│   └── vcf_files/
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>└── vcf_dbs
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>    ├── assemblies.agc
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>    ├── gvcf_dataset/
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>    ├── hvcf_dataset/
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>    ├── hvcf_files/
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>    ├── reference/
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>    └── temp/
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The following steps in the rest of this document will assume we are 
+in the top level of our <code>phg_v2_example</code> working directory.</p>
+</div>
+<p>For this example imputation pipeline, we will be using haplotypes 
+generated from two samples in our database:</p>
+<ul>
+<li><code>LineA</code></li>
+<li><code>LineB</code></li>
+</ul>
+<p>If you do not have <a href="../hvcf_specifications/">hVCF files</a> for samples 
+you wish to impute against already generated, we will first need to 
+export this haplotype data in the form of hVCF data from the TileDB 
+instance. This is done using the <code>export-vcf</code> command:</p>
+<p><div class="language-shell highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>./phg<span class="w"> </span>export-vcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span>--db-path<span class="w"> </span>vcf_dbs<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span>--dataset-type<span class="w"> </span>hvcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span>--sample-file<span class="w"> </span>/my/sample_names.txt<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span>--output-dir<span class="w"> </span>output/vcf_files
+</span></code></pre></div>
+This command takes in 4 parameters:</p>
+<ul>
+<li><code>--db-path</code> - path to directory storing the TileDB instances. The
+  AGC compressed genomes will be placed here on completion.</li>
+<li><code>--dataset-type</code> - the type of dataset to export. In this case, we
+  are exporting the hVCF data.</li>
+<li><code>--sample-file</code> - text file with list of sample names to export, one per line.</li>
+<li><code>--output-dir</code> - the directory to place the exported hVCF files.</li>
+</ul>
+<p>In our above example, we use the <code>--sample-file</code> parameter, but if
+your sample list is small, you can use the <code>--sample-names</code> parameter.
+An example of a sample file is as follows:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>$ cat sample_names.txt
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>LineA
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>LineB
+</span></code></pre></div>
+<p>Example command using --sample-names parameter:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>./phg<span class="w"> </span>export-vcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span>--db-path<span class="w"> </span>vcf_dbs<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span>--dataset-type<span class="w"> </span>hvcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span>--sample-names<span class="w"> </span>LineA,LineB<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span>--output-dir<span class="w"> </span>output/vcf_files
+</span></code></pre></div>
+<p>After the export command, our directory structure will have new
+files added to the <code>vcf_files</code> directory:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>phg_v2_example/
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>├── data
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>│   ├── anchors.gff
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>│   ├── Ref-v5.fa
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>│   ├── LineA-final-01.fa
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>│   └── LineB-final-04.fa
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>├── output
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>│   ├── alignment_files/
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>│   ├── ref_ranges.bed
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>│   ├── updated_assemblies
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>│   │   ├── Ref.fa
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>│   │   ├── LineA.fa
+</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>│   │   └── LineB.fa
+</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>│   └── vcf_files
+</span><span id="__span-10-15"><a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>│       ├── LineA.h.vcf *
+</span><span id="__span-10-16"><a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a>│       └── LineB.h.vcf *
+</span><span id="__span-10-17"><a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a>└── vcf_dbs
+</span><span id="__span-10-18"><a id="__codelineno-10-18" name="__codelineno-10-18" href="#__codelineno-10-18"></a>    ├── assemblies.agc
+</span><span id="__span-10-19"><a id="__codelineno-10-19" name="__codelineno-10-19" href="#__codelineno-10-19"></a>    ├── gvcf_dataset/
+</span><span id="__span-10-20"><a id="__codelineno-10-20" name="__codelineno-10-20" href="#__codelineno-10-20"></a>    ├── hvcf_dataset/
+</span><span id="__span-10-21"><a id="__codelineno-10-21" name="__codelineno-10-21" href="#__codelineno-10-21"></a>    ├── hvcf_files/
+</span><span id="__span-10-22"><a id="__codelineno-10-22" name="__codelineno-10-22" href="#__codelineno-10-22"></a>    ├── reference/
+</span><span id="__span-10-23"><a id="__codelineno-10-23" name="__codelineno-10-23" href="#__codelineno-10-23"></a>    └── temp/
+</span></code></pre></div>
+<h3 id="k-mer-indexing">K-mer indexing<a class="headerlink" href="#k-mer-indexing" title="Permanent link">&para;</a></h3>
+<p>In order to run the later <a href="#read-mapping">k-mer read mapping steps</a> 
+(<em>and run them quickly with a low memory footprint!</em>),
+we will first need to <strong>build</strong> an index containing all 31 bp length 
+<a href="https://en.wikipedia.org/wiki/K-mer">k-mers</a> identified in
+the haplotypes exported from the prior step and store this as a flat
+file. This is performed using the <code>build-kmer-index</code> command:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>./phg<span class="w"> </span>build-kmer-index<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span>--db-path<span class="w"> </span>vcf_dbs<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span>--hvcf-dir<span class="w"> </span>output/vcf_files
+</span></code></pre></div>
+<p>This command has <strong>2</strong> required parameters and <strong>1</strong> optional 
+parameter that I will specify for example purposes:</p>
+<ul>
+<li><code>--db-path</code> - path to directory storing the TileDB instances and
+  <code>assemblies.agc</code> file made in the 
+  "<a href="../build_and_load/#compress-fasta-files">Compress FASTA files</a>"
+  section of the "<a href="../build_and_load/">Build and Load</a>" documentation.</li>
+<li><code>--hvcf-dir</code> - the directory containing the hVCF files. This is the
+  output directory from the <code>export-vcf</code> command.  Right now this is 
+  required, but will be optional in the future.</li>
+<li><code>--index-file</code> (<em>optional</em>) - The full path of the k-mer index
+  file. If not specified, the default path will be:</li>
+<li><code>&lt;--hvcf-dir input&gt;/kmerIndex.txt</code></li>
+<li>In my case, this would be <code>output/vcf_files/kmerIndex.txt</code></li>
+</ul>
+<p>Running build-kmer-index creates an index file and a diagnostic file, kmerIndexStatistics.txt, 
+that is written to the same directory as the index file.
+Since we have used defaults, a new index file and a statistics file will show in the
+following <code>output/vcf_files</code> directory of our example:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>phg_v2_example/
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>├── data
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>│   ├── anchors.gff
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>│   ├── Ref-v5.fa
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>│   ├── LineA-final-01.fa
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>│   └── LineB-final-04.fa
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>├── output
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>│   ├── alignment_files/
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>│   ├── ref_ranges.bed
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>│   ├── updated_assemblies
+</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>│   │   ├── Ref.fa
+</span><span id="__span-12-12"><a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>│   │   ├── LineA.fa
+</span><span id="__span-12-13"><a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>│   │   └── LineB.fa
+</span><span id="__span-12-14"><a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a>│   └── vcf_files
+</span><span id="__span-12-15"><a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>│       ├── kmerIndex.txt *
+</span><span id="__span-12-16"><a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a>│       ├── kmerIndexStatistics.txt *
+</span><span id="__span-12-17"><a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>│       ├── LineA.h.vcf
+</span><span id="__span-12-18"><a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>│       └── LineB.h.vcf
+</span><span id="__span-12-19"><a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a>└── vcf_dbs
+</span><span id="__span-12-20"><a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a>    ├── assemblies.agc
+</span><span id="__span-12-21"><a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a>    ├── gvcf_dataset/
+</span><span id="__span-12-22"><a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a>    ├── hvcf_dataset/
+</span><span id="__span-12-23"><a id="__codelineno-12-23" name="__codelineno-12-23" href="#__codelineno-12-23"></a>    ├── hvcf_files/
+</span><span id="__span-12-24"><a id="__codelineno-12-24" name="__codelineno-12-24" href="#__codelineno-12-24"></a>    ├── reference/
+</span><span id="__span-12-25"><a id="__codelineno-12-25" name="__codelineno-12-25" href="#__codelineno-12-25"></a>    └── temp/
+</span></code></pre></div>
+<h4 id="optional-parameters">Optional parameters<a class="headerlink" href="#optional-parameters" title="Permanent link">&para;</a></h4>
+<p>In addition to <code>--index-file</code>, this command can take other optional 
+parameters:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter name</th>
+<th>Description</th>
+<th>Default value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--max-hap-proportion</code></td>
+<td>Note: This parameter is currently unused.  Will be removed in a future update. Only k-mers mapping to less than or equal to maxHapProportion of haplotypes in a reference range will be retained.</td>
+<td><code>0.75</code></td>
+</tr>
+<tr>
+<td><code>--max-arg-length</code></td>
+<td>The maximum argument length for a call to the <a href="https://github.com/acoleman2000/agc">AGC program</a>.</td>
+<td><code>200000</code></td>
+</tr>
+<tr>
+<td><code>--no-diagnostics</code> or <code>-n</code></td>
+<td>A flag that eliminates the diagnostic report</td>
+<td>Disabled (report is written)</td>
+</tr>
+<tr>
+<td><code>--max-sample-proportion</code></td>
+<td>This parameter will allow for kmers seen below --max-sample-proportion * numSamples to be retained.  Any kmers occurring more than that ratio will be filtered out.</td>
+<td><code>0.5</code></td>
+</tr>
+<tr>
+<td><code>--use-big-discard-set</code></td>
+<td>A flag to use a different data structure to hold the discard set at the expense of RAM and speed.  If the default option fails due to an error consider enabling this flag.</td>
+<td>Disabled (default data structure is used)</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>If you get an error caused by a call to AGC being too long,
+try reducing the <code>--max-arg-length</code> value.</p>
+</div>
+<p>The following optional parameters affect how k-mers are pre-filtered 
+to determine which are used for indexing. They would only need to be 
+adjusted if the number of k-mers in the index is too low or too high:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter name</th>
+<th>Description</th>
+<th>Default value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--hash-mask</code></td>
+<td>In conjunction with <code>--hash-filter</code>, used to mask k-mers for filtering. Default uses only the last k-mer nucleotide. <strong>Only change this value unless you know what you are doing.</strong></td>
+<td><code>3</code></td>
+</tr>
+<tr>
+<td><code>--hash-filter</code></td>
+<td>Only hashes that pass the filter ((hashValue and hashMask) == hashFilter) will be considered. <strong>Only change this value unless you know what you are doing.</strong></td>
+<td><code>1</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="kmer-index-diagnostics">Kmer index diagnostics<a class="headerlink" href="#kmer-index-diagnostics" title="Permanent link">&para;</a></h4>
+<p>Looking at kmer counts by reference range can help determine if diagnostic kmers provide adequate coverage for mapping 
+or if there are reference ranges or genomic regions with inadequate coverage. One potential issue is that similar sequence could be
+assigned to adjacent reference ranges in different assemblies instead of to the same range. This could result in the kmers
+being discarded because they map to adjacent ranges. The column "adjacentCount" lists, for each reference range, the 
+number of kmers discarded because they were detected in the previous reference range.</p>
+<h3 id="read-mapping">Read mapping<a class="headerlink" href="#read-mapping" title="Permanent link">&para;</a></h3>
+<p>Now that we have a generated k-mer index file, we can efficiently 
+align short reads against the PHG using the <code>map-kmers</code> command. To
+demonstrate this, I will retrieve some example data from our
+<a href="https://github.com/maize-genetics/phg_v2/tree/main/data/test/kmerReadMapping/simulatedReads">PHGv2 GitHub test directory</a>.
+The files I will be using from this directory for this walkthrough 
+will be the following:</p>
+<ul>
+<li><code>LineA_LineB_1.fq</code></li>
+<li><code>LineA_LineB_2.fq</code></li>
+</ul>
+<p>These files are simulated paired-end (e.g., <code>_1.fq</code> and <code>_2.fq</code>) 
+short reads with a length of 150 bps in 
+<a href="https://en.wikipedia.org/wiki/FASTQ_format">FASTQ</a> format. I will
+place these files under the <code>data</code> directory in sub folder called
+<code>short_reads</code>:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>phg_v2_example/
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>├── data
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>│   └── short_reads          *
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>│   │   ├── LineA_LineB_1.fq *
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>│   │   └── LineA_LineB_2.fq * 
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>│   ├── anchors.gff
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>│   ├── Ref-v5.fa
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>│   ├── LineA-final-01.fa
+</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>│   └── LineB-final-04.fa
+</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>├── output
+</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>│   ├── alignment_files/
+</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>│   ├── ref_ranges.bed
+</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>│   ├── updated_assemblies
+</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a>│   │   ├── Ref.fa
+</span><span id="__span-13-15"><a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a>│   │   ├── LineA.fa
+</span><span id="__span-13-16"><a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a>│   │   └── LineB.fa
+</span><span id="__span-13-17"><a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a>│   └── vcf_files
+</span><span id="__span-13-18"><a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a>│       ├── kmerIndex.txt
+</span><span id="__span-13-19"><a id="__codelineno-13-19" name="__codelineno-13-19" href="#__codelineno-13-19"></a>│       ├── LineA.h.vcf
+</span><span id="__span-13-20"><a id="__codelineno-13-20" name="__codelineno-13-20" href="#__codelineno-13-20"></a>│       └── LineB.h.vcf
+</span><span id="__span-13-21"><a id="__codelineno-13-21" name="__codelineno-13-21" href="#__codelineno-13-21"></a>└── vcf_dbs
+</span><span id="__span-13-22"><a id="__codelineno-13-22" name="__codelineno-13-22" href="#__codelineno-13-22"></a>    ├── assemblies.agc
+</span><span id="__span-13-23"><a id="__codelineno-13-23" name="__codelineno-13-23" href="#__codelineno-13-23"></a>    ├── gvcf_dataset/
+</span><span id="__span-13-24"><a id="__codelineno-13-24" name="__codelineno-13-24" href="#__codelineno-13-24"></a>    ├── hvcf_dataset/
+</span><span id="__span-13-25"><a id="__codelineno-13-25" name="__codelineno-13-25" href="#__codelineno-13-25"></a>    ├── hvcf_files/
+</span><span id="__span-13-26"><a id="__codelineno-13-26" name="__codelineno-13-26" href="#__codelineno-13-26"></a>    ├── reference/
+</span><span id="__span-13-27"><a id="__codelineno-13-27" name="__codelineno-13-27" href="#__codelineno-13-27"></a>    └── temp/
+</span></code></pre></div>
+<p>Now that we have both short read data and our k-mer index file, we
+can pass these to the <code>map-kmers</code> command:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>./phg<span class="w"> </span>map-kmers<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">    </span>--hvcf-dir<span class="w"> </span>output/vcf_files<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span>--key-file<span class="w"> </span>data/key_files/read_mapping_data.txt<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span>--output-dir<span class="w"> </span>output/read_mappings
+</span></code></pre></div>
+<p>This command has the following parameters:</p>
+<ul>
+<li><code>--hvcf-dir</code> - the directory containing the hVCF files.</li>
+<li><code>--key-file</code> - a tab-delimited list of FASTQ files for a collection
+  of samples.<ul>
+<li>In the above example, I have made a keyfile and placed it in a
+subdirectory under the <code>data</code> folder called <code>key_files</code>.</li>
+<li>My example keyfile would look like the following:
+  <div class="language-text highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>sampleName  filename  filename2
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
+</span></code></pre></div></li>
+<li>If you have more than one sample, you would place additional
+lines at the bottom of the keyfile. For example:
+  <div class="language-text highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>sampleName  filename  filename2
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>LineA_B data/short_reads/LineA_LineB_1.fq  data/short_reads/LineA_LineB_2.fq
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>CrossC data/short_reads/cross_c_1.fq  data/short_reads/cross_c_2.fq
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>CrossD data/short_reads/cross_d_1.fq  data/short_reads/cross_d_2.fq
+</span></code></pre></div></li>
+<li>
+<blockquote>
+<p>ℹ️ <strong>Note</strong><br />
+The keyfile for this parameter needs <strong>column names</strong>. If you
+are using single-reads, the column names would be:
+<code>sampleName</code> and <code>filename</code>. If you have paired-end reads (like 
+the example above), the column names would be <code>sampleName</code>, 
+<code>filename</code>, and <code>filename2</code>.</p>
+</blockquote>
+</li>
+<li>
+<blockquote>
+<p>ℹ️ <strong>Note</strong><br />
+File names must be of type "FASTQ". In other words, files must 
+end in the permitted extensions: <code>.fq</code>, <code>.fq.gz</code>, <code>.fastq</code>, and 
+<code>.fastq.gz</code>. </p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li><code>--output-dir</code> - the directory to place the read-mapping files.</li>
+<li><code>--kmer-index</code> (<em>optional</em>) - the k-mer index file created by the
+  <code>build-kmer-index</code> command.<ul>
+<li>
+<blockquote>
+<p>ℹ️ <strong>Note</strong><br />
+  The <code>--kmer-index</code> parameter should only be used if you
+  specify a given name and path for your k-mer index file
+  generated in the <a href="#k-mer-indexing">last step</a>. If you have
+  chosen the "default" option (i.e., leaving this blank), the 
+  <code>map-kmer</code> command will automatically detect the 
+  <code>kmerIndex.txt</code> file found in the directory specified by the 
+  <code>--hvcf-dir</code> parameter.</p>
+</blockquote>
+</li>
+</ul>
+</li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>If you do not want to create a keyfile and only have one sample,
+you can replace the <code>--key-file</code> parameter with the <code>--read-files</code>
+parameter. This parameter will take the paths to the FASTQ reads as
+a comma separated list.</p>
+<p>For example, if we were to modify the prior example, the command
+structure would look like the following:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>./phg<span class="w"> </span>map-kmers<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">   </span>--hvcf-dir<span class="w"> </span>output/vcf_files<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">   </span>--kmer-index<span class="w"> </span>output/kmer_index.txt<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">   </span>--read-files<span class="w"> </span>data/short_reads/LineA_LineB_1.fq,data/short_reads/LineA_LineB_2.fq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">   </span>--output-dir<span class="w"> </span>output/read_mappings<span class="w"> </span>
+</span></code></pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If no value is passed to the <code>--kmer-index</code> parameter, it will 
+default to <code>&lt;--hvcf-dir value&gt;/kmerIndex.txt</code>, the default value 
+used by the <code>build-kmer-index</code> <a href="#k-mer-indexing">command</a>. If a 
+non-default value was used for the <code>--index-file</code> parameter in 
+<code>build-kmer-index</code>, that same value needs to be set here for the 
+<code>--kmer-index</code> parameter.</p>
+</div>
+<h4 id="optional-parameters_1">Optional parameters<a class="headerlink" href="#optional-parameters_1" title="Permanent link">&para;</a></h4>
+<p>The Map Kmers  command can take the following optional parameters:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter name</th>
+<th>Description</th>
+<th>Default value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--threads</code></td>
+<td>Number of threads used for mapping</td>
+<td><code>5</code></td>
+</tr>
+<tr>
+<td><code>--min-proportion-of-max-count</code></td>
+<td>Minimum proportion of the maximum kmer count for a read to be considered a match</td>
+<td><code>1.0</code></td>
+</tr>
+<tr>
+<td><code>--min-proportion-same-reference-range</code></td>
+<td>Minimum proportion of the read that must align to the same reference range</td>
+<td><code>0.9</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>We have removed <code>--limit-single-ref-range</code> as it introduces a very high error rate.
+<code>map-kmers</code> will only use kmers from a single reference range for each read.</p>
+</div>
+<p>Now that we have performed k-mer mapping, we will have a new 
+read-mapping file in our example working directory that will be
+used for the path finding algorithm in the next step:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>phg_v2_example/
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>├── data
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>│   └── short_reads
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>│   │   ├── LineA_LineB_1.fq
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>│   │   └── LineA_LineB_2.fq
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>│   ├── anchors.gff
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>│   ├── Ref-v5.fa
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>│   ├── LineA-final-01.fa
+</span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>│   └── LineB-final-04.fa
+</span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>├── output
+</span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a>│   ├── alignment_files/
+</span><span id="__span-18-12"><a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>│   ├── ref_ranges.bed
+</span><span id="__span-18-13"><a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a>│   ├── updated_assemblies
+</span><span id="__span-18-14"><a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a>│   │   ├── Ref.fa
+</span><span id="__span-18-15"><a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a>│   │   ├── LineA.fa
+</span><span id="__span-18-16"><a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a>│   │   └── LineB.fa
+</span><span id="__span-18-17"><a id="__codelineno-18-17" name="__codelineno-18-17" href="#__codelineno-18-17"></a>│   ├── vcf_files
+</span><span id="__span-18-18"><a id="__codelineno-18-18" name="__codelineno-18-18" href="#__codelineno-18-18"></a>│   │   ├── LineA.h.vcf
+</span><span id="__span-18-19"><a id="__codelineno-18-19" name="__codelineno-18-19" href="#__codelineno-18-19"></a>│   │   └── LineB.h.vcf
+</span><span id="__span-18-20"><a id="__codelineno-18-20" name="__codelineno-18-20" href="#__codelineno-18-20"></a>│   └── read_mappings                     *
+</span><span id="__span-18-21"><a id="__codelineno-18-21" name="__codelineno-18-21" href="#__codelineno-18-21"></a>│       └── LineA_LineB_1_readMapping.txt *
+</span><span id="__span-18-22"><a id="__codelineno-18-22" name="__codelineno-18-22" href="#__codelineno-18-22"></a>└── vcf_dbs
+</span><span id="__span-18-23"><a id="__codelineno-18-23" name="__codelineno-18-23" href="#__codelineno-18-23"></a>    ├── assemblies.agc
+</span><span id="__span-18-24"><a id="__codelineno-18-24" name="__codelineno-18-24" href="#__codelineno-18-24"></a>    ├── gvcf_dataset/
+</span><span id="__span-18-25"><a id="__codelineno-18-25" name="__codelineno-18-25" href="#__codelineno-18-25"></a>    ├── hvcf_dataset/
+</span><span id="__span-18-26"><a id="__codelineno-18-26" name="__codelineno-18-26" href="#__codelineno-18-26"></a>    ├── hvcf_files/
+</span><span id="__span-18-27"><a id="__codelineno-18-27" name="__codelineno-18-27" href="#__codelineno-18-27"></a>    ├── reference/
+</span><span id="__span-18-28"><a id="__codelineno-18-28" name="__codelineno-18-28" href="#__codelineno-18-28"></a>    └── temp/
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The naming scheme for the read-mapping files follows the first
+sample in the keyfile or comma-delimited list and:
+1. strips the path and FASTQ extension text
+2. adds the <code>readMapping.txt</code> suffix to the stripped sample name</p>
+<p>Additionally, <span class="arithmatex">\(n\)</span> amount of files will be generated for <span class="arithmatex">\(n\)</span> amount 
+of short read samples found in the keyfile or comma-delimited list.
+For example, if you have 3 samples you are trying to impute, 3 read 
+mapping files will be generated in the given output. </p>
+</div>
+<h3 id="find-paths">Find Paths<a class="headerlink" href="#find-paths" title="Permanent link">&para;</a></h3>
+<p><code>find-paths</code> is the command used to impute paths through a 
+<a href="https://github.com/maize-genetics/phg_v2/blob/main/src/main/kotlin/net/maizegenetics/phgv2/api/HaplotypeGraph.kt"><code>HaplotypeGraph</code></a> 
+object based on a set of read-mappings. The method uses read-mapping 
+files generated by the <code>map-kmers</code> command. Running <code>find-paths</code> uses 
+the <a href="https://en.wikipedia.org/wiki/Viterbi_algorithm">Viterbi algorithm</a> 
+to solve a <a href="https://en.wikipedia.org/wiki/Hidden_Markov_model">hidden Markov model (HMM)</a> 
+to identify the set of haplotypes most likely to have generated the 
+observed read-mappings. Two path types are implemented: </p>
+<ul>
+<li><code>haploid</code> - A haploid path is a <strong>single path</strong> through the graph. </li>
+<li><code>diploid</code> - A diploid path is <strong>two paths</strong> through the graph that 
+  jointly explain the read-mappings.</li>
+</ul>
+<h4 id="input-files">Input files<a class="headerlink" href="#input-files" title="Permanent link">&para;</a></h4>
+<p><code>find-paths</code> can take either read-mapping files generated by the command 
+<code>map-kmers</code> or FASTQ files of sequence reads. If FASTQ files are used, 
+<code>map-kmers</code> is run to generate read-mappings but the intermediate 
+read-mapping files are not saved. <strong>To save a copy of the read-mapping 
+files, <code>map-kmers</code> and <code>find-paths</code> must be run separately.</strong> For 
+more information, please refer to the prior "<a href="#read-mapping">Read Mapping</a>"
+section for additional input details.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If you using read-mapping files, the files <strong>must</strong> end with the 
+<code>_readMapping.txt</code> suffix or errors will occur.</p>
+</div>
+<h4 id="example-usage">Example usage<a class="headerlink" href="#example-usage" title="Permanent link">&para;</a></h4>
+<p>Using our prior working example, we can set up the path finding
+commands in the following code block. For reference, I have made
+a new subdirectory in the <code>output</code> folder called <code>vcf_files_imputed</code>
+and will place imputed hVCF files there:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>./phg<span class="w"> </span>find-paths<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">    </span>--path-keyfile<span class="w"> </span>data/key_files/path_finding_data.txt<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">    </span>--hvcf-dir<span class="w"> </span>output/vcf_files<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span>--reference-genome<span class="w"> </span>output/updated_assemblies/Ref.fa<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">    </span>--path-type<span class="w"> </span>haploid<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">    </span>--output-dir<span class="w"> </span>output/vcf_files_imputed
+</span></code></pre></div>
+<p>This command has the following required parameters:</p>
+<ul>
+<li><code>--path-keyfile</code> <strong>or</strong> <code>--read-file</code> <strong>but not both</strong>: <ul>
+<li><code>--path-keyfile</code> - name and path of a tab-delimited keyfile that 
+  contains a list of the read-mapping files or read files (FASTQ). <ul>
+<li>In the working example, I have made a keyfile and placed it in
+  the <code>key_files</code> folder under the <code>data</code> directory. The keyfile
+  looks something like this:
+  <div class="language-text highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>sampleName  filename
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>LineA_B output/read_mappings/LineA_LineB_1_readMapping.txt
+</span></code></pre></div></li>
+<li>If you wish to skip the prior manual <code>map-kmers</code> step, the data
+  in the keyfile can also be paths to FASTQ data (<em>see the 
+  "<a href="#read-mapping">Read Mapping</a>" section for further details</em>) </li>
+<li>
+<blockquote>
+<p>ℹ️ <strong>Note</strong><br />
+  The keyfile must have two columns labeled <code>sampleName</code> and 
+  <code>filename</code> if you are specifying paths to read-mapping files.
+  If you are using paths to FASTQ data, you may add another
+  column to your keyfile, labelled <code>filename2</code>, only if your 
+  FASTQ data is paired-end.</p>
+</blockquote>
+</li>
+<li>
+<blockquote>
+<p>ℹ️ <strong>Note</strong><br />
+  The samples in the <code>sampleName</code> must be unique and must match
+  prior keyfile data from the "<a href="#read-mapping">Read Mapping</a>" 
+  steps.</p>
+</blockquote>
+</li>
+<li>
+<blockquote>
+<p>ℹ️ <strong>Note</strong><br />
+  If an output hVCF for a sample name already exists in the 
+  output directory, the sample will be skipped.</p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li><code>--read-file</code> - FASTQ samples or read-mapping files as a 
+  comma-separated list.<ul>
+<li>If bypassing the manual <code>map-kmers</code> step, paths to FASTQ
+  files can be used. Either 1 (for single-end) or 2 (for 
+  paired-end) comma-separated files can be input this way.</li>
+<li>If specifying read-mapping files, comma-separated paths to
+  files must have the <code>_readMapping.txt</code> suffix to work.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><code>--hvcf-dir</code> - The directory containing the hvcf used to build the 
+  haplotype graph used for imputation.</li>
+<li><code>--reference-genome</code> -  The name and path to the reference genome 
+  fasta or fastq file.</li>
+<li><code>--output-dir</code> - The directory where the output hVCFs will be 
+  written. One file will be written for each sample, and the output 
+  file name will be <code>&lt;sample name&gt;.h.vcf</code>.</li>
+<li><code>--path-type</code>: The type of path to be imputed. The value must be 
+  either <code>haploid</code> or <code>diploid</code></li>
+</ul>
+<h4 id="optional-parameters_2">Optional parameters<a class="headerlink" href="#optional-parameters_2" title="Permanent link">&para;</a></h4>
+<p>Additional optional parameters may also be set to optimize your
+imputation pipeline. Please see the proceeding section 
+("<a href="#likely-ancestors">Likely Ancestors</a>") for more information on
+how to leverage a set of the following parameters.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter name</th>
+<th>Description</th>
+<th>Default value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--out-parents-dir</code></td>
+<td>The directory where the imputed parents (ancestors) will be written for each sample. File names will be <sampleName>_imputed_parents.txt. If no directory name is supplied, the files will not be written.</td>
+<td><code>""</code></td>
+</tr>
+<tr>
+<td><code>--prob-correct</code></td>
+<td>The probability that a mapped read was mapped correctly.</td>
+<td><code>0.99</code></td>
+</tr>
+<tr>
+<td><code>--prob-same-gamete</code></td>
+<td>The probability of transitioning to the same gamete (sample) in the next reference range. This should be equal to 1 - (probability of a recombination). Probability of a recombination can be estimated as the total number of expected recombinations in a sample divided by the number of reference ranges</td>
+<td><code>0.99</code></td>
+</tr>
+<tr>
+<td><code>--min-gametes</code></td>
+<td>The minimum number of gametes with a haplotype in a reference range. Reference ranges with fewer gametes will not be imputed.</td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td><code>--min-reads</code></td>
+<td>The minimum number of reads per reference range. Reference ranges with fewer reads will not be imputed. If <code>--min-reads = 0</code>, all reference ranges will be imputed</td>
+<td><code>0</code></td>
+</tr>
+<tr>
+<td><code>--inbreeding-coefficient</code></td>
+<td>The estimated coefficient of inbreeding for the samples being evaluated. Only used for diploid path type. <strong>The value must be between <code>0.0</code> and <code>1.0</code></strong></td>
+<td><code>0.0</code></td>
+</tr>
+<tr>
+<td><code>--max-reads-per-kb</code></td>
+<td>ReferenceRanges with more than max-reads-per-kb will not be imputed.</td>
+<td><code>1000</code></td>
+</tr>
+<tr>
+<td><code>--use-likely-ancestors</code></td>
+<td>The value must be <code>true</code> or <code>false</code>. This indicates whether the most likely ancestors of each sample will be used for path finding.</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>--max-ancestors</code></td>
+<td>If <code>--use-likely-ancestors = true</code>, use at most max-ancestors.</td>
+<td><code>Integer.MAX_VALUE</code></td>
+</tr>
+<tr>
+<td><code>--min-coverage</code></td>
+<td>If <code>--use-likely-ancestors = true</code>, use the fewest number of ancestors that together have this proportion of mappable reads. The values must be between <code>0.5</code> and <code>1.0</code></td>
+<td><code>1.0</code></td>
+</tr>
+<tr>
+<td><code>--likely-ancestor-file</code></td>
+<td>If <code>--use-likely-ancestors = true</code>, a record of the ancestors used for each sample will be written to this file, if a file name is provided.</td>
+<td><code>""</code></td>
+</tr>
+<tr>
+<td><code>--threads</code></td>
+<td>The number of threads used to find paths.</td>
+<td><code>3</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="likely-ancestors">Likely ancestors<a class="headerlink" href="#likely-ancestors" title="Permanent link">&para;</a></h4>
+<p>The term "ancestors" refers to the taxa or samples (i.e., assemblies)
+used to construct the haplotype graph used for imputation. The term 
+"ancestors" is used because the model considers the haplotypes in the 
+graph to represent the potential ancestral haplotypes from which the 
+samples to be imputed were derived.</p>
+<p>In some scenarios, <strong>limiting the number of ancestors</strong> used to
+impute a sample will be useful. Some examples include:</p>
+<ul>
+<li>if some samples were derived from an F1 cross and the individuals 
+  used to build the graph include those parents, using only those 
+  parents for imputation can improve accuracy.</li>
+<li>Also, because imputing diploid
+  paths is more computationally intensive than haploid paths, limiting
+  the number of ancestors used per sample may be necessary to control
+  the amount of time required to impute each sample.</li>
+</ul>
+<p>To restrict the number of ancestors used, set the
+<code>--use-likely-ancestors</code> parameter to <code>true</code>, and provide a value for
+either <code>--max-ancestors</code> or <code>--min-coverage</code>. For the case where the
+samples have been derived from a limited number of ancestors setting 
+<code>--min-coverage</code> to <code>0.95</code> or <code>--max-ancestors</code> to the expected 
+number of ancestors is a useful strategy. In either case, providing a 
+name for the output file saves a record of the ancestors used for 
+each sample and should be checked to make sure the samples behaved as 
+expected.</p>
+<p>When using this method, ancestors are chosen by first counting the
+number of reads for a sample that map to each ancestor in the
+haplotype graph. The ancestor with the most mapped reads is chosen.
+Next the reads not mapping to first chosen ancestor are used to count
+reads mapping to the remaining ancestors and the ancestor with the
+most reads is selected. This is repeated until either the proportion
+of reads mapping to the selected ancestors &gt;= <code>--min-coverage</code> or the
+number ancestors selected equals <code>--max-ancestors</code>. If a name is 
+provided for the <code>--likely-ancestor-file</code>, the chosen ancestors are 
+written to that file in the order they were chosen along with the 
+cumulative coverage, which is the proportion of reads mapping to each 
+ancestor and the previously chosen ones.</p>
+<h4 id="general-output-and-next-steps">General output and next steps<a class="headerlink" href="#general-output-and-next-steps" title="Permanent link">&para;</a></h4>
+<p>Now that we have newly imputed hVCF data, our example working
+directory looks like the following:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>phg_v2_example/
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>├── data
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>│   └── short_reads
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>│   │   ├── LineA_LineB_1.fq
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>│   │   └── LineA_LineB_2.fq
+</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>│   ├── anchors.gff
+</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>│   ├── Ref-v5.fa
+</span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>│   ├── LineA-final-01.fa
+</span><span id="__span-21-9"><a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a>│   └── LineB-final-04.fa
+</span><span id="__span-21-10"><a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a>├── output
+</span><span id="__span-21-11"><a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a>│   ├── alignment_files/
+</span><span id="__span-21-12"><a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a>│   ├── ref_ranges.bed
+</span><span id="__span-21-13"><a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a>│   ├── updated_assemblies
+</span><span id="__span-21-14"><a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a>│   │   ├── Ref.fa
+</span><span id="__span-21-15"><a id="__codelineno-21-15" name="__codelineno-21-15" href="#__codelineno-21-15"></a>│   │   ├── LineA.fa
+</span><span id="__span-21-16"><a id="__codelineno-21-16" name="__codelineno-21-16" href="#__codelineno-21-16"></a>│   │   └── LineB.fa
+</span><span id="__span-21-17"><a id="__codelineno-21-17" name="__codelineno-21-17" href="#__codelineno-21-17"></a>│   ├── vcf_files
+</span><span id="__span-21-18"><a id="__codelineno-21-18" name="__codelineno-21-18" href="#__codelineno-21-18"></a>│   │   ├── LineA.h.vcf
+</span><span id="__span-21-19"><a id="__codelineno-21-19" name="__codelineno-21-19" href="#__codelineno-21-19"></a>│   │   └── LineB.h.vcf
+</span><span id="__span-21-20"><a id="__codelineno-21-20" name="__codelineno-21-20" href="#__codelineno-21-20"></a>│   │   vcf_files_imputed *
+</span><span id="__span-21-21"><a id="__codelineno-21-21" name="__codelineno-21-21" href="#__codelineno-21-21"></a>│   │   └── LineA_B.h.vcf * 
+</span><span id="__span-21-22"><a id="__codelineno-21-22" name="__codelineno-21-22" href="#__codelineno-21-22"></a>│   └── read_mappings
+</span><span id="__span-21-23"><a id="__codelineno-21-23" name="__codelineno-21-23" href="#__codelineno-21-23"></a>│       └── LineA_LineB_1_readMapping.txt
+</span><span id="__span-21-24"><a id="__codelineno-21-24" name="__codelineno-21-24" href="#__codelineno-21-24"></a>└── vcf_dbs
+</span><span id="__span-21-25"><a id="__codelineno-21-25" name="__codelineno-21-25" href="#__codelineno-21-25"></a>    ├── assemblies.agc
+</span><span id="__span-21-26"><a id="__codelineno-21-26" name="__codelineno-21-26" href="#__codelineno-21-26"></a>    ├── gvcf_dataset/
+</span><span id="__span-21-27"><a id="__codelineno-21-27" name="__codelineno-21-27" href="#__codelineno-21-27"></a>    ├── hvcf_dataset/
+</span><span id="__span-21-28"><a id="__codelineno-21-28" name="__codelineno-21-28" href="#__codelineno-21-28"></a>    ├── hvcf_files/
+</span><span id="__span-21-29"><a id="__codelineno-21-29" name="__codelineno-21-29" href="#__codelineno-21-29"></a>    ├── reference/
+</span><span id="__span-21-30"><a id="__codelineno-21-30" name="__codelineno-21-30" href="#__codelineno-21-30"></a>    └── temp/
+</span></code></pre></div>
+<p>Similar to the "<a href="../build_and_load/#load-vcf-data-into-dbs">Build and Load</a>"
+steps, we can now load this data into our TileDB instance using the
+<code>load-vcf</code> command:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>./phg<span class="w"> </span>load-vcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">    </span>--vcf-dir<span class="w"> </span>output/vcf_files_imputed<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">    </span>--db-path<span class="w"> </span>vcf_dbs<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">    </span>--threads<span class="w"> </span><span class="m">10</span>
+</span></code></pre></div>
+<p>This command takes three parameters:</p>
+<ul>
+<li><code>--vcf-dir</code> - Directory containing hVCF data. Since I have imputed 
+  data in a specific subdirectory, I will use the path
+  <code>output/vcf_files_imputed</code></li>
+<li><code>--db-path</code> - Path to the directory containing the TileDB instances.</li>
+<li><code>--threads</code> - Number of threads for use by the TileDB loading
+  procedure.</li>
+</ul>
+<h3 id="create-gvcf-files-optional">Create g.vcf files (OPTIONAL)<a class="headerlink" href="#create-gvcf-files-optional" title="Permanent link">&para;</a></h3>
+<p>Our imputed hVCF files provide data on a haplotype level. If desired we can take 
+the hVCF files and create gVCF files. This provides SNP level data and is done using 
+the <code>hvcf2gvcf</code> command:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>./phg<span class="w"> </span>hvcf2gvcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">    </span>--hvcf-dir<span class="w"> </span>output/vcf_files_imputed<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">    </span>--db-path<span class="w"> </span>vcf_dbs<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">    </span>--reference-file<span class="w"> </span>output/updated_assemblies/Ref.fa<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-23-5"><a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="w">    </span>--output-dir<span class="w"> </span>output/gvcf_files
+</span></code></pre></div>
+<p>This command takes 4 parameters:</p>
+<ul>
+<li><code>--hvcf-dir</code> - Directory containing hVCF data. Since I have imputed 
+  data in a specific subdirectory, I will use the path
+  <code>output/vcf_files_imputed</code></li>
+<li><code>--db-path</code> - Path to the directory containing the TileDB instances.</li>
+<li><code>--reference-file</code> - The reference genome fasta file.</li>
+<li><code>--output-dir</code> - The directory to place the gVCF files.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2023 - 2025  <a href="https://www.maizegenetics.net "><b>Buckler Lab</b></a>
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/maize-genetics" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.youtube.com/c/BucklerLab" target="_blank" rel="noopener" title="www.youtube.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M549.7 124.1c-6.2-23.7-24.8-42.3-48.3-48.6C458.9 64 288.1 64 288.1 64S117.3 64 74.7 75.5c-23.5 6.3-42 24.9-48.3 48.6C15 167 15 256.4 15 256.4s0 89.4 11.4 132.3c6.3 23.6 24.8 41.5 48.3 47.8C117.3 448 288.1 448 288.1 448s170.8 0 213.4-11.5c23.5-6.3 42-24.2 48.3-47.8 11.4-42.9 11.4-132.3 11.4-132.3s0-89.4-11.4-132.3zM232.2 337.6V175.2l142.7 81.2z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.select", "content.code.copy", "content.code.annotate", "navigation.tabs", "navigation.top", "navigation.sections", "navigation.indexes", "navigation.expand", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascript/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

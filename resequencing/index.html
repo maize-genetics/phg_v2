@@ -1,0 +1,2296 @@
+<!-- Elements added to main will be displayed on all pages -->
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Pangenome system for plant breeding and genetics">
+      
+      
+        <meta name="author" content="Buckler Lab">
+      
+      
+        <link rel="canonical" href="https://phg.maizegenetics.net/resequencing/">
+      
+      
+        <link rel="prev" href="../imputation/">
+      
+      
+        <link rel="next" href="../export_data/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../img/product/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.2">
+    
+    
+      
+        <title>Resequencing - Practical Haplotype Graph</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="green">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#resequencing-rare-alleles-pipeline" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Practical Haplotype Graph" class="md-header__button md-logo" aria-label="Practical Haplotype Graph" data-md-component="logo">
+      
+  <img src="../img/product/phg_logo_white.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Practical Haplotype Graph
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Resequencing
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/maize-genetics/phg_v2" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    PHGv2
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href=".." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../installation/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../hvcf_specifications/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../citations/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Community
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Practical Haplotype Graph" class="md-nav__button md-logo" aria-label="Practical Haplotype Graph" data-md-component="logo">
+      
+  <img src="../img/product/phg_logo_white.svg" alt="logo">
+
+    </a>
+    Practical Haplotype Graph
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/maize-genetics/phg_v2" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    PHGv2
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href=".." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Home
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../build_and_load/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building and loading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Imputation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Imputation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imputation_ropebwt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RopeBWT3 Imputation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imputation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    k-mer Imputation (Deprecated)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resequencing
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resequencing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#detailed-walkthrough" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detailed walkthrough
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Detailed walkthrough">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-a-composite-fasta-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a composite FASTA file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#index-composite-fasta-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Index composite FASTA file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#align-short-reads-to-composite-fasta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Align short reads to composite FASTA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#filter-bam-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Filter BAM files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#perform-variant-calling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Perform variant calling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#filter-variants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Filter variants
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-final-vcf-in-haplotype-coordinates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create final VCF in haplotype coordinates
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#miscellaneous" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Miscellaneous
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Miscellaneous">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#wgs-reads-coming-from-multiple-libraries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WGS reads coming from multiple libraries:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../export_data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exporting data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specifications
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Specifications
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hvcf_specifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    hVCF specifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ktor_specifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ktor specifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ps4g_specifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PS4G specifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional commands
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Optional commands
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../convenience_commands/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Convenience commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../qc_metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QC metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Miscellaneous articles
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Miscellaneous articles
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hvcf_region_handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    hVCF region handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../slurm_usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SLURM usage for alignment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../terminology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../variant_comparisons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Variant caller comparisons
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Community
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Community
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../citations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    References
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CONTRIBUTING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CODE_OF_CONDUCT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code of Conduct
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#detailed-walkthrough" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detailed walkthrough
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Detailed walkthrough">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-a-composite-fasta-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a composite FASTA file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#index-composite-fasta-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Index composite FASTA file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#align-short-reads-to-composite-fasta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Align short reads to composite FASTA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#filter-bam-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Filter BAM files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#perform-variant-calling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Perform variant calling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#filter-variants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Filter variants
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-final-vcf-in-haplotype-coordinates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create final VCF in haplotype coordinates
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#miscellaneous" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Miscellaneous
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Miscellaneous">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#wgs-reads-coming-from-multiple-libraries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WGS reads coming from multiple libraries:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="resequencing-rare-alleles-pipeline">Resequencing / Rare Alleles Pipeline<a class="headerlink" href="#resequencing-rare-alleles-pipeline" title="Permanent link">&para;</a></h1>
+<p>In this document, we will discuss the proposed pipeline to identify 
+rare alleles in a PHG population. This pipeline is invoked once a user 
+has successfully run the <a href="../imputation/">PHG imputation pipeline</a> and 
+has secured a haplotype VCF (<a href="../hvcf_specifications/">hVCF</a>) file. </p>
+<p>From the imputation hVCF file, a composite FASTA can be created. The 
+pipeline begins by re-aligning the WGS reads used in the imputation 
+pipeline against the composite FASTA derived above. The BAM file 
+created by this second alignment is filtered, then run through a 
+variant caller. We suggest using
+<a href="https://github.com/google/deepvariant">DeepVariant</a> or 
+<a href="https://github.com/luntergroup/octopus">Octopus</a> for this purpose. 
+The output of the variant caller is a VCF file that contains the 
+variants called against the composite fasta.</p>
+<p>Additional filtering is then performed to select variants based on 
+VCF quality scores, depth or other measures. This final VCF provides 
+a list of SNPs that may be translated to haplotype coordinates. To 
+perform this transformation, the user can use the 
+<code>composite-to-haplotype-coords</code> command.</p>
+<h2 id="quick-start">Quick start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
+<ul>
+<li>
+<p>Create a composite FASTA file</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>phg<span class="w"> </span>create-fasta-from-hvcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span>--hvcf-file<span class="w"> </span>output/vcf_files_imputed/LineA_B.h.vcf<span class="w"> </span><span class="se">\ </span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span>--fasta-type<span class="w"> </span>composite<span class="w"> </span><span class="se">\ </span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span>-o<span class="w"> </span>output/composite_assemblies/
+</span></code></pre></div>
+</li>
+<li>
+<p>Index composite FASTA file</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>samtools<span class="w"> </span>faidx<span class="w"> </span>output/composite_assemblies/LineA_B_composite.fa
+</span></code></pre></div>
+</li>
+<li>
+<p>Align short reads to composite FASTA</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Run minimap2 to align the reads with the composite genome</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>minimap2<span class="w"> </span>-a<span class="w"> </span>-x<span class="w"> </span>sr<span class="w"> </span>-t<span class="w"> </span><span class="m">20</span><span class="w"> </span>--secondary<span class="o">=</span>no<span class="w"> </span>--eqx<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span>output/composite_assemblies/LineA_B_composite.fa<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span>data/short_reads/LineA_LineB_1.fq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span>data/short_reads/LineA_LineB_2.fq<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span>samtools<span class="w"> </span>view<span class="w"> </span>-b<span class="w"> </span>&gt;<span class="w"> </span>output/minimap2/LineA_B_composite_align.bam
+</span></code></pre></div>
+</li>
+<li>
+<p>Filter BAM files</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>samtools<span class="w"> </span>fixmate<span class="w"> </span>-m<span class="w"> </span>LineA_B_composite_align.bam<span class="w"> </span>LineA_B_composite_fm.bam
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>samtools<span class="w"> </span>sort<span class="w"> </span>--threads<span class="w"> </span><span class="m">8</span><span class="w"> </span>-T<span class="w"> </span>./tmp<span class="w"> </span>-o<span class="w"> </span>LineA_B_composite_sorted_fm.bam<span class="w"> </span>LineA_B_composite_fm.bam
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>samtools<span class="w"> </span>markdup<span class="w"> </span>-r<span class="w"> </span>LineA_B_composite_sorted_fm.bam<span class="w"> </span>LineA_B_composite_dedup.bam
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>samtools<span class="w"> </span>view<span class="w"> </span>-F<span class="w"> </span><span class="m">4</span><span class="w"> </span>-f<span class="w"> </span><span class="m">2</span><span class="w"> </span>-b<span class="w"> </span>LineA_B_composite_dedup.bam<span class="w"> </span>&gt;<span class="w"> </span>LineA_B_composite_filtered.bam
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>samtools<span class="w"> </span>index<span class="w"> </span>LineA_B_composite_filtered.bam
+</span></code></pre></div>
+</li>
+<li>
+<p>Perform variant calling</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nv">PHG_DIR</span><span class="o">=</span>phg_v2_example/
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>docker<span class="w"> </span>run<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span>-v<span class="w"> </span><span class="si">${</span><span class="nv">PHG_DIR</span><span class="si">}</span>:/workdir<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span>google/deepvariant:1.6.1<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span>/opt/deepvariant/bin/run_deepvariant<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span>--model_type<span class="o">=</span>WGS<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span>--ref<span class="o">=</span>/workdir/output/composite_assemblies/LineA_B_composite.fa<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span>--reads<span class="o">=</span>/workdir/output/minimap2/LineA_B_composite_filtered.bam<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span>--output_vcf<span class="o">=</span>/workdir/output/vcf_files/LineA_B_composite_reseq.vcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span>--output_gvcf<span class="o">=</span>/workdir/output/vcf_files/LineA_B_composite_reseq.g.vcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span>--intermediate_results_dir<span class="o">=</span>/workdir/intermediate_results<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span>--num_shards<span class="o">=</span><span class="m">4</span>
+</span></code></pre></div>
+</li>
+<li>
+<p>Filter variants</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>bcftools<span class="w"> </span>view<span class="w"> </span>-m2<span class="w"> </span>-M2<span class="w"> </span>-v<span class="w"> </span>snps<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>-i<span class="w"> </span><span class="s1">&#39;QUAL&gt;20 &amp;&amp; GT=&quot;1/1&quot; &amp;&amp; DP&gt;4&#39;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span>output/vcf_files/LineA_B_composite_reseq.vcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span>-o<span class="w"> </span>output/vcf_files/LineA_B_composite_reseq_filt.vcf
+</span></code></pre></div>
+</li>
+<li>
+<p>Create final VCF in haplotype coordinates</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>phg<span class="w"> </span>composite-to-haplotype-coords<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>--path-hvcf<span class="w"> </span>output/vcf_files_imputed/LineA_B.h.vcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span>--variant-vcf<span class="w"> </span>output/vcf_files/LineA_B_composite_reseq_filt.vcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span>--sample-name<span class="w"> </span>LineA_B<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span>--output-file<span class="w"> </span>output/vcf_files/LineA_B_reseq_hap_coords.vcf
+</span></code></pre></div>
+</li>
+</ul>
+<h2 id="detailed-walkthrough">Detailed walkthrough<a class="headerlink" href="#detailed-walkthrough" title="Permanent link">&para;</a></h2>
+<h3 id="create-a-composite-fasta-file">Create a composite FASTA file<a class="headerlink" href="#create-a-composite-fasta-file" title="Permanent link">&para;</a></h3>
+<p>Using the <a href="../imputation/#find-paths">prior example outputs from the imputation section</a>,
+we can first convert the hVCF output from the <code>find-paths</code> command
+to a FASTA format via the <code>create-fasta-from-hvcf</code> command:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>phg<span class="w"> </span>create-fasta-from-hvcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span>--hvcf-file<span class="w"> </span>output/vcf_files_imputed/LineA_B.h.vcf<span class="w"> </span><span class="se">\ </span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span>--fasta-type<span class="w"> </span>composite<span class="w"> </span><span class="se">\ </span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span>-o<span class="w"> </span>output/composite_assemblies/
+</span></code></pre></div>
+<p>This command takes 3 necessary parameters:</p>
+<ul>
+<li><code>--hvcf-file</code> - an hVCF file from the imputation pipeline</li>
+<li><code>--fasta-type</code> - how should the output for the FASTA file look like?<ul>
+<li><code>composite</code> - concatenates haplotype sequences together at the
+  chromosome level (<strong>needed for this pipeline</strong>)</li>
+<li><code>haplotype</code> - each FASTA entry is a haplotype sequence</li>
+</ul>
+</li>
+<li><code>-o</code> or <code>--output-dir</code> - an <em>existing</em> output directory for the 
+  FASTA file</li>
+</ul>
+<p>After running this command, our example directory (based on the
+prior pipelines) will now have a FASTA file (<code>LineA_B_composite.fa</code>) 
+in the <code>composite_assemblies/</code> directory:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>phg_v2_example/
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>├── data
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>│   └── short_reads
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>│   │   ├── LineA_LineB_1.fq
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>│   │   └── LineA_LineB_2.fq
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>│   ├── anchors.gff
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>│   ├── Ref-v5.fa
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>│   ├── LineA-final-01.fa
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>│   └── LineB-final-04.fa
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>├── output
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>│   ├── alignment_files/
+</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>│   ├── composite_assemblies *
+</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>│   │   └── LineA_B_composite.fa *
+</span><span id="__span-8-14"><a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>│   ├── ref_ranges.bed
+</span><span id="__span-8-15"><a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a>│   ├── updated_assemblies/
+</span><span id="__span-8-16"><a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a>│   ├── vcf_files/
+</span><span id="__span-8-17"><a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a>│   ├── vcf_files_imputed
+</span><span id="__span-8-18"><a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a>│   │   └── LineA_B.h.vcf 
+</span><span id="__span-8-19"><a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a>│   └── read_mappings/
+</span><span id="__span-8-20"><a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a>└── vcf_dbs
+</span><span id="__span-8-21"><a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a>    ├── assemblies.agc
+</span><span id="__span-8-22"><a id="__codelineno-8-22" name="__codelineno-8-22" href="#__codelineno-8-22"></a>    ├── gvcf_dataset/
+</span><span id="__span-8-23"><a id="__codelineno-8-23" name="__codelineno-8-23" href="#__codelineno-8-23"></a>    ├── hvcf_dataset/
+</span><span id="__span-8-24"><a id="__codelineno-8-24" name="__codelineno-8-24" href="#__codelineno-8-24"></a>    ├── hvcf_files/
+</span><span id="__span-8-25"><a id="__codelineno-8-25" name="__codelineno-8-25" href="#__codelineno-8-25"></a>    ├── reference/
+</span><span id="__span-8-26"><a id="__codelineno-8-26" name="__codelineno-8-26" href="#__codelineno-8-26"></a>    └── temp/
+</span></code></pre></div>
+<h3 id="index-composite-fasta-file">Index composite FASTA file<a class="headerlink" href="#index-composite-fasta-file" title="Permanent link">&para;</a></h3>
+<p>Once we create the composite FASTA file, we will need to create an
+<a href="http://www.htslib.org/doc/faidx.html"><code>.fai</code> index</a> file for the 
+subsequent DeepVariant procedure. This indexing step will significantly
+decrease lookup times into our new composite reference FASTA
+assembly. To create this file, we can use <code>faidx</code> command from
+<code>samtools</code>:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>samtools<span class="w"> </span>faidx<span class="w"> </span>output/composite_assemblies/LineA_B_composite.fa
+</span></code></pre></div>
+<p>This will create an <code>.fai</code> index file in the same directory where the
+composite FASTA was created. In our case, this file will be named
+<code>LineA_B_composite.fa.fai</code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For the DeepVariant step, this file will <strong>need to be in the same
+directory as your composite FASTA file</strong>. DeepVariant will assume
+that this file and the FASTA assembly are in the same directory.
+If not, an error will occur!</p>
+</div>
+<h3 id="align-short-reads-to-composite-fasta">Align short reads to composite FASTA<a class="headerlink" href="#align-short-reads-to-composite-fasta" title="Permanent link">&para;</a></h3>
+<p>After creating the composite FASTA, we can re-align the WGS reads used
+for the imputation steps to this new composite assembly. This can
+be accomplished using a short-read aligner such as 
+<a href="https://github.com/lh3/minimap2">minimap2</a> (<em>recommended</em>) or other 
+comparable software. Since this step is dependent on the choices made 
+by the end-user or group, we will provide an example of how to run 
+this via minimap2 in the following code block:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Run minimap2 to align the reads with the composite genome</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>minimap2<span class="w"> </span>-a<span class="w"> </span>-x<span class="w"> </span>sr<span class="w"> </span>-t<span class="w"> </span><span class="m">20</span><span class="w"> </span>--secondary<span class="o">=</span>no<span class="w"> </span>--eqx<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span>output/composite_assemblies/LineA_B_composite.fa<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span>data/short_reads/LineA_LineB_1.fq<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span>data/short_reads/LineA_LineB_2.fq<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">    </span>samtools<span class="w"> </span>view<span class="w"> </span>-b<span class="w"> </span>&gt;<span class="w"> </span>output/minimap2/LineA_B_composite_align.bam
+</span></code></pre></div>
+<p>In summary, this command is using the following <code>minimap2</code> parameters:</p>
+<ul>
+<li><code>-a</code> - output <strong>a</strong>lignments in <a href="https://samtools.github.io/hts-specs/SAMv1.pdf">SAM</a>
+  format</li>
+<li><code>-x sr</code> - alignment mode is <strong>s</strong>hort-<strong>r</strong>ead alignment</li>
+<li><code>-t 20</code> - run this alignment using <strong>20 threads</strong> on our example
+  machine (<em>this can be modified to leverage the full potential of
+  your machine</em>)</li>
+<li><code>--secondary=no</code> - suppress secondary alignments and report only
+  the primary alignment</li>
+<li><code>--eqx</code> - output the <a href="https://timd.one/blog/genomics/cigar.php">CIGAR</a>
+  string in "extended" format (<code>=</code> for matches and <code>X</code> for mismatches)</li>
+</ul>
+<p>This minimap2 procedure will create a SAM file that is piped (<code>|</code>)
+into the <a href="https://github.com/samtools/samtools">SAMtools</a> program which is converted (<code>view -b</code>) and
+saved (<code>&gt; output/minimap2/LineA_B_composite_align.bam</code>) as a BAM
+format for more efficient storage and downstream procedures.</p>
+<h3 id="filter-bam-files">Filter BAM files<a class="headerlink" href="#filter-bam-files" title="Permanent link">&para;</a></h3>
+<p>BAM files can be filtered using SAMtools (<em>recommended</em>) or other 
+SAM/BAM processing tools. We suggest running the following SAMtools
+commands: </p>
+<ul>
+<li>
+<p>Fix potential issues in paired-end reads of a BAM file by adjusting
+  and correcting mate information by ensuring each pair of reads has
+  accurate information about its mate score (<code>-m</code>):</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>samtools<span class="w"> </span>fixmate<span class="w"> </span>-m<span class="w"> </span>LineA_B_composite_align.bam<span class="w"> </span>LineA_B_composite_fm.bam
+</span></code></pre></div>
+</li>
+<li>
+<p>Sort alignments by reference sequence coordinates which is
+  necessary before deduplication and indexing:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>samtools<span class="w"> </span>sort<span class="w"> </span>--threads<span class="w"> </span><span class="m">8</span><span class="w"> </span>-T<span class="w"> </span>./tmp<span class="w"> </span>-o<span class="w"> </span>LineA_B_composite_sorted_fm.bam<span class="w"> </span>LineA_B_composite_fm.bam
+</span></code></pre></div>
+</li>
+<li>
+<p>Identify and remove duplicate reads:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>samtools<span class="w"> </span>markdup<span class="w"> </span>-r<span class="w"> </span>LineA_B_composite_sorted_fm.bam<span class="w"> </span>LineA_B_composite_dedup.bam
+</span></code></pre></div>
+</li>
+<li>
+<p>Exclude unmapped reads or those that are not properly paired:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>samtools<span class="w"> </span>view<span class="w"> </span>-F<span class="w"> </span><span class="m">4</span><span class="w"> </span>-f<span class="w"> </span><span class="m">2</span><span class="w"> </span>-b<span class="w"> </span>LineA_B_composite_dedup.bam<span class="w"> </span>&gt;<span class="w"> </span>LineA_B_composite_filtered.bam
+</span></code></pre></div>
+</li>
+<li>
+<p>Index alignments for fast random access:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>samtools<span class="w"> </span>index<span class="w"> </span>LineA_B_composite_filtered.bam
+</span></code></pre></div>
+</li>
+</ul>
+<h3 id="perform-variant-calling">Perform variant calling<a class="headerlink" href="#perform-variant-calling" title="Permanent link">&para;</a></h3>
+<p>After the BAM files have been filtered, we can now run variant
+calling. Since there are many different variant callers available,
+this step can become "highly opinionated" for various groups and
+users. In our current tests, we have found the results produced by
+<a href="https://github.com/google/deepvariant">DeepVariant</a> to be of high
+quality.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For more information on comparisons between different variant
+callers we have tested, please refer to the notes found
+<a href="../variant_comparisons/">on this page</a>.</p>
+</div>
+<p>Here we show an example of running DeepVariant on the prior BAM file. 
+The output of DeepVariant is a VCF file that contains 
+the variants called against the composite fasta made in the
+<a href="#create-a-composite-fasta-file">first step</a>. Assuming you have
+retrieved the <a href="https://github.com/google/deepvariant/blob/r1.6.1/docs/deepvariant-quick-start.md#get-docker-image">Docker image</a>
+for DeepVariant, the following command is an example of the
+recommended parameters to use for the program:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nv">PHG_DIR</span><span class="o">=</span>phg_v2_example/
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>docker<span class="w"> </span>run<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">    </span>-v<span class="w"> </span><span class="si">${</span><span class="nv">PHG_DIR</span><span class="si">}</span>:/workdir<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">    </span>google/deepvariant:1.6.1<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="w">    </span>/opt/deepvariant/bin/run_deepvariant<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="w">    </span>--model_type<span class="o">=</span>WGS<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="w">    </span>--ref<span class="o">=</span>/workdir/output/composite_assemblies/LineA_B_composite.fa<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="w">    </span>--reads<span class="o">=</span>/workdir/output/minimap2/LineA_B_composite_filtered.bam<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="w">    </span>--output_vcf<span class="o">=</span>/workdir/output/vcf_files/LineA_B_composite_reseq.vcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="w">    </span>--output_gvcf<span class="o">=</span>/workdir/output/vcf_files/LineA_B_composite_reseq.g.vcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-12"><a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a><span class="w">    </span>--intermediate_results_dir<span class="o">=</span>/workdir/intermediate_results<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-13"><a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a><span class="w">    </span>--num_shards<span class="o">=</span><span class="m">4</span>
+</span></code></pre></div>
+<p>If you have limited experience in what Docker and/or DeepVariant 
+commands are, here we explain in further detail the rationale for
+each of these parameters:</p>
+<p><strong>Docker commands</strong>:</p>
+<ul>
+<li><code>docker run</code>: base Docker command to run a container</li>
+<li><code>-v ${PHG_DIR}:/workdir</code>: This mounts the <strong>host system's</strong> (i.e., 
+  your machine) working PHG directory (specified as the variable, <code>PHG_DIR</code>) 
+  to the <code>/workdir</code> directory inside the container. This would be
+  the path on your machine that contains the necessary files 
+  (<em>discussed below</em>). Here, I am mounting it to the "example" PHG
+  directory that was used previously.</li>
+</ul>
+<p><strong>DeepVariant commands</strong>:</p>
+<ul>
+<li><code>google/deepvariant:1.6.1</code>: This specifies the version of the
+  DeepVariant Docker image to use (<code>1.6.1</code> in this case since this is
+  the latest version as of writing this documentation).</li>
+<li><code>/opt/deepvariant/bin/run_deepvariant</code>: This specifies the path
+  inside the Docker container to the DeepVariant executable script
+  that orchestrates the variant calling pipeline.</li>
+</ul>
+<p><strong>DeepVariant input parameters</strong>:</p>
+<ul>
+<li><code>--model_type=WGS</code>: Specifies the model type to use for variant
+  calling. In this case, <code>WGS</code> stands for "<strong>W</strong>hole <strong>G</strong>enome 
+  <strong>S</strong>equencing".</li>
+<li><code>--ref=/workdir/output/composite_assemblies/LineA_B_composite.fa</code>:
+  The reference genome in FASTA format that DeepVariant will use for
+  alignment and variant calling. The reference file in this case
+  <strong>will be the composite FASTA file created earlier</strong>.</li>
+<li><code>--reads=/workdir/output/minimap2/LineA_B_composite_filtered.bam</code>:
+  Specifies the prior <strong>sorted and indexed BAM file</strong> containing the
+  aligned sequencing reads.</li>
+<li><code>--output_vcf=/workdir/output/vcf_files/LineA_B_composite_reseq.vcf</code>:
+  The output VCF file path where DeepVariant will write the called
+  variants.</li>
+<li><code>--output_gvcf=/workdir/output/vcf_files/LineA_B_composite_reseq.g.vcf</code>:
+  The output gVCF file path.</li>
+<li><code>--intermediate_results_dir=/workdir/intermediate_results</code>: The
+  directory where DeepVariant will write intermediate files generated
+  during the analysis. These files are useful for debugging or
+  optimizing performance, but can be deleted after run if not needed.</li>
+<li><code>--num_shards=4</code>: This specifies the number of CPU cores or threads
+  to parallelize the job across. In this case, we are using <code>4</code> CPU
+  threads. The higher number of shards, the faster the job, but will
+  require more computational resources.</li>
+</ul>
+<h3 id="filter-variants">Filter variants<a class="headerlink" href="#filter-variants" title="Permanent link">&para;</a></h3>
+<p>To identify rare alleles, the VCF file output by the variant caller 
+should be filtered to select variants based on quality scores, depth, 
+or other measures. The following is an example of how to use 
+<a href="https://github.com/samtools/bcftools">bcftools</a> to filter the VCF 
+file created above:</p>
+<p><div class="language-shell highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>bcftools<span class="w"> </span>view<span class="w"> </span>-m2<span class="w"> </span>-M2<span class="w"> </span>-v<span class="w"> </span>snps<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">    </span>-i<span class="w"> </span><span class="s1">&#39;QUAL&gt;20 &amp;&amp; GT=&quot;1/1&quot; &amp;&amp; DP&gt;4&#39;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span>output/vcf_files/LineA_B_composite_reseq.vcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">    </span>-o<span class="w"> </span>output/vcf_files/LineA_B_composite_reseq_filt.vcf
+</span></code></pre></div>
+In summary, this command is using the following bcftools parameters:</p>
+<ul>
+<li><code>-m2</code>: Specifies that only <strong>diploid variants</strong> should be included.
+  The value <code>2</code> represents the ploidy level (diploid).</li>
+<li><code>-M2</code>: Ensures that variants with more than two alleles are
+  excluded. Using this in conjunction with <code>-m2</code> ensures that only
+  <strong>biallelic diploid variants</strong> are retained.</li>
+<li><code>-v snps</code>: This option restricts the output to only <strong>SNPs</strong>.</li>
+<li><code>-i 'QUAL&gt;20 &amp;&amp; GT="1/1" &amp;&amp; DP&gt;4'</code>: This specifies the filtering
+  conditions in which variants have the qualities:<ul>
+<li><code>QUAL&gt;20</code>: only include variants with a <strong>quality score greater
+  than 20</strong>. The quality score indicates the confidence of the
+  variant call, and this filter ensures that only high-confidence
+  variants are retained.</li>
+<li><code>GT="1/1"</code>: this ensures that only <strong>homozygous alternate
+  variants</strong> are included (where the genotype is <code>1/1</code>, 
+  indicating) both alleles are the alternate allele).</li>
+<li><code>DP&gt;4</code>: retain only variants with a <strong>depth of coverage
+  greater than 4</strong>. The depth of coverage (<code>DP</code>) indicates the
+  number of reads covering the variant position.</li>
+</ul>
+</li>
+<li><code>output/vcf_files/LineA_B_composite_reseq.vcf</code>: the
+  input VCF file that contains the variants to be filtered.</li>
+<li><code>-o output/vcf_files/LineA_B_composite_reseq_filt.vcf</code>: 
+  the output file where the filtered variants will be saved.</li>
+</ul>
+<h3 id="create-final-vcf-in-haplotype-coordinates">Create final VCF in haplotype coordinates<a class="headerlink" href="#create-final-vcf-in-haplotype-coordinates" title="Permanent link">&para;</a></h3>
+<p>Now that we have retained "high quality" variants, we can finally
+convert the coordinates from the composite FASTA file to coordinates
+found in the haplotypes within PHG population. To perform this, we
+can use a PHGv2 command called <code>composite-to-haplotype-coords</code>:</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The VCF coordinates created in this step will <strong>not</strong> be based on
+reference coordinates or coordinates relative to any single
+assembly. They will be relative to the haplotypes used to make
+the composite assembly!</p>
+</div>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>phg<span class="w"> </span>composite-to-haplotype-coords<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">    </span>--path-hvcf<span class="w"> </span>output/vcf_files_imputed/LineA_B.h.vcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">    </span>--variant-vcf<span class="w"> </span>output/vcf_files/LineA_B_composite_reseq_filt.vcf<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span>--sample-name<span class="w"> </span>LineA_B<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">    </span>--output-file<span class="w"> </span>output/vcf_files/LineA_B_reseq_hap_coords.vcf
+</span></code></pre></div>
+<p>In summary, this command takes 4 parameters:</p>
+<ul>
+<li><code>--path-hvcf</code>: path to the imputed hVCF file created during the
+  <a href="../imputation/">imputation steps</a>.</li>
+<li><code>--variant-vcf</code>: path to the <a href="#filter-variants">filtered VCF file</a> 
+  created by the prior variant caller (e.g., DeepVariant).</li>
+<li><code>--sample-name</code>: sample ID to include in the VCF file.</li>
+<li><code>--output-file</code>: path and name of coordinate converted VCF file.</li>
+</ul>
+<h2 id="miscellaneous">Miscellaneous<a class="headerlink" href="#miscellaneous" title="Permanent link">&para;</a></h2>
+<p>In the following sections, we present possible alternate workflows
+that may arise due to the attributes of your starting data:</p>
+<h3 id="wgs-reads-coming-from-multiple-libraries">WGS reads coming from multiple libraries:<a class="headerlink" href="#wgs-reads-coming-from-multiple-libraries" title="Permanent link">&para;</a></h3>
+<p>In certain cases, you may have reads that come from multiple flowcell
+or sequencing libraries. To align short reads to the composite, you
+can add read grouping information (<code>-R</code>) to minimap2. In the
+following example, we have three WGS libraries for the sample <code>P39</code>:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Run minimap2 to align the reads with the composite genome</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="nv">FASTA_DIR</span><span class="o">=</span>/workdir/lcj34/phg_v2/testing/fastas
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="nv">FASTQ_DIR</span><span class="o">=</span>/workdir/lcj34/phg_v2/testing/fastqFiles
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="nv">WORK_DIR</span><span class="o">=</span>/workdir/lcj34/phg_v2/testing
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>minimap2<span class="w"> </span>-a<span class="w"> </span>-x<span class="w"> </span>sr<span class="w"> </span>-t<span class="w"> </span><span class="m">20</span><span class="w"> </span>--secondary<span class="o">=</span>no<span class="w"> </span>--eqx<span class="w"> </span>-R<span class="w"> </span><span class="s1">&#39;@RG\tID:READ_GRP1\tSM:P39&#39;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">    </span><span class="si">${</span><span class="nv">FASTA_DIR</span><span class="si">}</span>/P39wgs_composite.fa<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="w">    </span><span class="si">${</span><span class="nv">FASTQ_DIR</span><span class="si">}</span>/P39/P39_HBEN2ADXX_GTGAAA_R1.fastq.gz<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="w">    </span><span class="si">${</span><span class="nv">FASTQ_DIR</span><span class="si">}</span>/P39/P39_HBEN2ADXX_GTGAAA_R2.fastq.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a><span class="w">    </span>samtools<span class="w"> </span>view<span class="w"> </span>-b<span class="w"> </span>&gt;<span class="w"> </span><span class="si">${</span><span class="nv">WORK_DIR</span><span class="si">}</span>/p39top39composite_bams/P39_HBEN2ADXX_GTGAAA.ori.bam
+</span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a>
+</span><span id="__span-19-12"><a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a>minimap2<span class="w"> </span>-a<span class="w"> </span>-x<span class="w"> </span>sr<span class="w"> </span>-t<span class="w"> </span><span class="m">20</span><span class="w"> </span>--secondary<span class="o">=</span>no<span class="w"> </span>--eqx<span class="w"> </span>-R<span class="w"> </span><span class="s1">&#39;@RG\tID:READ_GRP2\tSM:P39&#39;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-13"><a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a><span class="w">    </span><span class="si">${</span><span class="nv">FASTA_DIR</span><span class="si">}</span>/P39wgs_composite.fa<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-14"><a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a><span class="w">    </span><span class="si">${</span><span class="nv">FASTQ_DIR</span><span class="si">}</span>/P39/P39__HFFGKADXX_GTGAAA_R1.fastq.gz<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-15"><a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a><span class="w">    </span><span class="si">${</span><span class="nv">FASTQ_DIR</span><span class="si">}</span>/P39/P39__HFFGKADXX_GTGAAA_R2.fastq.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-16"><a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a><span class="w">    </span>samtools<span class="w"> </span>view<span class="w"> </span>-b<span class="w"> </span>&gt;<span class="w"> </span><span class="si">${</span><span class="nv">WORK_DIR</span><span class="si">}</span>/p39top39composite_bams/P39_HFFGKADXX_GTGAAA.ori.bam
+</span><span id="__span-19-17"><a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a>
+</span><span id="__span-19-18"><a id="__codelineno-19-18" name="__codelineno-19-18" href="#__codelineno-19-18"></a>minimap2<span class="w"> </span>-a<span class="w"> </span>-x<span class="w"> </span>sr<span class="w"> </span>-t<span class="w"> </span><span class="m">20</span><span class="w"> </span>--secondary<span class="o">=</span>no<span class="w"> </span>--eqx<span class="w"> </span>-R<span class="w"> </span><span class="s1">&#39;@RG\tID:READ_GRP3\tSM:P39&#39;</span>
+</span><span id="__span-19-19"><a id="__codelineno-19-19" name="__codelineno-19-19" href="#__codelineno-19-19"></a><span class="w">    </span><span class="si">${</span><span class="nv">FASTA_DIR</span><span class="si">}</span>/P39wgs_composite.fa<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-20"><a id="__codelineno-19-20" name="__codelineno-19-20" href="#__codelineno-19-20"></a><span class="w">    </span><span class="si">${</span><span class="nv">FASTQ_DIR</span><span class="si">}</span>/P39/P39_HL5WNCCXX_GTGAAA_R1.fastq.gz<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-21"><a id="__codelineno-19-21" name="__codelineno-19-21" href="#__codelineno-19-21"></a><span class="w">    </span><span class="si">${</span><span class="nv">FASTQ_DIR</span><span class="si">}</span>/P39/P39_HL5WNCCXX_GTGAAA_R2.fastq.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-22"><a id="__codelineno-19-22" name="__codelineno-19-22" href="#__codelineno-19-22"></a><span class="w">    </span>samtools<span class="w"> </span>view<span class="w"> </span>-b<span class="w"> </span>&gt;<span class="w"> </span><span class="si">${</span><span class="nv">WORK_DIR</span><span class="si">}</span>/p39top39composite_bams/P39_HL5WNCCXX_GTGAAA.ori.bam
+</span></code></pre></div>
+<p>In the above example, read groupings are added using the <code>-R</code> 
+parameter found in minimap2. Each WGS library will get its own
+read group:</p>
+<ul>
+<li><code>ID:READ_GRP1</code> - <code>ID:READ_GRP3</code>: specifies that the read group
+  identifier is <code>READ_GRP1</code> through <code>READ_GRP3</code></li>
+<li><code>SM:P39</code>: The sample name. In this case, it is <code>P39</code></li>
+</ul>
+<p>After alignment, the BAM files can be merged into one using the 
+<code>merge</code> command from samtools:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>samtools merge -b /path/to/bam.list /path/to/merged.bam
+</span></code></pre></div>
+<ul>
+<li>
+<p><code>-b</code>: A list of BAM files to merge. This would be a plain-text
+  list of file paths. For example:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>/path/to/sample1.bam
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>/path/to/sample2.bam
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>/path/to/sample3.bam
+</span></code></pre></div>
+</li>
+</ul>
+<p>After merging, the BAM file can be sorted and indexed using the
+prior guidelines:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>samtools sort --threads 8 -T ./tmp -o /path/to/merged.sorted.bam /path/to/merged.bam
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>samtools index /path/to/merged.sorted.bam
+</span></code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2023 - 2025  <a href="https://www.maizegenetics.net "><b>Buckler Lab</b></a>
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/maize-genetics" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.youtube.com/c/BucklerLab" target="_blank" rel="noopener" title="www.youtube.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M549.7 124.1c-6.2-23.7-24.8-42.3-48.3-48.6C458.9 64 288.1 64 288.1 64S117.3 64 74.7 75.5c-23.5 6.3-42 24.9-48.3 48.6C15 167 15 256.4 15 256.4s0 89.4 11.4 132.3c6.3 23.6 24.8 41.5 48.3 47.8C117.3 448 288.1 448 288.1 448s170.8 0 213.4-11.5c23.5-6.3 42-24.2 48.3-47.8 11.4-42.9 11.4-132.3 11.4-132.3s0-89.4-11.4-132.3zM232.2 337.6V175.2l142.7 81.2z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.select", "content.code.copy", "content.code.annotate", "navigation.tabs", "navigation.top", "navigation.sections", "navigation.indexes", "navigation.expand", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascript/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

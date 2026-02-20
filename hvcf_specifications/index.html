@@ -1,0 +1,2334 @@
+<!-- Elements added to main will be displayed on all pages -->
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Pangenome system for plant breeding and genetics">
+      
+      
+        <meta name="author" content="Buckler Lab">
+      
+      
+        <link rel="canonical" href="https://phg.maizegenetics.net/hvcf_specifications/">
+      
+      
+        <link rel="prev" href="../export_data/">
+      
+      
+        <link rel="next" href="../ktor_specifications/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../img/product/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.2">
+    
+    
+      
+        <title>hVCF specifications - Practical Haplotype Graph</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="green">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#hvcf-haplotype-variant-call-format-specification" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Practical Haplotype Graph" class="md-header__button md-logo" aria-label="Practical Haplotype Graph" data-md-component="logo">
+      
+  <img src="../img/product/phg_logo_white.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Practical Haplotype Graph
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              hVCF specifications
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/maize-genetics/phg_v2" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    PHGv2
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href=".." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../installation/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../citations/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Community
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Practical Haplotype Graph" class="md-nav__button md-logo" aria-label="Practical Haplotype Graph" data-md-component="logo">
+      
+  <img src="../img/product/phg_logo_white.svg" alt="logo">
+
+    </a>
+    Practical Haplotype Graph
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/maize-genetics/phg_v2" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    PHGv2
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href=".." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Home
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../build_and_load/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building and loading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Imputation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Imputation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imputation_ropebwt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RopeBWT3 Imputation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imputation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    k-mer Imputation (Deprecated)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resequencing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resequencing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../export_data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exporting data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_1" id="__nav_3_1_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specifications
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Specifications
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    hVCF specifications
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    hVCF specifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-hvcf-specification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The hVCF specification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The hVCF specification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#an-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        An example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#meta-information-lines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Meta-information lines
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Meta-information lines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-format-fileformat-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File format (##fileformat) field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alternative-allele-alt-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternative allele (##ALT) field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#individual-format-format-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Individual format (##FORMAT) field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#information-info-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Information (##INFO) field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sequence-information-contig-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequence information (##contig) field
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#header" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Header
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-lines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data lines
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data lines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#haplotype-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Haplotype fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ktor_specifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ktor specifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ps4g_specifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PS4G specifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional commands
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Optional commands
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../convenience_commands/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Convenience commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../qc_metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QC metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Miscellaneous articles
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Miscellaneous articles
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hvcf_region_handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    hVCF region handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../slurm_usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SLURM usage for alignment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../terminology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../variant_comparisons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Variant caller comparisons
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Community
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Community
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../citations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    References
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CONTRIBUTING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CODE_OF_CONDUCT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code of Conduct
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-hvcf-specification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The hVCF specification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The hVCF specification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#an-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        An example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#meta-information-lines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Meta-information lines
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Meta-information lines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-format-fileformat-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File format (##fileformat) field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alternative-allele-alt-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternative allele (##ALT) field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#individual-format-format-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Individual format (##FORMAT) field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#information-info-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Information (##INFO) field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sequence-information-contig-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequence information (##contig) field
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#header" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Header
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-lines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data lines
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data lines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#haplotype-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Haplotype fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="hvcf-haplotype-variant-call-format-specification">hVCF - <strong>h</strong>aplotype <strong>V</strong>ariant <strong>C</strong>all <strong>F</strong>ormat Specification<a class="headerlink" href="#hvcf-haplotype-variant-call-format-specification" title="Permanent link">&para;</a></h1>
+<ul>
+<li><strong><em>Specification version:</em></strong> <code>v2.4</code></li>
+<li><strong><em>Date:</em></strong> 2024-11-19</li>
+</ul>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>hVCF stands for <strong>h</strong>aplotype <strong>V</strong>ariant <strong>C</strong>all <strong>F</strong>ormat. This 
+format is used to store and encode haplotype information across 
+samples from the PHG (<a href="https://github.com/maize-genetics/phg_v2">Practical Haplotype Graph</a>).
+An hVCF file is based on the standards of a VCF file, specifically, 
+<a href="http://samtools.github.io/hts-specs/VCFv4.2.pdf">VCF v4.2</a>. This 
+format leverages VCF's symbolic allele information from the <code>ALT</code> 
+field.</p>
+<h2 id="the-hvcf-specification">The hVCF specification<a class="headerlink" href="#the-hvcf-specification" title="Permanent link">&para;</a></h2>
+<p>hVCF files can be broken into 3 main components:
+* Meta-information lines
+* Header line
+* Data lines containing information for each reference range
+  * Fixed fields
+  * Haplotype fields</p>
+<h3 id="an-example">An example<a class="headerlink" href="#an-example" title="Permanent link">&para;</a></h3>
+<p>The following code block illustrates a formatted <a href="../convenience_commands/#merge-hvcf-files">and merged</a> example hVCF file:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>##fileformat=VCFv4.2
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>##FILTER=&lt;ID=PASS,Description=&quot;All filters passed&quot;&gt;
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>##ALT=&lt;ID=06ae4e937668d301e325d43725a38c3f,Description=&quot;haplotype data for line: Ref&quot;,Source=&quot;data/test/smallseq/Ref.fa&quot;,SampleName=Ref,Regions=1:45001-49500,Checksum=06ae4e937668d301e325d43725a38c3f,RefChecksum=06ae4e937668d301e325d43725a38c3,RefRange=1:45001-49500&gt;
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>##ALT=&lt;ID=073286a82fe47d6a370e8a7a3803f1d3,Description=&quot;haplotype data for line: Ref&quot;,Source=&quot;data/test/smallseq/Ref.fa&quot;,SampleName=Ref,Regions=1:39501-44000,Checksum=073286a82fe47d6a370e8a7a3803f1d3,RefChecksum=073286a82fe47d6a370e8a7a3803f1d,RefRange=1:39501-44000&gt;
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>##ALT=&lt;ID=105c85412229b45439db1f03c3f064f4,Description=&quot;haplotype data for line: Ref&quot;,Source=&quot;data/test/smallseq/Ref.fa&quot;,SampleName=Ref,Regions=1:27501-28500,Checksum=105c85412229b45439db1f03c3f064f4,RefChecksum=105c85412229b45439db1f03c3f064f,RefRange=1:27501-28500&gt;
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>##ALT=&lt;ID=105e63346a01d88e8339eddf9131c435,Description=&quot;haplotype data for line: Ref&quot;,Source=&quot;data/test/smallseq/Ref.fa&quot;,SampleName=Ref,Regions=2:50501-55000,Checksum=105e63346a01d88e8339eddf9131c435,RefChecksum=105e63346a01d88e8339eddf9131c43,RefRange=2:50501-55000&gt;
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>##ALT=&lt;ID=2c4b8564bbbdf70c6560fdefdbe3ef6a,Description=&quot;haplotype data for line: Ref&quot;,Source=&quot;data/test/smallseq/Ref.fa&quot;,SampleName=Ref,Regions=2:34001-38500,Checksum=2c4b8564bbbdf70c6560fdefdbe3ef6a,RefChecksum=2c4b8564bbbdf70c6560fdefdbe3ef6,RefRange=2:34001-38500&gt;
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>##ALT=&lt;ID=347f0478b1a553ef107243cb60a9ba7d,Description=&quot;haplotype data for line: Ref&quot;,Source=&quot;data/test/smallseq/Ref.fa&quot;,SampleName=Ref,Regions=2:11001-12000,Checksum=347f0478b1a553ef107243cb60a9ba7d,RefChecksum=347f0478b1a553ef107243cb60a9ba7,RefRange=2:11001-12000&gt;
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>##ALT=&lt;ID=39f96726321b329964435865b3694fd2,Description=&quot;haplotype data for line: Ref&quot;,Source=&quot;data/test/smallseq/Ref.fa&quot;,SampleName=Ref,Regions=2:49501-50500,Checksum=39f96726321b329964435865b3694fd2,RefChecksum=39f96726321b329964435865b3694fd,RefRange=2:49501-50500&gt;
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>##ALT=&lt;ID=43687e13112bbe841f811b0a9de82a94,Description=&quot;haplotype data for line: Ref&quot;,Source=&quot;data/test/smallseq/Ref.fa&quot;,SampleName=Ref,Regions=2:22001-23000,Checksum=43687e13112bbe841f811b0a9de82a94,RefChecksum=43687e13112bbe841f811b0a9de82a9,RefRange=2:22001-23000&gt;
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>##ALT=&lt;ID=546d1839623a5b0ea98bbff9a8a320e2,Description=&quot;haplotype data for line: Ref&quot;,Source=&quot;data/test/smallseq/Ref.fa&quot;,SampleName=Ref,Regions=1:1-1000,Checksum=546d1839623a5b0ea98bbff9a8a320e2,RefChecksum=546d1839623a5b0ea98bbff9a8a320e2,RefRange=1:1-1000&gt;
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>##ALT=&lt;ID=57705b1e2541c7634ea59a48fc52026f,Description=&quot;haplotype data for line: Ref&quot;,Source=&quot;data/test/smallseq/Ref.fa&quot;,SampleName=Ref,Regions=1:1001-5500,Checksum=57705b1e2541c7634ea59a48fc52026f,RefChecksum=57705b1e2541c7634ea59a48fc52026f,RefRange=1:1001-5500&gt;
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>##ALT=&lt;ID=1bda8c63ae8e2f3678b85bac0ee7b8b9,Description=&quot;haplotype data for line: B97&quot;,Source=&quot;data/test/smallseq/B97.fa&quot;,SampleName=B97,Regions=1:1250-6750,Checksum=1bda8c63ae8e2f3678b85bac0ee7b8b9,RefChecksum=57705b1e2541c7634ea59a48fc52026f,RefRange=1:1001-5500&gt;
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>##ALT=&lt;ID=5fedf293a1a5443cc896d59f12d1b92f,Description=&quot;haplotype data for line: CML231&quot;Source=&quot;data/test/smallseq/CML231.fa&quot;,SampleName=CML231,Regions=2:22001-23000,Checksum=5fedf293a1a5443cc896d59f12d1b92f,RefChecksum=43687e13112bbe841f811b0a9de82a94,RefRange=2:22001-23000&gt;
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>##FORMAT=&lt;ID=GT,Number=1,Type=String,Description=&quot;Genotype&quot;&gt;
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>##INFO=&lt;ID=END,Number=1,Type=Integer,Description=&quot;Stop position of the interval&quot;&gt;
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>##contig=&lt;ID=1,length=55000&gt;
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>##contig=&lt;ID=2,length=55000&gt;
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>##reference=https://s3.amazonaws.com/maizegenetics/phg/phgV2Test/Ref.fa
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>#CHROM POS   ID REF ALT                                                                   QUAL FILTER INFO      FORMAT Ref B97 CML231
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>1      1     .  G   &lt;546d1839623a5b0ea98bbff9a8a320e2&gt;                                    .    .      END=1000  GT     1   1   1
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>1      1001  .  A   &lt;57705b1e2541c7634ea59a48fc52026f&gt;,&lt;1bda8c63ae8e2f3678b85bac0ee7b8b9&gt; .    .      END=5500  GT     1   2   1
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>1      27501 .  G   &lt;105c85412229b45439db1f03c3f064f4&gt;                                    .    .      END=28500 GT     1   1   1
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>1      39501 .  G   &lt;073286a82fe47d6a370e8a7a3803f1d3&gt;                                    .    .      END=44000 GT     1   1   1
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>1      45001 .  G   &lt;06ae4e937668d301e325d43725a38c3f&gt;                                    .    .      END=49500 GT     1   1   1
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>2      11001 .  A   &lt;347f0478b1a553ef107243cb60a9ba7d&gt;                                    .    .      END=12000 GT     1   1   1
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>2      22001 .  A   &lt;43687e13112bbe841f811b0a9de82a94&gt;,&lt;5fedf293a1a5443cc896d59f12d1b92f&gt; .    .      END=23000 GT     1   1   2
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>2      34001 .  A   &lt;2c4b8564bbbdf70c6560fdefdbe3ef6a&gt;                                    .    .      END=38500 GT     1   1   1
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>2      49501 .  G   &lt;39f96726321b329964435865b3694fd2&gt;                                    .    .      END=50500 GT     1   1   1
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>2      50501 .  G   &lt;105e63346a01d88e8339eddf9131c435&gt;                                    .    .      END=55000 GT     1   1   1
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In the prior example, the hVCF output columns below the header line
+(e.g. below the line starting with <code>#CHROM</code>) are formatted for 
+visual clarity. In a real example, delimiters are tab (<code>\t</code>) based.</p>
+</div>
+<h3 id="meta-information-lines">Meta-information lines<a class="headerlink" href="#meta-information-lines" title="Permanent link">&para;</a></h3>
+<p>The header portion of an hVCF file contain rows of "meta-information"
+, which are lines that start with <code>##</code> and must appear first in the 
+file. Like a VCF file, hVCF files can contain both <strong>unstructured</strong> 
+and <strong>structured</strong> meta-information.</p>
+<p><strong>Unstructured</strong> meta-information is characterized by a 
+straightforward pairing of <code>key=value</code> logic. For instance, in the 
+previous illustration, the <code>##fileformat=VCF4.2</code> represents 
+unstructured meta-information, with <code>##=fileformat</code> serving as the 
+<em>key</em> and <code>VCF4.2</code> as the corresponding <em>value</em>.</p>
+<p><strong>Structured</strong> meta-information also consists of a key-value pair,
+but in this case, the value is a collection of additional key-value
+pairs separated by a comma (<code>,</code>) and enclosed with angle brackets
+(<code>&lt;</code> and <code>&gt;</code>). In our prior example, sequence information fields
+(e.g. <code>##contig=&lt;ID=chr7,length=461&gt;</code>) represent structured 
+meta-information where <code>##contig</code> is the primary key and 
+<code>&lt;ID=chr7,length=461&gt;</code> is the value containing nested key-value pairs:</p>
+<ul>
+<li><code>ID=chr7</code></li>
+<li><code>length=461</code></li>
+</ul>
+<h4 id="file-format-fileformat-field">File format (<code>##fileformat</code>) field<a class="headerlink" href="#file-format-fileformat-field" title="Permanent link">&para;</a></h4>
+<p>Similar to VCF, a single line containing file format information
+(e.g. <code>fileformat</code>) <em>must</em> be the <em>first line in the file</em>. In the
+case of hVCF files, the version must be version 4.4 of the VCF
+specification (<code>VCFv4.4</code>).</p>
+<h4 id="alternative-allele-alt-field">Alternative allele (<code>##ALT</code>) field<a class="headerlink" href="#alternative-allele-alt-field" title="Permanent link">&para;</a></h4>
+<p><strong>The primary driver of the hVCF specification is information stored
+within the structured alternative allele field.</strong> At its core, the 
+alternative allele field contains two primary key-values pairs, the 
+<code>ID</code> and <code>Description</code> which describe symbolic alternate alleles in 
+the <code>ALT</code> column of VCF records. While this field is usually used 
+to describe possible structural variants and 
+<a href="https://www.bioinformatics.org/sms/iupac.html">IUPAC ambiguity codes</a>,
+here it is used to represent a haplotype sequence and ID for a 
+given reference range. This is achieved by defining the <code>ID</code> value
+with an <a href="https://en.wikipedia.org/wiki/MD5">MD5</a> checksum of the
+given haplotype sequence and defining the <code>Description</code> value with
+information about the origin of the haplotype sequence. </p>
+<p>Since this haplotype sequence is (I) derived from a particular 
+sample, (II) related to reference range information, 
+and (III) has its own positional information, we can populate 
+the alternative allele field with additional key-value information. 
+Take the following example:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>##ALT=&lt;ID=1bda8c63ae8e2f3678b85bac0ee7b8b9,Description=&quot;haplotype data for line: B97&quot;,Source=&quot;data/test/smallseq/B97.fa&quot;,SampleName=B97,Regions=1:1250-6750,Checksum=1bda8c63ae8e2f3678b85bac0ee7b8b9,RefChecksum=57705b1e2541c7634ea59a48fc52026f,RefRange=1:1001-5500&gt;
+</span></code></pre></div>
+<p>Here, we have the following information:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ID</code></td>
+<td><code>1bda8c63ae8e2f3678b85bac0ee7b8b9</code></td>
+<td>Identifier for the given haplotype sequence. Can be either the MD5 checksum or a <a href="https://tidyomics.com/blog/2018/12/09/2018-12-09-the-devil-0-and-1-coordinate-system-in-genomics/">1-based</a> genomic range identifier format (i.e., <code>contig:start-end</code>)</td>
+</tr>
+<tr>
+<td><code>Description</code></td>
+<td><code>"haplotype data for line: B97"</code></td>
+<td>Information about the origin of the haplotype sequence.</td>
+</tr>
+<tr>
+<td><code>Source</code></td>
+<td><code>"data/test/smallseq/B97.fa"</code></td>
+<td>Fasta file ID and path containing haplotype sequence</td>
+</tr>
+<tr>
+<td><code>SampleName</code></td>
+<td><code>B97</code></td>
+<td>The sample ID from which the haplotype originated.</td>
+</tr>
+<tr>
+<td><code>Regions</code></td>
+<td><code>1:1250-6750</code></td>
+<td>List of genomic regions which make up the haplotype. Regions are also represented in a 1-based genomic range identifier format (i.e., <code>contig:start-end</code>). If sub-regions are present, they will be separated by commas (e.g., <code>1:100-200,1:205-300</code>).</td>
+</tr>
+<tr>
+<td><code>Checksum</code></td>
+<td><code>1bda8c63ae8e2f3678b85bac0ee7b8b9</code></td>
+<td>The MD5 checksum for the haplotype sequence.</td>
+</tr>
+<tr>
+<td><code>RefChecksum</code></td>
+<td><code>06ae4e937668d301e325d43725a38c3f</code></td>
+<td>The MD5 checksum for the reference range sequence. If the sample in question is the reference assembly, this value will be the same as the value found in the <code>Checksum</code> key.</td>
+</tr>
+<tr>
+<td><code>RefRange</code></td>
+<td><code>1:45001-49500</code></td>
+<td>The genomic region the reference range sequence originate. Also represented in a 1-based genomic range identifier format (i.e., <code>contig:start-end</code>).</td>
+</tr>
+</tbody>
+</table>
+<h4 id="individual-format-format-field">Individual format (<code>##FORMAT</code>) field<a class="headerlink" href="#individual-format-format-field" title="Permanent link">&para;</a></h4>
+<p>The meta-information contained in the individual format field closely 
+adheres to the VCF specification. This structured field provides a 
+description of the IDs found within the <code>FORMAT</code> column of the data 
+rows. The necessary keys are as follows:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ID</code></td>
+<td>Identifier for <code>FORMAT</code> entry</td>
+</tr>
+<tr>
+<td><code>Number</code></td>
+<td>Number (integer) of values representing <code>ID</code></td>
+</tr>
+<tr>
+<td><code>Type</code></td>
+<td><a href="http://samtools.github.io/hts-specs/VCFv4.4.pdf#subsection.1.3">Data type</a> for <code>ID</code></td>
+</tr>
+<tr>
+<td><code>Description</code></td>
+<td>Descriptive information about <code>ID</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="information-info-field">Information (<code>##INFO</code>) field<a class="headerlink" href="#information-info-field" title="Permanent link">&para;</a></h4>
+<p>Much like the <code>##FORMAT</code> field, the <code>##INFO</code> field is a structured 
+meta-information field that provides details pertaining to each 
+reference range and the corresponding haplotype data contained within 
+those reference ranges. Similar to the <code>##FORMAT</code> field, the 
+necessary keys are as follows:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ID</code></td>
+<td>Identifier for <code>FORMAT</code> entry. Defaults to <code>END</code></td>
+</tr>
+<tr>
+<td><code>Number</code></td>
+<td>Number (integer) of values representing <code>ID</code></td>
+</tr>
+<tr>
+<td><code>Type</code></td>
+<td><a href="http://samtools.github.io/hts-specs/VCFv4.2.pdf#subsection.1.3">Data type</a> for <code>ID</code></td>
+</tr>
+<tr>
+<td><code>Description</code></td>
+<td>Descriptive information about <code>ID</code></td>
+</tr>
+</tbody>
+</table>
+<p>In order to properly represent the information regarding reference
+ranges, the following values are required:</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>End</code></td>
+<td>End position of reference range (bp)</td>
+</tr>
+</tbody>
+</table>
+<p>By combining the values identified within the <code>POS</code> column and the
+<code>END</code> value, we can specify the total length of the reference range
+along with assembly information.</p>
+<h4 id="sequence-information-contig-field">Sequence information (<code>##contig</code>) field<a class="headerlink" href="#sequence-information-contig-field" title="Permanent link">&para;</a></h4>
+<p>The contig field is used to detail additional attributes for
+each sequence represented within the haplotype data. For now,
+this is a structured field requiring the identifier (<code>ID</code>) for the 
+sequence and the length of the mentioned sequence (<code>length</code>)</p>
+<h3 id="header">Header<a class="headerlink" href="#header" title="Permanent link">&para;</a></h3>
+<p>Like the VCF specifications, the 8 mandatory tab-delimited (<code>\t</code>) 
+column headers are required:</p>
+<ul>
+<li><code>#CHROM</code></li>
+<li><code>POS</code></li>
+<li><code>ID</code></li>
+<li><code>REF</code></li>
+<li><code>ALT</code></li>
+<li><code>QUAL</code></li>
+<li><code>FILTER</code></li>
+</ul>
+<p>Since genotype (i.e. haplotype information) data is also required,
+the <code>FORMAT</code> column is also required with the <code>GT</code> identifier.
+More information about each of these fields is discussed in the
+next section.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The end of the line must have no tab characters (<code>\t</code>).</p>
+</div>
+<h3 id="data-lines">Data lines<a class="headerlink" href="#data-lines" title="Permanent link">&para;</a></h3>
+<h4 id="fixed-fields">Fixed fields<a class="headerlink" href="#fixed-fields" title="Permanent link">&para;</a></h4>
+<p>There are 8 fixed fields for each reference range record:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CHROM</code></td>
+<td>sequence identifier</td>
+</tr>
+<tr>
+<td><code>POS</code></td>
+<td>start position of reference range</td>
+</tr>
+<tr>
+<td><code>ID</code></td>
+<td>an optional identifier for a reference range record</td>
+</tr>
+<tr>
+<td><code>REF</code></td>
+<td>The allele at the start position for reference haplotype sequence</td>
+</tr>
+<tr>
+<td><code>ALT</code></td>
+<td>MD5 hash sums for each possible haplotype sequence detected at a given reference range record</td>
+</tr>
+<tr>
+<td><code>QUAL</code></td>
+<td>quality score (<em>needed to satisfy VCF specifications</em>)</td>
+</tr>
+<tr>
+<td><code>FILTER</code></td>
+<td>filter status (<em>needed to satisfy VCF specifications</em>)</td>
+</tr>
+<tr>
+<td><code>INFO</code></td>
+<td>information field used to represent the end position (<code>END</code>) value for the reference range record</td>
+</tr>
+</tbody>
+</table>
+<h4 id="haplotype-fields">Haplotype fields<a class="headerlink" href="#haplotype-fields" title="Permanent link">&para;</a></h4>
+<p>Haplotype information must be specified by first creating a format
+field (<code>FORMAT</code>) field along with a genotype (<code>GT</code>) identifier.</p>
+<p>The following fields proceeding the <code>FORMAT</code> field are specified with 
+the sample (e.g. taxa) identifier for each given sample referenced
+in the hVCF file. For example, let's take a look at a given record
+in the prior example (<em>with added header for additional clarity</em>):</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>#CHROM POS   ID REF ALT                                                                   QUAL FILTER INFO      FORMAT Ref B97 CML231
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>1      1001  .  A   &lt;57705b1e2541c7634ea59a48fc52026f&gt;,&lt;1bda8c63ae8e2f3678b85bac0ee7b8b9&gt; .    .      END=5500  GT     1   2   1
+</span></code></pre></div>
+<p>One thing you will notice is that there are no calls to the 
+"reference" allele field; only calls to the alternate field
+since these allele values represent the haplotype sequence in
+MD5 hash form. Allele values, <strong>if using haploid path finding</strong>,
+are represented using 
+<a href="https://samtools.github.io/hts-specs/VCFv4.2.pdf#subsubsection.1.4.2">singular values</a> 
+(e.g. <code>1</code>, <code>2</code>) which represent the indexed order of haplotype 
+sequences in the <code>ALT</code> field. In other terms, if a sample has an 
+allele value of <code>1</code>, this would refer to the <em>first</em> symbolic allele 
+in the <code>ALT</code> field for the haploid value.</p>
+<p>Using this information with the prior example, we can infer the 
+following haplotype sequence information for the given reference 
+range record (<code>1:1001-5500</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Sample ID</th>
+<th>Allele values</th>
+<th>MD5 symbolic allele</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Ref</code></td>
+<td><code>1</code></td>
+<td><code>57705b1e2541c7634ea59a48fc52026f</code></td>
+</tr>
+<tr>
+<td><code>B97</code></td>
+<td><code>2</code></td>
+<td><code>1bda8c63ae8e2f3678b85bac0ee7b8b9</code></td>
+</tr>
+<tr>
+<td><code>CML231</code></td>
+<td><code>1</code></td>
+<td><code>57705b1e2541c7634ea59a48fc52026f</code></td>
+</tr>
+</tbody>
+</table>
+<p>Alternatively, allele values in hVCF files can be generated <strong>using 
+diploid path finding</strong> during the PHGv2 imputation process. Here is
+an example entry of this:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>#CHROM POS   ID REF ALT                                                                   QUAL FILTER INFO      FORMAT Ref B97 CML231
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>1      1001  .  A   &lt;57705b1e2541c7634ea59a48fc52026f&gt;,&lt;1bda8c63ae8e2f3678b85bac0ee7b8b9&gt; .    .      END=5500  GT     1|1 2|1 1|1
+</span></code></pre></div>
+<p>Allele values are separated with a "phased" indicator (<code>|</code>) and
+never with an "unphased" indicator (<code>/</code>). Similar to haploid path
+finding, allele values represent the indexed order of haplotype
+sequences in the <code>ALT</code> field. In other terms, if a sample has an 
+allele value of <code>2|1</code>, this would refer to the <em>second</em> symbolic 
+allele in the <code>ALT</code> field for the first gamete and the <em>first</em> 
+symbolic allele for the second gamete.</p>
+<p>Using this information with the prior example, we can infer the
+following haploid sequence information for the given reference
+range record (<code>1:1001-5500</code>) using diploid values:</p>
+<table>
+<thead>
+<tr>
+<th>Sample ID</th>
+<th>Allele values</th>
+<th>MD5 symbolic allele (gamete 1)</th>
+<th>MD5 symbolic allele (gamete 2)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Ref</code></td>
+<td><code>1|1</code></td>
+<td><code>57705b1e2541c7634ea59a48fc52026f</code></td>
+<td><code>57705b1e2541c7634ea59a48fc52026f</code></td>
+</tr>
+<tr>
+<td><code>B97</code></td>
+<td><code>2|1</code></td>
+<td><code>1bda8c63ae8e2f3678b85bac0ee7b8b9</code></td>
+<td><code>57705b1e2541c7634ea59a48fc52026f</code></td>
+</tr>
+<tr>
+<td><code>CML231</code></td>
+<td><code>1|1</code></td>
+<td><code>57705b1e2541c7634ea59a48fc52026f</code></td>
+<td><code>57705b1e2541c7634ea59a48fc52026f</code></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2023 - 2025  <a href="https://www.maizegenetics.net "><b>Buckler Lab</b></a>
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/maize-genetics" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.youtube.com/c/BucklerLab" target="_blank" rel="noopener" title="www.youtube.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M549.7 124.1c-6.2-23.7-24.8-42.3-48.3-48.6C458.9 64 288.1 64 288.1 64S117.3 64 74.7 75.5c-23.5 6.3-42 24.9-48.3 48.6C15 167 15 256.4 15 256.4s0 89.4 11.4 132.3c6.3 23.6 24.8 41.5 48.3 47.8C117.3 448 288.1 448 288.1 448s170.8 0 213.4-11.5c23.5-6.3 42-24.2 48.3-47.8 11.4-42.9 11.4-132.3 11.4-132.3s0-89.4-11.4-132.3zM232.2 337.6V175.2l142.7 81.2z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.select", "content.code.copy", "content.code.annotate", "navigation.tabs", "navigation.top", "navigation.sections", "navigation.indexes", "navigation.expand", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascript/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
