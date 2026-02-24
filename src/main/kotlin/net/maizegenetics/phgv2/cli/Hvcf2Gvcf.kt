@@ -45,7 +45,6 @@ import java.io.File
  */
 
 
-data class HvcfVariant(val refRange: ReferenceRange,val sampleName: String, val hapId: String)
 
 
 class Hvcf2Gvcf :
@@ -91,7 +90,7 @@ class Hvcf2Gvcf :
         myLogger.info("Time to build refSeq: ${(System.nanoTime() - time) / 1e9} seconds")
 
         val timeHapIdMap = System.nanoTime()
-        val hapIdAndRangeToSampleMap = createASMHapIdMap(dbPath)
+        val hapIdAndRangeToSampleMap = VCFConversionUtils.createASMHapIdMap(dbPath)
         myLogger.info("Time to build hapId+Range -> Sample Map: ${(System.nanoTime() - timeHapIdMap)/1e9} seconds")
 
 
@@ -199,46 +198,10 @@ class Hvcf2Gvcf :
         return Pair(outputSampleName1, outputSampleName2)
     }
 
-    //The Map<Pair<RefRange,HapId>,List<HvcfVariant>>
-    // the list does not matter as the sequence is the same but we should collect it in case
-    //We retain all of them as we will need those boundaries later and it is easier to just keep them together
-    fun createASMHapIdMap(dbPath: String): Map<Pair<ReferenceRange,String>, List<HvcfVariant>> {
-        //check to see if there are hvcfFiles in the dbPath
-
-        //If so we need to loop through them and extract out the HapIds and pair them with the refRanges.
-        //TODO Eventually we can replace this with direct tileDB calls
-        return File("${dbPath}/hvcf_files").walk().filter { !it.isHidden && !it.isDirectory }
-            .filter {
-                it.name.endsWith(".h.vcf.gz") || it.name.endsWith(".h.vcf") ||
-                        it.name.endsWith(".hvcf.gz") || it.name.endsWith(".hvcf")
-            }
-            .flatMap { hvcfFile ->
-                extractASMHapIds(hvcfFile)
-            }
-            .groupBy { Pair(it.refRange, it.hapId) } // We then can collect across all samples
-    }
 
 
-    /**
-     * Function to pull out the assembly hvcf information so we can look it up later.
-     * Here we can use the first alt allele as it is guaranteed to be haploid because it is coming from tiledb.
-     */
-    fun extractASMHapIds(file: File): List<HvcfVariant> {
-        val hvcfReader = VCFFileReader(file, false)
-        val sampleName = hvcfReader.header.sampleNamesInOrder.first()
-        val hvcfVariants = hvcfReader.mapNotNull { context ->
-            if (context.alternateAlleles.isEmpty() || context.alternateAlleles.any { it.isNoCall }) {
-                null
-            } else {
-                //Here we can get the first alt allele as the ASM hvcfs are guaranteed to be single sample haploid
-                val hapId = context.getAlternateAllele(0).displayString.removeSurrounding("<", ">")
-                val refRange = ReferenceRange(context.contig, context.start, context.end)
-                HvcfVariant(refRange, sampleName,hapId)
-            }
-        }
 
-        return hvcfVariants
-    }
+
 
 
     /**
