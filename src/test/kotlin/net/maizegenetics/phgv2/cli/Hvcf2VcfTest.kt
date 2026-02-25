@@ -1,6 +1,9 @@
 package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
+import htsjdk.variant.variantcontext.Allele
+import htsjdk.variant.variantcontext.GenotypeBuilder
+import htsjdk.variant.variantcontext.VariantContextBuilder
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.utils.Position
 import org.junit.jupiter.api.Test
@@ -83,7 +86,110 @@ class Hvcf2VcfTest {
 
     @Test
     fun processSingleHvcfVariantTest() {
-        fail("Not yet implemented")
+        //processSingleHvcfVariant(context: VariantContext): List<HvcfRangeHapIdSampleGamete>
+
+        val hvcf2Vcf = Hvcf2Vcf()
+        //Make a single sample hvcf variant context haploid and make sure the output
+        val singleHaploidVCF = VariantContextBuilder()
+            .chr("chr1")
+            .start(100L)
+            .stop(150L)
+            .alleles(listOf(Allele.REF_A, Allele.create("<HAP1>", false)))
+            .genotypes(GenotypeBuilder("Sample1",listOf(Allele.create("<HAP1>", false))).make())
+            .make()
+
+        val singleHapVcfResult = hvcf2Vcf.processSingleHvcfVariant(singleHaploidVCF)
+        //HvcfRangeHapIdSampleGamete(val refRange: ReferenceRange, val hapId: String, val sampleGametes: List<SampleGamete>)
+        assertEquals(1, singleHapVcfResult.size)
+        assertEquals("HAP1", singleHapVcfResult[0].hapId)
+        assertEquals(ReferenceRange("chr1", 100, 150), singleHapVcfResult[0].refRange)
+        assertEquals(1, singleHapVcfResult[0].sampleGametes.size)
+        assertEquals("Sample1", singleHapVcfResult[0].sampleGametes[0].name)
+        assertEquals(0, singleHapVcfResult[0].sampleGametes[0].gameteId)
+
+        //Make a single sample hvcf VariantContext diploid and make sure of the output
+        val singleDiploidVCF = VariantContextBuilder()
+            .chr("chr1")
+            .start(100L)
+            .stop(150L)
+            .alleles(listOf(Allele.REF_A, Allele.create("<HAP1>", false),Allele.create("<HAP2>", false)))
+            .genotypes(GenotypeBuilder("Sample1",listOf(Allele.create("<HAP1>", false),Allele.create("<HAP2>",false))).make())
+            .make()
+
+        val singleDiploidVcfResult = hvcf2Vcf.processSingleHvcfVariant(singleDiploidVCF)
+        //HvcfRangeHapIdSampleGamete(val refRange: ReferenceRange, val hapId: String, val sampleGametes: List<SampleGamete>)
+        assertEquals(2, singleDiploidVcfResult.size)
+        assertEquals("HAP1", singleDiploidVcfResult[0].hapId)
+        assertEquals(ReferenceRange("chr1", 100, 150), singleDiploidVcfResult[0].refRange)
+        assertEquals(1, singleDiploidVcfResult[0].sampleGametes.size)
+        assertEquals("Sample1", singleDiploidVcfResult[0].sampleGametes[0].name)
+        assertEquals(0, singleDiploidVcfResult[0].sampleGametes[0].gameteId)
+        assertEquals("HAP2", singleDiploidVcfResult[1].hapId)
+        assertEquals(ReferenceRange("chr1", 100, 150), singleDiploidVcfResult[1].refRange)
+        assertEquals(1, singleDiploidVcfResult[1].sampleGametes.size)
+        assertEquals("Sample1", singleDiploidVcfResult[1].sampleGametes[0].name)
+        assertEquals(1, singleDiploidVcfResult[1].sampleGametes[0].gameteId)
+
+
+        //Make a multisample hvcf VariantContext haploid
+        val multiHaploidVCF = VariantContextBuilder()
+            .chr("chr1")
+            .start(100L)
+            .stop(150L)
+            .alleles(listOf(Allele.REF_A, Allele.create("<HAP1>", false),Allele.create("<HAP2>", false)))
+            .genotypes(GenotypeBuilder("Sample1",listOf(Allele.create("<HAP1>", false))).make(),
+                GenotypeBuilder("Sample2",listOf(Allele.create("<HAP2>", false))).make(),
+                GenotypeBuilder("Sample3",listOf(Allele.create("<HAP1>", false))).make())
+            .make()
+
+
+        val multiHaploidVcfResult = hvcf2Vcf.processSingleHvcfVariant(multiHaploidVCF).sortedBy { it.sampleGametes.first().name } //Doing a sort just in case
+        //HvcfRangeHapIdSampleGamete(val refRange: ReferenceRange, val hapId: String, val sampleGametes: List<SampleGamete>)
+        assertEquals(2, multiHaploidVcfResult.size)
+        assertEquals("HAP1", multiHaploidVcfResult[0].hapId)
+        assertEquals(ReferenceRange("chr1", 100, 150), multiHaploidVcfResult[0].refRange)
+        assertEquals(2, multiHaploidVcfResult[0].sampleGametes.size)
+        assertEquals("Sample1", multiHaploidVcfResult[0].sampleGametes[0].name)
+        assertEquals(0, multiHaploidVcfResult[0].sampleGametes[0].gameteId)
+        assertEquals("Sample3", multiHaploidVcfResult[0].sampleGametes[1].name)
+        assertEquals(0, multiHaploidVcfResult[0].sampleGametes[1].gameteId)
+        assertEquals("HAP2", multiHaploidVcfResult[1].hapId)
+        assertEquals(ReferenceRange("chr1", 100, 150), multiHaploidVcfResult[1].refRange)
+        assertEquals(1, multiHaploidVcfResult[1].sampleGametes.size)
+        assertEquals("Sample2", multiHaploidVcfResult[1].sampleGametes[0].name)
+        assertEquals(0, multiHaploidVcfResult[1].sampleGametes[0].gameteId)
+
+        //Make a multisample hvcf VariantContext diploid
+        val multiDiploidVCF = VariantContextBuilder()
+            .chr("chr1")
+            .start(100L)
+            .stop(150L)
+            .alleles(listOf(Allele.REF_A, Allele.create("<HAP1>", false),Allele.create("<HAP2>", false)))
+            .genotypes(GenotypeBuilder("Sample1",listOf(Allele.create("<HAP1>", false),Allele.create("<HAP1>", false))).make(),
+                GenotypeBuilder("Sample2",listOf(Allele.create("<HAP2>", false), Allele.create("<HAP1>", false))).make(),
+                GenotypeBuilder("Sample3",listOf(Allele.create("<HAP1>", false))).make())
+            .make()
+
+        val multiDiploidVcfResult = hvcf2Vcf.processSingleHvcfVariant(multiDiploidVCF).sortedBy { it.sampleGametes.first().name } //Doing a sort just in case
+                //HvcfRangeHapIdSampleGamete(val refRange: ReferenceRange, val hapId: String, val sampleGametes: List<SampleGamete>)
+                assertEquals(2, multiDiploidVcfResult.size)
+                assertEquals("HAP1", multiDiploidVcfResult[0].hapId)
+                assertEquals(ReferenceRange("chr1", 100, 150), multiDiploidVcfResult[0].refRange)
+                assertEquals(4, multiDiploidVcfResult[0].sampleGametes.size)
+                assertEquals("Sample1", multiDiploidVcfResult[0].sampleGametes[0].name)
+                assertEquals(0, multiDiploidVcfResult[0].sampleGametes[0].gameteId)
+                assertEquals("Sample1", multiDiploidVcfResult[0].sampleGametes[1].name)
+                assertEquals(1, multiDiploidVcfResult[0].sampleGametes[1].gameteId)
+                assertEquals("Sample2", multiDiploidVcfResult[0].sampleGametes[2].name)
+                assertEquals(1, multiDiploidVcfResult[0].sampleGametes[2].gameteId)
+                assertEquals("Sample3", multiDiploidVcfResult[0].sampleGametes[3].name)
+                assertEquals(0, multiDiploidVcfResult[0].sampleGametes[3].gameteId)
+
+                assertEquals("HAP2", multiDiploidVcfResult[1].hapId)
+                assertEquals(ReferenceRange("chr1", 100, 150), multiDiploidVcfResult[1].refRange)
+                assertEquals(1, multiDiploidVcfResult[1].sampleGametes.size)
+                assertEquals("Sample2", multiDiploidVcfResult[1].sampleGametes[0].name)
+                assertEquals(0, multiDiploidVcfResult[1].sampleGametes[0].gameteId)
     }
 
     @Test
