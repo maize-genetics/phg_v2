@@ -1,0 +1,27 @@
+##fileformat=VCFv4.2
+##FORMAT=<ID=AD,Number=3,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth (only filtered reads used for calling)">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##INFO=<ID=AF,Number=3,Type=Integer,Description="Allele Frequency">
+##INFO=<ID=ASM_Chr,Number=1,Type=String,Description="Assembly chromosome">
+##INFO=<ID=ASM_End,Number=1,Type=Integer,Description="Assembly end position">
+##INFO=<ID=ASM_Start,Number=1,Type=Integer,Description="Assembly start position">
+##INFO=<ID=ASM_Strand,Number=1,Type=String,Description="Assembly strand">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
+##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	LineB
+1	1	.	G	<4fc7b8af32ddd74e07cb49d147ef1938>	.	.	END=1000	GT	1
+1	1001	.	A	<8967fabf10e55d881caa6fe192e7d4ca>	.	.	END=5500	GT	1
+1	5501	.	A	<05efe15d97db33185b64821791b01b0f>	.	.	END=6500	GT	1
+1	6501	.	C	<8f7de1a693aa15fb8fb7b85e7a8b5e95>	.	.	END=11000	GT	1
+1	11001	.	A	<6b5f46bd5c31917af3ab6c3ccc8668cd>	.	.	END=12000	GT	1
+1	12001	.	A	<aff71f19de448514a6d9208b1fcb4e8a>	.	.	END=16500	GT	1
+2	1	.	C	<180417a01edbfed525d7c238910e0ff4>	.	.	END=1000	GT	1
+2	1001	.	A	<8bcf66e8c49da2d9ad8cbafa0bb7a93d>	.	.	END=5500	GT	1
+2	5501	.	G	<45b121547c7ae517a181fdd2621495c4>	.	.	END=6500	GT	1
+2	6501	.	A	<bc94073196b0b2c13e62b5fa47c76b51>	.	.	END=11000	GT	1
+2	11001	.	A	<b787382b1337fd694dd8d77de0141da4>	.	.	END=12000	GT	1
+2	12001	.	A	<6fb2de47c835bd9ab026c02d62f49807>	.	.	END=16500	GT	1

@@ -5,8 +5,13 @@ import htsjdk.variant.variantcontext.Allele
 import htsjdk.variant.variantcontext.GenotypeBuilder
 import htsjdk.variant.variantcontext.VariantContextBuilder
 import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.utils.Position
+import org.jetbrains.letsPlot.geom.Extensions.create
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.io.File
+import kotlin.sequences.associate
 import kotlin.test.assertEquals
 import kotlin.test.fail
 
@@ -76,12 +81,75 @@ class Hvcf2VcfTest {
 
     @Test
     fun createRangeHapMapToSampleGameteTest() {
-        fail("Not yet implemented")
+        val hvcf2Vcf = Hvcf2Vcf()
+
+        val hvcfDir = "data/test/hvcf2vcf/"
+
+        val hvcfRangeValues = hvcf2Vcf.createRangeHapMapToSampleGamete(hvcfDir)
+
+        val truthOutput = buildTruthHVCFRecords().associate { Pair(it.refRange, it.hapId) to it.sampleGametes }
+
+        for((key,rangeValue) in hvcfRangeValues) {
+            assertTrue(truthOutput.containsKey(key))
+            assertEquals(truthOutput.getValue(key), rangeValue)
+        }
     }
+
 
     @Test
     fun processSingleHvcfFileTest() {
-        fail("Not yet implemented")
+        val hvcf2Vcf = Hvcf2Vcf()
+
+        //using this input hvcf as it is short
+        val inputHvcf = "data/test/hvcf2vcf/LineA.h.vcf"
+
+        val hvcfRangeValues = hvcf2Vcf.processSingleHvcfFile(File(inputHvcf))
+
+        val truthOutput = buildTruthHVCFRecords()
+
+        for(range in hvcfRangeValues) {
+            assertTrue(truthOutput.contains(range))
+        }
+    }
+
+    fun buildTruthHVCFRecords(): Set<HvcfRangeHapIdSampleGamete> {
+        return setOf(
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",1,1000),"12f0cec9102e84a161866e37072443b7",  listOf(SampleGamete("LineA", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",1001,5500),"3149b3144f93134eb29661bade697fc6",  listOf(SampleGamete("LineA", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",5501,6500),"1b568197f6f329ec5b71f66e49a732fb",  listOf(SampleGamete("LineA", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",6501,11000),"369464a8743d2e40ad83d1375c196bdd",  listOf(SampleGamete("LineA", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",11001,12000),"f50fe6d6b3d9a9d305889db977969916",  listOf(SampleGamete("LineA", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",12001,16500),"d4c8b5505d7046b41d7f69b246063ebb",  listOf(SampleGamete("LineA", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",1,1000),"13417ecbb38b9a159e3ca8c9dade7088",  listOf(SampleGamete("LineA", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",1001,5500),"c16ac825052c0456069f6408652aadf8",  listOf(SampleGamete("LineA", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",5501,6500),"50044914d5111c5b5ec58c9d720e3b2d",  listOf(SampleGamete("LineA", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",6501,11000),"c472bb8d63e19218a4089821ae666db3",  listOf(SampleGamete("LineA", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",11001,12000),"3ec680649615da0685b8c245e0f196e2",  listOf(SampleGamete("LineA", 0))),
+            //1	1	.	G	<4fc7b8af32ddd74e07cb49d147ef1938>	.	.	END=1000	GT	1
+            //1	1001	.	A	<8967fabf10e55d881caa6fe192e7d4ca>	.	.	END=5500	GT	1
+            //1	5501	.	A	<05efe15d97db33185b64821791b01b0f>	.	.	END=6500	GT	1
+            //1	6501	.	C	<8f7de1a693aa15fb8fb7b85e7a8b5e95>	.	.	END=11000	GT	1
+            //1	11001	.	A	<6b5f46bd5c31917af3ab6c3ccc8668cd>	.	.	END=12000	GT	1
+            //1	12001	.	A	<aff71f19de448514a6d9208b1fcb4e8a>	.	.	END=16500	GT	1
+            //2	1	.	C	<180417a01edbfed525d7c238910e0ff4>	.	.	END=1000	GT	1
+            //2	1001	.	A	<8bcf66e8c49da2d9ad8cbafa0bb7a93d>	.	.	END=5500	GT	1
+            //2	5501	.	G	<45b121547c7ae517a181fdd2621495c4>	.	.	END=6500	GT	1
+            //2	6501	.	A	<bc94073196b0b2c13e62b5fa47c76b51>	.	.	END=11000	GT	1
+            //2	11001	.	A	<b787382b1337fd694dd8d77de0141da4>	.	.	END=12000	GT	1
+            //2	12001	.	A	<6fb2de47c835bd9ab026c02d62f49807>	.	.	END=16500	GT	1
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",1,1000), "4fc7b8af32ddd74e07cb49d147ef1938", listOf(SampleGamete("LineB", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",1001,5500), "8967fabf10e55d881caa6fe192e7d4ca", listOf(SampleGamete("LineB", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",5501,6500), "05efe15d97db33185b64821791b01b0f", listOf(SampleGamete("LineB", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",6501,11000), "8f7de1a693aa15fb8fb7b85e7a8b5e95", listOf(SampleGamete("LineB", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",11001,12000), "6b5f46bd5c31917af3ab6c3ccc8668cd", listOf(SampleGamete("LineB", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",12001,16500), "aff71f19de448514a6d9208b1fcb4e8a", listOf(SampleGamete("LineB", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",1,1000), "180417a01edbfed525d7c238910e0ff4", listOf(SampleGamete("LineB", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",1001,5500), "8bcf66e8c49da2d9ad8cbafa0bb7a93d", listOf(SampleGamete("LineB", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",5501,6500), "45b121547c7ae517a181fdd2621495c4", listOf(SampleGamete("LineB", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",6501,11000), "bc94073196b0b2c13e62b5fa47c76b51", listOf(SampleGamete("LineB", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",11001,12000), "b787382b1337fd694dd8d77de0141da4", listOf(SampleGamete("LineB", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",12001,16500), "6fb2de47c835bd9ab026c02d62f49807", listOf(SampleGamete("LineB", 0)))
+        )
     }
 
     @Test
