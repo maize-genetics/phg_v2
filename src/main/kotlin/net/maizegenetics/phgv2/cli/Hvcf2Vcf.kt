@@ -188,7 +188,7 @@ class Hvcf2Vcf:
 
     }
 
-    private fun buildVariantContext(
+    fun buildVariantContext(
         context: VariantContext,
         positionToRangeMap: TreeMap<Position, ReferenceRange>,
         asmHapIdMap: Map<Pair<ReferenceRange, String>, List<HvcfVariant>>,

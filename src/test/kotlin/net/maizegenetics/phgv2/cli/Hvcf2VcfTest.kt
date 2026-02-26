@@ -7,9 +7,11 @@ import htsjdk.variant.variantcontext.GenotypeBuilder
 import htsjdk.variant.variantcontext.VariantContextBuilder
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
+import net.maizegenetics.phgv2.utils.HvcfVariant
 import net.maizegenetics.phgv2.utils.Position
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.fail
@@ -341,7 +343,61 @@ class Hvcf2VcfTest {
 
     @Test
     fun extractAllelesForEachSampleGameteTest() {
-        fail("Not yet implemented")
+        // fun extractAllelesForEachSampleGamete(
+        //        context: VariantContext,
+        //        asmHapIdMap: Map<Pair<ReferenceRange, String>, List<HvcfVariant>>,
+        //        refRange: ReferenceRange,
+        //        refRangeAndHapIdMap: Map<Pair<ReferenceRange, String>, List<SampleGamete>>
+        //    ): List<Pair<SampleGamete, Allele>>
+
+        val hvcf2vcf = Hvcf2Vcf()
+
+        val variantContext = VariantContextBuilder(".","1",10L,10L, listOf(Allele.REF_A, Allele.ALT_G))
+            .genotypes(GenotypeBuilder("Sample1", listOf(Allele.ALT_G)).make())
+            .make()
+
+        //First check for errors being thrown
+        //First make asmHapIdMap not have a valid refRange
+        assertThrows<IllegalStateException> {
+                hvcf2vcf.extractAllelesForEachSampleGamete(variantContext,
+                mapOf(Pair(ReferenceRange("1", 1, 5), "Sample1") to listOf(
+                    HvcfVariant(
+                        ReferenceRange("1", 1, 5),
+                        "Sample1",
+                        "Hap1"
+                    )
+                )),
+                ReferenceRange("1", 10, 10),
+                mapOf(Pair(ReferenceRange("1", 1, 5), "HAP1") to listOf(SampleGamete("Sample1", 0)))
+            )
+        }
+
+        // check that refRangeAndHapIdMap doesnt have the key
+        assertThrows<IllegalStateException> {
+            hvcf2vcf.extractAllelesForEachSampleGamete(variantContext,
+                mapOf(Pair(ReferenceRange("1", 1, 5), "Sample1") to listOf(
+                    HvcfVariant(
+                        ReferenceRange("1", 1, 5),
+                        "Sample1",
+                        "HAP1"
+                    )
+                ),
+                    Pair(ReferenceRange("1",6,20),"Sample1") to listOf(
+                        HvcfVariant(
+                            ReferenceRange("1", 6, 20),
+                            "Sample1",
+                            "HAP1"
+                        )
+                    )
+
+                ),
+                ReferenceRange("1", 6, 20),
+                mapOf(Pair(ReferenceRange("1", 1, 5), "HAP1") to listOf(SampleGamete("Sample1", 0)))
+            )
+        }
+
+
+
     }
 
 }
