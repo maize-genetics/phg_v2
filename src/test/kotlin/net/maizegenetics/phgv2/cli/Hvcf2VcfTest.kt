@@ -21,26 +21,6 @@ class Hvcf2VcfTest {
     fun testCliktParams() {
         val hvcf2Vcf = Hvcf2Vcf()
 
-        //check parameters
-        //val dbPath by option(help = "Folder name where TileDB datasets and AGC record is stored.  If not provided, the current working directory is used")
-        //        .default("")
-        //
-        //
-        //    val hvcfDir by option(help = "Path to directory holding hVCF files. Data will be pulled directly from these files instead of querying TileDB")
-        //        .required()
-        //
-        //    val donorVcfFile by option(help = "Path to the VCF file containing all the PHG SNPs.  This is typically created by running merge-gvcf on the Assembly Gvcf files.")
-        //        .required()
-        //
-        //    val outputFile by option(help = "Output file.")
-        //        .required()
-        //
-        //    //This is needed to create the refSeqDictionary
-        //    val referenceFile by option(help = "Path to local Reference FASTA file needed for sequence dictionary")
-        //        .required()
-
-        //"--hvcf-dir /path/to/hvcf --donor-vcf-file /path/to/donor.vcf --output-file /path/to/output.vcf --reference-file /path/to/reference.fasta"
-
         val noHvcfDir = hvcf2Vcf.test("--donor-vcf-file /path/to/donor.vcf --output-file /path/to/output.vcf --reference-file /path/to/reference.fasta")
         assertEquals(noHvcfDir.statusCode, 1)
         assertEquals(
@@ -125,18 +105,6 @@ class Hvcf2VcfTest {
             HvcfRangeHapIdSampleGamete(ReferenceRange("2",5501,6500),"50044914d5111c5b5ec58c9d720e3b2d",  listOf(SampleGamete("LineA", 0))),
             HvcfRangeHapIdSampleGamete(ReferenceRange("2",6501,11000),"c472bb8d63e19218a4089821ae666db3",  listOf(SampleGamete("LineA", 0))),
             HvcfRangeHapIdSampleGamete(ReferenceRange("2",11001,12000),"3ec680649615da0685b8c245e0f196e2",  listOf(SampleGamete("LineA", 0))),
-            //1	1	.	G	<4fc7b8af32ddd74e07cb49d147ef1938>	.	.	END=1000	GT	1
-            //1	1001	.	A	<8967fabf10e55d881caa6fe192e7d4ca>	.	.	END=5500	GT	1
-            //1	5501	.	A	<05efe15d97db33185b64821791b01b0f>	.	.	END=6500	GT	1
-            //1	6501	.	C	<8f7de1a693aa15fb8fb7b85e7a8b5e95>	.	.	END=11000	GT	1
-            //1	11001	.	A	<6b5f46bd5c31917af3ab6c3ccc8668cd>	.	.	END=12000	GT	1
-            //1	12001	.	A	<aff71f19de448514a6d9208b1fcb4e8a>	.	.	END=16500	GT	1
-            //2	1	.	C	<180417a01edbfed525d7c238910e0ff4>	.	.	END=1000	GT	1
-            //2	1001	.	A	<8bcf66e8c49da2d9ad8cbafa0bb7a93d>	.	.	END=5500	GT	1
-            //2	5501	.	G	<45b121547c7ae517a181fdd2621495c4>	.	.	END=6500	GT	1
-            //2	6501	.	A	<bc94073196b0b2c13e62b5fa47c76b51>	.	.	END=11000	GT	1
-            //2	11001	.	A	<b787382b1337fd694dd8d77de0141da4>	.	.	END=12000	GT	1
-            //2	12001	.	A	<6fb2de47c835bd9ab026c02d62f49807>	.	.	END=16500	GT	1
             HvcfRangeHapIdSampleGamete(ReferenceRange("1",1,1000), "4fc7b8af32ddd74e07cb49d147ef1938", listOf(SampleGamete("LineB", 0))),
             HvcfRangeHapIdSampleGamete(ReferenceRange("1",1001,5500), "8967fabf10e55d881caa6fe192e7d4ca", listOf(SampleGamete("LineB", 0))),
             HvcfRangeHapIdSampleGamete(ReferenceRange("1",5501,6500), "05efe15d97db33185b64821791b01b0f", listOf(SampleGamete("LineB", 0))),
@@ -290,6 +258,22 @@ class Hvcf2VcfTest {
 
     @Test
     fun extractVariantsAndWriteTest() {
+        //fun extractVariantsAndWrite(asmHapIdMap: Map<Pair<ReferenceRange,String>, List<HvcfVariant>>,
+        //                                refRangeAndHapIdMap: Map<Pair<ReferenceRange, String>, List<SampleGamete>>,
+        //                                positionToRangeMap: TreeMap<Position, ReferenceRange>,
+        //                                donorVcfFile: String,
+        //                                outputWriter: VariantContextWriter)
+
+        fail("Not yet implemented")
+    }
+
+    @Test
+    fun buildOutputGenotypesTest() {
+        fail("Not yet implemented")
+    }
+
+    @Test
+    fun extractAllelesForEachSampleGameteTest() {
         fail("Not yet implemented")
     }
 

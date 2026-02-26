@@ -5,6 +5,8 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import htsjdk.variant.variantcontext.Allele
+import htsjdk.variant.variantcontext.Genotype
 import htsjdk.variant.variantcontext.GenotypeBuilder
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.variantcontext.VariantContextBuilder
@@ -180,50 +182,88 @@ class Hvcf2Vcf:
         val donorVCFReader = VCFFileReader(File(donorVcfFile), false)
 
         donorVCFReader.forEach { context ->
-            val position = Position(context.contig, context.start)
-            val refRange = positionToRangeMap.floorEntry(position)?.value ?: return@forEach
-
-            //Walk through the gvcfGenotypeAlleles
-            val newContextBuilder = VariantContextBuilder()
-                .chr(context.contig)
-                .start(context.start.toLong())
-                .stop(context.end.toLong())
-                .alleles(context.alleles)
-                .id(context.id)
-                .attributes(context.attributes)
-
-            //he go through the genotypes those sample names should match the sample names needed from the asmHapIdMap
-            val sampleGameteAndAllelePairs = context.genotypes.flatMap { genotype ->
-                val sampleName = genotype.sampleName
-                check(asmHapIdMap.containsKey(Pair(refRange, sampleName))) {"Unable to find donor hapId for $refRange, sampleName: $sampleName"}
-                val donorHapId = asmHapIdMap[Pair(refRange, sampleName)]!!.first().hapId
-
-                check(refRangeAndHapIdMap.containsKey(Pair(refRange,donorHapId))) {"Unable to find sampleGametes containing this SNP: $refRange $donorHapId $sampleName"}
-
-                val sampleGametesForThisHapId = refRangeAndHapIdMap[Pair(refRange,donorHapId)]!!
-                sampleGametesForThisHapId.map{ sampleGamete ->
-                    Pair(sampleGamete,genotype.getAllele(0)) // THis should work correctly as the donor VCF is haploid
-                }
-            }
-
-            //Now we need to group them by the sample names
-            val outputGenotypes = sampleGameteAndAllelePairs.groupBy{ it.first }.map { (sampleGamete, listOfAlleles) ->
-                val alleles = listOfAlleles.sortedBy{ it.first.gameteId }
-                    .map { sampleGameteAndAllele -> sampleGameteAndAllele.second }
-
-                val genotype = GenotypeBuilder()
-                    .name(sampleGamete.name)
-                    .alleles(alleles)
-                    .make()
-
-                genotype
-            }
-
-            //Add the genotypes to the variant
-            newContextBuilder.genotypes(outputGenotypes)
-            outputWriter.add(newContextBuilder.make())
+            val newContext = buildVariantContext(context, positionToRangeMap, asmHapIdMap, refRangeAndHapIdMap) ?: return@forEach
+            outputWriter.add(newContext)
         }
 
+    }
+
+    private fun buildVariantContext(
+        context: VariantContext,
+        positionToRangeMap: TreeMap<Position, ReferenceRange>,
+        asmHapIdMap: Map<Pair<ReferenceRange, String>, List<HvcfVariant>>,
+        refRangeAndHapIdMap: Map<Pair<ReferenceRange, String>, List<SampleGamete>>
+    ): VariantContext? {
+        val position = Position(context.contig, context.start)
+        val refRange = positionToRangeMap.floorEntry(position)?.value ?: return null
+
+        //Walk through the gvcfGenotypeAlleles
+        val newContextBuilder = VariantContextBuilder()
+            .chr(context.contig)
+            .start(context.start.toLong())
+            .stop(context.end.toLong())
+            .alleles(context.alleles)
+            .id(context.id)
+            .attributes(context.attributes)
+
+        //he go through the genotypes those sample names should match the sample names needed from the asmHapIdMap
+        val sampleGameteAndAllelePairs = extractAllelesForEachSampleGamete(context, asmHapIdMap, refRange, refRangeAndHapIdMap)
+
+        //Now we need to group them by the sample names
+        val outputGenotypes = buildOutputGenotypes(sampleGameteAndAllelePairs)
+
+        //Add the genotypes to the variant
+        newContextBuilder.genotypes(outputGenotypes)
+        return newContextBuilder.make()
+    }
+
+    fun buildOutputGenotypes(sampleGameteAndAllelePairs: List<Pair<SampleGamete, Allele?>>): List<Genotype?> {
+        return sampleGameteAndAllelePairs.groupBy { it.first }.map { (sampleGamete, listOfAlleles) ->
+            val alleles = listOfAlleles.sortedBy { it.first.gameteId }
+                .map { sampleGameteAndAllele -> sampleGameteAndAllele.second }
+
+            val genotype = GenotypeBuilder()
+                .name(sampleGamete.name)
+                .alleles(alleles)
+                .make()
+
+            genotype
+        }
+    }
+
+    fun extractAllelesForEachSampleGamete(
+        context: VariantContext,
+        asmHapIdMap: Map<Pair<ReferenceRange, String>, List<HvcfVariant>>,
+        refRange: ReferenceRange,
+        refRangeAndHapIdMap: Map<Pair<ReferenceRange, String>, List<SampleGamete>>
+    ): List<Pair<SampleGamete, Allele?>> {
+
+        return context.genotypes.flatMap { genotype ->
+            val sampleName = genotype.sampleName
+            check(
+                asmHapIdMap.containsKey(
+                    Pair(
+                        refRange,
+                        sampleName
+                    )
+                )
+            ) { "Unable to find donor hapId for $refRange, sampleName: $sampleName" }
+            val donorHapId = asmHapIdMap[Pair(refRange, sampleName)]!!.first().hapId
+
+            check(
+                refRangeAndHapIdMap.containsKey(
+                    Pair(
+                        refRange,
+                        donorHapId
+                    )
+                )
+            ) { "Unable to find sampleGametes containing this SNP: $refRange $donorHapId $sampleName" }
+
+            val sampleGametesForThisHapId = refRangeAndHapIdMap[Pair(refRange, donorHapId)]!!
+            sampleGametesForThisHapId.map { sampleGamete ->
+                Pair(sampleGamete, genotype.getAllele(0)) // THis should work correctly as the donor VCF is haploid
+            }
+        }
     }
 
 }
