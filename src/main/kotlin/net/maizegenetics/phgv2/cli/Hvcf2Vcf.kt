@@ -217,17 +217,18 @@ class Hvcf2Vcf:
         return newContextBuilder.make()
     }
 
-    fun buildOutputGenotypes(sampleGameteAndAllelePairs: List<Pair<SampleGamete, Allele?>>): List<Genotype?> {
-        return sampleGameteAndAllelePairs.groupBy { it.first }.map { (sampleGamete, listOfAlleles) ->
-            val alleles = listOfAlleles.sortedBy { it.first.gameteId }
-                .map { sampleGameteAndAllele -> sampleGameteAndAllele.second }
+    fun buildOutputGenotypes(sampleGameteAndAllelePairs: List<Pair<SampleGamete, Allele>>): List<Genotype> {
+        return sampleGameteAndAllelePairs.groupBy { it.first.name }
+            .map { (sampleName, listOfAlleles) ->
+                val alleles = listOfAlleles.sortedBy { it.first.gameteId }
+                    .map { sampleGameteAndAllele -> sampleGameteAndAllele.second }
 
-            val genotype = GenotypeBuilder()
-                .name(sampleGamete.name)
-                .alleles(alleles)
-                .make()
+                val genotype = GenotypeBuilder()
+                    .name(sampleName)
+                    .alleles(alleles)
+                    .make()
 
-            genotype
+                genotype
         }
     }
 
@@ -236,7 +237,7 @@ class Hvcf2Vcf:
         asmHapIdMap: Map<Pair<ReferenceRange, String>, List<HvcfVariant>>,
         refRange: ReferenceRange,
         refRangeAndHapIdMap: Map<Pair<ReferenceRange, String>, List<SampleGamete>>
-    ): List<Pair<SampleGamete, Allele?>> {
+    ): List<Pair<SampleGamete, Allele>> {
 
         return context.genotypes.flatMap { genotype ->
             val sampleName = genotype.sampleName

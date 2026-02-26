@@ -2,16 +2,15 @@ package net.maizegenetics.phgv2.cli
 
 import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.variantcontext.Allele
+import htsjdk.variant.variantcontext.Genotype
 import htsjdk.variant.variantcontext.GenotypeBuilder
 import htsjdk.variant.variantcontext.VariantContextBuilder
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.utils.Position
-import org.jetbrains.letsPlot.geom.Extensions.create
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
-import kotlin.sequences.associate
 import kotlin.test.assertEquals
 import kotlin.test.fail
 
@@ -269,7 +268,75 @@ class Hvcf2VcfTest {
 
     @Test
     fun buildOutputGenotypesTest() {
-        fail("Not yet implemented")
+        //buildOutputGenotypes(sampleGameteAndAllelePairs: List<Pair<SampleGamete, Allele>>): List<Genotype>
+        val hvcf2Vcf = Hvcf2Vcf()
+
+        //Make up both haploid and diploid only and mixed lists
+        val haploidList = listOf(Pair(SampleGamete("Sample1", 0), Allele.create("<HAP1>", false)),
+            Pair(SampleGamete("Sample2", 0), Allele.create("<HAP2>", false)),
+            Pair(SampleGamete("Sample3", 0), Allele.create("<HAP1>", false)))
+
+        val haploidGenotypes = hvcf2Vcf.buildOutputGenotypes(haploidList)
+        //check to make sure that we have the right genotypes out
+        val truthHaploidGenotypes = mapOf<String, Genotype>(
+            "Sample1" to GenotypeBuilder("Sample1", listOf(Allele.create("<HAP1>", false))).make(),
+            "Sample2" to GenotypeBuilder("Sample2", listOf(Allele.create("<HAP2>", false))).make(),
+            "Sample3" to GenotypeBuilder("Sample3", listOf(Allele.create("<HAP1>", false))).make()
+        )
+
+        for(hapGenotype in haploidGenotypes) {
+            assertTrue(truthHaploidGenotypes.containsKey(hapGenotype.sampleName))
+            val truthGenotype = truthHaploidGenotypes[hapGenotype.sampleName]!!
+            //make sure the actual allele calls match
+            assertEquals(truthGenotype.alleles, hapGenotype.alleles)
+        }
+
+
+        //Check diploid only
+        val diploidList = listOf(Pair(SampleGamete("Sample1", 0), Allele.create("<HAP1>", false)),
+            Pair(SampleGamete("Sample1", 1), Allele.create("<HAP1>", false)),
+            Pair(SampleGamete("Sample2", 0), Allele.create("<HAP2>", false)),
+            Pair(SampleGamete("Sample2", 1), Allele.create("<HAP1>", false)),
+            Pair(SampleGamete("Sample3", 0), Allele.create("<HAP1>", false)),
+            Pair(SampleGamete("Sample3", 1), Allele.create("<HAP2>", false)))
+
+        val diploidGenotypes = hvcf2Vcf.buildOutputGenotypes(diploidList)
+
+        val truthDiploidGenotypes = mapOf<String, Genotype>(
+            "Sample1" to GenotypeBuilder("Sample1", listOf(Allele.create("<HAP1>", false), Allele.create("<HAP1>", false))).make(),
+            "Sample2" to GenotypeBuilder("Sample2", listOf(Allele.create("<HAP2>", false), Allele.create("<HAP1>", false))).make(),
+            "Sample3" to GenotypeBuilder("Sample3", listOf(Allele.create("<HAP1>", false), Allele.create("<HAP2>", false))).make()
+        )
+
+        for(diploidGenotype in diploidGenotypes) {
+            assertTrue(truthDiploidGenotypes.contains(diploidGenotype.sampleName))
+            val truthGenotype = truthDiploidGenotypes[diploidGenotype.sampleName]!!
+            //make sure the actual allele calls match
+            assertEquals(truthGenotype.alleles, diploidGenotype.alleles)
+        }
+
+        //Do a mixed sample
+        val mixedList = listOf(Pair(SampleGamete("Sample1", 0), Allele.create("<HAP1>", false)),
+            Pair(SampleGamete("Sample1", 1), Allele.create("<HAP1>", false)),
+            Pair(SampleGamete("Sample2", 0), Allele.create("<HAP2>", false)),
+            Pair(SampleGamete("Sample3", 0), Allele.create("<HAP1>", false)),
+            Pair(SampleGamete("Sample3", 1), Allele.create("<HAP2>", false)))
+
+        val mixedGenotypes = hvcf2Vcf.buildOutputGenotypes(mixedList)
+
+        val truthMixedGenotypes = mapOf<String, Genotype>(
+            "Sample1" to GenotypeBuilder("Sample1", listOf(Allele.create("<HAP1>", false), Allele.create("<HAP1>", false))).make(),
+            "Sample2" to GenotypeBuilder("Sample2", listOf(Allele.create("<HAP2>", false))).make(),
+            "Sample3" to GenotypeBuilder("Sample3", listOf(Allele.create("<HAP1>", false), Allele.create("<HAP2>", false))).make()
+        )
+
+        for(mixedGenotype in mixedGenotypes) {
+            assertTrue(truthMixedGenotypes.containsKey(mixedGenotype.sampleName))
+
+            val truthGenotype = truthMixedGenotypes[mixedGenotype.sampleName]!!
+            assertEquals(truthGenotype.alleles, mixedGenotype.alleles)
+        }
+
     }
 
     @Test
