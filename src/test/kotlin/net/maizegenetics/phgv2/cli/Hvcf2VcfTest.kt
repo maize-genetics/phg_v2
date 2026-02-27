@@ -256,20 +256,10 @@ class Hvcf2VcfTest {
     @Test
     fun extractVcfAndExportTest() {
         fail("Not yet implemented")
+        //Note do not need to unit test extractVariantsAndWrite as it needs a writer and is a very simple function that is just called by this.
+        //It was more to make the code more modular/smaller but likely does not need its own test.
     }
-
-    @Test
-    fun extractVariantsAndWriteTest() {
-        //fun extractVariantsAndWrite(asmHapIdMap: Map<Pair<ReferenceRange,String>, List<HvcfVariant>>,
-        //                                refRangeAndHapIdMap: Map<Pair<ReferenceRange, String>, List<SampleGamete>>,
-        //                                positionToRangeMap: TreeMap<Position, ReferenceRange>,
-        //                                donorVcfFile: String,
-        //                                outputWriter: VariantContextWriter)
-
-        fail("Not yet implemented")
-    }
-
-
+    
     @Test
     fun buildVariantContextTest() {
         val hvcf2Vcf = Hvcf2Vcf()
