@@ -269,6 +269,11 @@ class Hvcf2VcfTest {
     }
 
     @Test
+    fun buildVariantContextTest() {
+        fail("Not yet implemented")
+    }
+
+    @Test
     fun buildOutputGenotypesTest() {
         //buildOutputGenotypes(sampleGameteAndAllelePairs: List<Pair<SampleGamete, Allele>>): List<Genotype>
         val hvcf2Vcf = Hvcf2Vcf()
@@ -343,13 +348,6 @@ class Hvcf2VcfTest {
 
     @Test
     fun extractAllelesForEachSampleGameteTest() {
-        // fun extractAllelesForEachSampleGamete(
-        //        context: VariantContext,
-        //        asmHapIdMap: Map<Pair<ReferenceRange, String>, List<HvcfVariant>>,
-        //        refRange: ReferenceRange,
-        //        refRangeAndHapIdMap: Map<Pair<ReferenceRange, String>, List<SampleGamete>>
-        //    ): List<Pair<SampleGamete, Allele>>
-
         val hvcf2vcf = Hvcf2Vcf()
 
         val variantContext = VariantContextBuilder(".","1",10L,10L, listOf(Allele.REF_A, Allele.ALT_G))
@@ -396,8 +394,34 @@ class Hvcf2VcfTest {
             )
         }
 
+        //Check that it actually works if the maps are consistent with what is requested
+        val allelesForSampleGamete = hvcf2vcf.extractAllelesForEachSampleGamete(variantContext,
+            mapOf(Pair(ReferenceRange("1", 1, 5), "Sample1") to listOf(
+                HvcfVariant(
+                    ReferenceRange("1", 1, 5),
+                    "Sample1",
+                    "HAP1"
+                )
+            ),
+                Pair(ReferenceRange("1",6,20),"Sample1") to listOf(
+                    HvcfVariant(
+                        ReferenceRange("1", 6, 20),
+                        "Sample1",
+                        "HAP1"
+                    )
+                )
 
+            ),
+            ReferenceRange("1", 6, 20),
+            mapOf(Pair(ReferenceRange("1", 1, 5), "HAP1") to listOf(SampleGamete("Sample1", 0)),
+                Pair(ReferenceRange("1", 6, 20), "HAP1") to listOf(SampleGamete("Sample1", 0)))
+        )
 
+        //List<Pair<SampleGamete, Allele>>
+        assertEquals(1, allelesForSampleGamete.size)
+        assertEquals("Sample1", allelesForSampleGamete[0].first.name)
+        assertEquals(0, allelesForSampleGamete[0].first.gameteId)
+        assertEquals(Allele.ALT_G, allelesForSampleGamete[0].second)
     }
 
 }
