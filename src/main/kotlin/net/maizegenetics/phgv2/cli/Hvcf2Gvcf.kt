@@ -369,8 +369,8 @@ class Hvcf2Gvcf :
         val genotypes = context.genotypes.first()
         val hapId1 = genotypes.getAllele(0).displayString.removeSurrounding("<", ">")
         val hapId2 = if ((genotypes?.alleles?.size ?: 0) > 1) {
-            genotypes.getAllele(1).displayString.removeSurrounding("<", ">")
             isHaploid = false
+            genotypes.getAllele(1).displayString.removeSurrounding("<", ">")
         } else {
             hapId1
         }
