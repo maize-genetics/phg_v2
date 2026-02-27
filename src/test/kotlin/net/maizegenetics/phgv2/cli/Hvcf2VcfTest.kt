@@ -11,6 +11,7 @@ import net.maizegenetics.phgv2.utils.HvcfVariant
 import net.maizegenetics.phgv2.utils.Position
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertNotNull
 import org.junit.jupiter.api.assertThrows
 import java.io.File
 import kotlin.test.assertEquals
@@ -268,9 +269,47 @@ class Hvcf2VcfTest {
         fail("Not yet implemented")
     }
 
+
     @Test
     fun buildVariantContextTest() {
-        fail("Not yet implemented")
+        val hvcf2Vcf = Hvcf2Vcf()
+
+        //This is an input variant from multiple haploids so it should only have one allele
+        val context = VariantContextBuilder(".","1",10L, 10L, listOf(Allele.REF_A, Allele.ALT_G))
+            .genotypes(GenotypeBuilder("Sample1", listOf(Allele.ALT_G)).make())
+            .make()
+
+        val positionToRefRangeMissing = hvcf2Vcf.buildPositionToRefRangeMap(setOf(ReferenceRange("1", 11, 20)))
+
+        val nullOutputVC = hvcf2Vcf.buildVariantContext(context, positionToRefRangeMissing, emptyMap(), emptyMap())
+        assertEquals(null, nullOutputVC)
+
+        //Check chroms not matching
+        val positionToRefRangeChrWrong = hvcf2Vcf.buildPositionToRefRangeMap(setOf(ReferenceRange("chr1", 11, 20)))
+        val nullOutputChrWrong = hvcf2Vcf.buildVariantContext(context, positionToRefRangeChrWrong, emptyMap(), emptyMap())
+        assertEquals(null, nullOutputChrWrong)
+
+        //Test first that the position is not in positionToRangeMap
+        val positionToRangeMap = hvcf2Vcf.buildPositionToRefRangeMap(setOf(ReferenceRange("1", 1, 100), ReferenceRange("1", 101, 200)))
+        val asmHapIdMap: Map<Pair<ReferenceRange, String>, List<HvcfVariant>> = mapOf(Pair(ReferenceRange("1", 1, 100), "Sample1") to
+                listOf(HvcfVariant(ReferenceRange("1",1, 100), "Sample1", "HAP1")))
+
+        val refRangeAndHapIdMap: Map<Pair<ReferenceRange, String>, List<SampleGamete>> = mapOf(Pair(ReferenceRange("1", 1, 100), "HAP1") to listOf(SampleGamete("OutputSample1", 0)))
+
+
+        val outputVCF = hvcf2Vcf.buildVariantContext(context, positionToRangeMap, asmHapIdMap, refRangeAndHapIdMap)
+        assertNotNull(outputVCF)
+        assertEquals("OutputSample1", outputVCF.sampleNames.first())
+        //check the GT field should have alt G calls
+        assertEquals(listOf(Allele.REF_A, Allele.ALT_G), outputVCF.alleles)
+        assertEquals("1", outputVCF.contig)
+        assertEquals(10, outputVCF.start)
+        assertEquals(10, outputVCF.end)
+
+        val firstGT = outputVCF.genotypes.first()
+        assertEquals("OutputSample1", firstGT.sampleName)
+        assertEquals(Allele.ALT_G, firstGT.alleles[0])
+
     }
 
     @Test

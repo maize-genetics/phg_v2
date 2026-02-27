@@ -188,26 +188,33 @@ class Hvcf2Vcf:
 
     }
 
+    /**
+     *
+     */
     fun buildVariantContext(
-        context: VariantContext,
+        vcfContext: VariantContext,
         positionToRangeMap: TreeMap<Position, ReferenceRange>,
         asmHapIdMap: Map<Pair<ReferenceRange, String>, List<HvcfVariant>>,
         refRangeAndHapIdMap: Map<Pair<ReferenceRange, String>, List<SampleGamete>>
     ): VariantContext? {
-        val position = Position(context.contig, context.start)
+        val position = Position(vcfContext.contig, vcfContext.start)
         val refRange = positionToRangeMap.floorEntry(position)?.value ?: return null
+
+        if(refRange.contig != vcfContext.contig || refRange.start > vcfContext.start || refRange.end < vcfContext.end) {
+            return null
+        }
 
         //Walk through the gvcfGenotypeAlleles
         val newContextBuilder = VariantContextBuilder()
-            .chr(context.contig)
-            .start(context.start.toLong())
-            .stop(context.end.toLong())
-            .alleles(context.alleles)
-            .id(context.id)
-            .attributes(context.attributes)
+            .chr(vcfContext.contig)
+            .start(vcfContext.start.toLong())
+            .stop(vcfContext.end.toLong())
+            .alleles(vcfContext.alleles)
+            .id(vcfContext.id)
+            .attributes(vcfContext.attributes)
 
         //he go through the genotypes those sample names should match the sample names needed from the asmHapIdMap
-        val sampleGameteAndAllelePairs = extractAllelesForEachSampleGamete(context, asmHapIdMap, refRange, refRangeAndHapIdMap)
+        val sampleGameteAndAllelePairs = extractAllelesForEachSampleGamete(vcfContext, asmHapIdMap, refRange, refRangeAndHapIdMap)
 
         //Now we need to group them by the sample names
         val outputGenotypes = buildOutputGenotypes(sampleGameteAndAllelePairs)
@@ -232,14 +239,17 @@ class Hvcf2Vcf:
         }
     }
 
+    /**
+     * Context here is a vcf variant
+     */
     fun extractAllelesForEachSampleGamete(
-        context: VariantContext,
+        vcfContext: VariantContext,
         asmHapIdMap: Map<Pair<ReferenceRange, String>, List<HvcfVariant>>,
         refRange: ReferenceRange,
         refRangeAndHapIdMap: Map<Pair<ReferenceRange, String>, List<SampleGamete>>
     ): List<Pair<SampleGamete, Allele>> {
 
-        return context.genotypes.flatMap { genotype ->
+        return vcfContext.genotypes.flatMap { genotype ->
             val sampleName = genotype.sampleName
             check(
                 asmHapIdMap.containsKey(
