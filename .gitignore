@@ -97,6 +97,11 @@ lets-plot-images
 documentation_resources/raw_tutorials/.ipynb_checkpoints
 b73.gff
 
+# Test artifacts
+userPlotDir/
+src/test/kotlin/net/maizegenetics/phgv2/testData/testExportVariantContext.vcf
+src/test/kotlin/net/maizegenetics/phgv2/testData/testAnchorFile.txt
+
 # Misc LLM IDE integrations
 CLAUDE.md
 .claude/

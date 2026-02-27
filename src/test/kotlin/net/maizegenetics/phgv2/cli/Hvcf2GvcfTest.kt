@@ -1,10 +1,15 @@
 package net.maizegenetics.phgv2.cli
 
+import biokotlin.seq.NucSeq
 import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.variantcontext.Allele
 import htsjdk.variant.variantcontext.GenotypeBuilder
 import htsjdk.variant.variantcontext.VariantContextBuilder
 import io.kotest.common.runBlocking
+import net.maizegenetics.phgv2.api.HaplotypeGraph
+import net.maizegenetics.phgv2.api.ReferenceRange
+import net.maizegenetics.phgv2.api.SampleGamete
+import net.maizegenetics.phgv2.utils.*
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -12,6 +17,9 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @ExtendWith(TestExtension::class)
@@ -470,5 +478,280 @@ class Hvcf2GvcfTest {
         assertEquals(1018, resizedVc2[0].second) // asm start
         assertEquals(1008, resizedVc2[1].second) // asm end
 
+    }
+
+    @Test
+    fun testProcessCurrentHVCFVariant_diploid() {
+        val hvcf2gvcf = Hvcf2Gvcf()
+        val refRange = ReferenceRange("1", 1001, 5500)
+        val hapIdA = "hapA_checksum123"
+        val hapIdB = "hapB_checksum456"
+
+        val hapIdAndRangeToSampleMap = mapOf(
+            Pair(refRange, hapIdA) to listOf(HvcfVariant(refRange, "LineA", hapIdA)),
+            Pair(refRange, hapIdB) to listOf(HvcfVariant(refRange, "LineB", hapIdB))
+        )
+
+        val refAllele = Allele.create("A", true)
+        val alt1 = Allele.create("<$hapIdA>", false)
+        val alt2 = Allele.create("<$hapIdB>", false)
+        val genotype = GenotypeBuilder("TestSample", listOf(alt1, alt2)).phased(true).make()
+        val vc = VariantContextBuilder()
+            .chr("1")
+            .start(1001L)
+            .stop(5500L)
+            .alleles(listOf(refAllele, alt1, alt2))
+            .genotypes(genotype)
+            .attribute("END", 5500)
+            .make()
+
+        val (isHaploid, result) = hvcf2gvcf.processCurrentHVCFVariant(vc, hapIdAndRangeToSampleMap)
+
+        assertFalse(isHaploid, "Diploid variant should not be haploid")
+        assertNotNull(result.first, "First gamete variant should not be null")
+        assertNotNull(result.second, "Second gamete variant should not be null")
+        assertEquals("LineA", result.first!!.sampleName)
+        assertEquals("LineB", result.second!!.sampleName)
+        assertEquals(hapIdA, result.first!!.hapId)
+        assertEquals(hapIdB, result.second!!.hapId)
+    }
+
+    @Test
+    fun testProcessCurrentHVCFVariant_haploid() {
+        val hvcf2gvcf = Hvcf2Gvcf()
+        val refRange = ReferenceRange("1", 1001, 5500)
+        val hapIdA = "hapA_checksum123"
+
+        val hapIdAndRangeToSampleMap = mapOf(
+            Pair(refRange, hapIdA) to listOf(HvcfVariant(refRange, "LineA", hapIdA))
+        )
+
+        val refAllele = Allele.create("A", true)
+        val alt1 = Allele.create("<$hapIdA>", false)
+        val genotype = GenotypeBuilder("TestSample", listOf(alt1)).make()
+        val vc = VariantContextBuilder()
+            .chr("1")
+            .start(1001L)
+            .stop(5500L)
+            .alleles(listOf(refAllele, alt1))
+            .genotypes(genotype)
+            .attribute("END", 5500)
+            .make()
+
+        val (isHaploid, result) = hvcf2gvcf.processCurrentHVCFVariant(vc, hapIdAndRangeToSampleMap)
+
+        assertTrue(isHaploid, "Haploid variant should be haploid")
+        assertNotNull(result.first, "First gamete variant should not be null")
+        assertNotNull(result.second, "Second gamete should also resolve (same as first for haploid)")
+        assertEquals("LineA", result.first!!.sampleName)
+        assertEquals("LineA", result.second!!.sampleName)
+    }
+
+    @Test
+    fun testProcessCurrentHVCFVariant_diploidHomozygous() {
+        val hvcf2gvcf = Hvcf2Gvcf()
+        val refRange = ReferenceRange("1", 1001, 5500)
+        val hapIdA = "hapA_checksum123"
+
+        val hapIdAndRangeToSampleMap = mapOf(
+            Pair(refRange, hapIdA) to listOf(HvcfVariant(refRange, "LineA", hapIdA))
+        )
+
+        val refAllele = Allele.create("A", true)
+        val alt1 = Allele.create("<$hapIdA>", false)
+        val genotype = GenotypeBuilder("TestSample", listOf(alt1, alt1)).phased(true).make()
+        val vc = VariantContextBuilder()
+            .chr("1")
+            .start(1001L)
+            .stop(5500L)
+            .alleles(listOf(refAllele, alt1))
+            .genotypes(genotype)
+            .attribute("END", 5500)
+            .make()
+
+        val (isHaploid, result) = hvcf2gvcf.processCurrentHVCFVariant(vc, hapIdAndRangeToSampleMap)
+
+        assertFalse(isHaploid, "Homozygous diploid should still be diploid")
+        assertNotNull(result.first)
+        assertNotNull(result.second)
+        assertEquals("LineA", result.first!!.sampleName)
+        assertEquals("LineA", result.second!!.sampleName)
+        assertEquals(result.first!!.hapId, result.second!!.hapId)
+    }
+
+    @Test
+    fun testProcessCurrentHVCFVariant_diploidMissingHapId() {
+        val hvcf2gvcf = Hvcf2Gvcf()
+        val refRange = ReferenceRange("1", 1001, 5500)
+        val hapIdA = "hapA_checksum123"
+        val hapIdB = "hapB_checksum456"
+
+        val hapIdAndRangeToSampleMap = mapOf(
+            Pair(refRange, hapIdA) to listOf(HvcfVariant(refRange, "LineA", hapIdA))
+        )
+
+        val refAllele = Allele.create("A", true)
+        val alt1 = Allele.create("<$hapIdA>", false)
+        val alt2 = Allele.create("<$hapIdB>", false)
+        val genotype = GenotypeBuilder("TestSample", listOf(alt1, alt2)).phased(true).make()
+        val vc = VariantContextBuilder()
+            .chr("1")
+            .start(1001L)
+            .stop(5500L)
+            .alleles(listOf(refAllele, alt1, alt2))
+            .genotypes(genotype)
+            .attribute("END", 5500)
+            .make()
+
+        val (isHaploid, result) = hvcf2gvcf.processCurrentHVCFVariant(vc, hapIdAndRangeToSampleMap)
+
+        assertFalse(isHaploid)
+        assertNotNull(result.first, "First gamete should resolve")
+        assertNull(result.second, "Second gamete should be null when hapId not in map")
+        assertEquals("LineA", result.first!!.sampleName)
+    }
+
+    @Test
+    fun testDiploidHvcf2Gvcf() {
+        val dbPath = TestExtension.testTileDBURI
+        val refFasta = "data/test/smallseq/Ref.fa"
+        val refSeq = CreateMafVcf().buildRefGenomeSeq(refFasta)
+
+        val testDir = "${TestExtension.testVCFDir}/testDiploidDir"
+        File(testDir).deleteRecursively()
+        File(testDir).mkdirs()
+
+        val hvcfFiles = File(TestExtension.testVCFDir).listFiles()!!
+            .filter { it.name.endsWith(".h.vcf") || it.name.endsWith(".h.vcf.gz") }
+            .map { it.path }
+        val graph = HaplotypeGraph(hvcfFiles)
+
+        buildDiploidHvcf(
+            graph, "TestDiploid",
+            SampleGamete("LineA"), SampleGamete("LineB"),
+            refSeq, "$testDir/TestDiploid.h.vcf"
+        )
+
+        Hvcf2Gvcf().test(
+            "--db-path $dbPath --hvcf-dir $testDir --output-dir $testDir --reference-file $refFasta"
+        )
+
+        assertTrue(File("$testDir/TestDiploid_1.g.vcf").exists(), "Gamete 1 gVCF should exist")
+        assertTrue(File("$testDir/TestDiploid_2.g.vcf").exists(), "Gamete 2 gVCF should exist")
+
+        val lines1 = File("$testDir/TestDiploid_1.g.vcf").readLines()
+        val lines2 = File("$testDir/TestDiploid_2.g.vcf").readLines()
+
+        assertEquals("##fileformat=VCFv4.2", lines1[0])
+        assertEquals("##fileformat=VCFv4.2", lines2[0])
+        val headerLine1 = lines1.first { it.startsWith("#CHROM") }
+        val headerLine2 = lines2.first { it.startsWith("#CHROM") }
+        assertTrue(headerLine1.endsWith("TestDiploid"), "Gamete 1 gVCF should have correct sample name")
+        assertTrue(headerLine2.endsWith("TestDiploid"), "Gamete 2 gVCF should have correct sample name")
+
+        val dataLines1 = lines1.filter { !it.startsWith("#") }
+        val dataLines2 = lines2.filter { !it.startsWith("#") }
+        assertTrue(dataLines1.isNotEmpty(), "Gamete 1 gVCF should have data records")
+        assertTrue(dataLines2.isNotEmpty(), "Gamete 2 gVCF should have data records")
+    }
+
+    @Test
+    fun testDiploidHvcf2Gvcf_homozygous() {
+        val dbPath = TestExtension.testTileDBURI
+        val refFasta = "data/test/smallseq/Ref.fa"
+        val refSeq = CreateMafVcf().buildRefGenomeSeq(refFasta)
+
+        val testDir = "${TestExtension.testVCFDir}/testDiploidHomozygousDir"
+        File(testDir).deleteRecursively()
+        File(testDir).mkdirs()
+
+        val hvcfFiles = File(TestExtension.testVCFDir).listFiles()!!
+            .filter { it.name.endsWith(".h.vcf") || it.name.endsWith(".h.vcf.gz") }
+            .map { it.path }
+        val graph = HaplotypeGraph(hvcfFiles)
+
+        buildDiploidHvcf(
+            graph, "TestHomozygous",
+            SampleGamete("LineA"), SampleGamete("LineA"),
+            refSeq, "$testDir/TestHomozygous.h.vcf"
+        )
+
+        Hvcf2Gvcf().test(
+            "--db-path $dbPath --hvcf-dir $testDir --output-dir $testDir --reference-file $refFasta"
+        )
+
+        assertTrue(File("$testDir/TestHomozygous_1.g.vcf").exists(), "Gamete 1 gVCF should exist")
+        assertTrue(File("$testDir/TestHomozygous_2.g.vcf").exists(), "Gamete 2 gVCF should exist")
+
+        val dataLines1 = File("$testDir/TestHomozygous_1.g.vcf").readLines().filter { !it.startsWith("#") }
+        val dataLines2 = File("$testDir/TestHomozygous_2.g.vcf").readLines().filter { !it.startsWith("#") }
+        assertTrue(dataLines1.isNotEmpty(), "Gamete 1 gVCF should have data records")
+        assertTrue(dataLines2.isNotEmpty(), "Gamete 2 gVCF should have data records")
+        assertEquals(dataLines1.size, dataLines2.size, "Homozygous diploid should have equal records per gamete")
+    }
+
+    @Test
+    fun testDiploidHvcf2Gvcf_withRefGamete() {
+        val dbPath = TestExtension.testTileDBURI
+        val refFasta = "data/test/smallseq/Ref.fa"
+        val refSeq = CreateMafVcf().buildRefGenomeSeq(refFasta)
+
+        val testDir = "${TestExtension.testVCFDir}/testDiploidRefDir"
+        File(testDir).deleteRecursively()
+        File(testDir).mkdirs()
+
+        val hvcfFiles = mutableListOf<String>()
+        File(TestExtension.testVCFDir).listFiles()!!
+            .filter { it.name.endsWith(".h.vcf") || it.name.endsWith(".h.vcf.gz") }
+            .forEach { hvcfFiles.add(it.path) }
+        File("${dbPath}/hvcf_files").listFiles()!!
+            .filter { it.name.endsWith(".h.vcf") || it.name.endsWith(".h.vcf.gz") }
+            .forEach { hvcfFiles.add(it.path) }
+        val graph = HaplotypeGraph(hvcfFiles.distinct())
+
+        buildDiploidHvcf(
+            graph, "TestRefGamete",
+            SampleGamete("Ref"), SampleGamete("LineA"),
+            refSeq, "$testDir/TestRefGamete.h.vcf"
+        )
+
+        Hvcf2Gvcf().test(
+            "--db-path $dbPath --hvcf-dir $testDir --output-dir $testDir --reference-file $refFasta"
+        )
+
+        assertTrue(File("$testDir/TestRefGamete_1.g.vcf").exists(), "Gamete 1 (Ref) gVCF should exist")
+        assertTrue(File("$testDir/TestRefGamete_2.g.vcf").exists(), "Gamete 2 (LineA) gVCF should exist")
+
+        val dataLines1 = File("$testDir/TestRefGamete_1.g.vcf").readLines().filter { !it.startsWith("#") }
+        val dataLines2 = File("$testDir/TestRefGamete_2.g.vcf").readLines().filter { !it.startsWith("#") }
+        assertTrue(dataLines1.isNotEmpty(), "Ref gamete gVCF should have data records")
+        assertTrue(dataLines2.isNotEmpty(), "LineA gamete gVCF should have data records")
+    }
+
+    private fun buildDiploidHvcf(
+        graph: HaplotypeGraph,
+        sampleName: String,
+        gamete1: SampleGamete,
+        gamete2: SampleGamete,
+        refSeq: Map<String, NucSeq>,
+        outputFile: String
+    ) {
+        val altHeaders = mutableListOf<AltHeaderMetaData>()
+        val variantContexts = mutableListOf<htsjdk.variant.variantcontext.VariantContext>()
+
+        for (range in graph.ranges()) {
+            val hapId1 = graph.sampleToHapId(range, gamete1)
+            val hapId2 = graph.sampleToHapId(range, gamete2)
+            val refAllele = refSeq[range.contig]!!.get(range.start - 1).toString()
+            val startPos = Position(range.contig, range.start)
+            val endPos = Position(range.contig, range.end)
+
+            variantContexts.add(createDiploidHVCFRecord(sampleName, startPos, endPos, listOf(hapId1, hapId2), refAllele))
+            listOfNotNull(hapId1, hapId2).distinct().mapNotNull { graph.altHeader(it) }
+                .forEach { altHeaders.add(it) }
+        }
+
+        val headerSet = altHeaders.distinctBy { it.id }.map { altHeaderMetadataToVCFHeaderLine(it) }.toSet()
+        exportVariantContext(sampleName, variantContexts, outputFile, refSeq, headerSet)
     }
 }
