@@ -1,5 +1,8 @@
 package net.maizegenetics.phgv2.cli
 
+import biokotlin.genome.MAFToGVCF
+import biokotlin.seqIO.NucSeqIO
+import biokotlin.util.MergeGVCFUtils
 import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.variantcontext.Allele
 import htsjdk.variant.variantcontext.Genotype
@@ -9,6 +12,7 @@ import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.utils.HvcfVariant
 import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.exportVariantInfo
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertNotNull
@@ -268,6 +272,31 @@ class Hvcf2VcfTest {
         val hvcf2Vcf = Hvcf2Vcf()
 
 
+    }
+
+    /**
+     * Code to build the LineBGVCF and merged VCF
+     */
+    //@Test
+    fun buildLineBAndSharedVCF() {
+        val lineBMaf = "data/test/hvcf2vcf/temp/LineB.maf"
+        val outputLineB = "data/test/hvcf2vcf/temp/LineB.g.vcf"
+        val lineAMaf = "data/test/hvcf2vcf/temp/LineA.maf"
+        val outputLineA = "data/test/hvcf2vcf/temp/LineA.g.vcf"
+        val ref = "data/test/smallSeq/Ref.fa"
+        val mafToGVCF = MAFToGVCF()
+
+        val refSeq = NucSeqIO(ref).readAll()
+
+        val variantsLineB = mafToGVCF.getVariantContextsfromMAF(lineBMaf, refSeq, "LineB", false, false)
+        exportVariantInfo("LineB", variantsLineB["LineB"]!!.sortedBy { variant -> Position(variant.chr, variant.startPos) }, outputLineB, refSeq, setOf(),mafToGVCF)
+
+        val variantsLineA = mafToGVCF.getVariantContextsfromMAF(lineAMaf, refSeq, "LineA", false, false)
+        exportVariantInfo("LineA", variantsLineA["LineA"]!!.sortedBy { variant -> Position(variant.chr, variant.startPos) }, outputLineA, refSeq, setOf(),mafToGVCF)
+
+        val mergedVCF = "data/test/hvcf2vcf/temp/merged.vcf"
+        //Now we need to merge this pluse LineAs.  I moved LineA.g.vcf to temp so we can merge
+        MergeGVCFUtils.mergeGVCFs("data/test/hvcf2vcf/temp/", mergedVCF, null)
     }
 
     @Test
