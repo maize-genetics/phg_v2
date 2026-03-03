@@ -7,7 +7,9 @@ import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.variantcontext.Allele
 import htsjdk.variant.variantcontext.Genotype
 import htsjdk.variant.variantcontext.GenotypeBuilder
+import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.variantcontext.VariantContextBuilder
+import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.utils.HvcfVariant
@@ -18,6 +20,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertNotNull
 import org.junit.jupiter.api.assertThrows
 import java.io.File
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.iterator
+import kotlin.math.exp
 import kotlin.test.assertEquals
 import kotlin.test.fail
 
@@ -62,7 +68,50 @@ class Hvcf2VcfTest {
 
     @Test
     fun processHVCFAndBuildVCFTest() {
-        fail("Not yet implemented")
+        //processHVCFAndBuildVCF(dbPath: String, hvcfDir: String, donorVcfFile: String, outputFile: String, referenceFile: String)
+        val hvcf2Vcf = Hvcf2Vcf()
+        val dbPath = "data/test/hvcf2vcf/asmHvcfs/"
+        val hvcfDir = "data/test/hvcf2vcf/imputeHvcfs/"
+        val donorVcfFile = "data/test/hvcf2vcf/asmDonorVcf/merged.vcf"
+        val outputFile = "data/test/hvcf2vcf/temp/imputedVariantsAB.vcf"
+        val referenceFile = "data/test/smallseq/Ref.fa"
+
+        hvcf2Vcf.processHVCFAndBuildVCF(dbPath, hvcfDir, donorVcfFile, outputFile, referenceFile)
+
+        //Open up the mergedVCF and make a map of Pos + Line -> Allele call
+        val mergedGVCFMap = VCFFileReader(File(donorVcfFile), false).flatMap {
+            val position = Position(it.contig, it.start)
+            it.genotypesOrderedByName.map { genotype ->
+                Pair(Pair(position, genotype.sampleName), genotype.alleles.map { allele -> allele.baseString })
+            }
+        }.toMap()
+
+        //For LineAB haploid
+        //From
+        // chr1 1 - 6500 LineA
+        // chr1 6501 - 16,500 LineB
+        // chr2 1 - 6500 LineB
+        // chr2 6501 - 16,500 LineA
+        //Walk through the imputed vcf checking the variants
+        VCFFileReader(File(outputFile),false).forEach {
+            val position = Position(it.contig, it.start)
+            if(position in Position("1",1) .. Position("1", 6500) ||
+                position in Position("2", 6501).. Position("2",16500)) {
+                //It should match line A's
+                val lineAsVariant = mergedGVCFMap[Pair(position,"LineA")]
+                assertEquals(lineAsVariant, it.getGenotype(0).alleles.map { allele ->allele.baseString })
+            }
+            else {
+                //Should match LineBs
+                val lineBsVariant = mergedGVCFMap[Pair(position,"LineB")]
+                assertEquals(lineBsVariant, it.getGenotype(0).alleles.map { allele ->allele.baseString })
+
+            }
+        }
+
+
+
+
     }
 
     @Test
@@ -87,7 +136,7 @@ class Hvcf2VcfTest {
         val hvcf2Vcf = Hvcf2Vcf()
 
         //using this input hvcf as it is short
-        val inputHvcf = "data/test/hvcf2vcf/LineA.h.vcf"
+        val inputHvcf = "data/test/hvcf2vcf/asmHvcfs/hvcf_files/LineA.h.vcf"
 
         val hvcfRangeValues = hvcf2Vcf.processSingleHvcfFile(File(inputHvcf))
 
@@ -262,16 +311,66 @@ class Hvcf2VcfTest {
         //Note do not need to unit test extractVariantsAndWrite as it needs a writer and is a very simple function that is just called by this.
         //It was more to make the code more modular/smaller but likely does not need its own test.
 
-        //fun extractVcfAndExport( asmHapIdMap: Map<Pair<ReferenceRange,String>, List<HvcfVariant>>,
-        //                             refRangeAndHapIdMap: Map<Pair<ReferenceRange, String>, List<SampleGamete>>,
-        //                             positionToRangeMap: TreeMap<Position, ReferenceRange>,
-        //                             donorVcfFile: String,
-        //                             outputFileName: String,
-        //                             refSeq: Map<String, NucSeq>)
-
         val hvcf2Vcf = Hvcf2Vcf()
+        val refFasta = "data/test/smallseq/Ref.fa"
+        val donorVCF = "data/test/hvcf2vcf/asmDonorVcf/merged.vcf"
+        val outputFile = "data/test/hvcf2vcf/temp/imputed.vcf"
+
+        val refSeq = NucSeqIO(refFasta).readAll()
+        //Make 2 reference ranges, 1-100 and 101-200.  The first refRange will have variants from LineA and the 2nd will be from LineB
+        //The hapids don't even need to be real just need to match
+        val asmHapIdMap: Map<Pair<ReferenceRange, String>, List<HvcfVariant>> = mapOf(
+            Pair(ReferenceRange("1", 1, 100), "LineA") to
+                listOf(HvcfVariant(ReferenceRange("1",1, 100), "LineA", "HAPA1")),
+            Pair(ReferenceRange("1",1,100), "LineB") to listOf(HvcfVariant(ReferenceRange("1",1, 100), "LineB", "HAPB1")),
+            Pair(ReferenceRange("1",101,200), "LineA") to listOf(HvcfVariant(ReferenceRange("1",101, 200), "LineA", "HAPA2")),
+            Pair(ReferenceRange("1",101,200), "LineB") to listOf(HvcfVariant(ReferenceRange("1",101, 200), "LineB", "HAPB2"))
+            )
+
+        val refRangeAndHapIdMap = mapOf<Pair<ReferenceRange,String>, List<SampleGamete>>(
+            Pair(ReferenceRange("1",1,100), "HAPA1") to listOf(SampleGamete("OutputAB", 0)),
+            Pair(ReferenceRange("1",101,200), "HAPB2") to listOf(SampleGamete("OutputAB", 0)),
+            )
 
 
+        val positionToRangeMap = hvcf2Vcf.buildPositionToRefRangeMap(setOf(ReferenceRange("1", 1, 100), ReferenceRange("1", 101, 200)))
+
+        hvcf2Vcf.extractVcfAndExport(asmHapIdMap,refRangeAndHapIdMap, positionToRangeMap, donorVCF, outputFile, refSeq)
+
+        //check the results
+        val expectedFile = "data/test/hvcf2vcf/truth/expectedSimpleFile.vcf"
+
+        compareVCFs(expectedFile, outputFile)
+        //flip it just to be sure
+        compareVCFs(outputFile, expectedFile)
+
+
+        //delete outputFile
+        //Eventually use temp dir but requires some changes as it needs to pass a file around...
+        File(outputFile).deleteRecursively()
+    }
+
+    fun compareVCFs(expectedVCF: String, actualVCF: String) {
+        //Load in expectedFile and outputFile and compare results
+        val truthContextMap = VCFFileReader(File(expectedVCF),false).associateBy { Position(it.contig, it.start) }
+
+        val actualContextMap = VCFFileReader(File(actualVCF),false).associateBy { Position(it.contig, it.start) }
+
+        //Loop through each map and compare the position, alleles and genotype calls
+        for((truthContextKey, truthContext) in truthContextMap) {
+            assertTrue(actualContextMap.containsKey(truthContextKey))
+            val actualContext = actualContextMap[truthContextKey]!!
+            assertEquals(truthContext.contig, actualContext.contig)
+            assertEquals(truthContext.start, actualContext.start)
+            assertEquals(truthContext.alleles, actualContext.alleles)
+            val truthGenotypes = truthContext.genotypes
+            val actualGenotypes = actualContext.genotypes
+            for(sample in truthGenotypes.sampleNamesOrderedByName) {
+                val actualGenotype = actualGenotypes.get(sample)
+                assertEquals(truthGenotypes.get(sample).alleles, actualGenotype.alleles)
+
+            }
+        }
     }
 
     /**
@@ -438,29 +537,29 @@ class Hvcf2VcfTest {
             )
         }
 
-        // check that refRangeAndHapIdMap doesnt have the key
-        assertThrows<IllegalStateException> {
-            hvcf2vcf.extractAllelesForEachSampleGamete(variantContext,
-                mapOf(Pair(ReferenceRange("1", 1, 5), "Sample1") to listOf(
+        //This needs to have an empty value.  This is effectively saying that there is no haplotype information for this variant's sample so we should not impute anything and just return an empty list
+        val emptyList = hvcf2vcf.extractAllelesForEachSampleGamete(variantContext,
+            mapOf(Pair(ReferenceRange("1", 1, 5), "Sample1") to listOf(
+                HvcfVariant(
+                    ReferenceRange("1", 1, 5),
+                    "Sample1",
+                    "HAP1"
+                )
+            ),
+                Pair(ReferenceRange("1",6,20),"Sample1") to listOf(
                     HvcfVariant(
-                        ReferenceRange("1", 1, 5),
+                        ReferenceRange("1", 6, 20),
                         "Sample1",
                         "HAP1"
                     )
-                ),
-                    Pair(ReferenceRange("1",6,20),"Sample1") to listOf(
-                        HvcfVariant(
-                            ReferenceRange("1", 6, 20),
-                            "Sample1",
-                            "HAP1"
-                        )
-                    )
+                )
 
-                ),
-                ReferenceRange("1", 6, 20),
-                mapOf(Pair(ReferenceRange("1", 1, 5), "HAP1") to listOf(SampleGamete("Sample1", 0)))
-            )
-        }
+            ),
+            ReferenceRange("1", 6, 20),
+            mapOf(Pair(ReferenceRange("1", 1, 5), "HAP1") to listOf(SampleGamete("Sample1", 0)))
+        )
+
+        assertEquals(0, emptyList.size)
 
         //Check that it actually works if the maps are consistent with what is requested
         val allelesForSampleGamete = hvcf2vcf.extractAllelesForEachSampleGamete(variantContext,

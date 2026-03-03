@@ -261,14 +261,11 @@ class Hvcf2Vcf:
             ) { "Unable to find donor hapId for $refRange, sampleName: $sampleName" }
             val donorHapId = asmHapIdMap[Pair(refRange, sampleName)]!!.first().hapId
 
-            check(
-                refRangeAndHapIdMap.containsKey(
-                    Pair(
-                        refRange,
-                        donorHapId
-                    )
-                )
-            ) { "Unable to find sampleGametes containing this SNP: $refRange $donorHapId $sampleName" }
+            //We actually do not need to check here.  IF a haplotype is not hit in the imputed it will not be in the refRangeAndHapIdMap so we can skip
+            if(!refRangeAndHapIdMap.containsKey(Pair(refRange, donorHapId))) {
+                return@flatMap emptyList()
+            }
+
 
             val sampleGametesForThisHapId = refRangeAndHapIdMap[Pair(refRange, donorHapId)]!!
             sampleGametesForThisHapId.map { sampleGamete ->
