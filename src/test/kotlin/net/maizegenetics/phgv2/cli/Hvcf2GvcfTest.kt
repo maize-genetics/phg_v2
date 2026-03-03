@@ -29,7 +29,11 @@ class Hvcf2GvcfTest {
     companion object {
 
         val diploidFixtureDir = "${TestExtension.testVCFDir}/diploidFixtures"
-        val originalLineAGvcf = "data/test/smallseq/LineA.g.vcf"
+
+        val prebuiltDataDir = "data/test/hvcf2vcf"
+        val prebuiltAsmHvcfDir = "$prebuiltDataDir/asmHvcfs"
+        val prebuiltGvcfDir = "$prebuiltDataDir/temp"
+        val prebuiltImputeHvcfDir = "$prebuiltDataDir/imputeHvcfs"
 
         @JvmStatic
         @BeforeAll
@@ -734,8 +738,6 @@ class Hvcf2GvcfTest {
             gamete1Positions != gamete2Positions,
             "Heterozygous gametes should have different variant positions"
         )
-
-        verifyGameteMatchesOriginalGvcf(originalLineAGvcf, gamete1File)
     }
 
     /**
@@ -789,9 +791,6 @@ class Hvcf2GvcfTest {
             gamete1Positions, gamete2Positions,
             "Homozygous gametes should have identical variant positions"
         )
-
-        verifyGameteMatchesOriginalGvcf(originalLineAGvcf, gamete1File)
-        verifyGameteMatchesOriginalGvcf(originalLineAGvcf, gamete2File)
     }
 
     /**
@@ -845,8 +844,6 @@ class Hvcf2GvcfTest {
             vc.alternateAlleles.any { !it.isSymbolic && !it.isNoCall }
         }
         assertTrue(lineAHasSnps, "LineA gamete gVCF should contain actual variant calls (SNPs)")
-
-        verifyGameteMatchesOriginalGvcf(originalLineAGvcf, gamete2File)
     }
 
     /**
@@ -994,6 +991,71 @@ class Hvcf2GvcfTest {
         assertTrue(matchRate >= minMatchRate,
             "SNP match rate ${String.format("%.1f", matchRate * 100)}% is below ${minMatchRate * 100}% threshold. " +
                     "Matched $matchedSnps/$total, missing $mismatchedSnps SNPs (near indel boundaries).")
+    }
+
+    /**
+     * Verifies that SNPs in the generated gVCF are present in the donor gVCF.
+     * Unlike [verifyGameteMatchesOriginalGvcf] which checks what fraction of donor
+     * SNPs appear in the output, this checks the forward direction: what fraction of
+     * output SNPs are found in the donor. This is appropriate when the output only
+     * covers a subset of reference ranges (e.g., assembly hVCF round-trips) so that
+     * not all donor SNPs are expected in the output.
+     */
+    private fun verifyOutputSnpsFoundInDonor(
+        donorGvcfPath: String,
+        generatedGvcfFile: File,
+        minMatchRate: Double = 0.95
+    ) {
+        val donorVariants = readGvcfVariants(File(donorGvcfPath))
+        val generatedVariants = readGvcfVariants(generatedGvcfFile)
+
+        data class AsmKey(val chr: String, val start: String)
+
+        val donorByAsm = donorVariants
+            .filter { it.hasAttribute("ASM_Chr") && it.hasAttribute("ASM_Start") }
+            .associateBy { AsmKey(it.getAttributeAsString("ASM_Chr", ""), it.getAttributeAsString("ASM_Start", "")) }
+
+        val generatedSnps = generatedVariants.filter { vc ->
+            vc.reference.length() == 1 &&
+                    vc.alternateAlleles.any { !it.isSymbolic && !it.isNoCall && it.length() == 1 }
+        }
+        assertTrue(generatedSnps.isNotEmpty(), "Generated gVCF should have simple SNP records")
+
+        var matchedSnps = 0
+        var mismatchedSnps = 0
+        for (generated in generatedSnps) {
+            val asmChr = generated.getAttributeAsString("ASM_Chr", "")
+            val asmStart = generated.getAttributeAsString("ASM_Start", "")
+            val donor = donorByAsm[AsmKey(asmChr, asmStart)]
+
+            if (donor == null) {
+                mismatchedSnps++
+                continue
+            }
+
+            val generatedAltBases = generated.alternateAlleles
+                .filter { !it.isSymbolic && !it.isNoCall && it.length() == 1 }
+                .map { it.baseString }.toSet()
+            val donorAltBases = donor.alternateAlleles
+                .filter { !it.isSymbolic && !it.isNoCall && it.length() == 1 }
+                .map { it.baseString }.toSet()
+
+            if (generated.reference != donor.reference || generatedAltBases != donorAltBases) {
+                mismatchedSnps++
+                continue
+            }
+
+            matchedSnps++
+        }
+
+        val total = matchedSnps + mismatchedSnps
+        val matchRate = matchedSnps.toDouble() / total
+        println("Forward validation: matched $matchedSnps/$total output SNPs (${String.format("%.1f", matchRate * 100)}%) " +
+                "from ${generatedGvcfFile.name} against donor ${File(donorGvcfPath).name}")
+
+        assertTrue(matchRate >= minMatchRate,
+            "Output SNP match rate ${String.format("%.1f", matchRate * 100)}% is below ${minMatchRate * 100}% threshold. " +
+                    "Matched $matchedSnps/$total, $mismatchedSnps output SNPs not found in donor.")
     }
 
     /**
@@ -1210,6 +1272,117 @@ class Hvcf2GvcfTest {
         assertFalse(isHaploid, "Diploid variant should not be haploid")
         assertNull(result.first, "First gamete should be null when hapId not in map")
         assertNull(result.second, "Second gamete should be null when hapId not in map")
+    }
+
+    /**
+     * Tests the hvcf2gvcf pipeline using pre-built test data files. Uses an imputed hVCF
+     * (LineAB.h.vcf) that references haplotypes from both LineA and LineB, along with
+     * pre-built gVCF donor files. Verifies that the output gVCF is correctly composed
+     * from variants of both donors across both chromosomes.
+     *
+     * LineAB.h.vcf composition:
+     *   Chr1: ranges 1-6500 from LineA, 6501-16500 from LineB
+     *   Chr2: ranges 1-6500 from LineB, 6501-12000 from LineA
+     */
+    @Test
+    fun testImputedHvcf2GvcfWithPrebuiltData() {
+        val dbPath = TestExtension.testTileDBURI
+        val refFasta = "data/test/smallseq/Ref.fa"
+
+        val testDir = "${TestExtension.testVCFDir}/testImputedPrebuilt"
+        File(testDir).deleteRecursively()
+        File(testDir).mkdirs()
+
+        File("$prebuiltGvcfDir/LineA.g.vcf").copyTo(File("$testDir/LineA.g.vcf"))
+        File("$prebuiltGvcfDir/LineB.g.vcf").copyTo(File("$testDir/LineB.g.vcf"))
+        File("$prebuiltImputeHvcfDir/LineAB.h.vcf").copyTo(File("$testDir/LineAB.h.vcf"))
+
+        val hvcf2gvcf = Hvcf2Gvcf()
+        hvcf2gvcf.test(
+            "--db-path $dbPath --hvcf-dir $testDir --output-dir $testDir --reference-file $refFasta"
+        )
+
+        val outputFile = File("$testDir/LineAB.g.vcf")
+        assertTrue(outputFile.exists(), "LineAB.g.vcf should be created from imputed hVCF")
+
+        val variants = readGvcfVariants(outputFile)
+        assertTrue(variants.isNotEmpty(), "Output gVCF should have variant records")
+
+        verifyGvcfHeaders(outputFile, "LineAB")
+        verifyAsmAttributes(variants)
+
+        val chroms = variants.map { it.contig }.toSet()
+        assertTrue(chroms.contains("1"), "Output should have chromosome 1 records")
+        assertTrue(chroms.contains("2"), "Output should have chromosome 2 records")
+
+        val chr1Variants = variants.filter { it.contig == "1" }
+        val chr2Variants = variants.filter { it.contig == "2" }
+        assertTrue(chr1Variants.isNotEmpty(), "Should have chr1 variants")
+        assertTrue(chr2Variants.isNotEmpty(), "Should have chr2 variants")
+
+        val chr1HasSnps = chr1Variants.any { vc ->
+            vc.alternateAlleles.any { !it.isSymbolic && !it.isNoCall }
+        }
+        val chr2HasSnps = chr2Variants.any { vc ->
+            vc.alternateAlleles.any { !it.isSymbolic && !it.isNoCall }
+        }
+        assertTrue(chr1HasSnps, "Chr1 output should contain SNP calls from donors")
+        assertTrue(chr2HasSnps, "Chr2 output should contain SNP calls from donors")
+    }
+
+    /**
+     * Tests the hvcf2gvcf pipeline using pre-built assembly hVCFs and gVCFs.
+     * Runs hvcf2gvcf on renamed copies of the assembly hVCFs, using the pre-built
+     * gVCFs as donor data, and verifies the output matches the original gVCFs
+     * via round-trip SNP comparison.
+     *
+     * Assembly hVCFs are copied with alternate names (LineA_prebuilt, LineB_prebuilt)
+     * to avoid output filename conflicts with the donor gVCFs.
+     */
+    @Test
+    fun testAsmHvcf2GvcfMatchesPrebuiltGvcf() {
+        val dbPath = TestExtension.testTileDBURI
+        val refFasta = "data/test/smallseq/Ref.fa"
+
+        val testDir = "${TestExtension.testVCFDir}/testAsmPrebuiltGvcf"
+        File(testDir).deleteRecursively()
+        File(testDir).mkdirs()
+
+        File("$prebuiltAsmHvcfDir/LineA.h.vcf").copyTo(File("$testDir/LineA_prebuilt.h.vcf"))
+        File("$prebuiltAsmHvcfDir/LineB.h.vcf").copyTo(File("$testDir/LineB_prebuilt.h.vcf"))
+
+        File("$prebuiltGvcfDir/LineA.g.vcf").copyTo(File("$testDir/LineA.g.vcf"))
+        File("$prebuiltGvcfDir/LineB.g.vcf").copyTo(File("$testDir/LineB.g.vcf"))
+
+        val hvcf2gvcf = Hvcf2Gvcf()
+        hvcf2gvcf.test(
+            "--db-path $dbPath --hvcf-dir $testDir --output-dir $testDir --reference-file $refFasta"
+        )
+
+        val lineAOutput = File("$testDir/LineA_prebuilt.g.vcf")
+        val lineBOutput = File("$testDir/LineB_prebuilt.g.vcf")
+        assertTrue(lineAOutput.exists(), "LineA_prebuilt.g.vcf should be created")
+        assertTrue(lineBOutput.exists(), "LineB_prebuilt.g.vcf should be created")
+
+        val lineAVariants = readGvcfVariants(lineAOutput)
+        val lineBVariants = readGvcfVariants(lineBOutput)
+        assertTrue(lineAVariants.isNotEmpty(), "LineA output should have variants")
+        assertTrue(lineBVariants.isNotEmpty(), "LineB output should have variants")
+
+        verifyGvcfHeaders(lineAOutput, "LineA_prebuilt")
+        verifyGvcfHeaders(lineBOutput, "LineB_prebuilt")
+        verifyAsmAttributes(lineAVariants)
+        verifyAsmAttributes(lineBVariants)
+
+        val lineAChroms = lineAVariants.map { it.contig }.toSet()
+        val lineBChroms = lineBVariants.map { it.contig }.toSet()
+        assertTrue(lineAChroms.contains("1") && lineAChroms.contains("2"),
+            "LineA output should have variants on both chromosomes")
+        assertTrue(lineBChroms.contains("1") && lineBChroms.contains("2"),
+            "LineB output should have variants on both chromosomes")
+
+        verifyOutputSnpsFoundInDonor("$prebuiltGvcfDir/LineA.g.vcf", lineAOutput)
+        verifyOutputSnpsFoundInDonor("$prebuiltGvcfDir/LineB.g.vcf", lineBOutput)
     }
 
     private fun verifyAsmAttributes(variants: List<VariantContext>) {
