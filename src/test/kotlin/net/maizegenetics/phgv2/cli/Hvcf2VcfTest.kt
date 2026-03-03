@@ -73,7 +73,7 @@ class Hvcf2VcfTest {
         val dbPath = "data/test/hvcf2vcf/asmHvcfs/"
         val hvcfDir = "data/test/hvcf2vcf/imputeHvcfs/"
         val donorVcfFile = "data/test/hvcf2vcf/asmDonorVcf/merged.vcf"
-        val outputFile = "data/test/hvcf2vcf/temp/imputedVariantsAB.vcf"
+        val outputFile = "data/test/hvcf2vcf/temp/imputedVariantsAB_hap_dip.vcf"
         val referenceFile = "data/test/smallseq/Ref.fa"
 
         hvcf2Vcf.processHVCFAndBuildVCF(dbPath, hvcfDir, donorVcfFile, outputFile, referenceFile)
@@ -92,33 +92,70 @@ class Hvcf2VcfTest {
         // chr1 6501 - 16,500 LineB
         // chr2 1 - 6500 LineB
         // chr2 6501 - 16,500 LineA
+        //For diploid
+        // chr1 1 - 5500 LineA|LineA
+        // chr1 5501 - 11,000 LineA|LineB
+        // chr1 11,001 - 16,500 LineB|LineB
+        // chr2 1 - 5500 LineB|LineB
+        // chr2 5501 - 11,000 LineB|LineA
+        // chr2 11,001 - 16,500 LineA|LineA
         //Walk through the imputed vcf checking the variants
         VCFFileReader(File(outputFile),false).forEach {
             val position = Position(it.contig, it.start)
-            if(position in Position("1",1) .. Position("1", 6500) ||
-                position in Position("2", 6501).. Position("2",16500)) {
-                //It should match line A's
-                val lineAsVariant = mergedGVCFMap[Pair(position,"LineA")]
-                assertEquals(lineAsVariant, it.getGenotype(0).alleles.map { allele ->allele.baseString })
+            val lineAsVariant = mergedGVCFMap[Pair(position,"LineA")]!!.first()
+            val lineBsVariant = mergedGVCFMap[Pair(position,"LineB")]!!.first()
+
+            if(position in Position("1",1) .. Position("1",5500)) {
+                //Hap LineA, Diploid LineA|LineA
+                assertEquals(lineAsVariant, it.getGenotype("LineAB_haploid").alleles.map { allele ->allele.baseString }.first())
+                assertEquals(listOf(lineAsVariant,lineAsVariant), it.getGenotype("LineAB_diploid").alleles.map { allele ->allele.baseString })
+            }
+            else if(position in Position("1",5501) .. Position("1",6500)) {
+                //Hap LineA, diploid LineA | LineB
+                assertEquals(lineAsVariant, it.getGenotype("LineAB_haploid").alleles.map { allele ->allele.baseString }.first())
+                assertEquals(listOf(lineAsVariant,lineBsVariant), it.getGenotype("LineAB_diploid").alleles.map { allele ->allele.baseString })
+            }
+            else if(position in Position("1",6500) .. Position("1",11000)) {
+                //Hap LineB, diploid LineA | LineB
+                assertEquals(lineBsVariant, it.getGenotype("LineAB_haploid").alleles.map { allele ->allele.baseString }.first())
+                assertEquals(listOf(lineAsVariant,lineBsVariant), it.getGenotype("LineAB_diploid").alleles.map { allele ->allele.baseString })
+            }
+            else if(position in Position("1",11001) .. Position("1",16500)) {
+                //Hap LineB, diploid LineB | LineB
+                assertEquals(lineBsVariant, it.getGenotype("LineAB_haploid").alleles.map { allele ->allele.baseString }.first())
+                assertEquals(listOf(lineBsVariant,lineBsVariant), it.getGenotype("LineAB_diploid").alleles.map { allele ->allele.baseString })
+            }
+            else if(position in Position("2",1) .. Position("2",5500)) {
+                //Hap LineB, diploid LineB|LineB
+                assertEquals(lineBsVariant, it.getGenotype("LineAB_haploid").alleles.map { allele ->allele.baseString }.first())
+                assertEquals(listOf(lineBsVariant,lineBsVariant), it.getGenotype("LineAB_diploid").alleles.map { allele ->allele.baseString })
+            }
+            else if(position in Position("2",5501) .. Position("2",6500)) {
+                //Hap LineB, diploid LineB | LineA
+                assertEquals(lineBsVariant, it.getGenotype("LineAB_haploid").alleles.map { allele ->allele.baseString }.first())
+                assertEquals(listOf(lineBsVariant,lineAsVariant), it.getGenotype("LineAB_diploid").alleles.map { allele ->allele.baseString })
+            }
+            else if(position in Position("2",6501) .. Position("2",11000)) {
+                //Hap LineA, diploid LineB | LineA
+                assertEquals(lineAsVariant, it.getGenotype("LineAB_haploid").alleles.map { allele ->allele.baseString }.first())
+                assertEquals(listOf(lineBsVariant,lineAsVariant), it.getGenotype("LineAB_diploid").alleles.map { allele ->allele.baseString })
+            }
+            else if(position in Position("2",11001) .. Position("2",16500)) {
+                //Hap LineA, diploid LineA | LineA
+                assertEquals(lineAsVariant, it.getGenotype("LineAB_haploid").alleles.map { allele ->allele.baseString }.first())
+                assertEquals(listOf(lineAsVariant,lineAsVariant), it.getGenotype("LineAB_diploid").alleles.map { allele ->allele.baseString })
             }
             else {
-                //Should match LineBs
-                val lineBsVariant = mergedGVCFMap[Pair(position,"LineB")]
-                assertEquals(lineBsVariant, it.getGenotype(0).alleles.map { allele ->allele.baseString })
-
+                fail("Position ${position.contig}:${position.position} is out of the expected range")
             }
         }
-
-
-
-
     }
 
     @Test
     fun createRangeHapMapToSampleGameteTest() {
         val hvcf2Vcf = Hvcf2Vcf()
 
-        val hvcfDir = "data/test/hvcf2vcf/"
+        val hvcfDir = "data/test/hvcf2vcf/hvcf_files/"
 
         val hvcfRangeValues = hvcf2Vcf.createRangeHapMapToSampleGamete(hvcfDir)
 

@@ -86,7 +86,11 @@ class Hvcf2Vcf:
             }
             .flatMap { hvcfFile ->
                 processSingleHvcfFile(hvcfFile)
-            }.associate { Pair(it.refRange, it.hapId) to it.sampleGametes }
+            }.groupBy({Pair(it.refRange, it.hapId)}, {
+                it.sampleGametes
+            }).mapValues { entry ->
+                entry.value.flatten()
+            }
     }
 
     fun processSingleHvcfFile(hvcfFile: File): List<HvcfRangeHapIdSampleGamete> {
