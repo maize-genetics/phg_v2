@@ -31,7 +31,7 @@ class Hvcf2GvcfTest {
         val diploidFixtureDir = "${TestExtension.testVCFDir}/diploidFixtures"
 
         val prebuiltDataDir = "data/test/hvcf2vcf"
-        val prebuiltAsmHvcfDir = "$prebuiltDataDir/asmHvcfs"
+        val prebuiltAsmHvcfDir = "$prebuiltDataDir/asmHvcfs/hvcf_files"
         val prebuiltGvcfDir = "$prebuiltDataDir/temp"
         val prebuiltImputeHvcfDir = "$prebuiltDataDir/imputeHvcfs"
 
@@ -1295,7 +1295,7 @@ class Hvcf2GvcfTest {
 
         File("$prebuiltGvcfDir/LineA.g.vcf").copyTo(File("$testDir/LineA.g.vcf"))
         File("$prebuiltGvcfDir/LineB.g.vcf").copyTo(File("$testDir/LineB.g.vcf"))
-        File("$prebuiltImputeHvcfDir/LineAB.h.vcf").copyTo(File("$testDir/LineAB.h.vcf"))
+        File("$prebuiltImputeHvcfDir/LineAB_haploid.h.vcf").copyTo(File("$testDir/LineAB.h.vcf"))
 
         val hvcf2gvcf = Hvcf2Gvcf()
         hvcf2gvcf.test(
