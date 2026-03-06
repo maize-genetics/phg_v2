@@ -55,6 +55,9 @@ class Hvcf2Vcf:
         processHVCFAndBuildVCF(dbPath, hvcfDir, donorVcfFile, outputFile, referenceFile)
     }
 
+    /**
+     * Function to process all the hvcfs in hvcfDir and extract out the donorVCF variants and write to the outputfile
+     */
     fun processHVCFAndBuildVCF(dbPath: String, hvcfDir: String, donorVcfFile: String, outputFile: String, referenceFile: String) {
         //load in the refSeq
         val refSeq = CreateMafVcf().buildRefGenomeSeq(referenceFile)
@@ -77,6 +80,9 @@ class Hvcf2Vcf:
     }
 
 
+    /**
+     * Function to create a RangeMap+HapId -> List<SampleGamete> for the hvcfs to extract out the SNPs from
+     */
     fun createRangeHapMapToSampleGamete(hvcfDir: String): Map<Pair<ReferenceRange, String>, List<SampleGamete>> {
         //walk through the hvcfDir and process each hvcf file
         return File(hvcfDir).walk().filter { !it.isHidden && !it.isDirectory }
@@ -93,6 +99,10 @@ class Hvcf2Vcf:
             }
     }
 
+    /**
+     * Function to process a single HVCF File to determine which sample gametes are in each haplotype for each reference range.
+     * This is needed to pull out the correct SNPs from the donor VCF file.
+     */
     fun processSingleHvcfFile(hvcfFile: File): List<HvcfRangeHapIdSampleGamete> {
         val hvcfReader = VCFFileReader(hvcfFile, false)
 
@@ -102,6 +112,9 @@ class Hvcf2Vcf:
         }.flatten()
     }
 
+    /**
+     * Function to process a single Hvcf Variant extracting out which hapIds match each sampleGamete
+     */
     fun processSingleHvcfVariant(context: VariantContext): List<HvcfRangeHapIdSampleGamete> {
         //Pull out the reference range info
         val refRange = ReferenceRange(context.contig, context.start, context.end)
@@ -142,6 +155,13 @@ class Hvcf2Vcf:
         return positionMap
     }
 
+    /**
+     * Function to extract out the VCF variants and export to a merged VCF file
+     *
+     * asmHapIdMap is a Map of RefRange + SampleId -> HapId
+     * refRangeAndHapIdMap is Map of RefRange + HapId -> list<SampleGamete>
+     * positionToRangeMap is a TreeMap of Position -> RefRange to allow for fast lookup of the RefRange for each position in the donor VCF file
+     */
     fun extractVcfAndExport( asmHapIdMap: Map<Pair<ReferenceRange,String>, List<HvcfVariant>>,
                              refRangeAndHapIdMap: Map<Pair<ReferenceRange, String>, List<SampleGamete>>,
                              positionToRangeMap: TreeMap<Position, ReferenceRange>,
@@ -173,6 +193,9 @@ class Hvcf2Vcf:
         writer.close()
     }
 
+    /**
+     * funtion to extract the variants out and write to the outputWriter
+     */
     fun extractVariantsAndWrite(asmHapIdMap: Map<Pair<ReferenceRange,String>, List<HvcfVariant>>,
                                 refRangeAndHapIdMap: Map<Pair<ReferenceRange, String>, List<SampleGamete>>,
                                 positionToRangeMap: TreeMap<Position, ReferenceRange>,
@@ -189,11 +212,11 @@ class Hvcf2Vcf:
             val newContext = buildVariantContext(context, positionToRangeMap, asmHapIdMap, refRangeAndHapIdMap) ?: return@forEach
             outputWriter.add(newContext)
         }
-
     }
 
     /**
-     *
+     *  Function to build a new variant context for the output VCF file.
+     *  This is where we pull out the correct genotypes for each sample based on the haplotype information from the hvcf files and the donor VCF file.
      */
     fun buildVariantContext(
         vcfContext: VariantContext,
@@ -228,6 +251,9 @@ class Hvcf2Vcf:
         return newContextBuilder.make()
     }
 
+    /**
+     * Function to build a list of output Genotypes based on the sampleGameteAndAllelePairs
+     */
     fun buildOutputGenotypes(sampleGameteAndAllelePairs: List<Pair<SampleGamete, Allele>>): List<Genotype> {
         return sampleGameteAndAllelePairs.groupBy { it.first.name }
             .map { (sampleName, listOfAlleles) ->
@@ -244,6 +270,7 @@ class Hvcf2Vcf:
     }
 
     /**
+     * Funtion for extracting out the alleles for each SampleGamete and output the list for output
      * Context here is a vcf variant
      */
     fun extractAllelesForEachSampleGamete(
@@ -265,15 +292,15 @@ class Hvcf2Vcf:
             ) { "Unable to find donor hapId for $refRange, sampleName: $sampleName" }
             val donorHapId = asmHapIdMap[Pair(refRange, sampleName)]!!.first().hapId
 
-            //We actually do not need to check here.  IF a haplotype is not hit in the imputed it will not be in the refRangeAndHapIdMap so we can skip
+            // We actually do not need to a normal check here.
+            // IF a haplotype is not hit in the imputed it will not be in the refRangeAndHapIdMap so we can skip
             if(!refRangeAndHapIdMap.containsKey(Pair(refRange, donorHapId))) {
                 return@flatMap emptyList()
             }
 
-
             val sampleGametesForThisHapId = refRangeAndHapIdMap[Pair(refRange, donorHapId)]!!
             sampleGametesForThisHapId.map { sampleGamete ->
-                Pair(sampleGamete, genotype.getAllele(0)) // THis should work correctly as the donor VCF is haploid
+                Pair(sampleGamete, genotype.getAllele(0)) // This should work correctly as the donor VCF is haploid
             }
         }
     }

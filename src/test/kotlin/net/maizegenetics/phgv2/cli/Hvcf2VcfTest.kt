@@ -149,6 +149,8 @@ class Hvcf2VcfTest {
                 fail("Position ${position.contig}:${position.position} is out of the expected range")
             }
         }
+
+        File(outputFile).deleteRecursively()
     }
 
     @Test
