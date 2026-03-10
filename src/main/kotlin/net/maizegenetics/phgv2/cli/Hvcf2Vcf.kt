@@ -60,23 +60,27 @@ class Hvcf2Vcf:
      */
     fun processHVCFAndBuildVCF(dbPath: String, hvcfDir: String, donorVcfFile: String, outputFile: String, referenceFile: String) {
         //load in the refSeq
+        myLogger.info("Building RefGenome Sequence")
         val refSeq = CreateMafVcf().buildRefGenomeSeq(referenceFile)
 
+        myLogger.info("Creating the ASM HapId map from the Assembly hVCF files.")
         //Load in the ASM hapId map so we can make sure we pull out the right SNPs.
         //This is in form (RefRange,ASMName) -> hapID to allow for easy lookup
         val asmHapIdMap = VCFConversionUtils.createASMNameAndRefRangeMap(dbPath)
 
+        myLogger.info("Creating map keeping track of the refRanges and HapIds.")
         //We then need to load in the hvcfFiles and create a map of refRange+SampleName -> HapId1 + HapId2
         //Or maybe it needs to be refRange+HapId -> List<Pair<SampleName,Gamete>>
         val refRangeAndHapIdMap = createRangeHapMapToSampleGamete(hvcfDir)
 
         val ranges = refRangeAndHapIdMap.map {it.key.first}.toSet()
 
+        myLogger.info("Building Position to refRange Lookup")
         //We also need to build a fast Position -> refRange lookup
         val positionToRangeMap = buildPositionToRefRangeMap(ranges)
 
+        myLogger.info("Walking through the Merged VCF file and exporting out the new VCF file.")
         extractVcfAndExport(asmHapIdMap, refRangeAndHapIdMap, positionToRangeMap, donorVcfFile, outputFile, refSeq)
-
     }
 
 
@@ -194,7 +198,7 @@ class Hvcf2Vcf:
     }
 
     /**
-     * funtion to extract the variants out and write to the outputWriter
+     * function to extract the variants out and write to the outputWriter
      */
     fun extractVariantsAndWrite(asmHapIdMap: Map<Pair<ReferenceRange,String>, List<HvcfVariant>>,
                                 refRangeAndHapIdMap: Map<Pair<ReferenceRange, String>, List<SampleGamete>>,
@@ -270,7 +274,7 @@ class Hvcf2Vcf:
     }
 
     /**
-     * Funtion for extracting out the alleles for each SampleGamete and output the list for output
+     * Function for extracting out the alleles for each SampleGamete and output the list for output
      * Context here is a vcf variant
      */
     fun extractAllelesForEachSampleGamete(
