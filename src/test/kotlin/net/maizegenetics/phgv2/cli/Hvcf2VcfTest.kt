@@ -7,7 +7,6 @@ import com.github.ajalt.clikt.testing.test
 import htsjdk.variant.variantcontext.Allele
 import htsjdk.variant.variantcontext.Genotype
 import htsjdk.variant.variantcontext.GenotypeBuilder
-import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.variantcontext.VariantContextBuilder
 import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.api.ReferenceRange
@@ -23,7 +22,6 @@ import java.io.File
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.collections.iterator
-import kotlin.math.exp
 import kotlin.test.assertEquals
 import kotlin.test.fail
 
@@ -33,7 +31,7 @@ class Hvcf2VcfTest {
     fun testCliktParams() {
         val hvcf2Vcf = Hvcf2Vcf()
 
-        val noHvcfDir = hvcf2Vcf.test("--donor-vcf-file /path/to/donor.vcf --output-file /path/to/output.vcf --reference-file /path/to/reference.fasta")
+        val noHvcfDir = hvcf2Vcf.test("--pangenome-vcf-file /path/to/pangenome.vcf --output-file /path/to/output.vcf --reference-file /path/to/reference.fasta")
         assertEquals(noHvcfDir.statusCode, 1)
         assertEquals(
             "Usage: hvcf2vcf [<options>]\n" +
@@ -41,15 +39,15 @@ class Hvcf2VcfTest {
                     "Error: missing option --hvcf-dir\n", noHvcfDir.output
         )
 
-        val noDonorVcf = hvcf2Vcf.test("--hvcf-dir /path/to/hvcf --output-file /path/to/output.vcf --reference-file /path/to/reference.fasta")
-        assertEquals(noDonorVcf.statusCode, 1)
+        val noPangenomeVcf = hvcf2Vcf.test("--hvcf-dir /path/to/hvcf --output-file /path/to/output.vcf --reference-file /path/to/reference.fasta")
+        assertEquals(noPangenomeVcf.statusCode, 1)
         assertEquals(
             "Usage: hvcf2vcf [<options>]\n" +
                     "\n" +
-                    "Error: missing option --donor-vcf-file\n", noDonorVcf.output
+                    "Error: missing option --pangenome-vcf-file\n", noPangenomeVcf.output
         )
 
-        val noOutputFile = hvcf2Vcf.test("--hvcf-dir /path/to/hvcf --donor-vcf-file /path/to/donor.vcf --reference-file /path/to/reference.fasta")
+        val noOutputFile = hvcf2Vcf.test("--hvcf-dir /path/to/hvcf --pangenome-vcf-file /path/to/pangenome.vcf --reference-file /path/to/reference.fasta")
         assertEquals(noOutputFile.statusCode, 1)
         assertEquals(
             "Usage: hvcf2vcf [<options>]\n" +
@@ -57,7 +55,7 @@ class Hvcf2VcfTest {
                     "Error: missing option --output-file\n", noOutputFile.output
         )
 
-        val noRefFile = hvcf2Vcf.test("--hvcf-dir /path/to/hvcf --donor-vcf-file /path/to/donor.vcf --output-file /path/to/output.vcf")
+        val noRefFile = hvcf2Vcf.test("--hvcf-dir /path/to/hvcf --pangenome-vcf-file /path/to/pangenome.vcf --output-file /path/to/output.vcf")
         assertEquals(noRefFile.statusCode, 1)
         assertEquals(
             "Usage: hvcf2vcf [<options>]\n" +
@@ -68,18 +66,18 @@ class Hvcf2VcfTest {
 
     @Test
     fun processHVCFAndBuildVCFTest() {
-        //processHVCFAndBuildVCF(dbPath: String, hvcfDir: String, donorVcfFile: String, outputFile: String, referenceFile: String)
+        //processHVCFAndBuildVCF(dbPath: String, hvcfDir: String, pangenomeVCFFile: String, outputFile: String, referenceFile: String)
         val hvcf2Vcf = Hvcf2Vcf()
         val dbPath = "data/test/hvcf2vcf/asmHvcfs/"
         val hvcfDir = "data/test/hvcf2vcf/imputeHvcfs/"
-        val donorVcfFile = "data/test/hvcf2vcf/asmDonorVcf/merged.vcf"
+        val pangenomeVcfFile = "data/test/hvcf2vcf/asmPangenomeVcf/merged.vcf"
         val outputFile = "data/test/hvcf2vcf/temp/imputedVariantsAB_hap_dip.vcf"
         val referenceFile = "data/test/smallseq/Ref.fa"
 
-        hvcf2Vcf.processHVCFAndBuildVCF(dbPath, hvcfDir, donorVcfFile, outputFile, referenceFile)
+        hvcf2Vcf.processHVCFAndBuildVCF(dbPath, hvcfDir, pangenomeVcfFile, outputFile, referenceFile)
 
         //Open up the mergedVCF and make a map of Pos + Line -> Allele call
-        val mergedGVCFMap = VCFFileReader(File(donorVcfFile), false).flatMap {
+        val mergedGVCFMap = VCFFileReader(File(pangenomeVcfFile), false).flatMap {
             val position = Position(it.contig, it.start)
             it.genotypesOrderedByName.map { genotype ->
                 Pair(Pair(position, genotype.sampleName), genotype.alleles.map { allele -> allele.baseString })
@@ -352,7 +350,7 @@ class Hvcf2VcfTest {
 
         val hvcf2Vcf = Hvcf2Vcf()
         val refFasta = "data/test/smallseq/Ref.fa"
-        val donorVCF = "data/test/hvcf2vcf/asmDonorVcf/merged.vcf"
+        val pangenomeVCF = "data/test/hvcf2vcf/asmPangenomeVcf/merged.vcf"
         val outputFile = "data/test/hvcf2vcf/temp/imputed.vcf"
 
         val refSeq = NucSeqIO(refFasta).readAll()
@@ -374,7 +372,7 @@ class Hvcf2VcfTest {
 
         val positionToRangeMap = hvcf2Vcf.buildPositionToRefRangeMap(setOf(ReferenceRange("1", 1, 100), ReferenceRange("1", 101, 200)))
 
-        hvcf2Vcf.extractVcfAndExport(asmHapIdMap,refRangeAndHapIdMap, positionToRangeMap, donorVCF, outputFile, refSeq)
+        hvcf2Vcf.extractVcfAndExport(asmHapIdMap,refRangeAndHapIdMap, positionToRangeMap, pangenomeVCF, outputFile, refSeq)
 
         //check the results
         val expectedFile = "data/test/hvcf2vcf/truth/expectedSimpleFile.vcf"

@@ -113,10 +113,10 @@ phg hvcf2gvcf \
 
 ### Convert hVCF files to a multi-sample SNP VCF
 
-> Create a multi-sample VCF file from imputed hVCF files and a donor
-> VCF. The donor VCF is typically produced by running `merge-gvcfs` on
+> Create a multi-sample VCF file from imputed hVCF files and a pangenome
+> VCF. The pangenome VCF is typically produced by running `merge-gvcfs` on
 > assembly gVCF files. Each imputed sample receives genotype calls at
-> every variant position in the donor VCF. Supports both haploid and
+> every variant position in the pangenome VCF. Supports both haploid and
 > diploid hVCF input.
 
 **Command** - `hvcf2vcf`
@@ -126,20 +126,20 @@ phg hvcf2gvcf \
 ```shell
 phg hvcf2vcf \
     --hvcf-dir my/imputed/hvcf/directory \
-    --donor-vcf-file my/merged/donor.vcf \
+    --pangenome-vcf-file my/merged/pangenome.vcf \
     --reference-file my/updated/ref/fasta.fa \
     --output-file output/imputed_snps.vcf
 ```
 
 **Parameters**
 
-| Parameter name     | Description                                                                                                         | Default value         | Required?        |
-|--------------------|---------------------------------------------------------------------------------------------------------------------|-----------------------|------------------|
-| `--hvcf-dir`       | Path to directory holding imputed hVCF files.                                                                       | `""`                  | :material-check: |
-| `--donor-vcf-file` | Path to the VCF file containing all the PHG SNPs. Typically created by running `merge-gvcfs` on assembly gVCF files.| `""`                  | :material-check: |
-| `--reference-file` | Path to local Reference FASTA file needed for the sequence dictionary.                                              | `""`                  | :material-check: |
-| `--output-file`    | Path for the output VCF file.                                                                                       | `""`                  | :material-check: |
-| `--db-path`        | Folder name where TileDB datasets and AGC record is stored. If not provided, the current working directory is used. | _Current working dir_ |                  |
+| Parameter name         | Description                                                                                                         | Default value         | Required?        |
+|------------------------|---------------------------------------------------------------------------------------------------------------------|-----------------------|------------------|
+| `--hvcf-dir`           | Path to directory holding imputed hVCF files.                                                                       | `""`                  | :material-check: |
+| `--pangenome-vcf-file` | Path to the VCF file containing all the PHG SNPs. Typically created by running `merge-gvcfs` on assembly gVCF files.| `""`                  | :material-check: |
+| `--reference-file`     | Path to local Reference FASTA file needed for the sequence dictionary.                                              | `""`                  | :material-check: |
+| `--output-file`        | Path for the output VCF file.                                                                                       | `""`                  | :material-check: |
+| `--db-path`            | Folder name where TileDB datasets and AGC record is stored. If not provided, the current working directory is used. | _Current working dir_ |                  |
 
 <br>
 <hr/>

@@ -69,7 +69,7 @@ imputation using the [ropebwt3](https://github.com/lh3/ropebwt3) tool within the
   ```shell
   phg hvcf2vcf \
       --hvcf-dir /my/imputed/hvcfs \
-      --donor-vcf-file /my/merged/donor.vcf \
+      --pangenome-vcf-file /my/merged/pangenome.vcf \
       --reference-file /my/ref/genome \
       --output-file /my/output/imputed.vcf
   ```
@@ -685,15 +685,15 @@ This command takes three parameters:
     ready for downstream analysis and supports both haploid and diploid
     hVCF input.
 
-The `hvcf2vcf` command takes imputed hVCF files and a donor VCF (a
-merged gVCF from the assembly donor samples) to produce a multi-sample
+The `hvcf2vcf` command takes imputed hVCF files and a pangenome VCF (a
+merged gVCF from the assembly PHG samples) to produce a multi-sample
 VCF where each imputed sample has genotype calls at every variant
-position in the donor VCF.
+position in the pangenome VCF.
 
 ```shell
 ./phg hvcf2vcf \
     --hvcf-dir output/vcf_files_imputed \
-    --donor-vcf-file output/merged_donor.vcf \
+    --pangenome-vcf-file output/merged_pangenome.vcf \
     --reference-file output/updated_assemblies/Ref.fa \
     --output-file output/imputed_snps.vcf
 ```
@@ -701,7 +701,7 @@ position in the donor VCF.
 This command takes the following required parameters:
 
 * `--hvcf-dir` - Directory containing the imputed hVCF files.
-* `--donor-vcf-file` - Path to a merged VCF file containing all PHG
+* `--pangenome-vcf-file` - Path to a merged VCF file containing all PHG
   SNPs. This is typically produced by running `merge-gvcfs` on the
   assembly gVCF files.
 * `--reference-file` - The reference genome FASTA file.

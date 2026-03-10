@@ -40,7 +40,7 @@ class Hvcf2Vcf:
     val hvcfDir by option(help = "Path to directory holding hVCF files. Data will be pulled directly from these files instead of querying TileDB")
         .required()
 
-    val donorVcfFile by option(help = "Path to the VCF file containing all the PHG SNPs.  This is typically created by running merge-gvcf on the Assembly Gvcf files.")
+    val pangenomeVcfFile by option(help = "Path to the VCF file containing all the PHG SNPs.  This is typically created by running merge-gvcf on the Assembly Gvcf files.")
         .required()
 
     val outputFile by option(help = "Output file.")
@@ -52,7 +52,7 @@ class Hvcf2Vcf:
 
 
     override fun run() {
-        processHVCFAndBuildVCF(dbPath, hvcfDir, donorVcfFile, outputFile, referenceFile)
+        processHVCFAndBuildVCF(dbPath, hvcfDir, pangenomeVcfFile, outputFile, referenceFile)
     }
 
     /**
