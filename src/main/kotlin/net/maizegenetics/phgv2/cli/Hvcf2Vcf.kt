@@ -289,7 +289,7 @@ class Hvcf2Vcf:
             //We need to check to see if the asmHapIdMap has the key.  If not we can skip it but should throw an error
             // so user knows its missing the hap for that sample at that range.
             if(!asmHapIdMap.containsKey(Pair(refRange, sampleName))) {
-                myLogger.info("Unable to find ASM hapId for $refRange, sampleName: $sampleName.  Likely a missing Haplotype for this sample.")
+                myLogger.debug("Unable to find ASM hapId for $refRange, sampleName: $sampleName.  Likely a missing Haplotype for this sample.")
                 return@flatMap emptyList()
             }
 
