@@ -5,16 +5,6 @@
     [let us know](https://github.com/maize-genetics/phg_v2/issues/new/choose) if 
     you have any questions or issues.
 
-!!! danger "Diploid hVCF to gVCF disclaimer"
-    There is a known bug in the `hvcf2gvcf` command that affects **diploid** hVCF
-    files. This affects all PHGv2 versions after 2.3.7.144.
-    The output gVCF will only contain variants from the first haplotype -
-    variants from the second haplotype are omitted entirely. **Haploid hVCF files
-    are not affected.**
-    We are actively working on a fix and will update the documentation when it is
-    resolved. If you have questions or need assistance, please [comment on the announcement discussion] (https://github.com/maize-genetics/phg_v2/discussions/347)
-
-
 In this document, we will discuss the steps needed to perform
 imputation using the [ropebwt3](https://github.com/lh3/ropebwt3) tool within the PHG. The steps:
 
@@ -85,7 +75,16 @@ imputation using the [ropebwt3](https://github.com/lh3/ropebwt3) tool within the
       --output-dir /my/imputed/hvcfs
   ```
 
-* OPTIONAL: Get SNPs from imputed hVCFs
+* OPTIONAL (recommended): Get a multi-sample SNP VCF from imputed hVCFs
+  ```shell
+  phg hvcf2vcf \
+      --hvcf-dir /my/imputed/hvcfs \
+      --pangenome-vcf-file /my/merged/pangenome.vcf \
+      --reference-file /my/ref/genome \
+      --output-file /my/output/imputed.vcf
+  ```
+
+* OPTIONAL: Get per-sample gVCFs from imputed hVCFs
   ```shell
   phg hvcf2gvcf \
       --hvcf-dir /my/imputed/hvcfs \
@@ -733,10 +732,52 @@ This command takes three parameters:
 * `--threads` - Number of threads for use by the TileDB loading
   procedure.
 
-### Create g.vcf files (OPTIONAL)
-Our imputed hVCF files provide data on a haplotype level. If desired we can take
-the hVCF files and create gVCF files. This provides SNP level data and is done using
-the `hvcf2gvcf` command:
+### Create a multi-sample SNP VCF file (OPTIONAL — recommended)
+
+!!! tip
+    We recommend using `hvcf2vcf` for converting imputed hVCF data to
+    SNP-level genotypes. It produces a single multi-sample VCF that is
+    ready for downstream analysis and supports both haploid and diploid
+    hVCF input.
+
+The `hvcf2vcf` command takes imputed hVCF files and a pangenome VCF (a
+merged gVCF from the assembly PHG samples) to produce a multi-sample
+VCF where each imputed sample has genotype calls at every variant
+position in the pangenome VCF.
+
+```shell
+./phg hvcf2vcf \
+    --hvcf-dir output/vcf_files_imputed \
+    --pangenome-vcf-file output/merged_pangenome.vcf \
+    --reference-file output/updated_assemblies/Ref.fa \
+    --output-file output/imputed_snps.vcf
+```
+
+This command takes the following required parameters:
+
+* `--hvcf-dir` - Directory containing the imputed hVCF files.
+* `--pangenome-vcf-file` - Path to a merged VCF file containing all PHG
+  SNPs. This is typically produced by running `merge-gvcfs` on the
+  assembly gVCF files.
+* `--reference-file` - The reference genome FASTA file.
+* `--output-file` - Path for the output VCF file.
+
+An optional parameter is also available:
+
+* `--db-path` - Folder where TileDB datasets and the AGC record are
+  stored. Defaults to the current working directory.
+
+!!! note "Diploid hVCF support"
+    When processing **diploid** hVCF files, genotypes in the output VCF
+    will contain two alleles per sample (e.g., `0/1`). For **haploid**
+    hVCF files, genotypes will contain a single allele (e.g., `0`).
+
+
+### Create per-sample g.vcf files (OPTIONAL)
+
+If you need per-sample gVCF files rather than a single multi-sample
+VCF, the `hvcf2gvcf` command can create gVCF files from imputed hVCF
+data:
 
 ```shell
 ./phg hvcf2gvcf \
@@ -754,3 +795,9 @@ This command takes 4 parameters:
 * `--db-path` - Path to the directory containing the TileDB instances.
 * `--reference-file` - The reference genome fasta file.
 * `--output-dir` - The directory to place the gVCF files.
+
+!!! note "Diploid hVCF support"
+    When processing **diploid** hVCF files, `hvcf2gvcf` outputs two
+    separate gVCF files per sample -- one for each gamete. The files are
+    named `<sample>_1.g.vcf` and `<sample>_2.g.vcf`. For **haploid**
+    hVCF files, a single `<sample>.g.vcf` file is produced.
