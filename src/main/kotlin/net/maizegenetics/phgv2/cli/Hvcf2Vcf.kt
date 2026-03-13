@@ -284,6 +284,8 @@ class Hvcf2Vcf:
         refRangeAndHapIdMap: Map<Pair<ReferenceRange, String>, List<SampleGamete>>
     ): List<Pair<SampleGamete, Allele>> {
 
+        val hapIdsSeen = mutableSetOf<String>()
+
         return vcfContext.genotypes.flatMap { genotype ->
             val sampleName = genotype.sampleName
             //We need to check to see if the asmHapIdMap has the key.  If not we can skip it but should throw an error
@@ -294,6 +296,13 @@ class Hvcf2Vcf:
             }
 
             val asmHapId = asmHapIdMap[Pair(refRange, sampleName)]!!.first().hapId
+            if(hapIdsSeen.contains(asmHapId)) {
+                //need to skip as we have already assigned SNPs for this haplotype
+                //If this is not done we end up with genotypes like this 0/0/1/0/1/1/1/1/0/0/1
+                return@flatMap emptyList()
+            }
+
+            hapIdsSeen.add(asmHapId)
 
             // We actually do not need to a normal check here.
             // IF a haplotype is not hit in the imputed it will not be in the refRangeAndHapIdMap so we can skip
