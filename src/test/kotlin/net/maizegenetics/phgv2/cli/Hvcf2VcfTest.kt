@@ -559,20 +559,18 @@ class Hvcf2VcfTest {
             .make()
 
         //First check for errors being thrown
-        //First make asmHapIdMap not have a valid refRange
-        assertThrows<IllegalStateException> {
-                hvcf2vcf.extractAllelesForEachSampleGamete(variantContext,
-                mapOf(Pair(ReferenceRange("1", 1, 5), "Sample1") to listOf(
-                    HvcfVariant(
-                        ReferenceRange("1", 1, 5),
-                        "Sample1",
-                        "Hap1"
-                    )
-                )),
-                ReferenceRange("1", 10, 10),
-                mapOf(Pair(ReferenceRange("1", 1, 5), "HAP1") to listOf(SampleGamete("Sample1", 0)))
-            )
-        }
+        //First make asmHapIdMap not have a valid refRange.  Should return empty list.
+        assertEquals(0,hvcf2vcf.extractAllelesForEachSampleGamete(variantContext,
+            mapOf(Pair(ReferenceRange("1", 1, 5), "Sample1") to listOf(
+                HvcfVariant(
+                    ReferenceRange("1", 1, 5),
+                    "Sample1",
+                    "Hap1"
+                )
+            )),
+            ReferenceRange("1", 10, 10),
+            mapOf(Pair(ReferenceRange("1", 1, 5), "HAP1") to listOf(SampleGamete("Sample1", 0)))
+        ).size )
 
         //This needs to have an empty value.  This is effectively saying that there is no haplotype information for this variant's sample so we should not impute anything and just return an empty list
         val emptyList = hvcf2vcf.extractAllelesForEachSampleGamete(variantContext,
