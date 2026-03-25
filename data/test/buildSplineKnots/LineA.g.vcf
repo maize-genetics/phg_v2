@@ -1,0 +1,27 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##FORMAT=<ID=AD,Number=3,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth (only filtered reads used for calling)">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##INFO=<ID=AF,Number=3,Type=Integer,Description="Allele Frequency">
+##INFO=<ID=ASM_Chr,Number=1,Type=String,Description="Assembly chromosome">
+##INFO=<ID=ASM_End,Number=1,Type=Integer,Description="Assembly end position">
+##INFO=<ID=ASM_Start,Number=1,Type=Integer,Description="Assembly start position">
+##INFO=<ID=ASM_Strand,Number=1,Type=String,Description="Assembly strand">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
+##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
+##contig=<ID=1,length=55000>
+##contig=<ID=2,length=55000>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	LineA
+1	1	.	G	<NON_REF>	.	.	ASM_Chr=1;ASM_End=16;ASM_Start=1;ASM_Strand=+;END=16	GT:AD:DP:PL	0:30,0:30:0,90,90
+1	17	.	T	A,<NON_REF>	.	.	ASM_Chr=1;ASM_End=17;ASM_Start=17;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+1	18	.	C	<NON_REF>	.	.	ASM_Chr=1;ASM_End=62;ASM_Start=18;ASM_Strand=+;END=62	GT:AD:DP:PL	0:30,0:30:0,90,90
+1	63	.	T	A,<NON_REF>	.	.	ASM_Chr=1;ASM_End=63;ASM_Start=63;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+1	64	.	A	<NON_REF>	.	.	ASM_Chr=1;ASM_End=102;ASM_Start=64;ASM_Strand=+;END=102	GT:AD:DP:PL	0:30,0:30:0,90,90
+1	103	.	CCCCCCCCCCCCCCCCCCCC	C,<NON_REF>	.	.	ASM_Chr=1;ASM_End=103;ASM_Start=103;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+1	123	.	G	<NON_REF>	.	.	ASM_Chr=1;ASM_End=104;ASM_Start=111;ASM_Strand=+;END=130	GT:AD:DP:PL	0:30,0:30:0,90,90
+1	131	.	T	TTTTTTTTTTTTTTTTTTTT,<NON_REF>	.	.	ASM_Chr=1;ASM_End=131;ASM_Start=112;ASM_Strand=+	GT:AD:DP:PL	1:0,30,0:30:90,90,0
+1	132	.	G	<NON_REF>	.	.	ASM_Chr=1;ASM_End=104;ASM_Start=111;ASM_Strand=+;END=135	GT:AD:DP:PL	0:30,0:30:0,90,90

@@ -2,18 +2,15 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 
 import biokotlin.util.bufferedReader
 import biokotlin.util.bufferedWriter
-import com.google.common.collect.Range
-import com.google.common.collect.RangeMap
-import com.google.common.collect.TreeRangeMap
+import htsjdk.variant.variantcontext.Allele
+import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.parseALTHeader
-import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
-import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.apache.logging.log4j.LogManager
 import java.io.*
+import kotlin.math.abs
 import kotlin.random.Random
 
 //@Serializable
@@ -49,7 +46,9 @@ class SplineUtils{
          * (http://doi.acm.org/10.1145/321607.321609) implemented via the Apache Commons Math3 library.
          * This does not build the full splines just yet but rather sets up the spline knots for each chromosome.
          */
-        fun buildSplineKnots(vcfDir: String, vcfType: String, outputDir: String, minIndelLength: Int = 10, numBpsPerKnot: Int = 50_000, contigSet : Set<String> = emptySet(), disableSplineDownsampling: Boolean = false, randomSeed: Long = 12345) {
+        fun buildSplineKnots(vcfDir: String, vcfType: String, outputDir: String, minIndelLength: Int = 10,
+                             numBpsPerKnot: Int = 50_000, contigSet : Set<String> = emptySet(), disableSplineDownsampling: Boolean = false,
+                             randomSeed: Long = 12345, binSize:Int = 256, disableASMCoordinates : Boolean = false) {
             val vcfFiles = buildVCFFileList(vcfDir, vcfType)
 
             var chrIndexMap = mutableMapOf<String,Int>()
@@ -62,7 +61,7 @@ class SplineUtils{
 
 
                 myLogger.info("Reading ${vcfFile.name}")
-                val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed)
+                val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed, binSize, disableASMCoordinates)
 
                 myLogger.info("Done processing ${vcfFile.name}")
                 myLogger.info("Number of splines: ${splineKnotLookup.splineKnotMap.size}")
@@ -113,12 +112,17 @@ class SplineUtils{
             numBpsPerKnot: Int = 50_000,
             contigSet: Set<String> = emptySet(),
             disableSplineDownsampling: Boolean = false,
-            randomSeed: Long = 12345
+            randomSeed: Long = 12345,
+            binSize: Int = 256,
+            disableASMCoordinates : Boolean = false
         ) : SplineKnotLookup {
             return if(vcfType == "hvcf") {
-                processHvcfFileIntoSplineKnots(vcfFile, chrIndexMap, gameteIndexMap, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed)
+                if(disableASMCoordinates) {
+                    myLogger.info("Disable ASM Coordinates is on.  It does not have an effect on hvcf files as they use the metadata.")
+                }
+                processHvcfFileIntoSplineKnots(vcfFile, chrIndexMap, gameteIndexMap, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed, binSize)
             } else if(vcfType == "gvcf") {
-                processGvcfFileIntoSplineKnots(vcfFile,chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed)
+                processGvcfFileIntoSplineKnots(vcfFile,chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed, binSize, disableASMCoordinates)
             } else {
                 throw IllegalArgumentException("Unknown VCF type $vcfType")
             }
@@ -135,7 +139,8 @@ class SplineUtils{
             numBpsPerKnot: Int = 50_000,
             contigSet: Set<String> = emptySet(),
             disableSplineDownsampling: Boolean = false,
-            randomSeed: Long = 12345
+            randomSeed: Long = 12345,
+            binSize: Int = 256
         ) : SplineKnotLookup {
             val splineKnotMap = mutableMapOf<String, MutableList<Triple<Int,String,Int>>>()
 
@@ -178,8 +183,8 @@ class SplineUtils{
                         val asmStartChr = regions.first().first.contig
                         val asmEndChr = regions.last().second.contig
 
-                        addPointsToMap(currentASMSplineMap, asmStartChr, asmStart, chrom, stPosition)
-                        addPointsToMap(currentASMSplineMap, asmEndChr, asmEnd, chrom, endPosition)
+                        addPointsToMap(currentASMSplineMap, asmStartChr, asmStart, chrom, stPosition,binSize)
+                        addPointsToMap(currentASMSplineMap, asmEndChr, asmEnd, chrom, endPosition, binSize)
                     }
 
                 }
@@ -211,7 +216,9 @@ class SplineUtils{
             numBpsPerKnot: Int = 50_000,
             contigSet: Set<String> = emptySet(),
             disableSplineDownsampling: Boolean = false,
-            randomSeed: Long = 12345
+            randomSeed: Long = 12345,
+            binSize: Int = 256,
+            disableASMCoordinates : Boolean = false,
         ) : SplineKnotLookup {
 
             val splineKnotMap = mutableMapOf<String, MutableList<Triple<Int,String,Int>>>()
@@ -228,18 +235,23 @@ class SplineUtils{
             var blockAsmChrIdx: Int? = null
             var currentRefChr: String? = null
 
+            var currentASMPos = 1
+            val refChromSet = mutableSetOf<String>()
+            var prevRefPos = -1
+
+
             // Flush the current regular block if it exists.
             fun flushBlock() {
                 if (currentRefChr != null && blockRefStart != null && blockAsmStart != null &&
                     blockAsmChr != null && blockAsmChrIdx != null
                 ) {
                     if (blockAsmStart == blockAsmEnd || blockRefStart == blockRefEnd) {
-                        addPointsToMap(currentASMSplineMap, blockAsmChr!!, blockAsmStart!!, currentRefChr!!, blockRefStart!!)
+                        addPointsToMap(currentASMSplineMap, blockAsmChr!!, blockAsmStart!!, currentRefChr!!, blockRefStart!!, binSize)
                     }
                     else {
                         //add both sets of points to the list
-                        addPointsToMap(currentASMSplineMap, blockAsmChr!!, blockAsmStart!!, currentRefChr!!, blockRefStart!!)
-                        addPointsToMap(currentASMSplineMap, blockAsmChr!!, blockAsmEnd!!, currentRefChr!!, blockRefEnd!!)
+                        addPointsToMap(currentASMSplineMap, blockAsmChr!!, blockAsmStart!!, currentRefChr!!, blockRefStart!!, binSize)
+                        addPointsToMap(currentASMSplineMap, blockAsmChr!!, blockAsmEnd!!, currentRefChr!!, blockRefEnd!!, binSize)
                     }
                 }
                 blockRefStart = null
@@ -286,20 +298,43 @@ class SplineUtils{
                         //Here is where it deviates from the previous idea
                         //We need to flush the block because they are no longer on the same chromosome
                         flushBlock()
+
+                        if(disableASMCoordinates) {
+                            check(!refChromSet.contains(currentRefChr)) { "Second Block of Ref Chromosomes.  Your gVCF file is not sorted by reference coordinates." }
+                            refChromSet.add(refChr)
+                            //Reset the currentASMPos Start
+                            currentASMPos = 1
+                            prevRefPos = -1
+                        }
+
                     }
                     currentRefChr = refChr
 
+
+                    //If disableASMCoords is on, we need to verify that the position will be increasing
+                    if(disableASMCoordinates) {
+                        check(prevRefPos< refPosStart) {"Found position for this chromosome before previous position. Your gVCF file is not sorted by reference coordinates."}
+                        prevRefPos = refPosStart
+                    }
+
                     // Get ASM_Chr; if missing, default to "NA".
-                    val asmChr = variant.getAttribute("ASM_Chr", null)?.toString() ?: "NA"
+                    val asmChr = if(disableASMCoordinates) {
+                        //should match current refChr
+                        refChr
+                    }
+                    else {
+                        variant.getAttribute("ASM_Chr", null)?.toString() ?: "NA"
+                    }
                     checkMapAndAddToIndex(chrIndexMap, refChr)
                     val refChrIndex = chrIndexMap[refChr]
                         ?: throw IllegalStateException("Reference chromosome $refChr not found in chrIndexMap.")
 
                     // Parse ASM_Start and ASM_End safely.
-                    val asmPosStart = variant.getAttribute("ASM_Start", null)?.toString()?.toIntOrNull()
-                    val asmPosEnd = variant.getAttribute("ASM_End", null)?.toString()?.toIntOrNull()
+                    val (asmPosStart, asmPosEnd, newCurrentASMPos) = findAsmCoords(variant, currentASMPos, disableASMCoordinates)
+                    currentASMPos = newCurrentASMPos
+
                     if (asmPosStart == null || asmPosEnd == null) {
-                        myLogger.info("WARN - Skipping variant at $refChr:$refPosStart due to invalid ASM_Start/ASM_End.")
+                        myLogger.info("WARN - Skipping variant at $refChr:$refPosStart due to invalid ASM_Start/ASM_End. Or Missing Data")
                         continue
                     }
 
@@ -316,15 +351,21 @@ class SplineUtils{
                     val hasEnd = variant.hasAttribute("END")
 
                     // Determine the strand, defaulting to "+".
-                    val strand = variant.getAttribute("ASM_Strand", "+").toString()
+                    val strand = if(disableASMCoordinates) {
+                        //Need to override ASM_Strand if we are not using the ASMCoordinates
+                        "+"
+                    }
+                    else {
+                        variant.getAttribute("ASM_Strand", "+").toString()
+                    }
 
                     when {
                         // Negative stranded variant with an END attribute is written immediately as an inv_block.
                         (hasEnd && strand == "-") -> {
                             flushBlock()
 
-                            addPointsToMap(currentASMSplineMap, asmChr, asmPosStart, refChr, refPosStart)
-                            addPointsToMap(currentASMSplineMap, asmChr, asmPosEnd, refChr, refPosEnd)
+                            addPointsToMap(currentASMSplineMap, asmChr, asmPosStart, refChr, refPosStart, binSize)
+                            addPointsToMap(currentASMSplineMap, asmChr, asmPosEnd, refChr, refPosEnd, binSize)
                         }
                         // Collapse SNV and explicit END cases (for positive stranded variants).
                         (refAllele.length == 1 && (altAllele.length == 1 || hasEnd)) -> {
@@ -343,7 +384,7 @@ class SplineUtils{
 
                                 // Generate midpoint to ensure monotonicity for spline
                                 val asmPosMid = ((asmPosStart + asmPosEnd) * 0.5).toInt()
-                                addPointsToMap(currentASMSplineMap, asmChr, asmPosMid, refChr, refPosStart)
+                                addPointsToMap(currentASMSplineMap, asmChr, asmPosMid, refChr, refPosStart, binSize)
                             }
                         }
                         // Deletion: reference allele is longer than one base.
@@ -355,12 +396,12 @@ class SplineUtils{
                             } else {
                                 flushBlock()
                                 val refPosMid = (((refPosStart + refAllele.length - 1) + refPosStart) * 0.5).toInt()
-                                addPointsToMap(currentASMSplineMap, asmChr, asmPosStart, refChr, refPosMid)
+                                addPointsToMap(currentASMSplineMap, asmChr, asmPosStart, refChr, refPosMid, binSize)
                             }
                         }
                         else -> {
                             flushBlock()
-                            addPointsToMap(currentASMSplineMap, asmChr, asmPosStart, refChr, refPosStart)
+                            addPointsToMap(currentASMSplineMap, asmChr, asmPosStart, refChr, refPosStart, binSize)
                         }
                     }
                 }
@@ -385,6 +426,30 @@ class SplineUtils{
             return SplineKnotLookup(splineKnotMap, chrIndexMap, gameteIndexMap)
         }
 
+        fun findAsmCoords(variant: VariantContext, currentASMPos: Int, disableASMCoordinates: Boolean = false ): Triple<Int?,Int?,Int> {
+            return if(disableASMCoordinates) {
+                //Need to see what type of variant we have.  If its a ref block we need to use the refCoords, if not go off alt length
+                val firstAltAllele = variant.getAlternateAllele(0)
+
+                val genotypeAllele = variant.getGenotype(0).alleles.first()
+                if(genotypeAllele == Allele.NO_CALL) {
+                    Triple(null, null, currentASMPos) //should not return any coords as it is a no call.
+                }
+                else if(firstAltAllele == Allele.NON_REF_ALLELE) {
+                    val refLength = variant.end - variant.start
+                    Triple(currentASMPos, currentASMPos + refLength, currentASMPos + refLength +1)
+                } else {
+                    val altAlleleLength = variant.alternateAlleles.first().baseString.length
+                    Triple(currentASMPos, currentASMPos + altAlleleLength-1, currentASMPos + altAlleleLength) //Don't need to add + to the next one as length already does this...
+                }
+            }
+            else {
+                val asmPosStart = variant.getAttribute("ASM_Start", null)?.toString()?.toIntOrNull()
+                val asmPosEnd = variant.getAttribute("ASM_End", null)?.toString()?.toIntOrNull()
+                Triple(asmPosStart, asmPosEnd, -1) //Returning -1 for currentASM Position as it is not valid in the ASM_ mode
+            }
+        }
+
 
         /**
          * This function will do the ref position binning as well as it adds the point to the map.
@@ -394,10 +459,11 @@ class SplineUtils{
             asmChr: String,
             asmPos: Int,
             refChrom: String,
-            refPos: Int
+            refPos: Int,
+            binSize: Int = 256
         ) {
             val listOfPoints = splineKnotMap.getOrPut(asmChr) { mutableListOf() }
-            listOfPoints.add(Triple(asmPos, refChrom, refPos/256)) //divide by 256 to bin up the reference positions
+            listOfPoints.add(Triple(asmPos, refChrom, refPos/binSize)) //divide by 256 to bin up the reference positions
         }
 
         /**
