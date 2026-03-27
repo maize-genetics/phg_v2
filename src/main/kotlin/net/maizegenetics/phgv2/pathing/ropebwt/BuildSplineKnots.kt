@@ -5,6 +5,7 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
@@ -47,8 +48,9 @@ class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs
     val binSize by option(help = "Bin size of the reference positions.")
         .int()
         .default(256)
+        .validate { require(it > 0) { "Bin size must be positive" } }
 
-    val disableASMCoordinates by option(help = "Disable ASM coordinates for the spline. By default the splines will use the ASM_start and ASM_end coordinates.  " +
+    val disableAsmCoordinates by option(help = "Disable ASM coordinates for the spline. By default the splines will use the ASM_start and ASM_end coordinates.  " +
             "When this option is enabled it will use a running count for each chromosome.")
         .flag()
 
@@ -77,7 +79,7 @@ class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs
             disableSplineDownsampling,
             randomSeed,
             binSize,
-            disableASMCoordinates
+            disableAsmCoordinates
         )
 
         myLogger.info("Spline Knot building complete.")

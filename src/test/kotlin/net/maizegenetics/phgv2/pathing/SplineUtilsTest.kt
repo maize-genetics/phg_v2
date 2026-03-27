@@ -385,16 +385,40 @@ class SplineUtilsTest {
         val splineKnotLookup = SplineUtils.processGvcfFileIntoSplineKnots(lineAFile, chrIndexMap, gameteIndexMap, minIndelLength = 1 ,disableASMCoordinates = true, binSize = 1)
 
         //Verify the output.
-        val knots = splineKnotLookup.splineKnotMap["1_LineA"]!!
-        assertEquals(8, knots.size)
-        assertEquals(Triple(1,"1",1), knots[0])
-        assertEquals(Triple(102,"1",102), knots[1])
-        assertEquals(Triple(103,"1",112), knots[2]) //This seems odd but we need to midpoint the indel
-        assertEquals(Triple(104,"1",123), knots[3])
-        assertEquals(Triple(111,"1",130), knots[4])
-        assertEquals(Triple(121,"1",131), knots[5]) //This seems odd but we need to midpoint the indel
-        assertEquals(Triple(132,"1",132), knots[6])
-        assertEquals(Triple(135,"1",135), knots[7])
+        val knots1 = splineKnotLookup.splineKnotMap["1_LineA"]!!
+        assertEquals(8, knots1.size)
+        assertEquals(Triple(1,"1",1), knots1[0])
+        assertEquals(Triple(102,"1",102), knots1[1])
+        assertEquals(Triple(103,"1",112), knots1[2]) //This seems odd but we need to midpoint the indel
+        assertEquals(Triple(104,"1",123), knots1[3])
+        assertEquals(Triple(111,"1",130), knots1[4])
+        assertEquals(Triple(121,"1",131), knots1[5]) //This seems odd but we need to midpoint the indel
+        assertEquals(Triple(132,"1",132), knots1[6])
+        assertEquals(Triple(135,"1",135), knots1[7])
+
+        val knots2 = splineKnotLookup.splineKnotMap["2_LineA"]!!
+        assertEquals(8, knots1.size)
+        assertEquals(Triple(1,"2",1), knots2[0])
+        assertEquals(Triple(102,"2",102), knots2[1])
+        assertEquals(Triple(103,"2",112), knots2[2]) //This seems odd but we need to midpoint the indel
+        assertEquals(Triple(104,"2",123), knots2[3])
+        assertEquals(Triple(111,"2",130), knots2[4])
+        assertEquals(Triple(121,"2",131), knots2[5]) //This seems odd but we need to midpoint the indel
+        assertEquals(Triple(132,"2",132), knots2[6])
+        assertEquals(Triple(135,"2",135), knots2[7])
+
+
+        val knots3 = splineKnotLookup.splineKnotMap["3_LineA"]!!
+        assertEquals(8, knots1.size)
+        assertEquals(Triple(1,"3",1), knots3[0])
+        assertEquals(Triple(102,"3",102), knots3[1])
+        assertEquals(Triple(103,"3",112), knots3[2]) //This seems odd but we need to midpoint the indel
+        assertEquals(Triple(104,"3",123), knots3[3])
+        assertEquals(Triple(111,"3",130), knots3[4])
+        assertEquals(Triple(121,"3",131), knots3[5]) //This seems odd but we need to midpoint the indel
+        assertEquals(Triple(132,"3",132), knots3[6])
+        assertEquals(Triple(135,"3",135), knots3[7])
+
 
         //Test unsorted errors
         val lineAFileUnsortedPos = File("data/test/buildSplineKnots/LineA_unsortedPos.g.vcf")

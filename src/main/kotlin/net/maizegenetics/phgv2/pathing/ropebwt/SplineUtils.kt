@@ -293,6 +293,11 @@ class SplineUtils{
                     //Check to see if we need to add a new entry in our chrIndexMap
                     checkMapAndAddToIndex(chrIndexMap, refChr)
 
+                    if(currentRefChr == null) {
+                        //Need to add first chrom so our checks work properly
+                        refChromSet.add(refChr)
+                    }
+
                     // Flush regular block if the reference chromosome changes.
                     if (currentRefChr != null && currentRefChr != refChr) {
                         //Here is where it deviates from the previous idea
@@ -300,7 +305,7 @@ class SplineUtils{
                         flushBlock()
 
                         if(disableASMCoordinates) {
-                            check(!refChromSet.contains(currentRefChr)) { "Second Block of Ref Chromosomes.  Your gVCF file is not sorted by reference coordinates." }
+                            check(!refChromSet.contains(refChr)) { "Second Block of Ref Chromosomes.  Your gVCF file is not sorted by reference coordinates." }
                             refChromSet.add(refChr)
                             //Reset the currentASMPos Start
                             currentASMPos = 1
