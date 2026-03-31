@@ -1,17 +1,14 @@
 package net.maizegenetics.phgv2.pathing
 
-import htsjdk.variant.variantcontext.VariantContext
-import htsjdk.variant.vcf.VCFFileReader
+import htsjdk.variant.variantcontext.Allele
+import htsjdk.variant.variantcontext.GenotypeBuilder
+import htsjdk.variant.variantcontext.VariantContextBuilder
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.pathing.ropebwt.IndexMaps
 import net.maizegenetics.phgv2.pathing.ropebwt.LinearLookupFunction
-import net.maizegenetics.phgv2.pathing.ropebwt.PS4GUtils
-import net.maizegenetics.phgv2.pathing.ropebwt.SplineKnotLookup
 import net.maizegenetics.phgv2.pathing.ropebwt.SplineUtils
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.setupDebugLogging
-import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator
-import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeAll
@@ -276,5 +273,163 @@ class SplineUtilsTest {
         assertEquals(0, emptySplineKnotMap["0"]!!.size)
 
 
+    }
+
+    @Test
+    fun testFindAsmCoords() {
+        //Need to test to make sure we handle each case of gvcf for both forward and reverse strand and for each version of the disableASMCoordinates
+        //Testing refBlock
+        //VariantContextBuilder(final String source, final String contig, final long start, final long stop, final Collection<Allele> alleles)
+        val genotypeRefA = GenotypeBuilder("sample1").alleles(listOf(Allele.REF_A)).make()
+        val genotypeAltG = GenotypeBuilder("sample1").alleles(listOf(Allele.ALT_G)).make()
+        val genotypeAltGGG = GenotypeBuilder("sample1").alleles(listOf(Allele.create("GGG",false))).make()
+        val refBlockVariantPos = VariantContextBuilder("src","chr1",100,200, listOf(Allele.REF_A, Allele.NON_REF_ALLELE))
+            .attribute("End", 200)
+            .attribute("ASM_Start", 300)
+            .attribute("ASM_End", 400)
+            .genotypes(genotypeRefA)
+            .make()
+
+        val asmBasedCoordsForRefBlockPos = SplineUtils.findAsmCoords(refBlockVariantPos,400)
+        assertEquals(Triple(300,400,-1), asmBasedCoordsForRefBlockPos)
+
+        val countBasedCoordsForRefBlockPos = SplineUtils.findAsmCoords(refBlockVariantPos, 400,true)
+        assertEquals(Triple(400,500,501), countBasedCoordsForRefBlockPos)
+
+        val refBlockVariantNeg = VariantContextBuilder("src","chr1",100,200, listOf(Allele.REF_A, Allele.NON_REF_ALLELE))
+            .attribute("End", 200)
+            .attribute("ASM_Start",400)
+            .attribute("ASM_End",300)
+            .genotypes(genotypeRefA)
+            .make()
+
+        val asmBasedCoordsForRefBlockNeg = SplineUtils.findAsmCoords(refBlockVariantNeg,400)
+        assertEquals(Triple(400,300,-1), asmBasedCoordsForRefBlockNeg)
+
+        val countBasedCoordsForRefBlockNeg = SplineUtils.findAsmCoords(refBlockVariantNeg, 400,true)
+        assertEquals(Triple(400,500,501), countBasedCoordsForRefBlockNeg)
+
+        //Testing SNP  SNP does not need to be tested for strand as it doesnt matter as its only a single bp
+        val snpVariant = VariantContextBuilder("src","chr1",100,100, listOf(Allele.REF_A, Allele.ALT_G))
+            .attribute("End", 100)
+            .attribute("ASM_Start",300)
+            .attribute("ASM_End",300)
+            .genotypes(genotypeAltG)
+            .make()
+
+        val asmBasedCoordsForSNP = SplineUtils.findAsmCoords(snpVariant,400)
+        assertEquals(Triple(300,300,-1), asmBasedCoordsForSNP)
+
+        val countBasedCoordsForSNP = SplineUtils.findAsmCoords(snpVariant,400,true)
+        assertEquals(Triple(400,400,401), countBasedCoordsForSNP)
+
+        //Testing Insertion
+        val insertionVariantPos = VariantContextBuilder("src","chr1",100,100, listOf(Allele.REF_G, Allele.create("GGG",false)))
+            .attribute("End", 100)
+            .attribute("ASM_Start",300)
+            .attribute("ASM_End",302)
+            .genotypes(genotypeAltGGG)
+            .make()
+
+        val asmBasedCoordsForInsertionPos = SplineUtils.findAsmCoords(insertionVariantPos,400)
+        assertEquals(Triple(300,302,-1), asmBasedCoordsForInsertionPos)
+
+        val countBasedCoordsForInsertionPos = SplineUtils.findAsmCoords(insertionVariantPos,400,true)
+        assertEquals(Triple(400,402,403), countBasedCoordsForInsertionPos)
+
+        val insertionVariantNeg = VariantContextBuilder("src","chr1",100,100, listOf(Allele.REF_G, Allele.create("GGG",false)))
+            .attribute("End", 100)
+            .attribute("ASM_Start",302)
+            .attribute("ASM_End",300)
+            .genotypes(genotypeAltGGG)
+            .make()
+
+        val asmBasedCoordsForInsertionNeg = SplineUtils.findAsmCoords(insertionVariantNeg,400)
+        assertEquals(Triple(302,300,-1), asmBasedCoordsForInsertionNeg)
+
+        val countBasedCoordsForInsertionNeg = SplineUtils.findAsmCoords(insertionVariantNeg,400,true)
+        assertEquals(Triple(400,402,403), countBasedCoordsForInsertionNeg)
+
+        //Testing Deletion Pos and Neg have the same alt size so we only have to check one.
+        val deletionVar = VariantContextBuilder("src","chr1",100,102, listOf(Allele.create("AAA",true), Allele.ALT_G))
+            .attribute("End", 103)
+            .attribute("ASM_Start",300)
+            .attribute("ASM_End",300)
+            .genotypes(genotypeAltG)
+            .make()
+
+        val asmBasedCoordsForDeletion = SplineUtils.findAsmCoords(deletionVar,400)
+        assertEquals(Triple(300,300,-1), asmBasedCoordsForDeletion)
+
+        val countBasedCoordsForDeletion = SplineUtils.findAsmCoords(deletionVar,400, true)
+        assertEquals(Triple(400,400,401), countBasedCoordsForDeletion)
+
+        //Test missing  This will not have ASM coords as it doesnt make sense to have them if its missing...
+        val refBlockVariantMissing = VariantContextBuilder("src","chr1",100,200, listOf(Allele.REF_A, Allele.NON_REF_ALLELE))
+            .attribute("End", 200)
+            .genotypes(GenotypeBuilder("sample1").alleles(listOf(Allele.NO_CALL)).make())
+            .make()
+
+        val asmBasedCoordsForMissing = SplineUtils.findAsmCoords(refBlockVariantMissing,400)
+        assertEquals(Triple(null,null,-1), asmBasedCoordsForMissing)
+
+        val countBasedCoordsForMissing = SplineUtils.findAsmCoords(refBlockVariantMissing,400, true)
+        assertEquals(Triple(null,null,400), countBasedCoordsForMissing)
+    }
+
+    @Test
+    fun testDisableASMCoords() {
+        val lineAFile = File("data/test/buildSplineKnots/LineA.g.vcf")
+        val chrIndexMap = mutableMapOf<String, Int>()
+        val gameteIndexMap = mutableMapOf<String, Int>()
+        val splineKnotLookup = SplineUtils.processGvcfFileIntoSplineKnots(lineAFile, chrIndexMap, gameteIndexMap, minIndelLength = 1 ,disableASMCoordinates = true, binSize = 1)
+
+        //Verify the output.
+        val knots1 = splineKnotLookup.splineKnotMap["1_LineA"]!!
+        assertEquals(8, knots1.size)
+        assertEquals(Triple(1,"1",1), knots1[0])
+        assertEquals(Triple(102,"1",102), knots1[1])
+        assertEquals(Triple(103,"1",112), knots1[2]) //This seems odd but we need to midpoint the indel
+        assertEquals(Triple(104,"1",123), knots1[3])
+        assertEquals(Triple(111,"1",130), knots1[4])
+        assertEquals(Triple(121,"1",131), knots1[5]) //This seems odd but we need to midpoint the indel
+        assertEquals(Triple(132,"1",132), knots1[6])
+        assertEquals(Triple(135,"1",135), knots1[7])
+
+        val knots2 = splineKnotLookup.splineKnotMap["2_LineA"]!!
+        assertEquals(8, knots1.size)
+        assertEquals(Triple(1,"2",1), knots2[0])
+        assertEquals(Triple(102,"2",102), knots2[1])
+        assertEquals(Triple(103,"2",112), knots2[2]) //This seems odd but we need to midpoint the indel
+        assertEquals(Triple(104,"2",123), knots2[3])
+        assertEquals(Triple(111,"2",130), knots2[4])
+        assertEquals(Triple(121,"2",131), knots2[5]) //This seems odd but we need to midpoint the indel
+        assertEquals(Triple(132,"2",132), knots2[6])
+        assertEquals(Triple(135,"2",135), knots2[7])
+
+
+        val knots3 = splineKnotLookup.splineKnotMap["3_LineA"]!!
+        assertEquals(8, knots1.size)
+        assertEquals(Triple(1,"3",1), knots3[0])
+        assertEquals(Triple(102,"3",102), knots3[1])
+        assertEquals(Triple(103,"3",112), knots3[2]) //This seems odd but we need to midpoint the indel
+        assertEquals(Triple(104,"3",123), knots3[3])
+        assertEquals(Triple(111,"3",130), knots3[4])
+        assertEquals(Triple(121,"3",131), knots3[5]) //This seems odd but we need to midpoint the indel
+        assertEquals(Triple(132,"3",132), knots3[6])
+        assertEquals(Triple(135,"3",135), knots3[7])
+
+
+        //Test unsorted errors
+        val lineAFileUnsortedPos = File("data/test/buildSplineKnots/LineA_unsortedPos.g.vcf")
+        //this should throw an illegal state exception
+        assertThrows(IllegalStateException::class.java) {
+            SplineUtils.processGvcfFileIntoSplineKnots(lineAFileUnsortedPos, chrIndexMap, gameteIndexMap, minIndelLength = 1 ,disableASMCoordinates = true, binSize = 1)
+        }
+
+        val lineAFileUnsortedChrom = File("data/test/buildSplineKnots/LineA_unsortedChr.g.vcf")
+        assertThrows(IllegalStateException::class.java) {
+            SplineUtils.processGvcfFileIntoSplineKnots(lineAFileUnsortedChrom, chrIndexMap, gameteIndexMap, minIndelLength = 1 ,disableASMCoordinates = true, binSize = 1)
+        }
     }
 }
