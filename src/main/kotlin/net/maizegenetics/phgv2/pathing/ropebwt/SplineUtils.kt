@@ -338,8 +338,10 @@ class SplineUtils{
                     val (asmPosStart, asmPosEnd, newCurrentASMPos) = findAsmCoords(variant, currentASMPos, disableASMCoordinates)
                     currentASMPos = newCurrentASMPos
 
-                    if ((asmPosStart == null || asmPosEnd == null) && !disableASMCoordinates) {
-                        myLogger.info("WARN - Skipping variant at $refChr:$refPosStart due to invalid ASM_Start/ASM_End. Or Missing Data")
+                    if (asmPosStart == null || asmPosEnd == null) {
+                        if(!disableASMCoordinates) {
+                            myLogger.info("WARN - Skipping variant at $refChr:$refPosStart due to invalid ASM_Start/ASM_End. Or Missing Data")
+                        }
                         continue
                     }
 
