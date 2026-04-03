@@ -1234,6 +1234,18 @@ further information_):
     and will be named `VCFMetrics.tsv`.
 * `--skip-metrics` - If this flag is set, QC metrics will not be 
   calculated
+* `--num-ranges-per-agc-query` - When processing MAF files, the software needs to query the 
+  AGC compressed assembly genome information for sequence data to be
+  placed in the `##ALT` tag's `RefRange` key. This is done by querying
+  the AGC file with reference region coordinates. This parameter controls
+  how many regions are included in each query to the AGC file.
+  If this parameter is not set, it defaults to `-1`, which will 
+  query all the regions for a full chromosome. If this
+  parameter is set to a value greater than `1`, multiple regions
+  will be included in each query to the AGC file, which may speed up
+  processing time but may also increase memory usage. For example, if
+  this parameter is set to `10000`, each query to AGC will contain
+  10,000 reference ranges.
 
 In addition, `--conda-env-prefix` is an optional parameter that specifies the path
 to the Conda directory that contains the conda environment needed to run phg.

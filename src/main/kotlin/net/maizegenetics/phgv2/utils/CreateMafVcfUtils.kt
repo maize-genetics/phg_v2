@@ -30,9 +30,9 @@ class CreateMafVcfUtils {
 
         /**
          * This function will bulk load sequences in from the AGC record and then will associate the returned sequences
-         * with the metadata record which contains the coordiantes for the query and will add in the asmSeq.
+         * with the metadata record which contains the coordinates for the query and will add in the asmSeq.
          */
-        fun addSequencesToMetaData(dbPath: String, metadata: List<HVCFRecordMetadata>, condaEnvPrefix:String="") : List<HVCFRecordMetadata> {
+        fun addSequencesToMetaData(dbPath: String, metadata: List<HVCFRecordMetadata>, condaEnvPrefix:String="",numRangesPerAgcQuery: Int = -1) : List<HVCFRecordMetadata> {
             //get out the assembly coordinates and build them into the regions
             val metaDataToRangeLookup = metadata.map {
                 val queries = mutableListOf<String>()
@@ -54,9 +54,32 @@ class CreateMafVcfUtils {
 
             val ranges = metaDataToRangeLookup.flatMap { it.second }
 
-            val seqs = retrieveAgcContigs(dbPath,ranges,condaEnvPrefix)
+            val seqs = retrieveSequenceForRanges(dbPath, ranges, condaEnvPrefix, numRangesPerAgcQuery)
+
+            myLogger.info("Finished retrieving sequences for all ranges. Total number of seqs: ${seqs.size}")
 
             return metaDataToRangeLookup.map { it.first.copy(asmSeq = buildSeq(seqs,it.third,it.first)) } //This is a useful way to keep things immutable
+        }
+
+        /**
+         * Function to retrieve the sequences for each range.
+         * If numRangesPerAgcQuery is set above 0 it will subset and merge.
+         * If left default will try to do all...
+         */
+        fun retrieveSequenceForRanges(dbPath: String, ranges: List<String>, condaEnvPrefix:String = "", numRangesPerAgcQuery: Int = -1) : Map<Pair<String,String>, NucSeq> {
+            return if (numRangesPerAgcQuery > 0) {
+                myLogger.info("Retrieving sequence for ${ranges.size} ranges. Splitting into ${(ranges.size/numRangesPerAgcQuery)+1} batches of size $numRangesPerAgcQuery.")
+                ranges
+                    .windowed(numRangesPerAgcQuery,numRangesPerAgcQuery,true)
+                    .fold(mutableMapOf<Pair<String,String>, NucSeq>()) { acc, window ->
+                        acc.putAll(retrieveAgcContigs(dbPath, window, condaEnvPrefix))
+                        acc
+                    }
+            }
+            else {
+                myLogger.info("Retrieving sequence for ${ranges.size} ranges.")
+                retrieveAgcContigs(dbPath, ranges, condaEnvPrefix)
+            }
         }
 
 
