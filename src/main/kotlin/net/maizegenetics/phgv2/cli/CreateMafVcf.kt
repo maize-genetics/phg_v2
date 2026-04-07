@@ -54,6 +54,7 @@ class CreateMafVcf : CliktCommand(help = "Create g.vcf and h.vcf files from Anch
     val numRangesPerAgcQuery by option(help = "Number of ranges per AGC region query.  If you set this higher it will be more performant but can make the AGC command too long and cause errors.")
         .int()
         .default(-1)
+        .validate { require(it == -1 || it > 0) { "--num-ranges-per-agc-region-query-error: Must be either -1 or greater than 0" } }
 
     /**
      * Function to create the ASM hVCF and gVCF.

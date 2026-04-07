@@ -1241,8 +1241,9 @@ further information_):
   how many regions are included in each query to the AGC file.
   If this parameter is not set, it defaults to `-1`, which will 
   query all the regions for a full chromosome. If this
-  parameter is set to a value greater than `1`, multiple regions
-  will be included in each query to the AGC file, which may speed up
+  parameter is set to a value greater than `1`, multiple queries will 
+  be sent to AGC with at most `--num-ranges-per-agc-query` regions
+  per query.  This should speed up
   processing time but may also increase memory usage. For example, if
   this parameter is set to `10000`, each query to AGC will contain
   10,000 reference ranges.

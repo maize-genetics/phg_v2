@@ -7,6 +7,7 @@ import htsjdk.variant.vcf.VCFHeaderLine
 import htsjdk.variant.vcf.VCFHeaderVersion
 import net.maizegenetics.phgv2.cli.HVCFRecordMetadata
 import org.apache.logging.log4j.LogManager
+import kotlin.math.ceil
 
 
 class CreateMafVcfUtils {
@@ -68,7 +69,7 @@ class CreateMafVcfUtils {
          */
         fun retrieveSequenceForRanges(dbPath: String, ranges: List<String>, condaEnvPrefix:String = "", numRangesPerAgcQuery: Int = -1) : Map<Pair<String,String>, NucSeq> {
             return if (numRangesPerAgcQuery > 0) {
-                myLogger.info("Retrieving sequence for ${ranges.size} ranges. Splitting into ${(ranges.size/numRangesPerAgcQuery)+1} batches of size $numRangesPerAgcQuery.")
+                myLogger.info("Retrieving sequence for ${ranges.size} ranges. Splitting into ${ceil(ranges.size.toDouble() / numRangesPerAgcQuery).toInt()} batches of size $numRangesPerAgcQuery.")
                 ranges
                     .windowed(numRangesPerAgcQuery,numRangesPerAgcQuery,true)
                     .fold(mutableMapOf<Pair<String,String>, NucSeq>()) { acc, window ->
