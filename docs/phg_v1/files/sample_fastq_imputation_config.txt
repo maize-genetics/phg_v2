@@ -1,0 +1,68 @@
+# Imputation Pipeline parameters for fastq or SAM files
+
+#!!! Required Parameters !!!
+#--- Database ---
+host=localHost
+user=sqlite
+password=sqlite
+DB=**UNASSIGNED**
+DBtype=sqlite
+
+#--- Used by liquibase to check DB version ---
+liquibaseOutdir=/phg/outputDir
+
+#--- Used for writing a pangenome reference fasta(not needed when inputType=vcf) ---
+pangenomeHaplotypeMethod=**UNASSIGNED**
+pangenomeDir=/phg/outputDir/pangenome
+indexKmerLength=21
+indexWindowSize=11
+indexNumberBases=90G
+
+#--- Used for mapping reads
+inputType=fastq
+readMethod=**UNASSIGNED**
+keyFile=/phg/readMapping_key_file.txt
+fastqDir=/phg/inputDir/imputation/fastq/
+samDir=/phg/inputDir/imputation/sam/
+lowMemMode=true
+maxRefRangeErr=0.25
+outputSecondaryStats=false
+maxSecondary=20
+fParameter=f1000,5000
+minimapLocation=minimap2
+
+#--- Used for path finding
+pathHaplotypeMethod=**UNASSIGNED*
+pathMethod=**UNASSIGNED*
+maxNodes=1000
+maxReads=10000
+minReads=1
+minTaxa=20
+minTransitionProb=0.001
+numThreads=3
+probCorrect=0.99
+removeEqual=true
+splitNodes=true
+splitProb=0.99
+usebf=false
+maxParents = 1000000
+minCoverage = 1.0
+#parentOutputFile = **OPTIONAL**
+
+#   used by haploid path finding only
+usebf=false
+minP=0.8
+
+#   used by diploid path finding only
+maxHap=11
+maxReadsKB=100
+algorithmType=efficient
+
+#--- Used to output a vcf file for pathMethod
+outVcfFile=**UNASSIGNED**
+#~~~ Optional Parameters ~~~
+#pangenomeIndexName=**OPTIONAL**
+#readMethodDescription=**OPTIONAL**
+#pathMethodDescription=**OPTIONAL**
+#debugDir=**OPTIONAL**
+#bfInfoFile=**OPTIONAL**

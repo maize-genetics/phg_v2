@@ -1,0 +1,2 @@
+Genotype	Hapnumber	Dataline	ploidy	genesPhased	chromsPhased	confidence	Method	MethodDetails	gvcfServerPath
+B73Ref	0	B73 from NAM_REFERENCE v5	1	true	true	1	v5_geneBased	Ranges from v5 geneBasedRefRanges_minCovCount_25_windowSize_10_intergenicStepSize_50000_secondaryMinCOver_3_maxSearchWidow_10000_mxDIv_1.0E-4_minLength_1000_maxClusters_10_nTHreads_10.	128.84.180.206;/workdir/lcj34/remoteGvcfs
