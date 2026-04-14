@@ -4,6 +4,7 @@ import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
 import org.apache.commons.math3.distribution.BinomialDistribution
+import org.apache.commons.math3.special.Gamma.logGamma
 import kotlin.math.ln
 
 /**
@@ -91,6 +92,7 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
         val halfProb = probabilityCorrect / 2.0
         val pErr = 1.0 - probabilityCorrect
         //probability the a read mapping to A maps also maps to B, should be user settable or potentially has a different value by reference range
+        //and the probability that a read mapping to B also maps to A
         val pBoth = 0.3
         //assign a low probability for now, maybe should be user settable?
         val diploidProb = halfProb - pBoth - pErr
@@ -135,7 +137,8 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
             * where PC = pBoth
             * PN = pErr
             * PA = PB = diploidProb
-            * This is the simplest way to model PA and PB. Methods based on data could be used.
+            *
+            * This is the simplest way to model pErr and pBoth. Methods based on data could be used.
             * */
             lnMultinomialProbability(intArrayOf(firstNotSecondCount, secondNotFirstCount, firstAndSecondCount, neitherFirstNorSecondCount),
                 doubleArrayOf(diploidProb, diploidProb, pBoth, pErr))
@@ -150,34 +153,6 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
      * @return The probability of an array of counts of some classes given the probability of each class,
      * The size of the counts array and the probabilities array are expected to be equal.
      */
-    fun lnMultinomialProbability(counts: IntArray, probabilities: DoubleArray): Double {
-        if (counts.size != probabilities.size) throw java.lang.IllegalArgumentException("multinomialProbability error: counts and probabilities arrays do not have the same size.")
-        val totalCount = counts.sum()
-
-        val logprod = counts.indices.sumOf { counts[it] * ln(probabilities[it]) }
-        val numerator = logFactorial(totalCount)
-        val denominator = counts.sumOf { logFactorial(it) }
-        return numerator - denominator + logprod
-    }
-
-    /**
-     *  Calculates the (natural) log factorial of any positive integer using the exact value for 0 to 10 and
-     *  Stirlings approximation for integers greater than 10. The formula is taken from the
-     *  Wikipedia article for Stirlings approximation
-     *  @param [intval] an integer
-     *  @return   the natural log of the factorial of intval
-     */
-    private fun logFactorial(intval: Int): Double {
-        return if (intval <= 10) smallFactorials[intval] else {
-            val n = intval.toDouble()
-            n * ln(n) + 0.5 * ln(2.0 * Math.PI * n) - n
-        }
-    }
-
-    //factorials of 0 to 10
-    private val smallFactorials: DoubleArray = doubleArrayOf(1.0, 1.0, 2.0, 6.0, 24.0, 120.0, 720.0, 5040.0, 40320.0, 362880.0, 3628800.0)
-        .map { ln(it) }.toDoubleArray()
-
 
     data class UnorderedHaplotypePair(val haplotypePair: Pair<String?, String?>) {
         /**
@@ -195,6 +170,37 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
         override fun hashCode(): Int {
             return haplotypePair.first.hashCode() + haplotypePair.second.hashCode()
         }
+    }
+
+    companion object {
+        fun lnMultinomialProbability(counts: IntArray, probabilities: DoubleArray): Double {
+            if (counts.size != probabilities.size) throw java.lang.IllegalArgumentException("multinomialProbability error: counts and probabilities arrays do not have the same size.")
+            val totalCount = counts.sum()
+
+            val logprod = counts.indices.sumOf { counts[it] * ln(probabilities[it]) }
+            val numerator = logFactorial(totalCount)
+            val denominator = counts.sumOf { logFactorial(it) }
+            return numerator - denominator + logprod
+        }
+
+        val smallFactorials = DoubleArray(1000) {ln(it + 1.0)}.runningFold(0.0) {sum, element -> sum + element}
+
+        /**
+         *  Calculates the (natural) log factorial of any positive integer using the exact value for 1 to 1000 and
+         *  logGamma(n+1) otherwise. This method produces values identical to the R method dmultinom.
+         *  @param [intval] an integer
+         *  @return   the natural log of the factorial of intval
+         */
+        fun logFactorial(intval: Int): Double {
+
+            return if (intval <= 1000) smallFactorials[intval] else {
+                val n = intval.toDouble()
+                logGamma(n + 1.0)
+            }
+        }
+
+
+
     }
 }
 
