@@ -67,6 +67,13 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
+# Plugins (search must be listed when using additional plugins; see Material docs)
+plugins:
+  - search
+  - exclude-search:
+      exclude:
+        - phg_v1/*
+
 # Extra 
 extra_javascript:
   - javascript/mathjax.js

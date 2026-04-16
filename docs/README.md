@@ -8,8 +8,9 @@ These instructions are for deploying a local version of the static PHG website:
 conda create --name site-generator
 conda activate site-generator
 
-# install mkdocs-material
+# install mkdocs-material and the search plugin used in mkdocs.yml
 conda install conda-forge::mkdocs-material
+pip install mkdocs-exclude-search
 ```
 
 ## Launch site

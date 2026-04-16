@@ -24,7 +24,8 @@ jobs:
           path: .cache
           restore-keys: |
             mkdocs-material-
-      - run: pip install mkdocs-material 
+      # Latest mkdocs-material compatible with MkDocs 1.x (mkdocs<2); see Material's requires_dist on PyPI
+      - run: pip install 'mkdocs-material==9.7.6' mkdocs-exclude-search
       - name: Deploy to GitHub Pages
         run: mkdocs gh-deploy --force
 
