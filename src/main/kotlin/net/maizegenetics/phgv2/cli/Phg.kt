@@ -30,7 +30,7 @@ class Phg : CliktCommand() {
 fun main(args: Array<String>) = Phg()
     .subcommands(
         SetupEnvironment(), Initdb(), CreateRanges(), PrepareAssemblies(), AgcCompress(), AlignAssemblies(), PrepareSlurmAlignFile(),
-        CreateAnchorwaveDotplot(), CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), Hvcf2Gvcf(), LoadVcf(), ExportVcf(),
+        CreateAnchorwaveDotplot(), CreateRefVcf(), CreateMafVcf(), Gvcf2Hvcf(), Hvcf2Gvcf(), Hvcf2Vcf(), LoadVcf(), ExportVcf(),
         BuildKmerIndex(), MapKmers(), FindPaths(), HapidSampleTable(), SampleHapidByRange(),
         RopeBwtIndex(), RopeBwtChrIndex(), AlignReads(), MapReads(), MapReadsFromBed(), ImputationMetrics(), // Imputation
         BuildSplineKnots(), ConvertRm2Ps4gFile(), ConvertRopebwt2Ps4gFile(), ConvertVcf2Ps4gFile(), // PS4G File creations.

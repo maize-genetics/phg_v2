@@ -45,6 +45,8 @@ import java.io.File
  */
 
 
+
+
 class Hvcf2Gvcf :
     CliktCommand(help = "Create g.vcf file for a PHG pathing h.vcf using data from existing PHG created g.vcf files") {
     private val myLogger = LogManager.getLogger(Hvcf2Gvcf::class.java)
@@ -86,12 +88,24 @@ class Hvcf2Gvcf :
         val time = System.nanoTime()
         val refSeq = CreateMafVcf().buildRefGenomeSeq(referenceFile)
         myLogger.info("Time to build refSeq: ${(System.nanoTime() - time) / 1e9} seconds")
-        buildGvcfFromHvcf(dbPath, refSeq, outputDir, hvcfDir, condaEnvPrefix, batchSize)
+
+        val timeHapIdMap = System.nanoTime()
+        val hapIdAndRangeToSampleMap = VCFConversionUtils.createASMHapIdMap(dbPath)
+        myLogger.info("Time to build hapId+Range -> Sample Map: ${(System.nanoTime() - timeHapIdMap)/1e9} seconds")
+
+
+        buildGvcfFromHvcf(dbPath, refSeq, hapIdAndRangeToSampleMap,outputDir, hvcfDir, condaEnvPrefix, batchSize)
     }
 
+    /**
+     * Function to build gvcfs from an hvcf.
+     *
+     * If the hvcf is diploid it will output 2 separate gvcfs
+     */
     private fun buildGvcfFromHvcf(
         dbPath: String,
         refSeq: Map<String, NucSeq>,
+        hapIdAndRangeToSampleMap: Map<Pair<ReferenceRange,String>, List<HvcfVariant>>,
         outputDir: String,
         hvcfDir: String,
         condaEnvPrefix: String,
@@ -117,23 +131,90 @@ class Hvcf2Gvcf :
 
                     else -> error("Unexpected file extension")
                 }
-                val records =
-                    processHVCFtoVariantContext(sample, refSeq, outputDir, hvcfFile, dbPath, condaEnvPrefix, batchSize)
+
+                val (gamete1Records, gamete2Records) = processHVCFtoVariantContext(sample, refSeq, hapIdAndRangeToSampleMap,outputDir, hvcfFile, dbPath, condaEnvPrefix, batchSize)
+
                 myLogger.info("Time to processHVCFtoVariantContext: ${(System.nanoTime() - time) / 1e9} seconds")
 
-                val gvcfFile = "$outputDir/${sample}.g.vcf"
-                myLogger.info("buildGvcfFromHvcf: exporting VariantContexts to gvcf file: $gvcfFile")
+                val (outputFileName1, outputFileName2) = buildOutputFileNames(sample, outputDir, gamete2Records)
+
+                myLogger.info("buildGvcfFromHvcf: exporting VariantContexts to gvcf file: $outputFileName1")
                 time = System.nanoTime()
-                exportVariantContext(sample, records, gvcfFile, refSeq, setOf())
-                myLogger.info("Time to exportVariantContext: ${(System.nanoTime() - time) / 1e9} seconds")
+                exportVariantContext(sample, gamete1Records, outputFileName1, refSeq, setOf())
+                myLogger.info("Time to exportVariantContext for Gamete1: ${(System.nanoTime() - time) / 1e9} seconds")
+
+                //Handle 2nd gamete if diploid
+                if(gamete2Records.isNotEmpty()) {
+                    myLogger.info("buildGvcfFromHvcf: exporting VariantContexts to gvcf file: $outputFileName2")
+                    time = System.nanoTime()
+                    exportVariantContext(sample, gamete2Records, outputFileName2, refSeq, setOf())
+                    myLogger.info("Time to exportVariantContext: ${(System.nanoTime() - time) / 1e9} seconds")
+                }
             }
 
     }
 
+    /**
+     * Function to build the output file names.  This works with both haploid and diploid input files.
+     */
+    private fun buildOutputFileNames(
+        sampleName: String,
+        outputDir: String,
+        gamete2Records: List<VariantContext>
+    ): Pair<String, String> {
+        val outputFileName1 = if (gamete2Records.isEmpty()) {
+            "$outputDir/${sampleName}.g.vcf"
+        } else {
+            "$outputDir/${sampleName}_1.g.vcf"
+        }
+
+        val outputFileName2 = if (gamete2Records.isEmpty()) {
+            ""
+        } else {
+            "$outputDir/${sampleName}_2.g.vcf"
+        }
+        return Pair(outputFileName1, outputFileName2)
+    }
+
+    /**
+     * Function to build the GVCF output sample name.
+     *
+     * This works with both haploid and diploid hvcfs
+     */
+    private fun buildOutputSampleNames(
+        isHaploid: Boolean,
+        outputSampleName: String
+    ): Pair<String, String> {
+        val outputSampleName1 = if (isHaploid) {
+            outputSampleName
+        } else {
+            "${outputSampleName}_1"
+        }
+        val outputSampleName2 = if (isHaploid) {
+            ""
+        } else {
+            "${outputSampleName}_2"
+        }
+        return Pair(outputSampleName1, outputSampleName2)
+    }
+
+
+
+
+
+
+
+    /**
+     * Function to process the HVCF file into a set of Variant contexts
+     */
     private fun processHVCFtoVariantContext(
-        outputSampleName: String, refSeq: Map<String, NucSeq>, outputDir: String, hvcfFile: File,
-        dbPath: String, condaEnvPrefix: String, batchSize: Int
-    ): List<VariantContext> {
+        outputSampleName: String,
+        refSeq: Map<String, NucSeq>,
+        hapIdAndRangeToSampleMap: Map<Pair<ReferenceRange,String>, List<HvcfVariant>> ,outputDir: String, hvcfFile: File,
+        dbPath: String,
+        condaEnvPrefix: String,
+        batchSize: Int
+    ): Pair<List<VariantContext>,List<VariantContext>> {
 
         val reader = VCFFileReader(hvcfFile, false)
 
@@ -141,7 +222,182 @@ class Hvcf2Gvcf :
         val altHeaders = parseALTHeader(header = header)
         val sampleNames = altHeaders.values.map { it.sampleName() }.toSet()
         val contigNames = header.contigLines.map { it.id } // contig names needed for sorting
+        //This will also export all the gvcfs that are not already exported
+        val sampleNameToVCFMap = buildSampleNameToGVCFMap(sampleNames, outputDir, dbPath, condaEnvPrefix, refSeq, batchSize)
 
+
+        // Using the hvcfFileReader, walk the hvcf file and for each entry create
+        // a ReferenceRange object and add that to a list of Reference Range objects
+        // for the sample to which it applies.  You will get the sample by indexing the
+        // altHeaders map with the key of the current record's ID.
+        val (isHaploid, hvcfVariantsList) = extractHVCFVariantsFromSample(reader, hapIdAndRangeToSampleMap)
+
+
+        //Instead of making a big map, make 2 maps if diploid
+        val gvcfSampleNameToRefRangesGamete1 = hvcfVariantsList.map { it.first }.filterNotNull()
+            .groupBy({ it.sampleName },{ it.refRange })
+
+        val gvcfSampleNameToRefRangesGamete2 = if(isHaploid) {
+            emptyMap()
+        }
+        else {
+            hvcfVariantsList.map { it.second }.filterNotNull()
+                .groupBy ({ it.sampleName },{ it.refRange })
+        }
+
+        val gvcfSampleNames = gvcfSampleNameToRefRangesGamete1.keys + gvcfSampleNameToRefRangesGamete2.keys
+
+        return extractGVCFVariantsForRefRanges(
+            gvcfSampleNames,
+            sampleNameToVCFMap,
+            isHaploid,
+            outputSampleName,
+            refSeq,
+            contigNames,
+            gvcfSampleNameToRefRangesGamete1,
+            gvcfSampleNameToRefRangesGamete2
+        )
+    }
+
+    /**
+     * Function to extract the gvcf variants for the reference ranges that overlap the hvcf.
+     */
+    private fun extractGVCFVariantsForRefRanges(
+        gvcfSampleNames: Set<String>,
+        sampleNameToVCFMap: MutableMap<String, String>,
+        isHaploid: Boolean,
+        outputSampleName: String,
+        refSeq: Map<String, NucSeq>,
+        contigNames: List<String>,
+        gvcfSampleNameToRefRangesGamete1: Map<String, List<ReferenceRange>>,
+        gvcfSampleNameToRefRangesGamete2: Map<String, List<ReferenceRange>>
+    ): Pair<List<VariantContext>, List<VariantContext>> {
+        val gamete1VariantContexts = mutableListOf<VariantContext>()
+        val gamete2VariantContexts = mutableListOf<VariantContext>()
+
+        for (gvcfSampleName in gvcfSampleNames) {
+            myLogger.info("processHVCFtoVariantContext: processing sample: $gvcfSampleName")
+            val time = System.nanoTime()
+            check(sampleNameToVCFMap.containsKey(gvcfSampleName)) { "Sample $gvcfSampleName is not in the sampleNameToVCFMap.  This should not happen as we should have exported all gvcfs at the beginning of this function." }
+            val gvcfFile = sampleNameToVCFMap[gvcfSampleName]!! // tiledb wrote with extension .vcf
+            val gvcfReader = VCFFileReader(File(gvcfFile), false)
+
+            val gvcfVariants = mutableListOf<VariantContext>()
+            gvcfReader.use { reader ->
+                for (vc in reader) {
+                    gvcfVariants.add(vc)
+                }
+            }
+            gvcfReader.close()
+
+            val (outputSampleName1, outputSampleName2) = buildOutputSampleNames(isHaploid, outputSampleName)
+
+
+            //Now find overlapping snps for gamete 1
+            if (gvcfSampleNameToRefRangesGamete1.containsKey(gvcfSampleName)) {
+                val ranges = gvcfSampleNameToRefRangesGamete1[gvcfSampleName]!!
+
+                val variants =
+                    findOverlappingRecordsForSample(outputSampleName1, ranges, gvcfVariants, refSeq).values.flatten()
+                gamete1VariantContexts.addAll(variants)
+            }
+
+            if (gvcfSampleNameToRefRangesGamete2.isNotEmpty() && gvcfSampleNameToRefRangesGamete2.containsKey(
+                    gvcfSampleName
+                )
+            ) {
+                val ranges = gvcfSampleNameToRefRangesGamete2[gvcfSampleName]!!
+
+                val variants =
+                    findOverlappingRecordsForSample(outputSampleName2, ranges, gvcfVariants, refSeq).values.flatten()
+                gamete2VariantContexts.addAll(variants)
+            }
+
+            myLogger.info("Time to process sampleToRefRanges for sample $gvcfSampleName : ${(System.nanoTime() - time) / 1e9} seconds")
+        }
+
+        //Make sure the outputs are sorted correctly
+        val outputGamete1VariantContexts = gamete1VariantContexts.sortedWith(VariantContextComparator(contigNames))
+        val outputGamete2VariantContexts = gamete2VariantContexts.sortedWith(VariantContextComparator(contigNames))
+
+        return Pair(outputGamete1VariantContexts, outputGamete2VariantContexts)
+    }
+
+
+    /**
+     * Function to extract the HVCF variants for each sample.  This will give us a pair of variants if diploid.
+     */
+    fun extractHVCFVariantsFromSample(
+        reader: VCFFileReader,
+        hapIdAndRangeToSampleMap: Map<Pair<ReferenceRange, String>, List<HvcfVariant>>
+    ): Pair<Boolean,List<Pair<HvcfVariant?, HvcfVariant?>>> {
+        var rangesSkipped = 0
+        var totalHvcfVariants = 0
+        var isHaploid = true
+        val hvcfRecordsList = reader.mapNotNull { context ->
+            totalHvcfVariants++
+            //This might need to be relaxed as it might not handle if one of the haps is missing
+            if (context.alternateAlleles.isEmpty() || context.alternateAlleles.any { it.isNoCall }) {
+                rangesSkipped++
+                null
+            } else {
+                val (isVariantHaploid, variants) = processCurrentHVCFVariant(context, hapIdAndRangeToSampleMap)
+                if(!isVariantHaploid) {
+                    isHaploid = false
+                }
+                variants
+            }
+        }
+
+        myLogger.info("Hvcf2Gvcf:processHVCFtoVariantContext: rangesSkipped = $rangesSkipped, totalHvcfVariants = $totalHvcfVariants")
+
+        return Pair(isHaploid, hvcfRecordsList)
+    }
+
+    /**
+     * Function to process the HVCF record and extract out the variants
+     */
+    fun processCurrentHVCFVariant(
+        context: VariantContext,
+        hapIdAndRangeToSampleMap: Map<Pair<ReferenceRange, String>, List<HvcfVariant>>
+    ): Pair<Boolean,Pair<HvcfVariant?, HvcfVariant?>> {
+        var isHaploid = true
+        //Need to extract out both the first genotype and the second's hapIds
+        //We assume that we only have one sample in this hvcf
+        val refRange = ReferenceRange(context.contig, context.start, context.end)
+
+        val genotypes = context.genotypes.first()
+        val hapId1 = genotypes.getAllele(0).displayString.removeSurrounding("<", ">")
+        val hapId2 = if ((genotypes?.alleles?.size ?: 0) > 1) {
+            isHaploid = false
+            genotypes.getAllele(1).displayString.removeSurrounding("<", ">")
+        } else {
+            hapId1
+        }
+
+        //Get the first hvcfVariant for each gamete.
+        // If There are more than one its fine as they have the same sequence at this reference range so they
+        // should have the same variants
+        //If they are null it means that it is a missing call...
+        //By going to the hapIdAndRangeMap from the assembly hvcfs we make sure we are not pulling out incorrect records.
+        val hvcfVariants1 = hapIdAndRangeToSampleMap[Pair(refRange, hapId1)]?.first()
+        val hvcfVariants2 = hapIdAndRangeToSampleMap[Pair(refRange, hapId2)]?.first()
+
+        return Pair(isHaploid,Pair(hvcfVariants1, hvcfVariants2))
+    }
+
+    /**
+     * This function will build the sampleNameToGVCF map and
+     * will export any missing gvcf files and make a reference gvcf if missing
+     */
+    private fun buildSampleNameToGVCFMap(
+        sampleNames: Set<String>,
+        outputDir: String,
+        dbPath: String,
+        condaEnvPrefix: String,
+        refSeq: Map<String, NucSeq>,
+        batchSize: Int
+    ): MutableMap<String, String> {
         // This checks for existing gvcf files, and if they don't exist, exports them
         // Get list of sample names and the gvcf file names for each sample
         val sampleNameToVCFMap = getSampleNameToVCFMap(sampleNames.toList(), outputDir).toMutableMap()
@@ -191,73 +447,7 @@ class Hvcf2Gvcf :
                 sampleNameToVCFMap[sampleName] = "$outputDir/$sampleName.vcf"
             }
         }
-
-        // Using the hvcfdFileReader, walk the hvcf file and for each entry create
-        // a ReferenceRange object and add that to a list of Reference Range objects
-        // for the sample to which it applies.  You will get the sample by indexing the
-        // altHeaders map with the key of the current record's ID.
-
-        var rangesSkipped = 0
-        var totalHvcfVariants = 0
-
-        // process the hvcf records into a sampleToRefRanges map
-        val sampleToRefRanges = reader.mapNotNull { context ->
-            totalHvcfVariants++
-            if (context.alternateAlleles.isEmpty() || context.alternateAlleles.any { it.isNoCall }) {
-                rangesSkipped++
-                null
-            } else {
-                val id = context.getAlternateAllele(0).displayString.removeSurrounding("<", ">")
-                val altHeader = altHeaders[id]
-                val sampleName =
-                    altHeader?.sampleName() ?: throw IllegalStateException("No ALT header found for record: $id")
-                val refRange = ReferenceRange(context.contig, context.start, context.end)
-                Pair(sampleName, refRange)
-            }
-        }.groupBy({ it.first }, { it.second })
-        reader.close()
-
-        myLogger.info("Hvcf2Gvcf:processHVCFtoVariantContext: rangesSkipped = $rangesSkipped, totalHvcfVariants = $totalHvcfVariants")
-
-        // For each sample, read the gvcf file and pull the gvcf records that overlap the ReferenceRanges
-        // for that sample.  This will be a list of VariantContext records.  After we have the list of vcfRecords
-        // for each sample, we will merge them together, sorted by reference ranges, and write to a new gvcf file
-        // in the output directory.
-
-        val refRangeToVariantContext = mutableMapOf<ReferenceRange, MutableList<VariantContext>>()
-
-        sampleToRefRanges.forEach { (sample, ranges) ->
-            myLogger.info("processHVCFtoVariantContext: processing sample: $sample")
-            val time = System.nanoTime()
-            val gvcfFile = sampleNameToVCFMap[sample] // tiledb wrote with extension .vcf
-            val gvcfReader = VCFFileReader(File(gvcfFile), false)
-
-            val gvcfVariants = mutableListOf<VariantContext>()
-            gvcfReader.use { reader ->
-                for (vc in reader) {
-                    gvcfVariants.add(vc)
-                }
-            }
-            gvcfReader.close()
-            val rangeToGvcfRecords =
-                findOverlappingRecordsForSample(outputSampleName, ranges, gvcfVariants, refSeq)
-
-            // Add the rangeToGvcfRecords to the refRangeToVariantContext map
-            // we can use "plus" but it creates a new map containing the combined entries
-            // and assigns it back to refRangeToVariantContext, which is inefficient
-            for ((range, variantList) in rangeToGvcfRecords) {
-                val existingList = refRangeToVariantContext.getOrPut(range) { mutableListOf() }
-                existingList.addAll(variantList)
-            }
-            myLogger.info("Time to process sampleToRefRanges for sample $sample : ${(System.nanoTime() - time) / 1e9} seconds")
-        }
-        // Put all the VariantContext records from the refRangeToVariantContext map
-        // onto a list, then sort that list.
-        val allRecords = mutableListOf<VariantContext>()
-        refRangeToVariantContext.values.forEach { allRecords.addAll(it) }
-        val variants = allRecords.sortedWith(VariantContextComparator(contigNames))
-
-        return variants
+        return sampleNameToVCFMap
     }
 
     // get the vcf file name for all samples in the list.  Should be a map<SampleName, fileName>
