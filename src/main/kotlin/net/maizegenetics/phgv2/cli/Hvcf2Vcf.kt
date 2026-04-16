@@ -129,7 +129,7 @@ class Hvcf2Vcf:
 
             //walk through each sample and convert to a pair Allele, sampleGamete
             genotype.alleles.mapIndexed { index, allele ->
-                val cleanedAllele = allele.displayString.removeSurrounding("<", ">")
+                val cleanedAllele = if(allele == Allele.NO_CALL) "MISSING" else allele.displayString.removeSurrounding("<", ">")
                 Pair(cleanedAllele, SampleGamete(baseSampleName, index))
             }
         }
@@ -286,6 +286,9 @@ class Hvcf2Vcf:
 
         val hapIdsSeen = mutableSetOf<String>()
 
+        //Get out the missing sampleGametes
+        val missingGametes = refRangeAndHapIdMap[Pair(refRange,"MISSING")]?.map { Pair(it,Allele.NO_CALL) } ?: emptyList()
+
         return vcfContext.genotypes.flatMap { genotype ->
             val sampleName = genotype.sampleName
             //We need to check to see if the asmHapIdMap has the key.  If not we can skip it but should throw an error
@@ -314,7 +317,7 @@ class Hvcf2Vcf:
             sampleGametesForThisHapId.map { sampleGamete ->
                 Pair(sampleGamete, genotype.getAllele(0)) // This should work correctly as the ASM VCF is haploid
             }
-        }
+        } + missingGametes
     }
 
 }
