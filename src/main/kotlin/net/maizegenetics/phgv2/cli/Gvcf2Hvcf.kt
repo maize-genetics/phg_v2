@@ -4,6 +4,8 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.types.int
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 import htsjdk.variant.vcf.VCFHeaderLine
@@ -43,6 +45,11 @@ class Gvcf2Hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
     val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
 
+    val numRangesPerAgcQuery by option(help = "Number of ranges per AGC region query.  If you set this higher it will be more performant but can make the AGC command too long and cause errors.")
+        .int()
+        .default(-1)
+        .validate { require(it == -1 || it > 0) { "--num-ranges-per-agc-region-query-error: Must be either -1 or greater than 0" } }
+
     override fun run() {
         logCommand(this)
 
@@ -52,13 +59,13 @@ class Gvcf2Hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
         } else {
             dbPath
         }
-        createASMHvcfs(dbPath, bed, referenceFile, gvcfDir, condaEnvPrefix)
+        createASMHvcfs(dbPath, bed, referenceFile, gvcfDir, condaEnvPrefix, numRangesPerAgcQuery )
     }
 
     // This is the entry point for this class.  It creates ranges from the bed file, stores the reference genome
     // sequence into a data structure, and then processes the gvcf files in the gvcfDir.  The hvcf files that
     // are created are written to the same folder that contains the gvcf files.
-    private fun createASMHvcfs(dbPath: String, bedFileName: String, referenceFileName: String, gvcfDirName: String, condaEnvPrefix: String = "") {
+    private fun createASMHvcfs(dbPath: String, bedFileName: String, referenceFileName: String, gvcfDirName: String, condaEnvPrefix: String = "", numRangesPerAgcQuery: Int = -1) {
         //load the bed file into a data structure
         val ranges = loadRanges(bedFileName)
         myLogger.info("CreateASMHvcfs: calling buildRefGenomeSeq")
@@ -76,7 +83,7 @@ class Gvcf2Hvcf: CliktCommand(help = "Create  h.vcf files from existing PHG crea
                 val variants = vcfSampleAndVCs.second
                 //convert the GVCF records into hvcf records
                 myLogger.info("createASMHvcfs: calling convertGVCFToHVCF for $sampleName")
-                val hvcfVariants = VCFConversionUtils.convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines, condaEnvPrefix)
+                val hvcfVariants = VCFConversionUtils.convertGVCFToHVCF(dbPath,sampleName, ranges, variants, refGenomeSequence, dbPath, asmHeaderLines, condaEnvPrefix,numRangesPerAgcQuery)
                 val asmHeaderSet = asmHeaderLines.values.toSet()
                 //export the hvcfRecords
                 myLogger.info("createASMHvcfs: calling exportVariantContext for $sampleName")

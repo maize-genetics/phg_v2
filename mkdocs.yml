@@ -67,6 +67,13 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
+# Plugins (search must be listed when using additional plugins; see Material docs)
+plugins:
+  - search
+  - exclude-search:
+      exclude:
+        - phg_v1/*
+
 # Extra 
 extra_javascript:
   - javascript/mathjax.js
@@ -100,6 +107,111 @@ nav:
           - SLURM usage for alignment: slurm_usage.md
           - Terminology: terminology.md
           - Variant caller comparisons: variant_comparisons.md
+      - PHG v1 (Legacy):
+          - Overview: phg_v1/home.md
+          - PHG v1 Home: phg_v1/home_version1.md
+          - Variants in GVCF files: phg_v1/home_variants_in_gvcf_files.md
+          - Variant tables: phg_v1/home_variant_tables.md
+          - PHG GUI: phg_v1/phg_gui.md
+          - BrAPI server on CBSU: phg_v1/phg_brapi_server_on_cbsu.md
+          - User Instructions:
+              - Step 0 - Setup:
+                  - Overview: phg_v1/user_instructions/create_phg_step0_main.md
+                  - Docker: phg_v1/user_instructions/create_phg_step0_docker.md
+                  - Singularity: phg_v1/user_instructions/create_phg_step0_singularity.md
+                  - Conda: phg_v1/user_instructions/create_phg_step0_conda.md
+              - Steps 1-2 - Build and populate:
+                  - Overview: phg_v1/user_instructions/create_phg_step1_2_main.md
+                  - Default directory: phg_v1/user_instructions/make_default_directory.md
+                  - Create DB and load reference: phg_v1/user_instructions/create_phg_step1_create_db_load_ref.md
+                  - BED file: phg_v1/user_instructions/create_phg_step1_bedfile.md
+                  - Load genome intervals: phg_v1/user_instructions/create_phg_step1_load_genome_intervals.md
+                  - Group genome intervals: phg_v1/user_instructions/create_phg_step1_group_genome_intervals.md
+                  - Assembly and WGS haplotypes: phg_v1/user_instructions/create_phg_step2_assembly_and_wgs_haplotypes.md
+                  - Align assemblies: phg_v1/user_instructions/create_phg_step2_align_assemblies.md
+                  - Assembly via AnchorWave: phg_v1/user_instructions/create_phg_step2_assembly_via_anchorwave.md
+                  - Assembly AnchorWave plugin details: phg_v1/user_instructions/create_phg_step2_assembly_anchor_wave_plugin_details.md
+                  - Assembly haplotype parameters: phg_v1/user_instructions/create_phg_step2_assembly_haplotype_parameters.md
+                  - Add haplotypes from WGS: phg_v1/user_instructions/create_phg_step2_add_haplotypes_from_wgs.md
+                  - Add haplotypes from BAM: phg_v1/user_instructions/create_phg_step2_add_haps_from_bam.md
+                  - Add haplotypes from FASTQ: phg_v1/user_instructions/create_phg_step2_add_haps_from_fastq.md
+                  - Add haplotypes from GVCF: phg_v1/user_instructions/create_phg_step2_add_haps_from_gvcf.md
+                  - Filter GVCF plugin: phg_v1/user_instructions/create_phg_step2_filter_gvcf_plugin.md
+                  - Filter GVCF single file plugin: phg_v1/user_instructions/create_phg_step2_filter_gvcf_single_file_plugin.md
+                  - Load haplotypes from GVCF plugin details: phg_v1/user_instructions/create_phg_step2_load_haplotypes_from_gvcf_plugin_details.md
+                  - MAF to GVCF plugin details: phg_v1/user_instructions/create_phg_step2_maf_to_gvcf_plugin_details.md
+                  - Consensus: phg_v1/user_instructions/create_phg_step2_consensus.md
+                  - Haplotype keyfile: phg_v1/user_instructions/create_phg_step2_haplotype_keyfile.md
+                  - Taxa group tables: phg_v1/user_instructions/create_phg_step2_taxa_group_tables.md
+                  - Sample haplotype config file: phg_v1/user_instructions/sample_haplotype_config_file.md
+                  - Example database: phg_v1/user_instructions/example_database.md
+              - Step 3 - Imputation:
+                  - Overview: phg_v1/user_instructions/impute_with_phg_main.md
+                  - Simple imputation: phg_v1/user_instructions/impute_phg_simple.md
+                  - FASTQ homozygous: phg_v1/user_instructions/impute_with_phg_fastq_homozygous.md
+                  - FASTQ heterozygous: phg_v1/user_instructions/impute_with_phg_fastq_heterozygous.md
+                  - VCF imputation: phg_v1/user_instructions/impute_with_phg_vcf.md
+                  - Export VCF: phg_v1/user_instructions/impute_with_phg_export_vcf.md
+                  - Extract pangenome: phg_v1/user_instructions/impute_with_phg_extract_pangenome.md
+                  - Find path key files: phg_v1/user_instructions/impute_with_phg_find_path_key_files.md
+                  - Parameter tuning: phg_v1/user_instructions/impute_with_phg_param_tuning.md
+                  - Compare imputation: phg_v1/user_instructions/impute_with_phg_compare.md
+                  - k-mer imputation pipeline: phg_v1/user_instructions/kmer_imputation_pipeline.md
+                  - k-mer index: phg_v1/user_instructions/kmer_index.md
+                  - Find likely parents: phg_v1/user_instructions/find_likely_parents.md
+              - Other:
+                  - Haplotype method: phg_v1/user_instructions/haplotype_method.md
+                  - Methods: phg_v1/user_instructions/methods.md
+                  - Make initial PHGDB pipeline: phg_v1/user_instructions/make_initial_phgdb_pipeline.md
+                  - Populate PHGDB pipeline: phg_v1/user_instructions/populate_phgdb_pipeline.md
+                  - Multisample BAM pipeline: phg_v1/user_instructions/multisample_bam_pipeline.md
+                  - Merge FASTQ plugin details: phg_v1/user_instructions/merge_fastq_plugin_detailed_docs.md
+                  - Update PHG schema: phg_v1/user_instructions/update_phg_schema.md
+                  - Help (Biostars): phg_v1/user_instructions/help_biostars.md
+          - Pipeline Plugins:
+              - Database:
+                  - Config file: phg_v1/pipeline/config_file.md
+                  - PHG Liquibase: phg_v1/pipeline/phg_liquibase.md
+                  - PHG Postgres Docker: phg_v1/pipeline/phg_postgres_docker.md
+              - Loading:
+                  - Load genome intervals: phg_v1/pipeline/load_genome_intervals.md
+                  - Load genome intervals to DB plugin: phg_v1/pipeline/load_genome_intervals_to_db_plugin.md
+                  - Load assembly anchors: phg_v1/pipeline/load_assembly_anchors.md
+                  - Parallel assembly anchors load: phg_v1/pipeline/parallel_assembly_anchors_load.md
+                  - Load hap sequences to DB plugin: phg_v1/pipeline/load_hap_sequences_to_db_plugin.md
+                  - Load consensus anchor sequences plugin: phg_v1/pipeline/load_consensus_anchor_sequences_plugin.md
+              - Haplotype creation:
+                  - Create reference intervals: phg_v1/pipeline/create_reference_intervals.md
+                  - Create haplotypes: phg_v1/pipeline/create_haplotypes.md
+                  - Create haplotypes from BAM: phg_v1/pipeline/create_haplotypes_from_bam.md
+                  - Create haplotypes from FASTQ: phg_v1/pipeline/create_haplotypes_from_fastq.md
+                  - Create haplotypes from GVCF: phg_v1/pipeline/create_haplotypes_from_gvcf.md
+                  - Create haplotype key file: phg_v1/pipeline/create_haplotype_key_file.md
+                  - Assembly haplotypes plugin: phg_v1/pipeline/assembly_haplotypes_plugin.md
+                  - Create assembly anchors plugin: phg_v1/pipeline/create_assembly_anchors_plugin.md
+                  - Create consensi: phg_v1/pipeline/create_consensi.md
+              - Path finding:
+                  - Index pangenome: phg_v1/pipeline/index_pangenome.md
+                  - Find path: phg_v1/pipeline/find_path.md
+                  - Find path key files: phg_v1/pipeline/find_path_key_files.md
+                  - Find path Minimap2: phg_v1/pipeline/find_path_minimap2.md
+                  - Minimap2 without Docker: phg_v1/pipeline/minimap2_no_docker.md
+                  - Export path: phg_v1/pipeline/export_path.md
+                  - Paths to VCF plugin: phg_v1/pipeline/paths_to_vcf_plugin.md
+              - Read mapping and filtering:
+                  - FASTQ to hap count plugin: phg_v1/pipeline/fastq_to_hap_count_plugin.md
+                  - Hap count best path to text plugin: phg_v1/pipeline/hap_count_best_path_to_text_plugin.md
+                  - SAM to mapping plugin: phg_v1/pipeline/sam_to_mapping_plugin.md
+                  - Import read mapping to DB plugin: phg_v1/pipeline/import_read_mapping_to_db_plugin.md
+                  - Import haplotype path file plugin: phg_v1/pipeline/import_haplotype_path_file_plugin.md
+                  - Filter GVCF plugin: phg_v1/pipeline/filter_gvcf_plugin.md
+                  - Merge GVCF plugin: phg_v1/pipeline/merge_gvcf_plugin.md
+              - Other:
+                  - Find haplotype clusters plugin: phg_v1/pipeline/find_haplotype_clusters_plugin.md
+                  - Run hap collapse plugin: phg_v1/pipeline/run_hap_collapse_plugin.md
+                  - Help (Biostars): phg_v1/pipeline/help_biostars.md
+              - Deprecated:
+                  - Create haplotypes script: phg_v1/pipeline/deprecated/create_haplotypes_sh.md
   - Community:
       - References: citations.md
       - Contributing: CONTRIBUTING.md

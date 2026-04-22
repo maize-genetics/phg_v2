@@ -23,7 +23,7 @@ class VCFConversionUtils {
          * Function to convert a GVCF file into an HCVF file
          */
         fun convertGVCFToHVCF(dbPath: String, sampleName: String, bedRanges : List<Pair<Position,Position>>, gvcfVariants: List<VariantContext>,
-                              refGenomeSequence : Map<String, NucSeq>, agcArchiveName: String, asmHeaders: MutableMap<String, VCFHeaderLine>, condaEnvPrefix:String = "") : List<VariantContext> {
+                              refGenomeSequence : Map<String, NucSeq>, agcArchiveName: String, asmHeaders: MutableMap<String, VCFHeaderLine>, condaEnvPrefix:String = "", numRangesPerAgcQuery: Int = -1) : List<VariantContext> {
             // group the gvcfVariants by contig
             val gvcfVariantsByContig = gvcfVariants.groupBy { it.contig }
 
@@ -34,10 +34,10 @@ class VCFConversionUtils {
             return gvcfVariantsByContig.keys
                 .sortedWith(compareBy(SeqRangeSort.alphaThenNumberSort){ name:String -> name}) //Need to do a sort here as we need to make sure we process the chromosomes in
                 .filter { bedRegionsByContig.containsKey(it) }
-                .flatMap { convertGVCFToHVCFForChrom(dbPath, sampleName, bedRegionsByContig[it]!!, refGenomeSequence, agcArchiveName, gvcfVariantsByContig[it]!!, asmHeaders,condaEnvPrefix) }
+                .flatMap { convertGVCFToHVCFForChrom(dbPath, sampleName, bedRegionsByContig[it]!!, refGenomeSequence, agcArchiveName, gvcfVariantsByContig[it]!!, asmHeaders,condaEnvPrefix, numRangesPerAgcQuery) }
         }
 
-        private fun convertGVCFToHVCFForChrom(dbPath: String, sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, agcArchiveName: String, variantContexts: List<VariantContext>, asmHeaders: MutableMap<String, VCFHeaderLine>, condaEnvPrefix:String = "" ) : List<VariantContext> {
+        private fun convertGVCFToHVCFForChrom(dbPath: String, sampleName: String, bedRanges: List<Pair<Position,Position>>, refGenomeSequence: Map<String, NucSeq>, agcArchiveName: String, variantContexts: List<VariantContext>, asmHeaders: MutableMap<String, VCFHeaderLine>, condaEnvPrefix:String = "", numRangesPerAgcQuery: Int = -1 ) : List<VariantContext> {
 
             /**
              * Loop through the bed file
@@ -128,7 +128,7 @@ class VCFConversionUtils {
                 }
             }
 
-            val metaDataWithSequence = CreateMafVcfUtils.addSequencesToMetaData(dbPath, outputVariantMetadata, condaEnvPrefix)
+            val metaDataWithSequence = CreateMafVcfUtils.addSequencesToMetaData(dbPath, outputVariantMetadata, condaEnvPrefix, numRangesPerAgcQuery)
             val outputVariants = CreateMafVcfUtils.convertMetaDataToHVCFContexts(metaDataWithSequence, asmHeaders, dbPath)
 
             return outputVariants
