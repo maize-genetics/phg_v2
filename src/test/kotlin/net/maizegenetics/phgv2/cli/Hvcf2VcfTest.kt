@@ -155,7 +155,7 @@ class Hvcf2VcfTest {
     fun createRangeHapMapToSampleGameteTest() {
         val hvcf2Vcf = Hvcf2Vcf()
 
-        val hvcfDir = "data/test/hvcf2vcf/hvcf_files/"
+        val hvcfDir = "data/test/hvcf2vcf/asmHvcfs/hvcf_files/"
 
         val hvcfRangeValues = hvcf2Vcf.createRangeHapMapToSampleGamete(hvcfDir)
 
@@ -163,8 +163,51 @@ class Hvcf2VcfTest {
 
         for((key,rangeValue) in hvcfRangeValues) {
             assertTrue(truthOutput.containsKey(key))
-            assertEquals(truthOutput.getValue(key), rangeValue)
+            assertEquals(truthOutput.getValue(key).sorted(), rangeValue.sorted())
         }
+    }
+
+    @Test
+    fun createRangeHapMapToSampleGameteWithMissingTest() {
+        val hvcf2Vcf = Hvcf2Vcf()
+
+        val hvcfDir = "data/test/hvcf2vcf/asmHvcfs/hvcf_files_with_missing/"
+
+        val hvcfRangeValues = hvcf2Vcf.createRangeHapMapToSampleGamete(hvcfDir)
+
+        val truthMap = buildMissingMap()
+
+        for((key,rangeValue) in hvcfRangeValues) {
+            assertTrue(truthMap.containsKey(key))
+            assertEquals(truthMap.getValue(key).sorted(), rangeValue.sorted())
+        }
+    }
+
+    fun buildMissingMap(): Map<Pair<ReferenceRange, String>, List<SampleGamete>> {
+        val gamete1 = SampleGamete("LineAB_diploid", 0)
+        val gamete2 = SampleGamete("LineAB_diploid", 1)
+
+        val bothList = listOf(gamete1, gamete2)
+        val gamete1List = listOf(gamete1)
+        val gamete2List = listOf(gamete2)
+        return mapOf(
+            Pair(ReferenceRange("1",1,1000), "12f0cec9102e84a161866e37072443b7" ) to bothList,
+            Pair(ReferenceRange("1",1001,5500), "MISSING") to gamete1List,
+            Pair(ReferenceRange("1",1001,5500), "3149b3144f93134eb29661bade697fc6") to gamete2List,
+            Pair(ReferenceRange("1",5501,6500), "MISSING") to gamete1List,
+            Pair(ReferenceRange("1",5501,6500), "05efe15d97db33185b64821791b01b0f") to gamete2List,
+            Pair(ReferenceRange("1",6501,11000), "369464a8743d2e40ad83d1375c196bdd") to gamete1List,
+            Pair(ReferenceRange("1",6501,11000), "8f7de1a693aa15fb8fb7b85e7a8b5e95") to gamete2List,
+            Pair(ReferenceRange("1",11001,12000), "6b5f46bd5c31917af3ab6c3ccc8668cd") to bothList,
+            Pair(ReferenceRange("1",12001,16500), "aff71f19de448514a6d9208b1fcb4e8a") to bothList,
+            Pair(ReferenceRange("2", 1, 1000), "180417a01edbfed525d7c238910e0ff4" ) to bothList,
+            Pair(ReferenceRange("2",1001, 5500), "8bcf66e8c49da2d9ad8cbafa0bb7a93d") to bothList,
+            Pair(ReferenceRange("2", 5501, 6500), "45b121547c7ae517a181fdd2621495c4") to gamete1List,
+            Pair(ReferenceRange("2", 5501, 6500), "50044914d5111c5b5ec58c9d720e3b2d") to gamete2List,
+            Pair(ReferenceRange("2", 6501, 11000), "bc94073196b0b2c13e62b5fa47c76b51") to gamete1List,
+            Pair(ReferenceRange("2", 6501, 11000), "c472bb8d63e19218a4089821ae666db3") to gamete2List,
+            Pair(ReferenceRange("2", 11001, 12000), "3ec680649615da0685b8c245e0f196e2") to bothList
+            )
     }
 
 
@@ -177,14 +220,14 @@ class Hvcf2VcfTest {
 
         val hvcfRangeValues = hvcf2Vcf.processSingleHvcfFile(File(inputHvcf))
 
-        val truthOutput = buildTruthHVCFRecords()
+        val truthOutput = buildTruthHVCFRecordsLineA()
 
         for(range in hvcfRangeValues) {
             assertTrue(truthOutput.contains(range))
         }
     }
 
-    fun buildTruthHVCFRecords(): Set<HvcfRangeHapIdSampleGamete> {
+    fun buildTruthHVCFRecordsLineA(): Set<HvcfRangeHapIdSampleGamete> {
         return setOf(
             HvcfRangeHapIdSampleGamete(ReferenceRange("1",1,1000),"12f0cec9102e84a161866e37072443b7",  listOf(SampleGamete("LineA", 0))),
             HvcfRangeHapIdSampleGamete(ReferenceRange("1",1001,5500),"3149b3144f93134eb29661bade697fc6",  listOf(SampleGamete("LineA", 0))),
@@ -197,6 +240,22 @@ class Hvcf2VcfTest {
             HvcfRangeHapIdSampleGamete(ReferenceRange("2",5501,6500),"50044914d5111c5b5ec58c9d720e3b2d",  listOf(SampleGamete("LineA", 0))),
             HvcfRangeHapIdSampleGamete(ReferenceRange("2",6501,11000),"c472bb8d63e19218a4089821ae666db3",  listOf(SampleGamete("LineA", 0))),
             HvcfRangeHapIdSampleGamete(ReferenceRange("2",11001,12000),"3ec680649615da0685b8c245e0f196e2",  listOf(SampleGamete("LineA", 0))),
+        )
+    }
+
+    fun buildTruthHVCFRecords(): Set<HvcfRangeHapIdSampleGamete> {
+        return setOf(
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",1,1000),"12f0cec9102e84a161866e37072443b7",  listOf(SampleGamete("LineA", 0), SampleGamete("LineA2", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",1001,5500),"3149b3144f93134eb29661bade697fc6",  listOf(SampleGamete("LineA", 0), SampleGamete("LineA2", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",5501,6500),"1b568197f6f329ec5b71f66e49a732fb",  listOf(SampleGamete("LineA", 0), SampleGamete("LineA2", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",6501,11000),"369464a8743d2e40ad83d1375c196bdd",  listOf(SampleGamete("LineA", 0), SampleGamete("LineA2", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",11001,12000),"f50fe6d6b3d9a9d305889db977969916",  listOf(SampleGamete("LineA", 0), SampleGamete("LineA2", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("1",12001,16500),"d4c8b5505d7046b41d7f69b246063ebb",  listOf(SampleGamete("LineA", 0), SampleGamete("LineA2", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",1,1000),"13417ecbb38b9a159e3ca8c9dade7088",  listOf(SampleGamete("LineA", 0), SampleGamete("LineA2", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",1001,5500),"c16ac825052c0456069f6408652aadf8",  listOf(SampleGamete("LineA", 0), SampleGamete("LineA2", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",5501,6500),"50044914d5111c5b5ec58c9d720e3b2d",  listOf(SampleGamete("LineA", 0), SampleGamete("LineA2", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",6501,11000),"c472bb8d63e19218a4089821ae666db3",  listOf(SampleGamete("LineA", 0), SampleGamete("LineA2", 0))),
+            HvcfRangeHapIdSampleGamete(ReferenceRange("2",11001,12000),"3ec680649615da0685b8c245e0f196e2",  listOf(SampleGamete("LineA", 0), SampleGamete("LineA2", 0))),
             HvcfRangeHapIdSampleGamete(ReferenceRange("1",1,1000), "4fc7b8af32ddd74e07cb49d147ef1938", listOf(SampleGamete("LineB", 0))),
             HvcfRangeHapIdSampleGamete(ReferenceRange("1",1001,5500), "8967fabf10e55d881caa6fe192e7d4ca", listOf(SampleGamete("LineB", 0))),
             HvcfRangeHapIdSampleGamete(ReferenceRange("1",5501,6500), "05efe15d97db33185b64821791b01b0f", listOf(SampleGamete("LineB", 0))),
