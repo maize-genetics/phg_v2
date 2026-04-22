@@ -51,6 +51,8 @@ class Hvcf2Vcf:
         .required()
 
 
+    val MISSING_STRING = "MISSING"
+
     override fun run() {
         processHVCFAndBuildVCF(dbPath, hvcfDir, pangenomeVcfFile, outputFile, referenceFile)
     }
@@ -129,7 +131,7 @@ class Hvcf2Vcf:
 
             //walk through each sample and convert to a pair Allele, sampleGamete
             genotype.alleles.mapIndexed { index, allele ->
-                val cleanedAllele = if(allele == Allele.NO_CALL) "MISSING" else allele.displayString.removeSurrounding("<", ">")
+                val cleanedAllele = if(allele == Allele.NO_CALL) MISSING_STRING else allele.displayString.removeSurrounding("<", ">")
                 Pair(cleanedAllele, SampleGamete(baseSampleName, index))
             }
         }
@@ -287,7 +289,7 @@ class Hvcf2Vcf:
         val hapIdsSeen = mutableSetOf<String>()
 
         //Get out the missing sampleGametes
-        val missingGametes = refRangeAndHapIdMap[Pair(refRange,"MISSING")]?.map { Pair(it,Allele.NO_CALL) } ?: emptyList()
+        val missingGametes = refRangeAndHapIdMap[Pair(refRange,MISSING_STRING)]?.map { Pair(it,Allele.NO_CALL) } ?: emptyList()
 
         return vcfContext.genotypes.flatMap { genotype ->
             val sampleName = genotype.sampleName
