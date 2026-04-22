@@ -178,7 +178,6 @@ class Hvcf2VcfTest {
         val truthMap = buildMissingMap()
 
         for((key,rangeValue) in hvcfRangeValues) {
-            println("${key}\t${rangeValue}")
             assertTrue(truthMap.containsKey(key))
             assertEquals(truthMap.getValue(key).sorted(), rangeValue.sorted())
         }
