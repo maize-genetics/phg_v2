@@ -144,6 +144,14 @@ class HaplotypeGraph(hvcfFiles: List<String>) {
             .flatMap { it.toList() }.toMap()
     }
 
+    fun hapIdAndRefRangeToSampleGametes(): Map<Pair<ReferenceRange,String>,List<SampleGamete>> {
+        return ranges().flatMap {
+            hapIdToSampleGametes(it).map{(hapId,sampleGamete) ->
+                Pair(it,hapId) to sampleGamete
+            }
+        }.toMap()
+    }
+
     /**
      * Creates a map of each SampleGamete in range to its haplotype id.
      * @param range a reference range in this graph
