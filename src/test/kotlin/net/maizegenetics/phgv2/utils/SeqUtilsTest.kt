@@ -396,26 +396,8 @@ class SeqUtilsTest {
 
     @Test
     fun testRetrieveSequenceForRanges() {
-        //Need to build an AGC archive
-        //write the assemblies list
-        val assembliesList = "data/test/smallseq/assembliesList.txt"
-        getBufferedWriter(assembliesList).use { myWriter ->
-            myWriter.write("data/test/smallseq/LineA.fa\n")
-            myWriter.write("data/test/smallseq/LineB.fa\n")
-        }
-
-        File(TestExtension.testTileDBURI).mkdirs()
-        val initdb = Initdb()
-        initdb.test("--db-path ${TestExtension.testTileDBURI}")
-        //Create the agc record:
-        val agcCompress = AgcCompress()
-
-        val agcResult = agcCompress.test("--fasta-list $assembliesList --db-path ${TestExtension.testTileDBURI} --reference-file ${TestExtension.smallseqRefFile}")
-        println(agcResult.output)
-
         //Build 10 ranges to pull out
         val ranges = listOf<String>( "1@LineA:1-10", "1@LineA:11-20", "1@LineA:21-30", "1@LineA:31-40", "1@LineA:41-50", "1@LineA:51-60", "1@LineA:61-70", "1@LineA:71-80", "1@LineA:81-90", "1@LineA:91-100" )
-
 
         val fullChrom = retrieveSequenceForRanges(TestExtension.testTileDBURI, ranges)
 
@@ -423,9 +405,5 @@ class SeqUtilsTest {
 
         //Check to see if the results are the same
         assertEquals(fullChrom, splitChrom)
-
-        //Delete the agc archive
-        File(assembliesList).delete()
-        File("${TestExtension.testTileDBURI}assemblies.agc").delete()
     }
 }
