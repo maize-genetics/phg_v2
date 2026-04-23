@@ -12,7 +12,7 @@ import java.io.File
 
 class MappingCountTableQc: CliktCommand("Read mapping count QC") {
 
-    val myLogger = LogManager.getLogger(ReadMappingCountQc::class.java)
+    val myLogger = LogManager.getLogger(MappingCountTableQc::class.java)
 
     val hvcfDir by option(help = "Directory with Haplotype VCF files")
         .required()
@@ -160,10 +160,17 @@ class MappingCountTableQc: CliktCommand("Read mapping count QC") {
         // Take the max and check to see if the count equals hapIdSet size
         val refRangeCounts = hapIdSet.flatMap { hapId ->
             if(!hapIdToRefRange.containsKey(hapId)) {
-               myLogger.info("Haplotype $hapId not in hapIdToRefRange map")
+                myLogger.warn("Haplotype $hapId not in hapIdToRefRange map")
+                return ReferenceRange("UNKNOWN", -1,-1)
             }
             hapIdToRefRange[hapId]!!
         }.groupingBy { it }.eachCount()
+
+
+        if(refRangeCounts.isEmpty()) {
+            myLogger.warn("No ref range for $hapIdSet found")
+            return ReferenceRange("UNKNOWN", -1,-1)
+        }
 
         //get the max
         val mostHitRefRange = refRangeCounts.maxByOrNull { it.value }!!
