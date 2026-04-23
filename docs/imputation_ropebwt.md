@@ -290,11 +290,12 @@ phg_v2_example/
 In addition to `--index-file`, this command can take other optional
 parameters:
 
-| Parameter name             | Description                                                                                                                                                                 | Default value                             |
-|----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------|
-| `--threads`                | Number of threads to use during indexing.                                                                                                                                   | `3`                                       |
-| `--delete-fmr-index`       | RopeBWT3 will originally output a .fmr index file.  This is converted to fmd for efficiency.  If this flag is set to false it will keep that original file.                 | `true`                                     |
-| `--no-diagnostics` or `-n` | A flag that eliminates the diagnostic report                                                                                                                                | Disabled (report is written)              |
+| Parameter name             | Description                                                                                                                                                                                                                     | Default value                |
+|----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------|
+| `--threads`                | Number of threads to use during indexing.                                                                                                                                                                                       | `3`                          |
+| `--delete-fmr-index`       | RopeBWT3 will originally output a .fmr index file.  This is converted to fmd for efficiency.  If this flag is set to false it will keep that original file.                                                                     | `true`                       |
+| `--no-diagnostics` or `-n` | A flag that eliminates the diagnostic report                                                                                                                                                                                    | Disabled (report is written) |
+| `--num-ranges-per-agc-query` | The number of reference ranges to query for at a time when building the index.  Larger values will reduce the number of queries but increase memory usage and time. If not set it will attempt to pull out the full chromosome. | `-1`                         |
 
 
 ### Align reads to ropebwt3 index (optional)
