@@ -62,26 +62,7 @@ class CreateMafVcfUtils {
             return metaDataToRangeLookup.map { it.first.copy(asmSeq = buildSeq(seqs,it.third,it.first)) } //This is a useful way to keep things immutable
         }
 
-        /**
-         * Function to retrieve the sequences for each range.
-         * If numRangesPerAgcQuery is set above 0 it will subset and merge.
-         * If left default will try to do all...
-         */
-        fun retrieveSequenceForRanges(dbPath: String, ranges: List<String>, condaEnvPrefix:String = "", numRangesPerAgcQuery: Int = -1) : Map<Pair<String,String>, NucSeq> {
-            return if (numRangesPerAgcQuery > 0) {
-                myLogger.info("Retrieving sequence for ${ranges.size} ranges. Splitting into ${ceil(ranges.size.toDouble() / numRangesPerAgcQuery).toInt()} batches of size $numRangesPerAgcQuery.")
-                ranges
-                    .windowed(numRangesPerAgcQuery,numRangesPerAgcQuery,true)
-                    .fold(mutableMapOf<Pair<String,String>, NucSeq>()) { acc, window ->
-                        acc.putAll(retrieveAgcContigs(dbPath, window, condaEnvPrefix))
-                        acc
-                    }
-            }
-            else {
-                myLogger.info("Retrieving sequence for ${ranges.size} ranges.")
-                retrieveAgcContigs(dbPath, ranges, condaEnvPrefix)
-            }
-        }
+
 
 
         /**
