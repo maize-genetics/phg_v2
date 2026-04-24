@@ -350,7 +350,6 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
         // This returns a list of HaplotypeSequence objects.
         for (chrom in chromToAltEntryData.keys) {
             val ranges = chromToAltEntryData[chrom]!!.flatMap { it.first }
-//            val seqs = retrieveAgcContigs(dbPath, ranges, condaEnvPrefix)
             val seqs = retrieveSequenceForRanges(dbPath, ranges, condaEnvPrefix, numRangesPerAgcQuery)
             // add to the hapSeqList an updated HaplotypeSequence object containing the sequence built from AGC contigs
             hapSeqList.addAll(chromToAltEntryData[chrom]!!.map {
