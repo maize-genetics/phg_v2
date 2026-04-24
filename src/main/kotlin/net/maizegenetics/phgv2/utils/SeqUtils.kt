@@ -7,6 +7,7 @@ import org.apache.logging.log4j.LogManager
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
+import kotlin.math.ceil
 
 private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.SeqUtils")
 
@@ -77,6 +78,28 @@ fun retrieveRefSampleName(dbPath: String,condaEnvPrefix:String):String {
     agcOut.close()
     return refSampleName
 }
+
+/**
+ * Function to retrieve the sequences for each range.
+ * If numRangesPerAgcQuery is set above 0 it will subset and merge.
+ * If left default will try to do all...
+ */
+fun retrieveSequenceForRanges(dbPath: String, ranges: List<String>, condaEnvPrefix:String = "", numRangesPerAgcQuery: Int = -1) : Map<Pair<String,String>, NucSeq> {
+    return if (numRangesPerAgcQuery > 0) {
+        CreateMafVcfUtils.Companion.myLogger.info("Retrieving sequence for ${ranges.size} ranges. Splitting into ${ceil(ranges.size.toDouble() / numRangesPerAgcQuery).toInt()} batches of size $numRangesPerAgcQuery.")
+        ranges
+            .windowed(numRangesPerAgcQuery,numRangesPerAgcQuery,true)
+            .fold(mutableMapOf<Pair<String,String>, NucSeq>()) { acc, window ->
+                acc.putAll(retrieveAgcContigs(dbPath, window, condaEnvPrefix))
+                acc
+            }
+    }
+    else {
+        CreateMafVcfUtils.Companion.myLogger.info("Retrieving sequence for ${ranges.size} ranges.")
+        retrieveAgcContigs(dbPath, ranges, condaEnvPrefix)
+    }
+}
+
 
 /**
  * Retrieves sequence from an agc data store.

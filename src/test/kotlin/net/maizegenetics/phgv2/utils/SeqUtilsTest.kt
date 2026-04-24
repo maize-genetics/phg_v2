@@ -393,4 +393,17 @@ class SeqUtilsTest {
         println("verifiedResults = $goodResults")
         assertEquals(true, goodResults)
     }
+
+    @Test
+    fun testRetrieveSequenceForRanges() {
+        //Build 10 ranges to pull out
+        val ranges = listOf<String>( "1@LineA:1-10", "1@LineA:11-20", "1@LineA:21-30", "1@LineA:31-40", "1@LineA:41-50", "1@LineA:51-60", "1@LineA:61-70", "1@LineA:71-80", "1@LineA:81-90", "1@LineA:91-100" )
+
+        val fullChrom = retrieveSequenceForRanges(TestExtension.testTileDBURI, ranges)
+
+        val splitChrom = retrieveSequenceForRanges(TestExtension.testTileDBURI, ranges, numRangesPerAgcQuery = 3) //Doing 3 so its uneven
+
+        //Check to see if the results are the same
+        assertEquals(fullChrom, splitChrom)
+    }
 }
