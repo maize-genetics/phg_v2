@@ -2,6 +2,7 @@ package net.maizegenetics.phgv2.pathing
 
 import biokotlin.util.bufferedReader
 import com.github.ajalt.clikt.testing.test
+import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension
@@ -96,18 +97,48 @@ class ReadMappingCountQcTest {
         Files.copy(File(TestExtension.smallseqLineBHvcfFile).toPath(), File("${hvcfDir}LineB.hvcf").toPath())
         Files.copy(File(TestExtension.smallseqRefHvcfFile).toPath(), File("${hvcfDir}Ref.hvcf").toPath())
 
-
-
         val readMappingFile = "data/test/ropebwt/LineA_1_readMapping.txt"
         val targetSampleName = "LineA"
         val outputDir = tempTestDir
-        readMappingCountQc.processReadMappingCounts(hvcfDir, readMappingFile, targetSampleName, outputDir)
+        readMappingCountQc.processReadMappingCounts(hvcfDir, readMappingFile, targetSampleName, outputDir, false)
 
         val expectedFile = "data/test/kmerReadMapping/LineA_1_readMapping_LineA_counts.txt"
         val actualFile = "$outputDir/LineA_1_readMapping_LineA_counts.txt"
         val expected = bufferedReader(expectedFile).readLines().joinToString("\n")
         val actual = bufferedReader(actualFile).readLines().joinToString("\n")
         assertEquals(expected, actual)
+
+        readMappingCountQc.processReadMappingCounts(hvcfDir, readMappingFile, targetSampleName, outputDir, true)
+
+        val expectedFile2 = "data/test/kmerReadMapping/LineA_1_readMapping_counts_bysample.txt"
+        val actualFile2 = "$outputDir/LineA_1_readMapping_counts_bysample.txt"
+        val expected2 = bufferedReader(expectedFile2).readLines().joinToString("\n")
+        val actual2 = bufferedReader(actualFile2).readLines().joinToString("\n")
+        assertEquals(expected2, actual2)
+
+    }
+
+    @Test
+    fun testGetReadCountsPerRefRange() {
+        Files.copy(File(TestExtension.smallseqLineAHvcfFile).toPath(), File("${hvcfDir}LineA.hvcf").toPath())
+        Files.copy(File(TestExtension.smallseqLineBHvcfFile).toPath(), File("${hvcfDir}LineB.hvcf").toPath())
+        Files.copy(File(TestExtension.smallseqRefHvcfFile).toPath(), File("${hvcfDir}Ref.hvcf").toPath())
+
+        val readMappingFile = "data/test/ropebwt/LineA_1_readMapping.txt"
+        val graph = HaplotypeGraph(hvcfDir)
+
+        val readMapping = AlignmentUtils.importReadMapping(readMappingFile)
+        val hapidToRefrange = graph.hapIdToRefRangeMap()
+
+        val rangeCountPairs = readMapping.entries.map{ (hapids,count) -> Pair(hapidToRefrange[hapids.first()]!!.first(), count) }
+        val altRangeCounts = mutableMapOf<ReferenceRange, Int>()
+        rangeCountPairs.forEach { (refrange,count) ->
+            altRangeCounts[refrange] = (altRangeCounts[refrange] ?: 0) + count
+        }
+
+        val rangeCounts = ReadMappingCountQc().getReadMappingCountsByReferenceRange(graph, readMapping)
+
+        assert(altRangeCounts == rangeCounts)
     }
 
     @Test
@@ -148,6 +179,9 @@ class ReadMappingCountQcTest {
         val rangeToHapIds = mapOf(ReferenceRange("1",10,50) to listOf("hap1","hap2"),
             ReferenceRange("1",51,75) to listOf("hap3","hap4"),
             ReferenceRange("1",76,100) to listOf("hap5","hap6"))
+        val referenceRangeCounts = mapOf(ReferenceRange("1",10,50) to 5,
+            ReferenceRange("1",51,75) to 6,
+            ReferenceRange("1",76,100) to 7)
 
         val hapIdToSampleGamete = mapOf(
             "hap1" to listOf(SampleGamete("sample1", 0), SampleGamete("sample2", 0)),
@@ -157,7 +191,7 @@ class ReadMappingCountQcTest {
             "hap5" to listOf(SampleGamete("sample1", 0)),
             "hap6" to listOf(SampleGamete("sample2", 0), SampleGamete("sample3", 0)))
 
-        readMappingCountQc.writeOutCounts(hapIdCounts, outputFile, targetSampleName, rangeToHapIds, hapIdToSampleGamete)
+        readMappingCountQc.writeOutCounts(hapIdCounts, outputFile, targetSampleName, rangeToHapIds, hapIdToSampleGamete, referenceRangeCounts)
 
         val expected = "refRange\tsample1_HapID\tsample1_HapCount\tHighestAltCount\tDifference\tOtherHapCounts\n" +
             "1:10-50\thap1\t4\t3\t1\t3_hap2\n" +
@@ -166,8 +200,6 @@ class ReadMappingCountQcTest {
 
         val actual = bufferedReader(outputFile).readLines().joinToString("\n")
         assertEquals(expected, actual)
-
-
     }
 
     @Test
@@ -179,18 +211,22 @@ class ReadMappingCountQcTest {
             "hap2" to listOf(SampleGamete("sample3", 0)),
             "hap3" to listOf(SampleGamete("sample4", 0), SampleGamete("sample5", 0)))
         val rangeToHapIds = mapOf(ReferenceRange("1",10,50) to listOf("hap1","hap2"), ReferenceRange("1",51,75) to listOf("hap2","hap3"), ReferenceRange("1",76,100) to listOf("hap1","hap3"))
+        val referenceRangeCounts = mapOf(ReferenceRange("1",10,50) to 5,
+            ReferenceRange("1",51,75) to 6,
+            ReferenceRange("1",76,100) to 7)
+
         val expected = "1:10-50\thap1\t4\t3\t1\t3_hap2\n"
-        val actual = readMappingCountQc.buildOutputStringForHapIdsInRefRange(rangeToHapIds, ReferenceRange("1",10,50), hapIdToSampleGamete , hapIdCounts,"sample1")
+        val actual = readMappingCountQc.buildOutputStringForHapIdsInRefRange(rangeToHapIds, ReferenceRange("1",10,50), hapIdToSampleGamete , hapIdCounts,"sample1", referenceRangeCounts)
         assertEquals(expected, actual)
 
         //test that the non Target is higher
         val expectedNonHigher = "1:10-50\thap2\t3\t4\t-1\t4_hap1\n"
-        val actualNonHigher = readMappingCountQc.buildOutputStringForHapIdsInRefRange(rangeToHapIds, ReferenceRange("1",10,50), hapIdToSampleGamete , hapIdCounts,"sample3")
+        val actualNonHigher = readMappingCountQc.buildOutputStringForHapIdsInRefRange(rangeToHapIds, ReferenceRange("1",10,50), hapIdToSampleGamete , hapIdCounts,"sample3", referenceRangeCounts)
         assertEquals(expectedNonHigher, actualNonHigher)
 
         //Test what happens if the target sample is not in the current refRange
         val expectedNoTarget = "1:10-50\t\t0\t4\t-4\t4_hap1, 3_hap2\n"
-        val actualNoTarget = readMappingCountQc.buildOutputStringForHapIdsInRefRange(rangeToHapIds, ReferenceRange("1",10,50), hapIdToSampleGamete , hapIdCounts,"sample6")
+        val actualNoTarget = readMappingCountQc.buildOutputStringForHapIdsInRefRange(rangeToHapIds, ReferenceRange("1",10,50), hapIdToSampleGamete , hapIdCounts,"sample6", referenceRangeCounts)
         assertEquals(expectedNoTarget, actualNoTarget)
     }
 
@@ -248,4 +284,5 @@ class ReadMappingCountQcTest {
         val overlapActual = readMappingCountQc.findTargetHapIdForSample(hapIds, overlapHapIdToSampleGameteMap, targetSampleName)
         assertEquals(overlapExpected, overlapActual)
     }
+
 }

@@ -32,10 +32,10 @@ class ReadMappingCountQc : CliktCommand("Read mapping count QC") {
     override fun run() {
         logCommand(this)
         myLogger.info("Read mapping count QC")
-        processReadMappingCounts(hvcfDir, readMappingFile, targetSampleName, outputDir)
+        processReadMappingCounts(hvcfDir, readMappingFile, targetSampleName, outputDir, bySample)
     }
 
-    fun processReadMappingCounts(hvcfDir: String, readMappingFile: String, targetSampleName: String, outputDir: String) {
+    fun processReadMappingCounts(hvcfDir: String, readMappingFile: String, targetSampleName: String, outputDir: String, reportBySample: Boolean) {
         myLogger.info("Processing read mapping counts")
         val graph = HaplotypeGraph(hvcfDir)
         val hapIdToSampleGamete = graph.hapIdsToSampleGametes()
@@ -49,7 +49,33 @@ class ReadMappingCountQc : CliktCommand("Read mapping count QC") {
 
         val referenceRangeCounts = getReadMappingCountsByReferenceRange(graph, readMapping)
 
-        writeOutCounts(hapIdCounts, outputFile, targetSampleName, rangeToHapIds, hapIdToSampleGamete, referenceRangeCounts)
+        if (reportBySample) {
+            val bysampleOutFile = "$outputDir/${File(readMappingFile).nameWithoutExtension}_counts_bysample.txt"
+            writeDetailReport(hapIdCounts, bysampleOutFile, rangeToHapIds, hapIdToSampleGamete, referenceRangeCounts)
+        } else {
+            writeOutCounts(hapIdCounts, outputFile, targetSampleName, rangeToHapIds, hapIdToSampleGamete, referenceRangeCounts)
+        }
+    }
+
+    fun writeDetailReport(hapIdCounts: Map<String, Int>,
+                          outputFile: String,
+                          rangeToHapIds: Map<ReferenceRange,List<String>>,
+                          hapIdToSampleGamete: Map<String, List<SampleGamete>>,
+                          referenceRangeCounts: Map<ReferenceRange, Int>) {
+
+        val referenceRangeList = referenceRangeCounts.keys.toList().sorted()
+
+        bufferedWriter(outputFile).use { writer ->
+            writer.write("RefRange\tSampleName\tHapID\tHapCount\tTotalCount \n")
+            referenceRangeList.forEach { refRange ->
+                val hapids = rangeToHapIds[refRange]
+                if (hapids != null) {
+                    val totalCount = referenceRangeCounts[refRange]
+                    val hapidSamplePairs = hapids.flatMap {hapid -> hapIdToSampleGamete[hapid]!!.map { sample -> Pair(hapid, sample)}}
+                    hapidSamplePairs.forEach { (hapid, sample) -> writer.write("$refRange\t$sample\t$hapid\t${hapIdCounts[hapid]?:0}\t$totalCount\n")}
+                }
+            }
+        }
     }
 
     fun getReadMappingCountsByReferenceRange(graph: HaplotypeGraph, readMappings: Map<List<String>, Int>): Map<ReferenceRange, Int> {
@@ -126,7 +152,7 @@ class ReadMappingCountQc : CliktCommand("Read mapping count QC") {
 
         val targetCount = hapIdCounts.getOrDefault(targetHapId, 0)
         return "$range\t$targetHapId\t${targetCount}\t${highestAlt}\t${targetCount - highestAlt}\t" +
-                "${referenceRangeCounts[range]}\t"
+                "${referenceRangeCounts[range]?:0}\t" +
                 "${nonTargetCounts.joinToString(", ") { "${it.first}_${it.second}" }}\n"
 
     }
