@@ -71,13 +71,18 @@ class RopeBwtIndex : CliktCommand(help="Create a ropeBWT3 index") {
     val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
 
+    val numRangesPerAgcQuery by option(help = "Number of ranges per AGC region query.  If you set this higher it will be more performant but can make the AGC command too long and cause errors.")
+        .int()
+        .default(-1)
+        .validate { require(it == -1 || it > 0) { "--num-ranges-per-agc-region-query-error: Must be either -1 or greater than 0" } }
+
     override fun run() {
         logCommand(this)
 
         val pangenomeFastaFile = if(ropeBWTIndexInput is RopeBWTIndexInput.HvcfDir) {
             myLogger.info("Creating pangenome fasta file from hvcf files in ${(ropeBWTIndexInput as RopeBWTIndexInput.HvcfDir).hvcfDir}")
             val hvcfDir = (ropeBWTIndexInput as RopeBWTIndexInput.HvcfDir).hvcfDir
-            createPangenomeFasta(hvcfDir, outputDir, dbPath, condaEnvPrefix)
+            createPangenomeFasta(hvcfDir, outputDir, dbPath, condaEnvPrefix, numRangesPerAgcQuery)
             "$outputDir/pangenome.fa"
         }
         else {
@@ -90,11 +95,11 @@ class RopeBwtIndex : CliktCommand(help="Create a ropeBWT3 index") {
 
     }
 
-    fun createPangenomeFasta(hvcfDir: String, outputDir: String, dbPath: String, condaEnvPrefix: String) {
+    fun createPangenomeFasta(hvcfDir: String, outputDir: String, dbPath: String, condaEnvPrefix: String, numRangesPerAgcQuery: Int = -1) {
         val hvcfFiles : Array<File> = File(hvcfDir).listFiles { file ->
             HVCF_PATTERN.containsMatchIn(file.name)
         } ?: throw Exception("No hvcf files found in $hvcfDir")
-        CreateFastaFromHvcf().createPangenomeHaplotypeFile(outputDir, hvcfFiles, dbPath, condaEnvPrefix)
+        CreateFastaFromHvcf().createPangenomeHaplotypeFile(outputDir, hvcfFiles, dbPath, condaEnvPrefix, numRangesPerAgcQuery)
     }
 
     fun createInitialIndex(inputFasta:String, indexFilePrefix:String, numThreads: Int, deleteFMRIndex:Boolean, condaEnvPrefix:String) {

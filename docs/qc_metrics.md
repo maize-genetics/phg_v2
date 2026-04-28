@@ -340,3 +340,59 @@ refRange    LineA_HapID LineA_HapCount  HighestAltCount Difference  OtherHapCoun
   IDs for all other haplotypes in the reference range.
 
 
+### Return a read mapping count table
+
+> Using a directory of read mapping files as input, this command
+> produces one tab-delimited count table per file. Each table reports,
+> for every reference range in the PHG, the total number of reads
+> attributed to each sample in the graph.
+
+**Command** - `mapping-count-table-qc`
+
+**Example**
+
+```shell
+phg mapping-count-table-qc \
+    --hvcf-dir path/to/hvcf_directory \
+    --read-mapping-dir path/to/read_mapping_directory \
+    --output-dir path/to/output_directory
+```
+
+**Parameters**
+
+| Parameter name        | Description                          | Default value | Required?        |
+|-----------------------|--------------------------------------|---------------|------------------|
+| `--hvcf-dir`          | Directory with Haplotype VCF files.  | `""`          | :material-check: |
+| `--read-mapping-dir`  | Directory containing read mapping files. All files ending in `_readMapping.txt` will be processed. | `""` | :material-check: |
+| `--output-dir`        | Output directory for the count tables. | `""`        | :material-check: |
+
+For each `*_readMapping.txt` file found in `--read-mapping-dir`, a
+corresponding `*_mappingCounts.txt` file is written to `--output-dir`.
+For example, `LineA_1_readMapping.txt` produces
+`LineA_1_mappingCounts.txt`.
+
+Each read mapping entry contains a set of one or more hapIds that a
+group of reads mapped to. The command resolves which reference range
+that hapId set belongs to, then credits the read count to every sample
+in the graph that carries one of those hapIds at that range. HapId sets
+that span more than one reference range cannot be unambiguously
+attributed and are skipped with a warning.
+
+**Example output**
+
+```
+RefRange        LineA:0 LineB:0 Ref:0
+1:1-1000        853     0       0
+1:1001-5500     4378    4378    4378
+1:5501-6500     902     902     0
+1:6501-11000    4396    0       0
+```
+
+* **`RefRange`**: The reference range in `contig:start-end` format.
+* **`<SampleName>:<gameteId>` columns**: One column per sample gamete
+  in the graph, labeled as `sampleName:gameteId`. Each value is the
+  total number of reads attributed to that sample at the given
+  reference range. Ranges where no reads mapped for a given sample
+  are reported as `0`.
+
+

@@ -9,7 +9,9 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.enum
+import com.github.ajalt.clikt.parameters.types.int
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.api.HaplotypeGraph
@@ -106,6 +108,11 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
     val condaEnvPrefix by option(help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
 
+    val numRangesPerAgcQuery by option(help = "Number of ranges per AGC region query.  If you set this higher it will be more performant but can make the AGC command too long and cause errors.")
+        .int()
+        .default(-1)
+        .validate { require(it == -1 || it > 0) { "--num-ranges-per-agc-region-query-error: Must be either -1 or greater than 0" } }
+
     // Pre-compile the Regex pattern - used when creating the output fasta file names
     val HVCF_PATTERN = Regex("""(\.hvcf|\.h\.vcf|\.hvcf\.gz|\.h\.vcf\.gz)$""")
 
@@ -118,13 +125,14 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
         outputDir: String,
         fastaType: FastaType,
         hvcfInput: HvcfInput,
-        condaEnvPrefix: String
+        condaEnvPrefix: String,
+        numRangesPerAgcQuery: Int = -1
     ) {
 
         if (hvcfInput is HvcfInput.HvcfDir) {
             // Loop through the directory and figure out which files are hvcf files
             // The gvcf and hvcf files may be in the same folder, so verify specific extension
-            processHVCFDirectory(hvcfInput, fastaType, outputDir, dbPath, condaEnvPrefix)
+            processHVCFDirectory(hvcfInput, fastaType, outputDir, dbPath, condaEnvPrefix,numRangesPerAgcQuery)
         } else if (hvcfInput is HvcfInput.HvcfFile) {
             // Load in the HVCF
             VCFFileReader(File(hvcfInput.hvcfFile), false).use {hvcfFileReader ->
@@ -133,7 +141,7 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
                 val outputFile = "$outputDir/$outputFileName"
 
                 bufferedWriter(outputFile).use { output ->
-                    val records = processSingleHVCF(hvcfFileReader, dbPath, condaEnvPrefix)
+                    val records = processSingleHVCF(hvcfFileReader, dbPath, condaEnvPrefix, numRangesPerAgcQuery)
                     writeSequences(output, records, fastaType)
                 }
             }
@@ -153,7 +161,8 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
         fastaType: FastaType,
         outputDir: String,
         dbPath: String,
-        condaEnvPrefix: String
+        condaEnvPrefix: String,
+        numRangesPerAgcQuery:Int = -1
     ) {
         val hvcfFiles : Array<File> = File(hvcfInput.hvcfDir).listFiles { file ->
             HVCF_PATTERN.containsMatchIn(file.name)
@@ -172,7 +181,7 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
                     VCFFileReader(hvcfFile, false).use { vcfFileReader ->
                         writeSequences(
                             output,
-                            processSingleHVCF(vcfFileReader, dbPath, condaEnvPrefix),
+                            processSingleHVCF(vcfFileReader, dbPath, condaEnvPrefix,numRangesPerAgcQuery),
                             fastaType
                         )
                     }
@@ -188,7 +197,8 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
         outputDir: String,
         hvcfFiles: Array<File>,
         dbPath: String,
-        condaEnvPrefix: String
+        condaEnvPrefix: String,
+        numRangesPerAgcQuery: Int = -1
     ) {
         //this mode for making a single pangenome haplotype fasta of all the hvcfs combined
         //useful for running minimap2
@@ -202,7 +212,7 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
                     VCFFileReader(hvcfFile,false).use { vcfFileReader ->
                         Pair(
                             hvcfFile.nameWithoutExtension,
-                            processSingleHVCF(vcfFileReader, dbPath, condaEnvPrefix)
+                            processSingleHVCF(vcfFileReader, dbPath, condaEnvPrefix,numRangesPerAgcQuery)
                         )
                     }
                 }
@@ -244,7 +254,8 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
     fun processSingleHVCF(
         vcfFileReader: VCFFileReader,
         dbPath: String,
-        condaEnvPrefix: String
+        condaEnvPrefix: String,
+        numRangesPerAgcQuery: Int = -1
     ): List<HaplotypeSequence> {
         //extract out the haplotype sequence boundaries for each haplotype from the hvcf
         val altHeaderMap = parseALTHeader(vcfFileReader.header)
@@ -258,7 +269,8 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
                 sample,
                 hvcfRecords,
                 altHeaderMap,
-                condaEnvPrefix
+                condaEnvPrefix,
+                numRangesPerAgcQuery
             )
         }
     }
@@ -290,7 +302,8 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
         sampleName: String,
         haplotypeVariants: List<VariantContext>,
         altHeaders: Map<String, AltHeaderMetaData>,
-        condaEnvPrefix: String
+        condaEnvPrefix: String,
+        numRangesPerAgcQuery: Int = -1
     ): List<HaplotypeSequence> {
         val chromToAltEntryData =
             mutableMapOf<String, MutableList<Triple<MutableList<String>, MutableList<String>, HaplotypeSequence>>>()
@@ -337,7 +350,7 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
         // This returns a list of HaplotypeSequence objects.
         for (chrom in chromToAltEntryData.keys) {
             val ranges = chromToAltEntryData[chrom]!!.flatMap { it.first }
-            val seqs = retrieveAgcContigs(dbPath, ranges, condaEnvPrefix)
+            val seqs = retrieveSequenceForRanges(dbPath, ranges, condaEnvPrefix, numRangesPerAgcQuery)
             // add to the hapSeqList an updated HaplotypeSequence object containing the sequence built from AGC contigs
             hapSeqList.addAll(chromToAltEntryData[chrom]!!.map {
                 it.third.copy(
@@ -502,6 +515,6 @@ class CreateFastaFromHvcf : CliktCommand(help = "Create a FASTA file from a h.vc
         val validDB = verifyURI(dbPath, "hvcf_dataset", condaEnvPrefix)
 
         if (fastaType == FastaType.rangeFasta) refRangeFastas()
-        else buildFastaFromHVCF(dbPath, outputDir, fastaType, hvcfInput, condaEnvPrefix)
+        else buildFastaFromHVCF(dbPath, outputDir, fastaType, hvcfInput, condaEnvPrefix, numRangesPerAgcQuery)
     }
 }
