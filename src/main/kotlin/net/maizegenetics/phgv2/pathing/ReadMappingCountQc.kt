@@ -21,13 +21,14 @@ class ReadMappingCountQc : CliktCommand("Read mapping count QC") {
     val readMappingFile by option(help = "Read mapping file")
         .required()
 
-    val targetSampleName by option(help = "Target sample name")
+    val targetSampleName by option(help = "Target sample name. Required but not used when the --by-sample flag is set.")
         .required()
 
     val outputDir by option(help = "Output directory")
         .required()
 
-    val bySample by option(help = "Report by sample").flag("--notBySample")
+    val bySample by option(help = "Create a report with a read count for each sample by reference range. " +
+            "The default is a report with only one row per reference range. --by-sample report does not use --target-sample-name.").flag("--notBySample")
 
     override fun run() {
         logCommand(this)
@@ -57,6 +58,9 @@ class ReadMappingCountQc : CliktCommand("Read mapping count QC") {
         }
     }
 
+    /**
+    * Function that writes a report with a separate row for each SampleName and ReferenceRange.
+    */
     fun writeDetailReport(hapIdCounts: Map<String, Int>,
                           outputFile: String,
                           rangeToHapIds: Map<ReferenceRange,List<String>>,
@@ -78,6 +82,9 @@ class ReadMappingCountQc : CliktCommand("Read mapping count QC") {
         }
     }
 
+    /**
+    * Function that returns a map of reference range to read mapping counts for that reference range.
+    * */
     fun getReadMappingCountsByReferenceRange(graph: HaplotypeGraph, readMappings: Map<List<String>, Int>): Map<ReferenceRange, Int> {
         val readsByReferenceRange = readMappingByRange(readMappings, graph)
         return readsByReferenceRange.entries.associate {(refrange, hapidcounts) -> refrange to hapidcounts.values.sum()}
