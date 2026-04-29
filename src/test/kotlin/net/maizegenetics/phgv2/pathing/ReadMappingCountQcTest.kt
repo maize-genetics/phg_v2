@@ -50,6 +50,11 @@ class ReadMappingCountQcTest {
             File(TestExtension.testOutputDir).mkdirs()
             File(tempTestDir).mkdirs()
             File(hvcfDir).mkdirs()
+
+            Files.copy(File(TestExtension.smallseqLineAHvcfFile).toPath(), File("${hvcfDir}LineA.hvcf").toPath())
+            Files.copy(File(TestExtension.smallseqLineBHvcfFile).toPath(), File("${hvcfDir}LineB.hvcf").toPath())
+            Files.copy(File(TestExtension.smallseqRefHvcfFile).toPath(), File("${hvcfDir}Ref.hvcf").toPath())
+
         }
     }
 
@@ -93,10 +98,6 @@ class ReadMappingCountQcTest {
         val readMappingCountQc = ReadMappingCountQc()
         //Move the hvcfs into the temp directory
 
-        Files.copy(File(TestExtension.smallseqLineAHvcfFile).toPath(), File("${hvcfDir}LineA.hvcf").toPath())
-        Files.copy(File(TestExtension.smallseqLineBHvcfFile).toPath(), File("${hvcfDir}LineB.hvcf").toPath())
-        Files.copy(File(TestExtension.smallseqRefHvcfFile).toPath(), File("${hvcfDir}Ref.hvcf").toPath())
-
         val readMappingFile = "data/test/ropebwt/LineA_1_readMapping.txt"
         val targetSampleName = "LineA"
         val outputDir = tempTestDir
@@ -120,10 +121,6 @@ class ReadMappingCountQcTest {
 
     @Test
     fun testGetReadCountsPerRefRange() {
-        Files.copy(File(TestExtension.smallseqLineAHvcfFile).toPath(), File("${hvcfDir}LineA.hvcf").toPath())
-        Files.copy(File(TestExtension.smallseqLineBHvcfFile).toPath(), File("${hvcfDir}LineB.hvcf").toPath())
-        Files.copy(File(TestExtension.smallseqRefHvcfFile).toPath(), File("${hvcfDir}Ref.hvcf").toPath())
-
         val readMappingFile = "data/test/ropebwt/LineA_1_readMapping.txt"
         val graph = HaplotypeGraph(hvcfDir)
 
@@ -193,10 +190,10 @@ class ReadMappingCountQcTest {
 
         readMappingCountQc.writeOutCounts(hapIdCounts, outputFile, targetSampleName, rangeToHapIds, hapIdToSampleGamete, referenceRangeCounts)
 
-        val expected = "refRange\tsample1_HapID\tsample1_HapCount\tHighestAltCount\tDifference\tOtherHapCounts\n" +
-            "1:10-50\thap1\t4\t3\t1\t3_hap2\n" +
-            "1:51-75\thap3\t3\t6\t-3\t6_hap4\n" +
-            "1:76-100\thap5\t6\t3\t3\t3_hap6"
+        val expected = "refRange\tsample1_HapID\tsample1_HapCount\tHighestAltCount\tDifference\tTotalCount\tOtherHapCounts\n" +
+            "1:10-50\thap1\t4\t3\t1\t5\t3_hap2\n" +
+            "1:51-75\thap3\t3\t6\t-3\t6\t6_hap4\n" +
+            "1:76-100\thap5\t6\t3\t3\t7\t3_hap6"
 
         val actual = bufferedReader(outputFile).readLines().joinToString("\n")
         assertEquals(expected, actual)
@@ -215,17 +212,17 @@ class ReadMappingCountQcTest {
             ReferenceRange("1",51,75) to 6,
             ReferenceRange("1",76,100) to 7)
 
-        val expected = "1:10-50\thap1\t4\t3\t1\t3_hap2\n"
+        val expected = "1:10-50\thap1\t4\t3\t1\t5\t3_hap2\n"
         val actual = readMappingCountQc.buildOutputStringForHapIdsInRefRange(rangeToHapIds, ReferenceRange("1",10,50), hapIdToSampleGamete , hapIdCounts,"sample1", referenceRangeCounts)
         assertEquals(expected, actual)
 
         //test that the non Target is higher
-        val expectedNonHigher = "1:10-50\thap2\t3\t4\t-1\t4_hap1\n"
+        val expectedNonHigher = "1:10-50\thap2\t3\t4\t-1\t5\t4_hap1\n"
         val actualNonHigher = readMappingCountQc.buildOutputStringForHapIdsInRefRange(rangeToHapIds, ReferenceRange("1",10,50), hapIdToSampleGamete , hapIdCounts,"sample3", referenceRangeCounts)
         assertEquals(expectedNonHigher, actualNonHigher)
 
         //Test what happens if the target sample is not in the current refRange
-        val expectedNoTarget = "1:10-50\t\t0\t4\t-4\t4_hap1, 3_hap2\n"
+        val expectedNoTarget = "1:10-50\t\t0\t4\t-4\t5\t4_hap1, 3_hap2\n"
         val actualNoTarget = readMappingCountQc.buildOutputStringForHapIdsInRefRange(rangeToHapIds, ReferenceRange("1",10,50), hapIdToSampleGamete , hapIdCounts,"sample6", referenceRangeCounts)
         assertEquals(expectedNoTarget, actualNoTarget)
     }
