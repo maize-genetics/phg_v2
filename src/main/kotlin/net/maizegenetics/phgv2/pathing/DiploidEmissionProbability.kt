@@ -23,6 +23,9 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
     //minimum probability must be greater then 0 since we need to take the ln of it
     private val minProbability = Double.MIN_VALUE
     private val lnMinProbability = ln(minProbability)
+    //the probability that a read maps to a genome other than the target genome in addition to mapping
+    // to the target genome. May be user settable in the future
+    val probabilityOffTarget = 0.5
 
     /**
      * Returns the natural log of the emission probability for a given state and [ReferenceRange].
@@ -93,7 +96,7 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
         val pErr = 1.0 - probabilityCorrect
         //probability the a read mapping to A maps also maps to B, should be user settable or potentially has a different value by reference range
         //and the probability that a read mapping to B also maps to A
-        val pBoth = 0.3
+        val pBoth = probabilityOffTarget
         //assign a low probability for now, maybe should be user settable?
         val diploidProb = halfProb - pBoth - pErr
 
