@@ -8,13 +8,11 @@ import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.setupDebugLogging
 import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.assertEquals
-import kotlin.test.fail
 
 class ReadMappingCountQcTest {
 
@@ -202,7 +200,6 @@ class ReadMappingCountQcTest {
     @Test
     fun testBuildOutputStringForHapIdsInRefRange() {
         val readMappingCountQc = ReadMappingCountQc()
-        val hapIds = listOf("hap1","hap2","hap3")
         val hapIdCounts = mapOf("hap1" to 4, "hap2" to 3, "hap3" to 3, "hap4" to 6, "hap5" to 6)
         val hapIdToSampleGamete = mapOf("hap1" to listOf(SampleGamete("sample1", 0), SampleGamete("sample2", 0)),
             "hap2" to listOf(SampleGamete("sample3", 0)),
