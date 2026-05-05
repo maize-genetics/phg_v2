@@ -2,6 +2,8 @@ package net.maizegenetics.phgv2.pathing
 
 import biokotlin.util.bufferedWriter
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.UsageError
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
@@ -21,18 +23,20 @@ class ReadMappingCountQc : CliktCommand("Read mapping count QC") {
     val readMappingFile by option(help = "Read mapping file")
         .required()
 
-    val targetSampleName by option(help = "Target sample name. Required but not used when the --by-sample flag is set.")
-        .required()
+    val targetSampleName by option(help = "Target sample name. Required unless the --by-sample flag is set.").default("")
 
     val outputDir by option(help = "Output directory")
         .required()
 
     val bySample by option(help = "Create a report with a read count for each sample by reference range. " +
-            "The default is a report with only one row per reference range. --by-sample report does not use --target-sample-name.").flag("--notBySample")
+            "The default is a report with only one row per reference range. --by-sample report does not use --target-sample-name.").flag()
 
     override fun run() {
         logCommand(this)
         myLogger.info("Read mapping count QC")
+        if (!bySample && targetSampleName.isNullOrBlank()) {
+            throw UsageError("--target-sample-name is required unless --by-sample is set")
+        }
         processReadMappingCounts(hvcfDir, readMappingFile, targetSampleName, outputDir, bySample)
     }
 
@@ -41,8 +45,6 @@ class ReadMappingCountQc : CliktCommand("Read mapping count QC") {
         val graph = HaplotypeGraph(hvcfDir)
         val hapIdToSampleGamete = graph.hapIdsToSampleGametes()
         val rangeToHapIds = graph.refRangeToHapIdList()
-
-        val outputFile = buildCountOutputFile(outputDir, readMappingFile ,targetSampleName)
 
         val readMapping = AlignmentUtils.importReadMapping(readMappingFile)
 
@@ -54,8 +56,10 @@ class ReadMappingCountQc : CliktCommand("Read mapping count QC") {
             val bysampleOutFile = "$outputDir/${File(readMappingFile).nameWithoutExtension}_counts_bysample.txt"
             writeDetailReport(hapIdCounts, bysampleOutFile, rangeToHapIds, hapIdToSampleGamete, referenceRangeCounts)
         } else {
+            val outputFile = buildCountOutputFile(outputDir, readMappingFile ,targetSampleName)
             writeOutCounts(hapIdCounts, outputFile, targetSampleName, rangeToHapIds, hapIdToSampleGamete, referenceRangeCounts)
         }
+
     }
 
     /**
@@ -70,7 +74,7 @@ class ReadMappingCountQc : CliktCommand("Read mapping count QC") {
         val referenceRangeList = referenceRangeCounts.keys.toList().sorted()
 
         bufferedWriter(outputFile).use { writer ->
-            writer.write("RefRange\tSampleName\tHapID\tHapCount\tTotalCount \n")
+            writer.write("RefRange\tSampleName\tHapID\tHapCount\tTotalCount\n")
             referenceRangeList.forEach { refRange ->
                 val hapids = rangeToHapIds[refRange]
                 if (hapids != null) {

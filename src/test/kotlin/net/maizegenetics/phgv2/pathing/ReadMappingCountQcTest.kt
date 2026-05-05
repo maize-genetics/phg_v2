@@ -78,7 +78,7 @@ class ReadMappingCountQcTest {
         assertEquals(1,noTargetSampleName.statusCode)
         assertEquals(
             "Usage: read-mapping-count-qc [<options>]\n\n" +
-                    "Error: missing option --target-sample-name\n", noTargetSampleName.stderr
+                    "Error: --target-sample-name is required unless --by-sample is set\n", noTargetSampleName.stderr
         )
 
         val noOutputDir = readMappingCountQc.test("--hvcf-dir dummyHvcfDir --read-mapping-file dummyReadMapping.txt --target-sample-name dummySampleName")

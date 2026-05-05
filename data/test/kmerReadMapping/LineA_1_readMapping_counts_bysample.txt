@@ -1,4 +1,4 @@
-RefRange	SampleName	HapID	HapCount	TotalCount 
+RefRange	SampleName	HapID	HapCount	TotalCount
 1:1-1000	LineA:0	12f0cec9102e84a161866e37072443b7	853	853
 1:1-1000	LineB:0	4fc7b8af32ddd74e07cb49d147ef1938	0	853
 1:1-1000	Ref:0	546d1839623a5b0ea98bbff9a8a320e2	0	853
