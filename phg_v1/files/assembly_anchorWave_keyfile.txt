@@ -1,0 +1,5 @@
+AssemblyServerDir	AssemblyGenomeFasta	AssemblyDir	AssemblyFasta	AssemblyDBName
+blfs1:/data1/users/zrm22/Maize2_0/Joes_pilon	pilon_sra_Mo44.fasta	/phg/inputDir/assemblies/	pilon_sra_Mo44.fasta	Mo44_anchorwave
+blfs1:/data1/users/zrm22/Maize2_0/Joes_pilon	pilon_sra_MoG.fasta	/phg/inputDir/assemblies/	pilon_sra_MoG.fasta	MoG_anchorwave
+blfs1:/data1/users/zrm22/Maize2_0/Joes_pilon	pilon_sra_PHN11.fasta	/phg/inputDir/assemblies/	pilon_sra_PHN11.fasta	PHN11_anchorwave
+blfs1:/data1/users/zrm22/Maize2_0/Joes_pilon	pilon_sra_PHW65.fasta	/phg/inputDir/assemblies/	pilon_sra_PHW65.fasta	PHW65_anchorwave
