@@ -9,6 +9,8 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
@@ -19,6 +21,7 @@ import net.maizegenetics.phgv2.pathing.ReadInputFile
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import kotlin.collections.contains
 
 
 /**
@@ -67,6 +70,12 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
     val minEnd by option(help = "Minimum end position for a read to be considered a match. Any alignments with an end below this will be ignored.")
         .int()
         .default(70)
+
+    val minSingleRange by option(help = "Minimum proportion of read mappings to a single range. " +
+            "By default reads mapping to more than one range will not be used. Value must be between 0.0 and 1.0. (Default = 1.0)")
+        .double()
+        .default(1.0)
+        .validate { require((it in 0.0..1.0) ) { "value must be between 0.0 and 1.0 but was $it" } }
 
 
     override fun run() {
@@ -183,7 +192,6 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         return readMapping
     }
 
-
     /**
      * Function to process the mems for a single read and add them to the readMapping
      * This will filter things based on the maxStart and minEnd positions, then  maxNumHits and retain the mems that are longest
@@ -199,36 +207,37 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         val maxLength = posFilteredMems.maxOf { it.readEnd - it.readStart }
         //remove any hits that are not the longest
         val bestHits = posFilteredMems.filter { it.readEnd - it.readStart == maxLength }
-
         val totalNumHits = bestHits.sumOf { it.numHits }
+        val bestHapIds = bestHits.flatMap { it.listMemHits.map{hits -> hits.contig} }.toSet()
 
         if(totalNumHits <= maxNumHits) {
-            //if the total number of hits is less than the maxNumHits, Filter the haps down to a single ref range and then add all those to the readMapping
-            //First turn the hapIds into a set then back to a list and sort so it will be consistent
-            val bestHapIds = bestHits.flatMap { it.listMemHits.map{hits -> hits.contig} }.toSet()
+            //count the number hapids per reference range
+            //note that this is not the number of genomes matched in a reference range
+            //the number of genomes could be greater if genomes share hapids
+            //the number of hapids is easier to calculate and serves the same purpose, which is to limit the number of
+            //matches to multiple reference ranges
+            val refRangeCounts = bestHapIds.map { hapIdToRefRangeMap[it] }
+                .filterNotNull()
+                .flatten()
+                .groupingBy { it }
+                .eachCount()
+            val maxRefRangeCount = refRangeCounts.maxOf { it.value }
+            val totalRefRangeCount = refRangeCounts.values.sum()
 
-            val filteredBestHapIds = filterToOneReferenceRange(bestHapIds, hapIdToRefRangeMap)
+            //control how many hits ar allowed to multiple reference ranges
+            if (maxRefRangeCount / totalRefRangeCount >= minSingleRange) {
 
-            val hapIdsHit = filteredBestHapIds.sorted()
-            readMapping[hapIdsHit] = (readMapping[hapIdsHit]?:0) + 1
+                //Next, filter the haps down to a single ref range and then add all those to the readMapping
+                //First turn the hapIds into a set then back to a list and sort so it will be consistent
+                val maxRefRange = refRangeCounts.maxByOrNull { it.value }?.key
+
+                //Then filter out any hapIds that don't have that reference range
+                val filteredBestHapIds =  bestHapIds.filter { hapIdToRefRangeMap[it]?.contains(maxRefRange)?:false }
+                val hapIdsHit = filteredBestHapIds.sorted()
+                readMapping[hapIdsHit] = (readMapping[hapIdsHit]?:0) + 1
+            }
+
         }
-    }
-
-    /**
-     * Function to filter the hapIds to only those that hit a single reference range
-     * This will pick the highest occurring reference range and if there is a tie it will choose the first one.
-     */
-    fun filterToOneReferenceRange(hapIds: Set<String>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>) : List<String> {
-        //figure out which reference range is hit the most
-        val refRangeCounts = hapIds.map { hapIdToRefRangeMap[it] }
-            .filterNotNull()
-            .flatten()
-            .groupingBy { it }
-            .eachCount()
-
-        val maxRefRange = refRangeCounts.maxByOrNull { it.value }?.key
-        //Then filter out any hapIds that don't have that reference range
-        return hapIds.filter { hapIdToRefRangeMap[it]?.contains(maxRefRange)?:false }
     }
 
     /**
