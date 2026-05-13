@@ -1,0 +1,22 @@
+:root {
+  --md-admonition-icon--citation: url('data:image/svg+xml;charset=utf-8, <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 3H4c-1.11 0-2 .89-2 2v14c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2M5 7h5v6H5zm14 10H5v-2h14zm0-4h-7v-2h7zm0-4h-7V7h7z"/></svg>')
+}
+
+.md-tabs__item {
+    font-weight: bold;
+}
+
+.md-typeset .admonition.citation,
+.md-typeset details.citation {
+  border-color: rgb(43, 155, 70);
+}
+.md-typeset .citation > .admonition-title,
+.md-typeset .citation > summary {
+  background-color: rgba(43, 155, 70, 0.1);
+}
+.md-typeset .citation > .admonition-title::before,
+.md-typeset .citation > summary::before {
+  background-color: rgb(43, 155, 70);
+  -webkit-mask-image: var(--md-admonition-icon--citation);
+          mask-image: var(--md-admonition-icon--citation);
+}

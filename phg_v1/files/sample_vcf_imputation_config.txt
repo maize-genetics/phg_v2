@@ -1,0 +1,69 @@
+# Imputation Pipeline parameters for VCF files
+
+#!!! Required Parameters !!!
+#--- Database ---
+host=localHost
+user=sqlite
+password=sqlite
+DB=**UNASSIGNED**
+DBtype=sqlite
+
+#--- Used by liquibase to check DB version ---
+liquibaseOutdir=/phg/outputDir
+
+#--- Used for indexing SNP positions ---
+#   pangenomeHaplotypeMethod is the database method or methods for the haplotypes to which SNPs will be indexed
+#   the index file lists the SNP allele to haplotype mapping and is used for mapping reads
+pangenomeHaplotypeMethod=**UNASSIGNED**
+indexFile=/phg/outputDir/vcfIndexFile
+vcfFile=/phg/inputDir/imputation/vcf/yourFilenameHere.vcf
+
+#--- Used for mapping reads
+#   readMethod is the method name for storing the resulting read mappings
+#   countAlleleDepths=true means allele depths will be used for haplotype counts, which is almost always a good choice
+inputType=vcf
+keyFile=/phg/readMapping_key_file.txt
+readMethod=**UNASSIGNED**
+vcfDir=/phg/inputDir/imputation/vcf/
+countAlleleDepths=true
+
+#--- Used for path finding
+#   pathHaplotypeMethod determines which haplotypes will be consider for path finding
+#   pathHaplotypeMethod should be the same as pangenomeHaplotypeMethod, but could be a subset
+#   pathMethod is the method name used for storing the paths
+pathHaplotypeMethod=**UNASSIGNED*
+pathMethod=**UNASSIGNED*
+maxNodes=1000
+maxReads=10000
+minReads=1
+minTaxa=20
+minTransitionProb=0.001
+numThreads=3
+probCorrect=0.99
+removeEqual=true
+splitNodes=true
+splitProb=0.99
+usebf=false
+maxParents = 1000000
+minCoverage = 1.0
+#parentOutputFile = **OPTIONAL**
+
+#--- used by haploid path finding only
+#   usebf - if true use Forward-Backward algorithm, other Viterbi
+usebf=false
+minP=0.8
+
+#--- used by diploid path finding only
+maxHap=11
+maxReadsKB=100
+algorithmType=efficient
+
+#--- Used to output a vcf file for pathMethod
+outVcfFile=**UNASSIGNED**
+
+#~~~ Optional Parameters ~~~
+#readMethodDescription=**OPTIONAL**
+#pathMethodDescription=**OPTIONAL**
+#bfInfoFile=**OPTIONAL**
+#~~~ providing a value for outputDir will write read mappings to file rather than the PHG db ~~~
+#outputDir=**OPTIONAL**

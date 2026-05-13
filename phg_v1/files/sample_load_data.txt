@@ -1,0 +1,2 @@
+Genotype	Hapnumber	Dataline	ploidy	genesPhased	chromsPhased	confidence	Method	MethodDetails	gvcfServerPath
+Ref_Assembly	0	generated	1	true	true	1	B73Ref_method	Test version for junit	192.9.9.9;/Users/lcj34/temp/gvcfRemote/

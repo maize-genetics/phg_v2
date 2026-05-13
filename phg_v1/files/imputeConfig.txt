@@ -1,0 +1,51 @@
+#config file for imputation, small seq test
+#!!! Required Parameters !!!
+#--- Database ---
+host=localHost
+user=sqlite
+password=sqlite
+DB=/phg/phgSmallSeq.db
+DBtype=sqlite
+
+#--- Used for writing and indexing a pangenome ---
+pangenomeHaplotypeMethod=CONSENSUS
+pangenomeDir=/phg/pangenome/
+indexKmerLength=21
+indexWindowSize=11
+indexNumberBases=90G
+
+#--- Used for mapping reads
+inputType=fastq
+readMethod=READS_FASTQ
+keyFile=/phg/genotypingKeyFile.txt
+fastqDir=/phg/data/
+samDir=**UNASSIGNED**
+lowMemMode=true
+maxRefRangeErr=0.25
+outputSecondaryStats=false
+maxSecondary=20
+minimapLocation=minimap2
+
+#--- Used for path finding
+pathHaplotypeMethod=CONSENSUS
+pathMethod=PATH_METHOD
+maxNodes=1000
+maxReads=10000
+minReads=0
+minTaxa=2
+minTransitionProb=0.0001
+numThreads=3
+probCorrect=0.99
+removeEqual=true
+splitNodes=true
+splitProb=0.99
+usebf=false
+#   used by haploid path finding only
+usebf=false
+minP=0.8
+#   used by diploid path finding only
+maxHap=11
+maxReadsKB=100
+algorithmType=classic
+outVcfFile=/phg/outputDir/output.vcf
+
