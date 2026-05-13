@@ -262,7 +262,7 @@ class MapReadsTest {
 
         val hapIdToRefRangeMap = graph.hapIdToRefRangeMap()
 
-        mapReads.mapSingleReadFile(index, "LineA" ,readFile, outputFile ,5, 148, 5, "", hapIdToRefRangeMap, 2, 148, 1.0)
+        mapReads.mapSingleReadFile(index, "LineA" ,readFile, outputFile ,5, 148, 5, "", hapIdToRefRangeMap, 2, 148, 0.0)
 
         val expectedLines = bufferedReader("data/test/ropebwt/LineA_1_readMapping.txt").readLines()
         val expectedReadMap = expectedLines.filter { !it.startsWith("#") }.filter { !it.startsWith("HapId") }.map { it.split("\t") }.associate { it[0] to it[1].toInt() }
@@ -293,7 +293,7 @@ class MapReadsTest {
         val hapIdToRefRangeMap = graph.hapIdToRefRangeMap()
 
         val keyFileDataEntry = listOf(KeyFileData("LineA", "data/test/kmerReadMapping/simulatedReads/LineA_1.fq", "data/test/kmerReadMapping/simulatedReads/LineA_2.fq"))
-        mapReads.mapAllReadFiles(index, keyFileDataEntry, outputDir, 5, 148, 5, "", hapIdToRefRangeMap, 2, 148, 1.0)
+        mapReads.mapAllReadFiles(index, keyFileDataEntry, outputDir, 5, 148, 5, "", hapIdToRefRangeMap, 2, 148, 0.0)
 
 
         val expectedLines = bufferedReader("data/test/ropebwt/LineA_1_readMapping.txt").readLines()
