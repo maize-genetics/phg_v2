@@ -47,7 +47,7 @@ class MapReadsFromBed : CliktCommand(help = "Map reads to a ropebwt3 index from 
     val sampleName by option(help = "Sample name to use in the output read mapping file.")
         .required()
 
-    val minSingleRange by option(help = "Minimum proportion of read mappings to a single range. " +
+    val minSingleRange by option(help = "Minimum proportion of reads mapping to a single range. " +
             "By default reads mapping to more than one range will not be used. Value must be between 0.0 and 1.0. (Default = 1.0)")
         .double()
         .default(1.0)
