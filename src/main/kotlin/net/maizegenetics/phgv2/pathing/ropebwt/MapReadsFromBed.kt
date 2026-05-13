@@ -5,6 +5,8 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.cli.logCommand
@@ -45,6 +47,12 @@ class MapReadsFromBed : CliktCommand(help = "Map reads to a ropebwt3 index from 
     val sampleName by option(help = "Sample name to use in the output read mapping file.")
         .required()
 
+    val minSingleRange by option(help = "Minimum proportion of read mappings to a single range. " +
+            "By default reads mapping to more than one range will not be used. Value must be between 0.0 and 1.0. (Default = 1.0)")
+        .double()
+        .default(1.0)
+        .validate { require((it in 0.0..1.0) ) { "value must be between 0.0 and 1.0 but was $it" } }
+
     override fun run() {
         logCommand(this)
 
@@ -58,7 +66,7 @@ class MapReadsFromBed : CliktCommand(help = "Map reads to a ropebwt3 index from 
 
         val mapReads = MapReads()
         val bedFileReader = bufferedReader(bedFile)
-        val readMapping = mapReads.createReadMappingsForFileReader(bedFileReader, maxNumHits, hapIdToRefRangeMap, maxStart, minEnd)
+        val readMapping = mapReads.createReadMappingsForFileReader(bedFileReader, maxNumHits, hapIdToRefRangeMap, maxStart, minEnd, minSingleRange)
 
         bedFileReader.close()
 
