@@ -4,6 +4,9 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.io.File
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class SetupEnvironmentTest {
 
@@ -77,6 +80,68 @@ class SetupEnvironmentTest {
         }
         assert(exceptionThrow)
 
+    }
+
+    @Test
+    fun testExistingEnvironmentFailureDetectedFromStderr() {
+        val isExistingEnvFailure = SetupEnvironment.isExistingEnvironmentFailure(
+            listOf("CondaValueError: prefix already exists: /tmp/phgv2-conda"),
+            emptyList()
+        )
+
+        assertTrue(isExistingEnvFailure)
+    }
+
+    @Test
+    fun testExistingEnvironmentFailureIsFalseForOtherCondaErrors() {
+        val isExistingEnvFailure = SetupEnvironment.isExistingEnvironmentFailure(
+            listOf("PackagesNotFoundError: The following packages are not available from current channels:"),
+            emptyList()
+        )
+
+        assertFalse(isExistingEnvFailure)
+    }
+
+    @Test
+    fun testSummarizeCondaFailurePrefersStderr() {
+        val summary = SetupEnvironment.summarizeCondaFailure(
+            listOf("PackagesNotFoundError: anchorwave=1.2.5"),
+            listOf("Collecting package metadata"),
+            "/tmp/condaCreate_error.log"
+        )
+
+        assertEquals("PackagesNotFoundError: anchorwave=1.2.5", summary)
+    }
+
+    @Test
+    fun testTermsOfServiceFailureDetectedFromStderr() {
+        val isTermsOfServiceFailure = SetupEnvironment.isTermsOfServiceFailure(
+            listOf("CondaToSNonInteractiveError: Terms of Service have not been accepted"),
+            emptyList()
+        )
+
+        assertTrue(isTermsOfServiceFailure)
+    }
+
+    @Test
+    fun testTermsOfServiceHelpMessageContainsExpectedCommands() {
+        val helpMessage = SetupEnvironment.termsOfServiceHelpMessage()
+
+        assertTrue(helpMessage.contains("conda tos accept"))
+        assertTrue(helpMessage.contains("https://repo.anaconda.com/pkgs/main"))
+        assertTrue(helpMessage.contains("CONDA_PLUGINS_AUTO_ACCEPT_TOS=yes"))
+    }
+
+    @Test
+    fun testCondaEnvironmentNamesMatchExpectedValues() {
+        assertEquals(
+            "phgv2-conda",
+            SetupEnvironment.condaEnvironmentName(SetupEnvironment.CONDAENVTYPE.PHG)
+        )
+        assertEquals(
+            "phgv2-tiledb",
+            SetupEnvironment.condaEnvironmentName(SetupEnvironment.CONDAENVTYPE.TILEDB)
+        )
     }
 
 }

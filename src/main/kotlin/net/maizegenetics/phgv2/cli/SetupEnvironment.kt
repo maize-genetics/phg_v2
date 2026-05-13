@@ -25,6 +25,57 @@ class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG
         PHG, TILEDB
     }
 
+    companion object {
+        internal fun condaEnvironmentName(envType: CONDAENVTYPE): String = when (envType) {
+            CONDAENVTYPE.PHG -> "phgv2-conda"
+            CONDAENVTYPE.TILEDB -> "phgv2-tiledb"
+        }
+
+        internal fun isExistingEnvironmentFailure(
+            errorLines: List<String>,
+            outputLines: List<String>
+        ): Boolean {
+            val combinedLines = errorLines + outputLines
+            return combinedLines.any {
+                it.contains("prefix already exists", ignoreCase = true) ||
+                    it.contains("environment already exists", ignoreCase = true)
+            }
+        }
+
+        internal fun summarizeCondaFailure(
+            errorLines: List<String>,
+            outputLines: List<String>,
+            errorLogPath: String
+        ): String {
+            return errorLines.firstOrNull { it.isNotBlank() }
+                ?: outputLines.firstOrNull { it.isNotBlank() }
+                ?: "No conda output captured. See $errorLogPath for details."
+        }
+
+        internal fun isTermsOfServiceFailure(
+            errorLines: List<String>,
+            outputLines: List<String>
+        ): Boolean {
+            val combinedLines = errorLines + outputLines
+            return combinedLines.any {
+                it.contains("CondaToSNonInteractiveError", ignoreCase = true) ||
+                    it.contains("Terms of Service have not been accepted", ignoreCase = true)
+            }
+        }
+
+        internal fun termsOfServiceHelpMessage(): String {
+            return buildString {
+                appendLine("Conda is blocking access because channel Terms of Service have not been accepted.")
+                appendLine("Accept the ToS for the required channels, then rerun setup-environment.")
+                appendLine("Typical commands are:")
+                appendLine("  conda tos accept")
+                appendLine("  conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main")
+                appendLine("  conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r")
+                append("For CI or other non-interactive environments, you can also set CONDA_PLUGINS_AUTO_ACCEPT_TOS=yes.")
+            }
+        }
+    }
+
     val envFile by option("-e", "--env-file", help = "File containing the conda environment definition")
         .default("")
 
@@ -69,11 +120,11 @@ class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG
             tiledbFile
         }
 
-        runCondaCreate(resultEnvFile, outputDir, envFile, CONDAENVTYPE.PHG)
-        runCondaCreate(tiledbEnvFile, outputDir, tiledbFile, CONDAENVTYPE.TILEDB)
+        runCondaCreate(resultEnvFile, outputDir, CONDAENVTYPE.PHG)
+        runCondaCreate(tiledbEnvFile, outputDir, CONDAENVTYPE.TILEDB)
     }
 
-    private fun runCondaCreate(resultEnvFile: String, outputDir: String, envFile: String, envType: CONDAENVTYPE) {
+    private fun runCondaCreate(resultEnvFile: String, outputDir: String, envType: CONDAENVTYPE) {
         // call ProcessBuilder to execute the conda create env command
         myLogger.info("Creating conda environment from file: $resultEnvFile")
         val builder = ProcessBuilder("conda", "env", "create", "--solver=libmamba", "--file", resultEnvFile)
@@ -94,19 +145,42 @@ class SetupEnvironment : CliktCommand(help = "Create a conda environment for PHG
         val error = process.waitFor()
 
         if (error != 0) {
-            val errorLines = File(redirectError).readLines()
-            val success = errorLines
-                .filter { it.contains("prefix already exists") }
-                .toList()
-            if (success.isEmpty()) {
-                myLogger.error("conda env create command for file ${envFile} run via ProcessBuilder returned error code $error")
-                println("Verify you have conda installed and the environment phgv2-conda does not already exist")
-                throw IllegalStateException("SetupEnvironment: create conda envirionment failed: $error")
+            val errorLines = File(redirectError).takeIf { it.exists() }?.readLines() ?: emptyList()
+            val outputLines = File(redirectOutput).takeIf { it.exists() }?.readLines() ?: emptyList()
+            val envName = condaEnvironmentName(envType)
+
+            if (!isExistingEnvironmentFailure(errorLines, outputLines)) {
+                val failureSummary = summarizeCondaFailure(errorLines, outputLines, redirectError)
+                val tosHelp = if (isTermsOfServiceFailure(errorLines, outputLines)) {
+                    "\n${termsOfServiceHelpMessage()}"
+                } else {
+                    ""
+                }
+                myLogger.error(
+                    "conda env create command for file $resultEnvFile returned error code $error. " +
+                        "See $redirectError for details. First message: $failureSummary$tosHelp"
+                )
+                println("Conda environment creation failed for $resultEnvFile.")
+                println("See $redirectError for details.")
+                if (isTermsOfServiceFailure(errorLines, outputLines)) {
+                    println(termsOfServiceHelpMessage())
+                }
+                throw IllegalStateException(
+                    "SetupEnvironment: create conda environment failed for $resultEnvFile " +
+                        "with exit code $error. $failureSummary$tosHelp"
+                )
             } else {
-                myLogger.info("\nThe phgv2-conda conda environment already exists.  You can activate it with the command: conda activate phgv2-conda\n")
+                myLogger.info(
+                    "\nThe $envName conda environment already exists.  " +
+                        "You can activate it with the command: conda activate $envName\n"
+                )
             }
         } else {
-            myLogger.info("Successfully created your environment.  You can activate it with the command: conda activate phgv2-conda")
+            val envName = condaEnvironmentName(envType)
+            myLogger.info(
+                "Successfully created your environment.  " +
+                    "You can activate it with the command: conda activate $envName"
+            )
         }
     }
 
