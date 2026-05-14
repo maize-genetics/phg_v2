@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
@@ -79,6 +80,12 @@ class MapReadsTest {
         assertEquals(1, noHvcfDir.statusCode)
         assertEquals("Usage: map-reads [<options>]\n\n" +
                 "Error: missing option --hvcf-dir\n", noHvcfDir.stderr)
+
+        val outOfRange = mapReads.test("--min-single-range 2.0 --index testIndex --read-files test1.fq --output-dir testDir --hvcf-dir ${TestExtension.smallSeqInputDir}")
+        assertEquals(1, noOutputDir.statusCode)
+        assertEquals("Usage: map-reads [<options>]\n\n" +
+                "Error: invalid value for --min-single-range: value must be between 0.0 and 1.0 but was 2.0\n", outOfRange.stderr)
+
     }
 
     @Test
@@ -115,21 +122,21 @@ class MapReadsTest {
     fun testProcessMemsForRead() {
         val mapReads = MapReads()
 
-        val hapIdToRefRangeMap = mapOf("hap1" to listOf(ReferenceRange("chr1",100,200)), "hap2" to listOf(ReferenceRange("chr1",100,200)), "hap3" to listOf(ReferenceRange("chr1",100,200)),
+        var hapIdToRefRangeMap = mapOf("hap1" to listOf(ReferenceRange("chr1",100,200)), "hap2" to listOf(ReferenceRange("chr1",100,200)), "hap3" to listOf(ReferenceRange("chr1",100,200)),
             "hap4" to listOf(ReferenceRange("chr1",100,200)), "hap5" to listOf(ReferenceRange("chr1",100,200)))
 
         //Make a simple 1 MEM hit
         val simpleMEMList = listOf(MEM("read1",0,150,3,listOf(MEMHit("hap1", "+", 100), MEMHit("hap2", "-", 200), MEMHit("hap3", "+", 300))))
 
         var simpleReadMapping = mutableMapOf<List<String>, Int>()
-        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,5, hapIdToRefRangeMap, 0, 150)
+        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,5, hapIdToRefRangeMap, 0, 150, 1.0)
         assertEquals(1, simpleReadMapping.size)
         assertEquals(listOf("hap1","hap2","hap3"), simpleReadMapping.keys.first())
         assertEquals(1, simpleReadMapping[listOf("hap1","hap2","hap3")])
 
 
         simpleReadMapping = mutableMapOf()
-        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,2, hapIdToRefRangeMap,0, 150)
+        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,2, hapIdToRefRangeMap,0, 150, 1.0)
         assertEquals(0, simpleReadMapping.size)
 
 
@@ -146,10 +153,10 @@ class MapReadsTest {
         )
 
         simpleReadMapping = mutableMapOf()
-        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150)
-        mapReads.processMemsForRead(simpleMEMList2,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150)
-        mapReads.processMemsForRead(simpleMEMList3,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150)
-        mapReads.processMemsForRead(simpleMEMList4,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150)
+        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150, 1.0)
+        mapReads.processMemsForRead(simpleMEMList2,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150, 1.0)
+        mapReads.processMemsForRead(simpleMEMList3,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150, 1.0)
+        mapReads.processMemsForRead(simpleMEMList4,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150, 1.0)
         assertEquals(3, simpleReadMapping.size)
         assertTrue(simpleReadMapping.keys.contains(listOf("hap1","hap2","hap3")))
         assertEquals(2, simpleReadMapping[listOf("hap1","hap2","hap3")])
@@ -162,6 +169,43 @@ class MapReadsTest {
         //pass in empty list
         simpleReadMapping = mutableMapOf()
         assertEquals(0, simpleReadMapping.size)
+
+        //test minSingleRange parameter
+        hapIdToRefRangeMap = mapOf("hap1" to listOf(ReferenceRange("chr1",100,200)), "hap2" to listOf(ReferenceRange("chr1",100,200)), "hap3" to listOf(ReferenceRange("chr1",100,200)),
+            "hap4" to listOf(ReferenceRange("chr2",100,200)), "hap5" to listOf(ReferenceRange("chr2",100,200)))
+
+        simpleReadMapping = mutableMapOf()
+        //simpleMEMList = hap1, hap2, hap3
+        //simpleMEMList2 = hap1, hap2, hap3
+        //simpleMEMList3 = hap1, hap2, hap3
+        //simpleMEMList4 = hap1, hap2, hap3, hap4, hap5
+        //simpleMEMList4 should be rejected but the others accepted when minSingleRange = 1.0
+        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150, 1.0)
+        mapReads.processMemsForRead(simpleMEMList2,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150, 1.0)
+        mapReads.processMemsForRead(simpleMEMList3,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150, 1.0)
+        mapReads.processMemsForRead(simpleMEMList4,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150, 1.0)
+        assertEquals(2, simpleReadMapping.size)
+        assertTrue(simpleReadMapping.keys.contains(listOf("hap1","hap2","hap3")))
+        assertEquals(2, simpleReadMapping[listOf("hap1","hap2","hap3")])
+        assertTrue(simpleReadMapping.keys.contains(listOf("hap4","hap5")))
+        assertEquals(1, simpleReadMapping[listOf("hap4","hap5")])
+        assertFalse(simpleReadMapping.keys.contains(listOf("hap1","hap2","hap3","hap4","hap5")))
+
+        //all reads should be accepted when minSingleRange = 0.0, but for simpleMEMList4, hap4 and hap5 should be deleted
+        //as a result expect 3 copies of hap1,hap2,hap3 and one of hap4,hap5
+        simpleReadMapping = mutableMapOf()
+        mapReads.processMemsForRead(simpleMEMList,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150, 0.0)
+        mapReads.processMemsForRead(simpleMEMList2,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150, 0.0)
+        mapReads.processMemsForRead(simpleMEMList3,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150, 0.0)
+        mapReads.processMemsForRead(simpleMEMList4,simpleReadMapping,6, hapIdToRefRangeMap, 2, 150, 0.0)
+        assertEquals(2, simpleReadMapping.size)
+        assertTrue(simpleReadMapping.keys.contains(listOf("hap1","hap2","hap3")))
+        assertEquals(3, simpleReadMapping[listOf("hap1","hap2","hap3")])
+        assertTrue(simpleReadMapping.keys.contains(listOf("hap4","hap5")))
+        assertEquals(1, simpleReadMapping[listOf("hap4","hap5")])
+        assertFalse(simpleReadMapping.keys.contains(listOf("hap1","hap2","hap3","hap4","hap5")))
+
+
     }
 
     @Test
@@ -176,7 +220,7 @@ class MapReadsTest {
 
 
         val mapReads = MapReads()
-        val readMapping = mapReads.createReadMappingsForFileReader(reader, 5, hapIdToRefRangeMap, 2, 150)
+        val readMapping = mapReads.createReadMappingsForFileReader(reader, 5, hapIdToRefRangeMap, 2, 150, 1.0)
 
         println(readMapping)
 
@@ -218,7 +262,7 @@ class MapReadsTest {
 
         val hapIdToRefRangeMap = graph.hapIdToRefRangeMap()
 
-        mapReads.mapSingleReadFile(index, "LineA" ,readFile, outputFile ,5, 148, 5, "", hapIdToRefRangeMap, 2, 148)
+        mapReads.mapSingleReadFile(index, "LineA" ,readFile, outputFile ,5, 148, 5, "", hapIdToRefRangeMap, 2, 148, 0.0)
 
         val expectedLines = bufferedReader("data/test/ropebwt/LineA_1_readMapping.txt").readLines()
         val expectedReadMap = expectedLines.filter { !it.startsWith("#") }.filter { !it.startsWith("HapId") }.map { it.split("\t") }.associate { it[0] to it[1].toInt() }
@@ -249,7 +293,7 @@ class MapReadsTest {
         val hapIdToRefRangeMap = graph.hapIdToRefRangeMap()
 
         val keyFileDataEntry = listOf(KeyFileData("LineA", "data/test/kmerReadMapping/simulatedReads/LineA_1.fq", "data/test/kmerReadMapping/simulatedReads/LineA_2.fq"))
-        mapReads.mapAllReadFiles(index, keyFileDataEntry, outputDir, 5, 148, 5, "", hapIdToRefRangeMap, 2, 148)
+        mapReads.mapAllReadFiles(index, keyFileDataEntry, outputDir, 5, 148, 5, "", hapIdToRefRangeMap, 2, 148, 0.0)
 
 
         val expectedLines = bufferedReader("data/test/ropebwt/LineA_1_readMapping.txt").readLines()
@@ -286,33 +330,4 @@ class MapReadsTest {
         expectedLines.indices.forEach { assertEquals(expectedLines[it], observedLines[it]) }
     }
 
-    @Test
-    fun testFilterToOneReferenceRange() {
-        val mapReads = MapReads()
-        val hapIdToRefRangeMap = mapOf("hap1" to listOf(ReferenceRange("chr1",100,200)),
-            "hap2" to listOf(ReferenceRange("chr1",100,200)),
-            "hap3" to listOf(ReferenceRange("chr1",100,200)),
-            "hap4" to listOf(ReferenceRange("chr1",200,300)),
-            "hap5" to listOf(ReferenceRange("chr1",200,300)))
-
-
-
-        //all one refRange
-        val allOneHapIdsSet = setOf("hap1","hap2","hap3")
-        val expectedAllOne = setOf("hap1","hap2","hap3")
-        val filteredAllOne = mapReads.filterToOneReferenceRange(allOneHapIdsSet, hapIdToRefRangeMap)
-        assertEquals(3, filteredAllOne.size)
-        assertTrue(filteredAllOne.toSet().containsAll(expectedAllOne))
-        assertTrue(expectedAllOne.containsAll(filteredAllOne.toSet()))
-        
-
-        val threeVTwo = setOf("hap1","hap2","hap3","hap4","hap5")
-        val expectedThree = setOf("hap1","hap2","hap3")
-        val filteredThree = mapReads.filterToOneReferenceRange(threeVTwo, hapIdToRefRangeMap)
-        assertEquals(3, filteredThree.size)
-        assertTrue(filteredThree.toSet().containsAll(expectedThree))
-        assertTrue(expectedThree.containsAll(filteredThree.toSet()))
-
-
-    }
 }

@@ -9,6 +9,8 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.api.HaplotypeGraph
 import net.maizegenetics.phgv2.api.ReferenceRange
@@ -19,7 +21,7 @@ import net.maizegenetics.phgv2.pathing.ReadInputFile
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedReader
 import java.io.InputStreamReader
-
+import kotlin.collections.contains
 
 /**
  * MapReads will map read files independently to a pangenome indexed by ropeBWT3
@@ -68,6 +70,12 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         .int()
         .default(70)
 
+    val minSingleRange by option(help = "Minimum proportion of reads mapping to a single range. " +
+            "Value must be between 0.0 and 1.0. (Default = 0.0)")
+        .double()
+        .default(0.0)
+        .validate { require((it in 0.0..1.0) ) { "value must be between 0.0 and 1.0 but was $it" } }
+
 
     override fun run() {
         logCommand(this)
@@ -80,7 +88,7 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
 
         myLogger.info("Mapping reads to pangenome")
 
-        mapAllReadFiles(index, readInputFiles.getReadFiles(), outputDir, threads, minMemLength, maxNumHits, condaEnvPrefix, hapIdToRefRangeMap, maxStart, minEnd)
+        mapAllReadFiles(index, readInputFiles.getReadFiles(), outputDir, threads, minMemLength, maxNumHits, condaEnvPrefix, hapIdToRefRangeMap, maxStart, minEnd, minSingleRange)
     }
 
     /**
@@ -88,18 +96,18 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
      */
     fun mapAllReadFiles(index: String, keyFileDataEntries: List<KeyFileData>, outputDir: String, threads: Int,
                         minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String,
-                        hapIdToRefRangeMap : Map<String, List<ReferenceRange>>, maxStart: Int, minEnd: Int) {
+                        hapIdToRefRangeMap : Map<String, List<ReferenceRange>>, maxStart: Int, minEnd: Int, minSingleRange: Double) {
         //Loop through the keyFileDataEntries and map the reads
         //If there is a second file it processes that and makes a separate readMapping file.
         val readNameToFileMap = mutableMapOf<String,MutableList<String>>()
         for(readFile in keyFileDataEntries) {
             val fileList = readNameToFileMap[readFile.sampleName]?: mutableListOf()
             val outputFile1 = "$outputDir/${readFile.sampleName}_1_readMapping.txt"
-            mapSingleReadFile(index, readFile.sampleName, readFile.file1,outputFile1, threads, minMemLength, maxNumHits, condaEnvPrefix, hapIdToRefRangeMap, maxStart, minEnd)
+            mapSingleReadFile(index, readFile.sampleName, readFile.file1,outputFile1, threads, minMemLength, maxNumHits, condaEnvPrefix, hapIdToRefRangeMap, maxStart, minEnd, minSingleRange)
             fileList.add(outputFile1)
             if(readFile.file2 != "") {
                 val outputFile2 = "$outputDir/${readFile.sampleName}_2_readMapping.txt"
-                mapSingleReadFile(index, readFile.sampleName, readFile.file2, outputFile2, threads, minMemLength, maxNumHits, condaEnvPrefix, hapIdToRefRangeMap, maxStart, minEnd)
+                mapSingleReadFile(index, readFile.sampleName, readFile.file2, outputFile2, threads, minMemLength, maxNumHits, condaEnvPrefix, hapIdToRefRangeMap, maxStart, minEnd, minSingleRange)
                 fileList.add(outputFile2)
             }
             readNameToFileMap[readFile.sampleName] = fileList
@@ -112,12 +120,12 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
      */
     fun mapSingleReadFile(index: String, sampleName: String,readFile: String, outputFile: String, threads: Int,
                           minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String,
-                          hapIdToRefRangeMap: Map<String,List<ReferenceRange>>, maxStart: Int, minEnd: Int) {
+                          hapIdToRefRangeMap: Map<String,List<ReferenceRange>>, maxStart: Int, minEnd: Int, minSingleRange: Double) {
         myLogger.info("Mapping reads in $readFile to $index")
 
         val bedFileReader = setupMappingProcess(index, readFile, threads, minMemLength, maxNumHits, condaEnvPrefix)
 
-        val readMapping = createReadMappingsForFileReader(bedFileReader, maxNumHits, hapIdToRefRangeMap, maxStart, minEnd)
+        val readMapping = createReadMappingsForFileReader(bedFileReader, maxNumHits, hapIdToRefRangeMap, maxStart, minEnd, minSingleRange)
 
         bedFileReader.close()
 
@@ -156,7 +164,8 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         maxNumHits: Int,
         hapIdToRefRangeMap: Map<String, List<ReferenceRange>>,
         maxStart: Int,
-        minEnd: Int
+        minEnd: Int,
+        minSingleRange: Double
     ): MutableMap<List<String>, Int> {
         var currentLine = bedFileReader.readLine()
         val tempMems = mutableListOf<MEM>()
@@ -169,7 +178,7 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
             val alignmentParsed = RopeBWTUtils.parseStringIntoMem(currentLine)
             if (tempMems.isNotEmpty() && tempMems[0].readName != alignmentParsed.readName) {
                 //write out the tempMems
-                processMemsForRead(tempMems, readMapping, maxNumHits,hapIdToRefRangeMap, maxStart, minEnd)
+                processMemsForRead(tempMems, readMapping, maxNumHits,hapIdToRefRangeMap, maxStart, minEnd, minSingleRange)
                 tempMems.clear()
             }
             tempMems.add(alignmentParsed)
@@ -177,12 +186,11 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         }
 
         if(tempMems.isNotEmpty()) {
-            processMemsForRead(tempMems, readMapping, maxNumHits, hapIdToRefRangeMap, maxStart, minEnd)
+            processMemsForRead(tempMems, readMapping, maxNumHits, hapIdToRefRangeMap, maxStart, minEnd, minSingleRange)
         }
 
         return readMapping
     }
-
 
     /**
      * Function to process the mems for a single read and add them to the readMapping
@@ -190,7 +198,7 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
      * Because MEMs are Maximal Exact Matches, the longest MEMs are the best hits
      */
     fun processMemsForRead(tempMems: List<MEM>, readMapping: MutableMap<List<String>, Int>, maxNumHits: Int,
-                           hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, maxStart: Int, minEnd: Int) {
+                           hapIdToRefRangeMap: Map<String, List<ReferenceRange>>, maxStart: Int, minEnd: Int, minSingleRange: Double) {
         val posFilteredMems = tempMems.filter { it.readStart <= maxStart && it.readEnd >= minEnd }
         if(posFilteredMems.isEmpty()) {
             return
@@ -199,36 +207,36 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         val maxLength = posFilteredMems.maxOf { it.readEnd - it.readStart }
         //remove any hits that are not the longest
         val bestHits = posFilteredMems.filter { it.readEnd - it.readStart == maxLength }
-
         val totalNumHits = bestHits.sumOf { it.numHits }
+        val bestHapIds = bestHits.flatMap { it.listMemHits.map{hits -> hits.contig} }.toSet()
 
         if(totalNumHits <= maxNumHits) {
-            //if the total number of hits is less than the maxNumHits, Filter the haps down to a single ref range and then add all those to the readMapping
-            //First turn the hapIds into a set then back to a list and sort so it will be consistent
-            val bestHapIds = bestHits.flatMap { it.listMemHits.map{hits -> hits.contig} }.toSet()
+            //count the number hapids per reference range
+            //note that this is not the number of genomes matched in a reference range
+            //the number of genomes could be greater if genomes share hapids
+            //the number of hapids is easier to calculate and serves the same purpose, which is to limit the number of
+            //matches to multiple reference ranges
+            val refRangeCounts = bestHapIds.mapNotNull { hapIdToRefRangeMap[it] }
+                .flatten()
+                .groupingBy { it }
+                .eachCount()
+            val maxRefRangeCount = refRangeCounts.maxOf { it.value }
+            val totalRefRangeCount = refRangeCounts.values.sum()
 
-            val filteredBestHapIds = filterToOneReferenceRange(bestHapIds, hapIdToRefRangeMap)
+            //control how many hits ar allowed to multiple reference ranges
+            if (maxRefRangeCount / totalRefRangeCount >= minSingleRange) {
 
-            val hapIdsHit = filteredBestHapIds.sorted()
-            readMapping[hapIdsHit] = (readMapping[hapIdsHit]?:0) + 1
+                //Next, filter the haps down to a single ref range and then add all those to the readMapping
+                //First turn the hapIds into a set then back to a list and sort so it will be consistent
+                val maxRefRange = refRangeCounts.maxByOrNull { it.value }?.key
+
+                //Then filter out any hapIds that don't have that reference range
+                val filteredBestHapIds =  bestHapIds.filter { hapIdToRefRangeMap[it]?.contains(maxRefRange)?:false }
+                val hapIdsHit = filteredBestHapIds.sorted()
+                readMapping[hapIdsHit] = (readMapping[hapIdsHit]?:0) + 1
+            }
+
         }
-    }
-
-    /**
-     * Function to filter the hapIds to only those that hit a single reference range
-     * This will pick the highest occurring reference range and if there is a tie it will choose the first one.
-     */
-    fun filterToOneReferenceRange(hapIds: Set<String>, hapIdToRefRangeMap: Map<String, List<ReferenceRange>>) : List<String> {
-        //figure out which reference range is hit the most
-        val refRangeCounts = hapIds.map { hapIdToRefRangeMap[it] }
-            .filterNotNull()
-            .flatten()
-            .groupingBy { it }
-            .eachCount()
-
-        val maxRefRange = refRangeCounts.maxByOrNull { it.value }?.key
-        //Then filter out any hapIds that don't have that reference range
-        return hapIds.filter { hapIdToRefRangeMap[it]?.contains(maxRefRange)?:false }
     }
 
     /**
