@@ -92,13 +92,13 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
     }
 
     private fun lnHaplotypePairProbability(haplotypes: UnorderedHaplotypePair, readCounts: Map<Set<String>, Int>): Double {
-        val halfProb = probabilityCorrect / 2.0
+        //val halfProb = probabilityCorrect / 2.0
         val pErr = 1.0 - probabilityCorrect
         //probability the a read mapping to A maps also maps to B, should be user settable or potentially has a different value by reference range
         //and the probability that a read mapping to B also maps to A
-        val pBoth = probabilityOffTarget
+        val pBoth = probabilityOffTarget * probabilityCorrect
         //assign a low probability for now, maybe should be user settable?
-        val diploidProb = halfProb - pBoth - pErr
+        val diploidProb = (1.0 - pBoth - pErr) / 2.0
 
         //readCounts keys are a Set rather than a list for faster contains method
         val hapPair = haplotypes.haplotypePair
@@ -110,13 +110,13 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
             // when the probability of a success equals probabilityCorrect
             val totalCount = readCounts.values.sum()
             val firstCount = readCounts.filter { (hapset, _) -> hapset.contains(hapPair.first) }.values.sum()
-            BinomialDistribution(totalCount, probabilityCorrect).probability(firstCount)
+            BinomialDistribution(totalCount, probabilityCorrect).logProbability(firstCount)
         } else if (hapPair.first == null && hapPair.second != null) {
             //the same case as the first if. This could have been included in that condition but this is
             // easier to understand. (and code correctly)
             val totalCount = readCounts.values.sum()
             val firstCount = readCounts.filter { (hapset, _) -> hapset.contains(hapPair.second) }.values.sum()
-            BinomialDistribution(totalCount, probabilityCorrect).probability(firstCount)
+            BinomialDistribution(totalCount, probabilityCorrect).logProbability(firstCount)
         } else {
             //firstAndSecondCount is the number of reads mapping to both haplotype. firstNotSecondCount is
             // the number of reads mapping to the first but not the second, etc. Note that these classes are mutually
