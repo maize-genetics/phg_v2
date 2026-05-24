@@ -92,7 +92,6 @@ class DiploidEmissionProbability(val readMap: Map<ReferenceRange, Map<List<Strin
     }
 
     private fun lnHaplotypePairProbability(haplotypes: UnorderedHaplotypePair, readCounts: Map<Set<String>, Int>): Double {
-        //val halfProb = probabilityCorrect / 2.0
         val pErr = 1.0 - probabilityCorrect
         //probability the a read mapping to A maps also maps to B, should be user settable or potentially has a different value by reference range
         //and the probability that a read mapping to B also maps to A
