@@ -436,17 +436,22 @@ class SplineUtils{
         fun findAsmCoords(variant: VariantContext, currentASMPos: Int, disableASMCoordinates: Boolean = false ): Triple<Int?,Int?,Int> {
             return if(disableASMCoordinates) {
                 //Need to see what type of variant we have.  If its a ref block we need to use the refCoords, if not go off alt length
-                val firstAltAllele = variant.getAlternateAllele(0)
+                val firstAltAllele = if(variant.alternateAlleles.isNotEmpty()) {
+                    variant.getAlternateAllele(0)
+                } else {
+                    Allele.NON_REF_ALLELE
+                }
 
                 val genotypeAllele = variant.getGenotype(0).alleles.first()
                 if(genotypeAllele == Allele.NO_CALL) {
                     Triple(null, null, currentASMPos) //should not return any coords as it is a no call.
                 }
-                else if(firstAltAllele == Allele.NON_REF_ALLELE) {
+                else if(firstAltAllele == Allele.NON_REF_ALLELE ) { //This is the ref block case
                     val refLength = variant.end - variant.start
                     Triple(currentASMPos, currentASMPos + refLength, currentASMPos + refLength +1)
-                } else {
-                    val altAlleleLength = variant.alternateAlleles.first().baseString.length
+                }
+                else { //This handles everything else
+                    val altAlleleLength = firstAltAllele.baseString.length
                     Triple(currentASMPos, currentASMPos + altAlleleLength-1, currentASMPos + altAlleleLength) //Don't need to add + to the next one as length already does this...
                 }
             }
