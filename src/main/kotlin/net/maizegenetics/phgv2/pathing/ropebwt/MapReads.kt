@@ -96,7 +96,7 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
      */
     fun mapAllReadFiles(index: String, keyFileDataEntries: List<KeyFileData>, outputDir: String, threads: Int,
                         minMemLength: Int, maxNumHits: Int, condaEnvPrefix: String,
-                        hapIdToRefRangeMap : Map<String, List<ReferenceRange>>, maxStart: Int, minEnd: Int, minSingleRange: Double) {
+                        hapIdToRefRangeMap : Map<String, List<ReferenceRange>>, maxStart: Int, minEnd: Int, minSingleRange: Double = 0.0) {
         //Loop through the keyFileDataEntries and map the reads
         //If there is a second file it processes that and makes a separate readMapping file.
         val readNameToFileMap = mutableMapOf<String,MutableList<String>>()
@@ -224,7 +224,7 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
             val totalRefRangeCount = refRangeCounts.values.sum()
 
             //control how many hits ar allowed to multiple reference ranges
-            if (maxRefRangeCount / totalRefRangeCount >= minSingleRange) {
+            if (maxRefRangeCount.toDouble() / totalRefRangeCount >= minSingleRange) {
 
                 //Next, filter the haps down to a single ref range and then add all those to the readMapping
                 //First turn the hapIds into a set then back to a list and sort so it will be consistent

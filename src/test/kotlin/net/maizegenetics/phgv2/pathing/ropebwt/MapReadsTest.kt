@@ -82,7 +82,7 @@ class MapReadsTest {
                 "Error: missing option --hvcf-dir\n", noHvcfDir.stderr)
 
         val outOfRange = mapReads.test("--min-single-range 2.0 --index testIndex --read-files test1.fq --output-dir testDir --hvcf-dir ${TestExtension.smallSeqInputDir}")
-        assertEquals(1, noOutputDir.statusCode)
+        assertEquals(1, outOfRange.statusCode)
         assertEquals("Usage: map-reads [<options>]\n\n" +
                 "Error: invalid value for --min-single-range: value must be between 0.0 and 1.0 but was 2.0\n", outOfRange.stderr)
 
