@@ -235,9 +235,10 @@ class SplineUtils{
             var blockAsmChrIdx: Int? = null
             var currentRefChr: String? = null
 
-            var currentASMPos = 1
+            var currentASMPos: Int? = null
             val refChromSet = mutableSetOf<String>()
-            var prevRefPos = -1
+            var prevRefPosStart = -1
+            var prevRefPosEnd = -1
 
 
             // Flush the current regular block if it exists.
@@ -308,18 +309,32 @@ class SplineUtils{
                             check(!refChromSet.contains(refChr)) { "Second Block of Ref Chromosomes.  Your gVCF file is not sorted by reference coordinates." }
                             refChromSet.add(refChr)
                             //Reset the currentASMPos Start
-                            currentASMPos = 1
-                            prevRefPos = -1
+                            // TODO: add in options for 'asRef', 'asN', 'omit'
+                            currentASMPos = refPosStart
+                            prevRefPosStart = -1
+                            prevRefPosEnd = -1
                         }
 
                     }
                     currentRefChr = refChr
+                    if (currentASMPos == null) {
+                        // TODO: add in options for 'asRef', 'asN', 'omit'
+                        currentASMPos = refPosStart
+                    }
 
 
                     //If disableASMCoords is on, we need to verify that the position will be increasing
                     if(disableASMCoordinates) {
-                        check(prevRefPos< refPosStart) {"Found position for this chromosome before previous position. Your gVCF file is not sorted by reference coordinates."}
-                        prevRefPos = refPosStart
+                        check(prevRefPosStart < refPosStart) {"Found position for this chromosome before previous position. Your gVCF file is not sorted by reference coordinates."}
+                        // Handle gaps between variants (only if we have a previous variant)
+                        // TODO: add in options for 'asRef', 'asN', 'omit'
+                        if (prevRefPosEnd != -1 && prevRefPosEnd < refPosStart - 1) {
+                            val gapSize = refPosStart - prevRefPosEnd - 1
+                            // Gap exists - add gap length to assembly position
+                            currentASMPos = currentASMPos!! + gapSize
+                        }
+                        prevRefPosStart = refPosStart
+                        prevRefPosEnd = refPosEnd
                     }
 
                     // Get ASM_Chr; if missing, default to "NA".
