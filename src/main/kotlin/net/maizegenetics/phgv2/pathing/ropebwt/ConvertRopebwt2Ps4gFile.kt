@@ -290,7 +290,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         val consensusPositionsAndGametes = createConsensusPositionAndGametes(referenceLookupPositions, gameteToIdxMap, sampleNameToChrAndSample)
 
         //Filter on maximum range
-        if(consensusPositionsAndGametes.third > maxRange) {
+        if(consensusPositionsAndGametes.third > maxRange || consensusPositionsAndGametes.second.isEmpty()) {
             return Pair(Position("unknown",-1), listOf())
         }
 
