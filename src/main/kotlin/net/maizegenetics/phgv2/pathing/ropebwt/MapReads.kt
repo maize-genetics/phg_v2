@@ -71,11 +71,11 @@ class MapReads : CliktCommand(help="Map reads to a pangenome using ropeBWT3") {
         .default(70)
 
     val minSingleRange by option(help = "Minimum proportion of reads mapping to a single range. " +
-            "Value must be between 0.0 and 1.0. (Default = 0.0)")
+            "Value must be between 0.0 and 1.0. 1.0 is recommended but 0.0 is the default for backward compatability." +
+            " (Default = 0.0)")
         .double()
         .default(0.0)
         .validate { require((it in 0.0..1.0) ) { "value must be between 0.0 and 1.0 but was $it" } }
-
 
     override fun run() {
         logCommand(this)
