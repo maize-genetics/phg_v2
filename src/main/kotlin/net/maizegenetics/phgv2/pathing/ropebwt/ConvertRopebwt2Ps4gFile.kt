@@ -339,7 +339,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             .map {
                 getAlignedGameteName(it.first, sampleNameToChrAndSample)
             }
-            .filter { it.isNotEmpty() }
+            .filter { it != "" }
             .map {
                 if(!gameteToIdxMap.containsKey(it)) {
                     myLogger.warn("Gamete $it not found in. Chr: $bestChromosome, Position: $averagePosition")
