@@ -13,6 +13,7 @@ import com.github.ajalt.clikt.parameters.types.double
 import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.pathing.PathFinderHMMPS4G
 import net.maizegenetics.phgv2.pathing.PathInputFile
+import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
@@ -48,20 +49,14 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         .double()
         .default(0.001)
 
-    val inbreedCoef by option("--ic", help = "The inbreeding coefficient (between 0.0 and 1.0). " +
+    val inbreedCoef by option(help = "The inbreeding coefficient (between 0.0 and 1.0). " +
             "This parameter is used only for diploid paths.")
         .double()
         .default(0.0)
 
+    val myLogger = LogManager.getLogger(ImputePathFromPs4g::class.java)
 
     override fun run() {
-        //Create read map (Map<Int, Map<List<Int>, Int>>) from the ps4g file
-        //The read map key is binned reference position, which can be interpreted as the haplotype index
-        //The read map value is a map of genome index list -> count
-        //1. create a ps4g file reader
-        //2. impute each contig and accumulate results
-        //3. write imputed gametes (haplotypes) to a file
-
 
         logCommand(this)
 
@@ -78,8 +73,8 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         val pathToOutputDir = Paths.get(outPathDir)
         pathToOutputDir.createDirectories()
 
-
         for (fileData in keyFileLines) {
+            myLogger.info("Finding $pathType path for ${fileData.sampleName}")
             val ps4gReader = Ps4gFileReader(fileData.file1)
             val contigs = ps4gReader.contigSet()
             val outputFilepath = pathToOutputDir.resolve("${fileData.sampleName}_imputed_path.txt")

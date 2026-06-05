@@ -17,6 +17,8 @@ class PathFinderHMMPS4G(val isHaploidPath: Boolean = true,
     private data class HaploidPathNode(val nodePosition: Position, val parent: HaploidPathNode?, val gameteIndex: Int, val pathProbability: Double)
 
     fun findHaploidPath(contig: String, gameteIndexMap: Map<Int,String>, readMap: Map<Int, MutableList<Ps4gGameteSet>>) : List<Pair<Position, String>> {
+        myLogger.info("Finding haploid path for contig $contig")
+
         //get the gamete index set
         val gameteIndexSet = gameteIndexMap.keys
         val terminalPathNode = haploidViterbi(contig, readMap, gameteIndexSet)
