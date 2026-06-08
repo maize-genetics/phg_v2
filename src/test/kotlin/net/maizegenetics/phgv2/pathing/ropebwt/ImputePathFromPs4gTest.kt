@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
+import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.cli.TestExtension
 import net.maizegenetics.phgv2.utils.setupDebugLogging
 import org.junit.jupiter.api.AfterAll
@@ -24,7 +25,7 @@ class ImputePathFromPs4gTest {
         @JvmStatic
         @AfterAll
         fun teardown() {
-            resetDirs()
+            //resetDirs()
         }
 
         private fun resetDirs() {
@@ -43,6 +44,13 @@ class ImputePathFromPs4gTest {
 
     @Test
     fun testCliktParams() {
+
+    }
+
+    @Test
+    fun testImputePath() {
+        val testArgs = "--read-file /Users/pjbra/temp/lineBX1.ps4g --out-path-dir ${TestExtension.testOutputDir} --prob-same 0.99"
+        val imputeResult = ImputePathFromPs4g().test(testArgs)
 
     }
 }

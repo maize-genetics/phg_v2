@@ -99,7 +99,7 @@ class PathFinderHMMPS4G(val isHaploidPath: Boolean = true,
                             currentPosition,
                             parentPath,
                             gameteIndex,
-                            parentPath!!.pathProbability + logNoSwitch
+                            parentPath!!.pathProbability + logNoSwitch + emissionProb.getLnProbObsGivenState(gameteIndex, currentPosition.position)
                         )
                     )
                 } else {
@@ -107,24 +107,31 @@ class PathFinderHMMPS4G(val isHaploidPath: Boolean = true,
                     val samePath = gameteToPath[gameteIndex]
                     val probNoSwitch = samePath!!.pathProbability + logNoSwitch
                     if (probSwitch > probNoSwitch) {
+                        //switch to the any of the gametes that has max Prob
                         val parentPath = gameteToPath[bestGameteIndices.random()]
                         newPaths.add(
                             HaploidPathNode(
                                 currentPosition,
                                 parentPath,
                                 gameteIndex,
-                                probSwitch + emissionProb.getLnProbObsGivenState(gameteIndex, currentPosition.position)
+                                parentPath!!.pathProbability + probSwitch + emissionProb.getLnProbObsGivenState(gameteIndex, currentPosition.position)
                             )
                         )
                     }
-                    else newPaths.add(
-                        HaploidPathNode(
-                            currentPosition,
-                            samePath,
-                            gameteIndex,
-                            probNoSwitch + emissionProb.getLnProbObsGivenState(gameteIndex, currentPosition.position)
+                    else {
+                        val parentPath = gameteToPath[gameteIndex]
+                            newPaths.add(
+                            HaploidPathNode(
+                                currentPosition,
+                                samePath,
+                                gameteIndex,
+                                parentPath!!.pathProbability + probNoSwitch + emissionProb.getLnProbObsGivenState(
+                                    gameteIndex,
+                                    currentPosition.position
+                                )
+                            )
                         )
-                    )
+                    }
                 }
             }
 
