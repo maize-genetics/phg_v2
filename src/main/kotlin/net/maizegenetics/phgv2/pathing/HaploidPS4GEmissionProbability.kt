@@ -7,7 +7,7 @@ import kotlin.collections.isNullOrEmpty
 import kotlin.math.ln
 
 class HaploidPS4GEmissionProbability(val readMap: Map<Int, MutableList<Ps4gGameteSet>>, val genomeIndexSet: Set<Int>, val pCorrect: Double) {
-    private var currentPosition = 0
+    private var currentPosition = -1
     private var currentEmissionProbabilities = mapOf<Int, Double>()
     private var nullProbability : Double = -10.0
     private val minProbability = Double.MIN_VALUE

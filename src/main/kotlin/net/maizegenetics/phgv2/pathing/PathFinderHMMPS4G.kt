@@ -57,7 +57,7 @@ class PathFinderHMMPS4G(val isHaploidPath: Boolean = true,
         //make the initial PathNode for each node in the first range
         //the path nodes keep track of all the nodes on a path by holding a link to the parent node of each node
         for (index in gameteIndexSet) {
-            paths.add(HaploidPathNode(Position("NA", 0), null, index, 0.0))
+            paths.add(HaploidPathNode(Position("NA", -1), null, index, 0.0))
         }
 
         //for each reference range update paths with probabilities and new nodes
@@ -89,6 +89,7 @@ class PathFinderHMMPS4G(val isHaploidPath: Boolean = true,
             val gameteToPath = paths.associateBy { it.gameteIndex }
 
             //iterate over gametes for the new range
+            //if switching to a new parent, the best path will be from the highest probability path at the previous position
             val probSwitch = maxProb + logSwitch
             gameteIndexSet.forEach { gameteIndex ->
                 if (bestGameteIndices.contains(gameteIndex) ) {
@@ -114,7 +115,7 @@ class PathFinderHMMPS4G(val isHaploidPath: Boolean = true,
                                 currentPosition,
                                 parentPath,
                                 gameteIndex,
-                                parentPath!!.pathProbability + probSwitch + emissionProb.getLnProbObsGivenState(gameteIndex, currentPosition.position)
+                                probSwitch + emissionProb.getLnProbObsGivenState(gameteIndex, currentPosition.position)
                             )
                         )
                     }
@@ -125,7 +126,7 @@ class PathFinderHMMPS4G(val isHaploidPath: Boolean = true,
                                 currentPosition,
                                 samePath,
                                 gameteIndex,
-                                parentPath!!.pathProbability + probNoSwitch + emissionProb.getLnProbObsGivenState(
+                                probNoSwitch + emissionProb.getLnProbObsGivenState(
                                     gameteIndex,
                                     currentPosition.position
                                 )
