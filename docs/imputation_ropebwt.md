@@ -462,12 +462,20 @@ a comma separated list.
 #### Optional parameters
 The Map Reads  command can take the following optional parameters:
 
-| Parameter name     | Description                                                                                                                               | Default value |
-|--------------------|-------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| `--threads`        | Number of threads used for mapping                                                                                                        | `5`           |
-| `--min-mem-length` | Minimum length of the Maximal Exact Match(MEM) to retain.  Any alignments below this value are ignored                                    | `148`         |
-| `--max-num-hits`  | Maximum number of alignments to consider for a given read.  If there are more than `--max-num-hits` alignments, the read will be ignored. | `50`          |
+| Parameter name      | Description                                                                                                                               | Default value |
+|---------------------|-------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `--threads`         | Number of threads used for mapping                                                                                                        | `5`           |
+| `--min-mem-length`  | Minimum length of the Maximal Exact Match(MEM) to retain.  Any alignments below this value are ignored                                    | `148`         |
+| `--max-num-hits`    | Maximum number of alignments to consider for a given read.  If there are more than `--max-num-hits` alignments, the read will be ignored. | `50`          |
+| `--min-single-range` | Minimum acceptable proportion of read mappings hitting a single reference range. Recommended value is 1.0. Must be between 0.0 and 1.0    | `0.0`         |
 
+`--min-single-range` usage: If a read maps to multiple ranges, it will be discarded if
+the proportion of mappings to a single range is less than this value. If the value is 0.0,
+then this filter will have no effect. If the value is 1.0 then reads mapping to multiple
+ranges will not be used. While the default for `--min-single-range` is 0.0, the recommended value is 1.0. 
+The reason is that the default value does not apply this filter, so that users will not see a change in 
+imputation performance compared to prior releases if they do not specify a value for this parameter. 
+However, using a value of 1.0 is expected to improve imputation accuracy.
 
 
 
