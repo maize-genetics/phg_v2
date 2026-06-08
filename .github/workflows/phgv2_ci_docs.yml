@@ -1,0 +1,34 @@
+name: PHGv2 CI Docs Bypass
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    branches:
+      - main
+    paths-ignore:
+      - 'src/**'
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      src_changed: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'src/**'
+
+  test:
+    name: PHGv2 CI
+    needs: detect
+    if: ${{ needs.detect.outputs.src_changed == 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: No src changes - pass required check
+        run: echo "No files under src/** changed; passing required PHGv2 CI check."
