@@ -66,8 +66,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         //create the outParentsDir, if it does not already exist
         if(outPathDir.isNotBlank()) File(outPathDir).mkdirs()
 
-        val isHaploidPath = pathType == "haploid"
-        val pathFinder = PathFinderHMMPS4G(isHaploidPath, probCorrect, probSame, inbreedCoef)
+        val pathFinder = PathFinderHMMPS4G(probCorrect, probSame, inbreedCoef)
 
         //Get or create the output directory
         val pathToOutputDir = Paths.get(outPathDir)

@@ -8,13 +8,13 @@ import kotlin.collections.forEach
 import kotlin.math.E
 import kotlin.math.log
 
-class PathFinderHMMPS4G(val isHaploidPath: Boolean = true,
-                        val probCorrect: Double,
+class PathFinderHMMPS4G(val probCorrect: Double,
                         val sameGameteProbability: Double,
                         val inbreedCoef: Double) {
 
     private val myLogger = LogManager.getLogger(PathFinderHMMPS4G::class.java)
     private data class HaploidPathNode(val nodePosition: Position, val parent: HaploidPathNode?, val gameteIndex: Int, val pathProbability: Double)
+    private data class DiploidPathNode(val nodePosition: Position, val parent: HaploidPathNode?, val gameteIndex1: Int, val gameteIndex2: Int, val pathProbability: Double)
 
     fun findHaploidPath(contig: String, gameteIndexMap: Map<Int,String>, readMap: Map<Int, MutableList<Ps4gGameteSet>>) : List<Pair<Position, String>> {
         myLogger.info("Finding haploid path for contig $contig")
@@ -33,7 +33,25 @@ class PathFinderHMMPS4G(val isHaploidPath: Boolean = true,
         //at this point the result list is the path in reverse order, so it must be reversed.
         resultList.reverse()
         return resultList
+    }
 
+    fun findDiploidPath(contig: String, gameteIndexMap: Map<Int,String>, readMap: Map<Int, MutableList<Ps4gGameteSet>>): List<Pair<Position, String>> {
+        myLogger.info("Finding haploid path for contig $contig")
+
+        //get the gamete index set
+        val gameteIndexSet = gameteIndexMap.keys
+        val terminalPathNode = diploidViterbi(contig, readMap, gameteIndexSet)
+        var activePathNode = terminalPathNode
+
+        val resultList = mutableListOf<Pair<Position,String>>()
+        while (activePathNode.nodePosition.position > 0) {
+            resultList.add(Pair(activePathNode.nodePosition, "${gameteIndexMap[activePathNode.gameteIndex1]?: "none"},${gameteIndexMap[activePathNode.gameteIndex2]?: "none"}"))
+            activePathNode = activePathNode.parent ?: HaploidPathNode(Position("na", 0), null, 0, 0.0)
+        }
+
+        //at this point the result list is the path in reverse order, so it must be reversed.
+        resultList.reverse()
+        return resultList
     }
 
     private fun haploidViterbi(
@@ -140,5 +158,14 @@ class PathFinderHMMPS4G(val isHaploidPath: Boolean = true,
         }
 
         return paths.maxBy { it.pathProbability }
+    }
+
+    private fun diploidViterbi(
+        chrom: String,
+        readMap: Map<Int, MutableList<Ps4gGameteSet>>,
+        gameteIndexSet: Set<Int>
+    ): DiploidPathNode {
+
+
     }
 }
