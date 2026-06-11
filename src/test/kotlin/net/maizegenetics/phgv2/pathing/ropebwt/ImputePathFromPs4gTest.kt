@@ -48,8 +48,15 @@ class ImputePathFromPs4gTest {
     }
 
     @Test
-    fun testImputePath() {
+    fun testImputeHaploidPath() {
         val testArgs = "--read-file /Users/pjbra/temp/Oh43-subsample.ps4g --out-path-dir ${TestExtension.testOutputDir} --prob-same 0.99"
+        val imputeResult = ImputePathFromPs4g().test(testArgs)
+
+    }
+
+    @Test
+    fun testDiploidPath() {
+        val testArgs = "--read-file /Users/pjbra/temp/Oh43-subsample.ps4g --out-path-dir ${TestExtension.testOutputDir} --prob-same 0.99 --path-type diploid"
         val imputeResult = ImputePathFromPs4g().test(testArgs)
 
     }

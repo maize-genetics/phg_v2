@@ -14,7 +14,7 @@ class PathFinderHMMPS4G(val probCorrect: Double,
 
     private val myLogger = LogManager.getLogger(PathFinderHMMPS4G::class.java)
     private data class HaploidPathNode(val nodePosition: Position, val parent: HaploidPathNode?, val gameteIndex: Int, val pathProbability: Double)
-    private data class DiploidPathNode(val nodePosition: Position, val parent: HaploidPathNode?, val gameteIndex1: Int, val gameteIndex2: Int, val pathProbability: Double)
+    private data class DiploidPathNode(val nodePosition: Position, val parent: DiploidPathNode?, val gameteIndex1: Int, val gameteIndex2: Int, val pathProbability: Double)
 
     fun findHaploidPath(contig: String, gameteIndexMap: Map<Int,String>, readMap: Map<Int, MutableList<Ps4gGameteSet>>) : List<Pair<Position, String>> {
         myLogger.info("Finding haploid path for contig $contig")
@@ -35,18 +35,20 @@ class PathFinderHMMPS4G(val probCorrect: Double,
         return resultList
     }
 
-    fun findDiploidPath(contig: String, gameteIndexMap: Map<Int,String>, readMap: Map<Int, MutableList<Ps4gGameteSet>>): List<Pair<Position, String>> {
-        myLogger.info("Finding haploid path for contig $contig")
+    fun findDiploidPath(contig: String, gameteIndexMap: Map<Int,String>, readMap: Map<Int, MutableList<Ps4gGameteSet>>): List<Triple<Position, String, String>> {
+        myLogger.info("Finding diploid path for contig $contig")
 
         //get the gamete index set
         val gameteIndexSet = gameteIndexMap.keys
         val terminalPathNode = diploidViterbi(contig, readMap, gameteIndexSet)
         var activePathNode = terminalPathNode
 
-        val resultList = mutableListOf<Pair<Position,String>>()
+        val resultList = mutableListOf<Triple<Position, String, String>>()
         while (activePathNode.nodePosition.position > 0) {
-            resultList.add(Pair(activePathNode.nodePosition, "${gameteIndexMap[activePathNode.gameteIndex1]?: "none"},${gameteIndexMap[activePathNode.gameteIndex2]?: "none"}"))
-            activePathNode = activePathNode.parent ?: HaploidPathNode(Position("na", 0), null, 0, 0.0)
+            val genome1 = gameteIndexMap[activePathNode.gameteIndex1] ?: "none"
+            val genome2 = gameteIndexMap[activePathNode.gameteIndex2] ?: "none"
+            resultList.add(Triple(activePathNode.nodePosition, genome1, genome2))
+            activePathNode = activePathNode.parent ?: DiploidPathNode(Position("na", 0), null, 0, 0, 0.0)
         }
 
         //at this point the result list is the path in reverse order, so it must be reversed.
