@@ -1,6 +1,5 @@
 package net.maizegenetics.phgv2.pathing
 
-import net.maizegenetics.phgv2.pathing.PathFinderWithViterbiHMM.PathNode
 import net.maizegenetics.phgv2.pathing.ropebwt.Ps4gFileReader.Ps4gGameteSet
 import net.maizegenetics.phgv2.utils.Position
 import org.apache.logging.log4j.LogManager
@@ -102,14 +101,16 @@ class PathFinderHMMPS4G(val probCorrect: Double,
             //choose the most probable path from the previous range. If more than one, any one will do.
             //the most likely path in the previous range
             val maxProb = paths.maxOfOrNull { it.pathProbability } ?: 0.0
-            val bestGameteIndices = paths.filter { it.pathProbability == maxProb }.map { it.gameteIndex }.toSet()
+            val mostProbablePaths = paths.filter { it.pathProbability == maxProb }.toSet()
+            val bestGameteIndices = mostProbablePaths.map { it.gameteIndex }
+            val selectedSwitchParent = mostProbablePaths.random()
+            val probSwitch = maxProb + logSwitch
 
             //map of gameteIndex to path node for the previous range
             val gameteToPath = paths.associateBy { it.gameteIndex }
 
             //iterate over gametes for the new range
             //if switching to a new parent, the best path will be from the highest probability path at the previous position
-            val probSwitch = maxProb + logSwitch
             gameteIndexSet.forEach { gameteIndex ->
                 if (bestGameteIndices.contains(gameteIndex) ) {
                     //this is the best path for this node since is also the no switch path (same gamete)
@@ -127,12 +128,10 @@ class PathFinderHMMPS4G(val probCorrect: Double,
                     val samePath = gameteToPath[gameteIndex]
                     val probNoSwitch = samePath!!.pathProbability + logNoSwitch
                     if (probSwitch > probNoSwitch) {
-                        //switch to the any of the gametes that has max Prob
-                        val parentPath = gameteToPath[bestGameteIndices.random()]
                         newPaths.add(
                             HaploidPathNode(
                                 currentPosition,
-                                parentPath,
+                                selectedSwitchParent,
                                 gameteIndex,
                                 probSwitch + emissionProb.getLnProbObsGivenState(gameteIndex, currentPosition.position)
                             )
