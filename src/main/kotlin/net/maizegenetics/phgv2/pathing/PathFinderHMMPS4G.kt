@@ -5,6 +5,7 @@ import net.maizegenetics.phgv2.utils.Position
 import org.apache.logging.log4j.LogManager
 import kotlin.collections.forEach
 import kotlin.math.E
+import kotlin.math.ln
 import kotlin.math.log
 
 class PathFinderHMMPS4G(val probCorrect: Double,
@@ -136,10 +137,8 @@ class PathFinderHMMPS4G(val probCorrect: Double,
                                 probSwitch + emissionProb.getLnProbObsGivenState(gameteIndex, currentPosition.position)
                             )
                         )
-                    }
-                    else {
-                        val parentPath = gameteToPath[gameteIndex]
-                            newPaths.add(
+                    } else {
+                        newPaths.add(
                             HaploidPathNode(
                                 currentPosition,
                                 samePath,
@@ -166,10 +165,7 @@ class PathFinderHMMPS4G(val probCorrect: Double,
         gameteIndexSet: Set<Int>
     ): DiploidPathNode {
         myLogger.info("Finding path for chromosome $chrom using diploidViterbi")
-        val switchProbability = 1 - sameGameteProbability
-        val numberOfSampleGametes = gameteIndexSet.size
-        val logSwitch = log(switchProbability / (numberOfSampleGametes.toDouble() - 1.0), E)
-        val logNoSwitch = log(sameGameteProbability, E)
+        val transition = DiploidTransition(sameGameteProbability)
 
         //create emission probability
         val emissionProb = DiploidPS4GEmissionProbability(readMap, gameteIndexSet, probCorrect)
@@ -193,10 +189,10 @@ class PathFinderHMMPS4G(val probCorrect: Double,
             val currentPosition = Position(chrom, positionIndex)
             val newPaths = ArrayList<DiploidPathNode>()
             val maxProb = paths.maxOfOrNull { it.pathProbability } ?: 0.0
-            val mostProbableNodes = paths.filter { it.pathProbability == maxProb }
+//            val mostProbableNodes = paths.filter { it.pathProbability == maxProb }
             //choose one node to use for the switch paths.
-            val mostProbableParentNode = mostProbableNodes.random()
-            val probSwitch = maxProb + logSwitch //the maximum total probability for any path with a switch
+            //val mostProbableParentNode = mostProbableNodes.random()
+            //val probSwitch = maxProb + logSwitch //the maximum total probability for any path with a switch
 
             //create a mapping of indices to nodes
             val indicesToNodeMap = paths.associate { node -> Pair(Pair(node.gameteIndex1, node.gameteIndex2), node) }
@@ -208,27 +204,31 @@ class PathFinderHMMPS4G(val probCorrect: Double,
                     //for this ordered pair of indices find the node at the previous position that results in the highest total probability
                     //then make that the parent node of the new node
 
-                    //if this index pair is in the highest probability set, then choose that as the parent node
+                    /*
+                    * Calculate the same path probabilty = previous node probability + transition probability
+                    * Calculate previous position path probability * transition probability for every node at the previous position
+                    * Find the maximum new path probability
+                    *
+                    * If this equals the same path probability, use same path for the new path.
+                    * Otherwise, create a list of path nodes that result in the maximum path probability.
+                    * Choose (at random) one of the maximum probability nodes as the previous node.
+                    * */
+
                     val samePathNode = indicesToNodeMap[Pair(index1, index2)]
                     check(samePathNode != null) {"indices $index1, $index2 did not map to a node"}
-                    if (mostProbableNodes.contains(samePathNode)) {
-                        val newPathProbability = samePathNode.pathProbability + logNoSwitch + indexPairEmissionProb
-                        newPaths.add(DiploidPathNode(currentPosition, samePathNode,
-                            index1, index2, newPathProbability))
+                    val samePathProb = samePathNode.pathProbability + transition.samePathProbability
+
+                    val candidatePathList = paths
+                        .map { path -> Pair(path, path.pathProbability + transition.calculate(Pair(path.gameteIndex1, path.gameteIndex2), Pair(index1, index2))) }
+                    val maxProb = candidatePathList.maxOf { it.second }
+
+                    if (samePathProb >= maxProb) {
+                        val newPathProb = samePathProb + indexPairEmissionProb
+                        newPaths.add(DiploidPathNode(currentPosition, samePathNode, index1, index2, newPathProb))
                     } else {
-                        //otherwise, calculate the total probability if the same index pair is the previous parent (use logNoSwitch)
-                        //  and the total probability if any of the mostProbableNodes is the parent (equals probSwitch)
-                        //  use the parent that gives the highest total probability
-                        val samePathProbability = samePathNode.pathProbability + logNoSwitch
-                        if (samePathProbability >= probSwitch) {
-                            val newPathProbability = samePathProbability + indexPairEmissionProb
-                            newPaths.add(DiploidPathNode(currentPosition, samePathNode,
-                                index1, index2, newPathProbability))
-                        } else {
-                            val newPathProbability = probSwitch + indexPairEmissionProb
-                            newPaths.add(DiploidPathNode(currentPosition, mostProbableParentNode,
-                                index1, index2, newPathProbability))
-                        }
+                        val bestPath = candidatePathList.filter { it.second == maxProb }.random()
+                        val newPathProb = bestPath.second + indexPairEmissionProb
+                        newPaths.add(DiploidPathNode(currentPosition, bestPath.first, index1, index2, newPathProb))
                     }
 
                 }
@@ -237,4 +237,21 @@ class PathFinderHMMPS4G(val probCorrect: Double,
         }
         return paths.maxBy { it.pathProbability }
     }
+
+    class DiploidTransition(val pNoSwitch: Double) {
+        val pSwitch = 1.0 - pNoSwitch
+        val pss = ln(pSwitch * pSwitch)
+        val psn = ln(pSwitch * pNoSwitch)
+        val pnn = ln(pNoSwitch * pNoSwitch)
+        val samePathProbability = pnn
+
+        fun calculate(from: Pair<Int,Int>, to: Pair<Int,Int>): Double {
+            return if (from.first == to.first) {
+                if (from.second == to.second) pnn else psn
+            } else {
+                if (from.second == to.second) psn else pss
+            }
+        }
+    }
+
 }

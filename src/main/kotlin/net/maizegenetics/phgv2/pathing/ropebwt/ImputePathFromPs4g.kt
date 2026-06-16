@@ -68,18 +68,13 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     val myLogger = LogManager.getLogger(ImputePathFromPs4g::class.java)
 
-    val outputDirPath: Path
-
-    init {
-        //create the outParentsDir, if it does not already exist
-        if (outPathDir.isNotBlank()) File(outPathDir).mkdirs()
-        outputDirPath = Paths.get(outPathDir)
-
-    }
-
     override fun run() {
 
         logCommand(this)
+
+        //create the outParentsDir, if it does not already exist
+        if (outPathDir.isNotBlank()) File(outPathDir).mkdirs()
+        val outputDir = Paths.get(outPathDir)
 
         val isHaploid = pathType == "haploid"
 
@@ -87,10 +82,12 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         val pathToOutputDir = Paths.get(outPathDir)
         pathToOutputDir.createDirectories()
 
+        if (isHaploid) imputeHaploidPath(pathToOutputDir)
+        else imputeDiploidPath(pathToOutputDir)
 
     }
 
-    fun imputeHaploidPath() {
+    fun imputeHaploidPath(outputDir: Path) {
         val keyFileLines = readInputFiles.getReadFiles()
         require(keyFileLines.isNotEmpty()) { "Must provide either --path-keyfile or --read-files." }
 
@@ -103,7 +100,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             val ps4gReader = Ps4gFileReader(fileData.file1)
             val contigs = ps4gReader.contigSet()
 
-            val outputFilepath = outputDirPath.resolve("${fileData.sampleName}_imputed_path.txt")
+            val outputFilepath = outputDir.resolve("${fileData.sampleName}_imputed_path.txt")
             outputFilepath.bufferedWriter().use { writer ->
                 writer.write("contig\tposition\tgenome\n")
             }
@@ -130,7 +127,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     }
 
-    fun imputeDiploidPath() {
+    fun imputeDiploidPath(outputDir: Path) {
         val keyFileLines = readInputFiles.getReadFiles()
         require(keyFileLines.isNotEmpty()) { "Must provide either --path-keyfile or --read-files." }
 
@@ -142,7 +139,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             val ps4gReader = Ps4gFileReader(fileData.file1)
             val contigs = ps4gReader.contigSet()
 
-            val outputFilepath = outputDirPath.resolve("${fileData.sampleName}_imputed_path.txt")
+            val outputFilepath = outputDir.resolve("${fileData.sampleName}_imputed_path.txt")
             outputFilepath.bufferedWriter().use { writer ->
                 writer.write("contig\tposition\tgenome1\tgenome2\n")
             }
@@ -160,7 +157,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                 ).use { writer ->
                     contigPath.forEach {
 
-                        writer.write("${it.first.contig}\t${it.first.position}\t${it.second}\n")
+                        writer.write("${it.first.contig}\t${it.first.position}\t${it.second}\t${it.third}\n")
                     }
                 }
 

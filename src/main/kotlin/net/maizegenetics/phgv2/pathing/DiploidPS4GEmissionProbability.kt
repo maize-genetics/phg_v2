@@ -43,13 +43,13 @@ class DiploidPS4GEmissionProbability(val readMap: Map<Int, MutableList<Ps4gGamet
             //for each genome index pair:
             //get counts of index1 only, index2 only, both, neither
             val indexSize = currentEmissionProbabilities.size
-            for (ndx1 in 1..indexSize) {
+            for (ndx1 in 0 until indexSize) {
                 //when both indices are the same (homozygous locus) use the binomial distribution
                 val indexClassCounts = indexCountsForOneIndex(gameteSetList, ndx1)
                 currentEmissionProbabilities[ndx1][ndx1] = BinomialDistribution(indexClassCounts[1], pCorrect)
                     .logProbability(indexClassCounts[0])
 
-                for (ndx2 in ndx1 + 1..indexSize) {
+                for (ndx2 in ndx1 + 1 until indexSize) {
                     val indexClassCounts = indexCountsForTwoIndices(gameteSetList, ndx1, ndx2)
                     val prob = lnMultinomialProbability(indexClassCounts, indexClassProbabilities)
                     currentEmissionProbabilities[ndx1][ndx2] = prob
@@ -74,9 +74,9 @@ class DiploidPS4GEmissionProbability(val readMap: Map<Int, MutableList<Ps4gGamet
             .sumOf { gameteSet -> gameteSet.count }
         val only2 = gameteList.filter { gameteSet ->  index1 !in gameteSet.gameteIndices && index2 in gameteSet.gameteIndices }
             .sumOf { gameteSet -> gameteSet.count }
-        val both = gameteList.filter { gameteSet ->  index1 !in gameteSet.gameteIndices && index2 in gameteSet.gameteIndices }
+        val both = gameteList.filter { gameteSet ->  index1 in gameteSet.gameteIndices && index2 in gameteSet.gameteIndices }
             .sumOf { gameteSet -> gameteSet.count }
-        val neither = gameteList.filter { gameteSet ->  index1 !in gameteSet.gameteIndices && index2 in gameteSet.gameteIndices }
+        val neither = gameteList.filter { gameteSet ->  index1 !in gameteSet.gameteIndices && index2 !in gameteSet.gameteIndices }
             .sumOf { gameteSet -> gameteSet.count }
 
         return intArrayOf(only1, only2, both, neither)
