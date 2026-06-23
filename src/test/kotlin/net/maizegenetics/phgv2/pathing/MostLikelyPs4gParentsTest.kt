@@ -51,7 +51,6 @@ class MostLikelyPs4gParentsTest {
             //generate some reads
             val numberOfGametes = 5
             val gameteNames = listOf("gamete1", "gamete2", "gamete3", "gamete4", "gamete5")
-            val contig = "chr1"
             val numberOfPositions = 25
             val numberOfReadsAtAPosition = 2
             val probNonParent = 0.5
@@ -61,7 +60,7 @@ class MostLikelyPs4gParentsTest {
 
             for (pos in 0 until numberOfPositions) {
 
-                for (readNumber in 0 until 2) {
+                for (readNumber in 0 until numberOfReadsAtAPosition) {
                     val tempList = mutableListOf<Int>()
                     if (Random.nextDouble() < 0.5) {
                         tempList.add(0)
