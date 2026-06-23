@@ -10,6 +10,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.double
+import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.pathing.KeyFileData
 import net.maizegenetics.phgv2.pathing.PathFinderHMMPS4G
@@ -65,6 +66,11 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
     )
         .double()
         .default(0.0)
+
+    val likelyParents by option(help = "Restrict the number of parents used for diploid imputation to this number. " +
+            "Default = 0 will use all parents.")
+        .int()
+        .default(0)
 
     val myLogger = LogManager.getLogger(ImputePathFromPs4g::class.java)
 
