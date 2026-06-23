@@ -40,7 +40,11 @@ class DiploidPS4GEmissionProbability(val readMap: Map<Int, MutableList<Ps4gGamet
             //if there are no counts set all probabilities equal to 0.0.
             for (subArray in currentEmissionProbabilities) { subArray.fill(0.0)}
         } else {
-            //for each genome index pair:
+            //get counts of each gamete
+            val gameteIndexCounts = gameteSetList.map { gameteSet -> gameteSet.gameteIndices
+                .map { gameteIndex -> Pair(gameteIndex, gameteSet.count) } }.flatten()
+                .groupingBy { it.first }.eachCount()
+
             //get counts of index1 only, index2 only, both, neither
             val indexSize = currentEmissionProbabilities.size
             for (ndx1 in 0 until indexSize) {
@@ -51,7 +55,11 @@ class DiploidPS4GEmissionProbability(val readMap: Map<Int, MutableList<Ps4gGamet
 
                 for (ndx2 in ndx1 + 1 until indexSize) {
                     val indexClassCounts = indexCountsForTwoIndices(gameteSetList, ndx1, ndx2)
-                    val prob = lnMultinomialProbability(indexClassCounts, indexClassProbabilities)
+//                    val prob = lnMultinomialProbability(indexClassCounts, indexClassProbabilities)
+                    val nsuccess = indexClassCounts[0] + indexClassCounts[1] + indexClassCounts[2]
+                    val ntrials = nsuccess + indexClassCounts[3]
+                    val prob = BinomialDistribution(ntrials, pCorrect)
+                        .logProbability(nsuccess)
                     currentEmissionProbabilities[ndx1][ndx2] = prob
                     currentEmissionProbabilities[ndx2][ndx1] = prob
                 }
@@ -88,10 +96,10 @@ class DiploidPS4GEmissionProbability(val readMap: Map<Int, MutableList<Ps4gGamet
     fun indexCountsForOneIndex(gameteList: MutableList<Ps4gGameteSet>, index: Int): IntArray {
         val index1Count = gameteList.filter{gameteSet -> index in gameteSet.gameteIndices}.sumOf { gameteSet -> gameteSet.count }
         val total = gameteList.sumOf { gameteSet -> gameteSet.count }
-        return intArrayOf(index1Count, total)
+        return intArrayOf(index1Count,total)
     }
 
-    companion object {
+   companion object {
         fun lnMultinomialProbability(counts: IntArray, probabilities: DoubleArray): Double {
             if (counts.size != probabilities.size) throw java.lang.IllegalArgumentException("multinomialProbability error: counts and probabilities arrays do not have the same size.")
             val totalCount = counts.sum()

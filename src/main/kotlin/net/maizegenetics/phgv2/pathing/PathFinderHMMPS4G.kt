@@ -13,8 +13,16 @@ class PathFinderHMMPS4G(val probCorrect: Double,
                         val inbreedCoef: Double) {
 
     private val myLogger = LogManager.getLogger(PathFinderHMMPS4G::class.java)
-    private data class HaploidPathNode(val nodePosition: Position, val parent: HaploidPathNode?, val gameteIndex: Int, val pathProbability: Double)
-    private data class DiploidPathNode(val nodePosition: Position, val parent: DiploidPathNode?, val gameteIndex1: Int, val gameteIndex2: Int, val pathProbability: Double)
+    private data class HaploidPathNode(val nodePosition: Position, val parent: HaploidPathNode?, val gameteIndex: Int, val pathProbability: Double) {
+        override fun hashCode(): Int {
+            return nodePosition.position
+        }
+    }
+    private data class DiploidPathNode(val nodePosition: Position, val parent: DiploidPathNode?, val gameteIndex1: Int, val gameteIndex2: Int, val pathProbability: Double) {
+        override fun hashCode(): Int {
+            return nodePosition.position
+        }
+    }
 
     /**
      * Find the best haploid path for a contig. Inputs are the contig name, a map of gamete index to name, and
@@ -28,7 +36,7 @@ class PathFinderHMMPS4G(val probCorrect: Double,
         val gameteIndexSet = gameteIndexMap.keys
         val terminalPathNode = haploidViterbi(contig, readMap, gameteIndexSet)
         var activePathNode = terminalPathNode
-
+        myLogger.info("Finished path for contig $contig")
         val resultList = mutableListOf<Pair<Position,String>>()
         while (activePathNode.nodePosition.position > -1) {
             resultList.add(Pair(activePathNode.nodePosition, gameteIndexMap[activePathNode.gameteIndex]?: "none"))
@@ -159,13 +167,28 @@ class PathFinderHMMPS4G(val probCorrect: Double,
         return paths.maxBy { it.pathProbability }
     }
 
+    private fun checkPathProbabilitiesForOverflow(paths: ArrayList<HaploidPathNode>) : ArrayList<HaploidPathNode> {
+        val minLimit = Double.MAX_VALUE * - 0.5
+
+
+        val minProb = paths.minOf { it.pathProbability }
+        return if (minProb < minLimit) {
+            val maxProb = paths.maxOf { it.pathProbability }
+            val adjustedPaths = ArrayList<HaploidPathNode>()
+            paths.forEach { path -> adjustedPaths.add(PathFinderHMMPS4G.HaploidPathNode(path.nodePosition, path.parent, path.gameteIndex, path.pathProbability - maxProb)) }
+            return adjustedPaths
+        } else paths
+    }
+
     private fun diploidViterbi(
         chrom: String,
         readMap: Map<Int, MutableList<Ps4gGameteSet>>,
         gameteIndexSet: Set<Int>
     ): DiploidPathNode {
         myLogger.info("Finding path for chromosome $chrom using diploidViterbi")
-        val transition = DiploidTransition(sameGameteProbability)
+
+        val ngenomes = gameteIndexSet.size
+        val transition = DiploidTransitionWithInbreeding(sameGameteProbability, inbreedCoef, ngenomes)
 
         //create emission probability
         val emissionProb = DiploidPS4GEmissionProbability(readMap, gameteIndexSet, probCorrect)
@@ -179,9 +202,17 @@ class PathFinderHMMPS4G(val probCorrect: Double,
         //The value of the probability has no meaning by itself, so all the probabilities can be set to 0.0. What matters
         //is the relative probabilities of the different paths. Since the probabilities are ln(probability) (natural log)
         // this means that all initial probabilities are set to 1.
+
+        //if the inbreeding coefficient is > 0, then homozygous genotypes are more probable then heterozygous ones.
+        // Set the homozygous genotype probabilities = inbreedingCoef / ngenomes
+        //Set nHeterozygousGenotypes = ngenomes * (ngenomes - 1)
+
+        val homozygoteProb = ln(1.0 / ngenomes.toDouble())
+        val heterozygoteProb = ln(1.0 / (ngenomes * ngenomes - ngenomes).toDouble())
         for (index1 in gameteIndexSet) {
             for(index2 in gameteIndexSet) {
-                paths.add(DiploidPathNode(Position("NA", -1), null, index1, index2, 0.0))
+                val initProb = if (index1 == index2) homozygoteProb else heterozygoteProb
+                paths.add(DiploidPathNode(Position("NA", -1), null, index1, index2, initProb))
             }
         }
 
@@ -216,7 +247,8 @@ class PathFinderHMMPS4G(val probCorrect: Double,
 
                     val samePathNode = indicesToNodeMap[Pair(index1, index2)]
                     check(samePathNode != null) {"indices $index1, $index2 did not map to a node"}
-                    val samePathProb = samePathNode.pathProbability + transition.samePathProbability
+                    val samePathProb = samePathNode.pathProbability +
+                            transition.calculate(Pair(samePathNode.gameteIndex1, samePathNode.gameteIndex2), Pair(index1, index2))
 
                     val candidatePathList = paths
                         .map { path -> Pair(path, path.pathProbability + transition.calculate(Pair(path.gameteIndex1, path.gameteIndex2), Pair(index1, index2))) }
@@ -238,8 +270,8 @@ class PathFinderHMMPS4G(val probCorrect: Double,
         return paths.maxBy { it.pathProbability }
     }
 
-    class DiploidTransition(val pNoSwitch: Double) {
-        val pSwitch = 1.0 - pNoSwitch
+    class DiploidTransition(val pNoSwitch: Double, numberOfGenomes: Int) {
+        val pSwitch = (1.0 - pNoSwitch) / (numberOfGenomes - 1)
         val pss = ln(pSwitch * pSwitch)
         val psn = ln(pSwitch * pNoSwitch)
         val pnn = ln(pNoSwitch * pNoSwitch)
@@ -252,6 +284,46 @@ class PathFinderHMMPS4G(val probCorrect: Double,
                 if (from.second == to.second) psn else pss
             }
         }
+    }
+
+    class DiploidTransitionWithInbreeding(val pNoSwitch: Double, val inbreedingCoef: Double, numberOfGenomes: Int) {
+        val pSwitch = (1.0 - pNoSwitch) / (numberOfGenomes - 1)
+        val pss = pSwitch * pSwitch
+        val psn = pSwitch * pNoSwitch
+        val pnn = pNoSwitch * pNoSwitch
+
+        fun calculate(from: Pair<Int,Int>, to: Pair<Int,Int>): Double {
+            val transitionP =  when (inbreedingCoef) {
+                0.0 -> probabilityForF0(from, to)
+                1.0 -> probabilityForF1(from, to)
+                else -> (1.0 - inbreedingCoef) * probabilityForF0(from, to) + inbreedingCoef * probabilityForF1(from, to)
+            }
+
+            return ln(transitionP)
+        }
+
+        fun probabilityForF0(from: Pair<Int,Int>, to: Pair<Int,Int>):Double {
+            return if (from.first == to.first) {
+                if (from.second == to.second) pnn else psn
+            } else {
+                if (from.second == to.second) psn else pss
+            }
+        }
+
+        fun probabilityForF1(from: Pair<Int,Int>, to: Pair<Int,Int>):Double {
+            return if (from.first == from.second)  {  //from is homozygous
+                if (to.first == to.second) {
+                    if (from.first == to.first) pNoSwitch else pSwitch
+                } else 0.0
+            } else { //from is heterozygous
+                if (to.first == to.second) {
+                    if (from.first == to.first || from.second == to.second) pSwitch
+                    else pss
+                } else 0.0
+            }
+
+        }
+
     }
 
 }
