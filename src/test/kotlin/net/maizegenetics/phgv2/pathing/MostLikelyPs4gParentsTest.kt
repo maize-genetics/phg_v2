@@ -35,9 +35,9 @@ class MostLikelyPs4gParentsTest {
     fun testLikelyParents() {
         writePs4gTestFile()
         val mlp = MostLikelyPs4gParents(Ps4gFileReader(ps4gFilename), setOf("chr1"))
-        val bestParentList = mlp.bestParents(2)
-        println(bestParentList)
-        assertContentEquals(listOf(0,1), bestParentList)
+        val bestParentSet = mlp.bestParents(2)
+        println(bestParentSet)
+        assertContentEquals(listOf(0,1), bestParentSet.sorted())
     }
 
     fun writePs4gTestFile() {
