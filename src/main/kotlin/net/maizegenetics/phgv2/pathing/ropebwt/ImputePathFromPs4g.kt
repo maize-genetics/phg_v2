@@ -13,6 +13,7 @@ import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.pathing.KeyFileData
+import net.maizegenetics.phgv2.pathing.MostLikelyPs4gParents
 import net.maizegenetics.phgv2.pathing.PathFinderHMMPS4G
 import net.maizegenetics.phgv2.pathing.PathInputFile
 import org.apache.logging.log4j.LogManager
@@ -67,7 +68,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         .double()
         .default(0.0)
 
-    val likelyParents by option(help = "Restrict the number of parents used for diploid imputation to this number. " +
+    val nParents by option(help = "Restrict the number of parents used for diploid imputation to this number. " +
             "Default = 0 will use all parents.")
         .int()
         .default(0)
@@ -111,6 +112,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                 writer.write("contig\tposition\tgenome\n")
             }
 
+
             for (contig in contigs) {
 
                 //Generate list of (index, gamete name) in order by index
@@ -140,22 +142,33 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
         val pathFinder = PathFinderHMMPS4G(probCorrect, probSame, inbreedCoef)
 
+
+
         for (fileData in keyFileLines) {
             myLogger.info("Finding $pathType path for ${fileData.sampleName}")
             val ps4gReader = Ps4gFileReader(fileData.file1)
-            val contigs = ps4gReader.contigSet()
+            val tmpContigs = ps4gReader.contigSet()
+
+            //do not use contigs starting with scaf
+            val contigs = tmpContigs.filter {!it.startsWith("scaf")}
 
             val outputFilepath = outputDir.resolve("${fileData.sampleName}_imputed_path.txt")
             outputFilepath.bufferedWriter().use { writer ->
                 writer.write("contig\tposition\tgenome1\tgenome2\n")
             }
 
+            //if the number of likely parents is > 0 and < number of genomes, find the likely parents
+            val numberOfGenomes = ps4gReader.gameteIndexMap().size
+            val parentSet = if (nParents in 1..<numberOfGenomes) {
+                MostLikelyPs4gParents(ps4gReader, contigs.toSet()).bestParents(nParents)
+            } else ps4gReader.gameteIndexMap().keys
+
             for (contig in contigs) {
 
                 //Generate list of (index, gamete name) in order by index
                 val readMapForContig = ps4gReader.readMapForContig(contig)
                 check(readMapForContig != null) { "read data for contig $contig was null for ${fileData.sampleName}" }
-                val contigPath = pathFinder.findDiploidPath(contig, ps4gReader.gameteIndexMap(), readMapForContig)
+                val contigPath = pathFinder.findDiploidPath(contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet)
 
                 //write to the output file
                 outputFilepath.bufferedWriter(

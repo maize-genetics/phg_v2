@@ -53,12 +53,15 @@ class PathFinderHMMPS4G(val probCorrect: Double,
      * a map of int position (bin) to a list of Ps4gGameteSets. A Ps4gGameteSet contains an array of gamete indices and the count
      * of the number of read hits to that set of gametes. The output is a list of triples: position, genome1, genome2.
      */
-    fun findDiploidPath(contig: String, gameteIndexMap: Map<Int,String>, readMap: Map<Int, MutableList<Ps4gGameteSet>>): List<Triple<Position, String, String>> {
+    fun findDiploidPath(contig: String,
+                        gameteIndexMap: Map<Int,String>,
+                        readMap: Map<Int, MutableList<Ps4gGameteSet>>,
+                        likelyParentSet: Set<Int>): List<Triple<Position, String, String>> {
         myLogger.info("Finding diploid path for contig $contig")
 
         //get the gamete index set
         val gameteIndexSet = gameteIndexMap.keys
-        val terminalPathNode = diploidViterbi(contig, readMap, gameteIndexSet)
+        val terminalPathNode = diploidViterbi(contig, readMap, gameteIndexSet, likelyParentSet)
         var activePathNode = terminalPathNode
 
         val resultList = mutableListOf<Triple<Position, String, String>>()
@@ -183,7 +186,8 @@ class PathFinderHMMPS4G(val probCorrect: Double,
     private fun diploidViterbi(
         chrom: String,
         readMap: Map<Int, MutableList<Ps4gGameteSet>>,
-        gameteIndexSet: Set<Int>
+        gameteIndexSet: Set<Int>,
+        parentSet: Set<Int>
     ): DiploidPathNode {
         myLogger.info("Finding path for chromosome $chrom using diploidViterbi")
 
@@ -191,7 +195,9 @@ class PathFinderHMMPS4G(val probCorrect: Double,
         val transition = DiploidTransitionWithInbreeding(sameGameteProbability, inbreedCoef, ngenomes)
 
         //create emission probability
-        val emissionProb = DiploidPS4GEmissionProbability(readMap, gameteIndexSet, probCorrect)
+//        val emissionProb = DiploidPS4GEmissionProbability(readMap, gameteIndexSet, probCorrect)
+        val emissionProb = DiploidEmissionProbabilityForLikelyParents(readMap, gameteIndexSet,
+            parentSet.sorted(), probCorrect)
 
         var paths = ArrayList<DiploidPathNode>()
         val sortedPositionList = readMap.keys.toList().sorted()
