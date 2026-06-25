@@ -151,6 +151,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
             //do not use contigs starting with scaf
             val contigs = tmpContigs.filter {!it.startsWith("scaf")}
+            myLogger.info("Contigs: $contigs")
 
             val outputFilepath = outputDir.resolve("${fileData.sampleName}_imputed_path.txt")
             outputFilepath.bufferedWriter().use { writer ->
@@ -159,10 +160,13 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
             //if the number of likely parents is > 0 and < number of genomes, find the likely parents
             val numberOfGenomes = ps4gReader.gameteIndexMap().size
+
+            myLogger.info("Getting parent set for $nParents parents.")
             val parentSet = if (nParents in 1..<numberOfGenomes) {
                 MostLikelyPs4gParents(ps4gReader, contigs.toSet()).bestParents(nParents)
             } else ps4gReader.gameteIndexMap().keys
 
+            myLogger.info("Parent set: $parentSet")
             for (contig in contigs) {
 
                 //Generate list of (index, gamete name) in order by index
