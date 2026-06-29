@@ -195,7 +195,6 @@ class PathFinderHMMPS4G(val probCorrect: Double,
         val transition = DiploidTransitionWithInbreeding(sameGameteProbability, inbreedCoef, ngenomes)
 
         //create emission probability
-//        val emissionProb = DiploidPS4GEmissionProbability(readMap, gameteIndexSet, probCorrect)
         val emissionProb = DiploidEmissionProbabilityForLikelyParents(readMap, gameteIndexSet,
             parentSet.sorted(), probCorrect)
 
@@ -215,14 +214,14 @@ class PathFinderHMMPS4G(val probCorrect: Double,
 
         val homozygoteProb = ln(1.0 / ngenomes.toDouble())
         val heterozygoteProb = ln(1.0 / (ngenomes * ngenomes - ngenomes).toDouble())
-        for (index1 in gameteIndexSet) {
-            for(index2 in gameteIndexSet) {
+        for (index1 in parentSet) {
+            for(index2 in parentSet) {
                 val initProb = if (index1 == index2) homozygoteProb else heterozygoteProb
                 paths.add(DiploidPathNode(Position("NA", -1), null, index1, index2, initProb))
             }
         }
-
         for (positionIndex in sortedPositionList) {
+
             val currentPosition = Position(chrom, positionIndex)
             val newPaths = ArrayList<DiploidPathNode>()
             val maxProb = paths.maxOfOrNull { it.pathProbability } ?: 0.0
@@ -235,8 +234,8 @@ class PathFinderHMMPS4G(val probCorrect: Double,
             val indicesToNodeMap = paths.associate { node -> Pair(Pair(node.gameteIndex1, node.gameteIndex2), node) }
 
             //iterate through all possible ordered pairs of gamete indices
-            for (index1 in gameteIndexSet) {
-                for(index2 in gameteIndexSet) {
+            for (index1 in parentSet) {
+                for(index2 in parentSet) {
                     val indexPairEmissionProb = emissionProb.getLnProbObsGivenState(index1, index2, positionIndex)
                     //for this ordered pair of indices find the node at the previous position that results in the highest total probability
                     //then make that the parent node of the new node

@@ -16,7 +16,9 @@ import net.maizegenetics.phgv2.pathing.KeyFileData
 import net.maizegenetics.phgv2.pathing.MostLikelyPs4gParents
 import net.maizegenetics.phgv2.pathing.PathFinderHMMPS4G
 import net.maizegenetics.phgv2.pathing.PathInputFile
+import net.maizegenetics.phgv2.utils.Position
 import org.apache.logging.log4j.LogManager
+import org.jetbrains.letsPlot.Stat
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -52,18 +54,18 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     val probCorrect by option(help = "The probability that a read maps to correct haplotype. Default = 0.98")
         .double()
-        .default(0.95)
+        .default(0.98)
 
     val probSame by option(
         help = "The probability that a path stays on the same gamete when transitioning between " +
-                "two adjacent positions. (1 - probability of a recombination)"
+                "two adjacent positions. (1 - probability of a recombination). Default = 0.9999"
     )
         .double()
-        .default(0.001)
+        .default(0.9999)
 
     val inbreedCoef by option(
         help = "The inbreeding coefficient (between 0.0 and 1.0). " +
-                "This parameter is used only for diploid paths."
+                "This parameter is used only for diploid paths. Default = 0.0"
     )
         .double()
         .default(0.0)
@@ -72,6 +74,10 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             "Default = 0 will use all parents.")
         .int()
         .default(0)
+
+    val binSize by option(help = "The bin size used to create the ps4g file. Default = 256.")
+        .int()
+        .default(256)
 
     val myLogger = LogManager.getLogger(ImputePathFromPs4g::class.java)
 
@@ -107,9 +113,9 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             val ps4gReader = Ps4gFileReader(fileData.file1)
             val contigs = ps4gReader.contigSet()
 
-            val outputFilepath = outputDir.resolve("${fileData.sampleName}_imputed_path.txt")
+            val outputFilepath = outputDir.resolve("${fileData.sampleName}_imputed_path.bed")
             outputFilepath.bufferedWriter().use { writer ->
-                writer.write("contig\tposition\tgenome\n")
+                writer.write("chrom\tstart\tend\tparent1\n")
             }
 
 
@@ -124,9 +130,20 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                 outputFilepath.bufferedWriter(
                     options = arrayOf(StandardOpenOption.APPEND)
                 ).use { writer ->
-                    contigPath.forEach {
-                        writer.write("${it.first.contig}\t${it.first.position}\t${it.second}\n")
+                    var startPos = 1
+                    var endPos = (contigPath[0].first.position + contigPath[1].first.position) / 2 * binSize
+                    writer.write("${contigPath[0].first.contig}\t$startPos\t$endPos\t${contigPath[0].second}\n")
+                    (1 .. (contigPath.size - 2)).forEach { ndx ->
+
+                        startPos = ((contigPath[ndx -1].first.position + contigPath[ndx].first.position) / 2 ) * binSize + 1
+                        endPos = (contigPath[ndx].first.position + contigPath[ndx + 1].first.position) / 2 * binSize
+                        writer.write("${contigPath[ndx].first.contig}\t$startPos\t$endPos\t${contigPath[ndx].second}\n")
                     }
+                    //write the last record
+                    val ndx = contigPath.size - 1
+                    startPos = ((contigPath[ndx - 1].first.position + contigPath[ndx].first.position) / 2 ) * binSize + 1
+                    endPos = contigPath[ndx].first.position * binSize
+                    writer.write("${contigPath[ndx].first.contig}\t$startPos\t$endPos\t${contigPath[ndx].second}\n")
                 }
 
             }
@@ -142,8 +159,6 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
         val pathFinder = PathFinderHMMPS4G(probCorrect, probSame, inbreedCoef)
 
-
-
         for (fileData in keyFileLines) {
             myLogger.info("Finding $pathType path for ${fileData.sampleName}")
             val ps4gReader = Ps4gFileReader(fileData.file1)
@@ -154,8 +169,9 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             myLogger.info("Contigs: $contigs")
 
             val outputFilepath = outputDir.resolve("${fileData.sampleName}_imputed_path.txt")
+            //chrom\tstart\tend\tparent1\tparent2
             outputFilepath.bufferedWriter().use { writer ->
-                writer.write("contig\tposition\tgenome1\tgenome2\n")
+                writer.write("chrom\tstart\tend\tparent1\tparent2\n")
             }
 
             //if the number of likely parents is > 0 and < number of genomes, find the likely parents
@@ -178,10 +194,22 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                 outputFilepath.bufferedWriter(
                     options = arrayOf(StandardOpenOption.APPEND)
                 ).use { writer ->
-                    contigPath.forEach {
+//                        writer.write("${it.first.contig}\t${it.first.position}\t${it.second}\t${it.third}\n")
+                    var startPos = 1
+                    var endPos = (contigPath[0].first.position + contigPath[1].first.position) / 2 * binSize
+                    writer.write("${contigPath[0].first.contig}\t$startPos\t$endPos\t${contigPath[0].second}\t${contigPath[0].third}\n")
+                    (1..(contigPath.size - 2)).forEach { ndx ->
 
-                        writer.write("${it.first.contig}\t${it.first.position}\t${it.second}\t${it.third}\n")
+                        startPos =
+                            ((contigPath[ndx - 1].first.position + contigPath[ndx].first.position) / 2) * binSize + 1
+                        endPos = (contigPath[ndx].first.position + contigPath[ndx + 1].first.position) / 2 * binSize
+                        writer.write("${contigPath[ndx].first.contig}\t$startPos\t$endPos\t${contigPath[ndx].second}\t${contigPath[ndx].third}\n")
                     }
+                    //write the last record
+                    val ndx = contigPath.size - 1
+                    startPos = ((contigPath[ndx - 1].first.position + contigPath[ndx].first.position) / 2) * binSize + 1
+                    endPos = contigPath[ndx].first.position * binSize
+                    writer.write("${contigPath[ndx].first.contig}\t$startPos\t$endPos\t${contigPath[ndx].second}\t${contigPath[ndx].third}\n")
                 }
 
             }
