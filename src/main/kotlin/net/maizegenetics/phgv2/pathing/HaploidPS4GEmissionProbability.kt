@@ -9,22 +9,23 @@ import kotlin.math.ln
 class HaploidPS4GEmissionProbability(val readMap: Map<Int, MutableList<Ps4gGameteSet>>, val genomeIndexSet: Set<Int>, val pCorrect: Double) {
     private var currentPosition = -1
     private var currentEmissionProbabilities = mapOf<Int, Double>()
-    private var nullProbability : Double = -10.0
+    private var nullProbability : Double = 1.0e-8
     private val minProbability = Double.MIN_VALUE
 
     fun getLnProbObsGivenState(genomeIndex: Int, position: Int): Double {
-        //refrange is a 0..n index into nodeTree.keys
-        //haplotype is an index into the List<HaplotypeNode>> for this ReferenceRange
+        return ln(getProbObsGivenState(genomeIndex,position))
+    }
+
+    fun getProbObsGivenState(genomeIndex: Int, position: Int): Double {
         if (currentPosition != position) {
             currentPosition = position
-            currentEmissionProbabilities = calculateLnHaplotypeProbabilities()
-
+            currentEmissionProbabilities = calculateHaplotypeProbabilities()
         }
 
         return currentEmissionProbabilities[genomeIndex] ?: nullProbability
     }
 
-    private fun calculateLnHaplotypeProbabilities() : Map<Int, Double> {
+    private fun calculateHaplotypeProbabilities() : Map<Int, Double> {
         /*
         * P_emission = P(obs|haplotype)
         * = binom(#trials, #successes, P_success)
@@ -42,8 +43,8 @@ class HaploidPS4GEmissionProbability(val readMap: Map<Int, MutableList<Ps4gGamet
             //if there no reads then all haplotypes get assigned the same probability, it does not matter what it is.
             //note that 0.0 is ln(1), so this actually assigns a probability of 1 not zero. One interpretation is that
             //if there are no reads then every haplotype (including null haplotypes) will have 0 reads with a probability of 1.
-            nullProbability = 0.0
-            return genomeIndexSet.associateWith { 0.0 }
+            nullProbability = 1.0
+            return genomeIndexSet.associateWith { 1.0 }
 
         } else {
             val numberOfReads = myReadMappings.map { it.count }.sum()
@@ -55,10 +56,9 @@ class HaploidPS4GEmissionProbability(val readMap: Map<Int, MutableList<Ps4gGamet
                 .fold(0) { sum, pr -> sum + pr.second }
 
             //since a null haplotype should have 0 counts, assign it min
-            nullProbability = ln( binom.probability( 0).coerceAtLeast(minProbability) )
+            nullProbability = binom.probability( 0).coerceAtLeast(minProbability)
             return genomeIndexSet.associateWith { index ->
-                val prob = binom.probability(indexCountMap[index] ?: 0).coerceAtLeast(minProbability)
-                ln( prob )
+                binom.probability(indexCountMap[index] ?: 0).coerceAtLeast(minProbability)
             }
 
         }
