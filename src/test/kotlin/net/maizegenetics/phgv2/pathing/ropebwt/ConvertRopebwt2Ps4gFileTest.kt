@@ -29,7 +29,7 @@ class ConvertRopebwt2Ps4gFileTest {
         @JvmStatic
         @AfterAll
         fun teardown() {
-            //resetDirs()
+            resetDirs()
         }
 
         private fun resetDirs() {
