@@ -61,8 +61,8 @@ class PathFinderHMMPS4G(val probCorrect: Double,
 
         //get the gamete index set
         val gameteIndexSet = gameteIndexMap.keys
-        val terminalPathNode = efficientDiploidViterbi(contig, readMap, gameteIndexSet, likelyParentSet)
-//        val terminalPathNode = diploidViterbi(contig, readMap, gameteIndexSet, likelyParentSet)
+//        val terminalPathNode = efficientDiploidViterbi(contig, readMap, gameteIndexSet, likelyParentSet)
+        val terminalPathNode = diploidViterbi(contig, readMap, gameteIndexSet, likelyParentSet)
         var activePathNode = terminalPathNode
 
         val resultList = mutableListOf<Triple<Position, String, String>>()
