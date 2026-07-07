@@ -25,7 +25,7 @@ class ImputePathFromPs4gTest {
         @JvmStatic
         @AfterAll
         fun teardown() {
-            resetDirs()
+//            resetDirs()
         }
 
         private fun resetDirs() {
@@ -280,5 +280,15 @@ class ImputePathFromPs4gTest {
 
         chr1Rows.forEach { assertEquals("lineA:0", it.split("\t")[3]) }
         chr2Rows.forEach { assertEquals("lineB:0", it.split("\t")[3]) }
+    }
+
+    @Test
+    fun testDiploidViterbiWithBigData() {
+        val outputDir = TestExtension.testOutputDir
+        val result = ImputePathFromPs4g().test(
+            "--read-file /Users/pjbra/temp/CML247XOh43-sr-simulated5000.ps4g --out-path-dir $outputDir --path-type diploid " +
+                    "--prob-correct 0.99 --prob-same 0.9999 --inbreed-coef 0.8 --bin-size 5000 --n-parents 5"
+        )
+        println(result.stderr)
     }
 }
