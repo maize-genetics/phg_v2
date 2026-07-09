@@ -48,7 +48,7 @@ class SplineUtils{
          */
         fun buildSplineKnots(vcfDir: String, vcfType: String, outputDir: String, minIndelLength: Int = 10,
                              numBpsPerKnot: Int = 50_000, contigSet : Set<String> = emptySet(), disableSplineDownsampling: Boolean = false,
-                             randomSeed: Long = 12345, binSize:Int = 256, disableASMCoordinates : Boolean = false) {
+                             randomSeed: Long = 12345, binSize:Int = 256, disableASMCoordinates : Boolean = false, sampleNameFirst: Boolean = false) {
             val vcfFiles = buildVCFFileList(vcfDir, vcfType)
 
             var chrIndexMap = mutableMapOf<String,Int>()
@@ -61,7 +61,7 @@ class SplineUtils{
 
 
                 myLogger.info("Reading ${vcfFile.name}")
-                val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed, binSize, disableASMCoordinates)
+                val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed, binSize, disableASMCoordinates, sampleNameFirst)
 
                 myLogger.info("Done processing ${vcfFile.name}")
                 myLogger.info("Number of splines: ${splineKnotLookup.splineKnotMap.size}")
@@ -114,15 +114,16 @@ class SplineUtils{
             disableSplineDownsampling: Boolean = false,
             randomSeed: Long = 12345,
             binSize: Int = 256,
-            disableASMCoordinates : Boolean = false
+            disableASMCoordinates : Boolean = false,
+            sampleNameFirst: Boolean = false
         ) : SplineKnotLookup {
             return if(vcfType == "hvcf") {
                 if(disableASMCoordinates) {
                     myLogger.info("Disable ASM Coordinates is on.  It does not have an effect on hvcf files as they use the metadata.")
                 }
-                processHvcfFileIntoSplineKnots(vcfFile, chrIndexMap, gameteIndexMap, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed, binSize)
+                processHvcfFileIntoSplineKnots(vcfFile, chrIndexMap, gameteIndexMap, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed, binSize, sampleNameFirst)
             } else if(vcfType == "gvcf") {
-                processGvcfFileIntoSplineKnots(vcfFile,chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed, binSize, disableASMCoordinates)
+                processGvcfFileIntoSplineKnots(vcfFile,chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed, binSize, disableASMCoordinates, sampleNameFirst)
             } else {
                 throw IllegalArgumentException("Unknown VCF type $vcfType")
             }
@@ -140,7 +141,8 @@ class SplineUtils{
             contigSet: Set<String> = emptySet(),
             disableSplineDownsampling: Boolean = false,
             randomSeed: Long = 12345,
-            binSize: Int = 256
+            binSize: Int = 256,
+            sampleNameFirst: Boolean = false
         ) : SplineKnotLookup {
             val splineKnotMap = mutableMapOf<String, MutableList<Triple<Int,String,Int>>>()
 
@@ -202,7 +204,7 @@ class SplineUtils{
                 for (entry in currentASMSplineMap.entries) {
                     val asmChr = entry.key
                     val sortedKnots = entry.value.sortedBy { it.first }.toMutableList()
-                    splineKnotMap["${asmChr}_${sampleName}"] = sortedKnots
+                    splineKnotMap[RopeBWTUtils.combinedContigName(asmChr, sampleName, sampleNameFirst)] = sortedKnots
                 }
             }
             return SplineKnotLookup(splineKnotMap, chrIndexMap, gameteIndexMap)
@@ -219,6 +221,7 @@ class SplineUtils{
             randomSeed: Long = 12345,
             binSize: Int = 256,
             disableASMCoordinates : Boolean = false,
+            sampleNameFirst: Boolean = false,
         ) : SplineKnotLookup {
 
             val splineKnotMap = mutableMapOf<String, MutableList<Triple<Int,String,Int>>>()
@@ -440,7 +443,7 @@ class SplineUtils{
                 for (entry in currentASMSplineMap.entries) {
                     val asmChr = entry.key
                     val sortedKnots = entry.value.sortedBy { it.first }.toMutableList()
-                    splineKnotMap["${asmChr}_${sampleName}"] = sortedKnots
+                    splineKnotMap[RopeBWTUtils.combinedContigName(asmChr, sampleName, sampleNameFirst)] = sortedKnots
                 }
 
             }

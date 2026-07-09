@@ -54,6 +54,9 @@ class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs
             "When this option is enabled it will use a running count for each chromosome.")
         .flag()
 
+    val sampleNameFirst by option(help = "Build spline knot keys as sampleName_contigName instead of the default contigName_sampleName.  This must match the --sample-name-first flag used for rope-bwt-chr-index and convert-ropebwt2ps4g-file.")
+        .flag(default = false)
+
     override fun run() {
         logCommand(this)
 
@@ -79,7 +82,8 @@ class BuildSplineKnots: CliktCommand(help = "Build Spline Knot points from gVCFs
             disableSplineDownsampling,
             randomSeed,
             binSize,
-            disableAsmCoordinates
+            disableAsmCoordinates,
+            sampleNameFirst
         )
 
         myLogger.info("Spline Knot building complete.")

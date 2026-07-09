@@ -40,15 +40,18 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
     val condaEnvPrefix by option (help = "Prefix for the conda environment to use.  If provided, this should be the full path to the conda environment.")
         .default("")
 
+    val sampleNameFirst by option(help = "Rename contigs as sampleName_contigName instead of the default contigName_sampleName.  This must be kept in sync with the --sample-name-first flag used for build-spline-knots and convert-ropebwt2ps4g-file.")
+        .flag(default = false)
+
     override fun run() {
         logCommand(this)
-        createChrIndex(keyfile, outputDir, indexFilePrefix, threads, deleteFmrIndex, condaEnvPrefix)
+        createChrIndex(keyfile, outputDir, indexFilePrefix, threads, deleteFmrIndex, condaEnvPrefix, sampleNameFirst)
     }
 
     /**
      * Function to create the chrom length index for a set of assemblies.
      */
-    fun createChrIndex(keyfile: String, outputDir: String, indexFilePrefix: String, threads: Int, deleteFmrIndex: Boolean, condaEnvPrefix: String) {
+    fun createChrIndex(keyfile: String, outputDir: String, indexFilePrefix: String, threads: Int, deleteFmrIndex: Boolean, condaEnvPrefix: String, sampleNameFirst: Boolean = false) {
         myLogger.info("Creating Rename Fasta directory")
         val renameFastaDir = "$outputDir/renamedFastas/"
         File("$outputDir/renamedFastas/").mkdirs()
@@ -59,7 +62,7 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
         val keyFileParsed = parseKeyFile(keyfile)
         for(keyFileRecord in keyFileParsed) {
             myLogger.info("Indexing ${keyFileRecord.first} with sampleName ${keyFileRecord.second}")
-            val (renamedFile, outputSeqLengths) = processKeyFileRecord(keyFileRecord.first, keyFileRecord.second, renameFastaDir)
+            val (renamedFile, outputSeqLengths) = processKeyFileRecord(keyFileRecord.first, keyFileRecord.second, renameFastaDir, sampleNameFirst)
             allSeqLengths.addAll(outputSeqLengths)
 
             myLogger.info("Indexing ${renamedFile}")
@@ -100,14 +103,14 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
     /**
      * Function to process a single key file record.  This renames the contigs in the fasta file and then adds them to the index.
      */
-    fun processKeyFileRecord(fastaFile: String, sampleName: String, renameFastaDir: String) : Pair<String,List<Pair<String,Int>>> {
+    fun processKeyFileRecord(fastaFile: String, sampleName: String, renameFastaDir: String, sampleNameFirst: Boolean = false) : Pair<String,List<Pair<String,Int>>> {
         //Rename the contigs in the fasta file by the sample name
         val fastaFileName = File(fastaFile).nameWithoutExtension
         val renameFastaFile = "$renameFastaDir/${fastaFileName}_renamed.fa"
         val contigLengthPairs = mutableListOf<Pair<String,Int>>()
 
         bufferedWriter(renameFastaFile).use { writer ->
-            renameFastaSeqs(fastaFile, sampleName, writer, contigLengthPairs)
+            renameFastaSeqs(fastaFile, sampleName, writer, contigLengthPairs, sampleNameFirst)
         }
 
         return Pair(renameFastaFile,contigLengthPairs)
@@ -115,20 +118,25 @@ class RopeBwtChrIndex: CliktCommand( help = "Index a chromosome for RopeBwt") {
 
     /**
      * Function to rename the contigs in a fasta file by the sample name.
-     * The new contigs are contigName_sampleName
+     * By default the new contigs are named contigName_sampleName.  If sampleNameFirst
+     * is true, they are instead named sampleName_contigName.  This ordering must be kept
+     * in sync with the --sample-name-first option on build-spline-knots and
+     * convert-ropebwt2ps4g-file, since those commands reconstruct this same name to look
+     * up hits against this index.
      */
     fun renameFastaSeqs(
         fastaFile: String,
         sampleName: String,
         writer: BufferedWriter,
-        contigLengthPairs: MutableList<Pair<String, Int>>)
+        contigLengthPairs: MutableList<Pair<String, Int>>,
+        sampleNameFirst: Boolean = false)
     {
         NucSeqIO(fastaFile).map { nucSeq ->
             val contigName = nucSeq.id
             val contigSequence = nucSeq.sequence
             val contigLength = contigSequence.size()
-            //Contig needs to be chr_sampleGamete
-            val outputName = "${contigName}_${sampleName}"
+            //Contig needs to be chr_sampleGamete (or sampleGamete_chr if sampleNameFirst)
+            val outputName = RopeBWTUtils.combinedContigName(contigName, sampleName, sampleNameFirst)
             writer.write(">$outputName\n")
             contigSequence.seq().chunked(80).forEach { chunk -> writer.write("$chunk\n") }
             contigLengthPairs.add(Pair(outputName, contigLength))

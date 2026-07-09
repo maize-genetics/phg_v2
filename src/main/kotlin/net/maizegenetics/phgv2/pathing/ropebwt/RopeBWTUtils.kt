@@ -16,6 +16,20 @@ data class MEMHit(val contig: String, val strand: String, val pos: Int)
 class RopeBWTUtils {
     companion object {
         val myLogger = LogManager.getLogger(RopeBWTUtils::class.java)
+
+        /**
+         * Function to build the combined contig name used to identify a chromosome/sample pair in the
+         * RopeBWT index (and everywhere that name must be reconstructed downstream: spline knot keys and
+         * the PS4G gamete lookup).  By default this is contigName_sampleName, matching the historical
+         * behavior.  If sampleNameFirst is true, it instead builds sampleName_contigName.
+         * This must be kept in sync across rope-bwt-chr-index, build-spline-knots, and
+         * convert-ropebwt2ps4g-file - if one of these disagrees on the order, downstream lookups against
+         * this name will silently fail to match.
+         */
+        fun combinedContigName(contigName: String, sampleName: String, sampleNameFirst: Boolean = false): String {
+            return if (sampleNameFirst) "${sampleName}_${contigName}" else "${contigName}_${sampleName}"
+        }
+
         /**
          * Function to parse the current alignment line from ropebwt3 mem into a usable object
          */

@@ -425,6 +425,25 @@ class ConvertRopebwt2Ps4gFileTest {
     }
 
     @Test
+    fun testBuildSampleNameSplitMap() {
+        val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
+        val chrIndexMap = mapOf("chr1" to 0, "chr2" to 1)
+        val gameteIndexMap = mapOf("gamete1" to 0, "gamete2" to 1)
+
+        //Default order is chromName_gameteName
+        val defaultMap = convertRopebwt2Ps4gFile.buildSampleNameSplitMap(chrIndexMap, gameteIndexMap)
+        assertEquals(4, defaultMap.size)
+        assertEquals(ContigAndGamete("chr1", "gamete1"), defaultMap["chr1_gamete1"])
+        assertEquals(ContigAndGamete("chr2", "gamete2"), defaultMap["chr2_gamete2"])
+
+        //Flipped order is gameteName_chromName
+        val sampleFirstMap = convertRopebwt2Ps4gFile.buildSampleNameSplitMap(chrIndexMap, gameteIndexMap, sampleNameFirst = true)
+        assertEquals(4, sampleFirstMap.size)
+        assertEquals(ContigAndGamete("chr1", "gamete1"), sampleFirstMap["gamete1_chr1"])
+        assertEquals(ContigAndGamete("chr2", "gamete2"), sampleFirstMap["gamete2_chr2"])
+    }
+
+    @Test
     fun testLinearLookup() {
         val knots = buildSimpleKnotMap()
         val splineLookup = LinearLookupFunction(knots, mapOf("1" to 0, "2" to 1))

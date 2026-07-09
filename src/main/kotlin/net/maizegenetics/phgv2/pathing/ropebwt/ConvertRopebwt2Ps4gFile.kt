@@ -99,6 +99,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     val sortPositions by option(help = "Sort positions in the resulting PS4G file.")
         .flag(default = true)
 
+    val sampleNameFirst by option(help = "Reconstruct aligned contig names as sampleName_contigName instead of the default contigName_sampleName when looking up gametes.  This must match the --sample-name-first flag used for rope-bwt-chr-index and build-spline-knots.")
+        .flag(default = false)
+
     /**
      * Function to run the command.  This goes from a RopeBWT3 BED file for reads aligned against the whole chromosomes to a PS4G file.
      */
@@ -112,7 +115,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         myLogger.info("Loading Spline Knot File")
         val (splineKnots, chrIndexMap, gameteIndexMap) = SplineUtils.loadSplineKnotLookupFromDirectory(splineKnotDir)
 
-        val bedSampleNameToChrAndSample = buildSampleNameSplitMap(chrIndexMap, gameteIndexMap)
+        val bedSampleNameToChrAndSample = buildSampleNameSplitMap(chrIndexMap, gameteIndexMap, sampleNameFirst)
 
         myLogger.info("Converting Spline Knots to Splines")
 
@@ -129,11 +132,11 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         }
     }
 
-    fun buildSampleNameSplitMap(chrIndexMap: Map<String, Int>, gameteIndexMap: Map<String, Int>): Map<String, ContigAndGamete> {
+    fun buildSampleNameSplitMap(chrIndexMap: Map<String, Int>, gameteIndexMap: Map<String, Int>, sampleNameFirst: Boolean = false): Map<String, ContigAndGamete> {
         val sampleNameToChrAndSample = mutableMapOf<String, ContigAndGamete>()
         for(chrName in chrIndexMap.keys) {
             for(gameteName in gameteIndexMap.keys) {
-                val sampleName = "${chrName}_${gameteName}"
+                val sampleName = RopeBWTUtils.combinedContigName(chrName, gameteName, sampleNameFirst)
                 sampleNameToChrAndSample[sampleName] = ContigAndGamete(chrName, gameteName)
             }
         }

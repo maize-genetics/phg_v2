@@ -143,6 +143,28 @@ class RopeBwtChrIndexTest {
     }
 
     @Test
+    fun testProcessKeyFileRecordSampleNameFirst() {
+        val ropeBwtChrIndex = RopeBwtChrIndex()
+        val fastaFile = "data/test/smallseq/Ref.fa"
+        val sampleName = "sample1"
+        val renameFastaDir = tempTestDir
+        val (renameFastaFile, contigLengthPairs) = ropeBwtChrIndex.processKeyFileRecord(fastaFile, sampleName, renameFastaDir, sampleNameFirst = true)
+
+        //check the output file - contig name should now be sampleName_contigName
+        val originalNucSeq = NucSeqIO(fastaFile).readAll()
+        NucSeqIO(renameFastaFile).readAll().forEach { nucSeq ->
+            val contigName = nucSeq.key.removePrefix("${sampleName}_")
+            val originalSeq = originalNucSeq[contigName]
+            assertEquals(originalSeq!!.id, contigName)
+            assertEquals(originalSeq.seq(), nucSeq.value.seq())
+        }
+
+        //check the contig length pairs
+        val contigLengths = NucSeqIO(fastaFile).readAll().map { Pair("${sampleName}_${it.key}", it.value.seq().length) }
+        assertEquals(contigLengths, contigLengthPairs)
+    }
+
+    @Test
     fun testRenameFastaSeqs() {
         val ropeBwtChrIndex = RopeBwtChrIndex()
         val fastaFile = "data/test/smallseq/Ref.fa"
@@ -161,6 +183,32 @@ class RopeBwtChrIndexTest {
             val originalSeq = originalNucSeq[contigName]
             assertEquals(originalSeq!!.id, contigName)
             assertEquals(originalSeq.seq(), nucSeq.value.seq())
+        }
+    }
+
+    @Test
+    fun testRenameFastaSeqsSampleNameFirst() {
+        val ropeBwtChrIndex = RopeBwtChrIndex()
+        val fastaFile = "data/test/smallseq/Ref.fa"
+        val sampleName = "sample1"
+        val outputFileName = "$tempTestDir/RefRenameSampleNameFirst.fa"
+        val contigLengthPairs = mutableListOf<Pair<String, Int>>()
+        bufferedWriter( outputFileName ).use { writer ->
+            ropeBwtChrIndex.renameFastaSeqs(fastaFile, sampleName, writer, contigLengthPairs, sampleNameFirst = true)
+        }
+        val originalNucSeq = NucSeqIO(fastaFile).readAll()
+
+        //Check the output file - contig name should now be sampleName_contigName
+        NucSeqIO(outputFileName).readAll().forEach { nucSeq ->
+            val contigName = nucSeq.key.removePrefix("${sampleName}_")
+            val originalSeq = originalNucSeq[contigName]
+            assertEquals(originalSeq!!.id, contigName)
+            assertEquals(originalSeq.seq(), nucSeq.value.seq())
+        }
+
+        //Check the contig length pairs use the flipped naming order too
+        contigLengthPairs.forEach { (contigName, _) ->
+            assertTrue(contigName.startsWith("${sampleName}_"))
         }
     }
 

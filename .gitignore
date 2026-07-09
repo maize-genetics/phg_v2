@@ -106,5 +106,4 @@ src/test/kotlin/net/maizegenetics/phgv2/testData/testAnchorFile.txt
 site/
 
 # Misc LLM IDE integrations
-CLAUDE.md
 .claude/
