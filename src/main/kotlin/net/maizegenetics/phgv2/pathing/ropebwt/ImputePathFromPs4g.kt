@@ -157,9 +157,6 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         val keyFileLines = readInputFiles.getReadFiles()
         require(keyFileLines.isNotEmpty()) { "Must provide either --path-keyfile or --read-files." }
 
-
-        val pathFinder = PathFinderHMMPS4G(probCorrect, probSame, inbreedCoef)
-
         for (fileData in keyFileLines) {
             myLogger.info("Finding $pathType path for ${fileData.sampleName}")
             val ps4gReader = Ps4gFileReader(fileData.file1)
@@ -170,7 +167,6 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             myLogger.info("Contigs: $contigs")
 
             val outputFilepath = outputDir.resolve("${fileData.sampleName}_imputed_path.txt")
-            //chrom\tstart\tend\tparent1\tparent2
             outputFilepath.bufferedWriter().use { writer ->
                 writer.write("chrom\tstart\tend\tparent1\tparent2\n")
             }
@@ -190,7 +186,6 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                 val readMapForContig = ps4gReader.readMapForContig(contig)
                 check(readMapForContig != null) { "read data for contig $contig was null for ${fileData.sampleName}" }
 
-//                val contigPath = pathFinder.findDiploidPath(contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet)
                 val startTime = System.nanoTime()
                 val contigPath = ViterbiHMM(inbreedCoef, probSame, probCorrect)
                     .findDiploidPath(contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet)
@@ -200,7 +195,6 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                 outputFilepath.bufferedWriter(
                     options = arrayOf(StandardOpenOption.APPEND)
                 ).use { writer ->
-//                        writer.write("${it.first.contig}\t${it.first.position}\t${it.second}\t${it.third}\n")
                     var startPos = 1
                     var endPos = (contigPath[0].first.position + contigPath[1].first.position) / 2 * binSize
                     writer.write("${contigPath[0].first.contig}\t$startPos\t$endPos\t${contigPath[0].second}\t${contigPath[0].third}\n")

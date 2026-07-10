@@ -48,36 +48,6 @@ class PathFinderHMMPS4G(val probCorrect: Double,
         return resultList
     }
 
-    /**
-     * Find the best diploid path for a contig. Inputs are the contig name, a map of gamete index to name, and
-     * a map of int position (bin) to a list of Ps4gGameteSets. A Ps4gGameteSet contains an array of gamete indices and the count
-     * of the number of read hits to that set of gametes. The output is a list of triples: position, genome1, genome2.
-     */
-    fun findDiploidPath(contig: String,
-                        gameteIndexMap: Map<Int,String>,
-                        readMap: Map<Int, MutableList<Ps4gGameteSet>>,
-                        likelyParentSet: Set<Int>): List<Triple<Position, String, String>> {
-        myLogger.info("Finding diploid path for contig $contig")
-
-        //get the gamete index set
-        val gameteIndexSet = gameteIndexMap.keys
-//        val terminalPathNode = efficientDiploidViterbi(contig, readMap, gameteIndexSet, likelyParentSet)
-        val terminalPathNode = diploidViterbi(contig, readMap, gameteIndexSet, likelyParentSet)
-        var activePathNode = terminalPathNode
-
-        val resultList = mutableListOf<Triple<Position, String, String>>()
-        while (activePathNode.nodePosition.position > -1) {
-            val genome1 = gameteIndexMap[activePathNode.gameteIndex1] ?: "none"
-            val genome2 = gameteIndexMap[activePathNode.gameteIndex2] ?: "none"
-            resultList.add(Triple(activePathNode.nodePosition, genome1, genome2))
-            activePathNode = activePathNode.parent ?: DiploidPathNode(Position("na", 0), null, 0, 0, 0.0)
-        }
-
-        //at this point the result list is the path in reverse order, so it must be reversed.
-        resultList.reverse()
-        return resultList
-    }
-
     private fun haploidViterbi(
         chrom: String,
         readMap: Map<Int, MutableList<Ps4gGameteSet>>,
@@ -171,126 +141,6 @@ class PathFinderHMMPS4G(val probCorrect: Double,
         return paths.maxBy { it.pathProbability }
     }
 
-    private fun checkPathProbabilitiesForOverflow(paths: ArrayList<HaploidPathNode>) : ArrayList<HaploidPathNode> {
-        val minLimit = Double.MAX_VALUE * - 0.5
-
-
-        val minProb = paths.minOf { it.pathProbability }
-        return if (minProb < minLimit) {
-            val maxProb = paths.maxOf { it.pathProbability }
-            val adjustedPaths = ArrayList<HaploidPathNode>()
-            paths.forEach { path -> adjustedPaths.add(HaploidPathNode(path.nodePosition, path.parent, path.gameteIndex, path.pathProbability - maxProb)) }
-            adjustedPaths
-        } else paths
-    }
-
-    private fun diploidViterbi(
-        chrom: String,
-        readMap: Map<Int, MutableList<Ps4gGameteSet>>,
-        gameteIndexSet: Set<Int>,
-        parentSet: Set<Int>
-    ): DiploidPathNode {
-        myLogger.info("Finding path for chromosome $chrom using diploidViterbi")
-
-        val ngenomes = gameteIndexSet.size
-        val transition = DiploidTransitionWithInbreeding(sameGameteProbability, inbreedCoef, ngenomes)
-
-        //create emission probability
-        val emissionProb = DiploidEmissionProbabilityForLikelyParents(readMap, gameteIndexSet,
-            parentSet.sorted(), probCorrect)
-
-        var paths = ArrayList<DiploidPathNode>()
-        val sortedPositionList = readMap.keys.toList().sorted()
-
-        //Make the initial PathNode for each node in the first range.
-        //The path nodes keep track of all the nodes on a path by holding a link to the parent node of each node
-        //The initial node has position -1 since the first (real) bin is 0. The nodes are assigned equal probability.
-        //The value of the probability has no meaning by itself, so all the probabilities can be set to 0.0. What matters
-        //is the relative probabilities of the different paths. Since the probabilities are ln(probability) (natural log)
-        // this means that all initial probabilities are set to 1.
-
-        //if the inbreeding coefficient is > 0, then homozygous genotypes are more probable then heterozygous ones.
-        // Set the homozygous genotype probabilities = inbreedingCoef / ngenomes
-        //Set nHeterozygousGenotypes = ngenomes * (ngenomes - 1)
-
-        val homozygoteProb = ln(1.0 / ngenomes.toDouble())
-        val heterozygoteProb = ln(1.0 / (ngenomes * ngenomes - ngenomes).toDouble())
-        for (index1 in parentSet) {
-            for(index2 in parentSet) {
-                val initProb = if (index1 == index2) homozygoteProb else heterozygoteProb
-                paths.add(DiploidPathNode(Position("NA", -1), null, index1, index2, initProb))
-            }
-        }
-        for (positionIndex in sortedPositionList) {
-
-            val currentPosition = Position(chrom, positionIndex)
-            val newPaths = ArrayList<DiploidPathNode>()
-            //choose one node to use for the switch paths.
-            //val mostProbableParentNode = mostProbableNodes.random()
-            //val probSwitch = maxProb + logSwitch //the maximum total probability for any path with a switch
-
-            //create a mapping of indices to nodes
-            val indicesToNodeMap = paths.associate { node -> Pair(Pair(node.gameteIndex1, node.gameteIndex2), node) }
-
-            //iterate through all possible ordered pairs of gamete indices
-            for (index1 in parentSet) {
-                for(index2 in parentSet) {
-                    val indexPairEmissionProb = emissionProb.getLnProbObsGivenState(index1, index2, positionIndex)
-                    //for this ordered pair of indices find the node at the previous position that results in the highest total probability
-                    //then make that the parent node of the new node
-
-                    /*
-                    * Calculate the same path probabilty = previous node probability + transition probability
-                    * Calculate previous position path probability * transition probability for every node at the previous position
-                    * Find the maximum new path probability
-                    *
-                    * If this equals the same path probability, use same path for the new path.
-                    * Otherwise, create a list of path nodes that result in the maximum path probability.
-                    * Choose (at random) one of the maximum probability nodes as the previous node.
-                    * */
-
-                    val samePathNode = indicesToNodeMap[Pair(index1, index2)]
-                    check(samePathNode != null) {"indices $index1, $index2 did not map to a node"}
-                    val samePathProb = samePathNode.pathProbability +
-                            transition.calculate(Pair(samePathNode.gameteIndex1, samePathNode.gameteIndex2), Pair(index1, index2))
-
-                    val candidatePathList = paths
-                        .map { path -> Pair(path, path.pathProbability + transition.calculate(Pair(path.gameteIndex1, path.gameteIndex2), Pair(index1, index2))) }
-                    val maxProb = candidatePathList.maxOf { it.second }
-
-                    if (samePathProb >= maxProb) {
-                        val newPathProb = samePathProb + indexPairEmissionProb
-                        newPaths.add(DiploidPathNode(currentPosition, samePathNode, index1, index2, newPathProb))
-                    } else {
-                        val bestPath = candidatePathList.filter { it.second == maxProb }.random()
-                        val newPathProb = bestPath.second + indexPairEmissionProb
-                        newPaths.add(DiploidPathNode(currentPosition, bestPath.first, index1, index2, newPathProb))
-                    }
-
-                }
-            }
-            paths = newPaths
-        }
-        return paths.maxBy { it.pathProbability }
-    }
-
-
-    class DiploidTransition(val pNoSwitch: Double, numberOfGenomes: Int) {
-        val pSwitch = (1.0 - pNoSwitch) / (numberOfGenomes - 1)
-        val pss = ln(pSwitch * pSwitch)
-        val psn = ln(pSwitch * pNoSwitch)
-        val pnn = ln(pNoSwitch * pNoSwitch)
-        val samePathProbability = pnn
-
-        fun calculate(from: Pair<Int,Int>, to: Pair<Int,Int>): Double {
-            return if (from.first == to.first) {
-                if (from.second == to.second) pnn else psn
-            } else {
-                if (from.second == to.second) psn else pss
-            }
-        }
-    }
-
     class DiploidTransitionWithInbreeding(val pNoSwitch: Double, val inbreedingCoef: Double, numberOfGenomes: Int) {
         val pSwitch = (1.0 - pNoSwitch) / (numberOfGenomes - 1)
         val pss = pSwitch * pSwitch
@@ -330,23 +180,5 @@ class PathFinderHMMPS4G(val probCorrect: Double,
         }
 
     }
-
-    class DiploidTransitionType(inbreedingCoefficient: Double, nParents: Int, pNoSwitch: Double) {
-
-        private val c1 = inbreedingCoefficient / nParents
-        private val c2 = (1.0 - inbreedingCoefficient) / (nParents - 1) / nParents
-        private val pSwitch = (1 - pNoSwitch) / (nParents - 1)
-        private val pval1 = pNoSwitch * pNoSwitch
-        private val pval2 = c1 * pSwitch * pNoSwitch
-        private val pval3 = c2 * pSwitch * pNoSwitch
-        private val pval4 = pSwitch * pSwitch
-
-        val homToSame = ln(pval1 + pval2 + pval2 + pval4)
-        val hetToSame = ln(pval1 + pval3 + pval3 + pval4)
-        val singleSwitchToHom = ln(pval2 + pval4)
-        val singleSwitchToHet = ln(pval3 + pval4)
-        val doubleCrossover = ln(pval4)
-    }
-
 
 }
