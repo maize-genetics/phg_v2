@@ -12,6 +12,7 @@ import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.cli.logCommand
+import net.maizegenetics.phgv2.pathing.DiploidPS4GEmissionProbability
 import net.maizegenetics.phgv2.pathing.KeyFileData
 import net.maizegenetics.phgv2.pathing.MostLikelyPs4gParents
 import net.maizegenetics.phgv2.pathing.PathFinderHMMPS4G
@@ -188,7 +189,12 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                 //Generate list of (index, gamete name) in order by index
                 val readMapForContig = ps4gReader.readMapForContig(contig)
                 check(readMapForContig != null) { "read data for contig $contig was null for ${fileData.sampleName}" }
-                val contigPath = pathFinder.findDiploidPath(contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet)
+
+//                val contigPath = pathFinder.findDiploidPath(contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet)
+                val startTime = System.nanoTime()
+                val contigPath = ViterbiHMM(inbreedCoef, probSame, probCorrect)
+                    .findDiploidPath(contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet)
+                println("elapsed time for #contig was ${(System.nanoTime() - startTime) / 1_000_000_000.0} sec")
 
                 //write to the output file
                 outputFilepath.bufferedWriter(

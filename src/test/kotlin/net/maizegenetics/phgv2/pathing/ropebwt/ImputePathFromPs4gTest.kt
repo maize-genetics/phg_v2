@@ -287,7 +287,7 @@ class ImputePathFromPs4gTest {
         val outputDir = TestExtension.testOutputDir
         val result = ImputePathFromPs4g().test(
             "--read-file /Users/pjbra/temp/CML247XOh43-sr-simulated5000.ps4g --out-path-dir $outputDir --path-type diploid " +
-                    "--prob-correct 0.99 --prob-same 0.9999 --inbreed-coef 0.8 --bin-size 5000 --n-parents 5"
+                    "--prob-correct 0.99 --prob-same 0.9999 --inbreed-coef 0.5 --bin-size 5000 --n-parents 10"
         )
         println(result.stderr)
     }
