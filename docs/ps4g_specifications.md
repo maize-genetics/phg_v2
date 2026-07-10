@@ -179,6 +179,7 @@ phg convert-ropebwt2ps4g-file \
 - `--min-mem-length`: Minimum MEM length to consider (default: 148)
 - `--max-num-hits`: Maximum number of haplotype hits allowed (default: 50)
 - `--sort-positions`: Sort output by genomic position (default: true)
+- `--sample-name-first`: Reconstruct aligned contig names as `sampleName_contigName` instead of the default `contigName_sampleName` (default: false). Must match the value used for `rope-bwt-chr-index` and `build-spline-knots`, or gamete lookups will silently fail to match.
 
 ### 3. From VCF Files (`convert-vcf2ps4g-file`)
 
