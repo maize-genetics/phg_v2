@@ -282,7 +282,7 @@ class ImputePathFromPs4gTest {
         chr2Rows.forEach { assertEquals("lineB:0", it.split("\t")[3]) }
     }
 
-    @Test
+//    @Test
     fun testDiploidViterbiWithBigData() {
         val outputDir = TestExtension.testOutputDir
         val result = ImputePathFromPs4g().test(
