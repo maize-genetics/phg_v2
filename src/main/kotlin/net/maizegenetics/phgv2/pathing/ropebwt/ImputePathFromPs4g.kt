@@ -86,6 +86,9 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
         logCommand(this)
 
+        val maxMemory = Runtime.getRuntime().maxMemory()
+        println("Max memory is ${maxMemory/1024/1024}mb")
+
         //create the outParentsDir, if it does not already exist
         if (outPathDir.isNotBlank()) File(outPathDir).mkdirs()
         val outputDir = Paths.get(outPathDir)
@@ -105,14 +108,11 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         val keyFileLines = readInputFiles.getReadFiles()
         require(keyFileLines.isNotEmpty()) { "Must provide either --path-keyfile or --read-files." }
 
-
-        val pathFinder = PathFinderHMMPS4G(probCorrect, probSame, inbreedCoef)
-
-
         for (fileData in keyFileLines) {
             myLogger.info("Finding $pathType path for ${fileData.sampleName}")
             val ps4gReader = Ps4gFileReader(fileData.file1)
             val contigs = ps4gReader.contigSet()
+            val parentSet = ps4gReader.gameteIndexMap().keys
 
             val outputFilepath = outputDir.resolve("${fileData.sampleName}_imputed_path.bed")
             outputFilepath.bufferedWriter().use { writer ->
@@ -125,7 +125,10 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                 //Generate list of (index, gamete name) in order by index
                 val readMapForContig = ps4gReader.readMapForContig(contig)
                 check(readMapForContig != null) { "read data for contig $contig was null for ${fileData.sampleName}" }
-                val contigPath = pathFinder.findHaploidPath(contig, ps4gReader.gameteIndexMap(), readMapForContig)
+                val startTime = System.nanoTime()
+                val contigPath = ViterbiHMM(inbreedCoef, probSame, probCorrect)
+                    .findHaploidPath(contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet)
+                println("elapsed time for $contig was ${(System.nanoTime() - startTime) / 1_000_000_000.0} sec")
 
                 //write to the output file
                 outputFilepath.bufferedWriter(
@@ -134,15 +137,17 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                     var startPos = 1
                     var endPos = (contigPath[0].first.position + contigPath[1].first.position) / 2 * binSize
                     writer.write("${contigPath[0].first.contig}\t$startPos\t$endPos\t${contigPath[0].second}\n")
-                    (1 .. (contigPath.size - 2)).forEach { ndx ->
+                    (1..(contigPath.size - 2)).forEach { ndx ->
 
-                        startPos = ((contigPath[ndx -1].first.position + contigPath[ndx].first.position) / 2 ) * binSize + 1
+                        startPos =
+                            ((contigPath[ndx - 1].first.position + contigPath[ndx].first.position) / 2) * binSize + 1
                         endPos = (contigPath[ndx].first.position + contigPath[ndx + 1].first.position) / 2 * binSize
                         writer.write("${contigPath[ndx].first.contig}\t$startPos\t$endPos\t${contigPath[ndx].second}\n")
                     }
+
                     //write the last record
                     val ndx = contigPath.size - 1
-                    startPos = ((contigPath[ndx - 1].first.position + contigPath[ndx].first.position) / 2 ) * binSize + 1
+                    startPos = ((contigPath[ndx - 1].first.position + contigPath[ndx].first.position) / 2) * binSize + 1
                     endPos = contigPath[ndx].first.position * binSize
                     writer.write("${contigPath[ndx].first.contig}\t$startPos\t$endPos\t${contigPath[ndx].second}\n")
                 }
@@ -189,7 +194,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                 val startTime = System.nanoTime()
                 val contigPath = ViterbiHMM(inbreedCoef, probSame, probCorrect)
                     .findDiploidPath(contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet)
-                println("elapsed time for #contig was ${(System.nanoTime() - startTime) / 1_000_000_000.0} sec")
+                println("elapsed time for $contig was ${(System.nanoTime() - startTime) / 1_000_000_000.0} sec")
 
                 //write to the output file
                 outputFilepath.bufferedWriter(

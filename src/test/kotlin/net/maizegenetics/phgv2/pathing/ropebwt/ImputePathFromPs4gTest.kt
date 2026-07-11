@@ -282,12 +282,23 @@ class ImputePathFromPs4gTest {
         chr2Rows.forEach { assertEquals("lineB:0", it.split("\t")[3]) }
     }
 
-//    @Test
+    @Test
     fun testDiploidViterbiWithBigData() {
         val outputDir = TestExtension.testOutputDir
         val result = ImputePathFromPs4g().test(
             "--read-file /Users/pjbra/temp/CML247XOh43-sr-simulated5000.ps4g --out-path-dir $outputDir --path-type diploid " +
                     "--prob-correct 0.99 --prob-same 0.9999 --inbreed-coef 0.5 --bin-size 5000 --n-parents 10"
+        )
+        println(result.stderr)
+    }
+
+    @Test
+    fun testHaploidViterbiWithBigData() {
+//        /Users/pjbra/temp/2220_7332_6944_H9CD2ADXX_Oh43_AGTCAA_R1.ps4g
+        val outputDir = TestExtension.testOutputDir
+        val result = ImputePathFromPs4g().test(
+            "--read-file /Users/pjbra/temp/CML247XOh43-sr-simulated5000.ps4g --out-path-dir $outputDir --path-type haploid " +
+                    "--prob-correct 0.99 --prob-same 0.9999 --bin-size 5000"
         )
         println(result.stderr)
     }
