@@ -105,7 +105,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         for (fileData in keyFileLines) {
             myLogger.info("Finding $pathType path for ${fileData.sampleName}")
             val ps4gReader = Ps4gFileReader(fileData.file1)
-            val contigs = ps4gReader.contigSet()
+            val contigs = ps4gReader.contigSet().filter{!it.startsWith("scaf")}
             val parentSet = ps4gReader.gameteIndexMap().keys
 
             val outputFilepath = outputDir.resolve("${fileData.sampleName}_imputed_path.bed")
@@ -128,21 +128,25 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                 outputFilepath.bufferedWriter(
                     options = arrayOf(StandardOpenOption.APPEND)
                 ).use { writer ->
-                    var startPos = 1
-                    var endPos = (contigPath[0].first.position + contigPath[1].first.position) / 2 * binSize
-                    writer.write("${contigPath[0].first.contig}\t$startPos\t$endPos\t${contigPath[0].second}\n")
-                    (1..(contigPath.size - 2)).forEach { ndx ->
+                    if (contigPath.size > 1) {
+                        var startPos = 1
+                        var endPos = (contigPath[0].first.position + contigPath[1].first.position) / 2 * binSize
+                        writer.write("${contigPath[0].first.contig}\t$startPos\t$endPos\t${contigPath[0].second}\n")
 
-                        startPos =
-                            ((contigPath[ndx - 1].first.position + contigPath[ndx].first.position) / 2) * binSize + 1
-                        endPos = (contigPath[ndx].first.position + contigPath[ndx + 1].first.position) / 2 * binSize
-                        writer.write("${contigPath[ndx].first.contig}\t$startPos\t$endPos\t${contigPath[ndx].second}\n")
+                        (1..(contigPath.size - 2)).forEach { ndx ->
+
+                            startPos =
+                                ((contigPath[ndx - 1].first.position + contigPath[ndx].first.position) / 2) * binSize + 1
+                            endPos = (contigPath[ndx].first.position + contigPath[ndx + 1].first.position) / 2 * binSize
+                            writer.write("${contigPath[ndx].first.contig}\t$startPos\t$endPos\t${contigPath[ndx].second}\n")
+                        }
+
                     }
 
                     //write the last record
                     val ndx = contigPath.size - 1
-                    startPos = ((contigPath[ndx - 1].first.position + contigPath[ndx].first.position) / 2) * binSize + 1
-                    endPos = contigPath[ndx].first.position * binSize
+                    val startPos = ((contigPath[ndx - 1].first.position + contigPath[ndx].first.position) / 2) * binSize + 1
+                    val endPos = contigPath[ndx].first.position * binSize
                     writer.write("${contigPath[ndx].first.contig}\t$startPos\t$endPos\t${contigPath[ndx].second}\n")
                 }
 
