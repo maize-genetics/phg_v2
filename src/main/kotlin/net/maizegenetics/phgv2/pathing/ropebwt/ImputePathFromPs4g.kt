@@ -12,14 +12,9 @@ import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.cli.logCommand
-import net.maizegenetics.phgv2.pathing.DiploidPS4GEmissionProbability
-import net.maizegenetics.phgv2.pathing.KeyFileData
 import net.maizegenetics.phgv2.pathing.MostLikelyPs4gParents
-import net.maizegenetics.phgv2.pathing.PathFinderHMMPS4G
 import net.maizegenetics.phgv2.pathing.PathInputFile
-import net.maizegenetics.phgv2.utils.Position
 import org.apache.logging.log4j.LogManager
-import org.jetbrains.letsPlot.Stat
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -91,7 +86,6 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
         //create the outParentsDir, if it does not already exist
         if (outPathDir.isNotBlank()) File(outPathDir).mkdirs()
-        val outputDir = Paths.get(outPathDir)
 
         val isHaploid = pathType == "haploid"
 
@@ -128,7 +122,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                 val startTime = System.nanoTime()
                 val contigPath = ViterbiHMM(inbreedCoef, probSame, probCorrect)
                     .findHaploidPath(contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet)
-                println("elapsed time for $contig was ${(System.nanoTime() - startTime) / 1_000_000_000.0} sec")
+                myLogger.info("elapsed time for $contig was ${(System.nanoTime() - startTime) / 1_000_000_000.0} sec")
 
                 //write to the output file
                 outputFilepath.bufferedWriter(
@@ -194,7 +188,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                 val startTime = System.nanoTime()
                 val contigPath = ViterbiHMM(inbreedCoef, probSame, probCorrect)
                     .findDiploidPath(contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet)
-                println("elapsed time for $contig was ${(System.nanoTime() - startTime) / 1_000_000_000.0} sec")
+                myLogger.info("elapsed time for $contig was ${(System.nanoTime() - startTime) / 1_000_000_000.0} sec")
 
                 //write to the output file
                 outputFilepath.bufferedWriter(

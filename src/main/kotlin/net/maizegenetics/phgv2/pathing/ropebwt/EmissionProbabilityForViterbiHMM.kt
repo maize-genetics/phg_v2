@@ -80,18 +80,16 @@ class EmissionProbabilityForViterbiHMM(val readMap: Map<Int, MutableList<Ps4gGam
      */
     private fun indexCountsForOneIndex(gameteList: MutableList<Ps4gGameteSet>, index: Int): Int {
         val indexCount = gameteList.filter{gameteSet -> index in gameteSet.gameteIndices}.sumOf { gameteSet -> gameteSet.count }
-        val total = gameteList.sumOf { gameteSet -> gameteSet.count }
         return indexCount
     }
 
     private fun indexCountsForTwoIndices(gameteList: MutableList<Ps4gGameteSet>, index1: Int, index2: Int): Int {
         val indexCount = gameteList.filter{gameteSet -> index1 in gameteSet.gameteIndices || index2 in gameteSet.gameteIndices}.sumOf { gameteSet -> gameteSet.count }
-        val total = gameteList.sumOf { gameteSet -> gameteSet.count }
         return indexCount
     }
 
     private fun cacheSomeProbabilities(): Array<DoubleArray> {
-        val lnBinomialProbabilities = Array<DoubleArray>(maxNumberOfTrials) {i -> DoubleArray(i + 1)}
+        val lnBinomialProbabilities = Array(maxNumberOfTrials) {i -> DoubleArray(i + 1)}
         lnBinomialProbabilities[0][0] = 0.0
         for (numberOfTrials in 1 until maxNumberOfTrials) {
             val distribution = BinomialDistribution(numberOfTrials, probCorrect)

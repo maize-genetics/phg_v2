@@ -1,6 +1,5 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
-import net.maizegenetics.phgv2.pathing.PathFinderHMMPS4G
 import net.maizegenetics.phgv2.pathing.ropebwt.Ps4gFileReader.Ps4gGameteSet
 import net.maizegenetics.phgv2.utils.Position
 import org.apache.logging.log4j.LogManager
@@ -47,7 +46,6 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
                         gameteIndexMap: Map<Int,String>,
                         readMap: Map<Int, MutableList<Ps4gGameteSet>>,
                         likelyParentSet: Set<Int>): List<Triple<Position, String, String>> {
-        myLogger.info("Finding diploid path for contig $contig using ViterbiHMM")
 
         //create the transition matrix
         val nParents = likelyParentSet.size
@@ -59,8 +57,7 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
             for (index2 in 0 until nParents) {
                 for (index3 in 0 until nParents) {
                     for (index4 in 0 until nParents) {
-                        transitionMatrix[ptr++] = PathFinderHMMPS4G
-                            .DiploidTransitionWithInbreeding(sameGameteProbability, inbreedingCoefficient, nParents)
+                        transitionMatrix[ptr++] = DiploidTransitionProbability(sameGameteProbability, inbreedingCoefficient, nParents)
                             .calculate(Pair(index1, index2), Pair(index3, index4))
                     }
                 }
@@ -223,7 +220,7 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
                 val emissionLogProbability =  emissionLogProbabilities[currentStateIndex]
 
                 //here we make the same state the best state so that it will be chosen unless some other is better
-                var samePathLogProbability = previousBestLogProbability[currentStateIndex] + lnNoSwitch
+                val samePathLogProbability = previousBestLogProbability[currentStateIndex] + lnNoSwitch
 
                 //get the highest probability previous path
                 var bestPreviousPathProbability = previousBestLogProbability[0]
