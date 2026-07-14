@@ -9,7 +9,7 @@ class EmissionProbabilityForViterbiHMM(val readMap: Map<Int, MutableList<Ps4gGam
     val positionList = readMap.keys.sorted()
     val nParents = parentList.size
     val numberOfPairs = nParents * nParents
-    val maxNumberOfTrials = 100
+    val maxNumberOfTrials = 50
     val lnProbabilityArray = cacheSomeProbabilities()
 
     fun getLnHaploidEmissionProbabilityArray(positionIndex: Int) : DoubleArray {
