@@ -3,6 +3,11 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 import net.maizegenetics.phgv2.pathing.ropebwt.Ps4gFileReader.Ps4gGameteSet
 import org.apache.commons.math3.distribution.BinomialDistribution
 
+/**
+ * Calculates emission probabilities based on observations stored in the [readMap]. It has methods that return an array
+ * of probabilities for a position. The values in the array are indexed a sorted list of parents in the [parentSet].
+ * [probCorrect] is the probability that a read coming from parent A maps to parent A.
+ */
 class EmissionProbabilityForViterbiHMM(val readMap: Map<Int, MutableList<Ps4gGameteSet>>,
                                        parentSet: Set<Int>, val probCorrect: Double) {
     val parentList = parentSet.sorted()
@@ -12,6 +17,11 @@ class EmissionProbabilityForViterbiHMM(val readMap: Map<Int, MutableList<Ps4gGam
     val maxNumberOfTrials = 50
     val lnProbabilityArray = cacheSomeProbabilities()
 
+    /**
+     * Returns a double array of the natural log of emission probabilities at the input [positionIndex].
+     * The length of the array is the number of parents in the parent set used to create the class. The order within the
+     * array corresponds to a sorted list of the original indices of the parents.
+     */
     fun getLnHaploidEmissionProbabilityArray(positionIndex: Int) : DoubleArray {
         //get the list of gamete sets for this position
         val gameteSetList = readMap[positionList[positionIndex]]!!
@@ -36,6 +46,11 @@ class EmissionProbabilityForViterbiHMM(val readMap: Map<Int, MutableList<Ps4gGam
         return probabilityArray
     }
 
+    /**
+     * Returns a double array of the natural log of emission probabilities at the input [positionIndex].
+     * The length of the array is the square of the number of parents in the parent set used to create the class. The
+     * resulting array is indexed on ordered pairs of the parent indices.
+     */
     fun getLnDiploidEmissionProbabilityArray(positionIndex: Int) : DoubleArray {
         //get the list of gamete sets for this position
         val gameteSetList = readMap[positionList[positionIndex]]!!
