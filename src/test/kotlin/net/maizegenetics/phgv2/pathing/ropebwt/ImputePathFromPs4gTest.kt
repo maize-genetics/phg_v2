@@ -79,7 +79,8 @@ class ImputePathFromPs4gTest {
     @Test
     fun testImputeHaploidPathOutput() {
         // All reads support gamete 0 (lineA:0) at every position.
-        // The HMM should assign the entire chromosome to lineA:0.
+        // The HMM should assign the entire chromosome to lineA:0, and the 5 bins should
+        // merge into a single record spanning the contig.
         val gametes = mapOf(
             SampleGamete("lineA", 0) to 0,
             SampleGamete("lineB", 0) to 1
@@ -105,9 +106,37 @@ class ImputePathFromPs4gTest {
         val lines = bedFile.readLines()
         assertEquals("chrom\tstart\tend\tparent1", lines[0])
 
-        // All data rows should call lineA:0
         val dataLines = lines.drop(1)
-        assertFalse(dataLines.isEmpty(), "BED file has no data rows")
+        assertEquals(1, dataLines.size, "Expected the 5 identical bins to merge into 1 record")
+        assertEquals(listOf("chr1", "0", "5", "lineA:0"), dataLines[0].split("\t"))
+    }
+
+    @Test
+    fun testImputeHaploidPathExpandBins() {
+        // Same data as testImputeHaploidPathOutput, but --expand-bins should suppress merging
+        // and emit one record per bin.
+        val gametes = mapOf(
+            SampleGamete("lineA", 0) to 0,
+            SampleGamete("lineB", 0) to 1
+        )
+        val ps4gData = (1..5).map { bin ->
+            PS4GData(listOf(0), Position("chr1", bin), 10)
+        }
+        val ps4gFile = "$tempTestDir/expandBins.ps4g"
+        createPs4gFile(ps4gFile, gametes, ps4gData)
+
+        val keyFile = "$tempTestDir/expandBinsKey.txt"
+        createKeyFile(keyFile, "expandSample", ps4gFile)
+
+        val outputDir = "$tempTestDir/expandOut/"
+        val result = ImputePathFromPs4g().test(
+            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 --prob-same 0.9999 " +
+                    "--bin-size 1 --expand-bins"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val dataLines = File("$outputDir/expandSample_imputed_path.bed").readLines().drop(1)
+        assertEquals(5, dataLines.size, "Expected one record per bin with --expand-bins")
         dataLines.forEach { line ->
             val cols = line.split("\t")
             assertEquals("chr1", cols[0])
@@ -117,13 +146,14 @@ class ImputePathFromPs4gTest {
 
     @Test
     fun testImputeHaploidPathBedCoordinates() {
-        // Use bins 10, 20, 30, 40, 50 with binSize=100 so we can verify the midpoint arithmetic exactly.
-        // Expected coordinate boundaries:
-        //   Row 0: start=1,    end=(10+20)/2*100=1500
-        //   Row 1: start=1501, end=(20+30)/2*100=2500
-        //   Row 2: start=2501, end=(30+40)/2*100=3500
-        //   Row 3: start=3501, end=(40+50)/2*100=4500
-        //   Row 4: start=4501, end=50*100=5000
+        // Use bins 10, 20, 30, 40, 50 with binSize=100 so we can verify the midpoint arithmetic
+        // exactly. Coordinates are 0-based half-open, and --expand-bins keeps every cut so the
+        // arithmetic is visible:
+        //   Row 0: [0,    (10+20)/2*100=1500)
+        //   Row 1: [1500, (20+30)/2*100=2500)
+        //   Row 2: [2500, (30+40)/2*100=3500)
+        //   Row 3: [3500, (40+50)/2*100=4500)
+        //   Row 4: [4500, 50*100=5000)
         val gametes = mapOf(
             SampleGamete("lineA", 0) to 0,
             SampleGamete("lineB", 0) to 1
@@ -139,7 +169,8 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/coordOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 --prob-same 0.9999 --bin-size 100"
+            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 --prob-same 0.9999 " +
+                    "--bin-size 100 --expand-bins"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -148,20 +179,22 @@ class ImputePathFromPs4gTest {
 
         fun cols(row: Int) = lines[row].split("\t")
 
-        assertEquals("1", cols(0)[1])
-        assertEquals("1500", cols(0)[2])
+        assertEquals(listOf("0", "1500"), listOf(cols(0)[1], cols(0)[2]))
+        assertEquals(listOf("1500", "2500"), listOf(cols(1)[1], cols(1)[2]))
+        assertEquals(listOf("2500", "3500"), listOf(cols(2)[1], cols(2)[2]))
+        assertEquals(listOf("3500", "4500"), listOf(cols(3)[1], cols(3)[2]))
+        assertEquals(listOf("4500", "5000"), listOf(cols(4)[1], cols(4)[2]))
 
-        assertEquals("1501", cols(1)[1])
-        assertEquals("2500", cols(1)[2])
+        // Merging is the default, so the same input collapses to one record spanning the contig.
+        val mergedDir = "$tempTestDir/coordMergedOut/"
+        val mergedResult = ImputePathFromPs4g().test(
+            "--path-keyfile $keyFile --out-path-dir $mergedDir --prob-correct 0.99 --prob-same 0.9999 --bin-size 100"
+        )
+        assertEquals(0, mergedResult.statusCode, "Command failed:\n${mergedResult.stderr}")
 
-        assertEquals("2501", cols(2)[1])
-        assertEquals("3500", cols(2)[2])
-
-        assertEquals("3501", cols(3)[1])
-        assertEquals("4500", cols(3)[2])
-
-        assertEquals("4501", cols(4)[1])
-        assertEquals("5000", cols(4)[2])
+        val mergedLines = File("$mergedDir/coordSample_imputed_path.bed").readLines().drop(1)
+        assertEquals(1, mergedLines.size, "Expected the 5 identical bins to merge into 1 record")
+        assertEquals(listOf("chr1", "0", "5000", "lineA:0"), mergedLines[0].split("\t"))
     }
 
     @Test
@@ -191,14 +224,13 @@ class ImputePathFromPs4gTest {
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
+        // The 8 bins collapse to two records that meet at the recombination point,
+        // which falls at the midpoint of bins 4 and 5: (4+5)/2*1 = 4.
         val lines = File("$outputDir/recombSample_imputed_path.bed").readLines().drop(1)
-        assertEquals(8, lines.size)
+        assertEquals(2, lines.size, "Expected one record per side of the recombination")
 
-        val parents = lines.map { it.split("\t")[3] }
-        // First half should be lineA:0
-        parents.take(4).forEach { assertEquals("lineA:0", it) }
-        // Second half should be lineB:0
-        parents.drop(4).forEach { assertEquals("lineB:0", it) }
+        assertEquals(listOf("chr1", "0", "4", "lineA:0"), lines[0].split("\t"))
+        assertEquals(listOf("chr1", "4", "8", "lineB:0"), lines[1].split("\t"))
     }
 
     @Test
@@ -225,21 +257,15 @@ class ImputePathFromPs4gTest {
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
-        val txtFile = File("$outputDir/diploidSample_imputed_path.txt")
-        assertTrue(txtFile.exists(), "Output txt file was not created")
+        val bedFile = File("$outputDir/diploidSample_imputed_path.bed")
+        assertTrue(bedFile.exists(), "Output BED file was not created")
 
-        val lines = txtFile.readLines()
+        val lines = bedFile.readLines()
         assertEquals("chrom\tstart\tend\tparent1\tparent2", lines[0])
 
         val dataLines = lines.drop(1)
-        assertFalse(dataLines.isEmpty(), "Diploid output has no data rows")
-        dataLines.forEach { line ->
-            val cols = line.split("\t")
-            assertEquals(5, cols.size, "Expected 5 columns in: $line")
-            assertEquals("chr1", cols[0])
-            assertEquals("lineA:0", cols[3], "Expected parent1=lineA:0 in: $line")
-            assertEquals("lineA:0", cols[4], "Expected parent2=lineA:0 in: $line")
-        }
+        assertEquals(1, dataLines.size, "Expected the 5 identical bins to merge into 1 record")
+        assertEquals(listOf("chr1", "0", "5", "lineA:0", "lineA:0"), dataLines[0].split("\t"))
     }
 
     @Test
@@ -269,17 +295,13 @@ class ImputePathFromPs4gTest {
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
+        // 2 bins per contig, each contig uniform, so each contig merges to a single record.
+        // Merging must not run across the contig boundary even though both contigs start at bin 1.
         val lines = File("$outputDir/multiSample_imputed_path.bed").readLines().drop(1)
-        // 2 bins per contig = 4 data rows total
-        assertEquals(4, lines.size, "Expected 4 data rows for 2 contigs × 2 bins")
+        assertEquals(2, lines.size, "Expected 1 merged record per contig")
 
-        val chr1Rows = lines.filter { it.startsWith("chr1\t") }
-        val chr2Rows = lines.filter { it.startsWith("chr2\t") }
-        assertEquals(2, chr1Rows.size)
-        assertEquals(2, chr2Rows.size)
-
-        chr1Rows.forEach { assertEquals("lineA:0", it.split("\t")[3]) }
-        chr2Rows.forEach { assertEquals("lineB:0", it.split("\t")[3]) }
+        assertEquals(listOf("chr1", "0", "2", "lineA:0"), lines[0].split("\t"))
+        assertEquals(listOf("chr2", "0", "2", "lineB:0"), lines[1].split("\t"))
     }
 
 }
