@@ -5,10 +5,37 @@ import net.maizegenetics.phgv2.utils.Position
 import org.apache.logging.log4j.LogManager
 import kotlin.math.ln
 
+/**
+ * Runs the Viterbi algorithm to infer the most likely path (or pair of paths) of parent gametes
+ * through the ordered bins of a single contig, given the reads mapped to each bin.
+ *
+ * The hidden states are the candidate parent gametes: for a haploid path each state is a single
+ * parent; for a diploid path each state is an ordered pair of parents (nParents * nParents states).
+ * Emission probabilities come from [EmissionProbabilityForViterbiHMM] and are driven by which
+ * gamete sets the reads in each bin hit. Transition probabilities favor staying on the same
+ * gamete(s) between adjacent bins, with a recombination penalty for switching.
+ *
+ * @param inbreedingCoefficient the inbreeding coefficient (0.0..1.0); used to set diploid initial
+ *   state probabilities (probability of a homozygous vs. heterozygous state). Diploid only.
+ * @param sameGameteProbability the probability that the path stays on the same gamete when moving
+ *   from one bin to the next (1 - recombination probability).
+ * @param probCorrect the probability that a read maps to the correct haplotype; passed to the
+ *   emission probability calculator.
+ */
 class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: Double, val probCorrect: Double
 ) {
     private val myLogger = LogManager.getLogger(ViterbiHMM::class.java)
 
+    /**
+     * Finds the single best (haploid) path of parent gametes through the bins of a contig.
+     *
+     * @param contig the name of the contig being imputed.
+     * @param gameteIndexMap map of gamete index to gamete (parent) name.
+     * @param readMap map of bin position to the list of [Ps4gGameteSet]s observed in that bin; each
+     *   [Ps4gGameteSet] holds the gamete indices hit and the count of reads hitting that set.
+     * @param likelyParentSet the set of gamete indices to consider as candidate parents (states).
+     * @return a list of (position, parent name) pairs, one per bin, ordered by bin position.
+     */
     fun findHaploidPath(contig: String,
                         gameteIndexMap: Map<Int,String>,
                         readMap: Map<Int, MutableList<Ps4gGameteSet>>,
@@ -37,10 +64,18 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
     }
 
     /**
+     * Finds the best diploid path (a pair of parent gametes per bin) through the bins of a contig.
      *
-     * Find the best diploid path for a contig. Inputs are the contig name, a map of gamete index to name, and
-     * a map of int position (bin) to a list of Ps4gGameteSets. A Ps4gGameteSet contains an array of gamete indices and the count
-     * of the number of read hits to that set of gametes. The output is a list of triples: position, genome1, genome2.
+     * A full transition matrix over the nParents * nParents ordered parent pairs is built from
+     * [sameGameteProbability] and [inbreedingCoefficient], and initial state probabilities are set
+     * so that homozygous and heterozygous states are weighted by the inbreeding coefficient.
+     *
+     * @param contig the name of the contig being imputed.
+     * @param gameteIndexMap map of gamete index to gamete (parent) name.
+     * @param readMap map of bin position to the list of [Ps4gGameteSet]s observed in that bin; each
+     *   [Ps4gGameteSet] holds the gamete indices hit and the count of reads hitting that set.
+     * @param likelyParentSet the set of gamete indices to consider as candidate parents.
+     * @return a list of (position, parent1 name, parent2 name) triples, one per bin, ordered by bin position.
      */
     fun findDiploidPath(contig: String,
                         gameteIndexMap: Map<Int,String>,
@@ -94,6 +129,25 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         return resultList
     }
 
+    /**
+     * General Viterbi implementation that takes an explicit transition matrix. Used for the diploid
+     * case where transition probabilities differ per state pair.
+     *
+     * Memory is kept low by rolling two log-probability buffers (only the previous position is
+     * needed to compute the current one); only the back-pointer array retains full history for
+     * backtracing. Arrays are flattened as [position * stateCount + stateIndex] for cache-friendly
+     * access. Same-state transitions are preferred on ties so the path stays put unless another
+     * state is strictly better.
+     *
+     * @param stateCount the number of hidden states.
+     * @param positionCount the number of positions (bins) in the sequence.
+     * @param initialLogProbabilities per-state initial log probabilities (length stateCount).
+     * @param transitionLogProbabilities flattened stateCount x stateCount matrix of transition log
+     *   probabilities, indexed as [previousState * stateCount + currentState].
+     * @param emissionLogProbabilityFunction function returning the per-state emission log
+     *   probabilities for a given position index.
+     * @return a pair of (best state index per position, log probability of that best path).
+     */
     fun viterbiOptimized(
         stateCount: Int,
         positionCount: Int,
@@ -184,6 +238,23 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
 
     }
 
+    /**
+     * Viterbi implementation specialized for the haploid case. Instead of a full transition matrix,
+     * transitions are described by just two log probabilities: staying on the same gamete
+     * (ln(sameGameteProbability)) or switching to any of the other states
+     * (ln((1 - sameGameteProbability) / (stateCount - 1))). This lets each position be computed by
+     * finding the single best previous state once, rather than scanning all state pairs.
+     *
+     * Memory is kept low by rolling two log-probability buffers; only the back-pointer array retains
+     * full history for backtracing. Arrays are flattened as [position * stateCount + stateIndex].
+     *
+     * @param stateCount the number of hidden states (candidate parents).
+     * @param positionCount the number of positions (bins) in the sequence.
+     * @param initialLogProbabilities per-state initial log probabilities (length stateCount).
+     * @param emissionLogProbabilityFunction function returning the per-state emission log
+     *   probabilities for a given position index.
+     * @return a pair of (best state index per position, log probability of that best path).
+     */
     fun viterbiOptimizedForHaploid(
         stateCount: Int,
         positionCount: Int,

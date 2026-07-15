@@ -77,6 +77,10 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     val myLogger = LogManager.getLogger(ImputePathFromPs4g::class.java)
 
+    /**
+     * Entry point for the command. Creates the output directory and dispatches to either
+     * [imputeHaploidPath] or [imputeDiploidPath] depending on the value of [pathType].
+     */
     override fun run() {
 
         logCommand(this)
@@ -98,6 +102,12 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     }
 
+    /**
+     * Imputes a single (haploid) haplotype path for each ps4g file supplied via --path-keyfile
+     * or --read-file. For every sample, each non-scaffold contig is run through [ViterbiHMM.findHaploidPath]
+     * and the resulting path is written to <sampleName>_imputed_path.bed in [outputDir] as
+     * chrom/start/end/parent1 records.
+     */
     fun imputeHaploidPath(outputDir: Path) {
         val keyFileLines = readInputFiles.getReadFiles()
         require(keyFileLines.isNotEmpty()) { "Must provide either --path-keyfile or --read-files." }
@@ -156,6 +166,13 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     }
 
+    /**
+     * Imputes a pair of (diploid) haplotype paths for each ps4g file supplied via --path-keyfile
+     * or --read-file. For every sample, the parent set is optionally reduced to the [nParents] most
+     * likely parents via [MostLikelyPs4gParents], then each non-scaffold contig is run through
+     * [ViterbiHMM.findDiploidPath]. The resulting paths are written to <sampleName>_imputed_path.txt
+     * in [outputDir] as chrom/start/end/parent1/parent2 records.
+     */
     fun imputeDiploidPath(outputDir: Path) {
         val keyFileLines = readInputFiles.getReadFiles()
         require(keyFileLines.isNotEmpty()) { "Must provide either --path-keyfile or --read-files." }
