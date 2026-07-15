@@ -65,7 +65,7 @@ class MostLikelyPs4gParents(val ps4gReader: Ps4gFileReader, val chromosomeSet: S
             gameteCounts.remove(highestCountParent)
 
             if (bestParentSet.size < numberOfParents) {
-                val complimentParent = bestParentFromFilteredGameteSets(gameteSets, chosenParent)
+                val complimentParent = bestParentFromFilteredGameteSets(gameteSets, highestCountParent)
                 check(complimentParent != null) {"Could only choose ${bestParentSet.size} best parents."}
                 bestParentSet.add(complimentParent)
                 gameteCounts.remove(complimentParent)
@@ -92,7 +92,7 @@ class MostLikelyPs4gParents(val ps4gReader: Ps4gFileReader, val chromosomeSet: S
     /**
      * Tallies the read mapping hits to each gamete in [gameteSets].
      *
-     * @return a map of gamete index to the number of gamete sets in [gameteSets] that contain that index.
+     * @return a map of gamete index to the sum of the counts of the gamete sets containing that index.
      */
     fun gameteCountsFromGameteSets(gameteSets: List<Ps4gFileReader.Ps4gGameteSet>): Map<Int, Int> {
         return gameteSets.flatMap { gameteSet ->
@@ -102,7 +102,8 @@ class MostLikelyPs4gParents(val ps4gReader: Ps4gFileReader, val chromosomeSet: S
                     gameteSet.count
                 )
             }
-        }.groupingBy { it.first }.eachCount().toMutableMap()
+        }.groupingBy { it.first }.fold(0) { acc, pair -> acc + pair.second }
+
     }
 
 }
