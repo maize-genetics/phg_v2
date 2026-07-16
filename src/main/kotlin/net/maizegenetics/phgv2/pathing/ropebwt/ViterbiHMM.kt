@@ -12,11 +12,12 @@ import kotlin.math.ln
  * The hidden states are the candidate parent gametes: for a haploid path each state is a single
  * parent; for a diploid path each state is an ordered pair of parents (nParents * nParents states).
  * Emission probabilities come from [EmissionProbabilityForViterbiHMM] and are driven by which
- * gamete sets the reads in each bin hit. Transition probabilities favor staying on the same
- * gamete(s) between adjacent bins, with a recombination penalty for switching.
+ * gametes the reads in each bin hit. Transition probabilities favor staying on the same
+ * gamete(s) between adjacent bins, with a recombination penalty for switching. The inbreeding coefficient
+ * affects the transition probabilities. Values > 1 favor transitions to a homozygous state.
  *
  * @param inbreedingCoefficient the inbreeding coefficient (0.0..1.0); used to set diploid initial
- *   state probabilities (probability of a homozygous vs. heterozygous state). Diploid only.
+ *   state probabilities (probability of a homozygous vs. heterozygous state). Used by diploid path finding only.
  * @param sameGameteProbability the probability that the path stays on the same gamete when moving
  *   from one bin to the next (1 - recombination probability).
  * @param probCorrect the probability that a read maps to the correct haplotype; passed to the
