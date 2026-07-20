@@ -25,7 +25,7 @@ class ImputePathFromPs4gTest {
         @JvmStatic
         @AfterAll
         fun teardown() {
-//            resetDirs()
+            resetDirs()
         }
 
         private fun resetDirs() {

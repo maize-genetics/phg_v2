@@ -17,11 +17,11 @@ import net.maizegenetics.phgv2.pathing.MostLikelyPs4gParents
 import net.maizegenetics.phgv2.pathing.PathInputFile
 import net.maizegenetics.phgv2.pathing.ropebwt.Ps4gFileReader.Ps4gGameteSet
 import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.getBufferedWriter
 import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
-import kotlin.io.path.bufferedWriter
 import kotlin.io.path.createDirectories
 
 class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4g file.") {
@@ -191,7 +191,8 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             myLogger.info("Parent set: $parentSet")
 
             val outputFilepath = outputDir.resolve("${fileData.sampleName}_imputed_path.bed")
-            outputFilepath.bufferedWriter().use { writer ->
+            getBufferedWriter(outputFilepath.toFile()).use { writer ->
+
                 writer.write(header)
 
                 for (contig in contigs) {

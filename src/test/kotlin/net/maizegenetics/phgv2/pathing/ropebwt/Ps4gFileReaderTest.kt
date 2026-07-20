@@ -24,7 +24,7 @@ class Ps4gFileReaderTest {
         @JvmStatic
         @AfterAll
         fun teardown() {
-//            resetDirs()
+            resetDirs()
         }
 
         private fun resetDirs() {
