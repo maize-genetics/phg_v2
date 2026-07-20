@@ -18,6 +18,10 @@ class DiploidTransitionProbability(val pNoSwitch: Double, val inbreedingCoef: Do
         return ln(transitionP)
     }
 
+    fun calculateLn(from: Pair<Int,Int>, to: Pair<Int,Int>): Double {
+        return ln(calculate(from, to))
+    }
+
     fun probabilityForF0(from: Pair<Int,Int>, to: Pair<Int,Int>):Double {
         return if (from.first == to.first) {
             if (from.second == to.second) pnn else psn
