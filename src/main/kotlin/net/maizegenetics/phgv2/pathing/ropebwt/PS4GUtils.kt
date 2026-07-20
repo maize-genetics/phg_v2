@@ -47,5 +47,6 @@ class PS4GUtils {
                 }
             }
         }
+
     }
 }
