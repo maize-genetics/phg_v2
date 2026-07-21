@@ -55,17 +55,6 @@ class PositionalForwardBackward(
         }
     }
 
-    // Flat numberOfStates x numberOfStates matrix, cached once since transitions are
-    // homogeneous across positions. Index (fromState, toState) -> fromState * numberOfStates + toState.
-//    private val transitionMatrix: DoubleArray = DoubleArray(numberOfStates * numberOfStates).also { matrix ->
-//        for (fromState in 0 until numberOfStates) {
-//            val rowOffset = fromState * numberOfStates
-//            for (toState in 0 until numberOfStates) {
-//                matrix[rowOffset + toState] = transitionProbability(fromState, toState)
-//            }
-//        }
-//    }
-
     /**
      * Result of running the forward-backward algorithm.
      *
