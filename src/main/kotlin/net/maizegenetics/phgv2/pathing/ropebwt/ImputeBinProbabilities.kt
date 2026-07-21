@@ -20,6 +20,24 @@ import java.nio.file.Paths
 import kotlin.io.path.bufferedWriter
 import kotlin.io.path.createDirectories
 
+/**
+ * CLI command that computes posterior haplotype (bin) probabilities from PS4G read-mapping data
+ * using the forward-backward algorithm.
+ *
+ * Unlike [ImputePathFromPs4g], which uses Viterbi to infer a single most-likely path, this command
+ * runs a positional forward-backward HMM to produce per-position posterior probabilities over the
+ * candidate haplotype states. It supports both `haploid` imputation (states are individual parents)
+ * and `diploid` imputation (states are ordered parent pairs).
+ *
+ * Input is one or more PS4G files produced by `align-reads`, supplied either through a tab-delimited
+ * key file (`--path-keyfile`) or directly (`--read-file`). For each sample, a per-contig HMM is
+ * built from:
+ *  - an initial state distribution derived from [inbreedCoef] and the number of parents,
+ *  - a transition matrix parameterized by [probSame] (haploid) or [DiploidTransitionProbability] (diploid),
+ *  - emission probabilities from [EmissionProbabilityForForwardBackward] driven by [probCorrect].
+ *
+ * Results are written per sample to `<outputDir>/<sampleName>_imputed_probabilities.txt`.
+ */
 class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a Ps4g file.")  {
 
     val readInputFiles: PathInputFile by mutuallyExclusiveOptions<PathInputFile>(
@@ -72,6 +90,10 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
     val myLogger = LogManager.getLogger(ImputePathFromPs4g::class.java)
     val pSwitch = 1.0 - probSame
 
+    /**
+     * Clikt entry point. Logs the invocation, reports available JVM memory, ensures the
+     * [outputDir] exists, and then delegates the imputation work to [imputeProbabilities].
+     */
     override fun run() {
         logCommand(this)
 
@@ -89,6 +111,22 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
 
     }
 
+    /**
+     * Runs the forward-backward HMM for every input PS4G file and writes posterior probabilities
+     * to disk.
+     *
+     * For each sample this:
+     *  1. Reads the PS4G file and collects its contigs, excluding any whose name starts with `scaf`.
+     *  2. Determines the parent (state) set — restricted to the [nParents] most likely parents via
+     *     [MostLikelyPs4gParents] when `nParents > 1`, otherwise every gamete present in the file.
+     *  3. Builds the [initialStateProbs], transition matrix (haploid: [probSame]/[pSwitch];
+     *     diploid: log transition probabilities from [DiploidTransitionProbability]), and, per contig,
+     *     the emission probabilities from [EmissionProbabilityForForwardBackward].
+     *  4. Runs [PositionalForwardBackward] over each contig's positions and writes the result to
+     *     `<outputDir>/<sampleName>_imputed_probabilities.txt`.
+     *
+     * @throws IllegalArgumentException if no input read files are provided.
+     */
     fun imputeProbabilities() {
         val keyFileLines = readInputFiles.getReadFiles()
         require(keyFileLines.isNotEmpty()) { "Must provide either --path-keyfile or --read-files." }
