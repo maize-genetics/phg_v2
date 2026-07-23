@@ -96,7 +96,6 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
         .default(256)
 
     val myLogger = LogManager.getLogger(ImputeBinProbabilities::class.java)
-    val pSwitch = 1.0 - probSame
 
     /**
      * Clikt entry point. Logs the invocation, reports available JVM memory, ensures the
@@ -127,8 +126,8 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
      *  1. Reads the PS4G file and collects its contigs, excluding any whose name starts with `scaf`.
      *  2. Determines the parent (state) set — restricted to the [nParents] most likely parents via
      *     [MostLikelyPs4gParents] when `nParents > 0`, otherwise every gamete present in the file.
-     *  3. Builds the [initialStateProbs], transition matrix (haploid: [probSame]/[pSwitch];
-     *     diploid: log transition probabilities from [DiploidTransitionProbability]), and, per contig,
+     *  3. Builds the [initialStateProbs], transition matrix (haploid: [probSame] / 1 - [probSame];
+     *     diploid: transition probabilities from [DiploidTransitionProbability]), and, per contig,
      *     the emission probabilities from [EmissionProbabilityForForwardBackward].
      *  4. Runs [PositionalForwardBackward] over each contig's positions and writes the result to
      *     `<outputDir>/<sampleName>_imputed_probabilities.txt`.
@@ -139,8 +138,6 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
         val keyFileLines = readInputFiles.getReadFiles()
         require(keyFileLines.isNotEmpty()) { "Must provide either --path-keyfile or --read-files." }
         val isHaploid = imputeType == "haploid"
-
-        val initialStateProbs = initialStateProbabilityArray()
 
         for (fileData in keyFileLines) {
             myLogger.info("Finding $imputeType probabilities for ${fileData.sampleName}")
@@ -172,6 +169,7 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
             val numberOfParents = parentSet.size
             myLogger.info("Parent set: $parentSet")
 
+            val initialStateProbs = initialStateProbabilityArray(numberOfParents)
             val transitionMatrix = transitionMatrix(numberOfParents)
 
             val numberOfStates = if (isHaploid) numberOfParents else numberOfParents * numberOfParents
@@ -220,29 +218,44 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
         }
     }
 
-    private fun initialStateProbabilityArray(): DoubleArray {
+    /**
+     * Builds the initial state distribution over the [numberOfParents] parents actually used for
+     * this sample. [numberOfParents] is the size of the selected parent set, which is the number
+     * of most-likely parents when `--n-parents > 0` and the number of gametes in the file
+     * otherwise; it is not necessarily equal to the [nParents] option.
+     */
+    private fun initialStateProbabilityArray(numberOfParents: Int): DoubleArray {
         return if (imputeType == "haploid") {
-            DoubleArray(nParents) {1.0/nParents}
+            DoubleArray(numberOfParents) {1.0/numberOfParents}
         } else {
-            val homozygoteProbabillity = inbreedCoef / nParents
-            val heterozygoteProbability = (1.0 - inbreedCoef) /(nParents * nParents - nParents)
-            DoubleArray(nParents * nParents) {ndx -> if (ndx % nParents == ndx / nParents) homozygoteProbabillity
+            val homozygoteProbabillity = inbreedCoef / numberOfParents
+            val heterozygoteProbability = (1.0 - inbreedCoef) /(numberOfParents * numberOfParents - numberOfParents)
+            DoubleArray(numberOfParents * numberOfParents) {ndx -> if (ndx % numberOfParents == ndx / numberOfParents) homozygoteProbabillity
             else heterozygoteProbability}
         }
     }
 
     private fun transitionMatrix(numberOfParents: Int): DoubleArray {
+        val pSwitch = 1.0 - probSame
         return if (imputeType == "haploid") {
             DoubleArray(numberOfParents * numberOfParents) {ndx -> if (ndx % numberOfParents == ndx / numberOfParents) probSame else pSwitch }
         } else {
-            val transitionMatrix = DoubleArray(numberOfParents * numberOfParents)
+            // The diploid state space has numberOfParents^2 states (ordered parent pairs), so the
+            // transition matrix needs numberOfStates^2 = numberOfParents^4 entries. The loops lay
+            // them out as fromState * numberOfStates + toState, where
+            // fromState = index1 * numberOfParents + index2 and toState = index3 * numberOfParents + index4.
+            // PositionalForwardBackward works in probability space, so use the raw transition
+            // probabilities from calculate() rather than the log values from calculateLn().
+            val numberOfStates = numberOfParents * numberOfParents
+            val transitionMatrix = DoubleArray(numberOfStates * numberOfStates)
+            val diploidTransitionProbability = DiploidTransitionProbability(probSame, inbreedCoef, numberOfParents)
             var ptr = 0
             for (index1 in 0 until numberOfParents) {
                 for (index2 in 0 until numberOfParents) {
                     for (index3 in 0 until numberOfParents) {
                         for (index4 in 0 until numberOfParents) {
-                            transitionMatrix[ptr++] = DiploidTransitionProbability(probSame, inbreedCoef, numberOfParents)
-                                .calculateLn(Pair(index1, index2), Pair(index3, index4))
+                            transitionMatrix[ptr++] =
+                                diploidTransitionProbability.calculate(Pair(index1, index2), Pair(index3, index4))
                         }
                     }
                 }
