@@ -14,10 +14,10 @@ import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.pathing.MostLikelyPs4gParents
 import net.maizegenetics.phgv2.pathing.PathInputFile
+import net.maizegenetics.phgv2.utils.getBufferedWriter
 import org.apache.logging.log4j.LogManager
 import java.io.File
 import java.nio.file.Paths
-import kotlin.io.path.bufferedWriter
 import kotlin.io.path.createDirectories
 
 /**
@@ -87,7 +87,15 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
         .int()
         .default(0)
 
-    val myLogger = LogManager.getLogger(ImputePathFromPs4g::class.java)
+    val minProbRatio by option(help = "At each position only probabilities > min-prob-ratio * max probability will be reported. Default = 0.05")
+        .double()
+        .default(0.05)
+
+    val binSize by option(help = "The size of the bin used for imputation.")
+        .int()
+        .default(256)
+
+    val myLogger = LogManager.getLogger(ImputeBinProbabilities::class.java)
     val pSwitch = 1.0 - probSame
 
     /**
@@ -118,7 +126,7 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
      * For each sample this:
      *  1. Reads the PS4G file and collects its contigs, excluding any whose name starts with `scaf`.
      *  2. Determines the parent (state) set — restricted to the [nParents] most likely parents via
-     *     [MostLikelyPs4gParents] when `nParents > 1`, otherwise every gamete present in the file.
+     *     [MostLikelyPs4gParents] when `nParents > 0`, otherwise every gamete present in the file.
      *  3. Builds the [initialStateProbs], transition matrix (haploid: [probSame]/[pSwitch];
      *     diploid: log transition probabilities from [DiploidTransitionProbability]), and, per contig,
      *     the emission probabilities from [EmissionProbabilityForForwardBackward].
@@ -132,15 +140,7 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
         require(keyFileLines.isNotEmpty()) { "Must provide either --path-keyfile or --read-files." }
         val isHaploid = imputeType == "haploid"
 
-        val initialStateProbs = if (isHaploid) {
-            DoubleArray(nParents) {1.0/nParents}
-        } else {
-            val homozygoteProbabillity = inbreedCoef / nParents
-            val heterozygoteProbability = (1.0 - inbreedCoef) /(nParents * nParents - nParents)
-            DoubleArray(nParents * nParents) {ndx -> if (ndx % nParents == ndx / nParents) homozygoteProbabillity
-                else heterozygoteProbability}
-        }
-
+        val initialStateProbs = initialStateProbabilityArray()
 
         for (fileData in keyFileLines) {
             myLogger.info("Finding $imputeType probabilities for ${fileData.sampleName}")
@@ -150,38 +150,35 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
             val contigs = ps4gReader.contigSet().filter { !it.startsWith("scaf") }
             myLogger.info("Contigs: $contigs")
 
-            val parentSet = if (nParents > 1) {
+            //if nParents > 0 find most likely parents, otherwise use the full parent set
+            val parentSet = if (nParents > 0) {
                 MostLikelyPs4gParents(ps4gReader, contigs.toSet()).bestParents(nParents)
             } else {
                 ps4gReader.gameteIndexMap().keys
             }
 
+            //create a sorted parent list from the set
+            val parentList = parentSet.sorted()
+
+            //get the states names for the parent list, because that will be needed to write the output
+            val gameteIndexMap = ps4gReader.gameteIndexMap()
+            val stateNames = if (isHaploid) {
+                parentList.map { gameteIndexMap[it] }
+            } else {
+                parentList.flatMap { parent1 -> parentList.map { parent2 -> "(${gameteIndexMap[parent1]},${gameteIndexMap[parent2]})" } }
+
+            }
+
             val numberOfParents = parentSet.size
             myLogger.info("Parent set: $parentSet")
 
-            val transitionMatrix = if (isHaploid) {
-                DoubleArray(numberOfParents * numberOfParents) {ndx -> if (ndx % numberOfParents == ndx / numberOfParents) probSame else pSwitch }
-            } else {
-                val transitionMatrix = DoubleArray(numberOfParents * numberOfParents)
-                var ptr = 0
-                for (index1 in 0 until numberOfParents) {
-                    for (index2 in 0 until numberOfParents) {
-                        for (index3 in 0 until numberOfParents) {
-                            for (index4 in 0 until numberOfParents) {
-                                transitionMatrix[ptr++] = DiploidTransitionProbability(probSame, inbreedCoef, numberOfParents)
-                                    .calculateLn(Pair(index1, index2), Pair(index3, index4))
-                            }
-                        }
-                    }
-                }
-                transitionMatrix
-            }
-
+            val transitionMatrix = transitionMatrix(numberOfParents)
 
             val numberOfStates = if (isHaploid) numberOfParents else numberOfParents * numberOfParents
             val outputFilepath = Paths.get(outputDir).resolve("${fileData.sampleName}_imputed_probabilities.txt")
-            val header = "TBD"
-            outputFilepath.bufferedWriter().use { writer ->
+            val header = "contig\tposition\tstate\tprobability"
+
+            getBufferedWriter(outputFilepath.toFile()).use { writer ->
                 writer.write(header)
 
                 for (contig in contigs) {
@@ -190,23 +187,68 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
                     val readMapForContig = ps4gReader.readMapForContig(contig)
                     check(readMapForContig != null) { "read data for contig $contig was null for ${fileData.sampleName}" }
 
-                    val emissionProbability = EmissionProbabilityForForwardBackward(readMapForContig, parentSet, probCorrect)
-                    val emissionArray = emissionProbability::getHaploidEmissionProbabilityArray
                     val numberOfPositions = readMapForContig.size
 
-//                    val emissionProbabilities = if (isHaploid) {
-//                        EmissionProbabilityForForwardBackward::getHaploidEmissionProbabilityArray
-//                    } else {
-//                        EmissionProbabilityForForwardBackward::getDiploidEmissionProbabilityArray
-//                    }
+                    val emissionProbability = EmissionProbabilityForForwardBackward(readMapForContig, parentSet, probCorrect)
+                    val emissionArray = if (isHaploid) {
+                        {ndx: Int -> emissionProbability.getHaploidEmissionProbabilityArray(ndx)}
+                    } else {
+                        {ndx: Int -> emissionProbability.getDiploidEmissionProbabilityArray(ndx)}
+                    }
 
                     val imputedResult = PositionalForwardBackward(numberOfStates, numberOfPositions,
-                        initialStateProbs, transitionMatrix, emissionArray)
+                        initialStateProbs, transitionMatrix, emissionArray).run()
+
+                    val positionProbabilities = imputedResult.posteriorStateProbabilities
+                    val positionList = readMapForContig.keys.sorted()
+                    positionList.mapIndexed { index, positionIndex ->
+                        val probabilityArray = positionProbabilities[index]
+                        val maxProb = probabilityArray.max()
+                        val minProb = maxProb * minProbRatio
+                        for (stateIndex in 0 until numberOfStates) {
+                            if (probabilityArray[stateIndex] > minProb) {
+                                val start = binSize * positionIndex
+                                writer.write("$contig\t$start\t${stateNames[stateIndex]}\t${probabilityArray[stateIndex]}")
+                                writer.newLine()
+
+                            }
+                        }
+                    }
 
                 }
             }
         }
     }
 
+    private fun initialStateProbabilityArray(): DoubleArray {
+        return if (imputeType == "haploid") {
+            DoubleArray(nParents) {1.0/nParents}
+        } else {
+            val homozygoteProbabillity = inbreedCoef / nParents
+            val heterozygoteProbability = (1.0 - inbreedCoef) /(nParents * nParents - nParents)
+            DoubleArray(nParents * nParents) {ndx -> if (ndx % nParents == ndx / nParents) homozygoteProbabillity
+            else heterozygoteProbability}
+        }
+    }
+
+    private fun transitionMatrix(numberOfParents: Int): DoubleArray {
+        return if (imputeType == "haploid") {
+            DoubleArray(numberOfParents * numberOfParents) {ndx -> if (ndx % numberOfParents == ndx / numberOfParents) probSame else pSwitch }
+        } else {
+            val transitionMatrix = DoubleArray(numberOfParents * numberOfParents)
+            var ptr = 0
+            for (index1 in 0 until numberOfParents) {
+                for (index2 in 0 until numberOfParents) {
+                    for (index3 in 0 until numberOfParents) {
+                        for (index4 in 0 until numberOfParents) {
+                            transitionMatrix[ptr++] = DiploidTransitionProbability(probSame, inbreedCoef, numberOfParents)
+                                .calculateLn(Pair(index1, index2), Pair(index3, index4))
+                        }
+                    }
+                }
+            }
+            transitionMatrix
+        }
+    }
 
 }

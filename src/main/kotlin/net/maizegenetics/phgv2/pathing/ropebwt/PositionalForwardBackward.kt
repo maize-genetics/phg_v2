@@ -1,7 +1,6 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
 import kotlin.math.ln
-import kotlin.reflect.KFunction1
 
 /**
  * Forward-backward algorithm for a Hidden Markov Model defined over a 1-D series of
@@ -44,7 +43,7 @@ class PositionalForwardBackward(
     private val numberOfPositions: Int,
     private val initialStateProbabilities: DoubleArray,
     private val transitionMatrix: DoubleArray,
-    private val emissionProbability: KFunction1<Int, DoubleArray>
+    private val emissionProbability: (Int) -> DoubleArray,
 ) {
 
     init {
