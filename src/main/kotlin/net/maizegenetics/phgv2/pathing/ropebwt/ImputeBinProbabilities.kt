@@ -174,7 +174,7 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
 
             val numberOfStates = if (isHaploid) numberOfParents else numberOfParents * numberOfParents
             val outputFilepath = Paths.get(outputDir).resolve("${fileData.sampleName}_imputed_probabilities.txt")
-            val header = "contig\tposition\tstate\tprobability"
+            val header = "contig\tposition\tstate\tprobability\n"
 
             getBufferedWriter(outputFilepath.toFile()).use { writer ->
                 writer.write(header)
