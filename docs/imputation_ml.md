@@ -70,6 +70,20 @@ imputation using the PHG:
       --output-dir /my/ps4g_output_dir
   ```
 
+* Impute parental genotypes from a PS4G file using the Viterbi algorithm:
+  ```shell
+  phg impute-path-from-ps4g \
+      --read-file /path/to/ps4g_file.ps4g \
+      --out-path-dir /my/output_dir
+  ```
+
+* Calculate state probabilities from a PS4G file using the forward-backward algorithm:
+  ```shell
+  phg impute-path-from-ps4g \
+      --read-file /path/to/ps4g_file.ps4g \
+      --out-path-dir /my/output_dir
+  ```
+  
 ## Detailed walkthrough
 
 ### Run ropebwt3 indexing by full length chromosomes
@@ -247,3 +261,32 @@ phg convert-ropebwt2-ps4g-file \
     `--max-num-hits` parameter but any alignment hitting more
     haplotypes than this will be ignored.
 
+**Command** - `impute-path-from-ps4g`
+
+**Example**
+
+```shell
+phg impute-path-from-ps4g \
+    --ropebwt-bed /data/alignments/sample.mem.bed \
+    --output-dir /results/ps4g \
+    --spline-knot-dir /refs/spline_knots \
+    --min-mem-length 148 \
+    --max-num-hits 50 \
+    --sort-positions
+```
+
+**Parameters**
+
+| Parameter name        | Description                                                                                                                                                                                                 | Default value | Required?        |
+|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
+| `--ropebwt-bed`       | Path to the RopeBWT3 **BED** file (MEM hits per read) to convert into PS4G.                                                                                                                                 | `""`          | :material-check: |
+| `--output-dir`        | Output directory where the generated **PS4G** file will be written.                                                                                                                                         | `""`          | :material-check: |
+| `--spline-knot-dir`   | Directory containing **Spline Knot** lookup files (per contig / sample) used to transform MEM positions into consensus PS4G positions.                                                                      | `""`          | :material-check: |
+| `--min-mem-length`    | Minimum length of a match (MEM) to be considered for consensus. Shorter MEMs are ignored.                                                                                                                   | `148`         |                  |
+| `--max-num-hits`      | Maximum total number of hits allowed (sum across best MEMs). If a read hits more haplotypes than this, it is ignored.                                                                                       | `50`          |                  |
+| `--sort-positions`    | Sort positions in the resulting PS4G file. Use `--no-sort-positions` to disable.                                                                                                                            | `true`        |                  |
+
+!!! note
+ropebwt3 can hit more than the value provided in the
+`--max-num-hits` parameter but any alignment hitting more
+haplotypes than this will be ignored.
