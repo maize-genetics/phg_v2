@@ -25,7 +25,7 @@ class ImputePathFromPs4gTest {
         @JvmStatic
         @AfterAll
         fun teardown() {
-//            resetDirs()
+            resetDirs()
         }
 
         private fun resetDirs() {
@@ -87,6 +87,39 @@ class ImputePathFromPs4gTest {
         )
         val ps4gData = (1..5).map { bin ->
             PS4GData(listOf(0), Position("chr1", bin), 10)
+        }
+        val ps4gFile = "$tempTestDir/singleGamete.ps4g"
+        createPs4gFile(ps4gFile, gametes, ps4gData)
+
+        val keyFile = "$tempTestDir/singleGameteKey.txt"
+        createKeyFile(keyFile, "sampleX", ps4gFile)
+
+        val outputDir = "$tempTestDir/haploidOut/"
+        val result = ImputePathFromPs4g().test(
+            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 --prob-same 0.9999 --bin-size 1"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val bedFile = File("$outputDir/sampleX_imputed_path.bed")
+        assertTrue(bedFile.exists(), "Output BED file was not created")
+
+        val lines = bedFile.readLines()
+        assertEquals("chrom\tstart\tend\tparent1", lines[0])
+
+        val dataLines = lines.drop(1)
+        assertEquals(1, dataLines.size, "Expected the 5 identical bins to merge into 1 record")
+        assertEquals(listOf("chr1", "0", "5", "lineA:0"), dataLines[0].split("\t"))
+    }
+
+    @Test
+    fun testImputeHaploidPathOutputWithHighReadCount() {
+        // Since the EmissionProbability caches values for readCount <= 50, need to test read counts > 50 as well
+        val gametes = mapOf(
+            SampleGamete("lineA", 0) to 0,
+            SampleGamete("lineB", 0) to 1
+        )
+        val ps4gData = (1..5).map { bin ->
+            PS4GData(listOf(0), Position("chr1", bin), 60)
         }
         val ps4gFile = "$tempTestDir/singleGamete.ps4g"
         createPs4gFile(ps4gFile, gametes, ps4gData)
@@ -243,6 +276,41 @@ class ImputePathFromPs4gTest {
         )
         val ps4gData = (1..5).map { bin ->
             PS4GData(listOf(0), Position("chr1", bin), 10)
+        }
+        val ps4gFile = "$tempTestDir/diploidTest.ps4g"
+        createPs4gFile(ps4gFile, gametes, ps4gData)
+
+        val keyFile = "$tempTestDir/diploidKey.txt"
+        createKeyFile(keyFile, "diploidSample", ps4gFile)
+
+        val outputDir = "$tempTestDir/diploidOut/"
+        val result = ImputePathFromPs4g().test(
+            "--path-keyfile $keyFile --out-path-dir $outputDir --path-type diploid " +
+                    "--prob-correct 0.99 --prob-same 0.9999 --inbreed-coef 1.0 --bin-size 1"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val bedFile = File("$outputDir/diploidSample_imputed_path.bed")
+        assertTrue(bedFile.exists(), "Output BED file was not created")
+
+        val lines = bedFile.readLines()
+        assertEquals("chrom\tstart\tend\tparent1\tparent2", lines[0])
+
+        val dataLines = lines.drop(1)
+        assertEquals(1, dataLines.size, "Expected the 5 identical bins to merge into 1 record")
+        assertEquals(listOf("chr1", "0", "5", "lineA:0", "lineA:0"), dataLines[0].split("\t"))
+    }
+
+    @Test
+    fun testImputeDiploidPathOutputWithHighReadCount() {
+        // With inbreedCoef=1.0 and all reads supporting gamete 0, the diploid
+        // path is forced homozygous and should be (lineA:0, lineA:0) throughout.
+        val gametes = mapOf(
+            SampleGamete("lineA", 0) to 0,
+            SampleGamete("lineB", 0) to 1
+        )
+        val ps4gData = (1..5).map { bin ->
+            PS4GData(listOf(0), Position("chr1", bin), 60)
         }
         val ps4gFile = "$tempTestDir/diploidTest.ps4g"
         createPs4gFile(ps4gFile, gametes, ps4gData)

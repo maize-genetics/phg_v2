@@ -47,7 +47,7 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
 
         //define emission probability
         val emissionProbabilityCalculator = EmissionProbabilityForViterbiHMM(readMap, likelyParentSet, probCorrect)
-        val emissionP = emissionProbabilityCalculator::getHaploidEmissionProbabilityArray
+        val emissionP = emissionProbabilityCalculator::getLnHaploidEmissionProbabilityArray
 
         val initProbs = DoubleArray(nParents) {0.0}
 
@@ -56,10 +56,10 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         //translate the result
         val positions = readMap.keys.sorted()
         val parentList = likelyParentSet.sorted()
-        val resultList = result.first.mapIndexed { index,
-                                                   i ->  Pair(
-            Position(contig, positions[index]),
-            gameteIndexMap[parentList[i]] ?: "none")}
+        val resultList = result.first.mapIndexed { index, i ->
+            //creates a list of Pair(Position, gamete name)
+            Pair(Position(contig, positions[index]), gameteIndexMap[parentList[i]] ?: "none")
+        }
         return resultList
 
     }
@@ -88,13 +88,13 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         val nStates = nParents * nParents
         val nPositions = readMap.keys.size
         val transitionMatrix = DoubleArray(nStates * nStates)
+        val transitionProbabilityCalculator = DiploidTransitionProbability(sameGameteProbability, inbreedingCoefficient, nParents)
         var ptr = 0
         for (index1 in 0 until nParents) {
             for (index2 in 0 until nParents) {
                 for (index3 in 0 until nParents) {
                     for (index4 in 0 until nParents) {
-                        transitionMatrix[ptr++] = DiploidTransitionProbability(sameGameteProbability, inbreedingCoefficient, nParents)
-                            .calculateLn(Pair(index1, index2), Pair(index3, index4))
+                        transitionMatrix[ptr++] = transitionProbabilityCalculator.calculate(Pair(index1, index2), Pair(index3, index4))
                     }
                 }
             }
@@ -102,7 +102,7 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
 
         //emission probabilities (equal -1.0 for testing)
         val emissionProbabilityCalculator = EmissionProbabilityForViterbiHMM(readMap, likelyParentSet, probCorrect)
-        val emissionP = emissionProbabilityCalculator::getDiploidEmissionProbabilityArray
+        val emissionP = emissionProbabilityCalculator::getLnDiploidEmissionProbabilityArray
 
         //val emissionP = { x: Int -> DoubleArray(nStates) {-1.0} }
 
