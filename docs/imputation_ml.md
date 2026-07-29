@@ -267,26 +267,61 @@ phg convert-ropebwt2-ps4g-file \
 
 ```shell
 phg impute-path-from-ps4g \
-    --ropebwt-bed /data/alignments/sample.mem.bed \
+    --read-file /data/my_ps4g_file.ps4g \
     --output-dir /results/ps4g \
-    --spline-knot-dir /refs/spline_knots \
-    --min-mem-length 148 \
-    --max-num-hits 50 \
-    --sort-positions
+    --path-type diploid \
+    --inbreed-coef 0.5 \
+    --n-parents 10 \
+    --bin-size 5000
 ```
 
 **Parameters**
 
-| Parameter name        | Description                                                                                                                                                                                                 | Default value | Required?        |
-|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
-| `--ropebwt-bed`       | Path to the RopeBWT3 **BED** file (MEM hits per read) to convert into PS4G.                                                                                                                                 | `""`          | :material-check: |
-| `--output-dir`        | Output directory where the generated **PS4G** file will be written.                                                                                                                                         | `""`          | :material-check: |
-| `--spline-knot-dir`   | Directory containing **Spline Knot** lookup files (per contig / sample) used to transform MEM positions into consensus PS4G positions.                                                                      | `""`          | :material-check: |
-| `--min-mem-length`    | Minimum length of a match (MEM) to be considered for consensus. Shorter MEMs are ignored.                                                                                                                   | `148`         |                  |
-| `--max-num-hits`      | Maximum total number of hits allowed (sum across best MEMs). If a read hits more haplotypes than this, it is ignored.                                                                                       | `50`          |                  |
-| `--sort-positions`    | Sort positions in the resulting PS4G file. Use `--no-sort-positions` to disable.                                                                                                                            | `true`        |                  |
+| Parameter name   | Description                                                                                                                   | Default value | Required?        |
+|------------------|-------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
+| `--path-keyfile` | Name of tab-delimited key file. Columns for samplename and filename are required.                                             | `""`          | :material-check: |
+| `--read-file`    | The name of a ps4g file created by align-reads.                                                                               | `""`          | :material-check: |
+| `--out-path-dir` | The directory where the imputed haplotypes will be written for each sample. File names will be <sampleName>_imputed_path.bed. | `""`          | :material-check: |
+| `--path-type`    | The type of path to find. Must be lower case 'haploid' or 'diploid'. 'haploid' infers a single path through the graph.        | `haploid`     |                  |
+| `--prob-correct` | The probability that a read maps to correct haplotype.                                                                        | `0.98`        |                  |
+| `--prob-same`    | The probability that a path stays on the same gamete when transitioning between two adjacent positions.                       | `0.9999`      |                  |
+| `--inbreed-coef` | The inbreeding coefficient (between 0.0 and 1.0). Used only for diploid paths.                                                | `0.0`         |                  |
+| `--n-parents`    | Restrict the number of parents used for diploid imputation to this number. Default (0) uses all parents.                      | `0.0`         |                  |
+| `--bin-size`     | The bin size used to create the ps4g file.                                                                                    | `256`         |                  |
+| `--expand-bins`  | Write one output record per bin instead of merging adjacent bins that have identical parents into a single record.            | 'false'       |                  |
 
 !!! note
-ropebwt3 can hit more than the value provided in the
-`--max-num-hits` parameter but any alignment hitting more
-haplotypes than this will be ignored.
+`--expand-bins` is a flag. If entered without a parameter, its value is set to true.
+`--bin-size` must match the ps4g file, so that the output positions are correct.
+
+**Command** - `impute-bin-probabilities`
+
+**Example**
+
+```shell
+phg impute-bin-probabilities \
+    --read-file /data/my_ps4g_file.ps4g \
+    --output-dir /results/ps4g \
+    --impute-type diploid \
+    --inbreed-coef 0.5 \
+    --n-parents 10 \
+    --bin-size 5000
+```
+
+**Parameters**
+
+| Parameter name   | Description                                                                                                                   | Default value | Required?        |
+|------------------|-------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
+| `--path-keyfile` | Name of tab-delimited key file. Columns for samplename and filename are required.                                             | `""`          | :material-check: |
+| `--read-file`    | The name of a ps4g file created by align-reads.                                                                               | `""`          | :material-check: |
+| `--out-path-dir` | The directory where the imputed haplotypes will be written for each sample. File names will be <sampleName>_imputed_path.bed. | `""`          | :material-check: |
+| `--impute-type`  | The type of genotype probabilities to calculate. Must be lower case 'haploid' or 'diploid' (without quotes).                  | `haploid`     |                  |
+| `--prob-correct` | The probability that a read maps to correct haplotype.                                                                        | `0.98`        |                  |
+| `--prob-same`    | The probability that a path stays on the same gamete when transitioning between two adjacent positions.                       | `0.9999`      |                  |
+| `--inbreed-coef` | The inbreeding coefficient (between 0.0 and 1.0). Used only for diploid paths.                                                | `0.0`         |                  |
+| `--n-parents`    | Restrict the number of parents used for diploid imputation to this number. Default (0) uses all parents.                      | `0.0`         |                  |
+| `--bin-size`     | The bin size used to create the ps4g file.                                                                                    | `256`         |                  |
+
+!!! note
+`--expand-bins` is a flag. If entered without a parameter, its value is set to true.
+`--bin-size` must match the ps4g file, so that the output positions are correct.

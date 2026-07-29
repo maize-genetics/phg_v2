@@ -58,8 +58,7 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
         .required()
 
     val imputeType by option(
-        help = "The type of path to find. Must be lower case 'haploid' or 'diploid' (without quotes). " +
-                "'haploid' infers a single path through the graph. 'diploid' infers a pair of paths. Required parameter."
+        help = "The type of genotype probabilities to calculate. Must be lower case 'haploid' or 'diploid' (without quotes)."
     )
         .choice("haploid", "diploid")
         .default("haploid")
@@ -77,7 +76,7 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
 
     val inbreedCoef by option(
         help = "The inbreeding coefficient (between 0.0 and 1.0). " +
-                "This parameter is used only for diploid paths. Default = 0.0"
+                "This parameter is used only for diploid probabilities. Default = 0.0"
     )
         .double()
         .default(0.0)
