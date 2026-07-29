@@ -58,6 +58,8 @@ sealed class BedInputFile {
 }
 
 
+data class ContigAndGamete(val contig: String, val gamete: String )
+
 /**
  * This class will convert a RopebwtBed file to a PS4G file.  It will only work with ropebwt3 files where the reads are
  * aligned to the whole assembly chromosomes using the mem command.  MEMs are Maximal Exact Matches and are used to
@@ -97,6 +99,9 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     val sortPositions by option(help = "Sort positions in the resulting PS4G file.")
         .flag(default = true)
 
+    val sampleNameFirst by option(help = "Reconstruct aligned contig names as sampleName_contigName instead of the default contigName_sampleName when looking up gametes.  This must match the --sample-name-first flag used for rope-bwt-chr-index and build-spline-knots.")
+        .flag(default = false)
+
     /**
      * Function to run the command.  This goes from a RopeBWT3 BED file for reads aligned against the whole chromosomes to a PS4G file.
      */
@@ -110,6 +115,8 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         myLogger.info("Loading Spline Knot File")
         val (splineKnots, chrIndexMap, gameteIndexMap) = SplineUtils.loadSplineKnotLookupFromDirectory(splineKnotDir)
 
+        val bedSampleNameToChrAndSample = buildSampleNameSplitMap(chrIndexMap, gameteIndexMap, sampleNameFirst)
+
         myLogger.info("Converting Spline Knots to Splines")
 
         val splineLookup = LinearLookupFunction(splineKnots, chrIndexMap)
@@ -121,8 +128,19 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         //check to make sure its not empty and the files exist
         check(bedFilesToProcess.isNotEmpty()) {"No Ropebwt Bed files provided"}
         bedFilesToProcess.forEach { ropebwtBed ->
-            processSingleRopeBwtBed(ropebwtBed, outputDir,splineLookup, gameteIndexMap, sampleGameteIndexMap, command,minMemLength, maxNumHits, maxRange, sortPositions)
+            processSingleRopeBwtBed(ropebwtBed, outputDir,splineLookup, gameteIndexMap, sampleGameteIndexMap, command,minMemLength, maxNumHits, maxRange, bedSampleNameToChrAndSample, sortPositions )
         }
+    }
+
+    fun buildSampleNameSplitMap(chrIndexMap: Map<String, Int>, gameteIndexMap: Map<String, Int>, sampleNameFirst: Boolean = false): Map<String, ContigAndGamete> {
+        val sampleNameToChrAndSample = mutableMapOf<String, ContigAndGamete>()
+        for(chrName in chrIndexMap.keys) {
+            for(gameteName in gameteIndexMap.keys) {
+                val sampleName = RopeBWTUtils.combinedContigName(chrName, gameteName, sampleNameFirst)
+                sampleNameToChrAndSample[sampleName] = ContigAndGamete(chrName, gameteName)
+            }
+        }
+        return sampleNameToChrAndSample
     }
 
     private fun processSingleRopeBwtBed(
@@ -135,6 +153,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         minMemLength: Int,
         maxNumHits: Int,
         maxRange: Int,
+        sampleNameToChrAndSample: Map<String, ContigAndGamete>,
         sortPositions: Boolean = true
     ) {
         myLogger.info("Building PS4G Output File Name for file: $ropebwtBed")
@@ -155,6 +174,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             minMemLength,
             maxNumHits,
             maxRange,
+            sampleNameToChrAndSample,
             sortPositions
         )
 
@@ -170,6 +190,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                       gameteToIdxMap: Map<String,Int>,
                       minMEMLength: Int, maxNumHits: Int,
                       maxRange: Int,
+                      sampleNameToChrAndSample: Map<String, ContigAndGamete>,
                       sortPositions: Boolean = true) : Pair<List<PS4GData>, Map<SampleGamete,Int>> {
 
         val gameteIdxToSampleGameteMap = gameteToIdxMap.map { it.value to SampleGamete(it.key) }.toMap()
@@ -195,7 +216,8 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                     gameteToIdxMap,
                     countMap,
                     sampleGameteCountMap,
-                    gameteIdxToSampleGameteMap
+                    gameteIdxToSampleGameteMap,
+                    sampleNameToChrAndSample
                 )
                 tempMems.clear()
             }
@@ -212,7 +234,8 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
             gameteToIdxMap,
             countMap,
             sampleGameteCountMap,
-            gameteIdxToSampleGameteMap
+            gameteIdxToSampleGameteMap,
+            sampleNameToChrAndSample
         )
 
         val ps4gDataList = PS4GUtils.convertCountMapToPS4GData(countMap, sortPositions)
@@ -234,10 +257,11 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         gameteToIdxMap: Map<String, Int>,
         countMap: MutableMap<Pair<Position, List<Int>>, Int>,
         sampleGameteCountMap: MutableMap<SampleGamete, Int>,
-        gameteIdxToSampleGameteMap: Map<Int, SampleGamete>
+        gameteIdxToSampleGameteMap: Map<Int, SampleGamete>,
+        sampleNameToChrAndSample: Map<String, ContigAndGamete>,
     ) {
         val pairPosAndGameteSet =
-            processMemsForRead(tempMems, splineLookup, minMEMLength, maxNumHits, maxRange, gameteToIdxMap)
+            processMemsForRead(tempMems, splineLookup, minMEMLength, maxNumHits, maxRange, gameteToIdxMap, sampleNameToChrAndSample)
         if (pairPosAndGameteSet.first.position != -1) {
             countMap[pairPosAndGameteSet] = countMap.getOrDefault(pairPosAndGameteSet, 0) + 1
             for (gameteIdx in pairPosAndGameteSet.second) { //Need to convert this to a set otherwise we get multiple counts for a given gamete
@@ -254,7 +278,8 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
                            splineLookup: LinearLookupFunction,
                            minMEMLength: Int, maxNumHits: Int,
                            maxRange: Int,
-                           gameteToIdxMap: Map<String, Int>): Pair<Position, List<Int>> {
+                           gameteToIdxMap: Map<String, Int>,
+                           sampleNameToChrAndSample: Map<String, ContigAndGamete>,): Pair<Position, List<Int>> {
         val bestHits = findBestMems(tempMems, minMEMLength, maxNumHits)
         if(bestHits.isEmpty()) {
             return Pair(Position("unknown",-1), listOf())
@@ -265,10 +290,10 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         val referenceLookupPositions = lookupHitsToRefPosition(bestHits, splineLookup)
 
         //Create consensus Position
-        val consensusPositionsAndGametes = createConsensusPositionAndGametes(referenceLookupPositions, gameteToIdxMap)
+        val consensusPositionsAndGametes = createConsensusPositionAndGametes(referenceLookupPositions, gameteToIdxMap, sampleNameToChrAndSample)
 
         //Filter on maximum range
-        if(consensusPositionsAndGametes.third > maxRange) {
+        if(consensusPositionsAndGametes.third > maxRange || consensusPositionsAndGametes.second.isEmpty()) {
             return Pair(Position("unknown",-1), listOf())
         }
 
@@ -293,7 +318,7 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
     /**
      *  Function to find a consensus position for the gametes and output a Pair that can be used to increase counts
      */
-    fun createConsensusPositionAndGametes(referenceLookupPositions: List<Pair<String,Position>>,gameteToIdxMap: Map<String, Int>) : Triple<Position, List<Int>, Int> {
+    fun createConsensusPositionAndGametes(referenceLookupPositions: List<Pair<String,Position>>,gameteToIdxMap: Map<String, Int>, sampleNameToChrAndSample: Map<String, ContigAndGamete>,) : Triple<Position, List<Int>, Int> {
         if(referenceLookupPositions.isEmpty()) {
             return Triple(Position("unknown",-1), listOf(), 0)
         }
@@ -312,17 +337,38 @@ class ConvertRopebwt2Ps4gFile : CliktCommand(help = "Convert RopebwtBed to PS4G"
         val binnedPosition = Position(bestChromosome, averagePosition)
 
         val gameteIndicesHit = bestHitsForChrom
-            .map { it.first.split("_") }
-            .map { it.last() } //needs to be last because there are scaffolds delimited by _
+//            .map { it.first.split("_") }
+//            .map { it.last() } //needs to be last because there are scaffolds delimited by _
+            .map {
+                getAlignedGameteName(it.first, sampleNameToChrAndSample)
+            }
+            .filter { it != "" }
             .map {
                 if(!gameteToIdxMap.containsKey(it)) {
-                    myLogger.info("Gamete $it not found in. Chr: $bestChromosome, Position: $averagePosition")
+                    myLogger.warn("Gamete $it not found in. Chr: $bestChromosome, Position: $averagePosition")
+                    Int.MIN_VALUE
                 }
-                gameteToIdxMap[it]!! }
+                else {
+                    gameteToIdxMap[it]!!
+                }
+            }
+            .filter { it != Int.MIN_VALUE }
             .toSortedSet()
             .toList()
 
         return Triple(binnedPosition, gameteIndicesHit, rangePosition)
+    }
+
+    private fun getAlignedGameteName(
+        mappedSampleName: String,
+        sampleNameToChrAndSample: Map<String, ContigAndGamete>
+    ): String {
+        return if (!sampleNameToChrAndSample.containsKey(mappedSampleName)) {
+            myLogger.warn("Skipping $mappedSampleName as it is not in the splines")
+            ""
+        } else {
+            sampleNameToChrAndSample[mappedSampleName]?.gamete ?: ""
+        }
     }
 
     /**

@@ -102,6 +102,7 @@ phg rope-bwt-chr-index \
 | `--threads`           | Number of threads to use for index creation.                                                                                                              | `3`           |                  |
 | `--delete-fmr-index`  | Delete the `.fmr` index file after converting to `.fmd`.                                                                                                  | `true`        |                  |
 | `--conda-env-prefix`  | Prefix for the Conda environment to use. If provided, this should be the full path to the Conda environment.                                              | `""`          |                  |
+| `--sample-name-first` | Rename contigs as `sampleName_contigName` instead of the default `contigName_sampleName`. Use `--no-sample-name-first` to disable.                        | `false`       |                  |
 
 !!! note
     * `--keyfile` is a tab-delimited file with 2 columns with names
@@ -109,7 +110,8 @@ phg rope-bwt-chr-index \
     assembly FASTA file and `SampleName` needs to be the name you want
     included in the contig name. The first step of the indexer is to
     open up each FASTA file and rename the contigs to include the
-    provided sample name separated by an '_' (e.g., `lineA_chr1`).
+    provided sample name separated by an '_' (e.g., `chr1_lineA` by
+    default, or `lineA_chr1` if `--sample-name-first` is set).
     * `--index-file-prefix` is the prefix for all the output index files.
     This tool will make a number of files (some temporary) while it is
     running each with this prefix. **There should not be an extension
@@ -125,6 +127,13 @@ phg rope-bwt-chr-index \
     differentiate between contigs of the same name but coming from 
     different assemblies (e.g., `chr1`, `chr2`, ... etc.).
 
+!!! warning "Keep `--sample-name-first` consistent"
+    The contig naming order chosen here (`--sample-name-first` on or off)
+    is baked into the RopeBWT3 index and must exactly match the value
+    passed to `build-spline-knots` and `convert-ropebwt2ps4g-file` below.
+    If any of the three commands disagrees with the others, the spline
+    and gamete lookups will silently fail to match aligned contigs and
+    produce no hits.
 
 <br>
 <hr/>
@@ -158,6 +167,7 @@ build-spline-knots \
 | `--num-bps-per-knot` | Maximum number of base pairs per knot for each contig’s spline. The actual number may be lower if a contig has fewer bases.                                                               | `50000`       |                  |
 | `--contig-list`      | Comma-separated list of chromosomes to include in spline generation. If not provided, all chromosomes will be included.                                                                    | `""`          |                  |
 | `--random-seed`      | Random seed used for downsampling the number of points per chromosome. Ensures reproducibility.                                                                                           | `12345`       |                  |
+| `--sample-name-first` | Build spline knot keys as `sampleName_contigName` instead of the default `contigName_sampleName`. This must match the value used for `rope-bwt-chr-index`.                               | `false`       |                  |
 
 <br>
 <hr/>
@@ -241,6 +251,7 @@ phg convert-ropebwt2-ps4g-file \
 | `--min-mem-length`    | Minimum length of a match (MEM) to be considered for consensus. Shorter MEMs are ignored.                                                                                                                   | `148`         |                  |
 | `--max-num-hits`      | Maximum total number of hits allowed (sum across best MEMs). If a read hits more haplotypes than this, it is ignored.                                                                                       | `50`          |                  |
 | `--sort-positions`    | Sort positions in the resulting PS4G file. Use `--no-sort-positions` to disable.                                                                                                                            | `true`        |                  |
+| `--sample-name-first` | Reconstruct aligned contig names as `sampleName_contigName` instead of the default `contigName_sampleName` when looking up gametes. This must match the value used for `rope-bwt-chr-index` and `build-spline-knots`. | `false`       |                  |
 
 !!! note
     ropebwt3 can hit more than the value provided in the

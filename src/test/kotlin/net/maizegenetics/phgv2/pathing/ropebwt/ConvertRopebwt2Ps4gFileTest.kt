@@ -132,22 +132,26 @@ class ConvertRopebwt2Ps4gFileTest {
 
         val encodedPositions = listOf(Pair("chr1_gamete1", Position("1",5120)),Pair("chr1_gamete2", Position("1",7680)))
 
+        val sampleNameToChrAndSample = mapOf(
+            "chr1_gamete1" to ContigAndGamete("chr1", "gamete1"),
+            "chr1_gamete2" to ContigAndGamete("chr2", "gamete2"),
+        )
 
         val gameteToIdxMap = mapOf(Pair("gamete1", 1), Pair("gamete2", 2))
-        val consensus = convertRopebwt2Ps4gFile.createConsensusPositionAndGametes(encodedPositions, gameteToIdxMap)
+        val consensus = convertRopebwt2Ps4gFile.createConsensusPositionAndGametes(encodedPositions, gameteToIdxMap, sampleNameToChrAndSample)
 
         assertEquals(6400, consensus.first.position)
         assertEquals(listOf(1, 2), consensus.second)
 
         //check if the encoded positions are the exact same
         val encodedPositionsSamePos = listOf(Pair("chr1_gamete1", Position("1",5120)), Pair("chr1_gamete2", Position("1",5120)))
-        val consensusSamePos = convertRopebwt2Ps4gFile.createConsensusPositionAndGametes(encodedPositionsSamePos, gameteToIdxMap)
+        val consensusSamePos = convertRopebwt2Ps4gFile.createConsensusPositionAndGametes(encodedPositionsSamePos, gameteToIdxMap,sampleNameToChrAndSample)
 
         assertEquals(5120, consensusSamePos.first.position)
         assertEquals(listOf(1, 2), consensusSamePos.second)
 
         //Try empty list
-        val consensusEmpty = convertRopebwt2Ps4gFile.createConsensusPositionAndGametes(listOf(), gameteToIdxMap)
+        val consensusEmpty = convertRopebwt2Ps4gFile.createConsensusPositionAndGametes(listOf(), gameteToIdxMap, sampleNameToChrAndSample)
         assertEquals(-1, consensusEmpty.first.position)
         assertEquals(0, consensusEmpty.second.size)
 
@@ -230,17 +234,25 @@ class ConvertRopebwt2Ps4gFileTest {
 
         val emptySplines = LinearLookupFunction(emptyMap(), emptyMap())
 
-        val noPassingHits = convertRopebwt2Ps4gFile.processMemsForRead(memList, emptySplines, 5, 1, 10, gameteToIdxMap)
+        val sampleNameToChrAndSample = mapOf(
+            "chr1_sample1" to ContigAndGamete("chr1", "sample1"),
+            "chr1_sample2" to ContigAndGamete("chr1", "sample2"),
+            "chr2_sample1" to ContigAndGamete("chr2", "sample1"),
+            "chr2_sample2" to ContigAndGamete("chr2", "sample2")
+        )
+
+
+        val noPassingHits = convertRopebwt2Ps4gFile.processMemsForRead(memList, emptySplines, 5, 1, 10, gameteToIdxMap,sampleNameToChrAndSample)
         //Pair(-1, listOf())
         assertEquals(-1, noPassingHits.first.position)
         assertEquals(0, noPassingHits.second.size)
 
-        val noPassingHits2 = convertRopebwt2Ps4gFile.processMemsForRead(memList, emptySplines, 50, 30, 10, gameteToIdxMap)
+        val noPassingHits2 = convertRopebwt2Ps4gFile.processMemsForRead(memList, emptySplines, 50, 30, 10, gameteToIdxMap,sampleNameToChrAndSample)
         //Also should be Pair(-1, listOf())
         assertEquals(-1, noPassingHits2.first.position)
         assertEquals(0, noPassingHits2.second.size)
 
-        val noPassingHits3 = convertRopebwt2Ps4gFile.processMemsForRead(memList, emptySplines, 5, 30, 0, gameteToIdxMap)
+        val noPassingHits3 = convertRopebwt2Ps4gFile.processMemsForRead(memList, emptySplines, 5, 30, 0, gameteToIdxMap,sampleNameToChrAndSample)
         //Also should be Pair(-1, listOf())
         assertEquals(-1, noPassingHits3.first.position)
         assertEquals(0, noPassingHits3.second.size)
@@ -249,7 +261,7 @@ class ConvertRopebwt2Ps4gFileTest {
 
         val splineLookup =LinearLookupFunction(knots,chrIndexMap)
 
-        val processedMems = convertRopebwt2Ps4gFile.processMemsForRead(memList, splineLookup, 19, 10, 10, gameteToIdxMap)
+        val processedMems = convertRopebwt2Ps4gFile.processMemsForRead(memList, splineLookup, 19, 10, 10, gameteToIdxMap,sampleNameToChrAndSample)
 
         assertEquals(2, processedMems.first.position) // 1 + 3 = 4 /2 = 2
         assertEquals(2, processedMems.second.size)
@@ -341,20 +353,27 @@ class ConvertRopebwt2Ps4gFileTest {
 
         val gameteToIdxMap = mapOf(Pair("sample1", 0), Pair("sample2", 1))
 
+        val sampleNameToChrAndSample = mapOf(
+            "chr1_sample1" to ContigAndGamete("chr1", "sample1"),
+            "chr1_sample2" to ContigAndGamete("chr1", "sample2"),
+            "chr2_sample1" to ContigAndGamete("chr2", "sample1"),
+            "chr2_sample2" to ContigAndGamete("chr2", "sample2")
+        )
+
         val countMap = mutableMapOf<Pair<Position, List<Int>>, Int>()
         val sampleGameteCountMap = mutableMapOf<SampleGamete, Int>()
         val gameteIdxToSampleGameteMap = mapOf(Pair(0, SampleGamete("sample1", 0)), Pair(1, SampleGamete("sample2", 1)))
 
-        convertRopebwt2Ps4gFile.processTempMEMs(tempMems1, splineLookup,  5, 10, 10, gameteToIdxMap, countMap, sampleGameteCountMap, gameteIdxToSampleGameteMap)
+        convertRopebwt2Ps4gFile.processTempMEMs(tempMems1, splineLookup,  5, 10, 10, gameteToIdxMap, countMap, sampleGameteCountMap, gameteIdxToSampleGameteMap, sampleNameToChrAndSample)
         assertEquals(1, countMap.size)
         assertEquals(1, countMap[Pair(Position("1",2), listOf(0,1))])
 
-        convertRopebwt2Ps4gFile.processTempMEMs(tempMems2, splineLookup,  5, 10, 10, gameteToIdxMap, countMap, sampleGameteCountMap, gameteIdxToSampleGameteMap)
+        convertRopebwt2Ps4gFile.processTempMEMs(tempMems2, splineLookup,  5, 10, 10, gameteToIdxMap, countMap, sampleGameteCountMap, gameteIdxToSampleGameteMap, sampleNameToChrAndSample)
         assertEquals(2, countMap.size)
         assertEquals(1, countMap[Pair(Position( "1",1), listOf(0))])
         assertEquals(1, countMap[Pair(Position("1",2), listOf(0,1))])
 
-        convertRopebwt2Ps4gFile.processTempMEMs(tempMems3, splineLookup,  19, 10, 10, gameteToIdxMap, countMap, sampleGameteCountMap, gameteIdxToSampleGameteMap)
+        convertRopebwt2Ps4gFile.processTempMEMs(tempMems3, splineLookup,  19, 10, 10, gameteToIdxMap, countMap, sampleGameteCountMap, gameteIdxToSampleGameteMap, sampleNameToChrAndSample)
         assertEquals(2, countMap.size)
         assertEquals(1, countMap[Pair(Position("1",1), listOf(0))])
         assertEquals(2, countMap[Pair(Position("1",2), listOf(0,1))])
@@ -378,10 +397,13 @@ class ConvertRopebwt2Ps4gFileTest {
 
         val (splineKnots, chrIndexMap, gameteToIdxMap) = SplineUtils.loadSplineKnotLookupFromDirectory(tempTestDir)
 
+        val bedSampleNameToChrAndSample = convertRopebwt2Ps4gFile.buildSampleNameSplitMap(chrIndexMap, gameteToIdxMap)
+
+
         val splineLookup = LinearLookupFunction(splineKnots, chrIndexMap)
 
 
-        val ps4gData = convertRopebwt2Ps4gFile.buildPS4GData(ropebwtBed, splineLookup, gameteToIdxMap, 148, 10, 50)
+        val ps4gData = convertRopebwt2Ps4gFile.buildPS4GData(ropebwtBed, splineLookup, gameteToIdxMap, 148, 10, 50, bedSampleNameToChrAndSample)
 
         assertEquals(4, ps4gData.first.size)
         assertEquals(1, ps4gData.second.size)
@@ -390,7 +412,7 @@ class ConvertRopebwt2Ps4gFileTest {
             assertTrue(truthDataWideRange.contains(data))
         }
 
-        val ps4gData2 = convertRopebwt2Ps4gFile.buildPS4GData(ropebwtBed, splineLookup, gameteToIdxMap, 148, 10, 15)
+        val ps4gData2 = convertRopebwt2Ps4gFile.buildPS4GData(ropebwtBed, splineLookup, gameteToIdxMap, 148, 10, 15, bedSampleNameToChrAndSample)
 
         assertEquals(3, ps4gData2.first.size)
         assertEquals(1, ps4gData2.second.size)
@@ -400,6 +422,25 @@ class ConvertRopebwt2Ps4gFileTest {
         }
 
         resetDirs()
+    }
+
+    @Test
+    fun testBuildSampleNameSplitMap() {
+        val convertRopebwt2Ps4gFile = ConvertRopebwt2Ps4gFile()
+        val chrIndexMap = mapOf("chr1" to 0, "chr2" to 1)
+        val gameteIndexMap = mapOf("gamete1" to 0, "gamete2" to 1)
+
+        //Default order is chromName_gameteName
+        val defaultMap = convertRopebwt2Ps4gFile.buildSampleNameSplitMap(chrIndexMap, gameteIndexMap)
+        assertEquals(4, defaultMap.size)
+        assertEquals(ContigAndGamete("chr1", "gamete1"), defaultMap["chr1_gamete1"])
+        assertEquals(ContigAndGamete("chr2", "gamete2"), defaultMap["chr2_gamete2"])
+
+        //Flipped order is gameteName_chromName
+        val sampleFirstMap = convertRopebwt2Ps4gFile.buildSampleNameSplitMap(chrIndexMap, gameteIndexMap, sampleNameFirst = true)
+        assertEquals(4, sampleFirstMap.size)
+        assertEquals(ContigAndGamete("chr1", "gamete1"), sampleFirstMap["gamete1_chr1"])
+        assertEquals(ContigAndGamete("chr2", "gamete2"), sampleFirstMap["gamete2_chr2"])
     }
 
     @Test

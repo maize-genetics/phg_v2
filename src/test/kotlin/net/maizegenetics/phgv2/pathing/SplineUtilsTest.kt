@@ -95,6 +95,25 @@ class SplineUtilsTest {
     }
 
     @Test
+    fun testProcessHvcfFileIntoSplinesSampleNameFirst() {
+        val inputFile = "data/test/ropebwt/testHVCFs/LineA.h.vcf"
+        val chrIndexMap = mutableMapOf("1" to 0, "2" to 1)
+        val gameteIndexMap = mutableMapOf("LineA" to 0, "LineB" to 1)
+
+        val splineKnotLookup = SplineUtils.processHvcfFileIntoSplineKnots(File(inputFile), chrIndexMap, gameteIndexMap, sampleNameFirst = true)
+
+        //With sampleNameFirst, the keys should be sampleName_asmChr instead of asmChr_sampleName
+        assertEquals(2, splineKnotLookup.splineKnotMap.size)
+        for((key, value) in splineKnotLookup.splineKnotMap) {
+            assertEquals("LineA", key.split("_").first())
+            for((asmPos,refChr,refPos) in value) {
+                assertEquals(key.split("_").last(), refChr)
+                assertEquals(asmPos/256, refPos)
+            }
+        }
+    }
+
+    @Test
     fun testProcessGvcfFileIntoSplines() {
         val inputFile = "data/test/smallseq/LineA.g.vcf"
         val chrIndexMap = mutableMapOf("1" to 0, "2" to 1)
@@ -113,6 +132,23 @@ class SplineUtilsTest {
 
         //These have been verified manually
         val chr1Knots = splineKnotLookup.splineKnotMap["1_LineA"]!!
+        assertEquals(chr1Knots[0],Triple(1, "1", 0))
+        assertEquals(chr1Knots[1],Triple(3106, "1", 12))
+        assertEquals(chr1Knots[2],Triple(3357, "1", 12))
+        assertEquals(chr1Knots[4],Triple(3893, "1", 13))
+    }
+
+    @Test
+    fun testProcessGvcfFileIntoSplinesSampleNameFirst() {
+        val inputFile = "data/test/smallseq/LineA.g.vcf"
+        val chrIndexMap = mutableMapOf("1" to 0, "2" to 1)
+        val gameteIndexMap = mutableMapOf("LineA" to 0, "LineB" to 1)
+
+        val splineKnotLookup = SplineUtils.processGvcfFileIntoSplineKnots(File(inputFile), chrIndexMap, gameteIndexMap, sampleNameFirst = true)
+
+        //With sampleNameFirst, the keys should be sampleName_asmChr instead of asmChr_sampleName
+        assertEquals(2, splineKnotLookup.splineKnotMap.size)
+        val chr1Knots = splineKnotLookup.splineKnotMap["LineA_1"]!!
         assertEquals(chr1Knots[0],Triple(1, "1", 0))
         assertEquals(chr1Knots[1],Triple(3106, "1", 12))
         assertEquals(chr1Knots[2],Triple(3357, "1", 12))

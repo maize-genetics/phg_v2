@@ -48,7 +48,7 @@ class SplineUtils{
          */
         fun buildSplineKnots(vcfDir: String, vcfType: String, outputDir: String, minIndelLength: Int = 10,
                              numBpsPerKnot: Int = 50_000, contigSet : Set<String> = emptySet(), disableSplineDownsampling: Boolean = false,
-                             randomSeed: Long = 12345, binSize:Int = 256, disableASMCoordinates : Boolean = false) {
+                             randomSeed: Long = 12345, binSize:Int = 256, disableASMCoordinates : Boolean = false, sampleNameFirst: Boolean = false) {
             val vcfFiles = buildVCFFileList(vcfDir, vcfType)
 
             var chrIndexMap = mutableMapOf<String,Int>()
@@ -61,7 +61,7 @@ class SplineUtils{
 
 
                 myLogger.info("Reading ${vcfFile.name}")
-                val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed, binSize, disableASMCoordinates)
+                val splineKnotLookup = processVCFFileIntoSplineKnots(vcfFile, vcfType, chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed, binSize, disableASMCoordinates, sampleNameFirst)
 
                 myLogger.info("Done processing ${vcfFile.name}")
                 myLogger.info("Number of splines: ${splineKnotLookup.splineKnotMap.size}")
@@ -114,15 +114,16 @@ class SplineUtils{
             disableSplineDownsampling: Boolean = false,
             randomSeed: Long = 12345,
             binSize: Int = 256,
-            disableASMCoordinates : Boolean = false
+            disableASMCoordinates : Boolean = false,
+            sampleNameFirst: Boolean = false
         ) : SplineKnotLookup {
             return if(vcfType == "hvcf") {
                 if(disableASMCoordinates) {
                     myLogger.info("Disable ASM Coordinates is on.  It does not have an effect on hvcf files as they use the metadata.")
                 }
-                processHvcfFileIntoSplineKnots(vcfFile, chrIndexMap, gameteIndexMap, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed, binSize)
+                processHvcfFileIntoSplineKnots(vcfFile, chrIndexMap, gameteIndexMap, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed, binSize, sampleNameFirst)
             } else if(vcfType == "gvcf") {
-                processGvcfFileIntoSplineKnots(vcfFile,chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed, binSize, disableASMCoordinates)
+                processGvcfFileIntoSplineKnots(vcfFile,chrIndexMap, gameteIndexMap, minIndelLength, numBpsPerKnot, contigSet, disableSplineDownsampling, randomSeed, binSize, disableASMCoordinates, sampleNameFirst)
             } else {
                 throw IllegalArgumentException("Unknown VCF type $vcfType")
             }
@@ -140,7 +141,8 @@ class SplineUtils{
             contigSet: Set<String> = emptySet(),
             disableSplineDownsampling: Boolean = false,
             randomSeed: Long = 12345,
-            binSize: Int = 256
+            binSize: Int = 256,
+            sampleNameFirst: Boolean = false
         ) : SplineKnotLookup {
             val splineKnotMap = mutableMapOf<String, MutableList<Triple<Int,String,Int>>>()
 
@@ -202,7 +204,7 @@ class SplineUtils{
                 for (entry in currentASMSplineMap.entries) {
                     val asmChr = entry.key
                     val sortedKnots = entry.value.sortedBy { it.first }.toMutableList()
-                    splineKnotMap["${asmChr}_${sampleName}"] = sortedKnots
+                    splineKnotMap[RopeBWTUtils.combinedContigName(asmChr, sampleName, sampleNameFirst)] = sortedKnots
                 }
             }
             return SplineKnotLookup(splineKnotMap, chrIndexMap, gameteIndexMap)
@@ -219,6 +221,7 @@ class SplineUtils{
             randomSeed: Long = 12345,
             binSize: Int = 256,
             disableASMCoordinates : Boolean = false,
+            sampleNameFirst: Boolean = false,
         ) : SplineKnotLookup {
 
             val splineKnotMap = mutableMapOf<String, MutableList<Triple<Int,String,Int>>>()
@@ -235,9 +238,10 @@ class SplineUtils{
             var blockAsmChrIdx: Int? = null
             var currentRefChr: String? = null
 
-            var currentASMPos = 1
+            var currentASMPos: Int? = null
             val refChromSet = mutableSetOf<String>()
-            var prevRefPos = -1
+            var prevRefPosStart = -1
+            var prevRefPosEnd = -1
 
 
             // Flush the current regular block if it exists.
@@ -308,18 +312,32 @@ class SplineUtils{
                             check(!refChromSet.contains(refChr)) { "Second Block of Ref Chromosomes.  Your gVCF file is not sorted by reference coordinates." }
                             refChromSet.add(refChr)
                             //Reset the currentASMPos Start
-                            currentASMPos = 1
-                            prevRefPos = -1
+                            // TODO: add in options for 'asRef', 'asN', 'omit'
+                            currentASMPos = refPosStart
+                            prevRefPosStart = -1
+                            prevRefPosEnd = -1
                         }
 
                     }
                     currentRefChr = refChr
+                    if (currentASMPos == null) {
+                        // TODO: add in options for 'asRef', 'asN', 'omit'
+                        currentASMPos = refPosStart
+                    }
 
 
                     //If disableASMCoords is on, we need to verify that the position will be increasing
                     if(disableASMCoordinates) {
-                        check(prevRefPos< refPosStart) {"Found position for this chromosome before previous position. Your gVCF file is not sorted by reference coordinates."}
-                        prevRefPos = refPosStart
+                        check(prevRefPosStart < refPosStart) {"Found position for this chromosome before previous position. Your gVCF file is not sorted by reference coordinates."}
+                        // Handle gaps between variants (only if we have a previous variant)
+                        // TODO: add in options for 'asRef', 'asN', 'omit'
+                        if (prevRefPosEnd != -1 && prevRefPosEnd < refPosStart - 1) {
+                            val gapSize = refPosStart - prevRefPosEnd - 1
+                            // Gap exists - add gap length to assembly position
+                            currentASMPos = currentASMPos!! + gapSize
+                        }
+                        prevRefPosStart = refPosStart
+                        prevRefPosEnd = refPosEnd
                     }
 
                     // Get ASM_Chr; if missing, default to "NA".
@@ -425,7 +443,7 @@ class SplineUtils{
                 for (entry in currentASMSplineMap.entries) {
                     val asmChr = entry.key
                     val sortedKnots = entry.value.sortedBy { it.first }.toMutableList()
-                    splineKnotMap["${asmChr}_${sampleName}"] = sortedKnots
+                    splineKnotMap[RopeBWTUtils.combinedContigName(asmChr, sampleName, sampleNameFirst)] = sortedKnots
                 }
 
             }
@@ -436,17 +454,22 @@ class SplineUtils{
         fun findAsmCoords(variant: VariantContext, currentASMPos: Int, disableASMCoordinates: Boolean = false ): Triple<Int?,Int?,Int> {
             return if(disableASMCoordinates) {
                 //Need to see what type of variant we have.  If its a ref block we need to use the refCoords, if not go off alt length
-                val firstAltAllele = variant.getAlternateAllele(0)
+                val firstAltAllele = if(variant.alternateAlleles.isNotEmpty()) {
+                    variant.getAlternateAllele(0)
+                } else {
+                    Allele.NON_REF_ALLELE
+                }
 
                 val genotypeAllele = variant.getGenotype(0).alleles.first()
                 if(genotypeAllele == Allele.NO_CALL) {
                     Triple(null, null, currentASMPos) //should not return any coords as it is a no call.
                 }
-                else if(firstAltAllele == Allele.NON_REF_ALLELE) {
+                else if(firstAltAllele == Allele.NON_REF_ALLELE ) { //This is the ref block case
                     val refLength = variant.end - variant.start
                     Triple(currentASMPos, currentASMPos + refLength, currentASMPos + refLength +1)
-                } else {
-                    val altAlleleLength = variant.alternateAlleles.first().baseString.length
+                }
+                else { //This handles everything else
+                    val altAlleleLength = firstAltAllele.baseString.length
                     Triple(currentASMPos, currentASMPos + altAlleleLength-1, currentASMPos + altAlleleLength) //Don't need to add + to the next one as length already does this...
                 }
             }

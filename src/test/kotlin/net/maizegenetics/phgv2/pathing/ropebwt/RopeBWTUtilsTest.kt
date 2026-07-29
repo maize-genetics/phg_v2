@@ -108,6 +108,16 @@ class RopeBWTUtilsTest {
     }
 
     @Test
+    fun testCombinedContigName() {
+        //Default order is contigName_sampleName
+        assertEquals("chr1_B73", RopeBWTUtils.combinedContigName("chr1", "B73"))
+        assertEquals("chr1_B73", RopeBWTUtils.combinedContigName("chr1", "B73", sampleNameFirst = false))
+
+        //Flipped order is sampleName_contigName
+        assertEquals("B73_chr1", RopeBWTUtils.combinedContigName("chr1", "B73", sampleNameFirst = true))
+    }
+
+    @Test
     fun testParseStringIntoMemMultipleHits() {
         // Test parsing a line with many hits
         val testLine = "read3\t0\t100\t4\t100\thap1:+:50\thap2:+:60\thap3:-:70\thap4:+:80"
