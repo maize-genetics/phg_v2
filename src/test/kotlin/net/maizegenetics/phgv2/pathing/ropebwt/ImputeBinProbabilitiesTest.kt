@@ -18,7 +18,7 @@ class ImputeBinProbabilitiesTest {
         // The column header written to every output file. NB: the command writes this string
         // without a trailing newline, so the first data row is physically concatenated onto it.
         // The parsing helpers below account for that.
-        const val HEADER = "contig\tposition\tstate\tprobability"
+        const val HEADER = "contig\tposition\tstate\tprobability\n"
 
         @JvmStatic
         @BeforeAll
