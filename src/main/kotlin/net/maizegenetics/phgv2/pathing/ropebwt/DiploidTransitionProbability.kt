@@ -9,13 +9,15 @@ class DiploidTransitionProbability(val pNoSwitch: Double, val inbreedingCoef: Do
     val pnn = pNoSwitch * pNoSwitch
 
     fun calculate(from: Pair<Int,Int>, to: Pair<Int,Int>): Double {
-        val transitionP =  when (inbreedingCoef) {
+        return when (inbreedingCoef) {
             0.0 -> probabilityForF0(from, to)
             1.0 -> probabilityForF1(from, to)
             else -> (1.0 - inbreedingCoef) * probabilityForF0(from, to) + inbreedingCoef * probabilityForF1(from, to)
         }
+    }
 
-        return ln(transitionP)
+    fun calculateLn(from: Pair<Int,Int>, to: Pair<Int,Int>): Double {
+        return ln(calculate(from, to))
     }
 
     fun probabilityForF0(from: Pair<Int,Int>, to: Pair<Int,Int>):Double {
