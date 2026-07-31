@@ -79,7 +79,7 @@ imputation using the PHG:
 
 * Calculate state probabilities from a PS4G file using the forward-backward algorithm:
   ```shell
-  phg impute-path-from-ps4g \
+  phg impute-bin-probabilities \
       --read-file /path/to/ps4g_file.ps4g \
       --out-path-dir /my/output_dir
   ```
@@ -323,5 +323,4 @@ phg impute-bin-probabilities \
 | `--bin-size`     | The bin size used to create the ps4g file.                                                                                    | `256`         |                  |
 
 !!! note
-`--expand-bins` is a flag. If entered without a parameter, its value is set to true.
 `--bin-size` must match the ps4g file, so that the output positions are correct.

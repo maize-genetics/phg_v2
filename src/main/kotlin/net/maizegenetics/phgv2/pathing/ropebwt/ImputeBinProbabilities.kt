@@ -4,10 +4,12 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
 import com.github.ajalt.clikt.parameters.groups.required
 import com.github.ajalt.clikt.parameters.groups.single
+import com.github.ajalt.clikt.parameters.options.check
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
@@ -38,7 +40,7 @@ import kotlin.io.path.createDirectories
  *
  * Results are written per sample to `<outputDir>/<sampleName>_imputed_probabilities.txt`.
  */
-class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a Ps4g file.")  {
+class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype probabilities from a Ps4g file using an HMM.")  {
 
     val readInputFiles: PathInputFile by mutuallyExclusiveOptions<PathInputFile>(
         option(
@@ -52,8 +54,8 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
     ).single().required()
 
     val outputDir by option(
-        help = "The directory where the imputed assembly haplotypes will be written for each sample. " +
-                "File names will be <sampleName>_imputed_path.bed. Coordinates are 0-based half-open."
+        help = "The directory where the haplotype probabilities will be written for each sample. " +
+                "File names will be <sampleName>_imputed_probabilities.txt."
     )
         .required()
 
@@ -66,6 +68,7 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
     val probCorrect by option(help = "The probability that a read maps to correct haplotype. Default = 0.98")
         .double()
         .default(0.98)
+        .check { it in 0.5..1.0 }
 
     val probSame by option(
         help = "The probability that a path stays on the same gamete when transitioning between " +
@@ -73,6 +76,7 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
     )
         .double()
         .default(0.9999)
+        .check { it in 0.5..1.0 }
 
     val inbreedCoef by option(
         help = "The inbreeding coefficient (between 0.0 and 1.0). " +
@@ -80,6 +84,7 @@ class ImputeBinProbabilities: CliktCommand(help = "Impute best haplotypes from a
     )
         .double()
         .default(0.0)
+        .check { it in 0.0..1.0 }
 
     val nParents by option(help = "Restrict the number of parents used for imputation to this number. " +
             "Default = 0 will use all parents.")

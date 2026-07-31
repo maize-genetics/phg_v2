@@ -93,6 +93,36 @@ class ImputeBinProbabilitiesTest {
             badImputeType.stderr.contains("impute-type"),
             "Expected impute-type error but got: ${badImputeType.stderr}"
         )
+
+        // Invalid --prob-correct value (not between 0.5 and 1.0)
+        val badProbCorrectValue = ImputeBinProbabilities().test(
+            "--read-file someFile.ps4g --output-dir $tempTestDir --prob-correct 0.0"
+        )
+        assertEquals(1, badProbCorrectValue.statusCode)
+        assertTrue(
+            badProbCorrectValue.stderr.contains("prob-correct"),
+            "Expected impute-type error but got: ${badProbCorrectValue.stderr}"
+        )
+
+        // Invalid --prob-same value (not between 0.5 and 1.0)
+        val badProbSameValue = ImputeBinProbabilities().test(
+            "--read-file someFile.ps4g --output-dir $tempTestDir --prob-same 0.0"
+        )
+        assertEquals(1, badProbSameValue.statusCode)
+        assertTrue(
+            badProbSameValue.stderr.contains("prob-same"),
+            "Expected impute-type error but got: ${badProbSameValue.stderr}"
+        )
+
+        // Invalid --inbreed-coef value (not between 0.0 and 1.0)
+        val badInbreedCoefValue = ImputeBinProbabilities().test(
+            "--read-file someFile.ps4g --output-dir $tempTestDir --inbreed-coef 1.5"
+        )
+        assertEquals(1, badInbreedCoefValue.statusCode)
+        assertTrue(
+            badInbreedCoefValue.stderr.contains("inbreed-coef"),
+            "Expected impute-type error but got: ${badInbreedCoefValue.stderr}"
+        )
     }
 
     @Test
