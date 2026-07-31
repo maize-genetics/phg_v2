@@ -1,0 +1,7 @@
+AssemblyServerDir	RefDir	RefFasta	AssemblyDir	AssemblyFasta	AssemblyDBName	Chromosome
+irods:/BL/Assemblies/B104	/tempFileDir/referenceFastas/	B73chr1.fa	/tempFileDir/assemblyFastas/	B104chr1.fa	B104_Assembly	1
+irods:/BL/Assemblies/B104	/tempFileDir/referenceFastas/	B73chr2.fa	/tempFileDir/assemblyFastas/	B104chr2.fa	B104_Assembly	2
+irods:/BL/Assemblies/B104	/tempFileDir/referenceFastas/	B73chr3.fa	/tempFileDir/assemblyFastas/	B104chr3.fa	B104_Assembly	3
+irods:/BL/Assemblies/B97	/tempFileDir/referenceFastas/	B73chr1.fa	/tempFileDir/assemblyFastas/	B97chr1.fa	B97_Assembly	1
+irods:/BL/Assemblies/B97	/tempFileDir/referenceFastas/	B73chr2.fa	/tempFileDir/assemblyFastas/	B97chr2.fa	B97_Assembly	2
+irods:/BL/Assemblies/B97	/tempFileDir/referenceFastas/	B73chr3.fa	/tempFileDir/assemblyFastas/	B97chr3.fa	B97_Assembly	3
