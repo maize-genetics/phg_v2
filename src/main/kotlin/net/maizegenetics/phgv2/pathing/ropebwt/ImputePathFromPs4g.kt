@@ -17,14 +17,31 @@ import net.maizegenetics.phgv2.pathing.MostLikelyPs4gParents
 import net.maizegenetics.phgv2.pathing.PathInputFile
 import net.maizegenetics.phgv2.pathing.ropebwt.Ps4gFileReader.Ps4gGameteSet
 import net.maizegenetics.phgv2.utils.Position
+import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.nio.file.InvalidPathException
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.io.path.createDirectories
+import kotlin.io.path.exists
 
 class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4g file.") {
+
+    companion object {
+        fun buildContigSet(contigString: String): Set<String> {
+            return if (contigString.isNotBlank()) {
+                try {
+                    val filePath = Path.of(contigString)
+                    if (filePath.exists()) getBufferedReader(filePath.toFile()).readLines().toSet()
+                    else contigString.split(",").toSet()
+                } catch (e: InvalidPathException) {
+                    contigString.split(",").toSet()
+                }
+            } else emptySet()
+        }
+    }
 
     val readInputFiles: PathInputFile by mutuallyExclusiveOptions<PathInputFile>(
         option(
@@ -81,6 +98,11 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             "that have identical parents into a single record. Default = false (adjacent bins are merged).")
         .flag()
 
+    val contigsToUse by option(help = "A list of contigs to be imputed. If no list is supplied, all contigs in the ps4g" +
+            " file will be imputed. The value can be a comma-separated list or a file containing the list," +
+            " with a single contig per line.")
+        .default("")
+
     val myLogger = LogManager.getLogger(ImputePathFromPs4g::class.java)
 
     /**
@@ -110,7 +132,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     /**
      * Imputes a single (haploid) haplotype path for each ps4g file supplied via --path-keyfile
-     * or --read-file. For every sample, each non-scaffold contig is run through [ViterbiHMM.findHaploidPath]
+     * or --read-file. For every sample, contig is run through [ViterbiHMM.findHaploidPath]
      * and the resulting path is written to <sampleName>_imputed_path.bed in [outputDir] as
      * chrom/start/end/parent1 records.
      */
@@ -127,7 +149,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
     /**
      * Imputes a pair of (diploid) haplotype paths for each ps4g file supplied via --path-keyfile
      * or --read-file. For every sample, the parent set is optionally reduced to the [nParents] most
-     * likely parents via [MostLikelyPs4gParents], then each non-scaffold contig is run through
+     * likely parents via [MostLikelyPs4gParents], then each contig is run through
      * [ViterbiHMM.findDiploidPath]. The resulting paths are written to <sampleName>_imputed_path.bed
      * in [outputDir] as chrom/start/end/parent1/parent2 records.
      *
@@ -181,13 +203,13 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
         for (fileData in keyFileLines) {
             myLogger.info("Finding $pathType path for ${fileData.sampleName}")
-            val ps4gReader = Ps4gFileReader(fileData.file1)
+            val ps4gReader = Ps4gFileReader(fileData.file1, buildContigSet(contigsToUse))
 
             //do not use contigs starting with scaf
-            val contigs = ps4gReader.contigSet().filter { !it.startsWith("scaf") }
+            val contigs = ps4gReader.contigSet()
             myLogger.info("Contigs: $contigs")
 
-            val parentSet = parentSelector(ps4gReader, contigs)
+            val parentSet = parentSelector(ps4gReader, contigs.sorted())
             myLogger.info("Parent set: $parentSet")
 
             val outputFilepath = outputDir.resolve("${fileData.sampleName}_imputed_path.bed")
