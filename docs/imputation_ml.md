@@ -288,22 +288,24 @@ phg impute-path-from-ps4g \
 
 **Parameters**
 
-| Parameter name   | Description                                                                                                                   | Default value | Required?        |
-|------------------|-------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
-| `--path-keyfile` | Name of tab-delimited key file. Columns for samplename and filename are required.                                             | `""`          | :material-check: |
-| `--read-file`    | The name of a ps4g file created by align-reads.                                                                               | `""`          | :material-check: |
-| `--out-path-dir` | The directory where the imputed haplotypes will be written for each sample. File names will be <sampleName>_imputed_path.bed. | `""`          | :material-check: |
-| `--path-type`    | The type of path to find. Must be lower case 'haploid' or 'diploid'. 'haploid' infers a single path through the graph.        | `haploid`     |                  |
-| `--prob-correct` | The probability that a read maps to correct haplotype.                                                                        | `0.98`        |                  |
-| `--prob-same`    | The probability that a path stays on the same gamete when transitioning between two adjacent positions.                       | `0.9999`      |                  |
-| `--inbreed-coef` | The inbreeding coefficient (between 0.0 and 1.0). Used only for diploid paths.                                                | `0.0`         |                  |
-| `--n-parents`    | Restrict the number of parents used for diploid imputation to this number. Default (0) uses all parents.                      | `0.0`         |                  |
-| `--bin-size`     | The bin size used to create the ps4g file.                                                                                    | `256`         |                  |
-| `--expand-bins`  | Write one output record per bin instead of merging adjacent bins that have identical parents into a single record.            | 'false'       |                  |
+| Parameter name     | Description                                                                                                                   | Default value | Required?        |
+|--------------------|-------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
+| `--path-keyfile`   | Name of tab-delimited key file. Columns for samplename and filename are required.                                             | `""`          | :material-check: |
+| `--read-file`      | The name of a ps4g file created by align-reads.                                                                               | `""`          | :material-check: |
+| `--out-path-dir`   | The directory where the imputed haplotypes will be written for each sample. File names will be <sampleName>_imputed_path.bed. | `""`          | :material-check: |
+| `--path-type`      | The type of path to find. Must be lower case 'haploid' or 'diploid'. 'haploid' infers a single path through the graph.        | `haploid`     |                  |
+| `--prob-correct`   | The probability that a read maps to correct haplotype.                                                                        | `0.98`        |                  |
+| `--prob-same`      | The probability that a path stays on the same gamete when transitioning between two adjacent positions.                       | `0.9999`      |                  |
+| `--inbreed-coef`   | The inbreeding coefficient (between 0.0 and 1.0). Used only for diploid paths.                                                | `0.0`         |                  |
+| `--n-parents`      | Restrict the number of parents used for diploid imputation to this number. Default (0) uses all parents.                      | `0.0`         |                  |
+| `--bin-size`       | The bin size used to create the ps4g file.                                                                                    | `256`         |                  |
+| `--expand-bins`    | Write one output record per bin instead of merging adjacent bins that have identical parents into a single record.            | `false`       |                  |
+| `--contigs-to-use` | A list of contigs to be imputed. If no list is supplied, all contigs in the ps4g file will be imputed.                        | `""`          |                  |
 
 !!! note
 `--expand-bins` is a flag. If entered without a parameter, its value is set to true.
 `--bin-size` must match the ps4g file, so that the output positions are correct.
+`--contigs-to-use` takes either a comma-separated list of contig names or the name of a file containing the contig names, one per line.
 
 **Command** - `impute-bin-probabilities`
 
@@ -321,17 +323,19 @@ phg impute-bin-probabilities \
 
 **Parameters**
 
-| Parameter name   | Description                                                                                                                   | Default value | Required?        |
-|------------------|-------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
-| `--path-keyfile` | Name of tab-delimited key file. Columns for samplename and filename are required.                                             | `""`          | :material-check: |
-| `--read-file`    | The name of a ps4g file created by align-reads.                                                                               | `""`          | :material-check: |
-| `--out-path-dir` | The directory where the imputed haplotypes will be written for each sample. File names will be <sampleName>_imputed_path.bed. | `""`          | :material-check: |
-| `--impute-type`  | The type of genotype probabilities to calculate. Must be lower case 'haploid' or 'diploid' (without quotes).                  | `haploid`     |                  |
-| `--prob-correct` | The probability that a read maps to correct haplotype.                                                                        | `0.98`        |                  |
-| `--prob-same`    | The probability that a path stays on the same gamete when transitioning between two adjacent positions.                       | `0.9999`      |                  |
-| `--inbreed-coef` | The inbreeding coefficient (between 0.0 and 1.0). Used only for diploid paths.                                                | `0.0`         |                  |
-| `--n-parents`    | Restrict the number of parents used for diploid imputation to this number. Default (0) uses all parents.                      | `0.0`         |                  |
-| `--bin-size`     | The bin size used to create the ps4g file.                                                                                    | `256`         |                  |
+| Parameter name     | Description                                                                                                                   | Default value | Required?        |
+|--------------------|-------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
+| `--path-keyfile`   | Name of tab-delimited key file. Columns for samplename and filename are required.                                             | `""`          | :material-check: |
+| `--read-file`      | The name of a ps4g file created by align-reads.                                                                               | `""`          | :material-check: |
+| `--out-path-dir`   | The directory where the imputed haplotypes will be written for each sample. File names will be <sampleName>_imputed_path.bed. | `""`          | :material-check: |
+| `--impute-type`    | The type of genotype probabilities to calculate. Must be lower case 'haploid' or 'diploid' (without quotes).                  | `haploid`     |                  |
+| `--prob-correct`   | The probability that a read maps to correct haplotype.                                                                        | `0.98`        |                  |
+| `--prob-same`      | The probability that a path stays on the same gamete when transitioning between two adjacent positions.                       | `0.9999`      |                  |
+| `--inbreed-coef`   | The inbreeding coefficient (between 0.0 and 1.0). Used only for diploid paths.                                                | `0.0`         |                  |
+| `--n-parents`      | Restrict the number of parents used for diploid imputation to this number. Default (0) uses all parents.                      | `0.0`         |                  |
+| `--bin-size`       | The bin size used to create the ps4g file.                                                                                    | `256`         |                  |
+| `--contigs-to-use` | A list of contigs to be imputed. If no list is supplied, all contigs in the ps4g file will be imputed.                        | `""`          |                  |
 
 !!! note
 `--bin-size` must match the ps4g file, so that the output positions are correct.
+`--contigs-to-use` takes either a comma-separated list of contig names or the name of a file containing the contig names, one per line.
