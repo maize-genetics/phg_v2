@@ -30,13 +30,21 @@ import kotlin.io.path.exists
 class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4g file.") {
 
     companion object {
+        /**
+         * Parses the value of --contigs-to-use into the set of contig names to be imputed.
+         *
+         * If [contigString] names an existing file, the contigs are read from it, one per line.
+         * Otherwise the value is treated as a comma-separated list of contig names. A blank value
+         * returns an empty set, which [Ps4gFileReader] takes to mean "use every contig in the file".
+         */
         fun buildContigSet(contigString: String): Set<String> {
             return if (contigString.isNotBlank()) {
                 try {
                     val filePath = Path.of(contigString)
-                    if (filePath.exists()) getBufferedReader(filePath.toFile()).readLines().toSet()
+                    if (filePath.exists()) getBufferedReader(filePath.toFile()).use { it.readLines().toSet() }
                     else contigString.split(",").toSet()
                 } catch (e: InvalidPathException) {
+                    //the value cannot be a file name, so it must be a list of contigs
                     contigString.split(",").toSet()
                 }
             } else emptySet()
@@ -132,7 +140,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     /**
      * Imputes a single (haploid) haplotype path for each ps4g file supplied via --path-keyfile
-     * or --read-file. For every sample, contig is run through [ViterbiHMM.findHaploidPath]
+     * or --read-file. For every sample, each contig is run through [ViterbiHMM.findHaploidPath]
      * and the resulting path is written to <sampleName>_imputed_path.bed in [outputDir] as
      * chrom/start/end/parent1 records.
      */
@@ -176,8 +184,8 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     /**
      * Runs the imputation pipeline shared by the haploid and diploid paths: for every input ps4g
-     * file, finds a path through each non-scaffold contig and writes the result to
-     * <sampleName>_imputed_path.bed in [outputDir].
+     * file, finds a path through each contig — restricted to [contigsToUse] when that option is
+     * supplied — and writes the result to <sampleName>_imputed_path.bed in [outputDir].
      *
      * The per-bin path returned by [pathFinder] is converted to reference coordinates by
      * [pathToIntervals], which merges adjacent bins with equal calls unless --expand-bins is set.
@@ -205,7 +213,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             myLogger.info("Finding $pathType path for ${fileData.sampleName}")
             val ps4gReader = Ps4gFileReader(fileData.file1, buildContigSet(contigsToUse))
 
-            //do not use contigs starting with scaf
+            //the reader has already dropped any contigs not in --contigs-to-use
             val contigs = ps4gReader.contigSet()
             myLogger.info("Contigs: $contigs")
 

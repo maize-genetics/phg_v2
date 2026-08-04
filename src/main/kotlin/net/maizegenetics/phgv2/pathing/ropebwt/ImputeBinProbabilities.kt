@@ -131,7 +131,8 @@ class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype
      * to disk.
      *
      * For each sample this:
-     *  1. Reads the PS4G file and collects its contigs, excluding any whose name starts with `scaf`.
+     *  1. Reads the PS4G file and collects its contigs, restricted to [contigsToUse] when that
+     *     option is supplied.
      *  2. Determines the parent (state) set — restricted to the [nParents] most likely parents via
      *     [MostLikelyPs4gParents] when `nParents > 0`, otherwise every gamete present in the file.
      *  3. Builds the initial state probabilities, transition matrix (haploid: [probSame] / 1 - [probSame];
@@ -151,7 +152,7 @@ class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype
             myLogger.info("Finding $imputeType probabilities for ${fileData.sampleName}")
             val ps4gReader = Ps4gFileReader(fileData.file1, ImputePathFromPs4g.buildContigSet(contigsToUse))
 
-            //do not use contigs starting with scaf
+            //the reader has already dropped any contigs not in --contigs-to-use
             val contigs = ps4gReader.contigSet()
             myLogger.info("Contigs: $contigs")
 

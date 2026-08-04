@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.io.File
+import java.nio.file.InvalidPathException
+import java.nio.file.Path
 
 class ImputePathFromPs4gTest {
     companion object {
@@ -51,6 +53,73 @@ class ImputePathFromPs4gTest {
         private fun createKeyFile(keyFilePath: String, sampleName: String, ps4gPath: String) {
             File(keyFilePath).writeText("sampleName\tfilename\n$sampleName\t$ps4gPath\n")
         }
+
+        /**
+         * Writes a PS4G file with reads on chr1 (supporting lineA:0), chr2 (supporting lineB:0),
+         * and scaf1 (supporting lineA:0), and returns its path. Used by the --contigs-to-use tests.
+         */
+        private fun createContigFilterPs4gFile(fileName: String): String {
+            val ps4gData = (1..3).map { bin -> PS4GData(listOf(0), Position("chr1", bin), 20) } +
+                    (1..3).map { bin -> PS4GData(listOf(1), Position("chr2", bin), 20) } +
+                    (1..3).map { bin -> PS4GData(listOf(0), Position("scaf1", bin), 20) }
+
+            val ps4gFile = "$tempTestDir/$fileName"
+            createPs4gFile(ps4gFile, contigFilterGametes, ps4gData)
+            return ps4gFile
+        }
+
+        private val contigFilterGametes = mapOf(
+            SampleGamete("lineA", 0) to 0,
+            SampleGamete("lineB", 0) to 1
+        )
+    }
+
+    @Test
+    fun testBuildContigSet() {
+        // An empty or blank string means "use every contig in the ps4g file".
+        assertEquals(emptySet<String>(), ImputePathFromPs4g.buildContigSet(""))
+        assertEquals(emptySet<String>(), ImputePathFromPs4g.buildContigSet("   "))
+
+        // A single name and a comma-separated list are both parsed as a literal contig list.
+        assertEquals(setOf("chr1"), ImputePathFromPs4g.buildContigSet("chr1"))
+        assertEquals(setOf("chr1", "chr2", "chr3"), ImputePathFromPs4g.buildContigSet("chr1,chr2,chr3"))
+
+        // Duplicates collapse because the result is a set.
+        assertEquals(setOf("chr1", "chr2"), ImputePathFromPs4g.buildContigSet("chr1,chr2,chr1"))
+    }
+
+    @Test
+    fun testBuildContigSetFromFile() {
+        // When the value names an existing file, the contigs are read one per line.
+        val contigFile = "$tempTestDir/contigList.txt"
+        File(contigFile).writeText("chr1\nchr2\nchr3\n")
+        assertEquals(setOf("chr1", "chr2", "chr3"), ImputePathFromPs4g.buildContigSet(contigFile))
+
+        // A file without a trailing newline reads the same way.
+        val noTrailingNewline = "$tempTestDir/contigListNoNewline.txt"
+        File(noTrailingNewline).writeText("chr1\nchr2")
+        assertEquals(setOf("chr1", "chr2"), ImputePathFromPs4g.buildContigSet(noTrailingNewline))
+
+        // A single-contig file is still read as a file, not split on commas.
+        val singleContigFile = "$tempTestDir/singleContigList.txt"
+        File(singleContigFile).writeText("chr1\n")
+        assertEquals(setOf("chr1"), ImputePathFromPs4g.buildContigSet(singleContigFile))
+
+        // A path that looks like a file but does not exist falls back to the comma-separated parse,
+        // so the value is treated as a (one element) contig list.
+        val missingFile = "$tempTestDir/doesNotExist.txt"
+        assertFalse(File(missingFile).exists())
+        assertEquals(setOf(missingFile), ImputePathFromPs4g.buildContigSet(missingFile))
+    }
+
+    @Test
+    fun testBuildContigSetWithInvalidPath() {
+        // A NUL character cannot appear in a path, so Path.of throws InvalidPathException. The
+        // value must still be parsed as a comma-separated contig list rather than letting the
+        // exception escape the command.
+        val withNul = "chr1\u0000,chr2"
+        assertThrows(InvalidPathException::class.java) { Path.of(withNul) }
+        assertEquals(setOf("chr1\u0000", "chr2"), ImputePathFromPs4g.buildContigSet(withNul))
     }
 
     @Test
@@ -370,6 +439,128 @@ class ImputePathFromPs4gTest {
 
         assertEquals(listOf("chr1", "0", "2", "lineA:0"), lines[0].split("\t"))
         assertEquals(listOf("chr2", "0", "2", "lineB:0"), lines[1].split("\t"))
+    }
+
+    @Test
+    fun testAllContigsImputedByDefault() {
+        // Without --contigs-to-use every contig in the ps4g file is imputed, including
+        // scaffold contigs, which used to be dropped by a "scaf" name check.
+        val ps4gFile = createContigFilterPs4gFile("noContigFilter.ps4g")
+        val keyFile = "$tempTestDir/noContigFilterKey.txt"
+        createKeyFile(keyFile, "noFilterSample", ps4gFile)
+
+        val outputDir = "$tempTestDir/noContigFilterOut/"
+        val result = ImputePathFromPs4g().test(
+            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 --prob-same 0.9999 --bin-size 1"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val lines = File("$outputDir/noFilterSample_imputed_path.bed").readLines().drop(1)
+        assertEquals(setOf("chr1", "chr2", "scaf1"), lines.map { it.split("\t")[0] }.toSet())
+    }
+
+    @Test
+    fun testContigsToUseCommaSeparatedList() {
+        // --contigs-to-use restricts imputation to the listed contigs; the others produce no output.
+        val ps4gFile = createContigFilterPs4gFile("contigList.ps4g")
+        val keyFile = "$tempTestDir/contigListKey.txt"
+        createKeyFile(keyFile, "contigListSample", ps4gFile)
+
+        val outputDir = "$tempTestDir/contigListOut/"
+        val result = ImputePathFromPs4g().test(
+            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 --prob-same 0.9999 " +
+                    "--bin-size 1 --contigs-to-use chr1,chr2"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val lines = File("$outputDir/contigListSample_imputed_path.bed").readLines().drop(1)
+        assertEquals(2, lines.size, "Expected 1 merged record for each of the 2 requested contigs")
+        assertEquals(listOf("chr1", "0", "3", "lineA:0"), lines[0].split("\t"))
+        assertEquals(listOf("chr2", "0", "3", "lineB:0"), lines[1].split("\t"))
+    }
+
+    @Test
+    fun testContigsToUseSingleContig() {
+        val ps4gFile = createContigFilterPs4gFile("singleContig.ps4g")
+        val keyFile = "$tempTestDir/singleContigKey.txt"
+        createKeyFile(keyFile, "singleContigSample", ps4gFile)
+
+        val outputDir = "$tempTestDir/singleContigOut/"
+        val result = ImputePathFromPs4g().test(
+            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 --prob-same 0.9999 " +
+                    "--bin-size 1 --contigs-to-use chr2"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val lines = File("$outputDir/singleContigSample_imputed_path.bed").readLines().drop(1)
+        assertEquals(1, lines.size, "Expected output for chr2 only")
+        assertEquals(listOf("chr2", "0", "3", "lineB:0"), lines[0].split("\t"))
+    }
+
+    @Test
+    fun testContigsToUseFromFile() {
+        // The option value may also name a file holding one contig per line.
+        val ps4gFile = createContigFilterPs4gFile("contigFile.ps4g")
+        val keyFile = "$tempTestDir/contigFileKey.txt"
+        createKeyFile(keyFile, "contigFileSample", ps4gFile)
+
+        val contigFile = "$tempTestDir/contigsToUse.txt"
+        File(contigFile).writeText("chr1\nscaf1\n")
+
+        val outputDir = "$tempTestDir/contigFileOut/"
+        val result = ImputePathFromPs4g().test(
+            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 --prob-same 0.9999 " +
+                    "--bin-size 1 --contigs-to-use $contigFile"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val lines = File("$outputDir/contigFileSample_imputed_path.bed").readLines().drop(1)
+        assertEquals(setOf("chr1", "scaf1"), lines.map { it.split("\t")[0] }.toSet())
+        assertTrue(lines.none { it.startsWith("chr2") }, "chr2 was not in the contig file")
+    }
+
+    @Test
+    fun testDiploidContigsToUseRestrictsParentSelection() {
+        // The parent set is chosen from the filtered reader, so MostLikelyPs4gParents only sees the
+        // requested contigs. Reads on chr1 support lineA:0 and reads on chr2 support lineB:0; with
+        // only chr1 requested, the imputed path must be homozygous lineA:0.
+        val ps4gFile = createContigFilterPs4gFile("diploidContigFilter.ps4g")
+        val keyFile = "$tempTestDir/diploidContigFilterKey.txt"
+        createKeyFile(keyFile, "diploidFilterSample", ps4gFile)
+
+        val outputDir = "$tempTestDir/diploidContigFilterOut/"
+        val result = ImputePathFromPs4g().test(
+            "--path-keyfile $keyFile --out-path-dir $outputDir --path-type diploid --n-parents 2 " +
+                    "--prob-correct 0.99 --prob-same 0.9999 --inbreed-coef 1.0 --bin-size 1 " +
+                    "--contigs-to-use chr1"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val lines = File("$outputDir/diploidFilterSample_imputed_path.bed").readLines()
+        assertEquals("chrom\tstart\tend\tparent1\tparent2", lines[0])
+
+        val dataLines = lines.drop(1)
+        assertEquals(1, dataLines.size, "Expected a single merged record for chr1")
+        assertEquals(listOf("chr1", "0", "3", "lineA:0", "lineA:0"), dataLines[0].split("\t"))
+    }
+
+    @Test
+    fun testContigsToUseMatchingNoContigs() {
+        // A contig list that matches nothing in the ps4g file leaves the reader empty, so only the
+        // header is written.
+        val ps4gFile = createContigFilterPs4gFile("noMatch.ps4g")
+        val keyFile = "$tempTestDir/noMatchKey.txt"
+        createKeyFile(keyFile, "noMatchSample", ps4gFile)
+
+        val outputDir = "$tempTestDir/noMatchOut/"
+        val result = ImputePathFromPs4g().test(
+            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 --prob-same 0.9999 " +
+                    "--bin-size 1 --contigs-to-use chr99"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val lines = File("$outputDir/noMatchSample_imputed_path.bed").readLines()
+        assertEquals(listOf("chrom\tstart\tend\tparent1"), lines, "Expected header only")
     }
 
 }
