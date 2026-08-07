@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
+import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.testing.test
 import net.maizegenetics.phgv2.api.SampleGamete
 import net.maizegenetics.phgv2.cli.TestExtension
@@ -86,6 +87,21 @@ class ImputePathFromPs4gTest {
 
         // Duplicates collapse because the result is a set.
         assertEquals(setOf("chr1", "chr2"), ImputePathFromPs4g.buildContigSet("chr1,chr2,chr1"))
+
+        // Whitespace around the names is trimmed, so a spaced-out list is equivalent to a tight one.
+        assertEquals(setOf("chr1", "chr2", "chr3"), ImputePathFromPs4g.buildContigSet(" chr1 , chr2,chr3 "))
+        assertEquals(setOf("chr1"), ImputePathFromPs4g.buildContigSet("\tchr1\t"))
+
+        // Trimming can also create duplicates, which still collapse.
+        assertEquals(setOf("chr1"), ImputePathFromPs4g.buildContigSet("chr1, chr1 "))
+
+        // Empty and blank entries are dropped rather than becoming blank contig names.
+        assertEquals(setOf("chr1", "chr2"), ImputePathFromPs4g.buildContigSet("chr1,,chr2,"))
+        assertEquals(setOf("chr1", "chr2"), ImputePathFromPs4g.buildContigSet(",chr1, ,chr2"))
+
+        // A value that is nothing but separators and whitespace leaves no names at all.
+        assertEquals(emptySet<String>(), ImputePathFromPs4g.buildContigSet(",,"))
+        assertEquals(emptySet<String>(), ImputePathFromPs4g.buildContigSet(" , "))
     }
 
     @Test
@@ -110,6 +126,57 @@ class ImputePathFromPs4gTest {
         val missingFile = "$tempTestDir/doesNotExist.txt"
         assertFalse(File(missingFile).exists())
         assertEquals(setOf(missingFile), ImputePathFromPs4g.buildContigSet(missingFile))
+
+        // Leading and trailing whitespace on a line is trimmed, including a stray carriage return
+        // from a file written on Windows, and blank lines are dropped.
+        val paddedFile = "$tempTestDir/contigListPadded.txt"
+        File(paddedFile).writeText("  chr1  \n\nchr2\t\n \nchr3\r\n")
+        assertEquals(setOf("chr1", "chr2", "chr3"), ImputePathFromPs4g.buildContigSet(paddedFile))
+
+        // Trimming can make two lines name the same contig; the set collapses them.
+        val duplicateAfterTrimFile = "$tempTestDir/contigListDuplicates.txt"
+        File(duplicateAfterTrimFile).writeText("chr1\n chr1 \nchr2\n")
+        assertEquals(setOf("chr1", "chr2"), ImputePathFromPs4g.buildContigSet(duplicateAfterTrimFile))
+    }
+
+    @Test
+    fun testBuildContigSetFromEmptyFile() {
+        // An existing but empty file yields no contigs. That is not the same as an omitted option --
+        // an empty set would silently mean "use every contig" -- so it is reported as an error.
+        val emptyFile = "$tempTestDir/emptyContigList.txt"
+        File(emptyFile).writeText("")
+        val emptyFileError = assertThrows(UsageError::class.java) {
+            ImputePathFromPs4g.buildContigSet(emptyFile)
+        }
+        assertTrue(emptyFileError.message!!.contains("contains no contig names"),
+            "Unexpected message: ${emptyFileError.message}")
+        assertTrue(emptyFileError.message!!.contains(emptyFile),
+            "Message should name the file: ${emptyFileError.message}")
+
+        // A file holding only blank lines is empty once the blank lines are dropped.
+        val blankLinesFile = "$tempTestDir/blankContigList.txt"
+        File(blankLinesFile).writeText("\n   \n\t\n")
+        assertThrows(UsageError::class.java) { ImputePathFromPs4g.buildContigSet(blankLinesFile) }
+    }
+
+    @Test
+    fun testEmptyContigFileReportedAsUsageError() {
+        // Because the failure is a UsageError, the command exits with an error status and a readable
+        // message instead of an uncaught exception.
+        val ps4gFile = createContigFilterPs4gFile("emptyContigFile.ps4g")
+        val keyFile = "$tempTestDir/emptyContigFileKey.txt"
+        createKeyFile(keyFile, "emptyContigFileSample", ps4gFile)
+
+        val contigFile = "$tempTestDir/emptyContigsToUse.txt"
+        File(contigFile).writeText("\n\n")
+
+        val result = ImputePathFromPs4g().test(
+            "--path-keyfile $keyFile --out-path-dir $tempTestDir/emptyContigFileOut/ --bin-size 1 " +
+                    "--contigs-to-use $contigFile"
+        )
+        assertEquals(1, result.statusCode)
+        assertTrue(result.stderr.contains("contains no contig names"),
+            "Expected an empty-contig-file error but got: ${result.stderr}")
     }
 
     @Test
@@ -120,6 +187,12 @@ class ImputePathFromPs4gTest {
         val withNul = "chr1\u0000,chr2"
         assertThrows(InvalidPathException::class.java) { Path.of(withNul) }
         assertEquals(setOf("chr1\u0000", "chr2"), ImputePathFromPs4g.buildContigSet(withNul))
+
+        // The recovery path splits the value the same way as the normal comma-separated parse, so
+        // the names are trimmed and blank entries are dropped here too.
+        val paddedWithNul = " chr1\u0000 , chr2 ,"
+        assertThrows(InvalidPathException::class.java) { Path.of(paddedWithNul) }
+        assertEquals(setOf("chr1\u0000", "chr2"), ImputePathFromPs4g.buildContigSet(paddedWithNul))
     }
 
     @Test
@@ -515,6 +588,29 @@ class ImputePathFromPs4gTest {
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
         val lines = File("$outputDir/contigFileSample_imputed_path.bed").readLines().drop(1)
+        assertEquals(setOf("chr1", "scaf1"), lines.map { it.split("\t")[0] }.toSet())
+        assertTrue(lines.none { it.startsWith("chr2") }, "chr2 was not in the contig file")
+    }
+
+    @Test
+    fun testContigsToUseFromFileWithWhitespace() {
+        // A hand-edited contig file may carry trailing spaces or blank lines. The names are trimmed
+        // before matching, so the padded file selects the same contigs as a clean one.
+        val ps4gFile = createContigFilterPs4gFile("paddedContigFile.ps4g")
+        val keyFile = "$tempTestDir/paddedContigFileKey.txt"
+        createKeyFile(keyFile, "paddedContigSample", ps4gFile)
+
+        val contigFile = "$tempTestDir/paddedContigsToUse.txt"
+        File(contigFile).writeText(" chr1 \n\nscaf1\t\n")
+
+        val outputDir = "$tempTestDir/paddedContigFileOut/"
+        val result = ImputePathFromPs4g().test(
+            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 --prob-same 0.9999 " +
+                    "--bin-size 1 --contigs-to-use $contigFile"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val lines = File("$outputDir/paddedContigSample_imputed_path.bed").readLines().drop(1)
         assertEquals(setOf("chr1", "scaf1"), lines.map { it.split("\t")[0] }.toSet())
         assertTrue(lines.none { it.startsWith("chr2") }, "chr2 was not in the contig file")
     }

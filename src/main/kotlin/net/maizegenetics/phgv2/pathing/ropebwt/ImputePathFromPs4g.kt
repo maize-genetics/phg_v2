@@ -1,6 +1,7 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
 import com.github.ajalt.clikt.parameters.groups.required
 import com.github.ajalt.clikt.parameters.groups.single
@@ -44,16 +45,25 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                     if(filePath.exists()) {
                         val tempContigSet = getBufferedReader(filePath.toFile())
                             .use { it.readLines()}.map {it.trim()}.filter{it.isNotBlank()}.toSet()
-                        check(tempContigSet.isNotEmpty()) { "The file $contigString exists but is empty. " }
+                        if (tempContigSet.isEmpty()) throw UsageError(
+                            "--contigs-to-use names the file $contigString, which contains no contig names."
+                        )
                         tempContigSet
                     }
-                    else contigString.split(",").map { it.trim() }.filter{it.isNotBlank()}.toSet()
+                    else splitContigList(contigString)
                 } catch (e: InvalidPathException) {
                     //the value cannot be a file name, so it must be a list of contigs
-                    contigString.split(",").toSet()
+                    splitContigList(contigString)
                 }
             } else emptySet()
         }
+
+        /**
+         * Splits a comma-separated list of contig names, trimming each name and dropping any that
+         * are blank.
+         */
+        private fun splitContigList(contigString: String): Set<String> =
+            contigString.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
     }
 
     val readInputFiles: PathInputFile by mutuallyExclusiveOptions<PathInputFile>(
