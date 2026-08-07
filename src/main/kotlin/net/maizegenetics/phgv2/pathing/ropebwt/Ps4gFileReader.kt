@@ -1,12 +1,13 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
-import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.getBufferedReader
+import org.apache.logging.log4j.LogManager
 
 /**
  * Reads a PS4G (version 2.0) file, as written by [PS4GUtils.writeOutPS4GFile], into memory. A PS4G file records,
  * for a single sample, the set of gametes hit by each read mapping, along with the reference position of the hit.
  * The whole file is parsed by the constructor and held in memory, indexed by contig and binned reference position.
+ * If supplied, [contigSet] filters out any contigs not in the list.
  *
  * The file has three parts: the two header lines "#PS4G" and "#version=2.0", a gamete index block that starts with
  * a "#gamete" line and maps each gamete name to the integer index used in the body, and the body itself, one line
@@ -17,7 +18,7 @@ import net.maizegenetics.phgv2.utils.getBufferedReader
  * @throws IllegalArgumentException if the file does not start with the "#PS4G" and "#version=2.0" lines, or if the
  * file ends before a gamete index block is found.
  */
-class Ps4gFileReader(val filename: String) {
+class Ps4gFileReader(val filename: String, contigSet: Set<String> = setOf()) {
     /**
      * The gametes hit by a set of reads that all map to the same binned reference position.
      *
@@ -25,10 +26,30 @@ class Ps4gFileReader(val filename: String) {
      *                      indices back to gamete names.
      * @param count         the number of reads that produced this hit.
      */
-    data class Ps4gGameteSet(val gameteIndices: IntArray, val count: Int)
+    data class Ps4gGameteSet(val gameteIndices: IntArray, val count: Int) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as Ps4gGameteSet
+
+            if (count != other.count) return false
+            if (!gameteIndices.contentEquals(other.gameteIndices)) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = count
+            result = 31 * result + gameteIndices.contentHashCode()
+            return result
+        }
+    }
 
     private val gameteIndexMap = mutableMapOf<Int, String>()
     private val contigToDataMap = mutableMapOf<String, MutableMap<Int, MutableList<Ps4gGameteSet>>>()
+    private val filterContigs = contigSet.isNotEmpty()
+    private val myLogger = LogManager.getLogger(Ps4gFileReader::class.java)
 
     //contig list
     //method to get read map by contig
@@ -65,15 +86,29 @@ class Ps4gFileReader(val filename: String) {
                 val parsedLine = currentLine.split("\t")
                 val gameteArray = parsedLine[0].split(",").map { it.toInt() }.toIntArray()
                 val refContig = parsedLine[1]
-                val refPosition = parsedLine[2].toInt()
-                val count = parsedLine[3].toInt()
-                val contigMap = contigToDataMap.getOrPut(refContig) { mutableMapOf() }
-                val dataList = contigMap.getOrPut(refPosition) {mutableListOf()}
-                dataList.add(Ps4gGameteSet(gameteArray, count))
+                if (!filterContigs || contigSet.contains(refContig)) {
+                    val refPosition = parsedLine[2].toInt()
+                    val count = parsedLine[3].toInt()
+                    val contigMap = contigToDataMap.getOrPut(refContig) { mutableMapOf() }
+                    val dataList = contigMap.getOrPut(refPosition) {mutableListOf()}
+                    dataList.add(Ps4gGameteSet(gameteArray, count))
+                }
 
                 currentLine = bufferedReader.readLine()
             }
 
+        }
+
+        val numberOfContigs = contigToDataMap.size
+        val numberOfPositions = contigToDataMap.map { (_, dataList) -> dataList.size }.sum()
+
+        if (contigSet().isNotEmpty()) {
+            myLogger.info("Ps4gFileReader read ${filename} using contig set: $contigSet.\n" +
+                    "This resulted in a data set containing $numberOfContigs contigs and $numberOfPositions positions.")
+
+        } else {
+            myLogger.info("Ps4gFileReader read ${filename}.\nThis resulted in a data set containing " +
+                    "$numberOfContigs contigs and $numberOfPositions positions.")
         }
 
     }
