@@ -41,8 +41,13 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             return if (contigString.isNotBlank()) {
                 try {
                     val filePath = Path.of(contigString)
-                    if (filePath.exists()) getBufferedReader(filePath.toFile()).use { it.readLines().toSet() }
-                    else contigString.split(",").toSet()
+                    if(filePath.exists()) {
+                        val tempContigSet = getBufferedReader(filePath.toFile())
+                            .use { it.readLines()}.map {it.trim()}.filter{it.isNotBlank()}.toSet()
+                        check(tempContigSet.isNotEmpty()) { "The file $contigString exists but is empty. " }
+                        tempContigSet
+                    }
+                    else contigString.split(",").map { it.trim() }.filter{it.isNotBlank()}.toSet()
                 } catch (e: InvalidPathException) {
                     //the value cannot be a file name, so it must be a list of contigs
                     contigString.split(",").toSet()
