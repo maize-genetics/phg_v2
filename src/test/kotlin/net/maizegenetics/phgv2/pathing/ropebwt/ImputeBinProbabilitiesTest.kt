@@ -51,6 +51,28 @@ class ImputeBinProbabilitiesTest {
         }
 
         /**
+         * Writes a PS4G file with reads on chr1 (supporting lineA:0), chr2 (supporting lineB:0),
+         * and scaf1 (supporting lineA:0), and returns its path. Every contig carries reads for
+         * both gametes so that MostLikelyPs4gParents can pick two parents from any single contig.
+         */
+        private fun createContigFilterPs4gFile(fileName: String): String {
+            val gametes = mapOf(
+                SampleGamete("lineA", 0) to 0,
+                SampleGamete("lineB", 0) to 1
+            )
+            val ps4gData = (1..3).map { bin -> PS4GData(listOf(0), Position("chr1", bin), 50) } +
+                    PS4GData(listOf(1), Position("chr1", 1), 1) +
+                    (1..3).map { bin -> PS4GData(listOf(1), Position("chr2", bin), 50) } +
+                    PS4GData(listOf(0), Position("chr2", 1), 1) +
+                    (1..3).map { bin -> PS4GData(listOf(0), Position("scaf1", bin), 50) } +
+                    PS4GData(listOf(1), Position("scaf1", 1), 1)
+
+            val ps4gFile = "$tempTestDir/$fileName"
+            createPs4gFile(ps4gFile, gametes, ps4gData)
+            return ps4gFile
+        }
+
+        /**
          * Reads an output probability file into rows of [contig, position, state, probability],
          * stripping the (newline-less) header that the first data row is concatenated onto.
          */
@@ -318,18 +340,10 @@ class ImputeBinProbabilitiesTest {
     }
 
     @Test
-    fun testScafContigsExcluded() {
-        // Contigs whose name starts with "scaf" must be excluded from imputation and output.
-        val gametes = mapOf(
-            SampleGamete("lineA", 0) to 0,
-            SampleGamete("lineB", 0) to 1
-        )
-        val ps4gData = (1..3).map { bin -> PS4GData(listOf(0), Position("chr1", bin), 50) } +
-                PS4GData(listOf(1), Position("chr1", 1), 1) +
-                (1..3).map { bin -> PS4GData(listOf(0), Position("scaf1", bin), 50) }
-
-        val ps4gFile = "$tempTestDir/scaf.ps4g"
-        createPs4gFile(ps4gFile, gametes, ps4gData)
+    fun testAllContigsIncludedByDefault() {
+        // Without --contigs-to-use every contig in the ps4g file is imputed, including scaffold
+        // contigs, which used to be dropped by a "scaf" name check.
+        val ps4gFile = createContigFilterPs4gFile("scaf.ps4g")
         val keyFile = "$tempTestDir/scafKey.txt"
         createKeyFile(keyFile, "scafSample", ps4gFile)
 
@@ -341,9 +355,93 @@ class ImputeBinProbabilitiesTest {
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
         val rows = readProbabilityRows(File("$outputDir/scafSample_imputed_probabilities.txt"))
-        assertTrue(rows.isNotEmpty(), "Expected data rows for chr1")
-        assertTrue(rows.none { it[0].startsWith("scaf") }, "scaf contigs must be excluded from output")
-        assertEquals(setOf("chr1"), rows.map { it[0] }.toSet())
+        assertTrue(rows.isNotEmpty(), "Expected data rows")
+        assertEquals(setOf("chr1", "chr2", "scaf1"), rows.map { it[0] }.toSet())
+    }
+
+    @Test
+    fun testContigsToUseCommaSeparatedList() {
+        // --contigs-to-use restricts imputation to the listed contigs; the others produce no output.
+        val ps4gFile = createContigFilterPs4gFile("contigList.ps4g")
+        val keyFile = "$tempTestDir/contigListKey.txt"
+        createKeyFile(keyFile, "contigListSample", ps4gFile)
+
+        val outputDir = "$tempTestDir/contigListOut/"
+        val result = ImputeBinProbabilities().test(
+            "--path-keyfile $keyFile --output-dir $outputDir --n-parents 2 " +
+                    "--prob-correct 0.99 --prob-same 0.9999 --bin-size 1 --contigs-to-use chr1,chr2"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val rows = readProbabilityRows(File("$outputDir/contigListSample_imputed_probabilities.txt"))
+        assertEquals(setOf("chr1", "chr2"), rows.map { it[0] }.toSet(), "scaf1 should be filtered out")
+
+        // The retained contigs are still imputed correctly: chr1 reads support lineA:0 and chr2
+        // reads support lineB:0.
+        topStateByPosition(rows.filter { it[0] == "chr1" }).values.forEach { assertEquals("lineA:0", it) }
+        topStateByPosition(rows.filter { it[0] == "chr2" }).values.forEach { assertEquals("lineB:0", it) }
+    }
+
+    @Test
+    fun testContigsToUseFromFile() {
+        // The option value may also name a file holding one contig per line.
+        val ps4gFile = createContigFilterPs4gFile("contigFile.ps4g")
+        val keyFile = "$tempTestDir/contigFileKey.txt"
+        createKeyFile(keyFile, "contigFileSample", ps4gFile)
+
+        val contigFile = "$tempTestDir/contigsToUse.txt"
+        File(contigFile).writeText("chr1\nscaf1\n")
+
+        val outputDir = "$tempTestDir/contigFileOut/"
+        val result = ImputeBinProbabilities().test(
+            "--path-keyfile $keyFile --output-dir $outputDir --n-parents 2 " +
+                    "--prob-correct 0.99 --prob-same 0.9999 --bin-size 1 --contigs-to-use $contigFile"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val rows = readProbabilityRows(File("$outputDir/contigFileSample_imputed_probabilities.txt"))
+        assertEquals(setOf("chr1", "scaf1"), rows.map { it[0] }.toSet())
+    }
+
+    @Test
+    fun testContigsToUseRestrictsParentSelection() {
+        // The parent set is chosen from the filtered reader, so MostLikelyPs4gParents only counts
+        // reads on the requested contigs. Only chr2 is requested, and all of its reads support
+        // lineB:0, so lineB:0 must dominate everywhere in the output.
+        val ps4gFile = createContigFilterPs4gFile("parentFilter.ps4g")
+        val keyFile = "$tempTestDir/parentFilterKey.txt"
+        createKeyFile(keyFile, "parentFilterSample", ps4gFile)
+
+        val outputDir = "$tempTestDir/parentFilterOut/"
+        val result = ImputeBinProbabilities().test(
+            "--path-keyfile $keyFile --output-dir $outputDir " +
+                    "--prob-correct 0.99 --prob-same 0.9999 --bin-size 1 --contigs-to-use chr2"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val rows = readProbabilityRows(File("$outputDir/parentFilterSample_imputed_probabilities.txt"))
+        assertTrue(rows.isNotEmpty(), "Expected data rows for chr2")
+        assertEquals(setOf("chr2"), rows.map { it[0] }.toSet())
+        topStateByPosition(rows).values.forEach { assertEquals("lineB:0", it) }
+    }
+
+    @Test
+    fun testContigsToUseMatchingNoContigs() {
+        // A contig list that matches nothing in the ps4g file leaves the reader empty, so only the
+        // header is written.
+        val ps4gFile = createContigFilterPs4gFile("noMatch.ps4g")
+        val keyFile = "$tempTestDir/noMatchKey.txt"
+        createKeyFile(keyFile, "noMatchSample", ps4gFile)
+
+        val outputDir = "$tempTestDir/noMatchOut/"
+        val result = ImputeBinProbabilities().test(
+            "--path-keyfile $keyFile --output-dir $outputDir " +
+                    "--prob-correct 0.99 --prob-same 0.9999 --bin-size 1 --contigs-to-use chr99"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val outFile = File("$outputDir/noMatchSample_imputed_probabilities.txt")
+        assertEquals(HEADER, outFile.readText(), "Expected only the header when no contig matches")
     }
 
     @Test

@@ -9,7 +9,6 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
-import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
@@ -99,6 +98,11 @@ class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype
         .int()
         .default(256)
 
+    val contigsToUse by option(help = "A list of contigs to be imputed. If no list is supplied, all contigs in the ps4g" +
+            " file will be imputed. The value can be a comma-separated list or a file containing the list," +
+            " with a single contig per line.")
+        .default("")
+
     val myLogger = LogManager.getLogger(ImputeBinProbabilities::class.java)
 
     /**
@@ -127,10 +131,11 @@ class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype
      * to disk.
      *
      * For each sample this:
-     *  1. Reads the PS4G file and collects its contigs, excluding any whose name starts with `scaf`.
+     *  1. Reads the PS4G file and collects its contigs, restricted to [contigsToUse] when that
+     *     option is supplied.
      *  2. Determines the parent (state) set — restricted to the [nParents] most likely parents via
      *     [MostLikelyPs4gParents] when `nParents > 0`, otherwise every gamete present in the file.
-     *  3. Builds the [initialStateProbs], transition matrix (haploid: [probSame] / 1 - [probSame];
+     *  3. Builds the initial state probabilities, transition matrix (haploid: [probSame] / 1 - [probSame];
      *     diploid: transition probabilities from [DiploidTransitionProbability]), and, per contig,
      *     the emission probabilities from [EmissionProbabilityForForwardBackward].
      *  4. Runs [PositionalForwardBackward] over each contig's positions and writes the result to
@@ -145,15 +150,15 @@ class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype
 
         for (fileData in keyFileLines) {
             myLogger.info("Finding $imputeType probabilities for ${fileData.sampleName}")
-            val ps4gReader = Ps4gFileReader(fileData.file1)
+            val ps4gReader = Ps4gFileReader(fileData.file1, ImputePathFromPs4g.buildContigSet(contigsToUse))
 
-            //do not use contigs starting with scaf
-            val contigs = ps4gReader.contigSet().filter { !it.startsWith("scaf") }
+            //the reader has already dropped any contigs not in --contigs-to-use
+            val contigs = ps4gReader.contigSet()
             myLogger.info("Contigs: $contigs")
 
             //if nParents > 0 find most likely parents, otherwise use the full parent set
             val parentSet = if (nParents > 0) {
-                MostLikelyPs4gParents(ps4gReader, contigs.toSet()).bestParents(nParents)
+                MostLikelyPs4gParents(ps4gReader, contigs).bestParents(nParents)
             } else {
                 ps4gReader.gameteIndexMap().keys
             }
