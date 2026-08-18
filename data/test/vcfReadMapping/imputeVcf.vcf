@@ -1,0 +1,9 @@
+##fileformat=VCFv4.2
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles">
+##contig=<ID=1,length=1000>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SampleX	SampleY	SampleZ	SampleEmpty
+1	10	.	A	T	.	.	.	GT:AD	0/1:12,8	1/1	0/0	./.
+1	20	.	C	G	.	.	.	GT	0/0	0/0	0/1	./.
+1	30	.	A	G	.	.	.	GT:AD	0/1:9	1/1:6,0	0/0	./.
+1	40	.	A	T	.	.	.	GT	0/1	1/1	0/0	./.

@@ -1,0 +1,9 @@
+#PHG_VCF_HAPLOTYPE_INDEX
+#version=1.0
+#chrom	pos	allele	refRange	hapIds
+1	10	A	1:1-200	h1
+1	10	T	1:1-200	h1,h2
+1	20	C	1:1-200	h3
+1	30	A	1:1-200	h6
+1	30	G	1:1-200	h4,h5
+1	99	A	1:1-200	h7
