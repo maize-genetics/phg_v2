@@ -160,6 +160,8 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
 
         genotypes.forEach { genotype ->
             genotype.alleles.forEachIndexed { alleleIndex, allele ->
+                if(allele == Allele.NO_CALL)
+                    return@forEachIndexed
                 processSingleGenotype(
                     genotype,
                     alleleIndex,
@@ -230,10 +232,13 @@ class ConvertVcf2Ps4gFile: CliktCommand(help = "Convert VCF to PS4G") {
      * This will be used for each sample to impute
      */
     fun createGameteToIdxMap(positionSampleGameteLookup: Map<Position, Map<String, List<SampleGamete>>>): Map<SampleGamete, Int> {
-        return positionSampleGameteLookup.values.flatMap { it.values }
-            .flatten()
-            .distinct()
-            .sorted()
+        val gameteSet = mutableSetOf<SampleGamete>()
+
+        for(value in positionSampleGameteLookup.values) {
+            gameteSet.addAll(value.values.flatten())
+        }
+
+        return gameteSet.sorted()
             .mapIndexed { index, sampleGamete ->
                 sampleGamete to index
             }.toMap()
