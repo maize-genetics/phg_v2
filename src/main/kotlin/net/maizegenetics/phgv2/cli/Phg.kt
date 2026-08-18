@@ -35,6 +35,7 @@ fun main(args: Array<String>) = Phg()
         RopeBwtIndex(), RopeBwtChrIndex(), AlignReads(), MapReads(), MapReadsFromBed(), ImputationMetrics(),
         ImputePathFromPs4g(), ImputeBinProbabilities(),   // Imputation
         BuildSplineKnots(), ConvertRm2Ps4gFile(), ConvertRopebwt2Ps4gFile(), ConvertVcf2Ps4gFile(), // PS4G File creations.
+        BuildVcfHaplotypeIndex(), // VCF to readMapping pipeline
         CreateFastaFromHvcf(), ListSamples(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer, ExtractEdgeReads(), //Utilities
         QcReadMapping(), ReadMappingCountQc(), PathsToGff(),
         MappingCountTableQc(),// Utilities continued

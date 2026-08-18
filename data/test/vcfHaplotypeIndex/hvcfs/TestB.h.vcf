@@ -1,0 +1,8 @@
+##fileformat=VCFv4.2
+##ALT=<ID=hapB1g0,Description="haplotype data for line: TestB",Source="test",SampleName=TestB,Regions=1:1-100,Checksum=hapB1g0,RefRange=1:1-100>
+##ALT=<ID=hapA1g0,Description="haplotype data for line: TestA",Source="test",SampleName=TestA,Regions=1:1-100,Checksum=hapA1g0,RefRange=1:1-100>
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
+##contig=<ID=1,length=1000>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	TestB
+1	1	.	N	<hapB1g0>,<hapA1g0>	.	.	END=100	GT	1|2

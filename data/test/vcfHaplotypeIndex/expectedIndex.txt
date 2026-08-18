@@ -1,0 +1,12 @@
+1	10	A	1:1-100	hapA1g0,hapA1g1
+1	10	T	1:1-100	hapA1g0,hapB1g0
+1	50	C	1:1-100	hapA1g0
+1	50	G	1:1-100	hapA1g1,hapB1g0
+1	50	T	1:1-100	hapA1g0
+1	60	A	1:1-100	hapB1g0
+1	60	T	1:1-100	hapA1g0
+1	100	<DEL>	1:1-100	hapA1g1
+1	100	G	1:1-100	hapA1g0,hapB1g0
+1	101	A	1:101-200	hapA2g0
+1	101	T	1:101-200	hapA2g1
+1	150	A	1:101-200	hapA2g0,hapA2g1

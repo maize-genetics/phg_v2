@@ -1,0 +1,13 @@
+##fileformat=VCFv4.2
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##contig=<ID=1,length=1000>
+##contig=<ID=9,length=1000>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	TestA	TestB	Ghost
+1	10	.	A	T	.	.	.	GT	0|0	1|1	0|1
+1	50	.	C	G,T	.	.	.	GT	0|1	1|2	0|0
+1	60	.	A	T	.	.	.	GT	.|.	0|1	0|0
+1	100	.	G	<DEL>	.	.	.	GT	0|1	0|0	0|0
+1	101	.	A	T	.	.	.	GT	0|1	0|1	1|1
+1	150	.	A	T	.	.	.	GT	0|0	1|1	0|0
+1	201	.	A	T	.	.	.	GT	0|0	1|1	0|0
+9	10	.	A	T	.	.	.	GT	0|0	1|1	0|0
