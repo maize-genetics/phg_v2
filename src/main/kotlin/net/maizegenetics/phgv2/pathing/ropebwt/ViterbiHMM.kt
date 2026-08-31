@@ -94,7 +94,7 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
             for (index2 in 0 until nParents) {
                 for (index3 in 0 until nParents) {
                     for (index4 in 0 until nParents) {
-                        transitionMatrix[ptr++] = transitionProbabilityCalculator.calculate(Pair(index1, index2), Pair(index3, index4))
+                        transitionMatrix[ptr++] = transitionProbabilityCalculator.calculateLn(Pair(index1, index2), Pair(index3, index4))
                     }
                 }
             }
@@ -111,9 +111,9 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         //probability of a specific homozygote = f/nParents heterozygoe = (1-f)/(nParents*nParents - nParents)
         val homozygoteProbabillity = inbreedingCoefficient / nParents
         val heterozygoteProbability = (1.0 - inbreedingCoefficient) / (nParents * nParents - nParents)
-        val initProbs = DoubleArray(nParents * nParents) {heterozygoteProbability}
+        val initProbs = DoubleArray(nParents * nParents) {lnOrFloor(heterozygoteProbability)}
         for (ndx in 0 until nParents) {
-            initProbs[ndx * nParents + ndx] = homozygoteProbabillity
+            initProbs[ndx * nParents + ndx] = lnOrFloor(homozygoteProbabillity)
         }
 
         val result = viterbiOptimized(nStates, nPositions, initProbs,
@@ -129,6 +129,9 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
             gameteIndexMap[parentList[i % nParents]] ?: "none")}
         return resultList
     }
+
+    /** ln(p), floored so that p == 0.0 yields a large finite penalty rather than -Inf. */
+    private fun lnOrFloor(p: Double): Double = if (p <= 0.0) -1.0e6 else ln(p)
 
     /**
      * General Viterbi implementation that takes an explicit transition matrix. Used for the diploid
