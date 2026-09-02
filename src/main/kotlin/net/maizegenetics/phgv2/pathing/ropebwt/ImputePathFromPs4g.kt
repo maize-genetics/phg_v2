@@ -131,9 +131,9 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             "--emission-model mixture. The complement factor of the mixture likelihood runs over " +
             "every unmatched founder and ln(1-r) diverges as sharing approaches 1, so an unclamped " +
             "local sharing value lets that term dominate the reads. Swept on simulated F2 panels, " +
-            "0.2 to 0.4 is a broad optimum and 0.001 is far worse. Default = 0.3.")
+            "0.2 to 0.4 is a broad optimum and 0.001 is far worse. Default = 0.4.")
         .double()
-        .default(0.3)
+        .default(0.4)
 
     val sharingShrink by option(help = "Shrink local founder sharing toward that pair's contig-wide " +
             "mean before use, for --emission-model mixture. 0 uses the local value as measured, " +
@@ -141,6 +141,15 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             "testing; the clamp is the effective control. Default = 0.0.")
         .double()
         .default(0.0)
+
+    val sharingMatchClamp by option(help = "Clamp for the matched factor of the mixture emission, " +
+            "separate from --sharing-clamp which applies to the complement factor. Het-versus-hom " +
+            "discrimination lives in the matched factor, so clamping it as tightly as the " +
+            "complement costs heterozygote recall. In testing, splitting the two clamps only " +
+            "helped while the diagonal r[i][i] was being clamped as well; with that fixed, equal " +
+            "clamps are better and splitting hurts. Defaults to the same value as --sharing-clamp.")
+        .double()
+        .default(0.4)
 
     val binSize by option(help = "The bin size used to create the ps4g file. Default = 256.")
         .int()
@@ -288,7 +297,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                     val startTime = System.nanoTime()
                     val contigPath = pathFinder(
                         ViterbiHMM(inbreedCoef, probSame, probCorrect, emissionModel, loadedSharingTable, binSize,
-                            sharingClamp, sharingShrink),
+                            sharingClamp, sharingShrink, sharingMatchClamp),
                         contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet
                     )
                     myLogger.info("elapsed time for $contig was ${(System.nanoTime() - startTime) / 1_000_000_000.0} sec")

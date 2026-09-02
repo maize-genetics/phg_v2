@@ -47,6 +47,21 @@ import kotlin.math.pow
  * Without a table, `r` falls back to a single genome-wide symmetric overlap per pair, computed from
  * the reads. That form works but leaves spurious third-founder states; see the notes.
  *
+ * @param matchEps clamp for the MATCHED factor, kept separate from [eps].
+ *
+ * The two factors of this likelihood want opposite things. `ln(1 - r)` in the complement factor
+ * diverges as r approaches 1, so it needs a tight clamp. But het-versus-hom discrimination lives
+ * entirely in the matched factor, and clamping there compresses it: measured inside true
+ * heterozygous intervals, the margin `ln P(AB) - ln P(AA)` falls from 2.05 per read at a clamp of
+ * 0.001 to 0.67 at 0.40, while the mixture's fixed `ln 2` cost stays at 0.693. A single clamp
+ * therefore appears to trade heterozygote recall for complement stability.
+ *
+ * That tension turned out to be mostly an artefact of clamping `r[i][i]`, which is `probCorrect`
+ * -- a supplied parameter, not an estimate. Clamping rewrote it as 0.60 at a clamp of 0.4, which
+ * cost 8 points of heterozygote recall on its own. With the diagonal exempted, equal clamps are
+ * best and splitting them is actively worse (97.4% vs 93.2% at e=0), so this parameter defaults
+ * to the same value as [eps] and exists only for further study.
+ *
  * @param shrink pulls the local sharing toward that pair's contig-wide mean before the exponent is
  *   applied: `s' = (1 - shrink) * s(w) + shrink * mean(s)`. 0 uses the local value as measured, 1
  *   reduces to the global-sharing behaviour.
@@ -74,8 +89,9 @@ class MixtureEmissionProbability(
     val contig: String = "",
     val gameteIndexMap: Map<Int, String> = emptyMap(),
     val binSize: Int = 256,
-    val eps: Double = 0.30,
-    val shrink: Double = 0.0
+    val eps: Double = 0.40,
+    val shrink: Double = 0.0,
+    val matchEps: Double = 0.40
 ) {
     val parentList = parentSet.sorted()
     val nParents = parentList.size
@@ -232,21 +248,32 @@ class MixtureEmissionProbability(
                     val raw = table.sharing(contig, window, parentNames[i], parentNames[k])
                     val s = if (raw.isNaN()) contigMeanSharing[index] else raw
                     val shrunk = (1.0 - shrink) * s + shrink * contigMeanSharing[index]
-                    shrunk.coerceIn(eps, 1.0 - eps).pow(gamma)
+                    shrunk.coerceIn(1e-6, 1.0 - 1e-6).pow(gamma)
                 }
             }
         }
         applySharing(values)
     }
 
+    /**
+     * [values] holds unclamped sharing. The complement factor is built from a tightly clamped copy
+     * and the matched factor from a loosely clamped one, so stability and discrimination can be set
+     * independently.
+     */
     private fun applySharing(values: DoubleArray) {
         for (i in 0 until nParents) {
             var sum = 0.0
             for (k in 0 until nParents) {
                 val index = i * nParents + k
-                val r = values[index].coerceIn(eps, 1.0 - eps)
-                val lnNotR = ln(1.0 - r)
-                matchDelta[index] = ln(r) - lnNotR
+                // The diagonal is probCorrect, a supplied parameter rather than an estimate, so it
+                // is never clamped. Clamping it silently rewrites "a read from i matches i" as
+                // 0.70 at a clamp of 0.3, or 0.60 at 0.4, which distorts every state equally in
+                // the matched factor and unequally once the two factors are clamped apart.
+                val raw = values[index]
+                val complement = if (i == k) raw else raw.coerceIn(eps, 1.0 - eps)
+                val matched = if (i == k) raw else raw.coerceIn(matchEps, 1.0 - matchEps)
+                val lnNotR = ln((1.0 - complement).coerceAtLeast(1e-12))
+                matchDelta[index] = ln(matched) - lnNotR
                 sum += lnNotR
             }
             baseline[i] = sum

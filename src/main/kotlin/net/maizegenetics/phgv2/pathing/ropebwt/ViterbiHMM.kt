@@ -32,8 +32,9 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
                  val emissionModel: String = "binomial",
                  val sharingTable: SharingTable? = null,
                  val binSize: Int = 256,
-                 val sharingClamp: Double = 0.10,
-                 val sharingShrink: Double = 0.0
+                 val sharingClamp: Double = 0.40,
+                 val sharingShrink: Double = 0.0,
+                 val sharingMatchClamp: Double = 0.40
 ) {
     private val myLogger = LogManager.getLogger(ViterbiHMM::class.java)
 
@@ -113,7 +114,8 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         //emission probabilities
         val emissionP = if (emissionModel == "mixture") {
             MixtureEmissionProbability(readMap, likelyParentSet, probCorrect, sharingTable, contig,
-                gameteIndexMap, binSize, sharingClamp, sharingShrink)::getDiploidEmissionProbabilityArray
+                gameteIndexMap, binSize, sharingClamp, sharingShrink,
+                sharingMatchClamp)::getDiploidEmissionProbabilityArray
         } else {
             EmissionProbabilityForViterbiHMM(readMap, likelyParentSet, probCorrect)::getDiploidEmissionProbabilityArray
         }
