@@ -113,6 +113,14 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         .int()
         .default(0)
 
+    val emissionModel by option(help = "Emission probability model for diploid paths. 'binomial' " +
+            "scores only whether a read hits either founder of the pair. 'mixture' models the read " +
+            "as coming from one of the two haplotypes and scores its whole gamete set, which lets a " +
+            "homozygous state be preferred on the evidence rather than through --inbreed-coef. " +
+            "Default = binomial.")
+        .choice("binomial", "mixture")
+        .default("binomial")
+
     val binSize by option(help = "The bin size used to create the ps4g file. Default = 256.")
         .int()
         .default(256)
@@ -248,7 +256,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
                     val startTime = System.nanoTime()
                     val contigPath = pathFinder(
-                        ViterbiHMM(inbreedCoef, probSame, probCorrect),
+                        ViterbiHMM(inbreedCoef, probSame, probCorrect, emissionModel),
                         contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet
                     )
                     myLogger.info("elapsed time for $contig was ${(System.nanoTime() - startTime) / 1_000_000_000.0} sec")

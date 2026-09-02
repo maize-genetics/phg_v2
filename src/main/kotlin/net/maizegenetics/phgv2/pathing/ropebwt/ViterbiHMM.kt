@@ -22,8 +22,14 @@ import kotlin.math.ln
  *   from one bin to the next (1 - recombination probability).
  * @param probCorrect the probability that a read maps to the correct haplotype; passed to the
  *   emission probability calculator.
+ * @param emissionModel "binomial" (default, historical behaviour) scores only whether a read hits
+ *   either founder of the pair. "mixture" models the read as coming from one of the state's two
+ *   haplotypes and scores its whole gamete set, which lets a homozygous state be preferred over a
+ *   heterozygous one on the evidence rather than through the inbreeding coefficient. Diploid paths
+ *   only; the haploid path is unaffected.
  */
-class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: Double, val probCorrect: Double
+class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: Double, val probCorrect: Double,
+                 val emissionModel: String = "binomial"
 ) {
     private val myLogger = LogManager.getLogger(ViterbiHMM::class.java)
 
@@ -100,9 +106,12 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
             }
         }
 
-        //emission probabilities (equal -1.0 for testing)
-        val emissionProbabilityCalculator = EmissionProbabilityForViterbiHMM(readMap, likelyParentSet, probCorrect)
-        val emissionP = emissionProbabilityCalculator::getDiploidEmissionProbabilityArray
+        //emission probabilities
+        val emissionP = if (emissionModel == "mixture") {
+            MixtureEmissionProbability(readMap, likelyParentSet, probCorrect)::getDiploidEmissionProbabilityArray
+        } else {
+            EmissionProbabilityForViterbiHMM(readMap, likelyParentSet, probCorrect)::getDiploidEmissionProbabilityArray
+        }
 
         //val emissionP = { x: Int -> DoubleArray(nStates) {-1.0} }
 
