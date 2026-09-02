@@ -29,7 +29,11 @@ import kotlin.math.ln
  *   only; the haploid path is unaffected.
  */
 class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: Double, val probCorrect: Double,
-                 val emissionModel: String = "binomial"
+                 val emissionModel: String = "binomial",
+                 val sharingTable: SharingTable? = null,
+                 val binSize: Int = 256,
+                 val sharingClamp: Double = 0.10,
+                 val sharingShrink: Double = 0.0
 ) {
     private val myLogger = LogManager.getLogger(ViterbiHMM::class.java)
 
@@ -108,7 +112,8 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
 
         //emission probabilities
         val emissionP = if (emissionModel == "mixture") {
-            MixtureEmissionProbability(readMap, likelyParentSet, probCorrect)::getDiploidEmissionProbabilityArray
+            MixtureEmissionProbability(readMap, likelyParentSet, probCorrect, sharingTable, contig,
+                gameteIndexMap, binSize, sharingClamp, sharingShrink)::getDiploidEmissionProbabilityArray
         } else {
             EmissionProbabilityForViterbiHMM(readMap, likelyParentSet, probCorrect)::getDiploidEmissionProbabilityArray
         }

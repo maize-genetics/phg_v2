@@ -121,6 +121,27 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         .choice("binomial", "mixture")
         .default("binomial")
 
+    val sharingFile by option(help = "Optional founder-sharing table built from a ropebwt3 lift " +
+            "file by build_sharing_table.py. Used only with --emission-model mixture, where it " +
+            "supplies windowed founder-to-founder sequence sharing. Without it the mixture model " +
+            "falls back to one genome-wide sharing value per founder pair.")
+        .default("")
+
+    val sharingClamp by option(help = "Clamp holding founder sharing inside [clamp, 1-clamp] for " +
+            "--emission-model mixture. The complement factor of the mixture likelihood runs over " +
+            "every unmatched founder and ln(1-r) diverges as sharing approaches 1, so an unclamped " +
+            "local sharing value lets that term dominate the reads. Swept on simulated F2 panels, " +
+            "0.2 to 0.4 is a broad optimum and 0.001 is far worse. Default = 0.3.")
+        .double()
+        .default(0.3)
+
+    val sharingShrink by option(help = "Shrink local founder sharing toward that pair's contig-wide " +
+            "mean before use, for --emission-model mixture. 0 uses the local value as measured, " +
+            "1 reduces to a single global sharing value per pair. Shrinking did not help in " +
+            "testing; the clamp is the effective control. Default = 0.0.")
+        .double()
+        .default(0.0)
+
     val binSize by option(help = "The bin size used to create the ps4g file. Default = 256.")
         .int()
         .default(256)
@@ -135,6 +156,8 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         .default("")
 
     val myLogger = LogManager.getLogger(ImputePathFromPs4g::class.java)
+
+    private var loadedSharingTable: SharingTable? = null
 
     /**
      * Entry point for the command. Creates the output directory and dispatches to either
@@ -155,6 +178,14 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         //Get or create the output directory
         val pathToOutputDir = Paths.get(outPathDir)
         pathToOutputDir.createDirectories()
+
+        if (sharingFile.isNotBlank()) {
+            require(File(sharingFile).exists()) { "--sharing-file $sharingFile does not exist." }
+            myLogger.info("Loading founder sharing table $sharingFile")
+            loadedSharingTable = SharingTable(File(sharingFile))
+            myLogger.info("Sharing table window size = ${loadedSharingTable!!.windowSize}, " +
+                    "${loadedSharingTable!!.nTaxa} taxa")
+        }
 
         if (isHaploid) imputeHaploidPath(pathToOutputDir)
         else imputeDiploidPath(pathToOutputDir)
@@ -256,7 +287,8 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
                     val startTime = System.nanoTime()
                     val contigPath = pathFinder(
-                        ViterbiHMM(inbreedCoef, probSame, probCorrect, emissionModel),
+                        ViterbiHMM(inbreedCoef, probSame, probCorrect, emissionModel, loadedSharingTable, binSize,
+                            sharingClamp, sharingShrink),
                         contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet
                     )
                     myLogger.info("elapsed time for $contig was ${(System.nanoTime() - startTime) / 1_000_000_000.0} sec")
