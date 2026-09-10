@@ -24,9 +24,11 @@ import kotlin.math.ln
  *   emission probability calculator.
  * @param emissionModel "binomial" (default, historical behaviour) scores only whether a read hits
  *   either founder of the pair. "mixture" models the read as coming from one of the state's two
- *   haplotypes and scores its whole gamete set, which lets a homozygous state be preferred over a
- *   heterozygous one on the evidence rather than through the inbreeding coefficient. Diploid paths
- *   only; the haploid path is unaffected.
+ *   haplotypes and scores its whole gamete set against a lift-derived sharing table.
+ *   "gameteset" classifies each read's site as identical or divergent between the two founders
+ *   directly from the gamete set, needing no sharing table. Both alternatives let a homozygous
+ *   state be preferred on the evidence rather than through the inbreeding coefficient. Diploid
+ *   paths only; the haploid path is unaffected.
  */
 class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: Double, val probCorrect: Double,
                  val emissionModel: String = "binomial",
@@ -112,7 +114,9 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         }
 
         //emission probabilities
-        val emissionP = if (emissionModel == "mixture") {
+        val emissionP = if (emissionModel == "gameteset") {
+            GameteSetEmissionProbability(readMap, likelyParentSet, probCorrect)::getDiploidEmissionProbabilityArray
+        } else if (emissionModel == "mixture") {
             MixtureEmissionProbability(readMap, likelyParentSet, probCorrect, sharingTable, contig,
                 gameteIndexMap, binSize, sharingClamp, sharingShrink,
                 sharingMatchClamp)::getDiploidEmissionProbabilityArray

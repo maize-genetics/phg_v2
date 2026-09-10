@@ -115,10 +115,12 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     val emissionModel by option(help = "Emission probability model for diploid paths. 'binomial' " +
             "scores only whether a read hits either founder of the pair. 'mixture' models the read " +
-            "as coming from one of the two haplotypes and scores its whole gamete set, which lets a " +
-            "homozygous state be preferred on the evidence rather than through --inbreed-coef. " +
-            "Default = binomial.")
-        .choice("binomial", "mixture")
+            "as coming from one of the two haplotypes and scores its whole gamete set against a " +
+            "lift-derived sharing table. 'gameteset' classifies each read's site as identical or " +
+            "divergent between the two founders directly from the gamete set, needing no sharing " +
+            "table. Both alternatives let a homozygous state be preferred on the evidence rather " +
+            "than through --inbreed-coef. Default = binomial.")
+        .choice("binomial", "mixture", "gameteset")
         .default("binomial")
 
     val sharingFile by option(help = "Optional founder-sharing table built from a ropebwt3 lift " +
