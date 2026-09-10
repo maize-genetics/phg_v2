@@ -153,6 +153,29 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         .double()
         .default(0.4)
 
+    val presenceFile by option(help = "Optional per-founder anchor presence table built from a " +
+            "ropebwt3 lift file by build_presence_table.py. Used only with " +
+            "--emission-model gameteset. Where a founder has no alignable sequence in a window, " +
+            "every read matches the other founder alone and the model would otherwise read that " +
+            "as evidence for homozygosity; supplying this table makes the heterozygous state tie " +
+            "with the homozygous one instead, leaving the transition prior to decide.")
+        .default("")
+
+    val pavThreshold by option(help = "A founder whose anchor presence in a window is at or below " +
+            "this fraction is treated as absent there, for --presence-file. Validated against " +
+            "gVCF deletion calls: 0.05 flags windows that are genuinely deleted about 88% of the " +
+            "time. Default = 0.05.")
+        .double()
+        .default(0.05)
+
+    val pavDamping by option(help = "Strength of the presence/absence correction, 0 to 1. At 0 " +
+            "the model is unchanged. At 1 a heterozygous state involving an absent founder ties " +
+            "with the corresponding homozygous state, which is correct for the true pair but " +
+            "promotes every wrong pair equally and performs badly. Intermediate values reduce the " +
+            "per-read penalty while keeping states strictly ordered. Default = 0.5.")
+        .double()
+        .default(0.5)
+
     val binSize by option(help = "The bin size used to create the ps4g file. Default = 256.")
         .int()
         .default(256)
@@ -169,6 +192,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
     val myLogger = LogManager.getLogger(ImputePathFromPs4g::class.java)
 
     private var loadedSharingTable: SharingTable? = null
+    private var loadedPresenceTable: PresenceTable? = null
 
     /**
      * Entry point for the command. Creates the output directory and dispatches to either
@@ -196,6 +220,14 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             loadedSharingTable = SharingTable(File(sharingFile))
             myLogger.info("Sharing table window size = ${loadedSharingTable!!.windowSize}, " +
                     "${loadedSharingTable!!.nTaxa} taxa")
+        }
+
+        if (presenceFile.isNotBlank()) {
+            require(File(presenceFile).exists()) { "--presence-file $presenceFile does not exist." }
+            myLogger.info("Loading founder presence table $presenceFile")
+            loadedPresenceTable = PresenceTable(File(presenceFile))
+            myLogger.info("Presence table window size = ${loadedPresenceTable!!.windowSize}, " +
+                    "${loadedPresenceTable!!.nTaxa} taxa, PAV threshold = $pavThreshold")
         }
 
         if (isHaploid) imputeHaploidPath(pathToOutputDir)
@@ -299,7 +331,8 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                     val startTime = System.nanoTime()
                     val contigPath = pathFinder(
                         ViterbiHMM(inbreedCoef, probSame, probCorrect, emissionModel, loadedSharingTable, binSize,
-                            sharingClamp, sharingShrink, sharingMatchClamp),
+                            sharingClamp, sharingShrink, sharingMatchClamp,
+                            loadedPresenceTable, pavThreshold, pavDamping),
                         contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet
                     )
                     myLogger.info("elapsed time for $contig was ${(System.nanoTime() - startTime) / 1_000_000_000.0} sec")
