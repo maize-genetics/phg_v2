@@ -163,10 +163,11 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     val pavThreshold by option(help = "A founder whose anchor presence in a window is at or below " +
             "this fraction is treated as absent there, for --presence-file. Validated against " +
-            "gVCF deletion calls: 0.05 flags windows that are genuinely deleted about 88% of the " +
-            "time. Default = 0.05.")
+            "gVCF deletion calls: 0.02 flags windows that are genuinely deleted about 90% of the " +
+            "time, and 0.05 about 88%. The looser value scores marginally better overall but costs " +
+            "four times as much homozygote recall, so 0.02 is the default. Default = 0.02.")
         .double()
-        .default(0.05)
+        .default(0.02)
 
     val pavDamping by option(help = "Strength of the presence/absence correction, 0 to 1. At 0 " +
             "the model is unchanged. At 1 a heterozygous state involving an absent founder ties " +

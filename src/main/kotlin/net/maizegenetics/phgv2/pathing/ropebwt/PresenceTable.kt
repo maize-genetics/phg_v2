@@ -19,8 +19,9 @@ import java.nio.ByteOrder
  * first should trigger a presence/absence correction.
  *
  * Validated against independently called gVCF deletions of 5 kb or more: windows with presence at
- * or below 0.05 are genuinely deleted 87-89% of the time. Note the base rate -- NAM founders lack
- * roughly 37% of the reference at that scale, so absence is common rather than exceptional.
+ * or below 0.02 are genuinely deleted about 90% of the time, and at or below 0.05 about 88%. Note
+ * the base rate -- NAM founders lack roughly 37% of the reference at that scale, so absence is
+ * common rather than exceptional.
  *
  * Built by `scripts/build_presence_table.py`. Binary, little-endian:
  *   magic "PAVPRES" + version byte, int32 windowSize, int32 nTaxa,

@@ -80,7 +80,7 @@ class GameteSetEmissionProbability(
     val contig: String = "",
     val gameteIndexMap: Map<Int, String> = emptyMap(),
     val binSize: Int = 256,
-    val pavThreshold: Double = 0.05,
+    val pavThreshold: Double = 0.02,
     val pavDamping: Double = 1.0
 ) {
     val parentList = parentSet.sorted()

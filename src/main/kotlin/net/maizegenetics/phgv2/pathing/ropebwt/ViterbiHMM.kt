@@ -38,7 +38,7 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
                  val sharingShrink: Double = 0.0,
                  val sharingMatchClamp: Double = 0.40,
                  val presenceTable: PresenceTable? = null,
-                 val pavThreshold: Double = 0.05,
+                 val pavThreshold: Double = 0.02,
                  val pavDamping: Double = 1.0
 ) {
     private val myLogger = LogManager.getLogger(ViterbiHMM::class.java)
