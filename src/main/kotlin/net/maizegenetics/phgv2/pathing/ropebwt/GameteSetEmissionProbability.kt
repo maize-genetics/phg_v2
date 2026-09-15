@@ -50,27 +50,28 @@ import kotlin.math.ln
  * | | A | pc |
  * | | not A | pe |
  *
- * At full strength the two states tie. That is correct for the true pair -- with B absent there is
- * genuinely no evidence separating (A, A) from (A, B) -- but it is equally correct for every
- * *wrong* pair, and that is fatal in practice. A typical read matches about ten of twenty-five
- * founders, so `A in G` holds for many A at once; combined with several founders flagged absent in
- * the same window, dozens of ordered states are promoted to the maximum together. The factor of one
- * half is precisely what distinguishes the true pair from an arbitrary one, and removing it
- * outright destroys that discrimination. Measured on the F1 arms, a full-strength correction
- * roughly quadrupled false-homozygous sequence and raised switch counts twenty-fold.
+ * At full strength the two states tie, which is what the evidence supports: with B absent there is
+ * genuinely nothing separating (A, A) from (A, B).
  *
- * [pavDamping] therefore scales the correction: the divergent-site probability becomes
- * `0.5^(1 - damping) * pc` where the founder is flagged absent. At 0 the model is unchanged; at 1
- * the states tie, as above. Intermediate values reduce the per-read penalty -- and so the rate at
- * which a run of one-sided reads accumulates toward a false switch -- while keeping the
- * heterozygous state strictly below the homozygous one, so no ties are created and the ordering
- * across states is preserved.
+ * [pavDamping] scales the correction: the divergent-site probability becomes `0.5^(1 - damping) *
+ * pc` where the founder is flagged absent. At 0 the model is unchanged; at 1 the states tie, as
+ * above. Intermediate values reduce the per-read penalty -- and so the rate at which a run of
+ * one-sided reads accumulates toward a false switch -- while keeping the heterozygous state
+ * strictly below the homozygous one.
+ *
+ * Scoring is monotonic in [pavDamping] and full strength was best on every benchmark tried: F1
+ * arms (false-homozygous sequence down 65-90%), a balanced F2 panel where over-correction would
+ * show up and does not overwhelm the gain (+0.35 concordance, +11.6 breakpoint F1, against a
+ * measured cost of -0.14 AA recall and -1.47 breakpoint recall), and the maize
+ * simulated-validation corpus. An earlier revision of this correction did behave badly at full
+ * strength, but that was a bug -- it rewrote the wrong cell of the table, and its tell was a
+ * non-monotonic damping sweep -- not a property of the model.
  *
  * State (B, B) is unaffected in all cases and still scores badly, correctly, since a B/B individual
  * could not produce reads where B is absent.
  *
- * Unlike [MixtureEmissionProbability] this needs no sharing matrix and no clamp; `probCorrect` and
- * the presence threshold are its only parameters.
+ * This needs no founder-sharing matrix and no clamp; `probCorrect` and the presence threshold are
+ * its only parameters.
  */
 class GameteSetEmissionProbability(
     val readMap: Map<Int, MutableList<Ps4gGameteSet>>,

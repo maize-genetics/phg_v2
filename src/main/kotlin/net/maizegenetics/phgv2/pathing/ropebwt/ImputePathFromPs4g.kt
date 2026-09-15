@@ -96,10 +96,12 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     val probSame by option(
         help = "The probability that a path stays on the same gamete when transitioning between " +
-                "two adjacent positions. (1 - probability of a recombination). Default = 0.9999"
+                "two adjacent positions. (1 - probability of a recombination). Charged per bin, not " +
+                "per base, so the effective penalty over a given stretch of sequence rises with the " +
+                "number of bins that carry reads. Default = 0.999999999"
     )
         .double()
-        .default(0.9999)
+        .default(0.999999999)
 
     val inbreedCoef by option(
         help = "The inbreeding coefficient (between 0.0 and 1.0). " +
@@ -113,52 +115,12 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         .int()
         .default(0)
 
-    val emissionModel by option(help = "Emission probability model for diploid paths. 'binomial' " +
-            "scores only whether a read hits either founder of the pair. 'mixture' models the read " +
-            "as coming from one of the two haplotypes and scores its whole gamete set against a " +
-            "lift-derived sharing table. 'gameteset' classifies each read's site as identical or " +
-            "divergent between the two founders directly from the gamete set, needing no sharing " +
-            "table. Both alternatives let a homozygous state be preferred on the evidence rather " +
-            "than through --inbreed-coef. Default = binomial.")
-        .choice("binomial", "mixture", "gameteset")
-        .default("binomial")
-
-    val sharingFile by option(help = "Optional founder-sharing table built from a ropebwt3 lift " +
-            "file by build_sharing_table.py. Used only with --emission-model mixture, where it " +
-            "supplies windowed founder-to-founder sequence sharing. Without it the mixture model " +
-            "falls back to one genome-wide sharing value per founder pair.")
-        .default("")
-
-    val sharingClamp by option(help = "Clamp holding founder sharing inside [clamp, 1-clamp] for " +
-            "--emission-model mixture. The complement factor of the mixture likelihood runs over " +
-            "every unmatched founder and ln(1-r) diverges as sharing approaches 1, so an unclamped " +
-            "local sharing value lets that term dominate the reads. Swept on simulated F2 panels, " +
-            "0.2 to 0.4 is a broad optimum and 0.001 is far worse. Default = 0.4.")
-        .double()
-        .default(0.4)
-
-    val sharingShrink by option(help = "Shrink local founder sharing toward that pair's contig-wide " +
-            "mean before use, for --emission-model mixture. 0 uses the local value as measured, " +
-            "1 reduces to a single global sharing value per pair. Shrinking did not help in " +
-            "testing; the clamp is the effective control. Default = 0.0.")
-        .double()
-        .default(0.0)
-
-    val sharingMatchClamp by option(help = "Clamp for the matched factor of the mixture emission, " +
-            "separate from --sharing-clamp which applies to the complement factor. Het-versus-hom " +
-            "discrimination lives in the matched factor, so clamping it as tightly as the " +
-            "complement costs heterozygote recall. In testing, splitting the two clamps only " +
-            "helped while the diagonal r[i][i] was being clamped as well; with that fixed, equal " +
-            "clamps are better and splitting hurts. Defaults to the same value as --sharing-clamp.")
-        .double()
-        .default(0.4)
-
     val presenceFile by option(help = "Optional per-founder anchor presence table built from a " +
-            "ropebwt3 lift file by build_presence_table.py. Used only with " +
-            "--emission-model gameteset. Where a founder has no alignable sequence in a window, " +
-            "every read matches the other founder alone and the model would otherwise read that " +
-            "as evidence for homozygosity; supplying this table makes the heterozygous state tie " +
-            "with the homozygous one instead, leaving the transition prior to decide.")
+            "ropebwt3 lift file by `phg build-presence-table`. Used by diploid paths only. Where a " +
+            "founder has no alignable sequence in a window, every read matches the other founder " +
+            "alone and the model would otherwise read that as evidence for homozygosity; supplying " +
+            "this table lets the heterozygous state tie with the homozygous one instead, leaving " +
+            "the transition prior to decide.")
         .default("")
 
     val pavThreshold by option(help = "A founder whose anchor presence in a window is at or below " +
@@ -171,11 +133,12 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     val pavDamping by option(help = "Strength of the presence/absence correction, 0 to 1. At 0 " +
             "the model is unchanged. At 1 a heterozygous state involving an absent founder ties " +
-            "with the corresponding homozygous state, which is correct for the true pair but " +
-            "promotes every wrong pair equally and performs badly. Intermediate values reduce the " +
-            "per-read penalty while keeping states strictly ordered. Default = 0.5.")
+            "with the corresponding homozygous state, which is what the evidence actually supports " +
+            "when one founder has no sequence there. Scoring is monotonic in this parameter and 1 " +
+            "was best on every benchmark tried -- F1 arms, a balanced F2 panel, and the maize " +
+            "simulated-validation corpus. Default = 1.0.")
         .double()
-        .default(0.5)
+        .default(1.0)
 
     val binSize by option(help = "The bin size used to create the ps4g file. Default = 256.")
         .int()
@@ -192,7 +155,6 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     val myLogger = LogManager.getLogger(ImputePathFromPs4g::class.java)
 
-    private var loadedSharingTable: SharingTable? = null
     private var loadedPresenceTable: PresenceTable? = null
 
     /**
@@ -214,14 +176,6 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         //Get or create the output directory
         val pathToOutputDir = Paths.get(outPathDir)
         pathToOutputDir.createDirectories()
-
-        if (sharingFile.isNotBlank()) {
-            require(File(sharingFile).exists()) { "--sharing-file $sharingFile does not exist." }
-            myLogger.info("Loading founder sharing table $sharingFile")
-            loadedSharingTable = SharingTable(File(sharingFile))
-            myLogger.info("Sharing table window size = ${loadedSharingTable!!.windowSize}, " +
-                    "${loadedSharingTable!!.nTaxa} taxa")
-        }
 
         if (presenceFile.isNotBlank()) {
             require(File(presenceFile).exists()) { "--presence-file $presenceFile does not exist." }
@@ -331,8 +285,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
                     val startTime = System.nanoTime()
                     val contigPath = pathFinder(
-                        ViterbiHMM(inbreedCoef, probSame, probCorrect, emissionModel, loadedSharingTable, binSize,
-                            sharingClamp, sharingShrink, sharingMatchClamp,
+                        ViterbiHMM(inbreedCoef, probSame, probCorrect, binSize,
                             loadedPresenceTable, pavThreshold, pavDamping),
                         contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet
                     )

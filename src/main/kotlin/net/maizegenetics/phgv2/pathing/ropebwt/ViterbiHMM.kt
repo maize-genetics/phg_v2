@@ -11,8 +11,10 @@ import kotlin.math.ln
  *
  * The hidden states are the candidate parent gametes: for a haploid path each state is a single
  * parent; for a diploid path each state is an ordered pair of parents (nParents * nParents states).
- * Emission probabilities come from [EmissionProbabilityForViterbiHMM] and are driven by which
- * gametes the reads in each bin hit. Transition probabilities favor staying on the same
+ * Emission probabilities are driven by which gametes the reads in each bin hit: a haploid path
+ * uses [EmissionProbabilityForViterbiHMM], which scores whether a read hit the candidate gamete;
+ * a diploid path uses [GameteSetEmissionProbability], which additionally classifies each read's
+ * site as identical or divergent between the two founders of the candidate pair. Transition probabilities favor staying on the same
  * gamete(s) between adjacent bins, with a recombination penalty for switching. The inbreeding coefficient
  * affects the transition probabilities. Values > 1 favor transitions to a homozygous state.
  *
@@ -22,21 +24,18 @@ import kotlin.math.ln
  *   from one bin to the next (1 - recombination probability).
  * @param probCorrect the probability that a read maps to the correct haplotype; passed to the
  *   emission probability calculator.
- * @param emissionModel "binomial" (default, historical behaviour) scores only whether a read hits
- *   either founder of the pair. "mixture" models the read as coming from one of the state's two
- *   haplotypes and scores its whole gamete set against a lift-derived sharing table.
- *   "gameteset" classifies each read's site as identical or divergent between the two founders
- *   directly from the gamete set, needing no sharing table. Both alternatives let a homozygous
- *   state be preferred on the evidence rather than through the inbreeding coefficient. Diploid
- *   paths only; the haploid path is unaffected.
+ * @param binSize the bin size the ps4g file was created with, used to convert a bin position to a
+ *   reference coordinate when looking a founder up in [presenceTable]. Diploid paths only.
+ * @param presenceTable optional per-founder anchor presence, from `phg build-presence-table`. When
+ *   supplied, a founder with no alignable sequence in a window stops being read as evidence for
+ *   homozygosity. Diploid paths only; the haploid path is unaffected.
+ * @param pavThreshold a founder whose anchor presence in a window is at or below this fraction is
+ *   treated as absent there.
+ * @param pavDamping strength of the presence/absence correction, 0 (off) to 1 (a heterozygous
+ *   state involving an absent founder ties with the corresponding homozygous state).
  */
 class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: Double, val probCorrect: Double,
-                 val emissionModel: String = "binomial",
-                 val sharingTable: SharingTable? = null,
                  val binSize: Int = 256,
-                 val sharingClamp: Double = 0.40,
-                 val sharingShrink: Double = 0.0,
-                 val sharingMatchClamp: Double = 0.40,
                  val presenceTable: PresenceTable? = null,
                  val pavThreshold: Double = 0.02,
                  val pavDamping: Double = 1.0
@@ -124,17 +123,9 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         }
 
         //emission probabilities
-        val emissionP = if (emissionModel == "gameteset") {
-            GameteSetEmissionProbability(readMap, likelyParentSet, probCorrect, presenceTable,
-                contig, gameteIndexMap, binSize, pavThreshold,
-                pavDamping)::getDiploidEmissionProbabilityArray
-        } else if (emissionModel == "mixture") {
-            MixtureEmissionProbability(readMap, likelyParentSet, probCorrect, sharingTable, contig,
-                gameteIndexMap, binSize, sharingClamp, sharingShrink,
-                sharingMatchClamp)::getDiploidEmissionProbabilityArray
-        } else {
-            EmissionProbabilityForViterbiHMM(readMap, likelyParentSet, probCorrect)::getDiploidEmissionProbabilityArray
-        }
+        val emissionP = GameteSetEmissionProbability(readMap, likelyParentSet, probCorrect,
+            presenceTable, contig, gameteIndexMap, binSize, pavThreshold,
+            pavDamping)::getDiploidEmissionProbabilityArray
 
         //val emissionP = { x: Int -> DoubleArray(nStates) {-1.0} }
 

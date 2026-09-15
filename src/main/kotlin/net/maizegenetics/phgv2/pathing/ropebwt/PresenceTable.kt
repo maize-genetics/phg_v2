@@ -13,10 +13,10 @@ import java.nio.ByteOrder
  * there, so no read can support it -- whether through deletion, assembly gap, or loss of anchor
  * uniqueness. All three have the same consequence for imputation.
  *
- * This is deliberately not the same quantity as [SharingTable]. Sharing answers "how much sequence
- * do these two founders hold in common here", which conflates one founder being absent with both
- * being present but divergent. Only the first means reads cannot support that founder, and only the
- * first should trigger a presence/absence correction.
+ * This is deliberately not a pairwise sharing quantity. Asking "how much sequence do these two
+ * founders hold in common here" conflates one founder being absent with both being present but
+ * divergent. Only the first means reads cannot support that founder, and only the first should
+ * trigger a presence/absence correction.
  *
  * Validated against independently called gVCF deletions of 5 kb or more: windows with presence at
  * or below 0.02 are genuinely deleted about 90% of the time, and at or below 0.05 about 88%. Note
