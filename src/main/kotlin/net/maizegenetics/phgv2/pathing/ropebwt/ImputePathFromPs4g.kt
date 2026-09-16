@@ -96,8 +96,8 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     val probSame by option(
         help = "The probability that a path stays on the same gamete when transitioning between " +
-                "two adjacent positions. (1 - probability of a recombination). Charged per bin, not " +
-                "per base, so the effective penalty over a given stretch of sequence rises with the " +
+                "two adjacent positions. Positions are bins with reads, so the effective probability " +
+                "of a path switch over a given length of sequence rises with the " +
                 "number of bins that carry reads. Default = 0.999999999"
     )
         .double()
@@ -105,7 +105,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
     val inbreedCoef by option(
         help = "The inbreeding coefficient (between 0.0 and 1.0). " +
-                "This parameter is used only for diploid paths. Default = 0.0"
+                "This parameter is used only for diploid paths. The default value is faster and best for most data. Default = 0.0"
     )
         .double()
         .default(0.0)
@@ -126,17 +126,14 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
     val pavThreshold by option(help = "A founder whose anchor presence in a window is at or below " +
             "this fraction is treated as absent there, for --presence-file. Validated against " +
             "gVCF deletion calls: 0.02 flags windows that are genuinely deleted about 90% of the " +
-            "time, and 0.05 about 88%. The looser value scores marginally better overall but costs " +
-            "four times as much homozygote recall, so 0.02 is the default. Default = 0.02.")
+            "time, and 0.05 about 88%. The looser value scores marginally better overall but results in " +
+            "more homozygous calls, so 0.02 is the default. Default = 0.02.")
         .double()
         .default(0.02)
 
-    val pavDamping by option(help = "Strength of the presence/absence correction, 0 to 1. At 0 " +
-            "the model is unchanged. At 1 a heterozygous state involving an absent founder ties " +
-            "with the corresponding homozygous state, which is what the evidence actually supports " +
-            "when one founder has no sequence there. Scoring is monotonic in this parameter and 1 " +
-            "was best on every benchmark tried -- F1 arms, a balanced F2 panel, and the maize " +
-            "simulated-validation corpus. Default = 1.0.")
+    val pavDamping by option(help = "Strength of the presence/absence correction, 0 to 1. A value of 0 gives " +
+            "no correction. A value of 1 is full correction: when one founder is absent, the probability of a homozygote " +
+            "equals the probability of a heterozygote . Default = 1.0.")
         .double()
         .default(1.0)
 

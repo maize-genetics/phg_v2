@@ -7,6 +7,7 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.cli.logCommand
+import net.maizegenetics.phgv2.utils.getBufferedReader
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedInputStream
 import java.io.DataOutputStream
@@ -113,7 +114,7 @@ class BuildPresenceTable : CliktCommand(help = "Build a founder anchor-presence 
     fun buildBlocks(lift: File, lengths: File, refPrefix: String, window: Int): Blocks {
         val names = ArrayList<String>()
         val seqLengths = ArrayList<Long>()
-        GZIPInputStream(lengths.inputStream().buffered()).bufferedReader().forEachLine { line ->
+        getBufferedReader(lengths).forEachLine { line ->
             if (line.isBlank()) return@forEachLine
             val parts = line.split('\t')
             names.add(parts[0])
