@@ -166,4 +166,36 @@ class GameteSetEmissionProbabilityTest {
         val bOnly = emission(Ps4gGameteSet(intArrayOf(20), 1))
         assertEquals(ln(0.5 * probCorrect / (1.0 - probCorrect)), bOnly[0 * n + 1] - bOnly[0 * n + 0], 1e-12)
     }
+
+    @Test
+    fun theHomozygousArrayIsExactlyTheDiagonalOfTheDiploidArray() {
+        // The F = 1 path reads only homozygous states, so it computes nParents values instead of
+        // nParents squared. That shortcut is valid only while the two agree exactly -- including
+        // under a presence table, whose correction must never reach the diagonal.
+        val readMap = mapOf(
+            100 to mutableListOf(Ps4gGameteSet(intArrayOf(10, 30), 3), Ps4gGameteSet(intArrayOf(20), 5)),
+            200 to mutableListOf(Ps4gGameteSet(intArrayOf(10, 20, 30), 2)),
+            300 to mutableListOf(Ps4gGameteSet(intArrayOf(30), 7), Ps4gGameteSet(intArrayOf(), 1))
+        )
+        val parents = setOf(10, 20, 30)
+        val table = presenceTable("a" to 0.0f, "b" to 1.0f, "c" to 1.0f)
+        val names = mapOf(10 to "a", 20 to "b", 30 to "c")
+        for (damping in listOf(0.0, 0.5, 1.0)) {
+            for (withTable in listOf(false, true)) {
+                val model = if (withTable)
+                    GameteSetEmissionProbability(readMap, parents, probCorrect, table, "chr1",
+                        names, 256, 0.02, damping)
+                else GameteSetEmissionProbability(readMap, parents, probCorrect)
+                for (position in 0 until 3) {
+                    val full = model.getDiploidEmissionProbabilityArray(position)
+                    val diagonal = model.getHomozygousEmissionProbabilityArray(position)
+                    assertEquals(3, diagonal.size)
+                    for (i in 0 until 3) {
+                        assertEquals(full[i * 3 + i], diagonal[i], 1e-12,
+                            "position $position parent $i damping $damping table $withTable")
+                    }
+                }
+            }
+        }
+    }
 }

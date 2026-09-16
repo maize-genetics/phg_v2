@@ -139,6 +139,41 @@ class GameteSetEmissionProbability(
     }
 
     /**
+     * Natural log emission probabilities at [positionIndex] for the homozygous states only, indexed
+     * by the sorted parent list -- the diagonal of [getDiploidEmissionProbabilityArray].
+     *
+     * A homozygous state has no divergent sites and no absent-founder case, so this reduces to
+     * counting reads that hit the founder: `k ln(pc) + (n - k) ln(1 - pc)`. The presence/absence
+     * correction never applies, since it only rewrites the one-sided heterozygous cell.
+     *
+     * Used where only the diagonal can be reached -- a haploid path, or a diploid path at an
+     * inbreeding coefficient of 1 -- so that nParents values are computed per bin rather than
+     * nParents squared, of which all but nParents would be discarded.
+     */
+    fun getHomozygousEmissionProbabilityArray(positionIndex: Int): DoubleArray {
+        val position = positionList[positionIndex]
+        val gameteSets = readMap[position]!!
+        val probabilities = DoubleArray(nParents)
+
+        for (gameteSet in gameteSets) {
+            val count = gameteSet.count
+            var size = 0
+            for (gamete in gameteSet.gameteIndices) {
+                val index = parentToLocal[gamete]
+                if (index != null) {
+                    localBuffer[size++] = index
+                    inGameteSet[index] = true
+                }
+            }
+            for (i in 0 until nParents) {
+                probabilities[i] += count * (if (inGameteSet[i]) lnCorrect else lnIncorrect)
+            }
+            for (a in 0 until size) inGameteSet[localBuffer[a]] = false
+        }
+        return probabilities
+    }
+
+    /**
      * Natural log emission probabilities at [positionIndex], indexed by ordered pairs of the sorted
      * parent list, as [ViterbiHMM.viterbiOptimized] expects.
      */

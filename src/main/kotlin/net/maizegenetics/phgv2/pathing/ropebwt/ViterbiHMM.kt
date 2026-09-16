@@ -11,10 +11,10 @@ import kotlin.math.ln
  *
  * The hidden states are the candidate parent gametes: for a haploid path each state is a single
  * parent; for a diploid path each state is an ordered pair of parents (nParents * nParents states).
- * Emission probabilities are driven by which gametes the reads in each bin hit: a haploid path
- * uses [EmissionProbabilityForViterbiHMM], which scores whether a read hit the candidate gamete;
- * a diploid path uses [GameteSetEmissionProbability], which additionally classifies each read's
- * site as identical or divergent between the two founders of the candidate pair. Transition probabilities favor staying on the same
+ * Emission probabilities come from [GameteSetEmissionProbability], which classifies each read's
+ * site as identical or divergent between the two founders of the candidate pair. A single-path
+ * (haploid) imputation is the same recursion at an inbreeding coefficient of 1, where only the
+ * homozygous states are reachable and the emission reduces to that model's diagonal. Transition probabilities favor staying on the same
  * gamete(s) between adjacent bins, with a recombination penalty for switching. The inbreeding coefficient
  * affects the transition probabilities. Values > 1 favor transitions to a homozygous state.
  *
@@ -43,43 +43,6 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
     private val myLogger = LogManager.getLogger(ViterbiHMM::class.java)
 
     /**
-     * Finds the single best (haploid) path of parent gametes through the bins of a contig.
-     *
-     * @param contig the name of the contig being imputed.
-     * @param gameteIndexMap map of gamete index to gamete (parent) name.
-     * @param readMap map of bin position to the list of [Ps4gGameteSet]s observed in that bin; each
-     *   [Ps4gGameteSet] holds the gamete indices hit and the count of reads hitting that set.
-     * @param likelyParentSet the set of gamete indices to consider as candidate parents (states).
-     * @return a list of (position, parent name) pairs, one per bin, ordered by bin position.
-     */
-    fun findHaploidPath(contig: String,
-                        gameteIndexMap: Map<Int,String>,
-                        readMap: Map<Int, MutableList<Ps4gGameteSet>>,
-                        likelyParentSet: Set<Int>): List<Pair<Position, String>>  {
-
-        val nParents = likelyParentSet.size
-        val nPositions = readMap.keys.size
-
-        //define emission probability
-        val emissionProbabilityCalculator = EmissionProbabilityForViterbiHMM(readMap, likelyParentSet, probCorrect)
-        val emissionP = emissionProbabilityCalculator::getHaploidEmissionProbabilityArray
-
-        val initProbs = DoubleArray(nParents) {0.0}
-
-        val result = viterbiOptimizedForHaploid(nParents, nPositions, initProbs, emissionP)
-
-        //translate the result
-        val positions = readMap.keys.sorted()
-        val parentList = likelyParentSet.sorted()
-        val resultList = result.first.mapIndexed { index, i ->
-            //creates a list of Pair(Position, gamete name)
-            Pair(Position(contig, positions[index]), gameteIndexMap[parentList[i]] ?: "none")
-        }
-        return resultList
-
-    }
-
-    /**
      * Finds the best diploid path (a pair of parent gametes per bin) through the bins of a contig.
      *
      * A full transition matrix over the nParents * nParents ordered parent pairs is built from
@@ -104,7 +67,9 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         val nPositions = readMap.keys.size
         // The general path needs the full matrix; the F = 0 fast path derives its two constants
         // directly and never materialises it (3 MB at twenty-five parents).
-        val transitionMatrix = if (inbreedingCoefficient == 0.0) DoubleArray(0) else {
+        val transitionMatrix = if (inbreedingCoefficient == 0.0 || inbreedingCoefficient == 1.0) {
+            DoubleArray(0)
+        } else {
             val matrix = DoubleArray(nStates * nStates)
             val transitionProbabilityCalculator =
                 DiploidTransitionProbability(sameGameteProbability, inbreedingCoefficient, nParents)
@@ -123,9 +88,9 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         }
 
         //emission probabilities
-        val emissionP = GameteSetEmissionProbability(readMap, likelyParentSet, probCorrect,
-            presenceTable, contig, gameteIndexMap, binSize, pavThreshold,
-            pavDamping)::getDiploidEmissionProbabilityArray
+        val emissionCalculator = GameteSetEmissionProbability(readMap, likelyParentSet, probCorrect,
+            presenceTable, contig, gameteIndexMap, binSize, pavThreshold, pavDamping)
+        val emissionP = emissionCalculator::getDiploidEmissionProbabilityArray
 
         //val emissionP = { x: Int -> DoubleArray(nStates) {-1.0} }
 
@@ -139,14 +104,32 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
             initProbs[ndx * nParents + ndx] = lnOrFloor(homozygoteProbabillity)
         }
 
+        // Both endpoints of the inbreeding coefficient admit a cheaper recursion than the
+        // general scan, and neither changes the path.
+        //
         // At F = 0 the transition is a Kronecker product of two haploid transitions, so the
         // maximisation separates and the recursion drops from O(nParents^4) to O(nParents^2) per
-        // position. The paths are identical; only the cost differs. Any other inbreeding
-        // coefficient couples the two founders and needs the general scan.
-        val result = if (inbreedingCoefficient == 0.0) {
-            viterbiOptimizedForDiploid(nParents, nPositions, initProbs, emissionP)
-        } else {
-            viterbiOptimized(nStates, nPositions, initProbs, transitionMatrix, emissionP)
+        // position.
+        //
+        // At F = 1 every transition into a heterozygous state has probability zero -- see
+        // DiploidTransitionProbability.probabilityForF1 -- and so does every heterozygous initial
+        // state, so only the nParents homozygous states are reachable. Among those the transition
+        // is pNoSwitch to itself and pSwitch to any other, which is precisely the haploid
+        // transition over nParents states, so the haploid recursion solves it exactly on the
+        // diagonal of the emission array.
+        //
+        // Any coefficient strictly between the two couples the founders and needs the general scan.
+        val result = when (inbreedingCoefficient) {
+            0.0 -> viterbiOptimizedForDiploid(nParents, nPositions, initProbs, emissionP)
+            1.0 -> {
+                val diagonalInit = DoubleArray(nParents) { initProbs[it * nParents + it] }
+                val homozygous = viterbiOptimizedForHaploid(nParents, nPositions, diagonalInit,
+                    emissionCalculator::getHomozygousEmissionProbabilityArray)
+                // Re-express the chosen founders as diploid state indices (i, i).
+                Pair(IntArray(homozygous.first.size) { homozygous.first[it] * nParents + homozygous.first[it] },
+                    homozygous.second)
+            }
+            else -> viterbiOptimized(nStates, nPositions, initProbs, transitionMatrix, emissionP)
         }
 
         //translate the result
