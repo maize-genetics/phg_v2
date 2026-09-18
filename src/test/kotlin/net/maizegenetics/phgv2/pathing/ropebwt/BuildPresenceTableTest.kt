@@ -141,15 +141,96 @@ class BuildPresenceTableTest {
     }
 
     @Test
-    fun chromosomesAreOrderedNumericallyNotLexically(@TempDir dir: File) {
+    fun chromosomesKeepTheOrderTheLengthFileListsThem(@TempDir dir: File) {
+        // No parsing of chromosome names: they need not start with "chr", need not end in a
+        // number, and need not sort in any particular way. File order is the only safe order, and
+        // it is presentational anyway -- PresenceTable looks a contig up by name.
         val lift = File(dir, "order.lift")
         val lengths = File(dir, "order.len.gz")
-        val names = listOf("B73_chr1", "B73_chr2", "B73_chr10", "founderA_ctg1")
-        writeLengths(lengths, names.map { it to 100L })
-        writeLift(lift, listOf(emptyList(), emptyList(), emptyList(), listOf(Point(0, 10, 3, 0))))
+        writeLengths(lengths, listOf(
+            "B73_chr10" to 100L, "B73_chr2" to 100L, "B73_LG_A" to 100L, "B73_7" to 100L,
+            "founderA_ctg1" to 50L
+        ))
+        writeLift(lift, listOf(emptyList(), emptyList(), emptyList(), emptyList(),
+            listOf(Point(0, 10, 4, 0))))
         val blocks = BuildPresenceTable().buildBlocks(lift, lengths, "B73", 100)
-        assertEquals(listOf("chr1", "chr2", "chr10"), blocks.chroms.map { it.name },
-            "chr10 must sort after chr2, not between chr1 and chr2")
+        assertEquals(listOf("chr10", "chr2", "LG_A", "7"), blocks.chroms.map { it.name })
+    }
+
+    /**
+     * `rope-bwt-chr-index` writes contigName_sampleName by default and sampleName_contigName under
+     * --sample-name-first. Both must produce the same table, and the contig name must come back
+     * with the reference prefix stripped either way so it matches a ps4g file's refContig.
+     */
+    @Test
+    fun bothContigNamingOrdersGiveTheSameTable(@TempDir dir: File) {
+        fun build(sampleFirst: Boolean): BuildPresenceTable.Blocks {
+            val tag = if (sampleFirst) "first" else "last"
+            val lift = File(dir, "$tag.lift")
+            val lengths = File(dir, "$tag.len.gz")
+            fun name(contig: String, sample: String) =
+                if (sampleFirst) "${sample}_$contig" else "${contig}_$sample"
+            writeLengths(lengths, listOf(
+                name("chr1", "B73") to 300L,
+                name("ctg1", "founderA") to 250L,
+                name("ctg1", "founderB") to 250L
+            ))
+            writeLift(lift, listOf(
+                emptyList(),
+                listOf(Point(0, 10, 1, 0), Point(5, 20, 1, 0), Point(9, 30, 1, 0)),
+                listOf(Point(0, 20, 2, 0))
+            ))
+            return BuildPresenceTable().buildBlocks(lift, lengths, "B73", 100)
+        }
+        val first = build(true)
+        val last = build(false)
+        assertEquals(listOf("B73", "founderA", "founderB"), first.taxa)
+        assertEquals(first.taxa, last.taxa, "taxon extraction must not depend on the naming order")
+        assertEquals(listOf("chr1"), last.chroms.map { it.name }, "the prefix is stripped either way")
+        assertEquals(first.chroms.map { it.name }, last.chroms.map { it.name })
+        assertArrayEquals(first.chroms.single().presence, last.chroms.single().presence)
+    }
+
+    @Test
+    fun aContigNameContainingUnderscoresIsNotMistakenForTheTaxon(@TempDir dir: File) {
+        // Taxon-last naming with an underscore in the contig: scaffold_7_founderA. The taxon is
+        // the part after the LAST separator, and the reference contig keeps its own underscores.
+        val lift = File(dir, "under.lift")
+        val lengths = File(dir, "under.len.gz")
+        writeLengths(lengths, listOf(
+            "scaffold_7_B73" to 200L,
+            "scaffold_9_founderA" to 100L
+        ))
+        writeLift(lift, listOf(emptyList(), listOf(Point(0, 10, 1, 0))))
+        val blocks = BuildPresenceTable().buildBlocks(lift, lengths, "B73", 100)
+        assertEquals(listOf("B73", "founderA"), blocks.taxa)
+        assertEquals(listOf("scaffold_7"), blocks.chroms.map { it.name })
+    }
+
+    @Test
+    fun aLengthFileHoldingNeitherNamingOrderIsRejected(@TempDir dir: File) {
+        val lift = File(dir, "noref.lift")
+        val lengths = File(dir, "noref.len.gz")
+        writeLengths(lengths, listOf("chr1_founderA" to 100L, "chr1_founderB" to 100L))
+        writeLift(lift, listOf(emptyList(), emptyList()))
+        val error = assertThrows(IllegalStateException::class.java) {
+            BuildPresenceTable().buildBlocks(lift, lengths, "B73", 100)
+        }
+        assertTrue(error.message!!.contains("belongs to the reference"), error.message)
+    }
+
+    @Test
+    fun anAmbiguousNamingOrderIsRejectedRatherThanGuessed(@TempDir dir: File) {
+        // One sequence starts with B73_ and one ends with _B73, in equal number: which side the
+        // taxon sits on cannot be determined, and guessing would silently build the wrong table.
+        val lift = File(dir, "ambig.lift")
+        val lengths = File(dir, "ambig.len.gz")
+        writeLengths(lengths, listOf("B73_chr1" to 100L, "chr1_B73" to 100L))
+        writeLift(lift, listOf(emptyList(), emptyList()))
+        val error = assertThrows(IllegalStateException::class.java) {
+            BuildPresenceTable().buildBlocks(lift, lengths, "B73", 100)
+        }
+        assertTrue(error.message!!.contains("taxon-first or taxon-last"), error.message)
     }
 
     @Test

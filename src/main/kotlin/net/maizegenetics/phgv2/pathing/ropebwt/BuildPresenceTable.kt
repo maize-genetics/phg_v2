@@ -40,8 +40,17 @@ import java.nio.ByteOrder
  * forward stream rather than seeking.
  *
  * `--length-file` is the index's `.fmd.len.gz`, one name/length line per sequence, tab separated,
- * in sequence-id order. A sequence is named `taxon_contig`, so the taxon is the part before the
- * first underscore, and the reference's own chromosomes are those named `refPrefix_chr*`.
+ * in sequence-id order. `rope-bwt-chr-index` names a sequence `contigName_sampleName` by default
+ * and `sampleName_contigName` under `--sample-name-first`, so which side the taxon sits on is
+ * detected from where `--reference-prefix` is found rather than assumed; a length file holding
+ * neither form is rejected. A contig name may itself contain underscores, so the taxon is taken
+ * from the outermost separator on its own side.
+ *
+ * Nothing is assumed about how chromosomes are *named*. They need not begin with `chr`, need not
+ * end in a number, and need not be ten in number -- all of which vary by species and assembly.
+ * Every sequence carrying the reference prefix is a reference sequence, and they are written in
+ * the order the length file lists them. That order is presentational: [PresenceTable] looks a
+ * contig up by name.
  *
  * ## Output
  *
@@ -52,8 +61,8 @@ import java.nio.ByteOrder
  *     per chrom (int32 nameLen, UTF-8 name, int32 nWindows),
  *     then float32[nChrom][nWindows][nTaxa]
  *
- * Contig names are written with the reference prefix stripped (`B73_chr1` becomes `chr1`) so they
- * match the contig names in a ps4g file. A reference chromosome carrying no lift points is written
+ * Contig names are written with the reference prefix stripped -- `B73_chr1` or `chr1_B73` both
+ * become `chr1` -- so they match the contig names in a ps4g file. A reference chromosome carrying no lift points is written
  * with a window count of zero and contributes no float block.
  *
  * The reference taxon is a special case: the lift maps *other* founders onto the reference, so the
@@ -80,8 +89,10 @@ class BuildPresenceTable : CliktCommand(help = "Build a founder anchor-presence 
         .required()
         .validate { require(File(it).exists()) { "$it is not a valid file" } }
 
-    val referencePrefix by option(help = "The taxon name of the reference, used to find its " +
-            "chromosomes in the length file as <reference-prefix>_chr*. Required parameter.")
+    val referencePrefix by option(help = "The sample name of the reference. Its sequences are " +
+            "found in the length file as <reference-prefix>_<contig> or <contig>_<reference-" +
+            "prefix>, whichever the index was built with; the two are distinguished automatically " +
+            "and a length file holding neither is rejected. Required parameter.")
         .required()
 
     val windowSize by option(help = "Window size in base pairs. Default = 50000")
@@ -120,15 +131,42 @@ class BuildPresenceTable : CliktCommand(help = "Build a founder anchor-presence 
             seqLengths.add(parts[1].trim().toLong())
         }
 
-        val taxa = names.map { it.substringBefore("_") }.distinct().sorted()
-        val taxonOf = taxa.withIndex().associate { (index, name) -> name to index }
-        val seqTaxon = IntArray(names.size) { taxonOf[names[it].substringBefore("_")]!! }
+        // `rope-bwt-chr-index` names a sequence contigName_sampleName by default, or
+        // sampleName_contigName under --sample-name-first (RopeBWTUtils.combinedContigName), and
+        // the length file records whichever was used. Detect it from the reference's own name
+        // rather than assuming: only one of the two can place refPrefix where it is found.
+        val taxonFirstCount = names.count { it.startsWith("${refPrefix}_") }
+        val taxonLastCount = names.count { it.endsWith("_$refPrefix") }
+        check(taxonFirstCount > 0 || taxonLastCount > 0) {
+            "No sequence in ${lengths.name} is named ${refPrefix}_* or *_$refPrefix, so none " +
+                    "belongs to the reference. Check --reference-prefix against the length file."
+        }
+        // Both can match only if a non-reference sequence happens to carry the reference's name on
+        // its other side; the reference's own chromosomes are the larger group either way.
+        check(taxonFirstCount != taxonLastCount) {
+            "Cannot tell whether ${lengths.name} is named taxon-first or taxon-last: " +
+                    "$taxonFirstCount sequences start with ${refPrefix}_ and $taxonLastCount end " +
+                    "with _$refPrefix. Rename the ambiguous sequences."
+        }
+        val taxonFirst = taxonFirstCount > taxonLastCount
 
-        // Reference chromosomes, ordered numerically by the digits after "chr" so chr2 precedes
-        // chr10; anything non-numeric sorts last, matching the builder this replaces.
-        val refChroms = names.indices
-            .filter { names[it].startsWith(refPrefix + "_chr") }
-            .sortedBy { names[it].substringAfter("chr").toIntOrNull() ?: 999 }
+        // A contig name may itself contain underscores, so take the taxon from the outermost
+        // separator on whichever side it sits.
+        fun taxonOfName(name: String) =
+            if (taxonFirst) name.substringBefore("_") else name.substringAfterLast("_")
+
+        val taxa = names.map { taxonOfName(it) }.distinct().sorted()
+        val taxonOf = taxa.withIndex().associate { (index, name) -> name to index }
+        val seqTaxon = IntArray(names.size) { taxonOf[taxonOfName(names[it])]!! }
+
+        // Every sequence belonging to the reference, in the order the length file lists them.
+        // Nothing is assumed about how chromosomes are named -- not that they start with "chr",
+        // nor that they end in a number, nor that there are ten of them -- because that varies by
+        // species and by assembly. Order here is presentational only: PresenceTable looks a contig
+        // up by name.
+        val refChroms = names.indices.filter {
+            if (taxonFirst) names[it].startsWith("${refPrefix}_") else names[it].endsWith("_$refPrefix")
+        }
         val refSlot = HashMap<Int, Int>(refChroms.size * 2)
         refChroms.forEachIndexed { slot, seqId -> refSlot[seqId] = slot }
 
@@ -180,7 +218,8 @@ class BuildPresenceTable : CliktCommand(help = "Build a founder anchor-presence 
 
         val refTaxonSlot = taxonOf[refPrefix]
         val blocks = refChroms.mapIndexed { slot, seqId ->
-            val contig = names[seqId].substringAfter("_")
+            val contig = if (taxonFirst) names[seqId].removePrefix("${refPrefix}_")
+                         else names[seqId].removeSuffix("_$refPrefix")
             val perTaxon = refPositions[slot].map { it.sortedDistinct() }
             val anchorCount = perTaxon.sumOf { it.size }
             if (anchorCount == 0) return@mapIndexed ChromBlock(contig, 0, null)
