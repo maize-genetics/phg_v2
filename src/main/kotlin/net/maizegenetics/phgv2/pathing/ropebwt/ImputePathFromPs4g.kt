@@ -110,7 +110,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         .double()
         .default(0.0)
 
-    val nParents by option(help = "Restrict the number of parents used for diploid imputation to this number. " +
+    val nParents by option(help = "Restrict the number of parents used for imputation to this number. " +
             "Default = 0 will use all parents.")
         .int()
         .default(0)
@@ -188,7 +188,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
     }
 
     /**
-     * Chooses the candidate parent gametes, honouring --n-parents. Shared by both path types so a
+     * Chooses the candidate parent gametes, honoring --n-parents. Shared by both path types so a
      * single-path imputation restricts its candidates exactly as a diploid one does; the former
      * standalone haploid path ignored the option and always used every gamete.
      */
@@ -217,7 +217,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
      * Running one model rather than two is the point: a single-path imputation can no longer
      * silently diverge from a diploid imputation of homozygous material.
      *
-     * [inbreedCoef] is not consulted here -- its help already scopes it to diploid paths.
+     * [inbreedCoef] is not used here.
      */
     fun imputeHaploidPath(outputDir: Path) = imputePaths<Pair<String, String>>(
         outputDir = outputDir,

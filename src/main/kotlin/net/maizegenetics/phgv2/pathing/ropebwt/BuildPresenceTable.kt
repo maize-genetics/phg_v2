@@ -15,7 +15,6 @@ import java.io.File
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.zip.GZIPInputStream
 
 /**
  * Builds the per-founder anchor presence table that [GameteSetEmissionProbability] uses for its
@@ -231,13 +230,18 @@ class BuildPresenceTable : CliktCommand(help = "Build a founder anchor-presence 
         DataOutputStream(out.outputStream().buffered(1 shl 20)).use { output ->
             output.write("PAVPRES".toByteArray(Charsets.ISO_8859_1))
             output.write(1)
-            fun int(value: Int) = output.writeInt(Integer.reverseBytes(value))
-            fun str(value: String) = value.toByteArray(Charsets.UTF_8).let { int(it.size); output.write(it) }
-            int(window)
-            int(taxa.size)
-            taxa.forEach { str(it) }
-            int(chroms.size)
-            chroms.forEach { str(it.name); int(it.nWindows) }
+
+            //function to write an integer to output
+            fun writeIntToOut(value: Int) = output.writeInt(Integer.reverseBytes(value))
+
+            //function to write a string to outbut
+            fun writeStrToOut(value: String) = value.toByteArray(Charsets.UTF_8).let { writeIntToOut(it.size); output.write(it) }
+
+            writeIntToOut(window)
+            writeIntToOut(taxa.size)
+            taxa.forEach { writeStrToOut(it) }
+            writeIntToOut(chroms.size)
+            chroms.forEach { writeStrToOut(it.name); writeIntToOut(it.nWindows) }
             for (chrom in chroms) {
                 val presence = chrom.presence ?: continue
                 val bytes = ByteArray(presence.size * 4)

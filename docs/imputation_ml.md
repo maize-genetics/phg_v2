@@ -287,20 +287,20 @@ phg impute-path-from-ps4g \
 
 **Parameters**
 
-| Parameter name     | Description                                                                                                                | Default value | Required?        |
-|--------------------|----------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
-| `--path-keyfile`   | Name of tab-delimited key file. Columns for samplename and filename are required.                                          | `""`          | :material-check: |
-| `--read-file`      | The name of a ps4g file created by align-reads.                                                                            | `""`          | :material-check: |
+| Parameter name     | Description                                                                                                        | Default value | Required?        |
+|--------------------|--------------------------------------------------------------------------------------------------------------------|---------------|------------------|
+| `--path-keyfile`   | Name of tab-delimited key file. Columns for samplename and filename are required.                                  | `""`          | :material-check: |
+| `--read-file`      | The name of a ps4g file created by align-reads.                                                                    | `""`          | :material-check: |
 | `--out-path-dir`   | The directory where the imputed haplotypes will be written for each sample. File names will be <sampleName>_imputed_path.bed. | `""`          | :material-check: |
-| `--path-type`      | The type of path to find. Must be lower case 'haploid' or 'diploid'. 'haploid' infers a single path through the graph.     | `haploid`     |                  |
-| `--prob-correct`   | The probability that a read maps to correct haplotype.                                                                     | `0.98`        |                  |
-| `--prob-same`      | The probability that a path stays on the same gamete when transitioning between two adjacent positions.                    | `0.9999`      |                  |
-| `--inbreed-coef`   | The inbreeding coefficient (between 0.0 and 1.0). Used only for diploid paths.                                             | `0.0`         |                  |
-| `--n-parents`      | Restrict the number of parents used for diploid imputation to this number. Default (0) uses all parents.                   | `0.0`         |                  |
-| `--bin-size`       | The bin size used to create the ps4g file.                                                                                 | `256`         |                  |
-| `--expand-bins`    | Write one output record per bin instead of merging adjacent bins that have identical parents into a single record.         | `false`       |                  |
-| `--contigs-to-use` | A list of contigs to be imputed. If no list is supplied, all contigs in the ps4g file will be imputed.                     | `""`          |                  |
-| `--presence-file`  | Anchor presence table built from a ropebwt3 lift file by `build-presence-table`                                            | `""`          |                  |
+| `--path-type`      | The type of path to find. Must be lower case 'haploid' or 'diploid'. 'haploid' infers a single path through the graph. | `haploid`     |                  |
+| `--prob-correct`   | The probability that a read maps to correct haplotype.                                                             | `0.98`        |                  |
+| `--prob-same`      | The probability that a path stays on the same gamete when transitioning between two adjacent positions.            | `0.999999999` |                  |
+| `--inbreed-coef`   | The inbreeding coefficient (between 0.0 and 1.0). Used only for diploid paths.                                     | `0.0`         |                  |
+| `--n-parents`      | Restrict the number of parents used for imputation to this number. Default (0) uses all parents.                   | `0.0`         |                  |
+| `--bin-size`       | The bin size used to create the ps4g file.                                                                         | `256`         |                  |
+| `--expand-bins`    | Write one output record per bin instead of merging adjacent bins that have identical parents into a single record. | `false`       |                  |
+| `--contigs-to-use` | A list of contigs to be imputed. If no list is supplied, all contigs in the ps4g file will be imputed.             | `""`          |                  |
+| `--presence-file`  | Anchor presence table built from a ropebwt3 lift file by `build-presence-table`                                    | `""`          |                  |
 | `--pav-threshold`  | A founder whose anchor presence in a window is at or below this fraction is treated as absent. Used with `--presence-file`. | `0.02`        |                  |
 | `--pav-damping`    | Determines the strength of the pav correction. 1.0 is fully corrected while 0.0 is no correction. Used with `--presence-file`. | `1.0`         |                  |
 
@@ -321,7 +321,7 @@ phg build-presence-table \
     --lift-file /data/my_lift_file.lift \
     --length-file /data/my_length_file.fmd.len.gz \
     --reference-prefix "B73" \
-    --window-size 50_000 \
+    --window-size 50000 \
     --output-file /data/presence.tbl 
 ```
 

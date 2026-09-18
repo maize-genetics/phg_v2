@@ -63,15 +63,11 @@ import kotlin.math.ln
  * arms (false-homozygous sequence down 65-90%), a balanced F2 panel where over-correction would
  * show up and does not overwhelm the gain (+0.35 concordance, +11.6 breakpoint F1, against a
  * measured cost of -0.14 AA recall and -1.47 breakpoint recall), and the maize
- * simulated-validation corpus. An earlier revision of this correction did behave badly at full
- * strength, but that was a bug -- it rewrote the wrong cell of the table, and its tell was a
- * non-monotonic damping sweep -- not a property of the model.
+ * simulated-validation corpus.
  *
  * State (B, B) is unaffected in all cases and still scores badly, correctly, since a B/B individual
  * could not produce reads where B is absent.
  *
- * This needs no founder-sharing matrix and no clamp; `probCorrect` and the presence threshold are
- * its only parameters.
  */
 class GameteSetEmissionProbability(
     val readMap: Map<Int, MutableList<Ps4gGameteSet>>,
@@ -90,9 +86,8 @@ class GameteSetEmissionProbability(
 
     private val myLogger = LogManager.getLogger(GameteSetEmissionProbability::class.java)
 
-    private val parentToLocal = HashMap<Int, Int>(nParents * 2).also { map ->
-        parentList.forEachIndexed { local, global -> map[global] = local }
-    }
+    private val parentToLocal = parentList.mapIndexed { index, originalIndex -> Pair(originalIndex, index) }.toMap()
+
     private val parentNames = parentList.map { gameteIndexMap[it] ?: "" }
 
     private val lnCorrect = ln(probCorrect)
