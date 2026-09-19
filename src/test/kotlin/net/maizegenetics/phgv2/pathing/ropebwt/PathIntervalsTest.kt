@@ -123,4 +123,29 @@ class PathIntervalsTest {
         val intervals = pathToIntervals(path(10 to ab, 20 to ab, 30 to ab), 100)
         assertEquals(listOf(PathInterval("chr1", 0, 3000, ab)), intervals)
     }
+
+    @Test
+    fun testEmptyFirstRunIsNotEmitted() {
+        // The only run that can span no bases is the first, because it starts at 0 rather than at
+        // a cut. With bins 0 and 1 both present and calling differently, the cut between them is
+        // (0 + 1) / 2 * 256 = 0, so the first run is [0, 0). Emitting it produces malformed BED --
+        // BedToVcf rejects the 0 start, since VCF positions are 1-based -- and its bases are
+        // already covered by the run that follows.
+        val intervals = pathToIntervals(path(0 to "a", 1 to "b", 9 to "b"), 256)
+        assertEquals(
+            listOf(PathInterval("chr1", 0, 9 * 256, "b")),
+            intervals
+        )
+        assertTrue(intervals.all { it.start < it.end }, "no interval may span zero bases")
+    }
+
+    @Test
+    fun testEmptyFirstRunIsNotEmittedWhenExpandingBins() {
+        // --expand-bins takes the same path: every bin becomes its own run, so bin 0 is still
+        // the degenerate [0, 0) case whether or not its neighbour shares its call.
+        val intervals = pathToIntervals(path(0 to "a", 1 to "a", 9 to "a"), 256, mergeAdjacent = false)
+        assertTrue(intervals.all { it.start < it.end }, "no interval may span zero bases")
+        assertEquals(0, intervals.first().start)
+        assertEquals(9 * 256, intervals.last().end)
+    }
 }

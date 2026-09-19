@@ -11,8 +11,10 @@ import kotlin.math.ln
  *
  * The hidden states are the candidate parent gametes: for a haploid path each state is a single
  * parent; for a diploid path each state is an ordered pair of parents (nParents * nParents states).
- * Emission probabilities come from [EmissionProbabilityForViterbiHMM] and are driven by which
- * gametes the reads in each bin hit. Transition probabilities favor staying on the same
+ * Emission probabilities come from [GameteSetEmissionProbability], which classifies each read's
+ * site as identical or divergent between the two founders of the candidate pair. A single-path
+ * (haploid) imputation is the same recursion at an inbreeding coefficient of 1, where only the
+ * homozygous states are reachable and the emission reduces to that model's diagonal. Transition probabilities favor staying on the same
  * gamete(s) between adjacent bins, with a recombination penalty for switching. The inbreeding coefficient
  * affects the transition probabilities. Values > 1 favor transitions to a homozygous state.
  *
@@ -22,47 +24,23 @@ import kotlin.math.ln
  *   from one bin to the next (1 - recombination probability).
  * @param probCorrect the probability that a read maps to the correct haplotype; passed to the
  *   emission probability calculator.
+ * @param binSize the bin size the ps4g file was created with, used to convert a bin position to a
+ *   reference coordinate when looking a founder up in [presenceTable]. Diploid paths only.
+ * @param presenceTable optional per-founder anchor presence, from `phg build-presence-table`. When
+ *   supplied, a founder with no alignable sequence in a window stops being read as evidence for
+ *   homozygosity. Diploid paths only; the haploid path is unaffected.
+ * @param pavThreshold a founder whose anchor presence in a window is at or below this fraction is
+ *   treated as absent there.
+ * @param pavDamping strength of the presence/absence correction, 0 (off) to 1 (a heterozygous
+ *   state involving an absent founder ties with the corresponding homozygous state).
  */
-class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: Double, val probCorrect: Double
+class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: Double, val probCorrect: Double,
+                 val binSize: Int = 256,
+                 val presenceTable: PresenceTable? = null,
+                 val pavThreshold: Double = 0.02,
+                 val pavDamping: Double = 1.0
 ) {
     private val myLogger = LogManager.getLogger(ViterbiHMM::class.java)
-
-    /**
-     * Finds the single best (haploid) path of parent gametes through the bins of a contig.
-     *
-     * @param contig the name of the contig being imputed.
-     * @param gameteIndexMap map of gamete index to gamete (parent) name.
-     * @param readMap map of bin position to the list of [Ps4gGameteSet]s observed in that bin; each
-     *   [Ps4gGameteSet] holds the gamete indices hit and the count of reads hitting that set.
-     * @param likelyParentSet the set of gamete indices to consider as candidate parents (states).
-     * @return a list of (position, parent name) pairs, one per bin, ordered by bin position.
-     */
-    fun findHaploidPath(contig: String,
-                        gameteIndexMap: Map<Int,String>,
-                        readMap: Map<Int, MutableList<Ps4gGameteSet>>,
-                        likelyParentSet: Set<Int>): List<Pair<Position, String>>  {
-
-        val nParents = likelyParentSet.size
-        val nPositions = readMap.keys.size
-
-        //define emission probability
-        val emissionProbabilityCalculator = EmissionProbabilityForViterbiHMM(readMap, likelyParentSet, probCorrect)
-        val emissionP = emissionProbabilityCalculator::getHaploidEmissionProbabilityArray
-
-        val initProbs = DoubleArray(nParents) {0.0}
-
-        val result = viterbiOptimizedForHaploid(nParents, nPositions, initProbs, emissionP)
-
-        //translate the result
-        val positions = readMap.keys.sorted()
-        val parentList = likelyParentSet.sorted()
-        val resultList = result.first.mapIndexed { index, i ->
-            //creates a list of Pair(Position, gamete name)
-            Pair(Position(contig, positions[index]), gameteIndexMap[parentList[i]] ?: "none")
-        }
-        return resultList
-
-    }
 
     /**
      * Finds the best diploid path (a pair of parent gametes per bin) through the bins of a contig.
@@ -87,22 +65,32 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         val nParents = likelyParentSet.size
         val nStates = nParents * nParents
         val nPositions = readMap.keys.size
-        val transitionMatrix = DoubleArray(nStates * nStates)
-        val transitionProbabilityCalculator = DiploidTransitionProbability(sameGameteProbability, inbreedingCoefficient, nParents)
-        var ptr = 0
-        for (index1 in 0 until nParents) {
-            for (index2 in 0 until nParents) {
-                for (index3 in 0 until nParents) {
-                    for (index4 in 0 until nParents) {
-                        transitionMatrix[ptr++] = transitionProbabilityCalculator.calculateLn(Pair(index1, index2), Pair(index3, index4))
+        // The general path needs the full matrix; the F = 0 fast path derives its two constants
+        // directly and never materialises it (3 MB at twenty-five parents).
+        val transitionMatrix = if (inbreedingCoefficient == 0.0 || inbreedingCoefficient == 1.0) {
+            DoubleArray(0)
+        } else {
+            val matrix = DoubleArray(nStates * nStates)
+            val transitionProbabilityCalculator =
+                DiploidTransitionProbability(sameGameteProbability, inbreedingCoefficient, nParents)
+            var ptr = 0
+            for (index1 in 0 until nParents) {
+                for (index2 in 0 until nParents) {
+                    for (index3 in 0 until nParents) {
+                        for (index4 in 0 until nParents) {
+                            matrix[ptr++] = transitionProbabilityCalculator
+                                .calculateLn(Pair(index1, index2), Pair(index3, index4))
+                        }
                     }
                 }
             }
+            matrix
         }
 
-        //emission probabilities (equal -1.0 for testing)
-        val emissionProbabilityCalculator = EmissionProbabilityForViterbiHMM(readMap, likelyParentSet, probCorrect)
-        val emissionP = emissionProbabilityCalculator::getDiploidEmissionProbabilityArray
+        //emission probabilities
+        val emissionCalculator = GameteSetEmissionProbability(readMap, likelyParentSet, probCorrect,
+            presenceTable, contig, gameteIndexMap, binSize, pavThreshold, pavDamping)
+        val emissionP = emissionCalculator::getDiploidEmissionProbabilityArray
 
         //val emissionP = { x: Int -> DoubleArray(nStates) {-1.0} }
 
@@ -116,8 +104,33 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
             initProbs[ndx * nParents + ndx] = lnOrFloor(homozygoteProbabillity)
         }
 
-        val result = viterbiOptimized(nStates, nPositions, initProbs,
-            transitionMatrix, emissionP)
+        // Both endpoints of the inbreeding coefficient admit a cheaper recursion than the
+        // general scan, and neither changes the path.
+        //
+        // At F = 0 the transition is a Kronecker product of two haploid transitions, so the
+        // maximisation separates and the recursion drops from O(nParents^4) to O(nParents^2) per
+        // position.
+        //
+        // At F = 1 every transition into a heterozygous state has probability zero -- see
+        // DiploidTransitionProbability.probabilityForF1 -- and so does every heterozygous initial
+        // state, so only the nParents homozygous states are reachable. Among those the transition
+        // is pNoSwitch to itself and pSwitch to any other, which is precisely the haploid
+        // transition over nParents states, so the haploid recursion solves it exactly on the
+        // diagonal of the emission array.
+        //
+        // Any coefficient strictly between the two couples the founders and needs the general scan.
+        val result = when (inbreedingCoefficient) {
+            0.0 -> viterbiOptimizedForDiploid(nParents, nPositions, initProbs, emissionP)
+            1.0 -> {
+                val diagonalInit = DoubleArray(nParents) { initProbs[it * nParents + it] }
+                val homozygous = viterbiOptimizedForHaploid(nParents, nPositions, diagonalInit,
+                    emissionCalculator::getHomozygousEmissionProbabilityArray)
+                // Re-express the chosen founders as diploid state indices (i, i).
+                Pair(IntArray(homozygous.first.size) { homozygous.first[it] * nParents + homozygous.first[it] },
+                    homozygous.second)
+            }
+            else -> viterbiOptimized(nStates, nPositions, initProbs, transitionMatrix, emissionP)
+        }
 
         //translate the result
         val positions = readMap.keys.sorted()
@@ -128,6 +141,146 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
             gameteIndexMap[parentList[i/nParents]] ?: "none",
             gameteIndexMap[parentList[i % nParents]] ?: "none")}
         return resultList
+    }
+
+    /**
+     * Viterbi for the diploid case when the inbreeding coefficient is zero, in O(nParents^2) per
+     * position instead of O(nParents^4).
+     *
+     * At F = 0 the diploid transition is a Kronecker product of two independent haploid
+     * transitions: moving (a, b) -> (c, d) costs `h[a->c] * h[b->d]`, where `h` is `pNoSwitch` when
+     * the founder is unchanged and `pSwitch` otherwise. That reproduces `pnn`, `psn` and `pss`
+     * exactly. The maximisation therefore separates:
+     *
+     *     max over (a,b) of [ V(a,b) + h(a->c) + h(b->d) ]
+     *         = max over a of [ h(a->c) + max over b of ( V(a,b) + h(b->d) ) ]
+     *
+     * and because `h` takes only two values, the inner maximum is the row maximum of V unless the
+     * row's argmax is `d` itself, in which case it is the row's second maximum. Each stage is one
+     * pass over an n x n array, so the whole recursion is quadratic in the parent count rather than
+     * quartic. It also never materialises the nStates x nStates transition matrix, which is 3 MB at
+     * twenty-five parents.
+     *
+     * Ties resolve toward staying in the same state, matching [viterbiOptimized]; the two produce
+     * identical paths.
+     *
+     * @return a pair of (best state index per position, log probability of that best path), state
+     *   indices being `firstParent * nParents + secondParent` exactly as elsewhere.
+     */
+    fun viterbiOptimizedForDiploid(
+        nParents: Int,
+        positionCount: Int,
+        initialLogProbabilities: DoubleArray,
+        emissionLogProbabilityFunction: (positionIndex: Int) -> DoubleArray
+    ): Pair<IntArray, Double> {
+        require(nParents > 0) { "Parent count must be positive" }
+        require(positionCount > 0) { "Position count must be positive" }
+        val stateCount = nParents * nParents
+        require(initialLogProbabilities.size == stateCount)
+
+        val lnNoSwitch = ln(sameGameteProbability)
+        val lnSwitch = if (nParents > 1) ln((1.0 - sameGameteProbability) / (nParents - 1)) else lnNoSwitch
+
+        var previous = DoubleArray(stateCount)
+        var current = DoubleArray(stateCount)
+        val backPointer = IntArray(positionCount * stateCount)
+
+        // intermediate: best over the second founder, for every (first founder, target second)
+        val partial = DoubleArray(stateCount)
+        val partialArg = IntArray(stateCount)
+
+        var emission = emissionLogProbabilityFunction(0)
+        for (state in 0 until stateCount) {
+            previous[state] = initialLogProbabilities[state] + emission[state]
+            backPointer[state] = -1
+        }
+
+        for (position in 1 until positionCount) {
+            emission = emissionLogProbabilityFunction(position)
+            val rowOffset = position * stateCount
+
+            // --- stage one: maximise over the second founder of the previous state ---
+            for (first in 0 until nParents) {
+                val base = first * nParents
+                var bestValue = Double.NEGATIVE_INFINITY; var bestIndex = 0
+                var nextValue = Double.NEGATIVE_INFINITY; var nextIndex = -1
+                for (second in 0 until nParents) {
+                    val v = previous[base + second]
+                    if (v > bestValue) {
+                        nextValue = bestValue; nextIndex = bestIndex
+                        bestValue = v; bestIndex = second
+                    } else if (v > nextValue) {
+                        nextValue = v; nextIndex = second
+                    }
+                }
+                for (target in 0 until nParents) {
+                    val keep = previous[base + target] + lnNoSwitch
+                    val otherValue = if (bestIndex == target) nextValue else bestValue
+                    val otherIndex = if (bestIndex == target) nextIndex else bestIndex
+                    val switch = otherValue + lnSwitch
+                    // ties resolve to the lower founder index, matching the full scan's ordering
+                    // by state index; there is deliberately no bias toward keeping this founder,
+                    // because the full scan only favours staying when the WHOLE state is unchanged
+                    if (keep > switch || (keep == switch && target < otherIndex)) {
+                        partial[base + target] = keep; partialArg[base + target] = target
+                    } else {
+                        partial[base + target] = switch; partialArg[base + target] = otherIndex
+                    }
+                }
+            }
+
+            // --- stage two: maximise over the first founder ---
+            for (target2 in 0 until nParents) {
+                var bestValue = Double.NEGATIVE_INFINITY; var bestIndex = 0
+                var nextValue = Double.NEGATIVE_INFINITY; var nextIndex = -1
+                for (first in 0 until nParents) {
+                    val v = partial[first * nParents + target2]
+                    if (v > bestValue) {
+                        nextValue = bestValue; nextIndex = bestIndex
+                        bestValue = v; bestIndex = first
+                    } else if (v > nextValue) {
+                        nextValue = v; nextIndex = first
+                    }
+                }
+                for (target1 in 0 until nParents) {
+                    val keep = partial[target1 * nParents + target2] + lnNoSwitch
+                    val otherValue = if (bestIndex == target1) nextValue else bestValue
+                    val otherIndex = if (bestIndex == target1) nextIndex else bestIndex
+                    val switch = otherValue + lnSwitch
+                    var chosenFirst: Int
+                    var best: Double
+                    if (keep > switch || (keep == switch && target1 < otherIndex)) {
+                        best = keep; chosenFirst = target1
+                    } else {
+                        best = switch; chosenFirst = otherIndex
+                    }
+                    var chosenSecond = partialArg[chosenFirst * nParents + target2]
+                    // the full scan seeds its search with the identical state, so an unchanged
+                    // state wins every tie; reproduce that here rather than inside the stages
+                    val state = target1 * nParents + target2
+                    val stayWhole = previous[state] + lnNoSwitch + lnNoSwitch
+                    if (stayWhole >= best) { best = stayWhole; chosenFirst = target1; chosenSecond = target2 }
+                    current[state] = best + emission[state]
+                    backPointer[rowOffset + state] = chosenFirst * nParents + chosenSecond
+                }
+            }
+
+            val swap = previous; previous = current; current = swap
+        }
+
+        var bestFinalStateIndex = 0
+        var bestFinalLogProbability = previous[0]
+        for (state in 1 until stateCount) {
+            if (previous[state] > bestFinalLogProbability) {
+                bestFinalLogProbability = previous[state]; bestFinalStateIndex = state
+            }
+        }
+        val best = IntArray(positionCount)
+        best[positionCount - 1] = bestFinalStateIndex
+        for (position in positionCount - 1 downTo 1) {
+            best[position - 1] = backPointer[position * stateCount + best[position]]
+        }
+        return best to bestFinalLogProbability
     }
 
     /** ln(p), floored so that p == 0.0 yields a large finite penalty rather than -Inf. */
