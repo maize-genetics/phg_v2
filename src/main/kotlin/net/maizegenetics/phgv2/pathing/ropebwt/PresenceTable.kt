@@ -23,11 +23,6 @@ import java.nio.ByteOrder
  * the base rate -- NAM founders lack roughly 37% of the reference at that scale, so absence is
  * common rather than exceptional.
  *
- * Built by `scripts/build_presence_table.py`. Binary, little-endian:
- *   magic "PAVPRES" + version byte, int32 windowSize, int32 nTaxa,
- *   per taxon (int32 nameLen, UTF-8 name), int32 nChrom,
- *   per chrom (int32 nameLen, UTF-8 name, int32 nWindows),
- *   then float32[nChrom][nWindows][nTaxa].
  */
 class PresenceTable(file: File) {
     val windowSize: Int
