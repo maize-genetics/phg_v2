@@ -6,7 +6,10 @@
 chr1	10	.	A	C	.	.	.	GT	0	1	0	1
 chr1	60	.	G	T	.	.	.	GT	1	0	1	0
 chr1	150	.	C	A,T	.	.	.	GT	0	1	2	1
-chr1	400	.	T	G	.	.	.	GT	0	0	1	1/0
+chr1	400	.	T	G	.	.	.	GT	0	0	1	1
+chr1	600	.	C	T	.	.	.	GT	0	1	1	0/1
+chr1	700	.	A	C	.	.	.	GT	0	1	0/1	1/0
+chr1	800	.	G	A	.	.	.	GT	0	1	1/.	0
 chr1	900	.	A	G	.	.	.	GT	1	1	0	.
 chr2	50	.	G	C	.	.	.	GT	0	1	1	0
 chr2	500	.	T	A	.	.	.	GT	1	0	0	1

@@ -332,4 +332,64 @@ class ImputePathFromVcfTest {
             "pureA is 0/0 at every site and founderA is REF at every site: $bed")
         assertEquals(2, bed.size, "one interval per contig, with no spurious segment at either start")
     }
+
+    // ------------------------------------------------------------------ contig bounds
+
+    @Test
+    fun aPathSpansTheFirstToTheLastSharedSiteByDefault(@TempDir dir: File) {
+        command(outDir = dir)
+        val bed = readBed(File(dir, "pureA_imputed_path.bed"))
+        // shared sites: chr1 100 kb to 2.1 Mb, chr2 50 kb to 250 kb. Read as 1-based inclusive, the
+        // path's first base is the first shared site and its last is the last shared site.
+        val chr1 = bed.filter { it.first == "chr1" }
+        assertEquals(100_000, chr1.first().second.first, "starts at the first shared site, not at 1")
+        assertEquals(2_100_000, chr1.last().second.last, "and stops at the last")
+        assertNull(callAt(bed, "chr1", 99_999), "nothing is claimed before the first shared site")
+        assertNull(callAt(bed, "chr1", 2_100_001), "nor after the last")
+        assertEquals("founderA", callAt(bed, "chr1", 100_000))
+        assertEquals("founderA", callAt(bed, "chr1", 2_100_000))
+    }
+
+    @Test
+    fun extendToContigEndsClaimsWholeContigs(@TempDir dir: File) {
+        command("--extend-to-contig-ends", outDir = dir)
+        val bed = readBed(File(dir, "pureA_imputed_path.bed"))
+        val chr1 = bed.filter { it.first == "chr1" }
+        assertEquals(1, chr1.first().second.first, "the leading edge reaches the contig start")
+        assertEquals(3_000_000, chr1.last().second.last, "and the trailing edge the declared length")
+        assertEquals("founderA", callAt(bed, "chr1", 1))
+        assertEquals("founderA", callAt(bed, "chr1", 3_000_000))
+    }
+
+    @Test
+    fun applyContigBoundsTrimsOrExtendsTheTerminalIntervals() {
+        // Unit level, because the two ends are easy to get independently wrong and the command-level
+        // tests above cannot show the degenerate case.
+        val ab = Pair("founderA", "founderB")
+        val cd = Pair("founderC", "founderD")
+        val intervals = listOf(
+            PathInterval("chr1", 0, 500, ab),
+            PathInterval("chr1", 500, 900, cd)
+        )
+        // first site at 101, so the default start is 100: 0-based half-open, first base covered 101
+        val trimmed = applyContigBounds(intervals, 101, 4000, false)
+        assertEquals(listOf(100, 500), trimmed.map { it.start })
+        assertEquals(listOf(500, 900), trimmed.map { it.end }, "the trailing edge is left alone")
+
+        val extended = applyContigBounds(intervals, 101, 4000, true)
+        assertEquals(listOf(0, 500), extended.map { it.start })
+        assertEquals(listOf(500, 4000), extended.map { it.end })
+
+        // no declared length: carried as far as any panel could reach
+        assertEquals(Int.MAX_VALUE, applyContigBounds(intervals, 101, null, true).last().end)
+
+        // An interval that trimming empties is dropped rather than emitted zero-length, which has no
+        // 1-based inclusive form and BedToVcf would reject. The midpoint rule does not produce one --
+        // the first cut never falls below the first site -- so this guards intervals from elsewhere.
+        val degenerate = listOf(PathInterval("chr1", 0, 100, ab), PathInterval("chr1", 100, 400, cd))
+        assertEquals(listOf(cd), applyContigBounds(degenerate, 101, 4000, false).map { it.call })
+
+        assertEquals(emptyList<PathInterval<Pair<String, String>>>(),
+            applyContigBounds(emptyList(), 101, 4000, true))
+    }
 }

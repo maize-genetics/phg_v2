@@ -46,9 +46,10 @@ class ImputeVcfFromVcfTest {
     @Test
     fun aSampleMatchingOneFounderGetsThatFoundersAllelesThroughout(@TempDir dir: File) {
         val out = File(dir, "imputed.vcf")
-        assertEquals(0, run(out).statusCode)
+        assertEquals(0, run(out, "--extend-to-contig-ends").statusCode)
         // pureA is 0/0 at its 15 shared sites, which only founderA explains; founderA is REF at every
-        // dense site, so every one of the 98 output genotypes must be homozygous REF.
+        // dense site, so every one of the 98 output genotypes must be homozygous REF. The flag is what
+        // makes that "every": without it the dense sites outside the shared span are not called.
         val pureA = genotypesOf(out, "pureA")
         assertEquals(98, pureA.size)
         assertTrue(pureA.all { it == "A/A" || it == "G/G" },
@@ -62,7 +63,7 @@ class ImputeVcfFromVcfTest {
     @Test
     fun aHeterozygousSampleComesOutHeterozygousAtEveryDenseSite(@TempDir dir: File) {
         val out = File(dir, "imputed.vcf")
-        assertEquals(0, run(out, "--path-type diploid").statusCode)
+        assertEquals(0, run(out, "--path-type diploid", "--extend-to-contig-ends").statusCode)
         val hetAB = genotypesOf(out, "hetAB")
         assertTrue(hetAB.all { it == "A/C" || it == "G/T" },
             "one REF and one ALT at every site: ${hetAB.distinct()}")
@@ -256,30 +257,59 @@ class ImputeVcfFromVcfTest {
     }
 
     @Test
-    fun thePathIsCarriedToTheEndOfEachContig(@TempDir dir: File) {
-        // pathToIntervals extrapolates the leading edge back to position 0 but leaves the trailing edge
-        // at the last observation. On a uniform bin grid that is invisible; on sparse VCF sites it left
-        // 46 of these 98 dense sites uncalled, because the shared sites stop at chr1:2.1 Mb while the
-        // dense panel runs to 2.95 Mb. Extrapolating the terminal ancestry is the same assumption the
-        // leading edge already makes.
+    fun aPathClaimsNothingBeyondItsTerminalSites(@TempDir dir: File) {
+        // The default. pathToIntervals is asymmetric -- its first interval starts at 0 while its last
+        // ends at the last observation -- so both ends are corrected here: the path spans the first to
+        // the last site shared with the panel, and dense sites outside that span get no call. There is
+        // no evidence of ancestry past the terminal markers, and a telomere-proximal recombination is
+        // exactly where it would be missed.
         val out = File(dir, "imputed.vcf")
         val beds = File(dir, "beds")
         assertEquals(0, run(out, "--bed-dir ${beds.absolutePath}").statusCode)
 
         val bed = File(beds, "pureA_imputed_path.bed").readLines().drop(1).map { it.split('\t') }
-        fun endOf(contig: String) = bed.last { it[0] == contig }[2]
-        assertEquals("3000000", endOf("chr1"), "chr1's path reaches the length the panel declares")
-        assertEquals("1000000", endOf("chr2"), "and so does chr2's")
+        fun firstStart(contig: String) = bed.first { it[0] == contig }[1].toInt()
+        fun lastEnd(contig: String) = bed.last { it[0] == contig }[2].toInt()
+        // shared sites run chr1 100 kb to 2.1 Mb and chr2 50 kb to 250 kb; BED is 0-based half-open,
+        // so a start one below the first site makes that site the first base covered.
+        assertEquals(99_999, firstStart("chr1"))
+        assertEquals(2_100_000, lastEnd("chr1"))
+        assertEquals(49_999, firstStart("chr2"))
+        assertEquals(250_000, lastEnd("chr2"))
 
-        val noCalls = genotypesOf(out, "pureA").count { it == "./." }
-        assertEquals(0, noCalls, "every dense site is called")
+        val called = VCFFileReader(out, false).use { reader ->
+            reader.associate { "${it.contig}:${it.start}" to (it.getGenotype("pureA").genotypeString != "./.") }
+        }
+        assertEquals(false, called["chr1:50000"], "before the first shared site")
+        assertEquals(true, called["chr1:100000"], "the first shared site itself is covered")
+        assertEquals(true, called["chr1:2100000"], "and so is the last")
+        assertEquals(false, called["chr1:2150000"], "past the last shared site")
+        assertTrue(called.values.count { !it } > 0, "some dense sites fall outside the span")
+    }
+
+    @Test
+    fun extendToContigEndsFillsBothEnds(@TempDir dir: File) {
+        // The opposite choice, for a caller who would rather assume the terminal ancestry continues.
+        // Both ends, never one: filling the leading edge while leaving the trailing edge uncalled was
+        // the asymmetry that left 46 of these 98 dense sites no-call.
+        val out = File(dir, "imputed.vcf")
+        val beds = File(dir, "beds")
+        assertEquals(0, run(out, "--extend-to-contig-ends", "--bed-dir ${beds.absolutePath}").statusCode)
+
+        val bed = File(beds, "pureA_imputed_path.bed").readLines().drop(1).map { it.split('\t') }
+        assertEquals("0", bed.first { it[0] == "chr1" }[1], "chr1's path starts at the contig start")
+        assertEquals("3000000", bed.last { it[0] == "chr1" }[2], "and reaches the declared length")
+        assertEquals("0", bed.first { it[0] == "chr2" }[1])
+        assertEquals("1000000", bed.last { it[0] == "chr2" }[2])
+
+        assertEquals(0, genotypesOf(out, "pureA").count { it == "./." }, "every dense site is called")
     }
 
     @Test
     fun withoutDeclaredContigLengthsThePathStillCoversEveryDenseSite(@TempDir dir: File) {
-        // ##contig lines are optional and real panels omit them -- the 25-founder maize panel has none.
-        // Without a length the path is carried to Int.MAX_VALUE, which covers anything a denser panel
-        // could hold.
+        // ##contig lines are optional and real panels omit them -- the 25-founder maize panel has none,
+        // so --extend-to-contig-ends cannot rely on a declared length. Without one the path is carried
+        // to Int.MAX_VALUE, which covers anything a denser panel could hold.
         fun stripContigLines(source: String, target: File) {
             target.writeText(File(source).readLines()
                 .filterNot { it.startsWith("##contig") }.joinToString("\n") + "\n")
@@ -288,7 +318,8 @@ class ImputeVcfFromVcfTest {
         val out = File(dir, "imputed.vcf")
         val result = ImputeVcfFromVcf().test(
             "--to-impute-vcf $sampleVcf --panel-vcf ${panelNoContigs.absolutePath} " +
-                    "--high-density-panel-vcf $densePanelVcf --output-file ${out.absolutePath}")
+                    "--high-density-panel-vcf $densePanelVcf --output-file ${out.absolutePath} " +
+                    "--extend-to-contig-ends")
         assertEquals(0, result.statusCode, result.stderr)
         assertEquals(0, genotypesOf(out, "pureA").count { it == "./." },
             "every dense site is still called")

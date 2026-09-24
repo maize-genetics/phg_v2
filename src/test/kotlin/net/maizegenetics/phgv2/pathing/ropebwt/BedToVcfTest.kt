@@ -17,7 +17,10 @@ import java.io.File
  * | chr1:10 | A | C | A | C | A | C |
  * | chr1:60 | G | T | T | G | T | G |
  * | chr1:150 | C | A,T | C | A | T | A |
- * | chr1:400 | T | G | T | T | G | G (het `1/0`) |
+ * | chr1:400 | T | G | T | T | G | G |
+ * | chr1:600 | C | T | C | T | T | het `0/1` |
+ * | chr1:700 | A | C | A | C | het `0/1` | het `1/0` |
+ * | chr1:800 | G | A | G | A | half call `1/.` | G |
  * | chr1:900 | A | G | G | G | A | no-call |
  * | chr2:50 | G | C | G | C | C | G |
  * | chr2:500 | T | A | A | T | T | A |
@@ -140,13 +143,29 @@ class BedToVcfTest {
     }
 
     @Test
-    fun onlyTheFirstAlleleOfAHeterozygousPanelFounderIsUsed(@TempDir dir: File) {
+    fun aHeterozygousPanelFounderContributesANoCall(@TempDir dir: File) {
         val out = File(dir, "imputed.vcf")
         runCommand(out)
-        // chr1:400 REF T ALT G. founderC is 1 (G); founderD is written "1/0", first allele G.
-        // Were the second allele used instead, or both, this would be G/T.
-        assertEquals("G/G", genotypesByPosition(out)["sample1"]!!["chr1:400"],
-            "founderD's second allele is ignored by design")
+        val sample1 = genotypesByPosition(out)["sample1"]!!
+        // sample1 is (founderC, founderD) over chr1 [200,1000).
+        // chr1:600 REF C ALT T. founderC is 1 (T); founderD is het "0/1". Which of founderD's two
+        // alleles a descendant inherited is unknown, so that haplotype is not called. Taking the
+        // first allele -- what the grits original did -- would give T/C here and T/T for the same
+        // unphased genotype written "1/0".
+        assertEquals("T/.", sample1["chr1:600"], "the heterozygous founder's haplotype is unknown")
+        // chr1:700 REF A ALT C, both founders het: neither haplotype is known.
+        assertEquals("./.", sample1["chr1:700"], "both founders heterozygous")
+    }
+
+    @Test
+    fun aHalfCalledPanelFounderIsReadAsItsOneCalledAllele(@TempDir dir: File) {
+        val out = File(dir, "imputed.vcf")
+        runCommand(out)
+        // chr1:800 REF G ALT A. founderC is "1/." -- one allele called, so there is nothing
+        // ambiguous about it and it reads as A. founderD is 0, so sample1 is (A, G).
+        assertEquals("A/G", genotypesByPosition(out)["sample1"]!!["chr1:800"])
+        // sample3 is haploid founderC, so both its haplotypes take that same called allele.
+        assertEquals("A/A", genotypesByPosition(out)["sample3"]!!["chr1:800"])
     }
 
     @Test

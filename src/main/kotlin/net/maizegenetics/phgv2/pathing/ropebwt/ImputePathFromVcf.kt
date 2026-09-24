@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.validate
@@ -45,6 +46,12 @@ import java.io.File
  * **There is no presence/absence correction.** That correction exists because a read cannot support a
  * founder that has no sequence at a locus. A genotype carries no such asymmetry: if the panel has no
  * call for a founder the emission simply treats that founder's pairs as uninformative there.
+ *
+ * ## What the path covers
+ *
+ * A contig's path spans the first to the last site shared with the panel, and claims nothing beyond
+ * either. `--extend-to-contig-ends` carries the terminal intervals to the contig's ends instead. See
+ * [applyContigBounds].
  *
  * ## Assumptions
  *
@@ -114,6 +121,12 @@ class ImputePathFromVcf : CliktCommand(help = "Impute founder paths for the samp
             }
         }
 
+    val extendToContigEnds by option(help = "Carry the first and last interval of each contig out to " +
+            "the contig's ends. Off by default, so a path spans only the first to the last site shared " +
+            "with the panel and a denser panel's sites outside that span get no call. There is no " +
+            "evidence of ancestry beyond the terminal markers; set this to assume it continues.")
+        .flag()
+
     val contigsToUse by option(help = "Comma-separated contigs to impute, or a file with one per " +
             "line. All contigs shared by the two VCFs if omitted.")
         .default("")
@@ -133,7 +146,8 @@ class ImputePathFromVcf : CliktCommand(help = "Impute founder paths for the samp
         probCorrect = probCorrect,
         probSwitch = probSwitch,
         probSwitchDistance = probSwitchDistance,
-        contigsToUse = buildContigSet(contigsToUse)
+        contigsToUse = buildContigSet(contigsToUse),
+        extendToContigEnds = extendToContigEnds
     )
 
     /** Comma-separated list, or a file with one contig per line, or empty for all. */
@@ -165,7 +179,8 @@ data class VcfPathParameters(
     val probCorrect: Double = 0.98,
     val probSwitch: Double = 1e-4,
     val probSwitchDistance: Double = 1_000_000.0,
-    val contigsToUse: Set<String> = emptySet()
+    val contigsToUse: Set<String> = emptySet(),
+    val extendToContigEnds: Boolean = false
 ) {
     /** The coefficient actually used: a haploid path is a diploid path at 1. */
     val coefficient: Double get() = if (pathType == "haploid") 1.0 else inbreedCoef
@@ -193,8 +208,8 @@ fun imputeFounderPaths(
     val hmm = ViterbiHMM(parameters.coefficient, 1.0 - parameters.probSwitch, parameters.probCorrect)
     val intervals = mutableMapOf<String, MutableList<PathInterval<Pair<String, String>>>>()
 
-    // Contig lengths, where the panel declares them, so a path can be carried to the end of its
-    // contig. They are optional in the VCF specification and real panels omit them.
+    // Contig lengths, where the panel declares them, needed only by --extend-to-contig-ends. They are
+    // optional in the VCF specification and real panels omit them.
     val contigLengths: Map<String, Int> = VCFFileReader(panelVcf, false).use { reader ->
         reader.fileHeader.contigLines
             .filter { it.genericFields["ID"] != null && it.genericFields["length"] != null }
@@ -227,7 +242,9 @@ fun imputeFounderPaths(
             // binSize of 1 because the positions are base pairs, not bin indices: the midpoint cut
             // rule then places each boundary halfway between two real sites.
             intervals.getOrPut(sites.sampleNames[sampleIndex]) { mutableListOf() }
-                .addAll(extendToContigEnd(pathToIntervals(calls, 1), contigLengths[sites.contig]))
+                .addAll(applyContigBounds(
+                    pathToIntervals(calls, 1), sites.positions.first(),
+                    contigLengths[sites.contig], parameters.extendToContigEnds))
         }
         logger.info("${sites.contig}: ${sites.nSites} sites, ${sites.nSamples} samples, " +
                 "${sites.nFounders} founders")
@@ -289,27 +306,47 @@ fun writeFounderPathBeds(
 }
 
 /**
- * Carries the last interval of a contig out to its end, so a path covers the whole contig rather than
- * stopping at the last site that happened to be shared with the panel.
+ * Trims a contig's path to the sites it was actually inferred from, or, when [extendToContigEnds] is
+ * set, carries it out to both ends of the contig.
  *
- * [pathToIntervals] already extrapolates the *leading* edge -- its first interval starts at 0, not at
- * the first observation -- but leaves the trailing edge at the last observation. On a uniform bin grid
- * that asymmetry is invisible, because the last occupied bin sits near the end of the contig anyway.
- * On VCF sites it is glaring: a marker set whose last site falls at 70% of a chromosome would leave the
- * remaining 30% uncalled while the region before its first marker was filled in. Extrapolating the
- * terminal ancestry is the same assumption the leading edge already makes.
+ * [pathToIntervals] is asymmetric: its first interval starts at 0 rather than at the first observation,
+ * while its last ends at the last observation. On a uniform bin grid that is invisible, because the
+ * first and last occupied bins sit near the ends of the contig anyway. On VCF sites it is not -- a
+ * marker set covering the middle 60% of a chromosome would have the leading 20% filled in and the
+ * trailing 20% left uncalled, for no reason a user could infer.
  *
- * [contigLength] is used when the panel declares one. Where it does not -- `##contig` lines are optional
- * and real panels omit them -- the interval is carried to [Int.MAX_VALUE], which covers any position a
- * denser panel could hold.
+ * The default is to claim neither: the path starts at the first shared site and ends at the last, and a
+ * denser panel's sites outside that span get no call. Beyond the terminal markers there is no evidence
+ * of ancestry, and a telomere-proximal recombination is exactly where it would be missed.
+ *
+ * [extendToContigEnds] fills both ends instead, for a caller who would rather assume the terminal
+ * ancestry continues -- reasonable when the markers nearly reach the ends, or when a complete call set
+ * matters more than the risk at the edges. The trailing end uses [contigLength] where the panel declares
+ * one; `##contig` lines are optional and real panels omit them, so where it is absent the interval is
+ * carried to [Int.MAX_VALUE], which covers any position a denser panel could hold.
+ *
+ * @param firstPosition the first position the path was inferred at, 1-based as a VCF carries it.
  */
-fun extendToContigEnd(
+fun applyContigBounds(
     intervals: List<PathInterval<Pair<String, String>>>,
-    contigLength: Int?
+    firstPosition: Int,
+    contigLength: Int?,
+    extendToContigEnds: Boolean
 ): List<PathInterval<Pair<String, String>>> {
     if (intervals.isEmpty()) return intervals
-    val last = intervals.last()
-    val end = contigLength ?: Int.MAX_VALUE
-    if (end <= last.end) return intervals
-    return intervals.dropLast(1) + last.copy(end = end)
+    val bounded = intervals.toMutableList()
+
+    // 0-based half-open, so a start of firstPosition - 1 makes firstPosition the first base covered.
+    val start = if (extendToContigEnds) 0 else firstPosition - 1
+    if (start != bounded.first().start) bounded[0] = bounded.first().copy(start = start)
+
+    if (extendToContigEnds) {
+        val end = contigLength ?: Int.MAX_VALUE
+        if (end > bounded.last().end) bounded[bounded.lastIndex] = bounded.last().copy(end = end)
+    }
+
+    // Defensive: an interval that trimming empties would be zero-length, which has no 1-based
+    // inclusive form and BedToVcf rejects. pathToIntervals cannot produce one here, since its first cut
+    // is the midpoint of the first two sites and so never falls below the first site.
+    return bounded.filter { it.end > it.start }
 }

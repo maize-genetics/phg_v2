@@ -52,10 +52,20 @@ typealias FounderPath = Map<String, RangeMap<Int, Pair<String, String>>>
  *
  * ## The panel is read as haploid founders
  *
- * Each panel sample contributes **one** allele per site, its first. A founder panel is normally
- * inbred, so this is usually exact; where a founder is heterozygous at a site its second allele is
- * ignored and the first is used for both haplotypes that descend from it. That is a deliberate
- * simplification of the output step, not an oversight.
+ * Each panel sample contributes **one** allele per site: the founder is expected to be homozygous
+ * there, or haploid, and that single allele is what any haplotype descending from it carries.
+ *
+ * **A heterozygous founder yields no allele.** Which of its two alleles a descendant inherited is
+ * unknown, and the panel is unphased, so there is nothing to choose between them -- the composed
+ * genotype gets `.` for that haplotype. The grits original took the first allele instead, which made
+ * the output depend on the order htsjdk happened to report an unphased pair in: `0/1` gave `0` and
+ * `1/0` gave `1` for the same genotype. A half call such as `1/.` is read as `1`, since only one
+ * allele is called and there is no ambiguity.
+ *
+ * The consequence is visible in the output. Where one founder of a pair is heterozygous and the other
+ * is not, the sample's genotype is half called -- `1/.` -- and where both are, it is `./.`. A panel
+ * heterozygous at many sites will produce many of these; that is the panel's uncertainty being
+ * reported rather than hidden.
  *
  * ## Sites with no path
  *
@@ -83,8 +93,8 @@ class BedToVcf : CliktCommand(help = "Compose imputed founder paths (BED) into a
 
     val referencePanelVcf by option(help = "Reference panel VCF supplying each founder's allele at " +
             "each site. Its sample names must match the founder names in the BED files, and its " +
-            "sites determine the sites in the output. Only the first allele of each panel genotype " +
-            "is used. Required parameter.")
+            "sites determine the sites in the output. Each founder is read as one allele, and a " +
+            "heterozygous founder as none. Required parameter.")
         .required()
         .validate { require(File(it).exists()) { "$it is not a valid file" } }
 
@@ -219,8 +229,9 @@ class BedToVcf : CliktCommand(help = "Compose imputed founder paths (BED) into a
      * Builds the genotypes for one panel site: look the site up in each sample's path to get its
      * founder pair, then read each founder's allele out of the panel record.
      *
-     * A founder the panel does not carry at this site yields a no-call for that haplotype rather
-     * than dropping the sample, so a partially unknown genotype is still reported.
+     * A founder the panel gives no single allele for -- absent, uncalled, or heterozygous -- yields a
+     * no-call for that haplotype rather than dropping the sample, so a half known genotype such as
+     * `1/.` is still reported.
      */
     fun composeGenotypes(
         variant: VariantContext,
@@ -239,16 +250,20 @@ class BedToVcf : CliktCommand(help = "Compose imputed founder paths (BED) into a
     }
 
     /**
-     * Each panel sample's allele at this site: its first called allele, per the haploid-founder
-     * reading described on the class. Samples with no called allele are omitted, so a founder
-     * missing here becomes a no-call rather than a wrong call.
+     * Each panel sample's single allele at this site, per the haploid-founder reading described on the
+     * class: the one allele it calls, whether it calls it once (haploid, or a half call) or twice
+     * (homozygous diploid).
+     *
+     * A sample is **omitted** when it calls no allele at all and when it calls two different ones. Both
+     * become a no-call in the composed genotype, which is the honest answer in either case: nothing is
+     * known, or which of two alleles a descendant inherited is not known. Deciding it arbitrarily would
+     * put a definite allele where there is no basis for one.
      */
     fun founderToAllele(variant: VariantContext): Map<String, Allele> {
         val alleles = HashMap<String, Allele>(variant.nSamples * 2)
         for (genotype in variant.genotypes) {
-            val first = genotype.alleles.firstOrNull() ?: continue
-            if (first.isNoCall) continue
-            alleles[genotype.sampleName] = first
+            val called = genotype.alleles.filterNot { it.isNoCall }.distinct()
+            if (called.size == 1) alleles[genotype.sampleName] = called[0]
         }
         return alleles
     }

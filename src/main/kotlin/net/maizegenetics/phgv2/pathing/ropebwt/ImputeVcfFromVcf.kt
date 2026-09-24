@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.validate
@@ -40,8 +41,16 @@ import java.io.File
  * ## Assumptions, inherited
  *
  * Both panels are haploid or mostly homozygous, and the sample VCF is unphased. Note the two halves
- * treat a heterozygous founder differently: path inference uses both of its alleles under Mendelian
- * sampling, while composition takes only the first. See [BedToVcf] on the latter.
+ * treat a heterozygous founder differently, each in the way that suits its job: path inference uses
+ * both of its alleles under Mendelian sampling, while composition, which has to name one allele and
+ * cannot tell which was inherited, emits a no-call. A site where one founder of a pair is heterozygous
+ * therefore comes out half called, as `1/.`. See [BedToVcf].
+ *
+ * ## What the output covers
+ *
+ * A path spans the first to the last site the sample shares with `--panel-vcf`, so dense-panel sites
+ * outside that span get no call. `--extend-to-contig-ends` carries the terminal ancestry out to both
+ * ends of each contig instead. See [applyContigBounds].
  */
 class ImputeVcfFromVcf : CliktCommand(help = "Impute a higher-density VCF for the samples in a VCF, via an inferred founder path") {
 
@@ -106,6 +115,12 @@ class ImputeVcfFromVcf : CliktCommand(help = "Impute a higher-density VCF for th
             }
         }
 
+    val extendToContigEnds by option(help = "Carry the first and last interval of each contig out to " +
+            "the contig's ends. Off by default, so a path spans only the first to the last site shared " +
+            "with the panel and a denser panel's sites outside that span get no call. There is no " +
+            "evidence of ancestry beyond the terminal markers; set this to assume it continues.")
+        .flag()
+
     val contigsToUse by option(help = "Comma-separated contigs to impute, or a file with one per " +
             "line. All contigs shared by the sample VCF and --panel-vcf if omitted.")
         .default("")
@@ -121,7 +136,8 @@ class ImputeVcfFromVcf : CliktCommand(help = "Impute a higher-density VCF for th
             probCorrect = probCorrect,
             probSwitch = probSwitch,
             probSwitchDistance = probSwitchDistance,
-            contigsToUse = pathFinder.buildContigSet(contigsToUse)
+            contigsToUse = pathFinder.buildContigSet(contigsToUse),
+            extendToContigEnds = extendToContigEnds
         )
 
         val result = imputeFounderPaths(File(toImputeVcf), File(panelVcf), parameters, myLogger)
