@@ -90,8 +90,8 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
      * where the observations came from -- so both a ps4g path and a VCF path use it. What differs
      * between them is how the emission is built and how state indices are turned back into names.
      *
-     * The initial state distribution comes from [inbreedingCoefficient]: a homozygous state carries
-     * `F / nParents` and a heterozygous one `(1 - F) / (nParents^2 - nParents)`.
+     * The initial state distribution is uniform over all states; see the note where it is built for
+     * why it is not weighted by [inbreedingCoefficient].
      *
      * Both endpoints of the coefficient admit a cheaper recursion than the general scan, and neither
      * changes the path.
@@ -131,16 +131,20 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
     ): Pair<IntArray, Double> {
         val nStates = nParents * nParents
 
-        // A single candidate founder has no heterozygous state at all, and the divisor below would be
-        // zero. The value is overwritten before use either way, but computing it would leave an
-        // infinity or a NaN sitting in the array in the meantime.
-        val homozygoteProbability = inbreedingCoefficient / nParents
-        val heterozygoteProbability =
-            if (nParents > 1) (1.0 - inbreedingCoefficient) / (nStates - nParents) else 0.0
-        val initProbs = DoubleArray(nStates) { lnOrFloor(heterozygoteProbability) }
-        for (ndx in 0 until nParents) {
-            initProbs[ndx * nParents + ndx] = lnOrFloor(homozygoteProbability)
-        }
+        // Uniform over every state. The inbreeding coefficient shapes the transitions, and letting it
+        // shape the first position as well did more harm than good: weighting a homozygous state by
+        // F / nParents makes it *impossible* at F = 0, since ln(0) floors to -1e6 and no amount of
+        // evidence recovers 1e6 nats. A fully inbred sample was therefore called heterozygous at the
+        // first position of every contig and only corrected itself once a transition was available.
+        //
+        // Weighting only the F = 0 case back to uniform would leave a worse incoherence: at
+        // twenty-five founders a homozygous state would start at -6.44 under F = 0 but -10.13 under
+        // F = 0.001, so a trace of inbreeding would make homozygosity *less* likely than none at all.
+        // Uniform throughout removes the discontinuity instead of relocating it.
+        //
+        // This is the uninformative choice, and it costs nothing: the initial distribution touches one
+        // position per contig, and a constant across states cancels in every comparison after it.
+        val initProbs = DoubleArray(nStates) { -ln(nStates.toDouble()) }
 
         return when (inbreedingCoefficient) {
             0.0 -> viterbiOptimizedForDiploid(nParents, nPositions, initProbs,

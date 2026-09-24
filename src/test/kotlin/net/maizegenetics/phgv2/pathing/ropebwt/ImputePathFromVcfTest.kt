@@ -320,27 +320,16 @@ class ImputePathFromVcfTest {
     }
 
     @Test
-    fun theFirstSiteOfADiploidPathCannotBeHomozygousAtFZero(@TempDir dir: File) {
-        // Not a defect in this command, but worth pinning because it surprises: at an inbreeding
-        // coefficient of zero the initial distribution gives a homozygous state probability
-        // F / nFounders = 0, which lnOrFloor turns into -1e6. A homozygous state is therefore a priori
-        // impossible at the *first* position of a contig, whatever the evidence, so a fully inbred
-        // sample is called heterozygous there and then switches to the right answer.
-        //
-        // pureA is 0/0 at every site and founderA is REF at every site, so the correct diploid call is
-        // (founderA, founderA) throughout. What comes out is one short wrong interval and then the
-        // right one. `--path-type haploid`, which is the right mode for an inbred sample, has no such
-        // artifact -- aSampleIdenticalToOneFounderIsAssignedThatFounder covers that.
-        //
-        // The same holds for impute-path-from-ps4g, since the initial distribution is shared.
+    fun aFullyInbredSampleIsHomozygousFromTheFirstSite(@TempDir dir: File) {
+        // This used to fail. The initial distribution weighted a homozygous state by F / nParents,
+        // which is zero at F = 0 and floors to -1e6, so a homozygous state was impossible at the first
+        // position of a contig whatever the evidence: pureA came out heterozygous there and only
+        // corrected itself once a transition was available. The distribution is now uniform, since the
+        // coefficient's job is the transitions.
         command("--path-type diploid", outDir = dir)
-        val bed = readBed(File(dir, "pureA_imputed_path.bed")).filter { it.first == "chr1" }
-        assertTrue(bed.size >= 2, "expected a short wrong interval then the right one: $bed")
-        assertNotEquals("founderA/founderA", bed.first().third,
-            "the first interval cannot be homozygous at F = 0")
-        assertEquals("founderA/founderA", bed.last().third,
-            "and the path corrects itself once transitions are available")
-        assertTrue(bed.first().second.last < 200_000,
-            "the artifact is confined to the start: ${bed.first().second}")
+        val bed = readBed(File(dir, "pureA_imputed_path.bed"))
+        assertTrue(bed.all { it.third == "founderA/founderA" },
+            "pureA is 0/0 at every site and founderA is REF at every site: $bed")
+        assertEquals(2, bed.size, "one interval per contig, with no spurious segment at either start")
     }
 }

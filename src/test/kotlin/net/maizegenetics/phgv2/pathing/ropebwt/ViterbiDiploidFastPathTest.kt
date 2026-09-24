@@ -167,14 +167,9 @@ class ViterbiDiploidFastPathTest {
                 val hmm = ViterbiHMM(f, 0.999999, 0.98)
                 val viaSeam = hmm.findDiploidStatePath(nParents, 40, emissionFn)
 
-                val initial = DoubleArray(nStates) {
-                    if (nParents > 1) ln((1.0 - f) / (nStates - nParents)).coerceAtLeast(-1.0e6)
-                    else -1.0e6
-                }
-                for (i in 0 until nParents) {
-                    initial[i * nParents + i] =
-                        if (f > 0.0) ln(f / nParents) else -1.0e6
-                }
+                // Uniform, matching what findDiploidStatePath now builds: the inbreeding coefficient
+                // shapes the transitions, not the first position.
+                val initial = DoubleArray(nStates) { -ln(nStates.toDouble()) }
                 val calculator = DiploidTransitionProbability(0.999999, f, nParents)
                 val matrix = DoubleArray(nStates * nStates)
                 var ptr = 0
