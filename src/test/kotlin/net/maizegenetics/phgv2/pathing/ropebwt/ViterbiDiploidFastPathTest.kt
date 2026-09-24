@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.math.ln
 import kotlin.random.Random
@@ -141,5 +142,86 @@ class ViterbiDiploidFastPathTest {
         val emissions = Array(10) { DoubleArray(1) { -1.0 } }
         val result = hmm.viterbiOptimizedForDiploid(1, 10, DoubleArray(1), { p -> emissions[p] })
         assertEquals(List(10) { 0 }, result.first.toList())
+    }
+
+    /**
+     * [ViterbiHMM.findDiploidStatePath] is the seam both the ps4g and the VCF path finders go
+     * through, so the dispatch it wraps -- initial probabilities from F, the transition matrix, and
+     * the choice between the two fast paths and the general scan -- is checked here directly rather
+     * than only through a caller.
+     */
+    private fun randomEmissions(nParents: Int, positions: Int, seed: Int): Array<DoubleArray> {
+        val random = Random(seed)
+        return Array(positions) { DoubleArray(nParents * nParents) { random.nextDouble(-6.0, 0.0) } }
+    }
+
+    @Test
+    fun theExtractedDispatchAgreesWithTheGeneralScanAtEveryCoefficient() {
+        // F strictly between 0 and 1 routes to the general scan, so this also confirms the extracted
+        // initial probabilities and transition matrix match what the scan is given directly.
+        for (nParents in listOf(2, 3, 6)) {
+            val nStates = nParents * nParents
+            val emissions = randomEmissions(nParents, 40, nParents * 77)
+            val emissionFn = { p: Int -> emissions[p] }
+            for (f in listOf(0.0, 0.25, 0.5, 1.0)) {
+                val hmm = ViterbiHMM(f, 0.999999, 0.98)
+                val viaSeam = hmm.findDiploidStatePath(nParents, 40, emissionFn)
+
+                val initial = DoubleArray(nStates) {
+                    if (nParents > 1) ln((1.0 - f) / (nStates - nParents)).coerceAtLeast(-1.0e6)
+                    else -1.0e6
+                }
+                for (i in 0 until nParents) {
+                    initial[i * nParents + i] =
+                        if (f > 0.0) ln(f / nParents) else -1.0e6
+                }
+                val calculator = DiploidTransitionProbability(0.999999, f, nParents)
+                val matrix = DoubleArray(nStates * nStates)
+                var ptr = 0
+                for (a in 0 until nParents) for (b in 0 until nParents)
+                    for (c in 0 until nParents) for (d in 0 until nParents)
+                        matrix[ptr++] = calculator.calculateLn(Pair(a, b), Pair(c, d))
+                val viaScan = hmm.viterbiOptimized(nStates, 40, initial, matrix, emissionFn)
+
+                assertEquals(viaScan.first.toList(), viaSeam.first.toList(),
+                    "state path at F=$f, nParents=$nParents")
+            }
+        }
+    }
+
+    @Test
+    fun supplyingADiagonalEmissionMatchesDerivingItFromTheFullArray() {
+        // At F = 1 only the homozygous states are reachable, so a caller may pass a cheaper
+        // diagonal-only emission. That shortcut has to give the same answer as reading the diagonal
+        // out of the full array, or the optimisation silently changes the path.
+        for (nParents in listOf(2, 4, 7)) {
+            val emissions = randomEmissions(nParents, 50, nParents * 13)
+            val full = { p: Int -> emissions[p] }
+            val diagonal = { p: Int -> DoubleArray(nParents) { emissions[p][it * nParents + it] } }
+            val hmm = ViterbiHMM(1.0, 0.999999, 0.98)
+
+            val derived = hmm.findDiploidStatePath(nParents, 50, full)
+            val supplied = hmm.findDiploidStatePath(nParents, 50, full, diagonal)
+
+            assertEquals(derived.first.toList(), supplied.first.toList(), "nParents=$nParents")
+            assertEquals(derived.second, supplied.second, 1e-9)
+            // and every chosen state is homozygous, which is the premise of the shortcut
+            assertTrue(supplied.first.all { it / nParents == it % nParents },
+                "F = 1 must choose only homozygous states")
+        }
+    }
+
+    @Test
+    fun aSingleCandidateFounderDoesNotProduceAnInfiniteInitialProbability() {
+        // With one founder there is no heterozygous state and the divisor (nParents^2 - nParents) is
+        // zero. The value was overwritten before use, but computing it left an infinity or a NaN in
+        // the array on the way; this pins that the path still comes out and stays finite.
+        for (f in listOf(0.0, 0.5, 1.0)) {
+            val hmm = ViterbiHMM(f, 0.9999, 0.98)
+            val emissions = Array(8) { DoubleArray(1) { -0.5 } }
+            val result = hmm.findDiploidStatePath(1, 8, { p -> emissions[p] })
+            assertEquals(List(8) { 0 }, result.first.toList(), "F=$f")
+            assertTrue(result.second.isFinite(), "path log probability must be finite at F=$f")
+        }
     }
 }

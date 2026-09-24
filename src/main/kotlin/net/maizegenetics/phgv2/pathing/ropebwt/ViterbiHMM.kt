@@ -61,76 +61,15 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
                         readMap: Map<Int, MutableList<Ps4gGameteSet>>,
                         likelyParentSet: Set<Int>): List<Triple<Position, String, String>> {
 
-        //create the transition matrix
         val nParents = likelyParentSet.size
-        val nStates = nParents * nParents
-        val nPositions = readMap.keys.size
-        // The general path needs the full matrix; the F = 0 fast path derives its two constants
-        // directly and never materialises it (3 MB at twenty-five parents).
-        val transitionMatrix = if (inbreedingCoefficient == 0.0 || inbreedingCoefficient == 1.0) {
-            DoubleArray(0)
-        } else {
-            val matrix = DoubleArray(nStates * nStates)
-            val transitionProbabilityCalculator =
-                DiploidTransitionProbability(sameGameteProbability, inbreedingCoefficient, nParents)
-            var ptr = 0
-            for (index1 in 0 until nParents) {
-                for (index2 in 0 until nParents) {
-                    for (index3 in 0 until nParents) {
-                        for (index4 in 0 until nParents) {
-                            matrix[ptr++] = transitionProbabilityCalculator
-                                .calculateLn(Pair(index1, index2), Pair(index3, index4))
-                        }
-                    }
-                }
-            }
-            matrix
-        }
-
-        //emission probabilities
         val emissionCalculator = GameteSetEmissionProbability(readMap, likelyParentSet, probCorrect,
             presenceTable, contig, gameteIndexMap, binSize, pavThreshold, pavDamping)
-        val emissionP = emissionCalculator::getDiploidEmissionProbabilityArray
-
-        //val emissionP = { x: Int -> DoubleArray(nStates) {-1.0} }
-
-        //initial probabilities, use inbreeding coefficent, but 0.0 for testing
-        //probability of a homozygote = f, heterozygote = 1-f
-        //probability of a specific homozygote = f/nParents heterozygoe = (1-f)/(nParents*nParents - nParents)
-        val homozygoteProbabillity = inbreedingCoefficient / nParents
-        val heterozygoteProbability = (1.0 - inbreedingCoefficient) / (nParents * nParents - nParents)
-        val initProbs = DoubleArray(nParents * nParents) {lnOrFloor(heterozygoteProbability)}
-        for (ndx in 0 until nParents) {
-            initProbs[ndx * nParents + ndx] = lnOrFloor(homozygoteProbabillity)
-        }
-
-        // Both endpoints of the inbreeding coefficient admit a cheaper recursion than the
-        // general scan, and neither changes the path.
-        //
-        // At F = 0 the transition is a Kronecker product of two haploid transitions, so the
-        // maximisation separates and the recursion drops from O(nParents^4) to O(nParents^2) per
-        // position.
-        //
-        // At F = 1 every transition into a heterozygous state has probability zero -- see
-        // DiploidTransitionProbability.probabilityForF1 -- and so does every heterozygous initial
-        // state, so only the nParents homozygous states are reachable. Among those the transition
-        // is pNoSwitch to itself and pSwitch to any other, which is precisely the haploid
-        // transition over nParents states, so the haploid recursion solves it exactly on the
-        // diagonal of the emission array.
-        //
-        // Any coefficient strictly between the two couples the founders and needs the general scan.
-        val result = when (inbreedingCoefficient) {
-            0.0 -> viterbiOptimizedForDiploid(nParents, nPositions, initProbs, emissionP)
-            1.0 -> {
-                val diagonalInit = DoubleArray(nParents) { initProbs[it * nParents + it] }
-                val homozygous = viterbiOptimizedForHaploid(nParents, nPositions, diagonalInit,
-                    emissionCalculator::getHomozygousEmissionProbabilityArray)
-                // Re-express the chosen founders as diploid state indices (i, i).
-                Pair(IntArray(homozygous.first.size) { homozygous.first[it] * nParents + homozygous.first[it] },
-                    homozygous.second)
-            }
-            else -> viterbiOptimized(nStates, nPositions, initProbs, transitionMatrix, emissionP)
-        }
+        val result = findDiploidStatePath(
+            nParents,
+            readMap.keys.size,
+            emissionCalculator::getDiploidEmissionProbabilityArray,
+            emissionCalculator::getHomozygousEmissionProbabilityArray
+        )
 
         //translate the result
         val positions = readMap.keys.sorted()
@@ -141,6 +80,101 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
             gameteIndexMap[parentList[i/nParents]] ?: "none",
             gameteIndexMap[parentList[i % nParents]] ?: "none")}
         return resultList
+    }
+
+    /**
+     * Runs the diploid recursion over the `nParents * nParents` ordered pairs of founders and returns
+     * the chosen state path with its log probability, states indexed as `first * nParents + second`.
+     *
+     * Everything here depends only on the state count, the position count and the emission -- not on
+     * where the observations came from -- so both a ps4g path and a VCF path use it. What differs
+     * between them is how the emission is built and how state indices are turned back into names.
+     *
+     * The initial state distribution comes from [inbreedingCoefficient]: a homozygous state carries
+     * `F / nParents` and a heterozygous one `(1 - F) / (nParents^2 - nParents)`.
+     *
+     * Both endpoints of the coefficient admit a cheaper recursion than the general scan, and neither
+     * changes the path.
+     *
+     * At `F = 0` the transition is a Kronecker product of two haploid transitions, so the
+     * maximisation separates and the recursion drops from `O(nParents^4)` to `O(nParents^2)` per
+     * position, never materialising the transition matrix (3 MB at twenty-five parents).
+     *
+     * At `F = 1` every transition into a heterozygous state has probability zero -- see
+     * [DiploidTransitionProbability.probabilityForF1] -- and so does every heterozygous initial
+     * state, so only the `nParents` homozygous states are reachable. Among those the transition is
+     * `pNoSwitch` to itself and `pSwitch` to any other, which is precisely the haploid transition
+     * over `nParents` states, so the haploid recursion solves it exactly on the diagonal of the
+     * emission array.
+     *
+     * Any coefficient strictly between the two couples the two founders and needs the general scan.
+     *
+     * @param emissionLogProbabilityFunction natural log emission for every ordered pair at a
+     *   position, indexed `first * nParents + second`
+     * @param homozygousEmissionLogProbabilityFunction the same for the homozygous states alone,
+     *   indexed by founder. Used only at `F = 1`, where it saves computing `nParents^2` values to
+     *   read `nParents` of them. Omit it and the diagonal is taken from the full array instead,
+     *   which is correct but does that wasted work.
+     */
+    fun findDiploidStatePath(
+        nParents: Int,
+        nPositions: Int,
+        emissionLogProbabilityFunction: (positionIndex: Int) -> DoubleArray,
+        homozygousEmissionLogProbabilityFunction: ((positionIndex: Int) -> DoubleArray)? = null
+    ): Pair<IntArray, Double> {
+        val nStates = nParents * nParents
+
+        // A single candidate founder has no heterozygous state at all, and the divisor below would be
+        // zero. The value is overwritten before use either way, but computing it would leave an
+        // infinity or a NaN sitting in the array in the meantime.
+        val homozygoteProbability = inbreedingCoefficient / nParents
+        val heterozygoteProbability =
+            if (nParents > 1) (1.0 - inbreedingCoefficient) / (nStates - nParents) else 0.0
+        val initProbs = DoubleArray(nStates) { lnOrFloor(heterozygoteProbability) }
+        for (ndx in 0 until nParents) {
+            initProbs[ndx * nParents + ndx] = lnOrFloor(homozygoteProbability)
+        }
+
+        return when (inbreedingCoefficient) {
+            0.0 -> viterbiOptimizedForDiploid(nParents, nPositions, initProbs,
+                emissionLogProbabilityFunction)
+
+            1.0 -> {
+                val diagonalInit = DoubleArray(nParents) { initProbs[it * nParents + it] }
+                val diagonalEmission = homozygousEmissionLogProbabilityFunction
+                    ?: { positionIndex: Int ->
+                        val full = emissionLogProbabilityFunction(positionIndex)
+                        DoubleArray(nParents) { full[it * nParents + it] }
+                    }
+                val homozygous =
+                    viterbiOptimizedForHaploid(nParents, nPositions, diagonalInit, diagonalEmission)
+                // Re-express the chosen founders as diploid state indices (i, i).
+                Pair(
+                    IntArray(homozygous.first.size) {
+                        homozygous.first[it] * nParents + homozygous.first[it]
+                    },
+                    homozygous.second
+                )
+            }
+
+            else -> {
+                val matrix = DoubleArray(nStates * nStates)
+                val transitionProbabilityCalculator =
+                    DiploidTransitionProbability(sameGameteProbability, inbreedingCoefficient, nParents)
+                var ptr = 0
+                for (index1 in 0 until nParents) {
+                    for (index2 in 0 until nParents) {
+                        for (index3 in 0 until nParents) {
+                            for (index4 in 0 until nParents) {
+                                matrix[ptr++] = transitionProbabilityCalculator
+                                    .calculateLn(Pair(index1, index2), Pair(index3, index4))
+                            }
+                        }
+                    }
+                }
+                viterbiOptimized(nStates, nPositions, initProbs, matrix, emissionLogProbabilityFunction)
+            }
+        }
     }
 
     /**
@@ -423,7 +457,11 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         require(initialLogProbabilities.size == stateCount)
 
         val lnNoSwitch = ln(sameGameteProbability)
-        val lnSwitch = ln((1.0 - sameGameteProbability)/(stateCount - 1))
+        // With one state there is nowhere to switch to, and the divisor would be zero: the quotient
+        // becomes positive infinity and a switch then looks infinitely attractive, wrecking the
+        // score. The probability of switching is genuinely zero, so floor it.
+        val lnSwitch = if (stateCount > 1) ln((1.0 - sameGameteProbability) / (stateCount - 1))
+                       else lnOrFloor(0.0)
         // Rolling buffers: only the previous position's best log-probabilities are
         // needed to compute the current position's, so we avoid storing all positions.
         var previousBestLogProbability = DoubleArray(stateCount)
