@@ -29,6 +29,7 @@ class VcfGenotypeEmissionProbabilityTest {
             founderAlleles[index * 2 + 1] = second.toByte()
         }
         val sites = ContigSites(
+            contig = "chr1",
             founderNames = founders.indices.map { "founder$it" },
             sampleNames = listOf("sample"),
             positions = intArrayOf(position),
@@ -214,6 +215,7 @@ class VcfGenotypeEmissionProbabilityTest {
     fun eachSiteIsScoredFromItsOwnGenotypes() {
         // Two sites where the answer flips, to catch an index applied to the wrong row.
         val sites = ContigSites(
+            contig = "chr1",
             founderNames = listOf("f0", "f1"),
             sampleNames = listOf("s"),
             positions = intArrayOf(10, 20),
@@ -234,6 +236,7 @@ class VcfGenotypeEmissionProbabilityTest {
     @Test
     fun eachSampleIsScoredFromItsOwnGenotypes() {
         val sites = ContigSites(
+            contig = "chr1",
             founderNames = listOf("f0", "f1"),
             sampleNames = listOf("s0", "s1"),
             positions = intArrayOf(10),
@@ -261,7 +264,7 @@ class VcfGenotypeEmissionProbabilityTest {
     @Test
     fun probCorrectSetsTheMismatchPenaltyAndNothingElse() {
         for (pc in listOf(0.9, 0.98, 0.999)) {
-            val sites = ContigSites(listOf("f0", "f1"), listOf("s"), intArrayOf(10),
+            val sites = ContigSites("chr1", listOf("f0", "f1"), listOf("s"), intArrayOf(10),
                 byteArrayOf(0, 0, 1, 1), byteArrayOf(0, 1))
             val p = VcfGenotypeEmissionProbability(sites, 0, pc).getDiploidEmissionProbabilityArray(0)
             assertEquals(0.0, p.state(0, 1, 2), 1e-12, "a match is ln(1) whatever pc is")
@@ -274,13 +277,13 @@ class VcfGenotypeEmissionProbabilityTest {
     @Test
     fun contigSitesRejectsArraysThatDoNotMatchItsDimensions() {
         val tooShort = assertThrows(IllegalArgumentException::class.java) {
-            ContigSites(listOf("f0", "f1"), listOf("s"), intArrayOf(10, 20),
+            ContigSites("chr1", listOf("f0", "f1"), listOf("s"), intArrayOf(10, 20),
                 byteArrayOf(0, 0, 1, 1), byteArrayOf(0, 0, 1, 1))
         }
         assertTrue(tooShort.message!!.contains("founderAlleles"), tooShort.message)
 
         val sampleTooShort = assertThrows(IllegalArgumentException::class.java) {
-            ContigSites(listOf("f0"), listOf("s0", "s1"), intArrayOf(10),
+            ContigSites("chr1", listOf("f0"), listOf("s0", "s1"), intArrayOf(10),
                 byteArrayOf(0, 0), byteArrayOf(0, 0))
         }
         assertTrue(sampleTooShort.message!!.contains("sampleAlleles"), sampleTooShort.message)
@@ -289,6 +292,7 @@ class VcfGenotypeEmissionProbabilityTest {
     @Test
     fun contigSitesAccessorsReadTheRightCell() {
         val sites = ContigSites(
+            contig = "chr1",
             founderNames = listOf("f0", "f1"),
             sampleNames = listOf("s0", "s1"),
             positions = intArrayOf(10, 20),

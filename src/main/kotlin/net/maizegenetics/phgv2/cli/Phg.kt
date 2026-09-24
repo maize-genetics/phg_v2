@@ -37,6 +37,7 @@ fun main(args: Array<String>) = Phg()
         BuildSplineKnots(), ConvertRm2Ps4gFile(), ConvertRopebwt2Ps4gFile(), ConvertVcf2Ps4gFile(), // PS4G File creations.
         BuildPresenceTable(),   // founder anchor presence, from a ropebwt3 lift file
         BedToVcf(),   // compose imputed founder paths into a VCF using a reference panel
+        ImputePathFromVcf(),   // founder paths from genotypes rather than reads
         CreateFastaFromHvcf(), ListSamples(), MergeHvcfs(), MergeGVCFs(), CalcVcfMetrics(), StartServer, ExtractEdgeReads(), //Utilities
         QcReadMapping(), ReadMappingCountQc(), PathsToGff(),
         MappingCountTableQc(),// Utilities continued

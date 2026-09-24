@@ -30,12 +30,14 @@ package net.maizegenetics.phgv2.pathing.ropebwt
  * halves can collapse to one byte per founder wherever the panel is homozygous, with a side table for
  * the heterozygous minority, which halves the founder term.
  *
+ * @param contig the contig these sites lie on, needed to express a path back in reference coordinates
  * @param founderNames panel sample names, in the order the founder axis is indexed
  * @param sampleNames names of the samples being imputed, in the order the sample axis is indexed
  * @param positions reference positions of the sites, ascending; used for distance-scaled transitions
  *   and to convert a path back to reference coordinates
  */
 class ContigSites(
+    val contig: String,
     val founderNames: List<String>,
     val sampleNames: List<String>,
     val positions: IntArray,

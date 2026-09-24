@@ -1,0 +1,21 @@
+##fileformat=VCFv4.2
+##contig=<ID=chr1,length=3000000>
+##contig=<ID=chr2,length=1000000>
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	pureA	pureB	hetAB	recomb	gappy
+chr1	100000	.	A	C	.	.	.	GT	0/0	1/1	0/1	0/0	0/0
+chr1	200000	.	A	C	.	.	.	GT	0/0	1/1	0/1	0/0	0/0
+chr1	300000	.	A	C	.	.	.	GT	0/0	1/1	0/1	0/0	./.
+chr1	400000	.	A	C	.	.	.	GT	0/0	1/1	0/1	0/0	0/0
+chr1	500000	.	A	C	.	.	.	GT	0/0	1/1	0/1	0/0	0/0
+chr1	600000	.	A	C	.	.	.	GT	0/0	1/1	0/1	0/0	0/0
+chr1	1600000	.	A	C	.	.	.	GT	0/0	1/1	0/1	1/1	0/0
+chr1	1700000	.	A	C	.	.	.	GT	0/0	1/1	0/1	1/1	0/0
+chr1	1800000	.	A	C	.	.	.	GT	0/0	1/1	0/1	1/1	./.
+chr1	1900000	.	A	C	.	.	.	GT	0/0	1/1	0/1	1/1	0/0
+chr1	2000000	.	A	C	.	.	.	GT	0/0	1/1	0/1	1/1	0/0
+chr1	2100000	.	A	C	.	.	.	GT	0/0	1/1	0/1	1/1	0/0
+chr1	2500000	.	A	G	.	.	.	GT	0/0	1/1	0/1	1/1	0/0
+chr2	50000	.	G	T	.	.	.	GT	0/0	1/1	0/1	0/0	0/0
+chr2	150000	.	G	T	.	.	.	GT	0/0	1/1	0/1	0/0	0/0
+chr2	250000	.	G	T	.	.	.	GT	0/0	1/1	0/1	0/0	0/0
