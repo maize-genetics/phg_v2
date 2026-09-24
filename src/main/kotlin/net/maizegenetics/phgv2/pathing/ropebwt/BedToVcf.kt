@@ -166,6 +166,26 @@ class BedToVcf : CliktCommand(help = "Compose imputed founder paths (BED) into a
     }
 
     /**
+     * The same [FounderPath] structure [readPaths] builds, but from paths held in memory rather than
+     * read from BED files, so a command that has just inferred them can compose without writing any.
+     *
+     * Intervals are 0-based half-open, as a BED record is, and become 1-based inclusive here by the
+     * same `(start + 1, end)` conversion [readPath] applies -- the two routes have to agree, or a path
+     * would land differently depending on whether it went through a file.
+     */
+    fun pathsFromIntervals(
+        paths: Map<String, List<PathInterval<Pair<String, String>>>>
+    ): Map<String, FounderPath> = paths.mapValues { (_, intervals) ->
+        val byContig = mutableMapOf<String, RangeMap<Int, Pair<String, String>>>()
+        for (interval in intervals) {
+            if (interval.end <= interval.start) continue
+            byContig.getOrPut(interval.contig) { TreeRangeMap.create() }
+                .put(Range.closed(interval.start + 1, interval.end), interval.call)
+        }
+        byContig
+    }
+
+    /**
      * Streams [panelVcf] and writes one output record per panel site, carrying a genotype for every
      * sample in [paths] whose path covers that site.
      *

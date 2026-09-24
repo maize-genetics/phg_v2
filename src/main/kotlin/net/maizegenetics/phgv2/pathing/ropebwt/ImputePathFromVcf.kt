@@ -8,6 +8,7 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.double
+import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.getBufferedWriter
@@ -120,110 +121,20 @@ class ImputePathFromVcf : CliktCommand(help = "Impute founder paths for the samp
     override fun run() {
         logCommand(this)
         File(outPathDir).mkdirs()
-        val paths = imputePaths()
-        writeBedFiles(paths, File(outPathDir))
+        val result = imputeFounderPaths(File(toImputeVcf), File(panelVcf), parameters())
+        logPairingCounts(result.counts, myLogger)
+        writeFounderPathBeds(result.paths, File(outPathDir), pathType == "haploid", myLogger)
     }
 
-    /**
-     * Infers a path per sample, returning the intervals rather than a file, so the chained VCF-to-VCF
-     * command can compose them directly without a BED ever being written.
-     *
-     * Each sample is a separate Viterbi run over the same [ContigSites], because the panel's founder
-     * alleles are shared but each sample's genotypes are its own.
-     */
-    fun imputePaths(): Map<String, List<PathInterval<Pair<String, String>>>> {
-        val coefficient = if (pathType == "haploid") 1.0 else inbreedCoef
-        val hmm = ViterbiHMM(coefficient, 1.0 - probSwitch, probCorrect)
-        val intervals = mutableMapOf<String, MutableList<PathInterval<Pair<String, String>>>>()
-
-        val counts = pairVcfSites(File(toImputeVcf), File(panelVcf), buildContigSet(contigsToUse)) { sites ->
-            val distances = stepDistances(sites.positions)
-            // A haploid recursion switches among founders; the diploid fast path switches one haplotype
-            // at a time, so its alternatives are also counted in founders. The divisor is the same.
-            val (lnNoSwitch, lnSwitch) =
-                transitionLogsByDistance(distances, probSwitch, probSwitchDistance, sites.nFounders)
-
-            for (sampleIndex in sites.sampleNames.indices) {
-                val emission = VcfGenotypeEmissionProbability(sites, sampleIndex, probCorrect)
-                val path = hmm.findDiploidStatePath(
-                    sites.nFounders, sites.nSites,
-                    emission::getDiploidEmissionProbabilityArray,
-                    null,
-                    lnNoSwitch, lnSwitch
-                )
-                val calls = path.first.mapIndexed { index, state ->
-                    Pair(
-                        Position(sites.contig, sites.positions[index]),
-                        Pair(
-                            sites.founderNames[state / sites.nFounders],
-                            sites.founderNames[state % sites.nFounders]
-                        )
-                    )
-                }
-                // binSize of 1 because the positions are already base pairs, not bin indices: the
-                // midpoint cut rule then places each boundary halfway between two real sites.
-                intervals.getOrPut(sites.sampleNames[sampleIndex]) { mutableListOf() }
-                    .addAll(pathToIntervals(calls, 1))
-            }
-            myLogger.info("${sites.contig}: ${sites.nSites} sites, ${sites.nSamples} samples, " +
-                    "${sites.nFounders} founders")
-        }
-
-        reportCounts(counts)
-        return intervals
-    }
-
-    /**
-     * Logs what the pairing saw. The absent-from-panel count is the one to read: those sites are
-     * silently dropped, so a sample and panel that do not correspond -- a different reference build,
-     * different contig naming, a panel that does not cover the assay -- would otherwise produce a
-     * confident path from almost no evidence.
-     */
-    private fun reportCounts(counts: PairingCounts) {
-        val offered = counts.sitesUsed + counts.sampleSitesNotInPanel
-        val percentUsed = if (offered > 0) 100.0 * counts.sitesUsed / offered else 0.0
-        myLogger.info("Sites used from the sample VCF: ${counts.sitesUsed}")
-        myLogger.info("Sites in the sample VCF not present in the panel: " +
-                "${counts.sampleSitesNotInPanel} (${"%.1f".format(100.0 - percentUsed)}% of " +
-                "$offered offered)")
-        myLogger.info("Sites in the panel not present in the sample VCF: ${counts.panelSitesNotInSample}")
-        if (counts.duplicateKeysSkipped > 0) {
-            myLogger.info("Records skipped for sharing a contig, position and REF with one already " +
-                    "used: ${counts.duplicateKeysSkipped}")
-        }
-        if (counts.sitesUsed == 0L) {
-            myLogger.warn("No sites were shared by the two VCFs. Check that they use the same contig " +
-                    "names and the same reference coordinates.")
-        } else if (percentUsed < 50.0) {
-            myLogger.warn("Only ${"%.1f".format(percentUsed)}% of the sample VCF's sites are in the " +
-                    "panel. The path rests on that fraction alone.")
-        }
-    }
-
-    /** One BED per sample, matching what `impute-path-from-ps4g` writes so `bed-to-vcf` reads either. */
-    private fun writeBedFiles(
-        paths: Map<String, List<PathInterval<Pair<String, String>>>>,
-        outputDir: File
-    ) {
-        val haploid = pathType == "haploid"
-        for ((sample, sampleIntervals) in paths) {
-            val file = File(outputDir, "${sample}_imputed_path.bed")
-            getBufferedWriter(file).use { writer ->
-                writer.write(if (haploid) "chrom\tstart\tend\tparent1\n"
-                             else "chrom\tstart\tend\tparent1\tparent2\n")
-                for (interval in sampleIntervals) {
-                    val call = if (haploid) {
-                        check(interval.call.first == interval.call.second) {
-                            "haploid path produced a heterozygous call ${interval.call}"
-                        }
-                        interval.call.first
-                    } else "${interval.call.first}\t${interval.call.second}"
-                    writer.write("${interval.contig}\t${interval.start}\t${interval.end}\t$call\n")
-                }
-            }
-            myLogger.info("Wrote $file: ${sampleIntervals.size} intervals")
-        }
-    }
+    /** This command's options as the parameter bundle the shared path finder takes. */
+    fun parameters() = VcfPathParameters(
+        pathType = pathType,
+        inbreedCoef = inbreedCoef,
+        probCorrect = probCorrect,
+        probSwitch = probSwitch,
+        probSwitchDistance = probSwitchDistance,
+        contigsToUse = buildContigSet(contigsToUse)
+    )
 
     /** Comma-separated list, or a file with one contig per line, or empty for all. */
     fun buildContigSet(value: String): Set<String> {
@@ -242,4 +153,163 @@ class ImputePathFromVcf : CliktCommand(help = "Impute founder paths for the samp
         )
         return contigs.toSet()
     }
+}
+
+/**
+ * Everything the VCF path finder needs beyond the two files, so the chained VCF-to-VCF command can
+ * drive it without reconstructing a Clikt command.
+ */
+data class VcfPathParameters(
+    val pathType: String = "haploid",
+    val inbreedCoef: Double = 0.0,
+    val probCorrect: Double = 0.98,
+    val probSwitch: Double = 1e-4,
+    val probSwitchDistance: Double = 1_000_000.0,
+    val contigsToUse: Set<String> = emptySet()
+) {
+    /** The coefficient actually used: a haploid path is a diploid path at 1. */
+    val coefficient: Double get() = if (pathType == "haploid") 1.0 else inbreedCoef
+}
+
+/** A founder path per sample, with what the site pairing saw while producing it. */
+data class VcfPathResult(
+    val paths: Map<String, List<PathInterval<Pair<String, String>>>>,
+    val counts: PairingCounts
+)
+
+/**
+ * Infers a founder path for every sample in [toImputeVcf] against the founders in [panelVcf].
+ *
+ * Returns the intervals rather than writing them, so the chained command can compose them straight
+ * into a VCF with no BED ever reaching disk. Each sample is its own Viterbi run over the same
+ * [ContigSites]: the panel's founder alleles are shared, each sample's genotypes are not.
+ */
+fun imputeFounderPaths(
+    toImputeVcf: File,
+    panelVcf: File,
+    parameters: VcfPathParameters,
+    logger: org.apache.logging.log4j.Logger = LogManager.getLogger("ImputeFounderPaths")
+): VcfPathResult {
+    val hmm = ViterbiHMM(parameters.coefficient, 1.0 - parameters.probSwitch, parameters.probCorrect)
+    val intervals = mutableMapOf<String, MutableList<PathInterval<Pair<String, String>>>>()
+
+    // Contig lengths, where the panel declares them, so a path can be carried to the end of its
+    // contig. They are optional in the VCF specification and real panels omit them.
+    val contigLengths: Map<String, Int> = VCFFileReader(panelVcf, false).use { reader ->
+        reader.fileHeader.contigLines
+            .filter { it.genericFields["ID"] != null && it.genericFields["length"] != null }
+            .associate { it.genericFields["ID"]!! to it.genericFields["length"]!!.toInt() }
+    }
+
+    val counts = pairVcfSites(toImputeVcf, panelVcf, parameters.contigsToUse) { sites ->
+        val distances = stepDistances(sites.positions)
+        // A haploid recursion switches among founders; the diploid fast path switches one haplotype at
+        // a time, so its alternatives are counted in founders too. The divisor is the same.
+        val (lnNoSwitch, lnSwitch) = transitionLogsByDistance(
+            distances, parameters.probSwitch, parameters.probSwitchDistance, sites.nFounders)
+
+        for (sampleIndex in sites.sampleNames.indices) {
+            val emission = VcfGenotypeEmissionProbability(sites, sampleIndex, parameters.probCorrect)
+            val path = hmm.findDiploidStatePath(
+                sites.nFounders, sites.nSites,
+                emission::getDiploidEmissionProbabilityArray,
+                null, lnNoSwitch, lnSwitch
+            )
+            val calls = path.first.mapIndexed { index, state ->
+                Pair(
+                    Position(sites.contig, sites.positions[index]),
+                    Pair(
+                        sites.founderNames[state / sites.nFounders],
+                        sites.founderNames[state % sites.nFounders]
+                    )
+                )
+            }
+            // binSize of 1 because the positions are base pairs, not bin indices: the midpoint cut
+            // rule then places each boundary halfway between two real sites.
+            intervals.getOrPut(sites.sampleNames[sampleIndex]) { mutableListOf() }
+                .addAll(extendToContigEnd(pathToIntervals(calls, 1), contigLengths[sites.contig]))
+        }
+        logger.info("${sites.contig}: ${sites.nSites} sites, ${sites.nSamples} samples, " +
+                "${sites.nFounders} founders")
+    }
+    return VcfPathResult(intervals, counts)
+}
+
+/**
+ * Logs what the pairing saw. The absent-from-panel count is the one to read: those sites are silently
+ * dropped, so a sample and panel that do not correspond -- a different reference build, different
+ * contig naming, a panel that does not cover the assay -- would otherwise yield a confident path drawn
+ * from a fraction of the evidence.
+ */
+fun logPairingCounts(counts: PairingCounts, logger: org.apache.logging.log4j.Logger) {
+    val offered = counts.sitesUsed + counts.sampleSitesNotInPanel
+    val percentUsed = if (offered > 0) 100.0 * counts.sitesUsed / offered else 0.0
+    logger.info("Sites used from the sample VCF: ${counts.sitesUsed}")
+    logger.info("Sites in the sample VCF not present in the panel: ${counts.sampleSitesNotInPanel} " +
+            "(${"%.1f".format(100.0 - percentUsed)}% of $offered offered)")
+    logger.info("Sites in the panel not present in the sample VCF: ${counts.panelSitesNotInSample}")
+    if (counts.duplicateKeysSkipped > 0) {
+        logger.info("Records skipped for sharing a contig, position and REF with one already used: " +
+                "${counts.duplicateKeysSkipped}")
+    }
+    if (counts.sitesUsed == 0L) {
+        logger.warn("No sites were shared by the two VCFs. Check that they use the same contig names " +
+                "and the same reference coordinates.")
+    } else if (percentUsed < 50.0) {
+        logger.warn("Only ${"%.1f".format(percentUsed)}% of the sample VCF's sites are in the panel. " +
+                "The path rests on that fraction alone.")
+    }
+}
+
+/** One BED per sample, named as `impute-path-from-ps4g` names its own so `bed-to-vcf` reads either. */
+fun writeFounderPathBeds(
+    paths: Map<String, List<PathInterval<Pair<String, String>>>>,
+    outputDir: File,
+    haploid: Boolean,
+    logger: org.apache.logging.log4j.Logger
+) {
+    outputDir.mkdirs()
+    for ((sample, sampleIntervals) in paths) {
+        val file = File(outputDir, "${sample}_imputed_path.bed")
+        getBufferedWriter(file).use { writer ->
+            writer.write(if (haploid) "chrom\tstart\tend\tparent1\n"
+                         else "chrom\tstart\tend\tparent1\tparent2\n")
+            for (interval in sampleIntervals) {
+                val call = if (haploid) {
+                    check(interval.call.first == interval.call.second) {
+                        "haploid path produced a heterozygous call ${interval.call}"
+                    }
+                    interval.call.first
+                } else "${interval.call.first}\t${interval.call.second}"
+                writer.write("${interval.contig}\t${interval.start}\t${interval.end}\t$call\n")
+            }
+        }
+        logger.info("Wrote $file: ${sampleIntervals.size} intervals")
+    }
+}
+
+/**
+ * Carries the last interval of a contig out to its end, so a path covers the whole contig rather than
+ * stopping at the last site that happened to be shared with the panel.
+ *
+ * [pathToIntervals] already extrapolates the *leading* edge -- its first interval starts at 0, not at
+ * the first observation -- but leaves the trailing edge at the last observation. On a uniform bin grid
+ * that asymmetry is invisible, because the last occupied bin sits near the end of the contig anyway.
+ * On VCF sites it is glaring: a marker set whose last site falls at 70% of a chromosome would leave the
+ * remaining 30% uncalled while the region before its first marker was filled in. Extrapolating the
+ * terminal ancestry is the same assumption the leading edge already makes.
+ *
+ * [contigLength] is used when the panel declares one. Where it does not -- `##contig` lines are optional
+ * and real panels omit them -- the interval is carried to [Int.MAX_VALUE], which covers any position a
+ * denser panel could hold.
+ */
+fun extendToContigEnd(
+    intervals: List<PathInterval<Pair<String, String>>>,
+    contigLength: Int?
+): List<PathInterval<Pair<String, String>>> {
+    if (intervals.isEmpty()) return intervals
+    val last = intervals.last()
+    val end = contigLength ?: Int.MAX_VALUE
+    if (end <= last.end) return intervals
+    return intervals.dropLast(1) + last.copy(end = end)
 }
