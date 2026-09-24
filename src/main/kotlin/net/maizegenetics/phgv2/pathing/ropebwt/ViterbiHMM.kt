@@ -115,12 +115,19 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
      *   indexed by founder. Used only at `F = 1`, where it saves computing `nParents^2` values to
      *   read `nParents` of them. Omit it and the diagonal is taken from the full array instead,
      *   which is correct but does that wasted work.
+     * @param lnNoSwitchByPosition per-position log probability of staying on the same founder,
+     *   indexed by the position being entered; see [transitionLogsByDistance]. Null uses the fixed
+     *   value from [sameGameteProbability]. Supported at `F = 0` and `F = 1` only.
+     * @param lnSwitchByPosition the matching per-position log probability of switching to one
+     *   particular other founder.
      */
     fun findDiploidStatePath(
         nParents: Int,
         nPositions: Int,
         emissionLogProbabilityFunction: (positionIndex: Int) -> DoubleArray,
-        homozygousEmissionLogProbabilityFunction: ((positionIndex: Int) -> DoubleArray)? = null
+        homozygousEmissionLogProbabilityFunction: ((positionIndex: Int) -> DoubleArray)? = null,
+        lnNoSwitchByPosition: DoubleArray? = null,
+        lnSwitchByPosition: DoubleArray? = null
     ): Pair<IntArray, Double> {
         val nStates = nParents * nParents
 
@@ -137,7 +144,7 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
 
         return when (inbreedingCoefficient) {
             0.0 -> viterbiOptimizedForDiploid(nParents, nPositions, initProbs,
-                emissionLogProbabilityFunction)
+                emissionLogProbabilityFunction, lnNoSwitchByPosition, lnSwitchByPosition)
 
             1.0 -> {
                 val diagonalInit = DoubleArray(nParents) { initProbs[it * nParents + it] }
@@ -146,8 +153,8 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
                         val full = emissionLogProbabilityFunction(positionIndex)
                         DoubleArray(nParents) { full[it * nParents + it] }
                     }
-                val homozygous =
-                    viterbiOptimizedForHaploid(nParents, nPositions, diagonalInit, diagonalEmission)
+                val homozygous = viterbiOptimizedForHaploid(nParents, nPositions, diagonalInit,
+                    diagonalEmission, lnNoSwitchByPosition, lnSwitchByPosition)
                 // Re-express the chosen founders as diploid state indices (i, i).
                 Pair(
                     IntArray(homozygous.first.size) {
@@ -158,6 +165,16 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
             }
 
             else -> {
+                // The general scan reads a precomputed nStates x nStates matrix, so a transition that
+                // varies from step to step would mean rebuilding it at every position -- O(nParents^4)
+                // of extra work per position, which is the same order as the scan itself. Refusing is
+                // better than silently applying the first step's transition everywhere. The two
+                // endpoints need only two scalars per step and take it in their stride.
+                require(lnNoSwitchByPosition == null && lnSwitchByPosition == null) {
+                    "Per-position transitions are supported at an inbreeding coefficient of 0 or 1, " +
+                            "not at $inbreedingCoefficient: the general scan would need its " +
+                            "transition matrix rebuilt at every position."
+                }
                 val matrix = DoubleArray(nStates * nStates)
                 val transitionProbabilityCalculator =
                     DiploidTransitionProbability(sameGameteProbability, inbreedingCoefficient, nParents)
@@ -205,15 +222,24 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         nParents: Int,
         positionCount: Int,
         initialLogProbabilities: DoubleArray,
-        emissionLogProbabilityFunction: (positionIndex: Int) -> DoubleArray
+        emissionLogProbabilityFunction: (positionIndex: Int) -> DoubleArray,
+        lnNoSwitchByPosition: DoubleArray? = null,
+        lnSwitchByPosition: DoubleArray? = null
     ): Pair<IntArray, Double> {
         require(nParents > 0) { "Parent count must be positive" }
         require(positionCount > 0) { "Position count must be positive" }
         val stateCount = nParents * nParents
         require(initialLogProbabilities.size == stateCount)
+        require(lnNoSwitchByPosition == null || lnNoSwitchByPosition.size == positionCount) {
+            "lnNoSwitchByPosition must hold one value per position"
+        }
+        require(lnSwitchByPosition == null || lnSwitchByPosition.size == positionCount) {
+            "lnSwitchByPosition must hold one value per position"
+        }
 
-        val lnNoSwitch = ln(sameGameteProbability)
-        val lnSwitch = if (nParents > 1) ln((1.0 - sameGameteProbability) / (nParents - 1)) else lnNoSwitch
+        val fixedLnNoSwitch = ln(sameGameteProbability)
+        val fixedLnSwitch =
+            if (nParents > 1) ln((1.0 - sameGameteProbability) / (nParents - 1)) else fixedLnNoSwitch
 
         var previous = DoubleArray(stateCount)
         var current = DoubleArray(stateCount)
@@ -232,6 +258,11 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         for (position in 1 until positionCount) {
             emission = emissionLogProbabilityFunction(position)
             val rowOffset = position * stateCount
+            // Per-haplotype transition for the step into this position. Both stages below and the
+            // whole-state comparison at the end use these, so a varying step size is charged
+            // consistently across all three.
+            val lnNoSwitch = lnNoSwitchByPosition?.get(position) ?: fixedLnNoSwitch
+            val lnSwitch = lnSwitchByPosition?.get(position) ?: fixedLnSwitch
 
             // --- stage one: maximise over the second founder of the previous state ---
             for (first in 0 until nParents) {
@@ -450,17 +481,25 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         stateCount: Int,
         positionCount: Int,
         initialLogProbabilities: DoubleArray,
-        emissionLogProbabilityFunction: (positionIndex: Int) -> DoubleArray
+        emissionLogProbabilityFunction: (positionIndex: Int) -> DoubleArray,
+        lnNoSwitchByPosition: DoubleArray? = null,
+        lnSwitchByPosition: DoubleArray? = null
     ): Pair<IntArray, Double> {
         require(stateCount > 0) { "State count must be positive" }
         require(positionCount > 0) { "State count must be positive" }
         require(initialLogProbabilities.size == stateCount)
+        require(lnNoSwitchByPosition == null || lnNoSwitchByPosition.size == positionCount) {
+            "lnNoSwitchByPosition must hold one value per position"
+        }
+        require(lnSwitchByPosition == null || lnSwitchByPosition.size == positionCount) {
+            "lnSwitchByPosition must hold one value per position"
+        }
 
-        val lnNoSwitch = ln(sameGameteProbability)
+        val fixedLnNoSwitch = ln(sameGameteProbability)
         // With one state there is nowhere to switch to, and the divisor would be zero: the quotient
         // becomes positive infinity and a switch then looks infinitely attractive, wrecking the
         // score. The probability of switching is genuinely zero, so floor it.
-        val lnSwitch = if (stateCount > 1) ln((1.0 - sameGameteProbability) / (stateCount - 1))
+        val fixedLnSwitch = if (stateCount > 1) ln((1.0 - sameGameteProbability) / (stateCount - 1))
                        else lnOrFloor(0.0)
         // Rolling buffers: only the previous position's best log-probabilities are
         // needed to compute the current position's, so we avoid storing all positions.
@@ -482,6 +521,8 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         for (position in 1 until positionCount) {
             val backPointerRowOffset = position * stateCount
             emissionLogProbabilities = emissionLogProbabilityFunction(position)
+            val lnNoSwitch = lnNoSwitchByPosition?.get(position) ?: fixedLnNoSwitch
+            val lnSwitch = lnSwitchByPosition?.get(position) ?: fixedLnSwitch
             for (currentStateIndex in 0 until stateCount) {
                 val emissionLogProbability =  emissionLogProbabilities[currentStateIndex]
 
