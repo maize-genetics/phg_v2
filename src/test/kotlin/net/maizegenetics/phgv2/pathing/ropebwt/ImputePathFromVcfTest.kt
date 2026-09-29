@@ -109,7 +109,7 @@ class ImputePathFromVcfTest {
 
     @Test
     fun aSampleIdenticalToOneFounderIsAssignedThatFounder(@TempDir dir: File) {
-        command(outDir = dir)
+        command("--path-type haploid", outDir = dir)
         assertTrue(readBed(File(dir, "pureA_imputed_path.bed")).all { it.third == "founderA" },
             "pureA carries REF at every site, as only founderA does")
         assertTrue(readBed(File(dir, "pureB_imputed_path.bed")).all { it.third == "founderB" })
@@ -125,7 +125,7 @@ class ImputePathFromVcfTest {
 
     @Test
     fun aRecombinantIsFollowedAcrossTheSwitch(@TempDir dir: File) {
-        command(outDir = dir)
+        command("--path-type haploid", outDir = dir)
         val bed = readBed(File(dir, "recomb_imputed_path.bed"))
         assertEquals("founderA", callAt(bed, "chr1", 100_000), "first cluster follows founderA")
         assertEquals("founderA", callAt(bed, "chr1", 600_000))
@@ -151,7 +151,7 @@ class ImputePathFromVcfTest {
     fun aMissingGenotypeDoesNotDerailThePath(@TempDir dir: File) {
         // gappy is pureA with two no-calls. Those sites contribute nothing, so the answer should be
         // unchanged rather than switching around the gaps.
-        command(outDir = dir)
+        command("--path-type haploid", outDir = dir)
         assertTrue(readBed(File(dir, "gappy_imputed_path.bed")).all { it.third == "founderA" },
             "two uninformative sites must not move the path")
     }
@@ -176,7 +176,7 @@ class ImputePathFromVcfTest {
 
     @Test
     fun aHaploidPathWritesFourColumnsAndADiploidPathFive(@TempDir dir: File) {
-        command(outDir = dir)
+        command("--path-type haploid", outDir = dir)
         val haploid = File(dir, "pureA_imputed_path.bed").readLines()
         assertEquals("chrom\tstart\tend\tparent1", haploid[0])
         assertEquals(4, haploid[1].split('\t').size)
@@ -252,14 +252,26 @@ class ImputePathFromVcfTest {
     }
 
     @Test
-    fun anIntermediateInbreedingCoefficientIsRefusedWithAReason(@TempDir dir: File) {
-        // Distance-scaled transitions cannot go through the general scan, so 0.5 is rejected up front
-        // rather than silently applying one step's transition everywhere.
+    fun thePathTypeSetsTheInbreedingCoefficientAndDefaultsToDiploid(@TempDir dir: File) {
+        // --path-type is the only control: haploid is the diploid path at an inbreeding coefficient of 1,
+        // diploid at 0. Diploid is the default because it imputes inbred lines as well as haploid does,
+        // while haploid cannot represent a heterozygote.
+        assertEquals(1.0, VcfPathParameters(pathType = "haploid").coefficient)
+        assertEquals(0.0, VcfPathParameters(pathType = "diploid").coefficient)
+        assertEquals("diploid", VcfPathParameters().pathType)
+
+        command(outDir = dir)
+        assertEquals("chrom\tstart\tend\tparent1\tparent2",
+            File(dir, "pureA_imputed_path.bed").readLines()[0], "no --path-type gives a diploid path")
+    }
+
+    @Test
+    fun inbreedCoefIsNoLongerAnOption(@TempDir dir: File) {
+        // It duplicated --path-type: only 0 and 1 were ever accepted, and those are diploid and haploid.
         val result = ImputePathFromVcf().test(
-            "--to-impute-vcf $sampleVcf --panel-vcf $panelVcf --out-path-dir ${dir.path} " +
-                    "--path-type diploid --inbreed-coef 0.5")
+            "--to-impute-vcf $sampleVcf --panel-vcf $panelVcf --out-path-dir ${dir.path} --inbreed-coef 1.0")
         assertEquals(1, result.statusCode)
-        assertTrue(result.stderr.contains("0.0 or 1.0"), result.stderr)
+        assertTrue(result.stderr.contains("no such option"), result.stderr)
     }
 
     @Test
@@ -337,7 +349,7 @@ class ImputePathFromVcfTest {
 
     @Test
     fun aPathSpansTheFirstToTheLastSharedSiteByDefault(@TempDir dir: File) {
-        command(outDir = dir)
+        command("--path-type haploid", outDir = dir)
         val bed = readBed(File(dir, "pureA_imputed_path.bed"))
         // shared sites: chr1 100 kb to 2.1 Mb, chr2 50 kb to 250 kb. Read as 1-based inclusive, the
         // path's first base is the first shared site and its last is the last shared site.
@@ -352,7 +364,7 @@ class ImputePathFromVcfTest {
 
     @Test
     fun extendToContigEndsClaimsWholeContigs(@TempDir dir: File) {
-        command("--extend-to-contig-ends", outDir = dir)
+        command("--path-type haploid", "--extend-to-contig-ends", outDir = dir)
         val bed = readBed(File(dir, "pureA_imputed_path.bed"))
         val chr1 = bed.filter { it.first == "chr1" }
         assertEquals(1, chr1.first().second.first, "the leading edge reaches the contig start")

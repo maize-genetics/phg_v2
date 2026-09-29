@@ -250,10 +250,16 @@ class ImputeVcfFromVcfTest {
     }
 
     @Test
-    fun anIntermediateInbreedingCoefficientIsRefused(@TempDir dir: File) {
-        val result = run(File(dir, "out.vcf"), "--path-type diploid --inbreed-coef 0.5")
-        assertEquals(1, result.statusCode)
-        assertTrue(result.stderr.contains("0.0 or 1.0"), result.stderr)
+    fun inbreedCoefIsNoLongerAnOptionAndThePathDefaultsToDiploid(@TempDir dir: File) {
+        val refused = run(File(dir, "refused.vcf"), "--inbreed-coef 1.0")
+        assertEquals(1, refused.statusCode)
+        assertTrue(refused.stderr.contains("no such option"), refused.stderr)
+
+        // With no --path-type the intermediate paths are diploid, five columns.
+        val beds = File(dir, "beds")
+        assertEquals(0, run(File(dir, "out.vcf"), "--bed-dir ${beds.absolutePath}").statusCode)
+        assertEquals("chrom\tstart\tend\tparent1\tparent2",
+            File(beds, "pureA_imputed_path.bed").readLines()[0])
     }
 
     @Test

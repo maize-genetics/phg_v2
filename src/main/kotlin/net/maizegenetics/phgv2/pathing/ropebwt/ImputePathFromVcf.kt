@@ -79,11 +79,13 @@ class ImputePathFromVcf : CliktCommand(help = "Impute founder paths for the samp
             "<sampleName>_imputed_path.bed. Coordinates are 0-based half-open. Required parameter.")
         .required()
 
-    val pathType by option(help = "The type of path to find. 'haploid' infers a single founder per " +
-            "position, which is a diploid path with the inbreeding coefficient set to 1. 'diploid' " +
-            "infers a pair.")
+    val pathType by option(help = "The type of path to find. 'diploid' infers a pair of founders per " +
+            "position, with an inbreeding coefficient of 0. 'haploid' infers a single founder, which is " +
+            "the same diploid path with the inbreeding coefficient set to 1, so only homozygous pairs " +
+            "are reachable. Diploid is the safe choice when unsure: it imputes inbred lines as well as " +
+            "haploid does, while haploid cannot represent a heterozygote. Default = diploid")
         .choice("haploid", "diploid")
-        .default("haploid")
+        .default("diploid")
 
     val probCorrect by option(help = "The probability that a genotype call is correct. A mismatch " +
             "between the observed genotype and the one a founder pair predicts costs ln(1 - this), " +
@@ -108,19 +110,6 @@ class ImputePathFromVcf : CliktCommand(help = "Impute founder paths for the samp
         .default(1_000_000.0)
         .validate { require(it > 0.0) { "prob-switch-distance must be positive" } }
 
-    val inbreedCoef by option(help = "The inbreeding coefficient, used for diploid paths. Only 0.0 " +
-            "and 1.0 are supported: an intermediate value needs the general Viterbi scan, whose " +
-            "transition matrix would have to be rebuilt at every position once the transition varies " +
-            "with distance. --path-type haploid sets this to 1.0 regardless. Default = 0.0")
-        .double()
-        .default(0.0)
-        .validate {
-            require(it == 0.0 || it == 1.0) {
-                "inbreed-coef must be 0.0 or 1.0 for this command; $it would need the general scan, " +
-                        "which cannot take a distance-scaled transition"
-            }
-        }
-
     val extendToContigEnds by option(help = "Carry the first and last interval of each contig out to " +
             "the contig's ends. Off by default, so a path spans only the first to the last site shared " +
             "with the panel and a denser panel's sites outside that span get no call. There is no " +
@@ -142,7 +131,6 @@ class ImputePathFromVcf : CliktCommand(help = "Impute founder paths for the samp
     /** This command's options as the parameter bundle the shared path finder takes. */
     fun parameters() = VcfPathParameters(
         pathType = pathType,
-        inbreedCoef = inbreedCoef,
         probCorrect = probCorrect,
         probSwitch = probSwitch,
         probSwitchDistance = probSwitchDistance,
@@ -174,16 +162,19 @@ class ImputePathFromVcf : CliktCommand(help = "Impute founder paths for the samp
  * drive it without reconstructing a Clikt command.
  */
 data class VcfPathParameters(
-    val pathType: String = "haploid",
-    val inbreedCoef: Double = 0.0,
+    val pathType: String = "diploid",
     val probCorrect: Double = 0.98,
     val probSwitch: Double = 1e-4,
     val probSwitchDistance: Double = 1_000_000.0,
     val contigsToUse: Set<String> = emptySet(),
     val extendToContigEnds: Boolean = false
 ) {
-    /** The coefficient actually used: a haploid path is a diploid path at 1. */
-    val coefficient: Double get() = if (pathType == "haploid") 1.0 else inbreedCoef
+    /**
+     * The inbreeding coefficient the path type implies: a haploid path is a diploid path at 1, where only
+     * homozygous pairs are reachable, and a diploid path is at 0. Only these two are supported, since an
+     * intermediate value needs the general Viterbi scan, which cannot take a distance-scaled transition.
+     */
+    val coefficient: Double get() = if (pathType == "haploid") 1.0 else 0.0
 }
 
 /** A founder path per sample, with what the site pairing saw while producing it. */

@@ -81,11 +81,13 @@ class ImputeVcfFromVcf : CliktCommand(help = "Impute a higher-density VCF for th
             "supply it to see which founders were chosen.")
         .default("")
 
-    val pathType by option(help = "The type of path to find. 'haploid' infers a single founder per " +
-            "position, which is a diploid path with the inbreeding coefficient set to 1. 'diploid' " +
-            "infers a pair.")
+    val pathType by option(help = "The type of path to find. 'diploid' infers a pair of founders per " +
+            "position, with an inbreeding coefficient of 0. 'haploid' infers a single founder, which is " +
+            "the same diploid path with the inbreeding coefficient set to 1, so only homozygous pairs " +
+            "are reachable. Diploid is the safe choice when unsure: it imputes inbred lines as well as " +
+            "haploid does, while haploid cannot represent a heterozygote. Default = diploid")
         .choice("haploid", "diploid")
-        .default("haploid")
+        .default("diploid")
 
     val probCorrect by option(help = "The probability that a genotype call is correct. Default = 0.98")
         .double()
@@ -104,17 +106,6 @@ class ImputeVcfFromVcf : CliktCommand(help = "Impute a higher-density VCF for th
         .default(1_000_000.0)
         .validate { require(it > 0.0) { "prob-switch-distance must be positive" } }
 
-    val inbreedCoef by option(help = "The inbreeding coefficient, used for diploid paths. Only 0.0 " +
-            "and 1.0 are supported; --path-type haploid sets it to 1.0 regardless. Default = 0.0")
-        .double()
-        .default(0.0)
-        .validate {
-            require(it == 0.0 || it == 1.0) {
-                "inbreed-coef must be 0.0 or 1.0 for this command; $it would need the general Viterbi " +
-                        "scan, which cannot take a distance-scaled transition"
-            }
-        }
-
     val extendToContigEnds by option(help = "Carry the first and last interval of each contig out to " +
             "the contig's ends. Off by default, so a path spans only the first to the last site shared " +
             "with the panel and a denser panel's sites outside that span get no call. There is no " +
@@ -132,7 +123,6 @@ class ImputeVcfFromVcf : CliktCommand(help = "Impute a higher-density VCF for th
         val pathFinder = ImputePathFromVcf()
         val parameters = VcfPathParameters(
             pathType = pathType,
-            inbreedCoef = inbreedCoef,
             probCorrect = probCorrect,
             probSwitch = probSwitch,
             probSwitchDistance = probSwitchDistance,
