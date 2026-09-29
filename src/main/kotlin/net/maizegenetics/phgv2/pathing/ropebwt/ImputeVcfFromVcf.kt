@@ -20,8 +20,7 @@ import java.io.File
  *
  * Two panels, doing two different jobs. The first has to overlap the sample's own sites, because that
  * is the evidence the path is inferred from; the second supplies the output's sites, so the denser it
- * is the more the output gains. They may be the same file, in which case nothing is gained but nothing
- * breaks.
+ * is the more the output gains. They may be the same file.
  *
  *     sample VCF + panel VCF  ->  founder path  ->  high-density panel  ->  imputed VCF
  *

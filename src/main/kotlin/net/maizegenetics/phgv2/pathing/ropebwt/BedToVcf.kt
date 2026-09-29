@@ -44,10 +44,10 @@ typealias FounderPath = Map<String, RangeMap<Int, Pair<String, String>>>
  *
  * Ported from the grits `BedToVcf`, with three changes:
  *
- *  - the duplicated VCF header builders are dropped in favour of
+ *  - the duplicated VCF header builders are dropped in favor of
  *    [net.maizegenetics.phgv2.utils.createGenericHeader]
  *  - paths are keyed by contig and integer position rather than by `Position` (see [FounderPath])
- *  - the recognised BED file names include PHG's own `<sample>_imputed_path.bed`, which the grits
+ *  - the recognized BED file names include PHG's own `<sample>_imputed_path.bed`, which the grits
  *    naming did not cover (see [sampleNameOf])
  *
  * ## The panel is read as haploid founders
@@ -141,7 +141,7 @@ class BedToVcf : CliktCommand(help = "Compose imputed founder paths (BED) into a
      *
      * `impute-path-from-ps4g` writes one file per sample named `<sample>_imputed_path.bed`, while
      * the per-contig convention used elsewhere is `<sample>_chr<contig>_imputed.bed`. Both have to
-     * be recognised, or a path written by this project's own imputer would be read back under a
+     * be recognized, or a path written by this project's own imputer would be read back under a
      * sample name with the suffix still attached.
      */
     fun sampleNameOf(bedFile: File): String {
