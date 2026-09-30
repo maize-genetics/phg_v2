@@ -70,8 +70,9 @@ class ImputePathFromVcf : CliktCommand(help = "Impute founder paths for the samp
         .validate { require(File(it).exists()) { "$it is not a valid file" } }
 
     val panelVcf by option(help = "Reference panel VCF whose samples are the candidate founders. " +
-            "Coordinate sorted, and assumed haploid or mostly homozygous. Its ##contig header lines " +
-            "define the contig order both files must follow. Required parameter.")
+            "Coordinate sorted, and assumed haploid or mostly homozygous. Its contig order, from its " +
+            "##contig header lines or, where it has none, from the order of its records, is the order " +
+            "both files must follow. Required parameter.")
         .required()
         .validate { require(File(it).exists()) { "$it is not a valid file" } }
 
