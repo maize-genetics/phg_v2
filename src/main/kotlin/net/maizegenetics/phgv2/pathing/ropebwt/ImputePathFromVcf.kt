@@ -270,7 +270,7 @@ fun logPairingCounts(counts: PairingCounts, logger: org.apache.logging.log4j.Log
     }
 }
 
-/** One BED per sample, named as `impute-path-from-ps4g` them, so that `bed-to-vcf` reads either. */
+/** One BED per sample, named as `impute-path-from-ps4g` names them, so that `bed-to-vcf` reads either. */
 fun writeFounderPathBeds(
     paths: Map<String, List<PathInterval<Pair<String, String>>>>,
     outputDir: File,
