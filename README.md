@@ -187,7 +187,9 @@ More commonly used terms can be found [here](https://phg.maizegenetics.net/termi
 ### PHG workflows
 1. [Installation](https://phg.maizegenetics.net/installation/)
 2. [Building and loading](https://phg.maizegenetics.net/build_and_load/)
-3. [Imputation](https://phg.maizegenetics.net/imputation_ropebwt/)
+3. Imputation
+    * [RopeBWT3 imputation](https://phg.maizegenetics.net/imputation_ropebwt/) (from sequencing reads)
+    * [VCF-to-VCF imputation](https://phg.maizegenetics.net/impute_vcf_to_vcf/) (from a lower-density VCF)
 4. [Resequencing](https://phg.maizegenetics.net/resequencing/)
 5. [Export data](https://phg.maizegenetics.net/export_data/)
 
