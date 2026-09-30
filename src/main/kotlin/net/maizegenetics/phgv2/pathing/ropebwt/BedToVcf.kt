@@ -85,7 +85,7 @@ class BedToVcf : CliktCommand(help = "Compose imputed founder paths (BED) into a
     private val myLogger = LogManager.getLogger(BedToVcf::class.java)
 
     val bedDir by option(help = "Directory of founder-path BED files, one or more per sample. " +
-            "Recognised names are <sample>_imputed_path.bed as written by impute-path-from-ps4g, " +
+            "Recognized names are <sample>_imputed_path.bed as written by impute-path-from-ps4g, " +
             "<sample>_chr<contig>_imputed.bed, and <sample>.bed. Several files for one sample are " +
             "merged. Required parameter.")
         .required()

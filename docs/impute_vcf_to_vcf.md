@@ -257,7 +257,7 @@ phg bed-to-vcf \
 
 | Parameter name | Description | Default value | Required? |
 |---|---|---|---|
-| `--bed-dir` | Directory of founder-path BED files. Recognised names are `<sample>_imputed_path.bed`, `<sample>_chr<contig>_imputed.bed` and `<sample>.bed`; several files for one sample are merged. | | :material-check: |
+| `--bed-dir` | Directory of founder-path BED files. Recognized names are `<sample>_imputed_path.bed`, `<sample>_chr<contig>_imputed.bed` and `<sample>.bed`; several files for one sample are merged. | | :material-check: |
 | `--reference-panel-vcf` | Founder panel supplying the output's sites and alleles. Its sample names must match the founder names in the BED files. | | :material-check: |
 | `--output-file` | The VCF to write. | | :material-check: |
 
