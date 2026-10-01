@@ -1,0 +1,4 @@
+chrom	start	end	parent1	parent2
+chr1	0	200	founderA	founderB
+chr1	200	1000	founderC	founderD
+chr2	0	1000	founderA	founderA

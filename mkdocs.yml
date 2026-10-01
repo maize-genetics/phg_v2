@@ -91,6 +91,7 @@ nav:
       - Building and loading: build_and_load.md
       - Imputation:
           - RopeBWT3 Imputation: imputation_ropebwt.md
+          - VCF-to-VCF Imputation: impute_vcf_to_vcf.md
           - k-mer Imputation (Deprecated): imputation.md
       - Resequencing: resequencing.md
       - Exporting data: export_data.md
