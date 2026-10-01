@@ -291,7 +291,7 @@ points. Imputing all 200 samples took about 10 seconds.
     sample descends from a founder the panel lacks, its path patches
     together the most similar founders available. In our tests,
     accuracy at those positions fell to 60–80%, and the path switched
-    founders far more often than the true crossovers. Such samples fit
+    founders far more often than the true crossovers. The imputed genotypes from those samples fit
     their own input genotypes noticeably worse than the others. If a
     few samples have many more path switches than the rest, or disagree
     with their own input genotypes at the shared sites much more often,
