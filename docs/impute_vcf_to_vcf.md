@@ -267,6 +267,57 @@ output. `bed-to-vcf` also accepts the BED files written by
 [`impute-path-from-ps4g`](imputation_ropebwt.md), so it can compose a
 VCF from read-based founder paths too.
 
+### Memory
+
+Neither panel is held in memory: both are read one record at a time. The
+path finder works one contig at a time, so the memory needed is set by the
+**largest contig** and by three numbers:
+
+* **Shared sites**: the sites on that contig that the sample VCF has in
+  common with the path panel. The sample VCF's density decides this, not
+  the size of either panel.
+* **Founders**, squared for a diploid path. For each site the path finder
+  keeps 4 bytes per path state, and a diploid path has founders² states
+  (625 for 25 founders) against a haploid path's founders. This is usually
+  the largest term.
+* **Samples**, a smaller linear term: the founders' and samples' alleles
+  at the shared sites of the current contig.
+
+The Java heap needed is roughly
+
+```
+0.1 GB + S × (4 × states + 4 × (founders + samples)) bytes
+```
+
+where `S` is the number of shared sites on the largest contig and `states`
+is founders² for `--path-type diploid` or founders for `haploid`. Allow
+about 50% more than this when setting `-Xmx`
+([Setting memory](installation.md#setting-memory)).
+
+Some examples for a diploid path with 25 founders and 1,000 samples, where
+the largest chromosome holds about 14% of the sites:
+
+| Sample data | Shared sites, largest chromosome | Heap |
+|---|---|---|
+| 50K SNP array | about 7,000 | about 0.15 GB |
+| 600K SNP array | about 85,000 | about 0.7 GB |
+| 10 million variants (e.g. low-pass sequencing) | about 1.4 million | about 9 GB |
+| the same, with 100 founders | about 1.4 million | about 60 GB |
+
+!!! tip "Reducing memory"
+    * Use `--path-type haploid` for fully inbred material. This shrinks the
+      largest term by a factor of the number of founders, with no loss of
+      accuracy for inbred samples.
+    * Thin a very dense sample VCF before imputing. The paths only need
+      enough markers to place crossovers (array density imputed 99.8% of
+      genotypes correctly in our tests), and the high-density panel still
+      supplies every output site.
+    * Splitting the samples into batches reduces only the smaller,
+      per-sample term.
+
+Running time grows with the same numbers. In our tests, 1,000 samples with
+106,705 shared sites on a contig took about 8.5 minutes for a diploid path.
+
 ## How well does it work?
 
 We tested the method on simulated maize samples built as mosaics of
