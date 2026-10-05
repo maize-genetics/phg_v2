@@ -258,20 +258,34 @@ private class SiteAccumulator(
     }
 
     /**
-     * Writes each named sample's genotype as two allele halves. A genotype of one allele is stored as
-     * homozygous, so a haploid call contributes a single gamete; no call, or a sample the record does
-     * not mention, is [MISSING] in both halves.
+     * Writes each named sample's genotype as two allele halves:
+     *
+     *  - a **haploid** call (`1`) is stored in both halves, so it contributes a single gamete
+     *  - a diploid call (`0/1`) is stored as written
+     *  - a **half call** (`0/.` or `./0`) stores its called allele first and [MISSING] second
+     *  - no call, or a sample the record does not mention, is [MISSING] in both halves
+     *
+     * A half call is not a haploid call: one allele is unknown, not absent. Storing it in both halves
+     * would turn `0/.` into an observed `0/0` and count against every heterozygous founder pair. Kept
+     * half-missing instead, it is uninformative for a sample, since the emission treats a sample
+     * genotype with a missing half as saying nothing, and a founder still contributes the one gamete
+     * it was called for. The called allele has to be first for that: the emission reads a founder
+     * whose first half is missing as uncalled.
      */
     private fun encode(record: VariantContext, names: List<String>, into: ByteArray, offset: Int) {
         names.forEachIndexed { index, name ->
             val slot = offset + index * 2
-            val genotype = record.getGenotype(name)
-            val called = genotype?.alleles?.filter { !it.isNoCall } ?: emptyList()
+            val alleles = record.getGenotype(name)?.alleles ?: emptyList()
+            val called = alleles.filter { !it.isNoCall }
             when {
                 called.isEmpty() -> { into[slot] = MISSING; into[slot + 1] = MISSING }
-                called.size == 1 -> {
+                alleles.size == 1 -> {
                     val allele = indexOf(record, called[0].baseString)
                     into[slot] = allele; into[slot + 1] = allele
+                }
+                called.size == 1 -> {
+                    into[slot] = indexOf(record, called[0].baseString)
+                    into[slot + 1] = MISSING
                 }
                 else -> {
                     into[slot] = indexOf(record, called[0].baseString)

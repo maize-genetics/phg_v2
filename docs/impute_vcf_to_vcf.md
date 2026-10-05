@@ -81,7 +81,8 @@ PHG, is one source of a high-density panel.
 
 The sample VCF is treated as **unphased**: genotypes are compared as
 unordered pairs, so `0/1` and `1/0` are the same call. Missing
-genotypes (`./.`) are allowed and are simply uninformative.
+genotypes (`./.`) are allowed and are simply uninformative, and so is a sample's
+half call such as `0/.`: with one allele unknown, it is not read as `0/0`.
 
 Every founder in the path panel must also be in the high-density panel,
 under the same name. This is checked before any work starts. Extra

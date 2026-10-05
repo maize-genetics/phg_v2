@@ -98,6 +98,61 @@ class ImputePathFromVcfTest {
     }
 
     @Test
+    fun aHalfCallIsKeptHalfMissingRatherThanReadAsHomozygous(@TempDir dir: File) {
+        // A half call has one allele unknown, which is not the same as a haploid call's one allele.
+        // Reading 0/. as 0/0 would invent an observed homozygote.
+        val header = "##fileformat=VCFv4.2\n##contig=<ID=chr1,length=1000>\n" +
+                "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n" +
+                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT"
+        val panel = File(dir, "panel.vcf").apply {
+            writeText("$header\tfRef\tfAlt\tfHalf\tfFlip\nchr1\t100\t.\tA\tC\t.\t.\t.\tGT\t0\t1\t1/.\t./1\n")
+        }
+        val sample = File(dir, "sample.vcf").apply {
+            writeText("$header\thalf\tflip\thet\thap\nchr1\t100\t.\tA\tC\t.\t.\t.\tGT\t0/.\t./1\t0/1\t1\n")
+        }
+        lateinit var chr1: ContigSites
+        pairVcfSites(sample, panel) { chr1 = it }
+        val missing = ContigSites.MISSING
+        val ref: Byte = 0
+        val alt = chr1.founderAllele1(0, chr1.founderNames.indexOf("fAlt"))
+
+        // haploid calls fill both halves; diploid calls are stored as written
+        assertEquals(ref, chr1.founderAllele2(0, chr1.founderNames.indexOf("fRef")), "haploid 0 is 0/0")
+        assertEquals(alt, chr1.sampleAllele2(0, chr1.sampleNames.indexOf("hap")), "haploid 1 is 1/1")
+        val het = chr1.sampleNames.indexOf("het")
+        assertEquals(ref, chr1.sampleAllele1(0, het))
+        assertEquals(alt, chr1.sampleAllele2(0, het))
+
+        // half calls: the called allele first, MISSING second, whichever side was missing
+        for ((name, allele) in listOf("half" to ref, "flip" to alt)) {
+            val s = chr1.sampleNames.indexOf(name)
+            assertEquals(allele, chr1.sampleAllele1(0, s), "$name keeps its called allele")
+            assertEquals(missing, chr1.sampleAllele2(0, s), "$name is not read as homozygous")
+        }
+        for (name in listOf("fHalf", "fFlip")) {
+            val f = chr1.founderNames.indexOf(name)
+            assertEquals(alt, chr1.founderAllele1(0, f), "$name keeps its called allele first")
+            assertEquals(missing, chr1.founderAllele2(0, f))
+        }
+
+        // A half-called sample says nothing about any state.
+        val halfSample = VcfGenotypeEmissionProbability(chr1, chr1.sampleNames.indexOf("half"), 0.98)
+        assertTrue(halfSample.getDiploidEmissionProbabilityArray(0).all { it == 0.0 },
+            "a half call is neutral")
+
+        // A half-called founder still contributes its one gamete: paired with itself it emits exactly
+        // what the homozygous fAlt does, for a sample that is called.
+        val n = chr1.nFounders
+        val hap = VcfGenotypeEmissionProbability(chr1, chr1.sampleNames.indexOf("hap"), 0.98)
+            .getDiploidEmissionProbabilityArray(0)
+        val fAlt = chr1.founderNames.indexOf("fAlt")
+        for (name in listOf("fHalf", "fFlip")) {
+            val f = chr1.founderNames.indexOf(name)
+            assertEquals(hap[fAlt * n + fAlt], hap[f * n + f], "$name/$name emits as fAlt/fAlt")
+        }
+    }
+
+    @Test
     fun contigsToUseRestrictsWhichContigsArePaired() {
         val seen = mutableListOf<String>()
         val counts = pairVcfSites(File(sampleVcf), File(panelVcf), setOf("chr2")) { seen.add(it.contig) }

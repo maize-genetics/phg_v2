@@ -16,7 +16,8 @@ package net.maizegenetics.phgv2.pathing.ropebwt
  * ## Layout
  *
  * Two halves are stored per genotype, so a heterozygous call is preserved rather than collapsed. A
- * haploid call, or a homozygous diploid one, has both halves equal. [MISSING] marks a no-call.
+ * haploid call, or a homozygous diploid one, has both halves equal. [MISSING] marks a no-call: in both
+ * halves when nothing was called, in the second half only for a half call such as `0/.`.
  *
  *     founderAlleles[(site * nFounders + founder) * 2 + half]
  *     sampleAlleles [(site * nSamples  + sample ) * 2 + half]
@@ -62,13 +63,19 @@ class ContigSites(
     /** First allele index of [founder] at [site], or [MISSING]. */
     fun founderAllele1(site: Int, founder: Int) = founderAlleles[(site * nFounders + founder) * 2]
 
-    /** Second allele index of [founder] at [site]; equal to the first unless the founder is heterozygous. */
+    /**
+     * Second allele index of [founder] at [site]; equal to the first unless the founder is heterozygous,
+     * and [MISSING] for a half call.
+     */
     fun founderAllele2(site: Int, founder: Int) = founderAlleles[(site * nFounders + founder) * 2 + 1]
 
     /** First allele index of [sample] at [site], or [MISSING]. */
     fun sampleAllele1(site: Int, sample: Int) = sampleAlleles[(site * nSamples + sample) * 2]
 
-    /** Second allele index of [sample] at [site]; equal to the first when the call is homozygous. */
+    /**
+     * Second allele index of [sample] at [site]; equal to the first when the call is homozygous, and
+     * [MISSING] for a half call.
+     */
     fun sampleAllele2(site: Int, sample: Int) = sampleAlleles[(site * nSamples + sample) * 2 + 1]
 
     companion object {
