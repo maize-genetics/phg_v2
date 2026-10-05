@@ -223,6 +223,11 @@ private class SiteAccumulator(
     private var founderAlleles = ByteArray(1024 * founderNames.size * 2)
     private var sampleAlleles = ByteArray(1024 * sampleNames.size * 2)
 
+    // The allele numbering for the site being added: one index per distinct allele string, from the
+    // union of the panel and sample records, so the same allele gets the same index in both. Cleared
+    // at the start of every add.
+    private val alleleIndex = HashMap<String, Byte>(8)
+
     fun add(panelRecord: VariantContext, sampleRecord: VariantContext) {
         if (contig != panelRecord.contig) {
             flush()
@@ -230,24 +235,26 @@ private class SiteAccumulator(
         }
         grow()
 
-        // One index per distinct allele string, from the union of the two records. REF is shared, so
-        // it always lands on 0.
-        val alleleIndex = HashMap<String, Byte>(8)
-        fun indexOf(baseString: String): Byte = alleleIndex.getOrPut(baseString) {
-            require(alleleIndex.size < MAX_ALLELES_PER_SITE) {
-                "${panelRecord.contig}:${panelRecord.start} has more than " +
-                        "$MAX_ALLELES_PER_SITE distinct alleles, which an allele index cannot hold"
-            }
-            alleleIndex.size.toByte()
-        }
-        indexOf(panelRecord.reference.baseString)
+        // REF is shared by the two records and numbered first, so it always lands on 0.
+        alleleIndex.clear()
+        indexOf(panelRecord, panelRecord.reference.baseString)
 
-        encode(panelRecord, founderNames, founderAlleles,
-            (siteCount * founderNames.size) * 2, ::indexOf)
-        encode(sampleRecord, sampleNames, sampleAlleles,
-            (siteCount * sampleNames.size) * 2, ::indexOf)
+        encode(panelRecord, founderNames, founderAlleles, (siteCount * founderNames.size) * 2)
+        encode(sampleRecord, sampleNames, sampleAlleles, (siteCount * sampleNames.size) * 2)
         positions[siteCount] = panelRecord.start
         siteCount++
+    }
+
+    /**
+     * The index of an allele at the site being added, assigning the next one on first sight. [record]
+     * only locates the site for the error message; the two records of a pair share contig and position.
+     */
+    private fun indexOf(record: VariantContext, baseString: String): Byte = alleleIndex.getOrPut(baseString) {
+        require(alleleIndex.size < MAX_ALLELES_PER_SITE) {
+            "${record.contig}:${record.start} has more than " +
+                    "$MAX_ALLELES_PER_SITE distinct alleles, which an allele index cannot hold"
+        }
+        alleleIndex.size.toByte()
     }
 
     /**
@@ -255,13 +262,7 @@ private class SiteAccumulator(
      * homozygous, so a haploid call contributes a single gamete; no call, or a sample the record does
      * not mention, is [MISSING] in both halves.
      */
-    private fun encode(
-        record: VariantContext,
-        names: List<String>,
-        into: ByteArray,
-        offset: Int,
-        indexOf: (String) -> Byte
-    ) {
+    private fun encode(record: VariantContext, names: List<String>, into: ByteArray, offset: Int) {
         names.forEachIndexed { index, name ->
             val slot = offset + index * 2
             val genotype = record.getGenotype(name)
@@ -269,12 +270,12 @@ private class SiteAccumulator(
             when {
                 called.isEmpty() -> { into[slot] = MISSING; into[slot + 1] = MISSING }
                 called.size == 1 -> {
-                    val allele = indexOf(called[0].baseString)
+                    val allele = indexOf(record, called[0].baseString)
                     into[slot] = allele; into[slot + 1] = allele
                 }
                 else -> {
-                    into[slot] = indexOf(called[0].baseString)
-                    into[slot + 1] = indexOf(called[1].baseString)
+                    into[slot] = indexOf(record, called[0].baseString)
+                    into[slot + 1] = indexOf(record, called[1].baseString)
                 }
             }
         }
