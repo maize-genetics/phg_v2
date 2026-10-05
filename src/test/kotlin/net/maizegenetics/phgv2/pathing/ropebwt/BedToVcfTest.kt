@@ -191,6 +191,24 @@ class BedToVcfTest {
     }
 
     @Test
+    fun aGzNameIsWrittenBlockCompressedAndAnyOtherAsText(@TempDir dir: File) {
+        val plain = File(dir, "imputed.vcf")
+        val gz = File(dir, "imputed.vcf.gz")
+        runCommand(plain)
+        runCommand(gz)
+
+        // BGZF, as bgzip writes it: a gzip member (1f 8b, deflate) whose header has the extra-field
+        // flag set and carries the "BC" subfield. Plain gzip would not, and tabix needs BGZF.
+        val head = gz.inputStream().use { it.readNBytes(14) }.map { it.toInt() and 0xff }
+        assertEquals(listOf(0x1f, 0x8b, 0x08), head.subList(0, 3), "a gzip member")
+        assertEquals(0x04, head[3] and 0x04, "the extra-field flag is set")
+        assertEquals(listOf('B'.code, 'C'.code), head.subList(12, 14), "the BGZF block-size subfield")
+
+        assertTrue(plain.readText().startsWith("##fileformat=VCF"), "any other name is plain text")
+        assertEquals(genotypesByPosition(plain), genotypesByPosition(gz), "the same records either way")
+    }
+
+    @Test
     fun everyPanelSiteAppearsInTheOutput(@TempDir dir: File) {
         val out = File(dir, "imputed.vcf")
         runCommand(out)

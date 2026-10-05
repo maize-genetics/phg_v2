@@ -98,7 +98,8 @@ class BedToVcf : CliktCommand(help = "Compose imputed founder paths (BED) into a
         .required()
         .validate { require(File(it).exists()) { "$it is not a valid file" } }
 
-    val outputFile by option(help = "The VCF to write. Required parameter.")
+    val outputFile by option(help = "The VCF to write. A name ending in gz (e.g. out.vcf.gz) is written " +
+            "block-compressed, ready for tabix; any other name as plain text. Required parameter.")
         .required()
 
     override fun run() {
@@ -200,15 +201,20 @@ class BedToVcf : CliktCommand(help = "Compose imputed founder paths (BED) into a
      * sample in [paths] whose path covers that site.
      *
      * The panel is read one record at a time and never held, so memory is bounded by the paths.
+     *
+     * An [outputFile] whose name ends in `gz` is written block-compressed (BGZF, as bgzip writes it),
+     * so it can be indexed with tabix; any other name is written as plain text. No index is written.
      */
     fun writeVcf(panelVcf: File, paths: Map<String, FounderPath>, outputFile: File) {
         val samples = paths.keys.sorted()
         var sites = 0L
         var genotypesWritten = 0L
+        val outputType = if (outputFile.name.endsWith("gz")) VariantContextWriterBuilder.OutputType.BLOCK_COMPRESSED_VCF
+                         else VariantContextWriterBuilder.OutputType.VCF
         VariantContextWriterBuilder()
             .unsetOption(Options.INDEX_ON_THE_FLY)
             .setOutputFile(outputFile)
-            .setOutputFileType(VariantContextWriterBuilder.OutputType.VCF)
+            .setOutputFileType(outputType)
             .setOption(Options.ALLOW_MISSING_FIELDS_IN_HEADER)
             .build().use { writer ->
                 writer.writeHeader(createGenericHeader(samples, emptySet()))

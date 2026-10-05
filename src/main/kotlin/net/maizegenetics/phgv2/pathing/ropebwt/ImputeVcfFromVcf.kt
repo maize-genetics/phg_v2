@@ -72,7 +72,8 @@ class ImputeVcfFromVcf : CliktCommand(help = "Impute a higher-density VCF for th
         .required()
         .validate { require(File(it).exists()) { "$it is not a valid file" } }
 
-    val outputFile by option(help = "The imputed VCF to write. Required parameter.")
+    val outputFile by option(help = "The imputed VCF to write. A name ending in gz (e.g. out.vcf.gz) is " +
+            "written block-compressed, ready for tabix; any other name as plain text. Required parameter.")
         .required()
 
     val bedDir by option(help = "Optional directory for the intermediate founder paths, as " +

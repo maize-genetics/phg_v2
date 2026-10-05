@@ -124,7 +124,7 @@ written, unless you add `--bed-dir`.
 | `--to-impute-vcf` | VCF of the samples to impute. | | :material-check: |
 | `--panel-vcf` | Founder panel used to infer the path. Its samples must be a subset of the high-density panel's. | | :material-check: |
 | `--high-density-panel-vcf` | Founder panel supplying the output's sites and alleles. | | :material-check: |
-| `--output-file` | The imputed VCF to write. | | :material-check: |
+| `--output-file` | The imputed VCF to write. A name ending in `gz` (e.g. `imputed.vcf.gz`) is written block-compressed, ready for `tabix`; any other name as plain text. | | :material-check: |
 | `--bed-dir` | Directory for the founder paths, one `<sampleName>_imputed_path.bed` per sample. Nothing intermediate is written unless this is given. | | |
 | `--path-type` | `diploid` infers a pair of founders at each position; `haploid` infers a single founder. See [Choosing a path type](#choosing-a-path-type). | `diploid` | |
 | `--prob-correct` | The probability that a genotype call in the sample VCF is correct. | `0.98` | |
@@ -260,7 +260,7 @@ phg bed-to-vcf \
 |---|---|---|---|
 | `--bed-dir` | Directory of founder-path BED files. Recognized names are `<sample>_imputed_path.bed`, `<sample>_chr<contig>_imputed.bed` and `<sample>.bed`; several files for one sample are merged. | | :material-check: |
 | `--reference-panel-vcf` | Founder panel supplying the output's sites and alleles. Its sample names must match the founder names in the BED files. | | :material-check: |
-| `--output-file` | The VCF to write. | | :material-check: |
+| `--output-file` | The VCF to write; block-compressed when the name ends in `gz`. | | :material-check: |
 
 The chained command and the two separate commands produce the same
 output. `bed-to-vcf` also accepts the BED files written by
