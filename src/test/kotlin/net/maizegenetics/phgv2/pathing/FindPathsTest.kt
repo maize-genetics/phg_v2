@@ -396,6 +396,47 @@ class FindPathsTest {
         assert(exception.message!!.startsWith("UseLikelyAncestors is true but likelyAncestors will not be checked"))
     }
 
+    /**
+     * --hmm fast, haploid and diploid, on the same read mappings and expectations as the legacy tests.
+     */
+    @Test
+    fun testFastHmmPathFinding() {
+        val vcfDir = File(TestExtension.testVCFDir)
+        val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
+        val myGraph = HaplotypeGraph(listOfHvcfFilenames)
+
+        val haploidMappingFile = TestExtension.testOutputDir + "testFastHaploid_readMapping.txt"
+        createHaploidReadMappings(myGraph, haploidMappingFile)
+        val diploidMappingFile = TestExtension.testOutputDir + "testFastDiploid_readMapping.txt"
+        createDiploidReadMappings(myGraph, diploidMappingFile)
+
+        val keyFilename = TestExtension.testOutputDir + "keyfileForFastPathTest.txt"
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("sampleName\tfilename\n")
+            myWriter.write("FastHaploid\t$haploidMappingFile\n")
+        }
+        val outputDir = TestExtension.testOutputDir + "fast/"
+        File(outputDir).mkdirs()
+        val haploidResult = FindPaths().test("--hmm fast --path-type haploid --path-keyfile $keyFilename " +
+                "--hvcf-dir ${TestExtension.testVCFDir} --reference-genome ${TestExtension.smallseqRefFile} " +
+                "--output-dir $outputDir --out-parents-dir ${outputDir}parents")
+        assertEquals(0, haploidResult.statusCode, "haploid status code: ${haploidResult.output}")
+        checkParentOutputIsLineA("${outputDir}parents/FastHaploid_imputed_parents.txt")
+
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("sampleName\tfilename\n")
+            myWriter.write("FastDiploid\t$diploidMappingFile\n")
+        }
+        val diploidResult = FindPaths().test("--hmm fast --path-type diploid --path-keyfile $keyFilename " +
+                "--hvcf-dir ${TestExtension.testVCFDir} --reference-genome ${TestExtension.smallseqRefFile} " +
+                "--output-dir $outputDir --out-parents-dir ${outputDir}parents --prob-same-gamete 0.8")
+        assertEquals(0, diploidResult.statusCode, "diploid status code: ${diploidResult.output}")
+        checkDiploidParentFile(File("${outputDir}parents").resolve("FastDiploid_imputed_parents.txt"))
+        VCFFileReader(File("${outputDir}FastDiploid.h.vcf"), false).use { vcf ->
+            assertEquals(40, vcf.count(), "one h.vcf record per reference range")
+        }
+    }
+
     fun checkDiploidParentFile(parentFile: File) {
         var numberOfLines = 0
         getBufferedReader(parentFile).use { myReader ->

@@ -107,6 +107,15 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
     val outParentsDir by option(help="The directory where the imputed parents (ancestors) will be written for each sample. File names will be <sampleName>_imputed_parents.txt. If no directory name is supplied, the files will not be written.")
         .default("")
 
+    val hmm by option(help = "The HMM used to find paths. 'legacy' is the original path finder. 'fast' is the " +
+            "Viterbi HMM of impute-path-from-ps4g, applied to reference ranges: much faster for diploid paths, " +
+            "with a constant per-range probability of staying on the same gamete (ranges without reads count) " +
+            "and a switch divided equally among the other gametes. 'fast' ignores --min-gametes, --min-reads, " +
+            "--max-reads-per-kb and --inbreeding-coefficient: a diploid path is found as for an inbreeding " +
+            "coefficient of 0 and a haploid path as for 1. Default = legacy")
+        .choice("legacy", "fast")
+        .default("legacy")
+
     val pathType by option(help = "The type of path to find. Must be lower case 'haploid' or 'diploid' (without quotes). 'haploid' infers a single path through the graph. 'diploid' infers a pair of paths. Required parameter.")
         .choice("haploid", "diploid")
         .required()
@@ -119,7 +128,8 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         .default(0.99)
         .validate { require(it in 0.5..1.0) {"prob-correct must be between 0.5 and 1.0"} }
 
-    val probSameGamete by option(help = "The probability of transitioning to the same gamete (sample) in the next reference range.")
+    val probSameGamete by option(help = "The probability of transitioning to the same gamete (sample) in the next reference range. " +
+            "With --hmm fast, ranges without reads count, so the probability of staying across k ranges is this value to the power k.")
         .double()
         .default(0.99)
         .validate { require(it in 0.01..1.0) {"prob-correct must be between 0.01 and 1.0"} }
@@ -317,7 +327,15 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
     }
 
     private suspend fun imputePath(graph: HaplotypeGraph, readMappingChannel: ReceiveChannel<ReadMappingResult>, pathChannel: SendChannel<Path>) {
-        val pathFinder = PathFinderWithViterbiHMM(graph = graph,
+        val findBestPath = if (hmm == "fast") PathFinderWithFastHMM(graph = graph,
+            isHaploidPath = pathType == "haploid",
+            probCorrect = probCorrect,
+            sameGameteProbability = probSameGamete,
+            useLikelyParents = useLikelyAncestors,
+            maxParents = maxAncestors,
+            minCoverage = minCoverage
+        )::findBestPath
+        else PathFinderWithViterbiHMM(graph = graph,
             isHaploidPath = pathType == "haploid",
             probCorrect = probCorrect,
             sameGameteProbability = probSameGamete,
@@ -328,11 +346,13 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
             maxParents = maxAncestors,
             minCoverage = minCoverage,
             inbreedCoef = inbreedingCoefficient
-        )
+        )::findBestPath
 
         for (result in readMappingChannel) {
             val mappingsByRefrange = readMappingByRange(result.readMappingCounts, graph)
-            val pathResult = pathFinder.findBestPath(mappingsByRefrange)
+            val startTime = System.nanoTime()
+            val pathResult = findBestPath(mappingsByRefrange)
+            myLogger.info("$hmm HMM found the path for ${result.name} in ${(System.nanoTime() - startTime) / 1e9} sec")
             pathChannel.send(Path(result.name, pathResult.first, graph, pathResult.second))
         }
 
