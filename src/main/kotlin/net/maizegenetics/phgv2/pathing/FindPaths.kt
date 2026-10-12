@@ -1,6 +1,5 @@
 package net.maizegenetics.phgv2.pathing
 
-import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
 import com.github.ajalt.clikt.parameters.groups.required
@@ -11,6 +10,7 @@ import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import htsjdk.variant.variantcontext.VariantContext
+import htsjdk.variant.vcf.VCFHeaderLine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -112,7 +112,8 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
             "with a constant per-range probability of staying on the same gamete (ranges without reads count) " +
             "and a switch divided equally among the other gametes. 'fast' ignores --min-gametes, --min-reads, " +
             "--max-reads-per-kb and --inbreeding-coefficient: a diploid path is found as for an inbreeding " +
-            "coefficient of 0 and a haploid path as for 1. Default = legacy")
+            "coefficient of 0 and a haploid path as for 1. 'fast' writes no records for a contig with no reads, " +
+            "where 'legacy' writes a path that no read supports. Default = legacy")
         .choice("legacy", "fast")
         .default("legacy")
 
@@ -304,9 +305,10 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
             })
         }
 
-        //create a coroutine to store paths
+        //create a coroutine to store paths. The reference is needed only for contig lengths and the base at
+        //each range start, so those are read once, here, while the first paths are being found.
         val saveJob = launch(Dispatchers.IO) {
-            savePath(pathChannel)
+            savePath(pathChannel, ReferenceSummary.read(referenceGenome, myGraph.ranges()))
         }
 
         //load read mappings for each sample into a channel
@@ -358,10 +360,10 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
 
     }
 
-    private suspend fun savePath(pathChannel : ReceiveChannel<Path>) {
+    private suspend fun savePath(pathChannel : ReceiveChannel<Path>, referenceSummary: ReferenceSummary) {
         for (path in pathChannel) {
             if (path.hapidList.isNotEmpty()) {
-                writeHvcf(path)
+                writeHvcf(path, referenceSummary)
                 if (useLikelyAncestors && likelyAncestorFile.isNotBlank()) appendParentStats(path)
             } else {
                 myLogger.warn("Path was not imputed for ${path.name}")
@@ -369,13 +371,23 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         }
     }
 
-    private fun writeHvcf(myPath: Path) {
+    /**
+     * ALT header lines by hapid. Building one parses a constructed string, which made it most of the time
+     * spent writing an h.vcf; samples share founder haplotypes, so each line is built once per run. Only
+     * the single save coroutine uses it.
+     */
+    private val altHeaderLines = HashMap<String, VCFHeaderLine>()
+
+    private fun altHeaderLine(graph: HaplotypeGraph, hapid: String): VCFHeaderLine? =
+        altHeaderLines[hapid] ?: graph.altHeader(hapid)?.let { altHeaderMetadataToVCFHeaderLine(it) }
+            ?.also { altHeaderLines[hapid] = it }
+
+    private fun writeHvcf(myPath: Path, referenceSummary: ReferenceSummary) {
         //use method exportVariantContext() in VariantLoadingUtils
         //use the alt header lines from the graph for the hapids in myPath
         //create a list of VariantContexts from myPath: use method createHvcfRecord() in VariantLoadingUtils
 
-        val referenceSequence = NucSeqIO(referenceGenome).readAll()
-        val altHeadersSample = mutableListOf<AltHeaderMetaData>()
+        val hapidsInPath = LinkedHashSet<String>()
 
         val variantContextList = mutableListOf<VariantContext>()
 
@@ -383,21 +395,20 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         for ( node in myPath.hapidList) {
             val startPos = Position(node.refRange.contig, node.refRange.start)
             val endPos = Position(node.refRange.contig, node.refRange.end)
-            val refAllele = referenceSequence[node.refRange.contig]!!.sequence[node.refRange.start - 1].name
+            val refAllele = referenceSummary.startBase(node.refRange)
             val hapids = node.sampleGametes.map { myPath.graph.sampleToHapId(node.refRange, it) }
 
             variantContextList.add(createDiploidHVCFRecord(myPath.name, startPos, endPos, hapids, refAllele))
 
-            //add alt headers for the unique hapids
-            hapids.filterNotNull().distinct().mapNotNull { myPath.graph.altHeader(it) }.forEach { altHeadersSample.add(it) }
+            hapids.filterNotNull().forEach { hapidsInPath.add(it) }
         }
 
         //exportVariantContext()
         val hvcfFileName = if (outputDir.endsWith("/")) "${outputDir}${myPath.name}.h.vcf"
         else "${outputDir}/${myPath.name}.h.vcf"
-        val headerSet = altHeadersSample.map { altHeaderMetadataToVCFHeaderLine(it) }.toSet()
+        val headerSet = hapidsInPath.mapNotNull { altHeaderLine(myPath.graph, it) }.toSet()
 
-        exportVariantContext(myPath.name, variantContextList, hvcfFileName, referenceSequence, headerSet)
+        exportVariantContext(myPath.name, variantContextList, hvcfFileName, referenceSummary.sequenceDictionary(), headerSet)
 
         //write the parents (if requested)
         if(outParentsDir.isNotBlank()) {

@@ -437,6 +437,59 @@ class FindPathsTest {
         }
     }
 
+    /**
+     * --use-likely-ancestors with --hmm fast: the likely ancestor file is written as for legacy, and the
+     * path uses only the chosen ancestor.
+     */
+    @Test
+    fun testFastHmmWithLikelyParents() {
+        val vcfDir = File(TestExtension.testVCFDir)
+        val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
+        val myGraph = HaplotypeGraph(listOfHvcfFilenames)
+        val readMappingFile = TestExtension.testOutputDir + "testFastLP_readMapping.txt"
+        val readCounts = createHaploidReadMappings(myGraph, readMappingFile)
+        val expectedCoverage = readCounts[0].toDouble() / readCounts[1].toDouble()
+
+        val keyFilename = TestExtension.testOutputDir + "keyfileForFastLPTest.txt"
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("sampleName\tfilename\n")
+            myWriter.write("FastLP\t$readMappingFile\n")
+        }
+        val outputDir = TestExtension.testOutputDir + "fastLP/"
+        File(outputDir).mkdirs()
+        val likelyAncestorFile = outputDir + "ancestors.txt"
+        File(likelyAncestorFile).delete()
+
+        for (pathType in listOf("haploid", "diploid")) {
+            val result = FindPaths().test("--hmm fast --path-type $pathType --path-keyfile $keyFilename " +
+                    "--hvcf-dir ${TestExtension.testVCFDir} --reference-genome ${TestExtension.smallseqRefFile} " +
+                    "--output-dir $outputDir --out-parents-dir ${outputDir}parents_$pathType " +
+                    "--use-likely-ancestors true --max-ancestors 2 --min-coverage 0.9 " +
+                    "--likely-ancestor-file $likelyAncestorFile")
+            assertEquals(0, result.statusCode, "$pathType status code: ${result.output}")
+            File("${outputDir}FastLP.h.vcf").delete()
+
+            //LineA alone covers more than 0.9 of the reads, so it is the only ancestor and the whole path
+            getBufferedReader("${outputDir}parents_$pathType/FastLP_imputed_parents.txt").use { reader ->
+                reader.lines().skip(1).forEach { line ->
+                    val parents = line.split("\t").drop(3).filter { it.isNotBlank() }
+                    assertTrue(parents.isNotEmpty() && parents.all { it == "LineA:0" }, "$pathType: $line")
+                }
+            }
+        }
+
+        //one header and one ancestor line per run
+        val lines = File(likelyAncestorFile).readLines()
+        assertEquals("sample\tancestor\tgameteId\treads\tcoverage", lines[0])
+        assertEquals(3, lines.size)
+        for (line in lines.drop(1)) {
+            val parentInfo = line.split("\t")
+            assertEquals("FastLP", parentInfo[0])
+            assertEquals("LineA", parentInfo[1])
+            assertEquals(expectedCoverage, parentInfo[4].toDouble())
+        }
+    }
+
     fun checkDiploidParentFile(parentFile: File) {
         var numberOfLines = 0
         getBufferedReader(parentFile).use { myReader ->
