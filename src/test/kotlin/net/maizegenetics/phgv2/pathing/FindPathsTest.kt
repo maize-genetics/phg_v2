@@ -9,6 +9,10 @@ import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.exportReadMappin
 import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.mergeReadMappings
 import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -434,6 +438,66 @@ class FindPathsTest {
         checkDiploidParentFile(File("${outputDir}parents").resolve("FastDiploid_imputed_parents.txt"))
         VCFFileReader(File("${outputDir}FastDiploid.h.vcf"), false).use { vcf ->
             assertEquals(40, vcf.count(), "one h.vcf record per reference range")
+        }
+    }
+
+    /**
+     * A failure while writing a path must fail the command, not leave it to exit normally with some samples
+     * missing. Here the reference lacks contig 2, so writing that contig's records throws.
+     */
+    @Test
+    fun testSaveFailureFailsTheCommand() {
+        val vcfDir = File(TestExtension.testVCFDir)
+        val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
+        val myGraph = HaplotypeGraph(listOfHvcfFilenames)
+        val readMappingFile = TestExtension.testOutputDir + "testSaveFailure_readMapping.txt"
+        createHaploidReadMappings(myGraph, readMappingFile)
+
+        val outputDir = TestExtension.testOutputDir + "saveFailure/"
+        File(outputDir).mkdirs()
+        val keyFilename = outputDir + "keyfile.txt"
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("sampleName\tfilename\n")
+            myWriter.write("SaveFailure\t$readMappingFile\n")
+        }
+        //the first contig of the test reference only
+        val partialReference = outputDir + "ref_contig1.fa"
+        val referenceLines = File(TestExtension.smallseqRefFile).readLines()
+        File(partialReference).writeText(referenceLines.takeWhile { !it.startsWith(">2") }.joinToString("\n") + "\n")
+
+        for (hmm in listOf("legacy", "fast")) {
+            val exception = assertThrows<IllegalArgumentException> {
+                FindPaths().test("--hmm $hmm --path-type haploid --path-keyfile $keyFilename " +
+                        "--hvcf-dir ${TestExtension.testVCFDir} --reference-genome $partialReference " +
+                        "--output-dir $outputDir")
+            }
+            assertTrue(exception.message!!.contains("no base at 2:"), "$hmm: ${exception.message}")
+        }
+    }
+
+    /**
+     * A CancellationException thrown from inside a launched coroutine, while that coroutine is not itself
+     * cancelled, ends it quietly and leaves the parent to finish normally: the silent failure behind
+     * find-paths exiting 0 with samples unwritten. [failOnInnerCancellation] turns it into a failure, and
+     * lets a real cancellation through.
+     */
+    @Test
+    fun testFailOnInnerCancellation() {
+        //without the wrapper, nothing fails
+        runBlocking { launch { throw CancellationException("from a library") } }
+
+        val exception = assertThrows<IllegalStateException> {
+            runBlocking { launch { failOnInnerCancellation("Writing paths") { throw CancellationException("from a library") } } }
+        }
+        assertEquals("Writing paths failed", exception.message)
+
+        //a real cancellation is still a cancellation
+        runBlocking {
+            val job = launch { failOnInnerCancellation("Writing paths") { delay(60_000) } }
+            delay(50)
+            job.cancel()
+            job.join()
+            assertTrue(job.isCancelled)
         }
     }
 

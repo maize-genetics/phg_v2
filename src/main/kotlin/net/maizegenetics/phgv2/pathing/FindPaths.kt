@@ -11,11 +11,14 @@ import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFHeaderLine
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.maizegenetics.phgv2.api.HaplotypeGraph
@@ -66,6 +69,22 @@ sealed class PathInputFile {
     }
 }
 
+
+/**
+ * Runs [block], turning a CancellationException that reaches it while this coroutine is still active
+ * into a failure. Such an exception comes from code [block] calls -- a library's own coroutines, for
+ * instance, can surface an error as one -- not from this coroutine being cancelled. Left alone it ends
+ * the coroutine quietly as cancelled, which does not fail the parent, so find-paths would exit normally
+ * with some samples never written. A real cancellation, as when a sibling coroutine fails, passes
+ * through unchanged.
+ */
+internal suspend fun CoroutineScope.failOnInnerCancellation(task: String, block: suspend () -> Unit) {
+    try {
+        block()
+    } catch (e: CancellationException) {
+        if (isActive) throw IllegalStateException("$task failed", e) else throw e
+    }
+}
 
 /**
  * This version of FindPaths uses .h.vcf files to build the HaplotypeGraph used for path finding
@@ -301,14 +320,16 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         val jobList = mutableListOf<Job>()
         repeat(threads) {
             jobList.add(launch(Dispatchers.Default) {
-                imputePath(myGraph, readMappingChannel, pathChannel)
+                failOnInnerCancellation("Finding paths") { imputePath(myGraph, readMappingChannel, pathChannel) }
             })
         }
 
         //create a coroutine to store paths. The reference is needed only for contig lengths and the base at
         //each range start, so those are read once, here, while the first paths are being found.
         val saveJob = launch(Dispatchers.IO) {
-            savePath(pathChannel, ReferenceSummary.read(referenceGenome, myGraph.ranges()))
+            failOnInnerCancellation("Writing paths") {
+                savePath(pathChannel, ReferenceSummary.read(referenceGenome, myGraph.ranges()))
+            }
         }
 
         //load read mappings for each sample into a channel
