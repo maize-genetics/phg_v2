@@ -9,6 +9,10 @@ import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.exportReadMappin
 import net.maizegenetics.phgv2.pathing.AlignmentUtils.Companion.mergeReadMappings
 import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -16,7 +20,6 @@ import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import java.nio.file.Paths
 import kotlin.random.Random
-import kotlin.test.assertEquals
 
 @ExtendWith(TestExtension::class)
 class FindPathsTest {
@@ -394,6 +397,160 @@ class FindPathsTest {
 
         val exception = assertThrows<IllegalArgumentException> { FindPaths().test(pathFindingTestArgsLikelyAncestor) }
         assert(exception.message!!.startsWith("UseLikelyAncestors is true but likelyAncestors will not be checked"))
+    }
+
+    /**
+     * --hmm fast, haploid and diploid, on the same read mappings and expectations as the legacy tests.
+     */
+    @Test
+    fun testFastHmmPathFinding() {
+        val vcfDir = File(TestExtension.testVCFDir)
+        val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
+        val myGraph = HaplotypeGraph(listOfHvcfFilenames)
+
+        val haploidMappingFile = TestExtension.testOutputDir + "testFastHaploid_readMapping.txt"
+        createHaploidReadMappings(myGraph, haploidMappingFile)
+        val diploidMappingFile = TestExtension.testOutputDir + "testFastDiploid_readMapping.txt"
+        createDiploidReadMappings(myGraph, diploidMappingFile)
+
+        val keyFilename = TestExtension.testOutputDir + "keyfileForFastPathTest.txt"
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("sampleName\tfilename\n")
+            myWriter.write("FastHaploid\t$haploidMappingFile\n")
+        }
+        val outputDir = TestExtension.testOutputDir + "fast/"
+        File(outputDir).mkdirs()
+        val haploidResult = FindPaths().test("--hmm fast --path-type haploid --path-keyfile $keyFilename " +
+                "--hvcf-dir ${TestExtension.testVCFDir} --reference-genome ${TestExtension.smallseqRefFile} " +
+                "--output-dir $outputDir --out-parents-dir ${outputDir}parents")
+        assertEquals(0, haploidResult.statusCode, "haploid status code: ${haploidResult.output}")
+        checkParentOutputIsLineA("${outputDir}parents/FastHaploid_imputed_parents.txt")
+
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("sampleName\tfilename\n")
+            myWriter.write("FastDiploid\t$diploidMappingFile\n")
+        }
+        val diploidResult = FindPaths().test("--hmm fast --path-type diploid --path-keyfile $keyFilename " +
+                "--hvcf-dir ${TestExtension.testVCFDir} --reference-genome ${TestExtension.smallseqRefFile} " +
+                "--output-dir $outputDir --out-parents-dir ${outputDir}parents --prob-same-gamete 0.8 --inbreeding-coefficient 1.0")
+        assertEquals(0, diploidResult.statusCode, "diploid status code: ${diploidResult.output}")
+        checkDiploidParentFile(File("${outputDir}parents").resolve("FastDiploid_imputed_parents.txt"))
+        VCFFileReader(File("${outputDir}FastDiploid.h.vcf"), false).use { vcf ->
+            assertEquals(40, vcf.count(), "one h.vcf record per reference range")
+        }
+    }
+
+    /**
+     * A failure while writing a path must fail the command, not leave it to exit normally with some samples
+     * missing. Here the reference lacks contig 2, so writing that contig's records throws.
+     */
+    @Test
+    fun testSaveFailureFailsTheCommand() {
+        val vcfDir = File(TestExtension.testVCFDir)
+        val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
+        val myGraph = HaplotypeGraph(listOfHvcfFilenames)
+        val readMappingFile = TestExtension.testOutputDir + "testSaveFailure_readMapping.txt"
+        createHaploidReadMappings(myGraph, readMappingFile)
+
+        val outputDir = TestExtension.testOutputDir + "saveFailure/"
+        File(outputDir).mkdirs()
+        val keyFilename = outputDir + "keyfile.txt"
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("sampleName\tfilename\n")
+            myWriter.write("SaveFailure\t$readMappingFile\n")
+        }
+        //the first contig of the test reference only
+        val partialReference = outputDir + "ref_contig1.fa"
+        val referenceLines = File(TestExtension.smallseqRefFile).readLines()
+        File(partialReference).writeText(referenceLines.takeWhile { !it.startsWith(">2") }.joinToString("\n") + "\n")
+
+        for (hmm in listOf("legacy", "fast")) {
+            val exception = assertThrows<IllegalArgumentException> {
+                FindPaths().test("--hmm $hmm --path-type haploid --path-keyfile $keyFilename " +
+                        "--hvcf-dir ${TestExtension.testVCFDir} --reference-genome $partialReference " +
+                        "--output-dir $outputDir")
+            }
+            assertTrue(exception.message!!.contains("no base at 2:"), "$hmm: ${exception.message}")
+        }
+    }
+
+    /**
+     * A CancellationException thrown from inside a launched coroutine, while that coroutine is not itself
+     * cancelled, ends it quietly and leaves the parent to finish normally: the silent failure behind
+     * find-paths exiting 0 with samples unwritten. [failOnInnerCancellation] turns it into a failure, and
+     * lets a real cancellation through.
+     */
+    @Test
+    fun testFailOnInnerCancellation() {
+        //without the wrapper, nothing fails
+        runBlocking { launch { throw CancellationException("from a library") } }
+
+        val exception = assertThrows<IllegalStateException> {
+            runBlocking { launch { failOnInnerCancellation("Writing paths") { throw CancellationException("from a library") } } }
+        }
+        assertEquals("Writing paths failed", exception.message)
+
+        //a real cancellation is still a cancellation
+        runBlocking {
+            val job = launch { failOnInnerCancellation("Writing paths") { delay(60_000) } }
+            delay(50)
+            job.cancel()
+            job.join()
+            assertTrue(job.isCancelled)
+        }
+    }
+
+    /**
+     * --use-likely-ancestors with --hmm fast: the likely ancestor file is written as for legacy, and the
+     * path uses only the chosen ancestor.
+     */
+    @Test
+    fun testFastHmmWithLikelyParents() {
+        val vcfDir = File(TestExtension.testVCFDir)
+        val listOfHvcfFilenames = vcfDir.listFiles().map { it.path }.filter { it.endsWith(".h.vcf") }
+        val myGraph = HaplotypeGraph(listOfHvcfFilenames)
+        val readMappingFile = TestExtension.testOutputDir + "testFastLP_readMapping.txt"
+        val readCounts = createHaploidReadMappings(myGraph, readMappingFile)
+        val expectedCoverage = readCounts[0].toDouble() / readCounts[1].toDouble()
+
+        val keyFilename = TestExtension.testOutputDir + "keyfileForFastLPTest.txt"
+        getBufferedWriter(keyFilename).use { myWriter ->
+            myWriter.write("sampleName\tfilename\n")
+            myWriter.write("FastLP\t$readMappingFile\n")
+        }
+        val outputDir = TestExtension.testOutputDir + "fastLP/"
+        File(outputDir).mkdirs()
+        val likelyAncestorFile = outputDir + "ancestors.txt"
+        File(likelyAncestorFile).delete()
+
+        for (pathType in listOf("haploid", "diploid")) {
+            val result = FindPaths().test("--hmm fast --path-type $pathType --path-keyfile $keyFilename " +
+                    "--hvcf-dir ${TestExtension.testVCFDir} --reference-genome ${TestExtension.smallseqRefFile} " +
+                    "--output-dir $outputDir --out-parents-dir ${outputDir}parents_$pathType " +
+                    "--use-likely-ancestors true --max-ancestors 2 --min-coverage 0.9 " +
+                    "--likely-ancestor-file $likelyAncestorFile")
+            assertEquals(0, result.statusCode, "$pathType status code: ${result.output}")
+            File("${outputDir}FastLP.h.vcf").delete()
+
+            //LineA alone covers more than 0.9 of the reads, so it is the only ancestor and the whole path
+            getBufferedReader("${outputDir}parents_$pathType/FastLP_imputed_parents.txt").use { reader ->
+                reader.lines().skip(1).forEach { line ->
+                    val parents = line.split("\t").drop(3).filter { it.isNotBlank() }
+                    assertTrue(parents.isNotEmpty() && parents.all { it == "LineA:0" }, "$pathType: $line")
+                }
+            }
+        }
+
+        //one header and one ancestor line per run
+        val lines = File(likelyAncestorFile).readLines()
+        assertEquals("sample\tancestor\tgameteId\treads\tcoverage", lines[0])
+        assertEquals(3, lines.size)
+        for (line in lines.drop(1)) {
+            val parentInfo = line.split("\t")
+            assertEquals("FastLP", parentInfo[0])
+            assertEquals("LineA", parentInfo[1])
+            assertEquals(expectedCoverage, parentInfo[4].toDouble())
+        }
     }
 
     fun checkDiploidParentFile(parentFile: File) {

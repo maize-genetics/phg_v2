@@ -124,6 +124,17 @@ fun parseRegions(regions: String): List<Pair<Position, Position>> {
 }
 
 /**
+ * A [VCFAltHeaderLine] that computes its string encoding once. htsjdk sorts a header's lines by comparing
+ * their encodings, re-encoding both lines (with a regex quote-escape) on every comparison; with one ALT line
+ * per haplotype, that sort was most of the time spent writing an h.vcf.
+ */
+private class EncodedAltHeaderLine(line: String, version: VCFHeaderVersion) : VCFAltHeaderLine(line, version) {
+    private var encoding: String? = null
+
+    override fun toStringEncoding(): String = encoding ?: super.toStringEncoding().also { encoding = it }
+}
+
+/**
  * Function to convert the ALT header metadata into a VCF header line.
  *
  * @param altHeaderData The ALT header metadata to convert.
@@ -134,7 +145,7 @@ fun altHeaderMetadataToVCFHeaderLine(altHeaderData: AltHeaderMetaData, altHeader
     val refChecksum =
         if (altHeaderData.refChecksum.isNotBlank()) ",RefChecksum=\"${altHeaderData.refChecksum}\"" else ""
 
-    return VCFAltHeaderLine(
+    return EncodedAltHeaderLine(
         "<ID=${altHeaderId ?: altHeaderData.id}, " +
                 "Description=\"haplotype data for line: ${altHeaderData.sampleName()}\"," +
                 "Source=\"${altHeaderData.source}\",SampleName=\"${altHeaderData.sampleName()}\"," +

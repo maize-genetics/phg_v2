@@ -35,6 +35,15 @@ private val myLogger = LogManager.getLogger("net.maizegenetics.phgv2.utils.Varia
  */
 fun exportVariantContext(sampleName: String, variantContexts: List<VariantContext>, outputFileName: String,
                              refGenomeSequence: Map<String,NucSeq>, altHeaderLines:Set<VCFHeaderLine>) {
+    exportVariantContext(sampleName, variantContexts, outputFileName, sequenceDictionary(refGenomeSequence), altHeaderLines)
+}
+
+/**
+ * Writes the Variant Contexts to a file, taking the header's contigs from [sequenceDictionary] rather than
+ * from the reference sequence, so the sequence need not be in memory.
+ */
+fun exportVariantContext(sampleName: String, variantContexts: List<VariantContext>, outputFileName: String,
+                         sequenceDictionary: SAMSequenceDictionary, altHeaderLines:Set<VCFHeaderLine>) {
     val writer = VariantContextWriterBuilder()
         .unsetOption(Options.INDEX_ON_THE_FLY)
         .setOutputFile(File(outputFileName))
@@ -43,7 +52,7 @@ fun exportVariantContext(sampleName: String, variantContexts: List<VariantContex
         .build()
 
     val header = createGenericHeader(listOf(sampleName),altHeaderLines)
-    addSequenceDictionary(header, refGenomeSequence)
+    header.setSequenceDictionary(sequenceDictionary)
     writer.writeHeader(header)
     for(variant in variantContexts) {
         writer.add(variant)
@@ -162,12 +171,14 @@ fun bgzipAndIndexGVCFfile(gvcfFileName: String): String {
  * Function to add a sequence Dictionary based on the reference genome.  This uses the loaded genome to get the lengths.
  */
 fun addSequenceDictionary(vcfheader : VCFHeader, refGenomeSequence: Map<String,NucSeq>) {
-
-    val sequenceRecordList = refGenomeSequence.keys.map { SAMSequenceRecord(it,
-        refGenomeSequence[it]!!.size()) }
-
-    vcfheader.setSequenceDictionary(SAMSequenceDictionary(sequenceRecordList))
+    vcfheader.setSequenceDictionary(sequenceDictionary(refGenomeSequence))
 }
+
+/**
+ * A sequence dictionary of the contigs in [refGenomeSequence] and their lengths.
+ */
+fun sequenceDictionary(refGenomeSequence: Map<String,NucSeq>): SAMSequenceDictionary =
+    SAMSequenceDictionary(refGenomeSequence.keys.map { SAMSequenceRecord(it, refGenomeSequence[it]!!.size()) })
 
 // Method to verify anchors for genome intervals have no overlapping positions
 // Overlapping intervals are not supported in the PHG

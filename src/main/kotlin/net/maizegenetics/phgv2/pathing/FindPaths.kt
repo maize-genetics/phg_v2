@@ -1,6 +1,5 @@
 package net.maizegenetics.phgv2.pathing
 
-import biokotlin.seqIO.NucSeqIO
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
 import com.github.ajalt.clikt.parameters.groups.required
@@ -11,11 +10,15 @@ import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import htsjdk.variant.variantcontext.VariantContext
+import htsjdk.variant.vcf.VCFHeaderLine
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.maizegenetics.phgv2.api.HaplotypeGraph
@@ -68,6 +71,22 @@ sealed class PathInputFile {
 
 
 /**
+ * Runs [block], turning a CancellationException that reaches it while this coroutine is still active
+ * into a failure. Such an exception comes from code [block] calls -- a library's own coroutines, for
+ * instance, can surface an error as one -- not from this coroutine being cancelled. Left alone it ends
+ * the coroutine quietly as cancelled, which does not fail the parent, so find-paths would exit normally
+ * with some samples never written. A real cancellation, as when a sibling coroutine fails, passes
+ * through unchanged.
+ */
+internal suspend fun CoroutineScope.failOnInnerCancellation(task: String, block: suspend () -> Unit) {
+    try {
+        block()
+    } catch (e: CancellationException) {
+        if (isActive) throw IllegalStateException("$task failed", e) else throw e
+    }
+}
+
+/**
  * This version of FindPaths uses .h.vcf files to build the HaplotypeGraph used for path finding
  * and writes the imputed paths as .h.vcf files to an output directory. It does not use a tiledb for anything.
  * That is expected to change at some point.
@@ -107,6 +126,16 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
     val outParentsDir by option(help="The directory where the imputed parents (ancestors) will be written for each sample. File names will be <sampleName>_imputed_parents.txt. If no directory name is supplied, the files will not be written.")
         .default("")
 
+    val hmm by option(help = "The HMM used to find paths. 'legacy' is the original path finder. 'fast' is the " +
+            "Viterbi HMM of impute-path-from-ps4g, applied to reference ranges: much faster for diploid paths, " +
+            "with a constant per-range probability of staying on the same gamete (ranges without reads count) " +
+            "and a switch divided equally among the other gametes. 'fast' ignores --min-gametes, --min-reads, " +
+            "--max-reads-per-kb and --inbreeding-coefficient: a diploid path is found as for an inbreeding " +
+            "coefficient of 0 and a haploid path as for 1. 'fast' writes no records for a contig with no reads, " +
+            "where 'legacy' writes a path that no read supports. Default = legacy")
+        .choice("legacy", "fast")
+        .default("legacy")
+
     val pathType by option(help = "The type of path to find. Must be lower case 'haploid' or 'diploid' (without quotes). 'haploid' infers a single path through the graph. 'diploid' infers a pair of paths. Required parameter.")
         .choice("haploid", "diploid")
         .required()
@@ -119,30 +148,31 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         .default(0.99)
         .validate { require(it in 0.5..1.0) {"prob-correct must be between 0.5 and 1.0"} }
 
-    val probSameGamete by option(help = "The probability of transitioning to the same gamete (sample) in the next reference range.")
+    val probSameGamete by option(help = "The probability of transitioning to the same gamete (sample) in the next reference range. " +
+            "With --hmm fast, ranges without reads count, so the probability of staying across k ranges is this value to the power k.")
         .double()
         .default(0.99)
         .validate { require(it in 0.01..1.0) {"prob-correct must be between 0.01 and 1.0"} }
 
     val minGametes by option(help = "The minimum number of gametes with a haplotype in a reference range. " +
-            "Reference ranges with fewer gametes will not be imputed.")
+            "Reference ranges with fewer gametes will not be imputed. Not used when --hmm = fast.")
         .int()
         .default(1)
         .validate { require(it > -1) {"min-gametes must be a positive integer"} }
 
     val minReads by option(help = "The minimum number of reads per ReferenceRange. Reference ranges with fewer reads " +
-            "will not be imputed. If minReads = 0, all ReferenceRanges will be imputed.")
+            "will not be imputed. If minReads = 0, all ReferenceRanges will be imputed. Not used when --hmm = fast.")
         .int()
         .default(0)
         .validate { require(it > -1) {"min-reads must be a positive integer."} }
 
     val inbreedingCoefficient by option(help = "The estimated coefficient of inbreeding for the samples being evaluated. " +
-            "Only used for diploid path type.")
+            "Only used for diploid path type.  Not used when --hmm = fast.")
         .double()
         .default(0.0)
         .validate { require(it in 0.0..1.0) {"inbreeding-coefficient must be between 0.0 and 1.0"} }
 
-    val maxReadsPerKb by option(help = "ReferenceRanges with more than max-reads-per-kb will not be imputed.")
+    val maxReadsPerKb by option(help = "ReferenceRanges with more than max-reads-per-kb will not be imputed.  Not used when --hmm = fast.")
         .int()
         .default(1000)
         .validate { require(it > -1) {"max-reads-per-kb must be a positive integer."} }
@@ -169,6 +199,11 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
 
     override fun run() {
         logCommand(this)
+
+        if (hmm == "fast") {
+            myLogger.warn("The fast hmm does not use --min-gametes, --min-reads, --inbreeding-coefficient, or --max-reads-per-kb")
+            if (inbreedingCoefficient == 1.0 && pathType == "diploid") myLogger.warn ("You specified an inbreeding coefficient of 1.0 but that is ignored by fast hmm. Instead use --path-type haploid.")
+        }
 
         val keyFileLines = readInputFiles.getReadFiles()
         require(keyFileLines.isNotEmpty()) {"Must provide either --path-keyfile or --read-files."}
@@ -290,13 +325,16 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         val jobList = mutableListOf<Job>()
         repeat(threads) {
             jobList.add(launch(Dispatchers.Default) {
-                imputePath(myGraph, readMappingChannel, pathChannel)
+                failOnInnerCancellation("Finding paths") { imputePath(myGraph, readMappingChannel, pathChannel) }
             })
         }
 
-        //create a coroutine to store paths
+        //create a coroutine to store paths. The reference is needed only for contig lengths and the base at
+        //each range start, so those are read once, here, while the first paths are being found.
         val saveJob = launch(Dispatchers.IO) {
-            savePath(pathChannel)
+            failOnInnerCancellation("Writing paths") {
+                savePath(pathChannel, ReferenceSummary.read(referenceGenome, myGraph.ranges()))
+            }
         }
 
         //load read mappings for each sample into a channel
@@ -317,7 +355,15 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
     }
 
     private suspend fun imputePath(graph: HaplotypeGraph, readMappingChannel: ReceiveChannel<ReadMappingResult>, pathChannel: SendChannel<Path>) {
-        val pathFinder = PathFinderWithViterbiHMM(graph = graph,
+        val findBestPath = if (hmm == "fast") PathFinderWithFastHMM(graph = graph,
+            isHaploidPath = pathType == "haploid",
+            probCorrect = probCorrect,
+            sameGameteProbability = probSameGamete,
+            useLikelyParents = useLikelyAncestors,
+            maxParents = maxAncestors,
+            minCoverage = minCoverage
+        )::findBestPath
+        else PathFinderWithViterbiHMM(graph = graph,
             isHaploidPath = pathType == "haploid",
             probCorrect = probCorrect,
             sameGameteProbability = probSameGamete,
@@ -328,20 +374,22 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
             maxParents = maxAncestors,
             minCoverage = minCoverage,
             inbreedCoef = inbreedingCoefficient
-        )
+        )::findBestPath
 
         for (result in readMappingChannel) {
             val mappingsByRefrange = readMappingByRange(result.readMappingCounts, graph)
-            val pathResult = pathFinder.findBestPath(mappingsByRefrange)
+            val startTime = System.nanoTime()
+            val pathResult = findBestPath(mappingsByRefrange)
+            myLogger.info("$hmm HMM found the path for ${result.name} in ${(System.nanoTime() - startTime) / 1e9} sec")
             pathChannel.send(Path(result.name, pathResult.first, graph, pathResult.second))
         }
 
     }
 
-    private suspend fun savePath(pathChannel : ReceiveChannel<Path>) {
+    private suspend fun savePath(pathChannel : ReceiveChannel<Path>, referenceSummary: ReferenceSummary) {
         for (path in pathChannel) {
             if (path.hapidList.isNotEmpty()) {
-                writeHvcf(path)
+                writeHvcf(path, referenceSummary)
                 if (useLikelyAncestors && likelyAncestorFile.isNotBlank()) appendParentStats(path)
             } else {
                 myLogger.warn("Path was not imputed for ${path.name}")
@@ -349,13 +397,23 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         }
     }
 
-    private fun writeHvcf(myPath: Path) {
+    /**
+     * ALT header lines by hapid. Building one parses a constructed string, which made it most of the time
+     * spent writing an h.vcf; samples share founder haplotypes, so each line is built once per run. Only
+     * the single save coroutine uses it.
+     */
+    private val altHeaderLines = HashMap<String, VCFHeaderLine>()
+
+    private fun altHeaderLine(graph: HaplotypeGraph, hapid: String): VCFHeaderLine? =
+        altHeaderLines[hapid] ?: graph.altHeader(hapid)?.let { altHeaderMetadataToVCFHeaderLine(it) }
+            ?.also { altHeaderLines[hapid] = it }
+
+    private fun writeHvcf(myPath: Path, referenceSummary: ReferenceSummary) {
         //use method exportVariantContext() in VariantLoadingUtils
         //use the alt header lines from the graph for the hapids in myPath
         //create a list of VariantContexts from myPath: use method createHvcfRecord() in VariantLoadingUtils
 
-        val referenceSequence = NucSeqIO(referenceGenome).readAll()
-        val altHeadersSample = mutableListOf<AltHeaderMetaData>()
+        val hapidsInPath = LinkedHashSet<String>()
 
         val variantContextList = mutableListOf<VariantContext>()
 
@@ -363,21 +421,20 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         for ( node in myPath.hapidList) {
             val startPos = Position(node.refRange.contig, node.refRange.start)
             val endPos = Position(node.refRange.contig, node.refRange.end)
-            val refAllele = referenceSequence[node.refRange.contig]!!.sequence[node.refRange.start - 1].name
+            val refAllele = referenceSummary.startBase(node.refRange)
             val hapids = node.sampleGametes.map { myPath.graph.sampleToHapId(node.refRange, it) }
 
             variantContextList.add(createDiploidHVCFRecord(myPath.name, startPos, endPos, hapids, refAllele))
 
-            //add alt headers for the unique hapids
-            hapids.filterNotNull().distinct().mapNotNull { myPath.graph.altHeader(it) }.forEach { altHeadersSample.add(it) }
+            hapids.filterNotNull().forEach { hapidsInPath.add(it) }
         }
 
         //exportVariantContext()
         val hvcfFileName = if (outputDir.endsWith("/")) "${outputDir}${myPath.name}.h.vcf"
         else "${outputDir}/${myPath.name}.h.vcf"
-        val headerSet = altHeadersSample.map { altHeaderMetadataToVCFHeaderLine(it) }.toSet()
+        val headerSet = hapidsInPath.mapNotNull { altHeaderLine(myPath.graph, it) }.toSet()
 
-        exportVariantContext(myPath.name, variantContextList, hvcfFileName, referenceSequence, headerSet)
+        exportVariantContext(myPath.name, variantContextList, hvcfFileName, referenceSummary.sequenceDictionary(), headerSet)
 
         //write the parents (if requested)
         if(outParentsDir.isNotBlank()) {

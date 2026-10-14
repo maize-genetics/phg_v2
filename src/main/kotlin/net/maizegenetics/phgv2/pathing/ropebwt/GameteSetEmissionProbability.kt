@@ -68,6 +68,10 @@ import kotlin.math.ln
  * State (B, B) is unaffected in all cases and still scores badly, correctly, since a B/B individual
  * could not produce reads where B is absent.
  *
+ * Instead of a [PresenceTable], a [FounderAbsence] can say directly which founders are absent at
+ * each position. A haplotype graph knows this exactly -- a founder with no haplotype in a reference
+ * range -- so [pavThreshold] does not apply; [pavDamping] does. Supply one or the other, not both.
+ *
  */
 class GameteSetEmissionProbability(
     val readMap: Map<Int, MutableList<Ps4gGameteSet>>,
@@ -78,7 +82,8 @@ class GameteSetEmissionProbability(
     val gameteIndexMap: Map<Int, String> = emptyMap(),
     val binSize: Int = 256,
     val pavThreshold: Double = 0.02,
-    val pavDamping: Double = 1.0
+    val pavDamping: Double = 1.0,
+    val founderAbsence: FounderAbsence? = null
 ) {
     val parentList = parentSet.sorted()
     val nParents = parentList.size
@@ -108,7 +113,13 @@ class GameteSetEmissionProbability(
     private var flaggedWindows = 0
     private var totalWindows = 0
 
+    /** True when either a presence table or a [FounderAbsence] drives the correction. */
+    private val correctAbsence: Boolean
+
     init {
+        require(presenceTable == null || founderAbsence == null) {
+            "Supply a presence table or a founder absence source, not both"
+        }
         val table = presenceTable
         useTable = table != null && contig.isNotEmpty() && table.hasContig(contig) &&
                 parentNames.none { it.isEmpty() } &&
@@ -116,6 +127,7 @@ class GameteSetEmissionProbability(
         if (table != null && !useTable) myLogger.warn(
             "Presence table unusable on $contig; running without the presence/absence correction"
         )
+        correctAbsence = useTable || founderAbsence != null
     }
 
     private fun setWindow(binPosition: Int) {
@@ -175,6 +187,7 @@ class GameteSetEmissionProbability(
     fun getDiploidEmissionProbabilityArray(positionIndex: Int): DoubleArray {
         val position = positionList[positionIndex]
         if (useTable) setWindow(position)
+        else founderAbsence?.markAbsent(position, absent)
         val gameteSets = readMap[position]!!
         val probabilities = DoubleArray(nParents * nParents)
 
@@ -203,7 +216,7 @@ class GameteSetEmissionProbability(
                         hasFirst || hasSecond -> lnHalfCorrect      // A != B at this site
                         else -> lnIncorrect
                     }
-                    val corrected = if (useTable && i != j && (hasFirst != hasSecond) &&
+                    val corrected = if (correctAbsence && i != j && (hasFirst != hasSecond) &&
                         ((hasFirst && absent[j] && !absent[i]) || (hasSecond && absent[i] && !absent[j]))
                     ) lnDampedCorrect else base
                     probabilities[pointer++] += count * corrected
@@ -212,6 +225,17 @@ class GameteSetEmissionProbability(
             for (a in 0 until size) inGameteSet[localBuffer[a]] = false
         }
         return probabilities
+    }
+
+    /**
+     * Marks which candidate founders are absent at a position, for the presence/absence correction.
+     */
+    fun interface FounderAbsence {
+        /**
+         * Sets `absent[i]` for every founder `i` of the sorted parent list at [position], the key of
+         * the read map. Every element must be written, since the array is reused across positions.
+         */
+        fun markAbsent(position: Int, absent: BooleanArray)
     }
 
     /** Fraction of visited windows in which at least one candidate founder was flagged absent. */

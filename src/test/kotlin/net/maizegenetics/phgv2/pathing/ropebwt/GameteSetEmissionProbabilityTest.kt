@@ -125,6 +125,31 @@ class GameteSetEmissionProbabilityTest {
         assertEquals(lnHalfPc, p[1 * 3 + 2], 1e-12)
     }
 
+    /**
+     * A [GameteSetEmissionProbability.FounderAbsence] that flags the same founders as a presence
+     * table gives the same emissions, for every gamete set and both damping extremes.
+     */
+    @Test
+    fun aFounderAbsenceSourceMatchesThePresenceTable() {
+        val table = presenceTable("P0" to 0.9f, "P1" to 0.0f, "P2" to 0.9f)
+        val names = mapOf(10 to "P0", 20 to "P1", 30 to "P2")
+        val absence = GameteSetEmissionProbability.FounderAbsence { _, absent ->
+            absent[0] = false; absent[1] = true; absent[2] = false
+        }
+        for (damping in listOf(0.0, 1.0)) {
+            for (gs in listOf(intArrayOf(10), intArrayOf(20), intArrayOf(30),
+                              intArrayOf(10, 20), intArrayOf(20, 30), intArrayOf(10, 30))) {
+                val readMap = mapOf(100 to mutableListOf(Ps4gGameteSet(gs, 2)))
+                val fromTable = GameteSetEmissionProbability(readMap, setOf(10, 20, 30), probCorrect,
+                    table, "chr1", names, 256, 0.05, damping).getDiploidEmissionProbabilityArray(0)
+                val fromSource = GameteSetEmissionProbability(readMap, setOf(10, 20, 30), probCorrect,
+                    pavDamping = damping, founderAbsence = absence).getDiploidEmissionProbabilityArray(0)
+                for (i in fromTable.indices) assertEquals(fromTable[i], fromSource[i], 1e-12,
+                    "damping $damping gamete set ${gs.toList()} state index $i")
+            }
+        }
+    }
+
     @Test
     fun aPresentFounderIsUnaffectedByTheTable() {
         val table = presenceTable("P0" to 0.9f, "P1" to 0.9f, "P2" to 0.9f)
