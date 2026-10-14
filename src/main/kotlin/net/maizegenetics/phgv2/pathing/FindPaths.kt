@@ -155,24 +155,24 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
         .validate { require(it in 0.01..1.0) {"prob-correct must be between 0.01 and 1.0"} }
 
     val minGametes by option(help = "The minimum number of gametes with a haplotype in a reference range. " +
-            "Reference ranges with fewer gametes will not be imputed.")
+            "Reference ranges with fewer gametes will not be imputed. Not used when --hmm = fast.")
         .int()
         .default(1)
         .validate { require(it > -1) {"min-gametes must be a positive integer"} }
 
     val minReads by option(help = "The minimum number of reads per ReferenceRange. Reference ranges with fewer reads " +
-            "will not be imputed. If minReads = 0, all ReferenceRanges will be imputed.")
+            "will not be imputed. If minReads = 0, all ReferenceRanges will be imputed. Not used when --hmm = fast.")
         .int()
         .default(0)
         .validate { require(it > -1) {"min-reads must be a positive integer."} }
 
     val inbreedingCoefficient by option(help = "The estimated coefficient of inbreeding for the samples being evaluated. " +
-            "Only used for diploid path type.")
+            "Only used for diploid path type.  Not used when --hmm = fast.")
         .double()
         .default(0.0)
         .validate { require(it in 0.0..1.0) {"inbreeding-coefficient must be between 0.0 and 1.0"} }
 
-    val maxReadsPerKb by option(help = "ReferenceRanges with more than max-reads-per-kb will not be imputed.")
+    val maxReadsPerKb by option(help = "ReferenceRanges with more than max-reads-per-kb will not be imputed.  Not used when --hmm = fast.")
         .int()
         .default(1000)
         .validate { require(it > -1) {"max-reads-per-kb must be a positive integer."} }
@@ -199,6 +199,11 @@ class FindPaths: CliktCommand(help = "Impute best path(s) using read mappings.")
 
     override fun run() {
         logCommand(this)
+
+        if (hmm == "fast") {
+            myLogger.warn("The fast hmm does not use --min-gametes, --min-reads, --inbreeding-coefficient, or --max-reads-per-kb")
+            if (inbreedingCoefficient == 1.0 && pathType == "diploid") myLogger.warn ("You specified an inbreeding coefficient of 1.0 but that is ignored by fast hmm. Instead use --path-type haploid.")
+        }
 
         val keyFileLines = readInputFiles.getReadFiles()
         require(keyFileLines.isNotEmpty()) {"Must provide either --path-keyfile or --read-files."}

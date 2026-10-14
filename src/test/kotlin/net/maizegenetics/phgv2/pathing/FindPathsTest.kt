@@ -20,7 +20,6 @@ import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 import java.nio.file.Paths
 import kotlin.random.Random
-import kotlin.test.assertEquals
 
 @ExtendWith(TestExtension::class)
 class FindPathsTest {
@@ -433,7 +432,7 @@ class FindPathsTest {
         }
         val diploidResult = FindPaths().test("--hmm fast --path-type diploid --path-keyfile $keyFilename " +
                 "--hvcf-dir ${TestExtension.testVCFDir} --reference-genome ${TestExtension.smallseqRefFile} " +
-                "--output-dir $outputDir --out-parents-dir ${outputDir}parents --prob-same-gamete 0.8")
+                "--output-dir $outputDir --out-parents-dir ${outputDir}parents --prob-same-gamete 0.8 --inbreeding-coefficient 1.0")
         assertEquals(0, diploidResult.statusCode, "diploid status code: ${diploidResult.output}")
         checkDiploidParentFile(File("${outputDir}parents").resolve("FastDiploid_imputed_parents.txt"))
         VCFFileReader(File("${outputDir}FastDiploid.h.vcf"), false).use { vcf ->
