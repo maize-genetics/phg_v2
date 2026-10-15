@@ -74,6 +74,22 @@ class DistanceScaledTransitionsTest {
         assertTrue(abs(naive - lnSwitch[1]) < 1e-6, "sanity: the two agree to a hair at this scale")
     }
 
+    /**
+     * 1 - p is exactly 1 in double precision for p below about 1e-16, so a rate taken from ln(1 - p)
+     * would be zero and switching impossible. Down to 1e-30 the switch must stay finite and keep
+     * scaling with the probability.
+     */
+    @Test
+    fun switchProbabilitiesBelowTheDoubleLimitStillAllowASwitch() {
+        for (probSwitch in listOf(1e-16, 1e-20, 1e-25, 1e-30)) {
+            val (lnNoSwitch, lnSwitch) = transitionLogsByDistance(intArrayOf(0, 1000), probSwitch, oneMb, 2)
+            // a 1 kb step at p per Mb: switching probability p / 1000, to the one alternative
+            assertEquals(ln(probSwitch / 1000.0), lnSwitch[1], 1e-9, "probSwitch $probSwitch")
+            assertTrue(lnNoSwitch[1] < 0.0 || lnNoSwitch[1] == -0.0, "probSwitch $probSwitch")
+            assertEquals(probSwitch, expectedSwitches(oneMb, probSwitch, oneMb), probSwitch * 1e-9)
+        }
+    }
+
     @Test
     fun elementZeroIsFilledAndNeverNegativeInfinity() {
         // Position 0 has no predecessor so the recursions never read it, but leaving it as a raw 0.0

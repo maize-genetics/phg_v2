@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 import kotlin.math.exp
 import kotlin.math.expm1
 import kotlin.math.ln
+import kotlin.math.ln1p
 
 /**
  * Per-step transition log probabilities for observations that are not evenly spaced.
@@ -25,11 +26,12 @@ import kotlin.math.ln
  * varies a great deal along a chromosome, and a map captures that where a single rate cannot. Nothing
  * below or downstream would change; only what the caller measures.
  *
- * One caveat if that is ever done. `--prob-same 0.999999999` per 256 bp, which the read-based
- * benchmarks settled on, works out to 3.9e-6 switches per Mb, against roughly 0.005 per Mb for real
- * maize -- about 1300 times less recombination than biology. That gap is deliberate smoothing against
- * noisy emissions, not an error, so a rate read straight off a genetic map would let the path move far
- * more freely than any tuned value has. A map should come with a smoothing factor.
+ * One caveat if that is ever done. `impute-path-from-ps4g`'s default, `--prob-switch` 1e-16 per Mb,
+ * chosen on the maize simulated corpus, is some thirteen orders of magnitude less recombination than
+ * real maize (roughly 0.005 per Mb). That gap is deliberate smoothing against noisy emissions -- each
+ * read in a bin counts as independent evidence, which overstates it at high coverage -- not an error,
+ * so a rate read straight off a genetic map would let the path move far more freely than any tuned
+ * value has. A map should come with a smoothing factor.
  *
  * @param distances distance covered by the step *into* each position, so element `i` governs the step
  *   from `i - 1` to `i`. Element 0 has no predecessor and is never read by the recursions; it is
@@ -51,7 +53,7 @@ fun transitionLogsByDistance(
     require(probSwitch > 0.0 && probSwitch < 1.0) { "prob-switch must be between 0 and 1 exclusive" }
     require(referenceDistance > 0.0) { "reference distance must be positive" }
 
-    val rate = -ln(1.0 - probSwitch) / referenceDistance
+    val rate = switchRate(probSwitch, referenceDistance)
     val lnNoSwitch = DoubleArray(distances.size)
     val lnSwitch = DoubleArray(distances.size)
 
@@ -103,8 +105,16 @@ fun stepDistances(positions: IntArray): IntArray {
  * reference distance.
  */
 fun expectedSwitches(length: Double, probSwitch: Double, referenceDistance: Double): Double =
-    -ln(1.0 - probSwitch) / referenceDistance * length
+    switchRate(probSwitch, referenceDistance) * length
 
 /** Probability of staying on the same founder across [distance]; the complement of a switch. */
 fun probabilityOfNoSwitch(distance: Double, probSwitch: Double, referenceDistance: Double): Double =
-    exp(-(-ln(1.0 - probSwitch) / referenceDistance) * distance)
+    exp(-switchRate(probSwitch, referenceDistance) * distance)
+
+/**
+ * The switch rate per unit distance, -ln(1 - [probSwitch]) / [referenceDistance]. Computed with ln1p:
+ * 1 - p rounds to exactly 1 in double precision once p is below about 1e-16, which would make the rate
+ * zero and switching impossible, and that is the range a tuned value can reach.
+ */
+private fun switchRate(probSwitch: Double, referenceDistance: Double): Double =
+    -ln1p(-probSwitch) / referenceDistance

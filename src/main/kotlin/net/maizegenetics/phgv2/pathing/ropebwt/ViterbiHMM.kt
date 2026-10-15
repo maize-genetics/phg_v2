@@ -54,12 +54,19 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
      * @param readMap map of bin position to the list of [Ps4gGameteSet]s observed in that bin; each
      *   [Ps4gGameteSet] holds the gamete indices hit and the count of reads hitting that set.
      * @param likelyParentSet the set of gamete indices to consider as candidate parents.
+     * @param lnNoSwitchByPosition optional per-haplotype log probability of staying, for the step into
+     *   each bin in position order, as from [transitionLogsByDistance]; replaces the fixed value from
+     *   [sameGameteProbability]. Supplied together with [lnSwitchByPosition], at an inbreeding
+     *   coefficient of 0 or 1 only.
+     * @param lnSwitchByPosition the matching log probability of switching to one particular other parent.
      * @return a list of (position, parent1 name, parent2 name) triples, one per bin, ordered by bin position.
      */
     fun findDiploidPath(contig: String,
                         gameteIndexMap: Map<Int,String>,
                         readMap: Map<Int, MutableList<Ps4gGameteSet>>,
-                        likelyParentSet: Set<Int>): List<Triple<Position, String, String>> {
+                        likelyParentSet: Set<Int>,
+                        lnNoSwitchByPosition: DoubleArray? = null,
+                        lnSwitchByPosition: DoubleArray? = null): List<Triple<Position, String, String>> {
 
         val nParents = likelyParentSet.size
         val emissionCalculator = GameteSetEmissionProbability(readMap, likelyParentSet, probCorrect,
@@ -68,7 +75,9 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
             nParents,
             readMap.keys.size,
             emissionCalculator::getDiploidEmissionProbabilityArray,
-            emissionCalculator::getHomozygousEmissionProbabilityArray
+            emissionCalculator::getHomozygousEmissionProbabilityArray,
+            lnNoSwitchByPosition,
+            lnSwitchByPosition
         )
 
         //translate the result
