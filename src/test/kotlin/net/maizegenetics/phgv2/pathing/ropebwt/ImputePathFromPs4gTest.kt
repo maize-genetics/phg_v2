@@ -171,7 +171,7 @@ class ImputePathFromPs4gTest {
         File(contigFile).writeText("\n\n")
 
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $tempTestDir/emptyContigFileOut/ --bin-size 1 " +
+            "--path-keyfile $keyFile --output-dir $tempTestDir/emptyContigFileOut/ --bin-size 1 " +
                     "--contigs-to-use $contigFile"
         )
         assertEquals(1, result.statusCode)
@@ -198,20 +198,20 @@ class ImputePathFromPs4gTest {
     @Test
     fun testCliktParams() {
         // Missing both --path-keyfile and --read-file
-        val noInput = ImputePathFromPs4g().test("--out-path-dir $tempTestDir")
+        val noInput = ImputePathFromPs4g().test("--output-dir $tempTestDir")
         assertEquals(1, noInput.statusCode)
         assertTrue(noInput.stderr.contains("must provide one of --path-keyfile, --read-file"),
             "Expected missing-input error but got: ${noInput.stderr}")
 
-        // Missing --out-path-dir
+        // Missing --output-dir
         val noOutputDir = ImputePathFromPs4g().test("--read-file someFile.ps4g")
         assertEquals(1, noOutputDir.statusCode)
-        assertTrue(noOutputDir.stderr.contains("missing option --out-path-dir"),
+        assertTrue(noOutputDir.stderr.contains("missing option --output-dir"),
             "Expected missing-output-dir error but got: ${noOutputDir.stderr}")
 
         // Invalid --path-type value
         val badPathType = ImputePathFromPs4g().test(
-            "--read-file someFile.ps4g --out-path-dir $tempTestDir --path-type invalid"
+            "--read-file someFile.ps4g --output-dir $tempTestDir --path-type invalid"
         )
         assertEquals(1, badPathType.statusCode)
         assertTrue(badPathType.stderr.contains("path-type"),
@@ -238,7 +238,7 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/haploidOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 --bin-size 1"
+            "--path-keyfile $keyFile --output-dir $outputDir --prob-correct 0.99 --bin-size 1"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -271,7 +271,7 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/haploidOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 --bin-size 1"
+            "--path-keyfile $keyFile --output-dir $outputDir --prob-correct 0.99 --bin-size 1"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -305,7 +305,7 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/expandOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 " +
+            "--path-keyfile $keyFile --output-dir $outputDir --prob-correct 0.99 " +
                     "--bin-size 1 --expand-bins"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
@@ -344,7 +344,7 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/coordOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 " +
+            "--path-keyfile $keyFile --output-dir $outputDir --prob-correct 0.99 " +
                     "--bin-size 100 --expand-bins"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
@@ -363,7 +363,7 @@ class ImputePathFromPs4gTest {
         // Merging is the default, so the same input collapses to one record spanning the contig.
         val mergedDir = "$tempTestDir/coordMergedOut/"
         val mergedResult = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $mergedDir --prob-correct 0.99 --bin-size 100"
+            "--path-keyfile $keyFile --output-dir $mergedDir --prob-correct 0.99 --bin-size 100"
         )
         assertEquals(0, mergedResult.statusCode, "Command failed:\n${mergedResult.stderr}")
 
@@ -395,7 +395,7 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/recombOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 --prob-switch 0.5 --prob-switch-distance 1 --bin-size 1"
+            "--path-keyfile $keyFile --output-dir $outputDir --prob-correct 0.99 --prob-switch 0.5 --prob-switch-distance 1 --bin-size 1"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -427,7 +427,7 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/diploidOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --path-type diploid " +
+            "--path-keyfile $keyFile --output-dir $outputDir --path-type diploid " +
                     "--prob-correct 0.99 --bin-size 1"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
@@ -462,7 +462,7 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/diploidOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --path-type diploid " +
+            "--path-keyfile $keyFile --output-dir $outputDir --path-type diploid " +
                     "--prob-correct 0.99 --bin-size 1"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
@@ -501,7 +501,7 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/multiContigOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 --bin-size 1"
+            "--path-keyfile $keyFile --output-dir $outputDir --prob-correct 0.99 --bin-size 1"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -524,7 +524,7 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/noContigFilterOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 --bin-size 1"
+            "--path-keyfile $keyFile --output-dir $outputDir --prob-correct 0.99 --bin-size 1"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -541,7 +541,7 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/contigListOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 " +
+            "--path-keyfile $keyFile --output-dir $outputDir --prob-correct 0.99 " +
                     "--bin-size 1 --contigs-to-use chr1,chr2"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
@@ -560,7 +560,7 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/singleContigOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 " +
+            "--path-keyfile $keyFile --output-dir $outputDir --prob-correct 0.99 " +
                     "--bin-size 1 --contigs-to-use chr2"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
@@ -582,7 +582,7 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/contigFileOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 " +
+            "--path-keyfile $keyFile --output-dir $outputDir --prob-correct 0.99 " +
                     "--bin-size 1 --contigs-to-use $contigFile"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
@@ -605,7 +605,7 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/paddedContigFileOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 " +
+            "--path-keyfile $keyFile --output-dir $outputDir --prob-correct 0.99 " +
                     "--bin-size 1 --contigs-to-use $contigFile"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
@@ -626,7 +626,7 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/diploidContigFilterOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --path-type diploid --n-parents 2 " +
+            "--path-keyfile $keyFile --output-dir $outputDir --path-type diploid --n-parents 2 " +
                     "--prob-correct 0.99 --bin-size 1 " +
                     "--contigs-to-use chr1"
         )
@@ -650,7 +650,7 @@ class ImputePathFromPs4gTest {
 
         val outputDir = "$tempTestDir/noMatchOut/"
         val result = ImputePathFromPs4g().test(
-            "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 " +
+            "--path-keyfile $keyFile --output-dir $outputDir --prob-correct 0.99 " +
                     "--bin-size 1 --contigs-to-use chr99"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
@@ -680,7 +680,7 @@ class ImputePathFromPs4gTest {
         fun parents(binSize: Int): List<String> {
             val outputDir = "$tempTestDir/binScaleOut$binSize/"
             val result = ImputePathFromPs4g().test(
-                "--path-keyfile $keyFile --out-path-dir $outputDir --prob-correct 0.99 " +
+                "--path-keyfile $keyFile --output-dir $outputDir --prob-correct 0.99 " +
                         "--prob-switch 1e-6 --bin-size $binSize"
             )
             assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
@@ -698,7 +698,7 @@ class ImputePathFromPs4gTest {
         createKeyFile(keyFile, "removedOptionsSample", "$tempTestDir/notUsed.ps4g")
         for (option in listOf("--prob-same 0.9999", "--inbreed-coef 1.0")) {
             val result = ImputePathFromPs4g().test(
-                "--path-keyfile $keyFile --out-path-dir $tempTestDir/removedOptionsOut/ $option"
+                "--path-keyfile $keyFile --output-dir $tempTestDir/removedOptionsOut/ $option"
             )
             assertTrue(result.statusCode != 0, "$option was accepted")
             assertTrue(result.stderr.contains(option.substringBefore(" ")), result.stderr)
