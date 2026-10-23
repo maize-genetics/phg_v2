@@ -38,8 +38,8 @@ import kotlin.math.ln
  * an assembly gap, or a region where its anchors are not unique -- every correctly mapped read
  * matches the other founder alone, and the model reads that as evidence for homozygosity. Each such
  * read contributes `ln 0.5` = -0.693 toward the homozygous state, so a run of roughly
- * `ln(pnn/psn) / 0.693` one-sided reads forces a false switch: about 32 at `--prob-same`
- * 0.999999999 with six candidate parents.
+ * `ln(pnn/psn) / 0.693` one-sided reads forces a false switch: about 32 at a per-step switch
+ * probability of 1e-9 (the former `--prob-same` default) with six candidate parents.
  *
  * Given a [PresenceTable], a founder whose anchor presence in the window is at or below
  * [pavThreshold] is treated as absent, and the heterozygous state then predicts exactly what the

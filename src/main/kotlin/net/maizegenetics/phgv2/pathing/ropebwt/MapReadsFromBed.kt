@@ -75,6 +75,5 @@ class MapReadsFromBed : CliktCommand(help = "Map reads to a ropebwt3 index from 
         myLogger.info("Writing read mapping to $outputFile")
         AlignmentUtils.exportReadMapping(outputFile,readMapping, sampleName,Pair(bedFile,""))
 
-
     }
 }

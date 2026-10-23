@@ -10,14 +10,13 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.pathing.MostLikelyPs4gParents
 import net.maizegenetics.phgv2.pathing.PathInputFile
-import net.maizegenetics.phgv2.pathing.ropebwt.Ps4gFileReader.Ps4gGameteSet
-import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.getBufferedReader
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import org.apache.logging.log4j.LogManager
@@ -77,7 +76,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             .convert { PathInputFile.ReadFiles(it) }
     ).single().required()
 
-    val outPathDir by option(
+    val outputDir by option(
         help = "The directory where the imputed assembly haplotypes will be written for each sample. " +
                 "File names will be <sampleName>_imputed_path.bed. Coordinates are 0-based half-open."
     )
@@ -94,21 +93,21 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         .double()
         .default(0.98)
 
-    val probSame by option(
-        help = "The probability that a path stays on the same gamete when transitioning between " +
-                "two adjacent positions. Positions are bins with reads, so the effective probability " +
-                "of a path switch over a given length of sequence rises with the " +
-                "number of bins that carry reads. Default = 0.999999999"
+    val probSwitch by option(
+        help = "The probability of a path switch (a recombination) across --prob-switch-distance, " +
+                "scaled to each step's actual distance: the base pairs between consecutive bins with " +
+                "reads. A smoothing parameter more than a recombination rate, so it does not change " +
+                "meaning with --bin-size or with read coverage. Default = 1e-16"
     )
         .double()
-        .default(0.999999999)
+        .default(1e-16)
+        .validate { require(it > 0.0 && it < 1.0) { "prob-switch must be between 0 and 1 exclusive" } }
 
-    val inbreedCoef by option(
-        help = "The inbreeding coefficient (between 0.0 and 1.0). " +
-                "This parameter is used only for diploid paths. The default value is faster and best for most data. Default = 0.0"
-    )
+    val probSwitchDistance by option(help = "The distance --prob-switch is quoted over, in base " +
+            "pairs. Default = 1000000")
         .double()
-        .default(0.0)
+        .default(1_000_000.0)
+        .validate { require(it > 0.0) { "prob-switch-distance must be positive" } }
 
     val nParents by option(help = "Restrict the number of parents used for imputation to this number. " +
             "Default = 0 will use all parents.")
@@ -166,12 +165,12 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         println("Max memory is ${maxMemory/1024/1024}mb")
 
         //create the outParentsDir, if it does not already exist
-        if (outPathDir.isNotBlank()) File(outPathDir).mkdirs()
+        if (outputDir.isNotBlank()) File(outputDir).mkdirs()
 
         val isHaploid = pathType == "haploid"
 
         //Get or create the output directory
-        val pathToOutputDir = Paths.get(outPathDir)
+        val pathToOutputDir = Paths.get(outputDir)
         pathToOutputDir.createDirectories()
 
         if (presenceFile.isNotBlank()) {
@@ -216,10 +215,8 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
      *
      * Running one model rather than two is the point: a single-path imputation can no longer
      * silently diverge from a diploid imputation of homozygous material.
-     *
-     * [inbreedCoef] is not used here.
      */
-    fun imputeHaploidPath(outputDir: Path) = imputePaths<Pair<String, String>>(
+    fun imputeHaploidPath(outputDir: Path) = imputePaths(
         outputDir = outputDir,
         header = "chrom\tstart\tend\tparent1\n",
         // Both founders of a reachable state are the same, so one column is written; the check
@@ -231,32 +228,26 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             it.first
         },
         parentSelector = ::selectParents,
-        pathFinder = { _, contig, gameteIndexMap, readMap, parentSet ->
-            ViterbiHMM(1.0, probSame, probCorrect, binSize, loadedPresenceTable, pavThreshold, pavDamping)
-                .findDiploidPath(contig, gameteIndexMap, readMap, parentSet)
-                .map { Pair(it.first, Pair(it.second, it.third)) }
-        }
+        inbreedingCoefficient = 1.0
     )
 
     /**
      * Imputes a pair of (diploid) haplotype paths for each ps4g file supplied via --path-keyfile
      * or --read-file. For every sample, the parent set is optionally reduced to the [nParents] most
      * likely parents via [MostLikelyPs4gParents], then each contig is run through
-     * [ViterbiHMM.findDiploidPath]. The resulting paths are written to <sampleName>_imputed_path.bed
+     * [ViterbiHMM.findDiploidPath] at an inbreeding coefficient of 0, so the two haplotypes switch
+     * independently. The resulting paths are written to <sampleName>_imputed_path.bed
      * in [outputDir] as chrom/start/end/parent1/parent2 records.
      *
      * The parent pair is ordered, so adjacent bins are only merged when parent1 and parent2 both
      * match; a phase switch between (A, B) and (B, A) starts a new record.
      */
-    fun imputeDiploidPath(outputDir: Path) = imputePaths<Pair<String, String>>(
+    fun imputeDiploidPath(outputDir: Path) = imputePaths(
         outputDir = outputDir,
         header = "chrom\tstart\tend\tparent1\tparent2\n",
         formatCall = { "${it.first}\t${it.second}" },
         parentSelector = ::selectParents,
-        pathFinder = { hmm, contig, gameteIndexMap, readMap, parentSet ->
-            hmm.findDiploidPath(contig, gameteIndexMap, readMap, parentSet)
-                .map { Pair(it.first, Pair(it.second, it.third)) }
-        }
+        inbreedingCoefficient = 0.0
     )
 
     /**
@@ -264,25 +255,41 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
      * file, finds a path through each contig — restricted to [contigsToUse] when that option is
      * supplied — and writes the result to <sampleName>_imputed_path.bed in [outputDir].
      *
-     * The per-bin path returned by [pathFinder] is converted to reference coordinates by
-     * [pathToIntervals], which merges adjacent bins with equal calls unless --expand-bins is set.
+     * Each contig is run through [ViterbiHMM.findDiploidPath] with transitions from [binTransitions],
+     * and the per-bin path is converted to reference coordinates by [pathToIntervals], which merges
+     * adjacent bins with equal calls unless --expand-bins is set.
      *
-     * @param T the parent call for one bin: the parent name for haploid paths, an ordered
-     *   (parent1, parent2) pair for diploid paths. Adjacent bins merge when their calls are `==`.
      * @param header the output header line, including its trailing newline.
-     * @param formatCall renders a call as the tab-delimited parent column(s) of a record.
+     * @param formatCall renders a bin's ordered (parent1, parent2) call as the tab-delimited parent
+     *   column(s) of a record. Adjacent bins merge when their calls are `==`.
      * @param parentSelector chooses the candidate parent gamete indices given the reader and the
      *   contigs being imputed.
-     * @param pathFinder runs the Viterbi algorithm for one contig, returning (position, call) pairs
-     *   ordered by bin position.
+     * @param inbreedingCoefficient 1 for a haploid path, 0 for a diploid one.
      */
-    private fun <T> imputePaths(
+    /**
+     * Per-haplotype log transition probabilities for the bins of a contig that have reads, in
+     * position order: each step is charged for the base pairs between consecutive bins
+     * ((bin index difference) x --bin-size) at --prob-switch per --prob-switch-distance, so the
+     * switch penalty does not change with bin size or read coverage.
+     */
+    private fun binTransitions(binPositions: Collection<Int>, nParents: Int): Pair<DoubleArray, DoubleArray> {
+        val basePositions = binPositions.sorted().map { bin ->
+            val position = bin.toLong() * binSize
+            check(position <= Int.MAX_VALUE) { "bin $bin at --bin-size $binSize is beyond ${Int.MAX_VALUE} bp" }
+            position.toInt()
+        }.toIntArray()
+        return transitionLogsByDistance(stepDistances(basePositions), probSwitch, probSwitchDistance, nParents)
+    }
+
+    private fun imputePaths(
         outputDir: Path,
         header: String,
-        formatCall: (T) -> String,
+        formatCall: (Pair<String, String>) -> String,
         parentSelector: (Ps4gFileReader, List<String>) -> Set<Int>,
-        pathFinder: (ViterbiHMM, String, Map<Int, String>, Map<Int, MutableList<Ps4gGameteSet>>, Set<Int>) -> List<Pair<Position, T>>
+        inbreedingCoefficient: Double
     ) {
+        val hmm = ViterbiHMM(inbreedingCoefficient, 1.0 - probSwitch, probCorrect, binSize,
+            loadedPresenceTable, pavThreshold, pavDamping)
         val keyFileLines = readInputFiles.getReadFiles()
         require(keyFileLines.isNotEmpty()) { "Must provide either --path-keyfile or --read-files." }
 
@@ -309,11 +316,10 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                     check(readMapForContig != null) { "read data for contig $contig was null for ${fileData.sampleName}" }
 
                     val startTime = System.nanoTime()
-                    val contigPath = pathFinder(
-                        ViterbiHMM(inbreedCoef, probSame, probCorrect, binSize,
-                            loadedPresenceTable, pavThreshold, pavDamping),
-                        contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet
-                    )
+                    val (lnNoSwitch, lnSwitch) = binTransitions(readMapForContig.keys, parentSet.size)
+                    val contigPath = hmm.findDiploidPath(contig, ps4gReader.gameteIndexMap(),
+                        readMapForContig, parentSet, lnNoSwitch, lnSwitch)
+                        .map { Pair(it.first, Pair(it.second, it.third)) }
                     myLogger.info("elapsed time for $contig was ${(System.nanoTime() - startTime) / 1_000_000_000.0} sec")
 
                     pathToIntervals(contigPath, binSize, mergeAdjacent = !expandBins).forEach { interval ->

@@ -294,8 +294,8 @@ phg impute-path-from-ps4g \
 | `--out-path-dir`   | The directory where the imputed haplotypes will be written for each sample. File names will be <sampleName>_imputed_path.bed. | `""`          | :material-check: |
 | `--path-type`      | The type of path to find. Must be lower case 'haploid' or 'diploid'. 'haploid' infers a single path through the graph. | `haploid`     |                  |
 | `--prob-correct`   | The probability that a read maps to correct haplotype.                                                             | `0.98`        |                  |
-| `--prob-same`      | The probability that a path stays on the same gamete when transitioning between two adjacent positions.            | `0.999999999` |                  |
-| `--inbreed-coef`   | The inbreeding coefficient (between 0.0 and 1.0). Used only for diploid paths.                                     | `0.0`         |                  |
+| `--prob-switch`    | The probability of a path switch (a recombination) across `--prob-switch-distance` base pairs, scaled to each step's actual distance. | `1e-16`       |                  |
+| `--prob-switch-distance` | The distance `--prob-switch` is quoted over, in base pairs.                                                  | `1000000`     |                  |
 | `--n-parents`      | Restrict the number of parents used for imputation to this number. Default (0) uses all parents.                   | `0.0`         |                  |
 | `--bin-size`       | The bin size used to create the ps4g file.                                                                         | `256`         |                  |
 | `--expand-bins`    | Write one output record per bin instead of merging adjacent bins that have identical parents into a single record. | `false`       |                  |
@@ -306,7 +306,8 @@ phg impute-path-from-ps4g \
 
 !!! note
 One of `--path-keyfile` or `--read-file` is required.
-`--inbreed-coef` default of 0.0 is highly recommended. Values > 0.0 use a different, slower, often less accurate algorithm.
+A diploid path is found as for an inbreeding coefficient of 0, with the two haplotypes switching independently, and a haploid path as for an inbreeding coefficient of 1.
+`--prob-switch` is charged for the base pairs between consecutive bins with reads (the difference in bin index times `--bin-size`), so its meaning does not change with `--bin-size` or with read coverage. Over a distance `d` the probability of staying on the same parent is `exp(-r d)`, where `r = -ln(1 - prob-switch) / prob-switch-distance`.
 `--expand-bins` is a flag. If entered without a parameter, its value is set to true.
 `--bin-size` must match the ps4g file, so that the output positions are correct.
 `--contigs-to-use` takes either a comma-separated list of contig names or the name of a file containing the contig names, one per line.
