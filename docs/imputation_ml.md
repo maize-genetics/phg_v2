@@ -279,7 +279,7 @@ phg convert-ropebwt2-ps4g-file \
 ```shell
 phg impute-path-from-ps4g \
     --read-file /data/my_ps4g_file.ps4g \
-    --out-path-dir /results/ps4g \
+    --output-dir /results/ps4g \
     --path-type diploid \
     --n-parents 15 \
     --bin-size 512

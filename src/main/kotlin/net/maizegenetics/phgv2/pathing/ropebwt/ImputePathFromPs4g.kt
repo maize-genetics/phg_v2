@@ -76,7 +76,7 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
             .convert { PathInputFile.ReadFiles(it) }
     ).single().required()
 
-    val outPathDir by option(
+    val outputDir by option(
         help = "The directory where the imputed assembly haplotypes will be written for each sample. " +
                 "File names will be <sampleName>_imputed_path.bed. Coordinates are 0-based half-open."
     )
@@ -165,12 +165,12 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         println("Max memory is ${maxMemory/1024/1024}mb")
 
         //create the outParentsDir, if it does not already exist
-        if (outPathDir.isNotBlank()) File(outPathDir).mkdirs()
+        if (outputDir.isNotBlank()) File(outputDir).mkdirs()
 
         val isHaploid = pathType == "haploid"
 
         //Get or create the output directory
-        val pathToOutputDir = Paths.get(outPathDir)
+        val pathToOutputDir = Paths.get(outputDir)
         pathToOutputDir.createDirectories()
 
         if (presenceFile.isNotBlank()) {
