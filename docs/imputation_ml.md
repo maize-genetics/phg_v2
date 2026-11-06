@@ -74,7 +74,7 @@ imputation using the PHG:
   ```shell
   phg impute-path-from-ps4g \
       --read-file /path/to/ps4g_file.ps4g \
-      --out-path-dir /my/output_dir
+      --output-dir /my/output_dir
   ```
 
 * Calculate state probabilities from a PS4G file using the forward-backward algorithm:
@@ -291,12 +291,13 @@ phg impute-path-from-ps4g \
 |--------------------|--------------------------------------------------------------------------------------------------------------------|---------------|------------------|
 | `--path-keyfile`   | Name of tab-delimited key file. Columns for samplename and filename are required.                                  | `""`          | :material-check: |
 | `--read-file`      | The name of a ps4g file created by align-reads.                                                                    | `""`          | :material-check: |
-| `--out-path-dir`   | The directory where the imputed haplotypes will be written for each sample. File names will be <sampleName>_imputed_path.bed. | `""`          | :material-check: |
+| `--output-dir`     | The directory where the imputed haplotypes will be written for each sample. File names will be <sampleName>_imputed_path.bed. | `""`          | :material-check: |
 | `--path-type`      | The type of path to find. Must be lower case 'haploid' or 'diploid'. 'haploid' infers a single path through the graph. | `haploid`     |                  |
 | `--prob-correct`   | The probability that a read maps to correct haplotype.                                                             | `0.98`        |                  |
 | `--prob-switch`    | The probability of a path switch (a recombination) across `--prob-switch-distance` base pairs, scaled to each step's actual distance. | `1e-16`       |                  |
 | `--prob-switch-distance` | The distance `--prob-switch` is quoted over, in base pairs.                                                  | `1000000`     |                  |
-| `--n-parents`      | Restrict the number of parents used for imputation to this number. Default (0) uses all parents.                   | `0.0`         |                  |
+| `--selfing-generations` | For a diploid path, the number of generations of selfing after a biparental F1 (S5 = F6 is 5). Uses the exact transitions of a selfed line in place of the independent-haplotype model. Takes at most 8 parents, so use it with `--n-parents` (normally 2). | not set       |                  |
+| `--n-parents`      | Restrict the number of parents used for imputation to this number. Default (0) uses all parents.                   | `0`           |                  |
 | `--bin-size`       | The bin size used to create the ps4g file.                                                                         | `256`         |                  |
 | `--expand-bins`    | Write one output record per bin instead of merging adjacent bins that have identical parents into a single record. | `false`       |                  |
 | `--contigs-to-use` | A list of contigs to be imputed. If no list is supplied, all contigs in the ps4g file will be imputed.             | `""`          |                  |
@@ -306,7 +307,16 @@ phg impute-path-from-ps4g \
 
 !!! note
 One of `--path-keyfile` or `--read-file` is required.
-A diploid path is found as for an inbreeding coefficient of 0, with the two haplotypes switching independently, and a haploid path as for an inbreeding coefficient of 1.
+By default a diploid path is found as for an inbreeding coefficient of 0, with the two haplotypes switching independently, and a haploid path as for an inbreeding coefficient of 1.
+`--selfing-generations` is for recombinant inbred lines and other selfed progeny of a biparental cross. Under the independent-haplotype model a change from one homozygous parent to the other costs two switches, so it is often drawn as two heterozygous breakpoints with a short heterozygous segment between them. The selfing model uses the exact two-locus transitions for an F1 followed by N generations of selfing: a homozygous breakpoint costs about one crossover, heterozygous segments are short, and the expected heterozygosity is 2^-N. `--prob-switch` still sets the overall smoothing, as the recombination fraction for each step. Getting N off by one makes little difference. The option is refused for haploid paths and for more than 8 parents. On maize NAM RILs (GBS reads, `--n-parents 2 --selfing-generations 5 --prob-switch 1e-16`), the homozygous breakpoint counts matched the published counts closely, while the independent-haplotype model found only about half of them.
+```shell
+phg impute-path-from-ps4g \
+    --path-keyfile /data/ril_keyfile.txt \
+    --output-dir /results/ril_paths \
+    --path-type diploid \
+    --n-parents 2 \
+    --selfing-generations 5
+```
 `--prob-switch` is charged for the base pairs between consecutive bins with reads (the difference in bin index times `--bin-size`), so its meaning does not change with `--bin-size` or with read coverage. Over a distance `d` the probability of staying on the same parent is `exp(-r d)`, where `r = -ln(1 - prob-switch) / prob-switch-distance`.
 `--expand-bins` is a flag. If entered without a parameter, its value is set to true.
 `--bin-size` must match the ps4g file, so that the output positions are correct.
