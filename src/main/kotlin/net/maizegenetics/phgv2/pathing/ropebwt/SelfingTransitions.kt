@@ -151,20 +151,42 @@ class SelfingTransitions(val generations: Int, val nParents: Int) {
 
     /**
      * The biparental two-locus transition across recombination fraction [r], as 16 probabilities
-     * flattened `from * 4 + to` over [AA], [AB], [BA] and [BB].
+     * flattened `from * 4 + to` over [AA], [AB], [BA] and [BB]: the probability of each genotype at
+     * a locus given the genotype at a locus a distance `r` before it.
      *
-     * Each individual is an ordered pair of two-locus haplotypes, sixteen kinds in all. Selfing
-     * draws two independent gametes, each one of the parental haplotypes with probability
-     * (1 - r) / 2 or one of the two recombinants with r / 2. The leaving probabilities are sums of
-     * products with no cancellation, so they stay accurate when `r` is far below the double-precision
-     * step at 1, as a tuned `--prob-switch` makes it; staying is formed as one minus their sum.
+     * Two loci are followed through F1 -> [generations] selfings in one plant line. The two parents
+     * are founder A (0) and founder B (1).
+     * - A two-locus haplotype is the founders it carries at the two loci, indexed
+     *   `(founder at locus 1) * 2 + (founder at locus 2)`: 0 = A-A, 1 = A-B, 2 = B-A, 3 = B-B.
+     * - An individual is an ordered pair of haplotypes (haplotype 1, haplotype 2), indexed
+     *   `h1 * 4 + h2`, so there are 16 kinds. `individuals[i]` is the probability that the plant in
+     *   the current generation is of kind `i`. The pair is ordered because the HMM states are: AB
+     *   (haplotype 1 from A, haplotype 2 from B) is a different state from BA.
+     *
+     * The F1 is the A-A haplotype paired with the B-B haplotype. Each selfing draws two independent
+     * gametes from the plant, one for each of the offspring's two haplotypes. A gamete is either of the plant's
+     * own haplotypes with probability (1 - r) / 2 each, or either recombinant with probability r / 2
+     * each. A recombinant takes locus 1 from one haplotype and locus 2 from the other.
+     *
+     * After the last generation, each individual is read as a genotype at each locus:
+     * - the genotype at locus 1 is (haplotype 1's founder at locus 1, haplotype 2's founder at locus 1);
+     * - the genotype at locus 2 is the same at locus 2.
+     * Summing gives the joint distribution of the two genotypes. Dividing each row by its total gives
+     * the transition.
+     *
+     * The leaving probabilities are sums of products with no cancellation, so they stay accurate when
+     * `r` is far below the double-precision step at 1, as a tuned `--prob-switch` makes it. Staying is
+     * formed as one minus their sum.
      */
     fun biparentalTransitions(r: Double): DoubleArray {
         require(r in 0.0..0.5) { "recombination fraction must be between 0 and 0.5, not $r" }
-        // haplotype index: (founder at locus 1) * 2 + (founder at locus 2); individual: h1 * 4 + h2
+        fun atLocus1(haplotype: Int) = haplotype / 2
+        fun atLocus2(haplotype: Int) = haplotype % 2
+        fun haplotype(locus1: Int, locus2: Int) = locus1 * 2 + locus2
+
         var individuals = DoubleArray(16)
-        individuals[0 * 4 + 3] = 1.0  // the F1: an AA haplotype and a BB haplotype
-        val gametes = DoubleArray(4)
+        individuals[haplotype(0, 0) * 4 + haplotype(1, 1)] = 1.0  // the F1
+        val gametes = DoubleArray(4)  // gamete haplotype -> probability, for one individual
         repeat(generations) {
             val next = DoubleArray(16)
             for (individual in 0 until 16) {
@@ -175,23 +197,26 @@ class SelfingTransitions(val generations: Int, val nParents: Int) {
                 gametes.fill(0.0)
                 gametes[h1] += (1.0 - r) / 2.0
                 gametes[h2] += (1.0 - r) / 2.0
-                gametes[(h1 and 2) or (h2 and 1)] += r / 2.0
-                gametes[(h2 and 2) or (h1 and 1)] += r / 2.0
-                for (m in 0 until 4) for (f in 0 until 4) next[m * 4 + f] += p * gametes[m] * gametes[f]
+                gametes[haplotype(atLocus1(h1), atLocus2(h2))] += r / 2.0
+                gametes[haplotype(atLocus1(h2), atLocus2(h1))] += r / 2.0
+                // the offspring takes one gamete as haplotype 1 and an independent one as haplotype 2
+                for (g1 in 0 until 4) for (g2 in 0 until 4) next[g1 * 4 + g2] += p * gametes[g1] * gametes[g2]
             }
             individuals = next
         }
 
-        // Joint distribution of (genotype at locus 1, genotype at locus 2).
+        // Joint distribution, flattened `(genotype at locus 1) * 4 + (genotype at locus 2)`, each
+        // genotype being (haplotype 1's founder) * 2 + (haplotype 2's founder), which is AA, AB, BA or BB.
         val joint = DoubleArray(16)
         for (individual in 0 until 16) {
             val h1 = individual / 4
             val h2 = individual % 4
-            val first = (h1 shr 1) * 2 + (h2 shr 1)
-            val second = (h1 and 1) * 2 + (h2 and 1)
-            joint[first * 4 + second] += individuals[individual]
+            val genotype1 = atLocus1(h1) * 2 + atLocus1(h2)
+            val genotype2 = atLocus2(h1) * 2 + atLocus2(h2)
+            joint[genotype1 * 4 + genotype2] += individuals[individual]
         }
 
+        // transition from -> to = P(locus 2 is `to` | locus 1 is `from`)
         val transitions = DoubleArray(16)
         for (from in 0 until 4) {
             val marginal = (0 until 4).sumOf { joint[from * 4 + it] }
