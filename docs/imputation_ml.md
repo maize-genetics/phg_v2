@@ -81,7 +81,7 @@ imputation using the PHG:
   ```shell
   phg impute-bin-probabilities \
       --read-file /path/to/ps4g_file.ps4g \
-      --out-path-dir /my/output_dir
+      --output-dir /my/output_dir
   ```
   
 ## Detailed walkthrough
@@ -348,9 +348,8 @@ phg impute-bin-probabilities \
     --read-file /data/my_ps4g_file.ps4g \
     --output-dir /results/ps4g \
     --impute-type diploid \
-    --inbreed-coef 0.5 \
     --n-parents 10 \
-    --bin-size 5000
+    --bin-size 256
 ```
 
 **Parameters**
@@ -359,15 +358,18 @@ phg impute-bin-probabilities \
 |--------------------|-------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
 | `--path-keyfile`   | Name of tab-delimited key file. Columns for samplename and filename are required.                                             | `""`          | :material-check: |
 | `--read-file`      | The name of a ps4g file created by align-reads.                                                                               | `""`          | :material-check: |
-| `--out-path-dir`   | The directory where the imputed haplotypes will be written for each sample. File names will be <sampleName>_imputed_path.bed. | `""`          | :material-check: |
+| `--output-dir`     | The directory where the probabilities will be written for each sample. File names will be <sampleName>_imputed_probabilities.txt. | `""`          | :material-check: |
 | `--impute-type`    | The type of genotype probabilities to calculate. Must be lower case 'haploid' or 'diploid' (without quotes).                  | `haploid`     |                  |
 | `--prob-correct`   | The probability that a read maps to correct haplotype.                                                                        | `0.98`        |                  |
-| `--prob-same`      | The probability that a path stays on the same gamete when transitioning between two adjacent positions.                       | `0.9999`      |                  |
-| `--inbreed-coef`   | The inbreeding coefficient (between 0.0 and 1.0). Used only for diploid paths.                                                | `0.0`         |                  |
-| `--n-parents`      | Restrict the number of parents used for diploid imputation to this number. Default (0) uses all parents.                      | `0.0`         |                  |
+| `--prob-switch`    | The probability of a path switch (a recombination) across `--prob-switch-distance` base pairs, scaled to each step's actual distance. | `1e-16`       |                  |
+| `--prob-switch-distance` | The distance `--prob-switch` is quoted over, in base pairs.                                                             | `1000000`     |                  |
+| `--n-parents`      | Restrict the number of parents used for imputation to this number. Default (0) uses all parents.                              | `0`           |                  |
+| `--min-prob-ratio` | At each position, only states with probability greater than this fraction of the largest are reported.                        | `0.05`        |                  |
 | `--bin-size`       | The bin size used to create the ps4g file.                                                                                    | `256`         |                  |
 | `--contigs-to-use` | A list of contigs to be imputed. If no list is supplied, all contigs in the ps4g file will be imputed.                        | `""`          |                  |
 
 !!! note
+The model is the one `impute-path-from-ps4g` uses: the same gameteset emission, the same distance-scaled `--prob-switch`, and a uniform initial state distribution. A diploid state's two haplotypes switch independently. So the state with the highest posterior at a bin normally matches the `impute-path-from-ps4g` path there, and the posteriors show how certain each call is.
+The output has one row per reported state per bin with reads: contig, bin start (bin index times `--bin-size`), state, and posterior probability. A diploid state is an ordered pair, written `(parent1,parent2)`.
 `--bin-size` must match the ps4g file, so that the output positions are correct.
 `--contigs-to-use` takes either a comma-separated list of contig names or the name of a file containing the contig names, one per line.

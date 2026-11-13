@@ -126,25 +126,33 @@ class ImputeBinProbabilitiesTest {
             "Expected impute-type error but got: ${badProbCorrectValue.stderr}"
         )
 
-        // Invalid --prob-same value (not between 0.5 and 1.0)
-        val badProbSameValue = ImputeBinProbabilities().test(
-            "--read-file someFile.ps4g --output-dir $tempTestDir --prob-same 0.0"
+        // Invalid --prob-switch value (not between 0 and 1 exclusive)
+        val badProbSwitchValue = ImputeBinProbabilities().test(
+            "--read-file someFile.ps4g --output-dir $tempTestDir --prob-switch 0.0"
         )
-        assertEquals(1, badProbSameValue.statusCode)
+        assertEquals(1, badProbSwitchValue.statusCode)
         assertTrue(
-            badProbSameValue.stderr.contains("prob-same"),
-            "Expected impute-type error but got: ${badProbSameValue.stderr}"
+            badProbSwitchValue.stderr.contains("prob-switch"),
+            "Expected prob-switch error but got: ${badProbSwitchValue.stderr}"
         )
 
-        // Invalid --inbreed-coef value (not between 0.0 and 1.0)
-        val badInbreedCoefValue = ImputeBinProbabilities().test(
-            "--read-file someFile.ps4g --output-dir $tempTestDir --inbreed-coef 1.5"
+        // Invalid --prob-switch-distance value (not positive)
+        val badDistanceValue = ImputeBinProbabilities().test(
+            "--read-file someFile.ps4g --output-dir $tempTestDir --prob-switch-distance 0"
         )
-        assertEquals(1, badInbreedCoefValue.statusCode)
+        assertEquals(1, badDistanceValue.statusCode)
         assertTrue(
-            badInbreedCoefValue.stderr.contains("inbreed-coef"),
-            "Expected impute-type error but got: ${badInbreedCoefValue.stderr}"
+            badDistanceValue.stderr.contains("prob-switch-distance"),
+            "Expected prob-switch-distance error but got: ${badDistanceValue.stderr}"
         )
+
+        // --prob-same and --inbreed-coef were replaced by --prob-switch and the uniform initial distribution
+        for (removed in listOf("--prob-same 0.9999", "--inbreed-coef 0.5")) {
+            val result = ImputeBinProbabilities().test(
+                "--read-file someFile.ps4g --output-dir $tempTestDir $removed"
+            )
+            assertEquals(1, result.statusCode, "$removed should no longer be accepted")
+        }
     }
 
     @Test
@@ -168,7 +176,7 @@ class ImputeBinProbabilitiesTest {
         val outputDir = "$tempTestDir/haploidOut/"
         val result = ImputeBinProbabilities().test(
             "--path-keyfile $keyFile --output-dir $outputDir --n-parents 2 " +
-                    "--prob-correct 0.99 --prob-same 0.9999 --bin-size 1"
+                    "--prob-correct 0.99 --bin-size 1"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -220,7 +228,7 @@ class ImputeBinProbabilitiesTest {
         val outputDir = "$tempTestDir/allParentsOut/"
         val result = ImputeBinProbabilities().test(
             "--path-keyfile $keyFile --output-dir $outputDir " +
-                    "--prob-correct 0.99 --prob-same 0.9999 --bin-size 1"
+                    "--prob-correct 0.99 --bin-size 1"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -235,8 +243,9 @@ class ImputeBinProbabilitiesTest {
 
     @Test
     fun testDiploidProbabilities() {
-        // inbreedCoef = 1.0 forces homozygous states. Reads mostly hit gamete 0, so the dominant
-        // diploid state should be the homozygote (lineA:0, lineA:0).
+        // Reads mostly hit gamete 0 alone, so the dominant diploid state should be the homozygote
+        // (lineA:0, lineA:0): under the gameteset emission each read that hits only lineA:0 counts
+        // half as much toward a heterozygote with lineA:0 as toward the homozygote.
         val gametes = mapOf(
             SampleGamete("lineA", 0) to 0,
             SampleGamete("lineB", 0) to 1
@@ -253,7 +262,7 @@ class ImputeBinProbabilitiesTest {
         val outputDir = "$tempTestDir/diploidOut/"
         val result = ImputeBinProbabilities().test(
             "--path-keyfile $keyFile --output-dir $outputDir --impute-type diploid --n-parents 2 " +
-                    "--prob-correct 0.99 --prob-same 0.9999 --inbreed-coef 1.0 --bin-size 1"
+                    "--prob-correct 0.99 --bin-size 1"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -324,7 +333,7 @@ class ImputeBinProbabilitiesTest {
         val outputDir = "$tempTestDir/multiOut/"
         val result = ImputeBinProbabilities().test(
             "--path-keyfile $keyFile --output-dir $outputDir --n-parents 2 " +
-                    "--prob-correct 0.99 --prob-same 0.9999 --bin-size 1"
+                    "--prob-correct 0.99 --bin-size 1"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -350,7 +359,7 @@ class ImputeBinProbabilitiesTest {
         val outputDir = "$tempTestDir/scafOut/"
         val result = ImputeBinProbabilities().test(
             "--path-keyfile $keyFile --output-dir $outputDir --n-parents 2 " +
-                    "--prob-correct 0.99 --prob-same 0.9999 --bin-size 1"
+                    "--prob-correct 0.99 --bin-size 1"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -369,7 +378,7 @@ class ImputeBinProbabilitiesTest {
         val outputDir = "$tempTestDir/contigListOut/"
         val result = ImputeBinProbabilities().test(
             "--path-keyfile $keyFile --output-dir $outputDir --n-parents 2 " +
-                    "--prob-correct 0.99 --prob-same 0.9999 --bin-size 1 --contigs-to-use chr1,chr2"
+                    "--prob-correct 0.99 --bin-size 1 --contigs-to-use chr1,chr2"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -395,7 +404,7 @@ class ImputeBinProbabilitiesTest {
         val outputDir = "$tempTestDir/contigFileOut/"
         val result = ImputeBinProbabilities().test(
             "--path-keyfile $keyFile --output-dir $outputDir --n-parents 2 " +
-                    "--prob-correct 0.99 --prob-same 0.9999 --bin-size 1 --contigs-to-use $contigFile"
+                    "--prob-correct 0.99 --bin-size 1 --contigs-to-use $contigFile"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -415,7 +424,7 @@ class ImputeBinProbabilitiesTest {
         val outputDir = "$tempTestDir/parentFilterOut/"
         val result = ImputeBinProbabilities().test(
             "--path-keyfile $keyFile --output-dir $outputDir " +
-                    "--prob-correct 0.99 --prob-same 0.9999 --bin-size 1 --contigs-to-use chr2"
+                    "--prob-correct 0.99 --bin-size 1 --contigs-to-use chr2"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -436,7 +445,7 @@ class ImputeBinProbabilitiesTest {
         val outputDir = "$tempTestDir/noMatchOut/"
         val result = ImputeBinProbabilities().test(
             "--path-keyfile $keyFile --output-dir $outputDir " +
-                    "--prob-correct 0.99 --prob-same 0.9999 --bin-size 1 --contigs-to-use chr99"
+                    "--prob-correct 0.99 --bin-size 1 --contigs-to-use chr99"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -463,7 +472,7 @@ class ImputeBinProbabilitiesTest {
         val outputDir = "$tempTestDir/binsizeOut/"
         val result = ImputeBinProbabilities().test(
             "--path-keyfile $keyFile --output-dir $outputDir --n-parents 2 " +
-                    "--prob-correct 0.99 --prob-same 0.9999 --bin-size 100"
+                    "--prob-correct 0.99 --bin-size 100"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -489,7 +498,7 @@ class ImputeBinProbabilitiesTest {
         val outputDir = "$tempTestDir/readFileOut/"
         val result = ImputeBinProbabilities().test(
             "--read-file $ps4gFile --output-dir $outputDir --n-parents 2 " +
-                    "--prob-correct 0.99 --prob-same 0.9999 --bin-size 1"
+                    "--prob-correct 0.99 --bin-size 1"
         )
         assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
 
@@ -498,5 +507,95 @@ class ImputeBinProbabilitiesTest {
         val outFile = File("$outputDir/readFileSample.ps4g_imputed_probabilities.txt")
         assertTrue(outFile.exists(), "Output file for --read-file sample was not created")
         assertTrue(readProbabilityRows(outFile).isNotEmpty(), "Expected data rows")
+    }
+
+    @Test
+    fun testDiploidHeterozygousProbabilities() {
+        // Every bin has reads that hit lineA:0 alone and reads that hit lineB:0 alone, which only a
+        // heterozygote explains, so the two ordered heterozygous states together should carry
+        // nearly all the probability at every bin.
+        val gametes = mapOf(
+            SampleGamete("lineA", 0) to 0,
+            SampleGamete("lineB", 0) to 1
+        )
+        val ps4gData = (1..5).flatMap { bin ->
+            listOf(PS4GData(listOf(0), Position("chr1", bin), 10), PS4GData(listOf(1), Position("chr1", bin), 10))
+        }
+
+        val ps4gFile = "$tempTestDir/het.ps4g"
+        createPs4gFile(ps4gFile, gametes, ps4gData)
+        val keyFile = "$tempTestDir/hetKey.txt"
+        createKeyFile(keyFile, "hetSample", ps4gFile)
+
+        val outputDir = "$tempTestDir/hetOut/"
+        val result = ImputeBinProbabilities().test(
+            "--path-keyfile $keyFile --output-dir $outputDir --impute-type diploid --n-parents 2 " +
+                    "--min-prob-ratio 0 --bin-size 1"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val rows = readProbabilityRows(File("$outputDir/hetSample_imputed_probabilities.txt"))
+        assertEquals(setOf("1", "2", "3", "4", "5"), rows.map { it[1] }.toSet())
+        rows.groupBy { it[1] }.forEach { (position, group) ->
+            assertEquals(1.0, group.sumOf { it[3].toDouble() }, 1e-9, "Posteriors should sum to 1 at $position")
+            val het = group.filter { it[2] == "(lineA:0,lineB:0)" || it[2] == "(lineB:0,lineA:0)" }
+                .sumOf { it[3].toDouble() }
+            assertTrue(het > 0.99, "Expected a heterozygote at position $position, got $het")
+        }
+    }
+
+    @Test
+    fun testPosteriorsAgreeWithImputePathFromPs4g() {
+        // Both commands run the same model, so the genotype with the highest posterior should be the
+        // genotype on the Viterbi path at each bin. Bins 1-20 are lineA:0, 21-30 heterozygous and
+        // 31-50 lineB:0, 40 bins apart at a realistic bin size so the distance-scaled switch is used.
+        // Each bin also has reads that hit every gamete, so lineC:0 is a candidate the reads never favor.
+        val gametes = mapOf(
+            SampleGamete("lineA", 0) to 0,
+            SampleGamete("lineB", 0) to 1,
+            SampleGamete("lineC", 0) to 2
+        )
+        val ps4gData = (1..50).flatMap { bin ->
+            val position = Position("chr1", bin * 40)
+            when {
+                bin <= 20 -> listOf(PS4GData(listOf(0), position, 6))
+                bin <= 30 -> listOf(PS4GData(listOf(0), position, 3), PS4GData(listOf(1), position, 3))
+                else -> listOf(PS4GData(listOf(1), position, 6))
+            } + PS4GData(listOf(0, 1, 2), position, 2)
+        }
+
+        val ps4gFile = "$tempTestDir/agree.ps4g"
+        createPs4gFile(ps4gFile, gametes, ps4gData)
+        val keyFile = "$tempTestDir/agreeKey.txt"
+        createKeyFile(keyFile, "agreeSample", ps4gFile)
+
+        val probabilityDir = "$tempTestDir/agreeProbabilities/"
+        val pathDir = "$tempTestDir/agreePath/"
+        val common = "--path-keyfile $keyFile --n-parents 3 --prob-switch 1e-6 --bin-size 256"
+        val probabilityResult = ImputeBinProbabilities().test("$common --output-dir $probabilityDir --impute-type diploid")
+        assertEquals(0, probabilityResult.statusCode, "Command failed:\n${probabilityResult.stderr}")
+        val pathResult = ImputePathFromPs4g().test("$common --output-dir $pathDir --path-type diploid --expand-bins")
+        assertEquals(0, pathResult.statusCode, "Command failed:\n${pathResult.stderr}")
+
+        // (start, unordered genotype) records of the per-bin Viterbi BED, in order. Records are cut at
+        // the midpoints between bins (see pathToIntervals), so a bin's call is in the last record
+        // starting at or before it.
+        val viterbi = File("$pathDir/agreeSample_imputed_path.bed").readLines().drop(1).map { line ->
+            val fields = line.split("\t")
+            Pair(fields[1].toInt(), setOf(fields[3], fields[4]))
+        }
+        assertEquals(50, viterbi.size)
+        val rows = readProbabilityRows(File("$probabilityDir/agreeSample_imputed_probabilities.txt"))
+        val posterior = topStateByPosition(rows).mapValues { (_, state) ->
+            state.removePrefix("(").removeSuffix(")").split(",").toSet()
+        }
+        assertEquals(50, posterior.size)
+        posterior.forEach { (position, genotype) ->
+            val record = viterbi.last { position.toInt() >= it.first }
+            assertEquals(record.second, genotype, "Genotype at $position")
+        }
+        assertEquals(setOf("lineA:0"), posterior[(10 * 40 * 256).toString()])
+        assertEquals(setOf("lineA:0", "lineB:0"), posterior[(25 * 40 * 256).toString()])
+        assertEquals(setOf("lineB:0"), posterior[(40 * 40 * 256).toString()])
     }
 }
