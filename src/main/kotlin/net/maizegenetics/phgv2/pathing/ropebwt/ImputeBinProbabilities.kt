@@ -39,7 +39,8 @@ import kotlin.io.path.createDirectories
  *  - transitions from [SwitchTransitionStep], charged for the base pairs between consecutive bins
  *    with reads at [probSwitch] per [probSwitchDistance]; a diploid path's two haplotypes switch
  *    independently,
- *  - emission probabilities from [GameteSetEmissionProbability] driven by [probCorrect].
+ *  - emission probabilities from [GameteSetEmissionProbability] driven by [probCorrect], with the
+ *    presence/absence correction when [presenceFile] is supplied (diploid only).
  *
  * Results are written per sample to `<outputDir>/<sampleName>_imputed_probabilities.txt`.
  */
@@ -94,6 +95,26 @@ class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype
         .int()
         .default(0)
 
+    val presenceFile by option(help = "Optional per-founder anchor presence table built from a " +
+            "ropebwt3 lift file by `phg build-presence-table`. Used by diploid imputation only. Where a " +
+            "founder has no alignable sequence in a window, every read matches the other founder " +
+            "alone and the model would otherwise read that as evidence for homozygosity; supplying " +
+            "this table lets the heterozygous state tie with the homozygous one instead, leaving " +
+            "the transition prior to decide.")
+        .default("")
+
+    val pavThreshold by option(help = "A founder whose anchor presence in a window is at or below " +
+            "this fraction is treated as absent there, for --presence-file. Default = 0.02.")
+        .double()
+        .default(0.02)
+
+    val pavDamping by option(help = "Strength of the presence/absence correction, 0 to 1. A value of 0 gives " +
+            "no correction. A value of 1 is full correction: when one founder is absent, the probability of a homozygote " +
+            "equals the probability of a heterozygote. Default = 1.0.")
+        .double()
+        .default(1.0)
+        .validate { require(it in 0.0..1.0) { "pav-damping must be between 0 and 1" } }
+
     val minProbRatio by option(help = "At each position only probabilities > min-prob-ratio * max probability will be reported. Default = 0.05")
         .double()
         .default(0.05)
@@ -108,6 +129,8 @@ class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype
         .default("")
 
     val myLogger = LogManager.getLogger(ImputeBinProbabilities::class.java)
+
+    private var loadedPresenceTable: PresenceTable? = null
 
     /**
      * Clikt entry point. Logs the invocation, reports available JVM memory, ensures the
@@ -126,6 +149,15 @@ class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype
         val pathToOutputDir = Paths.get(outputDir)
         pathToOutputDir.createDirectories()
 
+        if (presenceFile.isNotBlank()) {
+            require(File(presenceFile).exists()) { "--presence-file $presenceFile does not exist." }
+            if (imputeType == "haploid") myLogger.warn("--presence-file is ignored for haploid imputation")
+            myLogger.info("Loading founder presence table $presenceFile")
+            loadedPresenceTable = PresenceTable(File(presenceFile))
+            myLogger.info("Presence table window size = ${loadedPresenceTable!!.windowSize}, " +
+                    "${loadedPresenceTable!!.nTaxa} taxa, PAV threshold = $pavThreshold")
+        }
+
         imputeProbabilities()
 
     }
@@ -142,7 +174,7 @@ class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype
      *  3. Builds the uniform initial state probabilities and, per contig, the distance-scaled
      *     transitions ([SwitchTransitionStep]) and the emission probabilities
      *     ([GameteSetEmissionProbability]: the homozygous diagonal for a haploid path, every ordered
-     *     pair for a diploid one).
+     *     pair for a diploid one, with the presence/absence correction when a presence table is loaded).
      *  4. Runs [PositionalForwardBackward] over each contig's positions and writes the result to
      *     `<outputDir>/<sampleName>_imputed_probabilities.txt`.
      *
@@ -200,7 +232,10 @@ class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype
 
                     val numberOfPositions = readMapForContig.size
 
-                    val emissionProbability = GameteSetEmissionProbability(readMapForContig, parentSet, probCorrect)
+                    // the presence/absence correction only rewrites heterozygous cells, so a haploid path never uses it
+                    val emissionProbability = GameteSetEmissionProbability(readMapForContig, parentSet, probCorrect,
+                        if (isHaploid) null else loadedPresenceTable, contig, gameteIndexMap, binSize,
+                        pavThreshold, pavDamping)
                     val lnEmissionArray = if (isHaploid) {
                         {ndx: Int -> emissionProbability.getHomozygousEmissionProbabilityArray(ndx)}
                     } else {

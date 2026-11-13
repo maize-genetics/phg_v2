@@ -364,12 +364,15 @@ phg impute-bin-probabilities \
 | `--prob-switch`    | The probability of a path switch (a recombination) across `--prob-switch-distance` base pairs, scaled to each step's actual distance. | `1e-16`       |                  |
 | `--prob-switch-distance` | The distance `--prob-switch` is quoted over, in base pairs.                                                             | `1000000`     |                  |
 | `--n-parents`      | Restrict the number of parents used for imputation to this number. Default (0) uses all parents.                              | `0`           |                  |
+| `--presence-file`  | Anchor presence table built from a ropebwt3 lift file by `build-presence-table`. Diploid only.                                | `""`          |                  |
+| `--pav-threshold`  | A founder whose anchor presence in a window is at or below this fraction is treated as absent. Used with `--presence-file`.   | `0.02`        |                  |
+| `--pav-damping`    | Determines the strength of the pav correction. 1.0 is fully corrected while 0.0 is no correction. Used with `--presence-file`. | `1.0`         |                  |
 | `--min-prob-ratio` | At each position, only states with probability greater than this fraction of the largest are reported.                        | `0.05`        |                  |
 | `--bin-size`       | The bin size used to create the ps4g file.                                                                                    | `256`         |                  |
 | `--contigs-to-use` | A list of contigs to be imputed. If no list is supplied, all contigs in the ps4g file will be imputed.                        | `""`          |                  |
 
 !!! note
-The model is the one `impute-path-from-ps4g` uses: the same gameteset emission, the same distance-scaled `--prob-switch`, and a uniform initial state distribution. A diploid state's two haplotypes switch independently. So the state with the highest posterior at a bin normally matches the `impute-path-from-ps4g` path there, and the posteriors show how certain each call is.
+The model is the one `impute-path-from-ps4g` uses: the same gameteset emission, the same distance-scaled `--prob-switch`, the same presence/absence correction when `--presence-file` is given, and a uniform initial state distribution. A diploid state's two haplotypes switch independently. So the state with the highest posterior at a bin normally matches the `impute-path-from-ps4g` path there, and the posteriors show how certain each call is.
 The output has one row per reported state per bin with reads: contig, bin start (bin index times `--bin-size`), state, and posterior probability. A diploid state is an ordered pair, written `(parent1,parent2)`.
 `--bin-size` must match the ps4g file, so that the output positions are correct.
 `--contigs-to-use` takes either a comma-separated list of contig names or the name of a file containing the contig names, one per line.

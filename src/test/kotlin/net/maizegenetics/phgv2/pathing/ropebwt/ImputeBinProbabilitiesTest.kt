@@ -545,6 +545,62 @@ class ImputeBinProbabilitiesTest {
     }
 
     @Test
+    fun testPresenceFileKeepsHeterozygoteWhereFounderIsAbsent() {
+        // A lineA:0/lineB:0 heterozygote throughout, but lineB:0 has no sequence in bins 20-39, so
+        // every read there hits lineA:0 alone. Without a presence table that run of one-sided reads
+        // outweighs two switches and the posterior moves to the lineA:0 homozygote; with lineB:0
+        // flagged absent in that window the two states tie and the heterozygote is kept.
+        val gametes = mapOf(
+            SampleGamete("lineA", 0) to 0,
+            SampleGamete("lineB", 0) to 1
+        )
+        val ps4gData = (1..59).flatMap { bin ->
+            val position = Position("chr1", bin)
+            if (bin in 20..39) listOf(PS4GData(listOf(0), position, 20))
+            else listOf(PS4GData(listOf(0), position, 5), PS4GData(listOf(1), position, 5))
+        }
+        val ps4gFile = "$tempTestDir/pav.ps4g"
+        createPs4gFile(ps4gFile, gametes, ps4gData)
+        val keyFile = "$tempTestDir/pavKey.txt"
+        createKeyFile(keyFile, "pavSample", ps4gFile)
+
+        // windows of 20 bp at --bin-size 1: lineB:0 is absent from window 1 (bins 20-39) only
+        val taxa = listOf("lineA:0", "lineB:0")
+        val presence = FloatArray(3 * taxa.size) { 1.0f }.also { it[1 * taxa.size + 1] = 0.0f }
+        val presenceFile = File("$tempTestDir/pav_presence.bin")
+        BuildPresenceTable().writeTable(presenceFile, 20, taxa,
+            listOf(BuildPresenceTable.ChromBlock("chr1", 3, presence)))
+
+        fun hetProbability(extraOptions: String, outputDir: String): Map<String, Double> {
+            val result = ImputeBinProbabilities().test(
+                "--path-keyfile $keyFile --output-dir $outputDir --impute-type diploid --n-parents 2 " +
+                        "--min-prob-ratio 0 --bin-size 1 $extraOptions"
+            )
+            assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+            return readProbabilityRows(File("$outputDir/pavSample_imputed_probabilities.txt"))
+                .filter { it[2] == "(lineA:0,lineB:0)" || it[2] == "(lineB:0,lineA:0)" }
+                .groupBy { it[1] }
+                .mapValues { (_, group) -> group.sumOf { it[3].toDouble() } }
+        }
+
+        val uncorrected = hetProbability("", "$tempTestDir/pavOffOut/")
+        val corrected = hetProbability("--presence-file ${presenceFile.path}", "$tempTestDir/pavOnOut/")
+        for (bin in listOf("10", "50")) {
+            assertTrue(uncorrected[bin]!! > 0.99, "Expected a heterozygote at $bin without the table")
+            assertTrue(corrected[bin]!! > 0.99, "Expected a heterozygote at $bin with the table")
+        }
+        for (bin in listOf("25", "30", "35")) {
+            assertTrue(uncorrected[bin]!! < 0.01, "Expected the lineA:0 homozygote at $bin without the table")
+            assertTrue(corrected[bin]!! > 0.99, "Expected the heterozygote kept at $bin with the table")
+        }
+
+        // --pav-damping 0 turns the correction off
+        val undamped = hetProbability("--presence-file ${presenceFile.path} --pav-damping 0",
+            "$tempTestDir/pavZeroOut/")
+        assertTrue(undamped["30"]!! < 0.01, "Expected no correction at --pav-damping 0")
+    }
+
+    @Test
     fun testPosteriorsAgreeWithImputePathFromPs4g() {
         // Both commands run the same model, so the genotype with the highest posterior should be the
         // genotype on the Viterbi path at each bin. Bins 1-20 are lineA:0, 21-30 heterozygous and
