@@ -109,6 +109,16 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         .default(1_000_000.0)
         .validate { require(it > 0.0) { "prob-switch-distance must be positive" } }
 
+    val selfingGenerations by option(help = "For a diploid path, the number of generations of selfing " +
+            "after a biparental F1 (S5 = F6 is 5). Replaces the model in which the two haplotypes switch " +
+            "independently with the exact transitions of a selfed line, where a homozygous breakpoint " +
+            "costs about one crossover rather than two and heterozygous segments are short. " +
+            "--prob-switch still sets the overall smoothing. Takes at most " +
+            "${SelfingTransitions.MAX_PARENTS} parents, so use it with --n-parents (normally 2). " +
+            "Default: not set, the independent-haplotype model.")
+        .int()
+        .validate { require(it >= 1) { "selfing-generations must be at least 1" } }
+
     val nParents by option(help = "Restrict the number of parents used for imputation to this number. " +
             "Default = 0 will use all parents.")
         .int()
@@ -168,6 +178,14 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         if (outputDir.isNotBlank()) File(outputDir).mkdirs()
 
         val isHaploid = pathType == "haploid"
+        if (isHaploid && selfingGenerations != null) {
+            throw UsageError("--selfing-generations applies to --path-type diploid only.")
+        }
+        // --n-parents 0 keeps every gamete, which SelfingTransitions checks once the count is known.
+        if (selfingGenerations != null && nParents > SelfingTransitions.MAX_PARENTS) {
+            throw UsageError("--selfing-generations takes at most ${SelfingTransitions.MAX_PARENTS} parents; " +
+                    "set --n-parents (normally 2).")
+        }
 
         //Get or create the output directory
         val pathToOutputDir = Paths.get(outputDir)
@@ -236,7 +254,8 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
      * or --read-file. For every sample, the parent set is optionally reduced to the [nParents] most
      * likely parents via [MostLikelyPs4gParents], then each contig is run through
      * [ViterbiHMM.findDiploidPath] at an inbreeding coefficient of 0, so the two haplotypes switch
-     * independently. The resulting paths are written to <sampleName>_imputed_path.bed
+     * independently -- or, with --selfing-generations, with the transitions of [SelfingTransitions].
+     * The resulting paths are written to <sampleName>_imputed_path.bed
      * in [outputDir] as chrom/start/end/parent1/parent2 records.
      *
      * The parent pair is ordered, so adjacent bins are only merged when parent1 and parent2 both
@@ -272,13 +291,17 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
      * ((bin index difference) x --bin-size) at --prob-switch per --prob-switch-distance, so the
      * switch penalty does not change with bin size or read coverage.
      */
-    private fun binTransitions(binPositions: Collection<Int>, nParents: Int): Pair<DoubleArray, DoubleArray> {
+    private fun binTransitions(binPositions: Collection<Int>, nParents: Int): Pair<DoubleArray, DoubleArray> =
+        transitionLogsByDistance(binDistances(binPositions), probSwitch, probSwitchDistance, nParents)
+
+    /** Base pairs between consecutive bins with reads, in position order; see [stepDistances]. */
+    private fun binDistances(binPositions: Collection<Int>): IntArray {
         val basePositions = binPositions.sorted().map { bin ->
             val position = bin.toLong() * binSize
             check(position <= Int.MAX_VALUE) { "bin $bin at --bin-size $binSize is beyond ${Int.MAX_VALUE} bp" }
             position.toInt()
         }.toIntArray()
-        return transitionLogsByDistance(stepDistances(basePositions), probSwitch, probSwitchDistance, nParents)
+        return stepDistances(basePositions)
     }
 
     private fun imputePaths(
@@ -303,6 +326,10 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
 
             val parentSet = parentSelector(ps4gReader, contigs.sorted())
             myLogger.info("Parent set: $parentSet")
+            // The haploid path is the F = 1 recursion and never selfing; run() has already refused
+            // --selfing-generations with it.
+            val selfing = selfingGenerations?.takeIf { inbreedingCoefficient == 0.0 }
+                ?.let { SelfingTransitions(it, parentSet.size) }
 
             val outputFilepath = outputDir.resolve("${fileData.sampleName}_imputed_path.bed")
             getBufferedWriter(outputFilepath.toFile()).use { writer ->
@@ -316,10 +343,16 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
                     check(readMapForContig != null) { "read data for contig $contig was null for ${fileData.sampleName}" }
 
                     val startTime = System.nanoTime()
-                    val (lnNoSwitch, lnSwitch) = binTransitions(readMapForContig.keys, parentSet.size)
-                    val contigPath = hmm.findDiploidPath(contig, ps4gReader.gameteIndexMap(),
-                        readMapForContig, parentSet, lnNoSwitch, lnSwitch)
-                        .map { Pair(it.first, Pair(it.second, it.third)) }
+                    val contigPath = if (selfing != null) {
+                        hmm.findDiploidPath(contig, ps4gReader.gameteIndexMap(), readMapForContig, parentSet,
+                            transitionLogsByPosition = selfing.logMatricesByDistance(
+                                binDistances(readMapForContig.keys), probSwitch, probSwitchDistance),
+                            initialLogProbabilities = selfing.initialLogProbabilities())
+                    } else {
+                        val (lnNoSwitch, lnSwitch) = binTransitions(readMapForContig.keys, parentSet.size)
+                        hmm.findDiploidPath(contig, ps4gReader.gameteIndexMap(),
+                            readMapForContig, parentSet, lnNoSwitch, lnSwitch)
+                    }.map { Pair(it.first, Pair(it.second, it.third)) }
                     myLogger.info("elapsed time for $contig was ${(System.nanoTime() - startTime) / 1_000_000_000.0} sec")
 
                     pathToIntervals(contigPath, binSize, mergeAdjacent = !expandBins).forEach { interval ->
