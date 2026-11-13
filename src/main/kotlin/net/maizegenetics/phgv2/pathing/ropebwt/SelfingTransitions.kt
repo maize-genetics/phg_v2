@@ -65,7 +65,8 @@ class SelfingTransitions(val generations: Int, val nParents: Int) {
         /** ln(0), floored like the other recursions so an impossible step is finite. */
         private const val LN_ZERO = -1.0e6
 
-        /** Biparental ordered genotypes, indexed `first * 2 + second` with A = 0 and B = 1. */
+        /** Biparental ordered genotypes, indexed `first * 2 + second` with A = 0 and B = 1.
+         * These can represent a genotype at one locus or a two locus haplotype depending on context. */
         const val AA = 0
         const val AB = 1
         const val BA = 2
@@ -140,8 +141,8 @@ class SelfingTransitions(val generations: Int, val nParents: Int) {
 
     /**
      * Log initial probabilities over the K-founder states, indexed `first * nParents + second`: the
-     * single-locus genotype frequencies after [generations] generations, 1 - 2^-N homozygous and
-     * 2^-N heterozygous, shared equally among the states of each kind. This is also the stationary
+     * single-locus genotype frequencies after [generations] generations, 1 - 2^-N for homozygotes and
+     * 2^-N for heterozygotes, shared equally among the states of each kind. This is also the stationary
      * distribution of the transitions.
      */
     fun initialLogProbabilities(): DoubleArray = DoubleArray(nStates) { state ->
@@ -161,7 +162,8 @@ class SelfingTransitions(val generations: Int, val nParents: Int) {
      * - An individual is an ordered pair of haplotypes (haplotype 1, haplotype 2), indexed
      *   `h1 * 4 + h2`, so there are 16 kinds. `individuals[i]` is the probability that the plant in
      *   the current generation is of kind `i`. The pair is ordered because the HMM states are: AB
-     *   (haplotype 1 from A, haplotype 2 from B) is a different state from BA.
+     *   (haplotype 1 from A, haplotype 2 from B) is a different state from BA. In particular,
+     *   note the difference between AA (a single locus genotype) and A-B (a two locus haplotype).
      *
      * The F1 is the A-A haplotype paired with the B-B haplotype. Each selfing draws two independent
      * gametes from the plant, one for each of the offspring's two haplotypes. A gamete is either of the plant's
@@ -174,7 +176,7 @@ class SelfingTransitions(val generations: Int, val nParents: Int) {
      * Summing gives the joint distribution of the two genotypes. Dividing each row by its total gives
      * the transition.
      *
-     * The leaving probabilities are sums of products with no cancellation, so they stay accurate when
+     * The leaving probabilities (probability of a recombination / path switch) are sums of products with no cancellation, so they stay accurate when
      * `r` is far below the double-precision step at 1, as a tuned `--prob-switch` makes it. Staying is
      * formed as one minus their sum.
      */
