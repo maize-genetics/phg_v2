@@ -306,22 +306,22 @@ phg impute-path-from-ps4g \
 | `--pav-damping`    | Determines the strength of the pav correction. 1.0 is fully corrected while 0.0 is no correction. Used with `--presence-file`. | `1.0`         |                  |
 
 !!! note
-One of `--path-keyfile` or `--read-file` is required.
-By default a diploid path is found as for an inbreeding coefficient of 0, with the two haplotypes switching independently, and a haploid path as for an inbreeding coefficient of 1.
-`--selfing-generations` is for recombinant inbred lines and other selfed progeny of a biparental cross. Under the independent-haplotype model a change from one homozygous parent to the other costs two switches, so it is often drawn as two heterozygous breakpoints with a short heterozygous segment between them. The selfing model uses the exact two-locus transitions for an F1 followed by N generations of selfing: a homozygous breakpoint costs about one crossover, heterozygous segments are short, and the expected heterozygosity is 2^-N. `--prob-switch` still sets the overall smoothing, as the recombination fraction for each step. Getting N off by one makes little difference. The option is refused for haploid paths and for more than 8 parents. On maize NAM RILs (GBS reads, `--n-parents 2 --selfing-generations 5 --prob-switch 1e-16`), the homozygous breakpoint counts matched the published counts closely, while the independent-haplotype model found only about half of them.
-```shell
-phg impute-path-from-ps4g \
-    --path-keyfile /data/ril_keyfile.txt \
-    --output-dir /results/ril_paths \
-    --path-type diploid \
-    --n-parents 2 \
-    --selfing-generations 5
-```
-`--prob-switch` is charged for the base pairs between consecutive bins with reads (the difference in bin index times `--bin-size`), so its meaning does not change with `--bin-size` or with read coverage. Over a distance `d` the probability of staying on the same parent is `exp(-r d)`, where `r = -ln(1 - prob-switch) / prob-switch-distance`.
-`--expand-bins` is a flag. If entered without a parameter, its value is set to true.
-`--bin-size` must match the ps4g file, so that the output positions are correct.
-`--contigs-to-use` takes either a comma-separated list of contig names or the name of a file containing the contig names, one per line.
-The defaults for `--pav-threshold` and `--pav-damping` were determined to be optimal for simulated maize F1 and F2 reads and improved both parent calling and SNP accuracy.
+    One of `--path-keyfile` or `--read-file` is required.
+    By default a diploid path is found as for an inbreeding coefficient of 0, with the two haplotypes switching independently, and a haploid path as for an inbreeding coefficient of 1.
+    `--selfing-generations` is for recombinant inbred lines and other selfed progeny of a biparental cross. Under the independent-haplotype model a change from one homozygous parent to the other costs two switches, so it is often drawn as two heterozygous breakpoints with a short heterozygous segment between them. The selfing model uses the exact two-locus transitions for an F1 followed by N generations of selfing: a homozygous breakpoint costs about one crossover, heterozygous segments are short, and the expected heterozygosity is 2^-N. `--prob-switch` still sets the overall smoothing, as the recombination fraction for each step. Getting N off by one makes little difference. The option is refused for haploid paths and for more than 8 parents. On maize NAM RILs (GBS reads, `--n-parents 2 --selfing-generations 5 --prob-switch 1e-16`), the homozygous breakpoint counts matched the published counts closely, while the independent-haplotype model found only about half of them.
+    ```shell
+    phg impute-path-from-ps4g \
+        --path-keyfile /data/ril_keyfile.txt \
+        --output-dir /results/ril_paths \
+        --path-type diploid \
+        --n-parents 2 \
+        --selfing-generations 5
+    ```
+    `--prob-switch` is charged for the base pairs between consecutive bins with reads (the difference in bin index times `--bin-size`), so its meaning does not change with `--bin-size` or with read coverage. Over a distance `d` the probability of staying on the same parent is `exp(-r d)`, where `r = -ln(1 - prob-switch) / prob-switch-distance`.
+    `--expand-bins` is a flag. If entered without a parameter, its value is set to true.
+    `--bin-size` must match the ps4g file, so that the output positions are correct.
+    `--contigs-to-use` takes either a comma-separated list of contig names or the name of a file containing the contig names, one per line.
+    The defaults for `--pav-threshold` and `--pav-damping` were determined to be optimal for simulated maize F1 and F2 reads and improved both parent calling and SNP accuracy.
 
 **Command** - `build-presence-table`
 

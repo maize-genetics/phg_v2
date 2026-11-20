@@ -181,10 +181,15 @@ class ImputePathFromPs4g: CliktCommand(help = "Impute best haplotypes from a Ps4
         if (isHaploid && selfingGenerations != null) {
             throw UsageError("--selfing-generations applies to --path-type diploid only.")
         }
-        // --n-parents 0 keeps every gamete, which SelfingTransitions checks once the count is known.
-        if (selfingGenerations != null && nParents > SelfingTransitions.MAX_PARENTS) {
+
+        if (selfingGenerations != null && nParents > SelfingTransitions.MAX_PARENTS ) {
             throw UsageError("--selfing-generations takes at most ${SelfingTransitions.MAX_PARENTS} parents; " +
                     "set --n-parents (normally 2).")
+        }
+
+        if (selfingGenerations != null && nParents == 0 ) {
+            throw UsageError("--selfing-generations takes at most ${SelfingTransitions.MAX_PARENTS} parents " +
+                    "but --n-parents = 0, which uses all parents. Set --n-parents to a value > 0 (normally 2).")
         }
 
         //Get or create the output directory
