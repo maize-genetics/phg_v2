@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -63,6 +64,41 @@ class BuildReadMappingFromVcfTest {
         fun index(): Map<Position, VcfHaplotypeIndexPosition> = VcfHaplotypeIndexUtils.readIndex(indexFile)
 
         fun readMappingAsMap(file: String): Map<List<String>, Int> = AlignmentUtils.importReadMapping(file)
+
+        /**
+         * Runs processRecord for a record known to be in the index and collects its evidence
+         * into sampleName -> (hapIds -> count), the shape the old processRecord returned.
+         */
+        fun deltas(
+            cmd: BuildReadMappingFromVcf,
+            record: VariantContext,
+            useAlleleDepth: Boolean,
+            stats: ReadMappingStats
+        ): Map<String, Map<List<String>, Int>> {
+            val indexPosition = index().getValue(Position(record.contig, record.start))
+            val result = mutableMapOf<String, MutableMap<List<String>, Int>>()
+            cmd.processRecord(record, indexPosition, useAlleleDepth, stats) { sampleName, hapIds, weight ->
+                val sampleMap = result.getOrPut(sampleName) { mutableMapOf() }
+                sampleMap[hapIds] = (sampleMap[hapIds] ?: 0) + weight
+            }
+            return result
+        }
+
+        /**
+         * Runs buildReadMappings into a fresh directory and reads every sample's file back.
+         */
+        fun buildAndRead(
+            index: String,
+            vcf: String,
+            outDirName: String,
+            useAlleleDepth: Boolean,
+            maxBufferedEntries: Long = BuildReadMappingFromVcf.DEFAULT_MAX_BUFFERED_ENTRIES
+        ): Pair<Map<String, Map<List<String>, Int>>, ReadMappingStats> {
+            val outDir = "${TestExtension.testOutputDir}$outDirName"
+            File(outDir).mkdirs()
+            val (sampleNames, stats) = BuildReadMappingFromVcf().buildReadMappings(index, vcf, outDir, useAlleleDepth, maxBufferedEntries)
+            return sampleNames.associateWith { readMappingAsMap("$outDir/${it}_readMapping.txt") } to stats
+        }
     }
 
     //region CLI validation
@@ -120,8 +156,8 @@ class BuildReadMappingFromVcfTest {
 
         assertEquals(1, cmd.alleleWeight(genotypeWithAD, record.getAlternateAllele(0), record, useAlleleDepth = false, stats = stats))
         assertEquals(1, cmd.alleleWeight(genotypeWithoutAD, record.getAlternateAllele(0), record, useAlleleDepth = false, stats = stats))
-        assertEquals(0, stats.adFallbackCount)
-        assertEquals(0, stats.zeroDepthAlleleCalls)
+        assertEquals(0L, stats.adFallbackCount)
+        assertEquals(0L, stats.zeroDepthAlleleCalls)
     }
 
     @Test
@@ -136,7 +172,7 @@ class BuildReadMappingFromVcfTest {
 
         assertEquals(12, refWeight)
         assertEquals(8, altWeight)
-        assertEquals(0, stats.adFallbackCount)
+        assertEquals(0L, stats.adFallbackCount)
     }
 
     @Test
@@ -149,8 +185,8 @@ class BuildReadMappingFromVcfTest {
         val weight = cmd.alleleWeight(genotype, record.getAlternateAllele(0), record, useAlleleDepth = true, stats = stats)
 
         assertEquals(1, weight)
-        assertEquals(1, stats.adFallbackCount)
-        assertEquals(0, stats.zeroDepthAlleleCalls)
+        assertEquals(1L, stats.adFallbackCount)
+        assertEquals(0L, stats.zeroDepthAlleleCalls)
     }
 
     @Test
@@ -162,11 +198,11 @@ class BuildReadMappingFromVcfTest {
 
         val refWeight = cmd.alleleWeight(genotype, record.reference, record, useAlleleDepth = true, stats = stats)
         assertEquals(9, refWeight)
-        assertEquals(0, stats.adFallbackCount)
+        assertEquals(0L, stats.adFallbackCount)
 
         val altWeight = cmd.alleleWeight(genotype, record.getAlternateAllele(0), record, useAlleleDepth = true, stats = stats)
         assertEquals(1, altWeight)
-        assertEquals(1, stats.adFallbackCount)
+        assertEquals(1L, stats.adFallbackCount)
     }
 
     @Test
@@ -179,8 +215,8 @@ class BuildReadMappingFromVcfTest {
         val weight = cmd.alleleWeight(genotype, record.getAlternateAllele(0), record, useAlleleDepth = true, stats = stats)
 
         assertEquals(0, weight)
-        assertEquals(1, stats.zeroDepthAlleleCalls)
-        assertEquals(0, stats.adFallbackCount)
+        assertEquals(1L, stats.zeroDepthAlleleCalls)
+        assertEquals(0L, stats.adFallbackCount)
     }
 
     //endregion
@@ -188,25 +224,12 @@ class BuildReadMappingFromVcfTest {
     //region processRecord
 
     @Test
-    fun testProcessRecordPositionNotInIndex() {
-        val cmd = BuildReadMappingFromVcf()
-        val record = imputeRecords().getValue(40)
-        val stats = ReadMappingStats()
-
-        val deltas = cmd.processRecord(record, index(), useAlleleDepth = false, stats = stats)
-
-        assertTrue(deltas.isEmpty())
-        assertEquals(1, stats.positionsNotInIndex)
-        assertEquals(0, stats.positionsMatched)
-    }
-
-    @Test
     fun testProcessRecordHetCallProducesTwoIndependentIncrements() {
         val cmd = BuildReadMappingFromVcf()
         val record = imputeRecords().getValue(10)
         val stats = ReadMappingStats()
 
-        val deltas = cmd.processRecord(record, index(), useAlleleDepth = false, stats = stats)
+        val deltas = deltas(cmd, record, useAlleleDepth = false, stats = stats)
 
         //SampleX is 0/1 (A,T): allele A -> [h1] +1, allele T -> [h1,h2] +1 - two independent
         //buckets in the SAME sample's delta map, proving the confirmed diploid-counting decision.
@@ -220,11 +243,11 @@ class BuildReadMappingFromVcfTest {
         val record = imputeRecords().getValue(20)
         val stats = ReadMappingStats()
 
-        val deltas = cmd.processRecord(record, index(), useAlleleDepth = false, stats = stats)
+        val deltas = deltas(cmd, record, useAlleleDepth = false, stats = stats)
 
         //SampleZ is 0/1 (C,G): C resolves to [h3], G has no entry in the index at 1:20.
         assertEquals(mapOf(listOf("h3") to 1), deltas.getValue("SampleZ"))
-        assertEquals(1, stats.allelesNotInIndex)
+        assertEquals(1L, stats.allelesNotInIndex)
     }
 
     @Test
@@ -233,10 +256,10 @@ class BuildReadMappingFromVcfTest {
         val record = imputeRecords().getValue(10)
         val stats = ReadMappingStats()
 
-        val deltas = cmd.processRecord(record, index(), useAlleleDepth = false, stats = stats)
+        val deltas = deltas(cmd, record, useAlleleDepth = false, stats = stats)
 
         assertTrue(!deltas.containsKey("SampleEmpty"))
-        assertEquals(2, stats.noCallAlleles)
+        assertEquals(2L, stats.noCallAlleles)
     }
 
     @Test
@@ -245,7 +268,7 @@ class BuildReadMappingFromVcfTest {
         val record = imputeRecords().getValue(30)
         val stats = ReadMappingStats()
 
-        val deltas = cmd.processRecord(record, index(), useAlleleDepth = false, stats = stats)
+        val deltas = deltas(cmd, record, useAlleleDepth = false, stats = stats)
 
         //SampleZ is 0/0 (A,A) at 1:30 -> allele A resolves to the single hapId [h6].
         assertEquals(mapOf(listOf("h6") to 2), deltas.getValue("SampleZ"))
@@ -257,7 +280,7 @@ class BuildReadMappingFromVcfTest {
         val record = imputeRecords().getValue(10)
         val stats = ReadMappingStats()
 
-        val deltas = cmd.processRecord(record, index(), useAlleleDepth = true, stats = stats)
+        val deltas = deltas(cmd, record, useAlleleDepth = true, stats = stats)
 
         //SampleX AD=12,8: allele A -> [h1] += 12, allele T -> [h1,h2] += 8 (not the flat +1/+1).
         assertEquals(mapOf(listOf("h1") to 12, listOf("h1", "h2") to 8), deltas.getValue("SampleX"))
@@ -269,8 +292,7 @@ class BuildReadMappingFromVcfTest {
 
     @Test
     fun testBuildReadMappingsDefaultMode() {
-        val cmd = BuildReadMappingFromVcf()
-        val (perSample, stats) = cmd.buildReadMappings(indexFile, imputeVcf, useAlleleDepth = false)
+        val (perSample, stats) = buildAndRead(indexFile, imputeVcf, "buildDefault", useAlleleDepth = false)
 
         assertEquals(mapOf(listOf("h1") to 1, listOf("h1", "h2") to 1, listOf("h3") to 2, listOf("h6") to 1, listOf("h4", "h5") to 1), perSample.getValue("SampleX"))
         assertEquals(mapOf(listOf("h1", "h2") to 2, listOf("h3") to 2, listOf("h4", "h5") to 2), perSample.getValue("SampleY"))
@@ -278,15 +300,15 @@ class BuildReadMappingFromVcfTest {
         //SampleEmpty has zero resolvable evidence but still gets an entry.
         assertEquals(emptyMap<List<String>, Int>(), perSample.getValue("SampleEmpty"))
 
-        assertEquals(4, stats.totalImputeRecords)
-        assertEquals(3, stats.positionsMatched)
-        assertEquals(1, stats.positionsNotInIndex)
-        assertEquals(6, stats.noCallAlleles)
-        assertEquals(1, stats.allelesNotInIndex)
-        assertEquals(17, stats.gameteHits)
+        assertEquals(4L, stats.totalImputeRecords)
+        assertEquals(3L, stats.positionsMatched)
+        assertEquals(1L, stats.positionsNotInIndex)
+        assertEquals(6L, stats.noCallAlleles)
+        assertEquals(1L, stats.allelesNotInIndex)
+        assertEquals(17L, stats.gameteHits)
         assertEquals(17L, stats.totalEvidenceUnits)
-        assertEquals(0, stats.adFallbackCount)
-        assertEquals(0, stats.zeroDepthAlleleCalls)
+        assertEquals(0L, stats.adFallbackCount)
+        assertEquals(0L, stats.zeroDepthAlleleCalls)
     }
 
     //endregion
@@ -295,8 +317,7 @@ class BuildReadMappingFromVcfTest {
 
     @Test
     fun testBuildReadMappingsUseAlleleDepthMode() {
-        val cmd = BuildReadMappingFromVcf()
-        val (perSample, stats) = cmd.buildReadMappings(indexFile, imputeVcf, useAlleleDepth = true)
+        val (perSample, stats) = buildAndRead(indexFile, imputeVcf, "buildAD", useAlleleDepth = true)
 
         assertEquals(
             mapOf(listOf("h1") to 12, listOf("h1", "h2") to 8, listOf("h3") to 2, listOf("h6") to 9, listOf("h4", "h5") to 1),
@@ -310,15 +331,15 @@ class BuildReadMappingFromVcfTest {
         assertEquals(emptyMap<List<String>, Int>(), perSample.getValue("SampleEmpty"))
 
         //Position/allele-matching stats are identical to default mode - only weighting differs.
-        assertEquals(3, stats.positionsMatched)
-        assertEquals(1, stats.positionsNotInIndex)
-        assertEquals(6, stats.noCallAlleles)
-        assertEquals(1, stats.allelesNotInIndex)
+        assertEquals(3L, stats.positionsMatched)
+        assertEquals(1L, stats.positionsNotInIndex)
+        assertEquals(6L, stats.noCallAlleles)
+        assertEquals(1L, stats.allelesNotInIndex)
 
-        assertEquals(15, stats.gameteHits)
+        assertEquals(15L, stats.gameteHits)
         assertEquals(41L, stats.totalEvidenceUnits)
-        assertEquals(12, stats.adFallbackCount)
-        assertEquals(2, stats.zeroDepthAlleleCalls)
+        assertEquals(12L, stats.adFallbackCount)
+        assertEquals(2L, stats.zeroDepthAlleleCalls)
     }
 
     //endregion
@@ -413,8 +434,244 @@ class BuildReadMappingFromVcfTest {
         assertTrue(testAMap.isNotEmpty())
         testAMap.values.forEach { assertTrue(it > 0) }
 
-        val (_, stats) = BuildReadMappingFromVcf().buildReadMappings(builtIndexFile, step1PanelVcf, useAlleleDepth = false)
-        assertEquals(stats.gameteHits.toLong(), stats.totalEvidenceUnits)
+        val (_, stats) = buildAndRead(builtIndexFile, step1PanelVcf, "pipelineRecount", useAlleleDepth = false)
+        assertEquals(stats.gameteHits, stats.totalEvidenceUnits)
+    }
+
+    //endregion
+
+    //region Streaming merge: contig order checks, multi-contig/multi-range, buffered flushes
+
+    private val multiContigIndex = """
+        #PHG_VCF_HAPLOTYPE_INDEX
+        #version=1.0
+        #chrom	pos	allele	refRange	hapIds
+        chr2	10	A	chr2:1-100	a1
+        chr2	10	T	chr2:1-100	a2,a3
+        chr2	150	C	chr2:101-200	b1,b2
+        chr2	150	G	chr2:101-200	b3
+        chr3	5	A	chr3:1-100	c1
+        chr10	20	G	chr10:1-100	d1,d2
+        chr10	20	T	chr10:1-100	d3
+    """.trimIndent() + "\n"
+
+    private val vcfHeader = """
+        ##fileformat=VCFv4.2
+        ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+        #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1	S2
+    """.trimIndent() + "\n"
+
+    private fun writeTemp(name: String, content: String): String {
+        val dir = File("${TestExtension.testOutputDir}streaming/").apply { mkdirs() }
+        return File(dir, name).apply { writeText(content) }.path
+    }
+
+    @Test
+    fun testMultiContigMultiRangeMergeSkipsContigsMissingFromEitherFile() {
+        val index = writeTemp("multiIndex.txt", multiContigIndex)
+        //chr3 is only in the index; chrUn is only in the VCF; chr2:50 is not in the index
+        val vcf = writeTemp("multi.vcf", vcfHeader + """
+            chr2	10	.	A	T	.	.	.	GT	0/1	1/1
+            chr2	50	.	A	T	.	.	.	GT	0/1	1/1
+            chr2	150	.	C	G	.	.	.	GT	0/0	1/1
+            chrUn	7	.	A	T	.	.	.	GT	0/1	1/1
+            chr10	20	.	G	T	.	.	.	GT	0/1	0/0
+        """.trimIndent() + "\n")
+
+        val (perSample, stats) = buildAndRead(index, vcf, "multiDefault", useAlleleDepth = false)
+
+        assertEquals(
+            mapOf(listOf("a1") to 1, listOf("a2", "a3") to 1, listOf("b1", "b2") to 2, listOf("d1", "d2") to 1, listOf("d3") to 1),
+            perSample.getValue("S1")
+        )
+        assertEquals(mapOf(listOf("a2", "a3") to 2, listOf("b3") to 2, listOf("d1", "d2") to 2), perSample.getValue("S2"))
+        assertEquals(3L, stats.positionsMatched)
+        assertEquals(2L, stats.positionsNotInIndex)
+
+        //Flushing after every range must give identical files to one big flush at the end.
+        val (flushedEveryRange, flushedStats) = buildAndRead(index, vcf, "multiFlushEveryRange", useAlleleDepth = false, maxBufferedEntries = 1)
+        assertEquals(perSample, flushedEveryRange)
+        assertTrue(flushedStats.flushes > 1, "expected multiple flushes, got ${flushedStats.flushes}")
+    }
+
+    @Test
+    fun testContigOrderMismatchFailsBeforeCounting() {
+        val index = writeTemp("orderIndex.txt", multiContigIndex) //chr2, chr3, chr10 (natural order)
+        //lexicographic order, as some tools sort: chr10 before chr2
+        val vcf = writeTemp("lexOrder.vcf", vcfHeader + """
+            chr10	20	.	G	T	.	.	.	GT	0/1	0/0
+            chr2	10	.	A	T	.	.	.	GT	0/1	1/1
+        """.trimIndent() + "\n")
+
+        val outDir = "${TestExtension.testOutputDir}orderMismatch"
+        val error = assertFailsWith<IllegalArgumentException> {
+            BuildReadMappingFromVcf().buildReadMappings(index, vcf, outDir, useAlleleDepth = false)
+        }
+        assertTrue(error.message!!.contains("Contig order differs"), error.message)
+        assertTrue(error.message!!.contains("index has 'chr2'"), error.message)
+        //nothing should have been written - the check runs before any output
+        assertTrue(!File("$outDir/S1_readMapping.txt").exists())
+    }
+
+    @Test
+    fun testNonContiguousContigInVcfFails() {
+        val index = writeTemp("contigIndex.txt", multiContigIndex)
+        val vcf = writeTemp("nonContiguous.vcf", vcfHeader + """
+            chr2	10	.	A	T	.	.	.	GT	0/1	1/1
+            chr10	20	.	G	T	.	.	.	GT	0/1	0/0
+            chr2	150	.	C	G	.	.	.	GT	0/0	1/1
+        """.trimIndent() + "\n")
+
+        val error = assertFailsWith<IllegalArgumentException> {
+            BuildReadMappingFromVcf().buildReadMappings(index, vcf, "${TestExtension.testOutputDir}nonContiguous", useAlleleDepth = false)
+        }
+        assertTrue(error.message!!.contains("non-contiguous"), error.message)
+    }
+
+    @Test
+    fun testUnsortedPositionsInVcfFail() {
+        val index = writeTemp("posIndex.txt", multiContigIndex)
+        val vcf = writeTemp("unsortedPos.vcf", vcfHeader + """
+            chr2	150	.	C	G	.	.	.	GT	0/0	1/1
+            chr2	10	.	A	T	.	.	.	GT	0/1	1/1
+        """.trimIndent() + "\n")
+
+        val error = assertFailsWith<IllegalArgumentException> {
+            BuildReadMappingFromVcf().buildReadMappings(index, vcf, "${TestExtension.testOutputDir}unsortedPos", useAlleleDepth = false)
+        }
+        assertTrue(error.message!!.contains("not sorted by position"), error.message)
+    }
+
+    @Test
+    fun testScanContigOrderPlainAndGzipMatch() {
+        val vcfText = vcfHeader + """
+            chr2	10	.	A	T	.	.	.	GT	0/1	1/1
+            chr2	150	.	C	G	.	.	.	GT	0/0	1/1
+            chr10	20	.	G	T	.	.	.	GT	0/1	0/0
+        """.trimIndent() + "\n"
+        val plain = writeTemp("scan.vcf", vcfText)
+        val gz = "${TestExtension.testOutputDir}streaming/scan.vcf.gz"
+        java.util.zip.GZIPOutputStream(File(gz).outputStream()).bufferedWriter().use { it.write(vcfText) }
+
+        assertEquals(listOf("chr2", "chr10"), VcfHaplotypeIndexUtils.scanContigOrder(plain))
+        assertEquals(listOf("chr2", "chr10"), VcfHaplotypeIndexUtils.scanContigOrder(gz))
+        assertEquals(listOf("chr2", "chr3", "chr10"), VcfHaplotypeIndexUtils.scanContigOrder(writeTemp("scanIndex.txt", multiContigIndex)))
+    }
+
+    @Test
+    fun testRequireMatchingContigOrderIgnoresUnsharedContigs() {
+        //contigs that only one side has don't affect the check
+        VcfHaplotypeIndexUtils.requireMatchingContigOrder(
+            listOf("1", "2", "3", "10"), listOf("0", "1", "3", "scaffold_9", "10"), "index", "vcf"
+        )
+        assertFailsWith<IllegalArgumentException> {
+            VcfHaplotypeIndexUtils.requireMatchingContigOrder(listOf("1", "2", "10"), listOf("1", "10", "2"), "index", "vcf")
+        }
+    }
+
+    //endregion
+
+    //region Accumulator, file writer, CLI buffering option, index-side and duplicate-record cases
+
+    @Test
+    fun testAccumulatorInternsEqualSetsAndCountsEntries() {
+        val accumulator = ReadMappingAccumulator(numSamples = 2)
+        val setA = listOf("h1", "h2")
+        val setAOtherInstance = listOf("h1", "h2") //equal content, different object
+        val setB = listOf("h3")
+
+        accumulator.add(0, setA, 1)
+        accumulator.add(0, setAOtherInstance, 2) //same set as setA -> same entry
+        accumulator.add(0, setB, 1)
+        accumulator.add(1, setB, 5)
+
+        assertEquals(3L, accumulator.bufferedEntries) //(S0,A), (S0,B), (S1,B)
+        assertEquals(listOf(true, true), accumulator.sampleHasEvidence.toList())
+
+        val outDir = "${TestExtension.testOutputDir}accumulator"
+        val writer = ReadMappingFileWriter(outDir, listOf("S0", "S1"), "source.vcf")
+        accumulator.flush(writer)
+        assertEquals(0L, accumulator.bufferedEntries)
+
+        assertEquals(mapOf(setA to 3, setB to 1), readMappingAsMap("$outDir/S0_readMapping.txt"))
+        assertEquals(mapOf(setB to 5), readMappingAsMap("$outDir/S1_readMapping.txt"))
+
+        //a second flush after more evidence appends, rather than overwriting
+        accumulator.add(1, listOf("h7"), 4)
+        accumulator.flush(writer)
+        assertEquals(mapOf(setB to 5, listOf("h7") to 4), readMappingAsMap("$outDir/S1_readMapping.txt"))
+    }
+
+    @Test
+    fun testFileWriterCreatesDirAndHeaderForEverySample() {
+        val outDir = "${TestExtension.testOutputDir}fileWriter/nested"
+        assertTrue(!File(outDir).exists())
+        ReadMappingFileWriter(outDir, listOf("A", "B"), "my.vcf")
+
+        listOf("A", "B").forEach { sample ->
+            val lines = File("$outDir/${sample}_readMapping.txt").readLines()
+            assertEquals(listOf("#sampleName=$sample", "#filename1=my.vcf", "HapIds\tcount"), lines)
+            assertEquals(emptyMap<List<String>, Int>(), readMappingAsMap("$outDir/${sample}_readMapping.txt"))
+        }
+    }
+
+    @Test
+    fun testCliMaxBufferedEntriesOption() {
+        val badValue = BuildReadMappingFromVcf().test(
+            "--index-file $indexFile --impute-vcf $imputeVcf --output-dir ${TestExtension.testOutputDir}badBuffer --max-buffered-entries 0"
+        )
+        assertEquals(1, badValue.statusCode)
+        assertTrue(badValue.stderr.contains("--max-buffered-entries must be positive"), badValue.stderr)
+
+        val outputDir = "${TestExtension.testOutputDir}cliBuffer/"
+        val result = BuildReadMappingFromVcf().test(
+            "--index-file $indexFile --impute-vcf $imputeVcf --output-dir $outputDir --max-buffered-entries 1"
+        )
+        assertEquals(0, result.statusCode)
+        assertEquals(mapOf(listOf("h1") to 2, listOf("h3") to 1, listOf("h6") to 2), readMappingAsMap("${outputDir}SampleZ_readMapping.txt"))
+    }
+
+    @Test
+    fun testUnsortedIndexFailsDuringMerge() {
+        val index = writeTemp("unsortedIndex.txt", """
+            #chrom	pos	allele	refRange	hapIds
+            chr2	150	C	chr2:101-200	b1
+            chr2	10	A	chr2:1-100	a1
+        """.trimIndent() + "\n")
+        val vcf = writeTemp("forUnsortedIndex.vcf", vcfHeader + "chr2\t150\t.\tC\tG\t.\t.\t.\tGT\t0/0\t0/0\n")
+
+        val error = assertFailsWith<IllegalArgumentException> {
+            BuildReadMappingFromVcf().buildReadMappings(index, vcf, "${TestExtension.testOutputDir}unsortedIndex", useAlleleDepth = false)
+        }
+        assertTrue(error.message!!.contains("not sorted by position"), error.message)
+    }
+
+    @Test
+    fun testDuplicateVcfRecordsAtSamePositionBothCount() {
+        val index = writeTemp("dupIndex.txt", multiContigIndex)
+        val vcf = writeTemp("dupRecords.vcf", vcfHeader + """
+            chr2	10	.	A	T	.	.	.	GT	0/0	1/1
+            chr2	10	.	A	T	.	.	.	GT	0/0	1/1
+            chr2	150	.	C	G	.	.	.	GT	0/0	0/0
+        """.trimIndent() + "\n")
+
+        val (perSample, stats) = buildAndRead(index, vcf, "dupRecords", useAlleleDepth = false)
+        assertEquals(mapOf(listOf("a1") to 4, listOf("b1", "b2") to 2), perSample.getValue("S1"))
+        assertEquals(mapOf(listOf("a2", "a3") to 4, listOf("b1", "b2") to 2), perSample.getValue("S2"))
+        assertEquals(3L, stats.positionsMatched)
+    }
+
+    @Test
+    fun testImputeVcfWithNoSharedContigsWritesEmptyFiles() {
+        val index = writeTemp("noSharedIndex.txt", multiContigIndex)
+        val vcf = writeTemp("noShared.vcf", vcfHeader + "1\t10\t.\tA\tT\t.\t.\t.\tGT\t0/1\t1/1\n")
+
+        val (perSample, stats) = buildAndRead(index, vcf, "noShared", useAlleleDepth = false)
+        assertEquals(setOf("S1", "S2"), perSample.keys)
+        perSample.values.forEach { assertEquals(emptyMap<List<String>, Int>(), it) }
+        assertEquals(0L, stats.positionsMatched)
+        assertEquals(1L, stats.positionsNotInIndex)
+        assertEquals(listOf("S1", "S2"), stats.samplesWithNoEvidence)
     }
 
     //endregion

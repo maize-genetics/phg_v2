@@ -1,33 +1,41 @@
 package net.maizegenetics.phgv2.pathing
 
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.types.long
 import htsjdk.variant.variantcontext.Allele
 import htsjdk.variant.variantcontext.Genotype
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap
+import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap
+import net.maizegenetics.phgv2.api.ReferenceRange
 import net.maizegenetics.phgv2.cli.logCommand
-import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import org.apache.logging.log4j.LogManager
 import java.io.File
 
 /**
- * Running tallies for a single build-read-mapping-from-vcf run.
+ * Running tallies for a single build-read-mapping-from-vcf run. Counters are Longs: with
+ * thousands of samples and millions of sites, per-allele counts easily exceed Int.MAX_VALUE.
  */
 data class ReadMappingStats(
-    var totalImputeRecords: Int = 0,
-    var positionsMatched: Int = 0,
-    var positionsNotInIndex: Int = 0,
-    var noCallAlleles: Int = 0,
-    var allelesNotInIndex: Int = 0,
-    var gameteHits: Int = 0,
+    var totalImputeRecords: Long = 0,
+    var positionsMatched: Long = 0,
+    var positionsNotInIndex: Long = 0,
+    var noCallAlleles: Long = 0,
+    var allelesNotInIndex: Long = 0,
+    var gameteHits: Long = 0,
     var totalEvidenceUnits: Long = 0,
-    var adFallbackCount: Int = 0,
-    var zeroDepthAlleleCalls: Int = 0
+    var adFallbackCount: Long = 0,
+    var zeroDepthAlleleCalls: Long = 0,
+    var flushes: Long = 0,
+    val samplesWithNoEvidence: MutableList<String> = mutableListOf()
 )
 
 /**
@@ -36,7 +44,7 @@ data class ReadMappingStats(
  * haplotype ids that carry it.
  *
  * This is step 2 of the VCF-to-readMapping pipeline. Step 1 ([BuildVcfHaplotypeIndex]) does the
- * expensive HaplotypeGraph work once, up front; this step needs only the small flat index file it
+ * expensive HaplotypeGraph work once, up front; this step needs only the flat index file it
  * produces - no HaplotypeGraph is built or needed here.
  *
  * For every genotype call in --impute-vcf, each called allele (one per gamete - e.g. 2 for a
@@ -45,6 +53,17 @@ data class ReadMappingStats(
  * set of haplotypes the index says carries that allele at that position. Both alleles of a
  * heterozygous call land in the same per-sample readMapping map, since - like a real read - a
  * called allele doesn't reveal which parental chromosome it came from.
+ *
+ * Memory: the index and the impute VCF are streamed together in a single sorted merge pass, so
+ * neither is ever held in memory. Because every hapId set belongs to exactly one reference range
+ * and both files are sorted, a sample's counts for a range are final once the merge moves past
+ * that range; counts are buffered in compact int maps and appended to the per-sample files at a
+ * range boundary whenever more than --max-buffered-entries (sample, hapId set) counts are held.
+ * Peak memory is therefore set by that threshold, not by index size, sample count, or genome size.
+ *
+ * The merge requires both files to list their shared contigs in the same order. Before any
+ * evidence is counted, each file gets one fast first-column-only pass to read its contig order,
+ * and the run fails with a descriptive error if the orders disagree.
  *
  * Output files are named <sampleName>_readMapping.txt (the suffix FindPaths requires), one per
  * sample in --impute-vcf - including samples with zero resolvable evidence, so a keyfile-driven
@@ -61,7 +80,7 @@ class BuildReadMappingFromVcf : CliktCommand(
         .required()
         .validate { require(File(it).isFile) { "$it is not a valid file" } }
 
-    val imputeVcf by option(help = "Full path to the VCF file to impute readMapping evidence from. Required parameter.")
+    val imputeVcf by option(help = "Full path to the VCF file to impute readMapping evidence from. Its contigs must be in the same order as the index's. Required parameter.")
         .required()
         .validate { require(File(it).isFile) { "$it is not a valid file" } }
 
@@ -71,6 +90,19 @@ class BuildReadMappingFromVcf : CliktCommand(
     val useAlleleDepth by option("--use-allele-depth", help = "If set, weight each called allele's count by its AD (allele depth) FORMAT value instead of a flat 1. Falls back to 1 when AD is absent or malformed for a given genotype.")
         .flag(default = false)
 
+    val maxBufferedEntries by option(
+        "--max-buffered-entries",
+        help = "Number of (sample, hapId set) counts to hold in memory before appending them to the output files " +
+            "(at the next reference range boundary). Each entry costs roughly 10-20 bytes. Default: $DEFAULT_MAX_BUFFERED_ENTRIES"
+    )
+        .long()
+        .default(DEFAULT_MAX_BUFFERED_ENTRIES)
+        .validate { require(it > 0) { "--max-buffered-entries must be positive" } }
+
+    companion object {
+        const val DEFAULT_MAX_BUFFERED_ENTRIES = 100_000_000L
+    }
+
     override fun run() {
         logCommand(this)
 
@@ -79,15 +111,10 @@ class BuildReadMappingFromVcf : CliktCommand(
         val outputDirPath = outputDir.trimEnd('/')
         File(outputDirPath).mkdirs()
 
-        val (perSampleReadMappings, stats) = buildReadMappings(indexFile, imputeVcf, useAlleleDepth)
+        val (sampleNames, stats) = buildReadMappings(indexFile, imputeVcf, outputDirPath, useAlleleDepth, maxBufferedEntries)
+        writePathKeyFile(outputDirPath, sampleNames)
 
-        perSampleReadMappings.forEach { (sampleName, hapIdMapping) ->
-            val outputFile = "$outputDirPath/${sampleName}_readMapping.txt"
-            AlignmentUtils.exportReadMapping(outputFile, hapIdMapping, sampleName, Pair(imputeVcf, ""))
-        }
-        writePathKeyFile(outputDirPath, perSampleReadMappings.keys)
-
-        logSummary(stats, perSampleReadMappings)
+        logSummary(stats, sampleNames.size)
     }
 
     /**
@@ -124,28 +151,18 @@ class BuildReadMappingFromVcf : CliktCommand(
     }
 
     /**
-     * Converts one impute-VCF [record] into per-sample count deltas. Returns an empty map when
-     * the record's position isn't covered by [index]. [stats] is mutated in place with a counter
-     * for every edge case encountered.
+     * Converts one impute-VCF [record], already matched to its [indexPosition], into evidence.
+     * [onEvidence] is called once per counted allele with the genotype's sample name, the hapId
+     * set the allele resolves to, and its weight. (Keyed by name, not position: htsjdk does not
+     * guarantee record.genotypes iterates in header order.) [stats] is mutated in place with a counter for every edge case encountered.
      */
     fun processRecord(
         record: VariantContext,
-        index: Map<Position, VcfHaplotypeIndexPosition>,
+        indexPosition: VcfHaplotypeIndexPosition,
         useAlleleDepth: Boolean,
-        stats: ReadMappingStats
-    ): Map<String, Map<List<String>, Int>> {
-
-        stats.totalImputeRecords++
-
-        val indexPosition = index[Position(record.contig, record.start)]
-        if (indexPosition == null) {
-            stats.positionsNotInIndex++
-            return emptyMap()
-        }
-        stats.positionsMatched++
-
-        val deltas = mutableMapOf<String, MutableMap<List<String>, Int>>()
-
+        stats: ReadMappingStats,
+        onEvidence: (sampleName: String, hapIds: List<String>, weight: Int) -> Unit
+    ) {
         record.genotypes.forEach { genotype: Genotype ->
             genotype.alleles.forEach { allele: Allele ->
                 if (allele.isNoCall) {
@@ -164,49 +181,132 @@ class BuildReadMappingFromVcf : CliktCommand(
 
                 stats.gameteHits++
                 stats.totalEvidenceUnits += weight
-                val sampleMap = deltas.getOrPut(genotype.sampleName) { mutableMapOf() }
-                sampleMap[hapIds] = (sampleMap[hapIds] ?: 0) + weight
+                onEvidence(genotype.sampleName, hapIds, weight)
             }
         }
-
-        return deltas
     }
 
     /**
-     * Loads [indexFile], streams [imputeVcfFile] once, and accumulates a
-     * Map<List<hapId>, count> per sample. Memory is bounded by the number of distinct hapId sets
-     * observed across all samples, not by the number of VCF records - the same bound the existing
-     * kmer/ropebwt readMapping builders already accept.
+     * Streams [indexFile] and [imputeVcfFile] together in one sorted merge pass and writes one
+     * <sampleName>_readMapping.txt per VCF sample into [outputDir] (no trailing slash). Returns
+     * the VCF's sample names (header order) and the run's stats.
      *
-     * Every sample named in the VCF header gets an entry in the returned map, even if it never
-     * contributes any evidence, so a downstream keyfile-driven step can assume every sample's
-     * readMapping file exists.
+     * Fails before counting anything if the two files list their shared contigs in different
+     * orders, or if either file's records for a contig are not contiguous; fails mid-run if
+     * positions within a contig go backwards in either file.
      */
     fun buildReadMappings(
         indexFile: String,
         imputeVcfFile: String,
-        useAlleleDepth: Boolean
-    ): Pair<Map<String, Map<List<String>, Int>>, ReadMappingStats> {
+        outputDir: String,
+        useAlleleDepth: Boolean,
+        maxBufferedEntries: Long = DEFAULT_MAX_BUFFERED_ENTRIES
+    ): Pair<List<String>, ReadMappingStats> {
 
-        val index = VcfHaplotypeIndexUtils.readIndex(indexFile)
+        val indexContigOrder = verifyContigOrder(indexFile, imputeVcfFile)
+        val indexContigRank = HashMap<String, Int>()
+        indexContigOrder.forEachIndexed { rank, contig -> indexContigRank[contig] = rank }
+
         val stats = ReadMappingStats()
-        val perSample = mutableMapOf<String, MutableMap<List<String>, Int>>()
+        val sampleNames: List<String>
 
-        val allSampleNames: List<String>
-        VCFFileReader(File(imputeVcfFile), false).use { reader ->
-            allSampleNames = reader.header.sampleNamesInOrder
-            reader.forEach { record ->
-                processRecord(record, index, useAlleleDepth, stats).forEach { (sampleName, hapIdCounts) ->
-                    val sampleMap = perSample.getOrPut(sampleName) { mutableMapOf() }
-                    hapIdCounts.forEach { (hapIds, count) -> sampleMap[hapIds] = (sampleMap[hapIds] ?: 0) + count }
+        VCFFileReader(File(imputeVcfFile), false).use { vcfReader ->
+            sampleNames = vcfReader.header.sampleNamesInOrder.toList()
+            val writer = ReadMappingFileWriter(outputDir, sampleNames, imputeVcfFile)
+            val accumulator = ReadMappingAccumulator(sampleNames.size)
+            val sampleIndexByName = HashMap<String, Int>()
+            sampleNames.forEachIndexed { i, name -> sampleIndexByName[name] = i }
+            val addEvidence = { sampleName: String, hapIds: List<String>, weight: Int ->
+                accumulator.add(sampleIndexByName.getValue(sampleName), hapIds, weight)
+            }
+
+            VcfHaplotypeIndexStreamReader(indexFile).use { indexReader ->
+                var cursor = indexReader.next()
+                var currentRange: ReferenceRange? = null
+                var lastVcfContig: String? = null
+                var lastVcfPosition = Int.MIN_VALUE
+
+                vcfReader.forEach { record ->
+                    stats.totalImputeRecords++
+
+                    val contig = record.contig
+                    val start = record.start
+                    if (contig == lastVcfContig) {
+                        require(start >= lastVcfPosition) {
+                            "$imputeVcfFile is not sorted by position: $contig:$start appears after $contig:$lastVcfPosition"
+                        }
+                    } else {
+                        lastVcfContig = contig
+                    }
+                    lastVcfPosition = start
+
+                    val recordRank = indexContigRank[contig]
+                    if (recordRank == null) {
+                        stats.positionsNotInIndex++
+                        return@forEach
+                    }
+
+                    //advance the index past everything strictly before this record
+                    while (cursor != null) {
+                        val cursorRank = indexContigRank.getValue(cursor.position.contig)
+                        if (cursorRank > recordRank || (cursorRank == recordRank && cursor.position.position >= start)) break
+                        cursor = indexReader.next()
+                    }
+
+                    val indexPosition = cursor
+                    if (indexPosition == null || indexPosition.position.position != start || indexPosition.position.contig != contig) {
+                        stats.positionsNotInIndex++
+                        return@forEach
+                    }
+                    stats.positionsMatched++
+
+                    //Only flush at a reference range boundary: a hapId set never spans ranges, so
+                    //this guarantees no set is ever written twice to the same sample's file.
+                    if (indexPosition.refRange != currentRange) {
+                        if (accumulator.bufferedEntries >= maxBufferedEntries) {
+                            accumulator.flush(writer)
+                            stats.flushes++
+                        }
+                        currentRange = indexPosition.refRange
+                    }
+
+                    processRecord(record, indexPosition, useAlleleDepth, stats, addEvidence)
                 }
+            }
+
+            accumulator.flush(writer)
+            stats.flushes++
+
+            accumulator.sampleHasEvidence.forEachIndexed { i, hasEvidence ->
+                if (!hasEvidence) stats.samplesWithNoEvidence.add(sampleNames[i])
             }
         }
 
-        //every VCF sample gets a file, even with zero evidence
-        allSampleNames.forEach { perSample.getOrPut(it) { mutableMapOf() } }
+        return sampleNames to stats
+    }
 
-        return perSample to stats
+    /**
+     * One fast first-column pass over each file to read its contig order, then a check that the
+     * shared contigs are in the same order in both. Returns the index's contig order.
+     */
+    private fun verifyContigOrder(indexFile: String, imputeVcfFile: String): List<String> {
+        val startTime = System.currentTimeMillis()
+        val indexContigOrder = VcfHaplotypeIndexUtils.scanContigOrder(indexFile)
+        val vcfContigOrder = VcfHaplotypeIndexUtils.scanContigOrder(imputeVcfFile)
+        myLogger.info(
+            "Contig order check: index has ${indexContigOrder.size} contig(s), impute VCF has " +
+                "${vcfContigOrder.size} (scanned in ${(System.currentTimeMillis() - startTime) / 1000}s)"
+        )
+        VcfHaplotypeIndexUtils.requireMatchingContigOrder(indexContigOrder, vcfContigOrder, indexFile, imputeVcfFile)
+
+        val shared = indexContigOrder.toHashSet().apply { retainAll(vcfContigOrder.toSet()) }
+        if (shared.size < vcfContigOrder.size) {
+            myLogger.warn(
+                "${vcfContigOrder.size - shared.size} impute VCF contig(s) are not in the index and will be skipped: " +
+                    vcfContigOrder.filter { it !in shared }.take(20)
+            )
+        }
+        return indexContigOrder
     }
 
     /**
@@ -221,7 +321,7 @@ class BuildReadMappingFromVcf : CliktCommand(
         }
     }
 
-    fun logSummary(stats: ReadMappingStats, perSampleReadMappings: Map<String, Map<List<String>, Int>>) {
+    fun logSummary(stats: ReadMappingStats, numSamples: Int) {
         myLogger.info("build-read-mapping-from-vcf summary:")
         myLogger.info("  impute VCF records read: ${stats.totalImputeRecords}")
         myLogger.info("  positions matched in index: ${stats.positionsMatched}")
@@ -232,18 +332,118 @@ class BuildReadMappingFromVcf : CliktCommand(
         myLogger.info("  total evidence units written: ${stats.totalEvidenceUnits}")
         myLogger.info("  AD fallback to flat count: ${stats.adFallbackCount}")
         myLogger.info("  zero-depth allele calls skipped: ${stats.zeroDepthAlleleCalls}")
-        myLogger.info("  samples with readMapping files written: ${perSampleReadMappings.size}")
+        myLogger.info("  buffer flushes to disk: ${stats.flushes}")
+        myLogger.info("  samples with readMapping files written: $numSamples")
 
-        val samplesWithNoEvidence = perSampleReadMappings.filterValues { it.isEmpty() }.keys
-        if (samplesWithNoEvidence.isNotEmpty()) {
-            myLogger.warn("${samplesWithNoEvidence.size} sample(s) had zero resolvable evidence: $samplesWithNoEvidence")
+        if (stats.samplesWithNoEvidence.isNotEmpty()) {
+            myLogger.warn(
+                "${stats.samplesWithNoEvidence.size} sample(s) had zero resolvable evidence: " +
+                    stats.samplesWithNoEvidence.take(50)
+            )
         }
 
-        if (stats.totalImputeRecords > 0 && stats.positionsMatched == 0) {
+        if (stats.totalImputeRecords > 0 && stats.positionsMatched == 0L) {
             myLogger.error(
                 "No impute-VCF position matched the index. This usually means the index and the " +
                     "impute VCF use different contig names."
             )
         }
+    }
+}
+
+/**
+ * Buffers per-sample counts keyed by a compact int id per distinct hapId set, instead of a
+ * Map<List<String>, Int> per sample. Each hapId set is stored once no matter how many samples
+ * hit it, and each (sample, set) count costs a couple of ints in a primitive hash map.
+ */
+class ReadMappingAccumulator(numSamples: Int) {
+
+    //content-based interning: one id per distinct hapId set
+    private val setIdByContent = Object2IntOpenHashMap<List<String>>().apply { defaultReturnValue(-1) }
+
+    //identity cache in front of it: every sample at a given position passes the SAME List
+    //instance, so this avoids re-hashing a (potentially long) hapId list for every sample
+    private val setIdByIdentity = Reference2IntOpenHashMap<List<String>>().apply { defaultReturnValue(-1) }
+
+    private val hapIdSets = ArrayList<List<String>>()
+    private val countsBySample = Array(numSamples) { Int2IntOpenHashMap() }
+
+    val sampleHasEvidence = BooleanArray(numSamples)
+
+    /** Number of (sample, hapId set) counts currently held. */
+    var bufferedEntries = 0L
+        private set
+
+    fun add(sampleIndex: Int, hapIds: List<String>, weight: Int) {
+        var setId = setIdByIdentity.getInt(hapIds)
+        if (setId < 0) {
+            setId = setIdByContent.getInt(hapIds)
+            if (setId < 0) {
+                setId = hapIdSets.size
+                hapIdSets.add(hapIds)
+                setIdByContent.put(hapIds, setId)
+            }
+            setIdByIdentity.put(hapIds, setId)
+        }
+        //addTo returns the previous value (0 if absent); weights are always > 0
+        if (countsBySample[sampleIndex].addTo(setId, weight) == 0) bufferedEntries++
+        sampleHasEvidence[sampleIndex] = true
+    }
+
+    /**
+     * Appends every buffered count to its sample's file and clears the buffer. Must only be called
+     * at a reference range boundary (see [BuildReadMappingFromVcf.buildReadMappings]).
+     */
+    fun flush(writer: ReadMappingFileWriter) {
+        val joined = arrayOfNulls<String>(hapIdSets.size)
+        countsBySample.forEachIndexed { sampleIndex, counts ->
+            if (counts.isEmpty()) return@forEachIndexed
+            writer.append(sampleIndex) { out ->
+                val iterator = counts.int2IntEntrySet().fastIterator()
+                while (iterator.hasNext()) {
+                    val entry = iterator.next()
+                    val setId = entry.intKey
+                    val hapIdString = joined[setId] ?: hapIdSets[setId].joinToString(",").also { joined[setId] = it }
+                    out.write(hapIdString)
+                    out.write("\t")
+                    out.write(entry.intValue.toString())
+                    out.write("\n")
+                }
+            }
+            counts.clear()
+        }
+        setIdByContent.clear()
+        setIdByIdentity.clear()
+        hapIdSets.clear()
+        bufferedEntries = 0
+    }
+}
+
+/**
+ * Owns the per-sample readMapping files: creates each one with its header up front (so every
+ * sample gets a file even with zero evidence), then lets [ReadMappingAccumulator.flush] append
+ * count rows. Files are opened only for the duration of a flush, so thousands of samples never
+ * need thousands of simultaneously open file handles.
+ *
+ * The header matches [AlignmentUtils.exportReadMapping], so [AlignmentUtils.importReadMapping]
+ * and FindPaths read these files unchanged.
+ */
+class ReadMappingFileWriter(outputDir: String, sampleNames: List<String>, sourceFile: String) {
+
+    private val files = sampleNames.map { File("$outputDir/${it}_readMapping.txt") }
+
+    init {
+        File(outputDir).mkdirs()
+        sampleNames.forEachIndexed { i, sampleName ->
+            getBufferedWriter(files[i]).use { out ->
+                out.write("#sampleName=$sampleName\n")
+                out.write("#filename1=$sourceFile\n")
+                out.write("HapIds\tcount\n")
+            }
+        }
+    }
+
+    fun append(sampleIndex: Int, block: (java.io.BufferedWriter) -> Unit) {
+        getBufferedWriter(files[sampleIndex], append = true).use(block)
     }
 }

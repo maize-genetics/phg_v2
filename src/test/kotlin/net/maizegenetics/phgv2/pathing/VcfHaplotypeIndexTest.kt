@@ -207,4 +207,160 @@ class VcfHaplotypeIndexTest {
         val readBack = VcfHaplotypeIndexUtils.readEntries(outputFile)
         assertEquals(entries, readBack)
     }
+
+    //region Streaming reader and contig-order scanning
+
+    private fun writeIndexText(name: String, rows: String): String {
+        val file = File("${TestExtension.testOutputDir}stream_$name")
+        file.writeText(
+            "${VcfHaplotypeIndexUtils.MAGIC}\n#version=1.0\n${VcfHaplotypeIndexUtils.COLUMN_HEADER}\n" +
+                rows.trimIndent() + "\n"
+        )
+        return file.path
+    }
+
+    private fun readAllPositions(file: String): List<VcfHaplotypeIndexPosition> {
+        val result = mutableListOf<VcfHaplotypeIndexPosition>()
+        VcfHaplotypeIndexStreamReader(file).use { reader ->
+            while (true) result.add(reader.next() ?: break)
+        }
+        return result
+    }
+
+    @Test
+    fun testStreamReaderMatchesReadIndex() {
+        val file = writeIndexText("matches.txt", """
+            1	10	A	1:1-200	h1
+            1	10	T	1:1-200	h1,h2
+            1	10	T	1:1-200	h3
+            1	20	C	1:1-200	h3
+            1	250	G	1:201-400	h9,h8
+            2	5	A	2:1-100	h4
+        """)
+
+        val streamed = readAllPositions(file)
+        val loaded = VcfHaplotypeIndexUtils.readIndex(file)
+
+        //same positions, same order, same merged/sorted allele -> hapIds lookups
+        assertEquals(loaded.values.toList(), streamed)
+        //duplicate rows for 1:10 T are unioned and sorted
+        assertEquals(listOf("h1", "h2", "h3"), streamed[0].alleleToHapIds["T"])
+        //an unsorted hapId list is sorted, so it compares equal to the same set elsewhere
+        assertEquals(listOf("h8", "h9"), streamed[2].alleleToHapIds["G"])
+    }
+
+    @Test
+    fun testStreamReaderPoolsHapIdStringsWithinRange() {
+        val file = writeIndexText("pool.txt", """
+            1	10	A	1:1-200	h1,h2
+            1	20	A	1:1-200	h1,h2
+        """)
+        val (first, second) = readAllPositions(file)
+        //equal hapIds from different rows of the same range share one String instance
+        assertTrue(first.alleleToHapIds.getValue("A")[0] === second.alleleToHapIds.getValue("A")[0])
+    }
+
+    @Test
+    fun testStreamReaderEmptyIndex() {
+        val file = writeIndexText("empty.txt", "")
+        VcfHaplotypeIndexStreamReader(file).use { assertNull(it.next()) }
+    }
+
+    @Test
+    fun testStreamReaderGzip() {
+        val rows = "1\t10\tA\t1:1-200\th1\n"
+        val gz = "${TestExtension.testOutputDir}stream_index.txt.gz"
+        java.util.zip.GZIPOutputStream(File(gz).outputStream()).bufferedWriter().use {
+            it.write("${VcfHaplotypeIndexUtils.COLUMN_HEADER}\n$rows")
+        }
+        val positions = readAllPositions(gz)
+        assertEquals(listOf(Position("1", 10)), positions.map { it.position })
+    }
+
+    @Test
+    fun testStreamReaderRejectsUnsortedPositions() {
+        val file = writeIndexText("unsortedPos.txt", """
+            1	20	A	1:1-200	h1
+            1	10	A	1:1-200	h2
+        """)
+        val error = assertFailsWith<IllegalArgumentException> { readAllPositions(file) }
+        assertTrue(error.message!!.contains("not sorted by position"), error.message)
+    }
+
+    @Test
+    fun testStreamReaderRejectsNonContiguousContig() {
+        val file = writeIndexText("nonContiguous.txt", """
+            1	10	A	1:1-200	h1
+            2	10	A	2:1-200	h2
+            1	30	A	1:1-200	h3
+        """)
+        val error = assertFailsWith<IllegalArgumentException> { readAllPositions(file) }
+        assertTrue(error.message!!.contains("non-contiguous"), error.message)
+    }
+
+    @Test
+    fun testStreamReaderRejectsMissingOrLateColumnHeader() {
+        val noHeader = File("${TestExtension.testOutputDir}stream_noHeader.txt").apply {
+            writeText("${VcfHaplotypeIndexUtils.MAGIC}\n#version=1.0\n")
+        }.path
+        assertFailsWith<IllegalArgumentException> { VcfHaplotypeIndexStreamReader(noHeader) }
+
+        val dataFirst = File("${TestExtension.testOutputDir}stream_dataFirst.txt").apply {
+            writeText("1\t10\tA\t1:1-200\th1\n${VcfHaplotypeIndexUtils.COLUMN_HEADER}\n")
+        }.path
+        assertFailsWith<IllegalArgumentException> { VcfHaplotypeIndexStreamReader(dataFirst) }
+    }
+
+    @Test
+    fun testScanContigOrderHandlesCrlfLongNamesAndHeaderOnlyFiles() {
+        val longContig = "scaffold_" + "x".repeat(1000) //longer than the scanner's initial 256-byte buffer
+        val crlf = File("${TestExtension.testOutputDir}scan_crlf.txt").apply {
+            writeText("#header\r\nchrA\t1\r\nchrA\t2\r\n$longContig\t1\r\nchrB\r\n")
+        }.path
+        //"chrB" has no tab at all (malformed line) - its whole line is still read as the contig
+        assertEquals(listOf("chrA", longContig, "chrB"), VcfHaplotypeIndexUtils.scanContigOrder(crlf))
+
+        val headerOnly = File("${TestExtension.testOutputDir}scan_headerOnly.txt").apply { writeText("#only\n#header\n") }.path
+        assertEquals(emptyList(), VcfHaplotypeIndexUtils.scanContigOrder(headerOnly))
+
+        //no trailing newline on the last line
+        val noTrailingNewline = File("${TestExtension.testOutputDir}scan_noNewline.txt").apply { writeText("chrA\t1\nchrB") }.path
+        assertEquals(listOf("chrA", "chrB"), VcfHaplotypeIndexUtils.scanContigOrder(noTrailingNewline))
+    }
+
+    @Test
+    fun testScanContigOrderRejectsNonContiguousContig() {
+        val file = File("${TestExtension.testOutputDir}scan_nonContiguous.txt").apply { writeText("a\t1\nb\t1\na\t2\n") }.path
+        val error = assertFailsWith<IllegalArgumentException> { VcfHaplotypeIndexUtils.scanContigOrder(file) }
+        assertTrue(error.message!!.contains("'a'"), error.message)
+    }
+
+    @Test
+    fun testScanContigOrderBcf() {
+        val header = htsjdk.variant.vcf.VCFHeader(emptySet(), listOf("S1")).apply {
+            sequenceDictionary = htsjdk.samtools.SAMSequenceDictionary(
+                listOf(htsjdk.samtools.SAMSequenceRecord("chr2", 1000), htsjdk.samtools.SAMSequenceRecord("chr10", 1000))
+            )
+            addMetaDataLine(htsjdk.variant.vcf.VCFFormatHeaderLine("GT", 1, htsjdk.variant.vcf.VCFHeaderLineType.String, "Genotype"))
+        }
+        val bcf = File("${TestExtension.testOutputDir}scan.bcf")
+        htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder()
+            .setOutputFile(bcf)
+            .setOutputFileType(htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder.OutputType.BCF)
+            .unsetOption(htsjdk.variant.variantcontext.writer.Options.INDEX_ON_THE_FLY)
+            .build().use { writer ->
+                writer.writeHeader(header)
+                listOf("chr2" to 5, "chr2" to 9, "chr10" to 3).forEach { (contig, pos) ->
+                    val alleles = listOf(Allele.create("A", true), Allele.create("T", false))
+                    writer.add(
+                        htsjdk.variant.variantcontext.VariantContextBuilder("test", contig, pos.toLong(), pos.toLong(), alleles)
+                            .genotypes(htsjdk.variant.variantcontext.GenotypeBuilder("S1", alleles).make())
+                            .make()
+                    )
+                }
+            }
+        assertEquals(listOf("chr2", "chr10"), VcfHaplotypeIndexUtils.scanContigOrder(bcf.path))
+    }
+
+    //endregion
 }
