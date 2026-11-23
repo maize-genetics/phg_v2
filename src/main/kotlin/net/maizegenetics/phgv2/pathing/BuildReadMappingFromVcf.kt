@@ -65,7 +65,7 @@ data class ReadMappingStats(
  * evidence is counted, each file gets one fast first-column-only pass to read its contig order,
  * and the run fails with a descriptive error if the orders disagree.
  *
- * Output files are named <sampleName>_readMapping.txt (the suffix FindPaths requires), one per
+ * Output files are gzipped and named <sampleName>_readMapping.txt.gz (a suffix FindPaths accepts), one per
  * sample in --impute-vcf - including samples with zero resolvable evidence, so a keyfile-driven
  * downstream step can assume every sample's file exists. A pathKeyFile.txt is also written to
  * --output-dir so it can be passed directly to `find-paths --path-keyfile`.
@@ -84,7 +84,7 @@ class BuildReadMappingFromVcf : CliktCommand(
         .required()
         .validate { require(File(it).isFile) { "$it is not a valid file" } }
 
-    val outputDir by option("-o", "--output-dir", help = "Directory to write one <sampleName>_readMapping.txt file per VCF sample. Created if it does not exist. Required parameter.")
+    val outputDir by option("-o", "--output-dir", help = "Directory to write one gzipped <sampleName>_readMapping.txt.gz file per VCF sample. Created if it does not exist. Required parameter.")
         .required()
 
     val useAlleleDepth by option("--use-allele-depth", help = "If set, weight each called allele's count by its AD (allele depth) FORMAT value instead of a flat 1. Falls back to 1 when AD is absent or malformed for a given genotype.")
@@ -101,6 +101,12 @@ class BuildReadMappingFromVcf : CliktCommand(
 
     companion object {
         const val DEFAULT_MAX_BUFFERED_ENTRIES = 100_000_000L
+
+        /** Output files are gzipped; FindPaths accepts the "_readMapping.txt.gz" suffix. */
+        const val READ_MAPPING_SUFFIX = "_readMapping.txt.gz"
+
+        /** Full path of [sampleName]'s readMapping file in [outputDir] (no trailing slash). */
+        fun readMappingFileName(outputDir: String, sampleName: String) = "$outputDir/$sampleName$READ_MAPPING_SUFFIX"
     }
 
     override fun run() {
@@ -188,7 +194,7 @@ class BuildReadMappingFromVcf : CliktCommand(
 
     /**
      * Streams [indexFile] and [imputeVcfFile] together in one sorted merge pass and writes one
-     * <sampleName>_readMapping.txt per VCF sample into [outputDir] (no trailing slash). Returns
+     * <sampleName>_readMapping.txt.gz per VCF sample into [outputDir] (no trailing slash). Returns
      * the VCF's sample names (header order) and the run's stats.
      *
      * Fails before counting anything if the two files list their shared contigs in different
@@ -317,7 +323,7 @@ class BuildReadMappingFromVcf : CliktCommand(
     fun writePathKeyFile(outputDir: String, sampleNames: Collection<String>) {
         getBufferedWriter("$outputDir/pathKeyFile.txt").use { writer ->
             writer.write("sampleName\tfilename\n")
-            sampleNames.forEach { writer.write("$it\t$outputDir/${it}_readMapping.txt\n") }
+            sampleNames.forEach { writer.write("$it\t${readMappingFileName(outputDir, it)}\n") }
         }
     }
 
@@ -425,12 +431,17 @@ class ReadMappingAccumulator(numSamples: Int) {
  * count rows. Files are opened only for the duration of a flush, so thousands of samples never
  * need thousands of simultaneously open file handles.
  *
+ * Files are gzipped (the ".gz" suffix makes getBufferedWriter compress). Each append adds a new
+ * gzip member to the file; concatenated members are a valid gzip stream per RFC 1952, and
+ * getBufferedReader (java.util.zip.GZIPInputStream) reads all of them, so the file reads back as
+ * one continuous text file.
+ *
  * The header matches [AlignmentUtils.exportReadMapping], so [AlignmentUtils.importReadMapping]
  * and FindPaths read these files unchanged.
  */
 class ReadMappingFileWriter(outputDir: String, sampleNames: List<String>, sourceFile: String) {
 
-    private val files = sampleNames.map { File("$outputDir/${it}_readMapping.txt") }
+    private val files = sampleNames.map { File(BuildReadMappingFromVcf.readMappingFileName(outputDir, it)) }
 
     init {
         File(outputDir).mkdirs()

@@ -97,7 +97,7 @@ class BuildReadMappingFromVcfTest {
             val outDir = "${TestExtension.testOutputDir}$outDirName"
             File(outDir).mkdirs()
             val (sampleNames, stats) = BuildReadMappingFromVcf().buildReadMappings(index, vcf, outDir, useAlleleDepth, maxBufferedEntries)
-            return sampleNames.associateWith { readMappingAsMap("$outDir/${it}_readMapping.txt") } to stats
+            return sampleNames.associateWith { readMappingAsMap("$outDir/${it}_readMapping.txt.gz") } to stats
         }
     }
 
@@ -353,11 +353,11 @@ class BuildReadMappingFromVcfTest {
         assertEquals(0, result.statusCode)
 
         listOf("SampleX", "SampleY", "SampleZ", "SampleEmpty").forEach {
-            assertTrue(File("$outputDir${it}_readMapping.txt").isFile, "missing readMapping for $it")
+            assertTrue(File("$outputDir${it}_readMapping.txt.gz").isFile, "missing readMapping for $it")
         }
 
-        assertEquals(mapOf(listOf("h1") to 2, listOf("h3") to 1, listOf("h6") to 2), readMappingAsMap("${outputDir}SampleZ_readMapping.txt"))
-        assertEquals(emptyMap<List<String>, Int>(), readMappingAsMap("${outputDir}SampleEmpty_readMapping.txt"))
+        assertEquals(mapOf(listOf("h1") to 2, listOf("h3") to 1, listOf("h6") to 2), readMappingAsMap("${outputDir}SampleZ_readMapping.txt.gz"))
+        assertEquals(emptyMap<List<String>, Int>(), readMappingAsMap("${outputDir}SampleEmpty_readMapping.txt.gz"))
     }
 
     @Test
@@ -368,9 +368,9 @@ class BuildReadMappingFromVcfTest {
 
         assertEquals(
             mapOf(listOf("h1") to 12, listOf("h1", "h2") to 8, listOf("h3") to 2, listOf("h6") to 9, listOf("h4", "h5") to 1),
-            readMappingAsMap("${outputDir}SampleX_readMapping.txt")
+            readMappingAsMap("${outputDir}SampleX_readMapping.txt.gz")
         )
-        assertEquals(mapOf(listOf("h1", "h2") to 2, listOf("h3") to 2), readMappingAsMap("${outputDir}SampleY_readMapping.txt"))
+        assertEquals(mapOf(listOf("h1", "h2") to 2, listOf("h3") to 2), readMappingAsMap("${outputDir}SampleY_readMapping.txt.gz"))
     }
 
     @Test
@@ -386,7 +386,7 @@ class BuildReadMappingFromVcfTest {
         val rows = lines.drop(1).map { it.split("\t") }.associate { it[0] to it[1] }
         assertEquals(setOf("SampleX", "SampleY", "SampleZ", "SampleEmpty"), rows.keys)
         rows.forEach { (sampleName, filename) ->
-            assertEquals("${outputDir}${sampleName}_readMapping.txt", filename)
+            assertEquals("${outputDir}${sampleName}_readMapping.txt.gz", filename)
             assertTrue(File(filename).isFile)
         }
     }
@@ -400,7 +400,7 @@ class BuildReadMappingFromVcfTest {
 
         assertEquals(0, result.statusCode)
         assertTrue(File(outputDir).isDirectory)
-        assertTrue(File("${outputDir}SampleX_readMapping.txt").isFile)
+        assertTrue(File("${outputDir}SampleX_readMapping.txt.gz").isFile)
     }
 
     //endregion
@@ -425,12 +425,12 @@ class BuildReadMappingFromVcfTest {
         //never contributed any rows to the index, but it's still a VCF sample here and must still
         //get a (likely empty) readMapping file.
         listOf("TestA", "TestB", "Ghost").forEach {
-            assertTrue(File("$outputDir${it}_readMapping.txt").isFile, "missing readMapping for $it")
+            assertTrue(File("$outputDir${it}_readMapping.txt.gz").isFile, "missing readMapping for $it")
         }
 
         //Every count in TestA's readMapping should be a positive Int, and the total evidence
         //written should be internally consistent with a fresh recount straight from the files.
-        val testAMap = readMappingAsMap("${outputDir}TestA_readMapping.txt")
+        val testAMap = readMappingAsMap("${outputDir}TestA_readMapping.txt.gz")
         assertTrue(testAMap.isNotEmpty())
         testAMap.values.forEach { assertTrue(it > 0) }
 
@@ -510,7 +510,7 @@ class BuildReadMappingFromVcfTest {
         assertTrue(error.message!!.contains("Contig order differs"), error.message)
         assertTrue(error.message!!.contains("index has 'chr2'"), error.message)
         //nothing should have been written - the check runs before any output
-        assertTrue(!File("$outDir/S1_readMapping.txt").exists())
+        assertTrue(!File("$outDir/S1_readMapping.txt.gz").exists())
     }
 
     @Test
@@ -593,13 +593,20 @@ class BuildReadMappingFromVcfTest {
         accumulator.flush(writer)
         assertEquals(0L, accumulator.bufferedEntries)
 
-        assertEquals(mapOf(setA to 3, setB to 1), readMappingAsMap("$outDir/S0_readMapping.txt"))
-        assertEquals(mapOf(setB to 5), readMappingAsMap("$outDir/S1_readMapping.txt"))
+        assertEquals(mapOf(setA to 3, setB to 1), readMappingAsMap("$outDir/S0_readMapping.txt.gz"))
+        assertEquals(mapOf(setB to 5), readMappingAsMap("$outDir/S1_readMapping.txt.gz"))
 
         //a second flush after more evidence appends, rather than overwriting
         accumulator.add(1, listOf("h7"), 4)
         accumulator.flush(writer)
-        assertEquals(mapOf(setB to 5, listOf("h7") to 4), readMappingAsMap("$outDir/S1_readMapping.txt"))
+        assertEquals(mapOf(setB to 5, listOf("h7") to 4), readMappingAsMap("$outDir/S1_readMapping.txt.gz"))
+
+        //file really is gzip (magic bytes 1f 8b) and now holds 3 gzip members (header + 2 flushes),
+        //all of which were read back above
+        val bytes = File("$outDir/S1_readMapping.txt.gz").readBytes()
+        assertEquals(listOf(0x1f.toByte(), 0x8b.toByte()), bytes.take(2))
+        val memberCount = (0 until bytes.size - 2).count { bytes[it] == 0x1f.toByte() && bytes[it + 1] == 0x8b.toByte() && bytes[it + 2] == 8.toByte() }
+        assertTrue(memberCount >= 3, "expected at least 3 gzip members, found $memberCount")
     }
 
     @Test
@@ -609,9 +616,9 @@ class BuildReadMappingFromVcfTest {
         ReadMappingFileWriter(outDir, listOf("A", "B"), "my.vcf")
 
         listOf("A", "B").forEach { sample ->
-            val lines = File("$outDir/${sample}_readMapping.txt").readLines()
+            val lines = net.maizegenetics.phgv2.utils.getBufferedReader("$outDir/${sample}_readMapping.txt.gz").readLines()
             assertEquals(listOf("#sampleName=$sample", "#filename1=my.vcf", "HapIds\tcount"), lines)
-            assertEquals(emptyMap<List<String>, Int>(), readMappingAsMap("$outDir/${sample}_readMapping.txt"))
+            assertEquals(emptyMap<List<String>, Int>(), readMappingAsMap("$outDir/${sample}_readMapping.txt.gz"))
         }
     }
 
@@ -628,7 +635,7 @@ class BuildReadMappingFromVcfTest {
             "--index-file $indexFile --impute-vcf $imputeVcf --output-dir $outputDir --max-buffered-entries 1"
         )
         assertEquals(0, result.statusCode)
-        assertEquals(mapOf(listOf("h1") to 2, listOf("h3") to 1, listOf("h6") to 2), readMappingAsMap("${outputDir}SampleZ_readMapping.txt"))
+        assertEquals(mapOf(listOf("h1") to 2, listOf("h3") to 1, listOf("h6") to 2), readMappingAsMap("${outputDir}SampleZ_readMapping.txt.gz"))
     }
 
     @Test
