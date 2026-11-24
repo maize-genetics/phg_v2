@@ -444,6 +444,52 @@ class ImputePathFromPs4gTest {
     }
 
     @Test
+    fun testSelfingGenerationsCallsAHomozygousBreakpoint() {
+        // Twenty bins of lineA reads then twenty of lineB: one homozygous breakpoint in a selfed line.
+        val gametes = mapOf(
+            SampleGamete("lineA", 0) to 0,
+            SampleGamete("lineB", 0) to 1
+        )
+        val ps4gData = (1..40).map { bin ->
+            PS4GData(listOf(if (bin <= 20) 0 else 1), Position("chr1", bin), 2)
+        }
+        val ps4gFile = "$tempTestDir/selfingTest.ps4g"
+        createPs4gFile(ps4gFile, gametes, ps4gData)
+
+        val keyFile = "$tempTestDir/selfingKey.txt"
+        createKeyFile(keyFile, "selfingSample", ps4gFile)
+
+        val outputDir = "$tempTestDir/selfingOut/"
+        val result = ImputePathFromPs4g().test(
+            "--path-keyfile $keyFile --output-dir $outputDir --path-type diploid --selfing-generations 5 " +
+                    "--n-parents 2 --prob-correct 0.99"
+        )
+        assertEquals(0, result.statusCode, "Command failed:\n${result.stderr}")
+
+        val lines = File("$outputDir/selfingSample_imputed_path.bed").readLines().drop(1)
+        assertEquals(2, lines.size, "Expected one record either side of the breakpoint: $lines")
+        assertEquals(listOf("lineA:0", "lineA:0"), lines[0].split("\t").drop(3))
+        assertEquals(listOf("lineB:0", "lineB:0"), lines[1].split("\t").drop(3))
+    }
+
+    @Test
+    fun testSelfingGenerationsRefusedForHaploidPaths() {
+        val ps4gFile = createContigFilterPs4gFile("selfingHaploid.ps4g")
+        val result = ImputePathFromPs4g().test(
+            "--read-file $ps4gFile --output-dir $tempTestDir/selfingHaploidOut/ --path-type haploid " +
+                    "--selfing-generations 5"
+        )
+        assertNotEquals(0, result.statusCode)
+        assertTrue(result.stderr.contains("diploid only"), result.stderr)
+
+        val tooMany = ImputePathFromPs4g().test(
+            "--read-file $ps4gFile --output-dir $tempTestDir/selfingHaploidOut/ --path-type diploid " +
+                    "--selfing-generations 5 --n-parents ${SelfingTransitions.MAX_PARENTS + 1}"
+        )
+        assertNotEquals(0, tooMany.statusCode)
+    }
+
+    @Test
     fun testImputeDiploidPathOutputWithHighReadCount() {
         // With all reads supporting gamete 0, the diploid path should be homozygous
         // (lineA:0, lineA:0) throughout.
