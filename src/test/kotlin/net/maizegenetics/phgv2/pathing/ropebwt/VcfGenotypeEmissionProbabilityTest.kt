@@ -3,6 +3,7 @@ package net.maizegenetics.phgv2.pathing.ropebwt
 import net.maizegenetics.phgv2.pathing.ropebwt.ContigSites.Companion.MISSING
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import kotlin.math.abs
 import kotlin.math.ln
 import kotlin.random.Random
 
@@ -133,16 +134,32 @@ class VcfGenotypeEmissionProbabilityTest {
             val sample = random.nextInt(nAlleles) to random.nextInt(nAlleles)
             val actual = oneSite(founders, sample).getDiploidEmissionProbabilityArray(0)
 
+            // The Mendelian probability, before the pc mixing, of two founders' gamete lists.
+            fun mendel(gi: List<Int>, gj: List<Int>): Double {
+                var matches = 0
+                for (a in gi) for (b in gj) {
+                    if ((a == sample.first && b == sample.second) ||
+                        (a == sample.second && b == sample.first)) matches++
+                }
+                return matches.toDouble() / (gi.size * gj.size)
+            }
+            // A missing founder is replaced by each called founder in turn and the results averaged;
+            // two different missing founders by every ordered pair of called founders; one missing
+            // founder paired with itself by each called founder paired with itself.
+            val called = founders.map { gametesByHand(it) }.filter { it.isNotEmpty() }
             for (i in 0 until nFounders) for (j in 0 until nFounders) {
                 val gi = gametesByHand(founders[i])
                 val gj = gametesByHand(founders[j])
-                val expected = if (gi.isEmpty() || gj.isEmpty()) 0.0 else {
-                    var matches = 0
-                    for (a in gi) for (b in gj) {
-                        if ((a == sample.first && b == sample.second) ||
-                            (a == sample.second && b == sample.first)) matches++
-                    }
-                    ln(probCorrect * matches.toDouble() / (gi.size * gj.size) + (1.0 - probCorrect))
+                val expected = when {
+                    called.isEmpty() -> 0.0
+                    gi.isNotEmpty() && gj.isNotEmpty() ->
+                        ln(probCorrect * mendel(gi, gj) + (1.0 - probCorrect))
+                    i == j -> ln(probCorrect * called.map { mendel(it, it) }.average() + (1.0 - probCorrect))
+                    gi.isEmpty() && gj.isEmpty() ->
+                        ln(probCorrect * called.flatMap { c -> called.map { d -> mendel(c, d) } }.average() +
+                                (1.0 - probCorrect))
+                    gi.isEmpty() -> ln(probCorrect * called.map { mendel(it, gj) }.average() + (1.0 - probCorrect))
+                    else -> ln(probCorrect * called.map { mendel(gi, it) }.average() + (1.0 - probCorrect))
                 }
                 assertEquals(expected, actual.state(i, j, nFounders), 1e-12,
                     "founders=$founders sample=$sample state=($i,$j)")
@@ -167,28 +184,47 @@ class VcfGenotypeEmissionProbabilityTest {
     }
 
     @Test
-    fun aMissingFounderLeavesOnlyItsOwnPairsNeutral() {
-        // founder1 has no call. Pairs involving it cannot be evaluated, so they stay at 0.0 -- but
-        // the pairs that do not involve it must still be scored normally, or a single gap in the
-        // panel would wipe out the whole site.
+    fun aMissingFounderScoresAsTheAverageCalledFounder() {
+        // founder1 has no call. The called founders carry 0 and 1 equally, so paired with founder0
+        // (allele 0) it completes the sample's {0,1} half the time, and paired with itself it gives a
+        // homozygote, which never matches. The pairs that do not involve it are scored normally, or a
+        // single gap in the panel would wipe out the whole site.
         val p = oneSite(listOf(0 to 0, MISSING.toInt() to MISSING.toInt(), 1 to 1), 0 to 1)
             .getDiploidEmissionProbabilityArray(0)
-        assertEquals(0.0, p.state(0, 1, 3), "pair with the missing founder is neutral")
-        assertEquals(0.0, p.state(1, 0, 3))
-        assertEquals(0.0, p.state(1, 1, 3))
-        assertEquals(0.0, p.state(1, 2, 3))
+        assertEquals(half, p.state(0, 1, 3), 1e-12, "missing with founder0 matches half the time")
+        assertEquals(half, p.state(1, 0, 3), 1e-12)
+        assertEquals(half, p.state(1, 2, 3), 1e-12, "and with founder2")
+        assertEquals(mismatch, p.state(1, 1, 3), 1e-12, "a missing founder selfed is a homozygote")
         assertEquals(match, p.state(0, 2, 3), 1e-12, "founders 0 and 2 still explain {0,1}")
         assertEquals(mismatch, p.state(0, 0, 3), 1e-12, "and are still penalised where they do not")
     }
 
     @Test
-    fun missingIsNotTreatedAsAMismatch() {
-        // The distinction that matters: a gap in the panel must score higher than a founder that is
-        // present and wrong, otherwise absence becomes evidence against.
-        val p = oneSite(listOf(MISSING.toInt() to MISSING.toInt(), 0 to 0), 1 to 1)
+    fun missingScoresBetweenAMatchAndAMismatch() {
+        // A gap in the panel is evidence neither for nor against a founder. It must score below a
+        // founder that is present and right -- or the path is drawn toward founders with missing
+        // data -- and above one that is present and wrong, where the panel allows either.
+        val p = oneSite(listOf(MISSING.toInt() to MISSING.toInt(), 0 to 0, 1 to 1), 1 to 1)
             .getDiploidEmissionProbabilityArray(0)
-        assertTrue(p.state(0, 0, 2) > p.state(1, 1, 2),
-            "missing (${p.state(0, 0, 2)}) must beat present-and-wrong (${p.state(1, 1, 2)})")
+        val missing = p.state(0, 0, 3)
+        assertEquals(half, missing, 1e-12, "half the called founders carry the sample's allele")
+        assertTrue(missing < p.state(2, 2, 3), "missing ($missing) must lose to present-and-right")
+        assertTrue(missing > p.state(1, 1, 3), "missing ($missing) must beat present-and-wrong")
+    }
+
+    @Test
+    fun aMissingFounderEqualsAMatchOnlyWhereEveryCalledFounderAgrees() {
+        // Every called founder carries 0, so any founder, called or not, explains {0,0}.
+        val agree = oneSite(listOf(MISSING.toInt() to MISSING.toInt(), 0 to 0, 0 to 0), 0 to 0)
+            .getDiploidEmissionProbabilityArray(0)
+        assertTrue(agree.all { abs(it - match) < 1e-12 }, "every state matches: ${agree.toList()}")
+    }
+
+    @Test
+    fun aSiteWithNoCalledFounderCarriesNoInformation() {
+        val p = oneSite(listOf(MISSING.toInt() to MISSING.toInt(), MISSING.toInt() to MISSING.toInt()), 0 to 1)
+            .getDiploidEmissionProbabilityArray(0)
+        assertTrue(p.all { it == 0.0 }, "nothing to average: ${p.toList()}")
     }
 
     @Test

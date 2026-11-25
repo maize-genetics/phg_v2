@@ -33,12 +33,16 @@ import kotlin.math.ln
  *   treated as absent there.
  * @param pavDamping strength of the presence/absence correction, 0 (off) to 1 (a heterozygous
  *   state involving an absent founder ties with the corresponding homozygous state).
+ * @param maxStoredBackPointers the most traceback entries one path holds at once. A path whose
+ *   `positions x states` exceeds it is traced back in blocks from checkpoints, which gives the same
+ *   path in about twice the time; see [traceBestPath]. Defaults to a quarter of the heap.
  */
 class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: Double, val probCorrect: Double,
                  val binSize: Int = 256,
                  val presenceTable: PresenceTable? = null,
                  val pavThreshold: Double = 0.02,
-                 val pavDamping: Double = 1.0
+                 val pavDamping: Double = 1.0,
+                 val maxStoredBackPointers: Long = defaultBackPointerBudget()
 ) {
     private val myLogger = LogManager.getLogger(ViterbiHMM::class.java)
 
@@ -283,23 +287,17 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         val fixedLnSwitch =
             if (nParents > 1) ln((1.0 - sameGameteProbability) / (nParents - 1)) else fixedLnNoSwitch
 
-        var previous = DoubleArray(stateCount)
-        var current = DoubleArray(stateCount)
-        val backPointer = IntArray(positionCount * stateCount)
-
         // intermediate: best over the second founder, for every (first founder, target second)
         val partial = DoubleArray(stateCount)
         val partialArg = IntArray(stateCount)
 
-        var emission = emissionLogProbabilityFunction(0)
-        for (state in 0 until stateCount) {
-            previous[state] = initialLogProbabilities[state] + emission[state]
-            backPointer[state] = -1
-        }
-
-        for (position in 1 until positionCount) {
-            emission = emissionLogProbabilityFunction(position)
-            val rowOffset = position * stateCount
+        return traceBestPath(stateCount, positionCount, maxStoredBackPointers,
+            initialize = { scores ->
+                val emission = emissionLogProbabilityFunction(0)
+                for (state in 0 until stateCount) scores[state] = initialLogProbabilities[state] + emission[state]
+            }
+        ) { position, previous, current, backPointer ->
+            val emission = emissionLogProbabilityFunction(position)
             // Per-haplotype transition for the step into this position. Both stages below and the
             // whole-state comparison at the end use these, so a varying step size is charged
             // consistently across all three.
@@ -368,26 +366,10 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
                     val stayWhole = previous[state] + lnNoSwitch + lnNoSwitch
                     if (stayWhole >= best) { best = stayWhole; chosenFirst = target1; chosenSecond = target2 }
                     current[state] = best + emission[state]
-                    backPointer[rowOffset + state] = chosenFirst * nParents + chosenSecond
+                    backPointer[state] = chosenFirst * nParents + chosenSecond
                 }
             }
-
-            val swap = previous; previous = current; current = swap
         }
-
-        var bestFinalStateIndex = 0
-        var bestFinalLogProbability = previous[0]
-        for (state in 1 until stateCount) {
-            if (previous[state] > bestFinalLogProbability) {
-                bestFinalLogProbability = previous[state]; bestFinalStateIndex = state
-            }
-        }
-        val best = IntArray(positionCount)
-        best[positionCount - 1] = bestFinalStateIndex
-        for (position in positionCount - 1 downTo 1) {
-            best[position - 1] = backPointer[position * stateCount + best[position]]
-        }
-        return best to bestFinalLogProbability
     }
 
     /** ln(p), floored so that p == 0.0 yields a large finite penalty rather than -Inf. */
@@ -398,9 +380,8 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
      * case where transition probabilities differ per state pair.
      *
      * Memory is kept low by rolling two log-probability buffers (only the previous position is
-     * needed to compute the current one); only the back-pointer array retains full history for
-     * backtracing. Arrays are flattened as [position * stateCount + stateIndex] for cache-friendly
-     * access. Same-state transitions are preferred on ties so the path stays put unless another
+     * needed to compute the current one); the backpointers are held by [traceBestPath], within
+     * [maxStoredBackPointers]. Same-state transitions are preferred on ties so the path stays put unless another
      * state is strictly better.
      *
      * @param stateCount the number of hidden states.
@@ -427,26 +408,13 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         require(initialLogProbabilities.size == stateCount)
         require(transitionLogProbabilities.size == stateCount * stateCount)
 
-        // Rolling buffers: only the previous position's best log-probabilities are
-        // needed to compute the current position's, so we avoid storing all positions.
-        var previousBestLogProbability = DoubleArray(stateCount)
-        var currentBestLogProbability = DoubleArray(stateCount)
-
-        // backPointer must retain full history for backtracing at the end.
-        // Flattened as [position * stateCount + stateIndex] for cache-friendly access.
-        val backPointer = IntArray(positionCount * stateCount)
-
-        // --- Initialization at the first position ---
-        var emissionLogProbabilities = emissionLogProbabilityFunction(0)
-        for (stateIndex in 0 until stateCount) {
-            previousBestLogProbability[stateIndex] = initialLogProbabilities[stateIndex] + emissionLogProbabilities[stateIndex]
-            backPointer[stateIndex] = -1 // no predecessor at position 0
-        }
-
-        // --- Recursion across remaining positions ---
-        for (position in 1 until positionCount) {
-            val backPointerRowOffset = position * stateCount
-            emissionLogProbabilities = emissionLogProbabilityFunction(position)
+        return traceBestPath(stateCount, positionCount, maxStoredBackPointers,
+            initialize = { scores ->
+                val emission = emissionLogProbabilityFunction(0)
+                for (stateIndex in 0 until stateCount) scores[stateIndex] = initialLogProbabilities[stateIndex] + emission[stateIndex]
+            }
+        ) { position, previousBestLogProbability, currentBestLogProbability, backPointer ->
+            val emissionLogProbabilities = emissionLogProbabilityFunction(position)
             val stepTransitions =
                 transitionLogProbabilitiesByPosition?.invoke(position) ?: transitionLogProbabilities
             for (currentStateIndex in 0 until stateCount) {
@@ -474,37 +442,9 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
                 }
 
                 currentBestLogProbability[currentStateIndex] = bestPreviousLogProbability + emissionLogProbability
-                backPointer[backPointerRowOffset + currentStateIndex] = bestPreviousStateIndex
-            }
-
-            // Swap rolling buffers instead of allocating new arrays each position
-            val temporaryBuffer = previousBestLogProbability
-            previousBestLogProbability = currentBestLogProbability
-            currentBestLogProbability = temporaryBuffer
-        }
-
-        // --- Find best final state at the last position ---
-        var bestFinalStateIndex = 0
-        var bestFinalLogProbability = previousBestLogProbability[0]
-
-        for (stateIndex in 1 until stateCount) {
-            if (previousBestLogProbability[stateIndex] > bestFinalLogProbability) {
-                bestFinalLogProbability = previousBestLogProbability[stateIndex]
-                bestFinalStateIndex = stateIndex
+                backPointer[currentStateIndex] = bestPreviousStateIndex
             }
         }
-
-        // --- Backtrace to reconstruct the most likely state index sequence ---
-        val bestStateIndicesByPosition = IntArray(positionCount)
-        bestStateIndicesByPosition[positionCount - 1] = bestFinalStateIndex
-
-        for (position in positionCount - 1 downTo 1) {
-            val currentStateIndex = bestStateIndicesByPosition[position]
-            bestStateIndicesByPosition[position - 1] =
-                backPointer[position * stateCount + currentStateIndex]
-        }
-        return bestStateIndicesByPosition to bestFinalLogProbability
-
     }
 
     /**
@@ -514,8 +454,8 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
      * (ln((1 - sameGameteProbability) / (stateCount - 1))). This lets each position be computed by
      * finding the single best previous state once, rather than scanning all state pairs.
      *
-     * Memory is kept low by rolling two log-probability buffers; only the back-pointer array retains
-     * full history for backtracing. Arrays are flattened as [position * stateCount + stateIndex].
+     * Memory is kept low by rolling two log-probability buffers; the backpointers are held by
+     * [traceBestPath], within [maxStoredBackPointers].
      *
      * @param stateCount the number of hidden states (candidate parents).
      * @param positionCount the number of positions (bins) in the sequence.
@@ -548,82 +488,41 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         // score. The probability of switching is genuinely zero, so floor it.
         val fixedLnSwitch = if (stateCount > 1) ln((1.0 - sameGameteProbability) / (stateCount - 1))
                        else lnOrFloor(0.0)
-        // Rolling buffers: only the previous position's best log-probabilities are
-        // needed to compute the current position's, so we avoid storing all positions.
-        var previousBestLogProbability = DoubleArray(stateCount)
-        var currentBestLogProbability = DoubleArray(stateCount)
-
-        // backPointer must retain full history for backtracing at the end.
-        // Flattened as [position * stateCount + stateIndex] for cache-friendly access.
-        val backPointer = IntArray(positionCount * stateCount)
-
-        // --- Initialization at the first position ---
-        var emissionLogProbabilities = emissionLogProbabilityFunction(0)
-        for (stateIndex in 0 until stateCount) {
-            previousBestLogProbability[stateIndex] = initialLogProbabilities[stateIndex] + emissionLogProbabilities[stateIndex]
-            backPointer[stateIndex] = -1 // no predecessor at position 0
-        }
-
-        // --- Recursion across remaining positions ---
-        for (position in 1 until positionCount) {
-            val backPointerRowOffset = position * stateCount
-            emissionLogProbabilities = emissionLogProbabilityFunction(position)
+        return traceBestPath(stateCount, positionCount, maxStoredBackPointers,
+            initialize = { scores ->
+                val emission = emissionLogProbabilityFunction(0)
+                for (stateIndex in 0 until stateCount) scores[stateIndex] = initialLogProbabilities[stateIndex] + emission[stateIndex]
+            }
+        ) { position, previousBestLogProbability, currentBestLogProbability, backPointer ->
+            val emissionLogProbabilities = emissionLogProbabilityFunction(position)
             val lnNoSwitch = lnNoSwitchByPosition?.get(position) ?: fixedLnNoSwitch
             val lnSwitch = lnSwitchByPosition?.get(position) ?: fixedLnSwitch
+
+            //get the highest probability previous path, which is the same for every current state
+            var bestPreviousPathProbability = previousBestLogProbability[0]
+            var bestPreviousStateIndex = 0
+            for (previousStateIndex in 1 until stateCount) {
+                if (previousBestLogProbability[previousStateIndex] > bestPreviousPathProbability) {
+                    bestPreviousPathProbability = previousBestLogProbability[previousStateIndex]
+                    bestPreviousStateIndex = previousStateIndex
+                }
+            }
+            val switchPathLogProbability = bestPreviousPathProbability + lnSwitch
+
             for (currentStateIndex in 0 until stateCount) {
                 val emissionLogProbability =  emissionLogProbabilities[currentStateIndex]
 
                 //here we make the same state the best state so that it will be chosen unless some other is better
                 val samePathLogProbability = previousBestLogProbability[currentStateIndex] + lnNoSwitch
-
-                //get the highest probability previous path
-                var bestPreviousPathProbability = previousBestLogProbability[0]
-                var bestPreviousStateIndex = 0
-                for (previousStateIndex in 1 until stateCount) {
-                    if (previousBestLogProbability[previousStateIndex] > bestPreviousPathProbability) {
-                        bestPreviousPathProbability = previousBestLogProbability[previousStateIndex]
-                        bestPreviousStateIndex = previousStateIndex
-                    }
-                }
-
-                val switchPathLogProbability = bestPreviousPathProbability + lnSwitch
                 if (switchPathLogProbability > samePathLogProbability) {
                     currentBestLogProbability[currentStateIndex] = switchPathLogProbability + emissionLogProbability
-                    backPointer[backPointerRowOffset + currentStateIndex] = bestPreviousStateIndex
+                    backPointer[currentStateIndex] = bestPreviousStateIndex
                 } else {
                     currentBestLogProbability[currentStateIndex] = samePathLogProbability + emissionLogProbability
-                    backPointer[backPointerRowOffset + currentStateIndex] = currentStateIndex
+                    backPointer[currentStateIndex] = currentStateIndex
                 }
             }
-
-            // Swap rolling buffers instead of allocating new arrays each position
-            val temporaryBuffer = previousBestLogProbability
-            previousBestLogProbability = currentBestLogProbability
-            currentBestLogProbability = temporaryBuffer
         }
-
-        // --- Find best final state at the last position ---
-        var bestFinalStateIndex = 0
-        var bestFinalLogProbability = previousBestLogProbability[0]
-
-        for (stateIndex in 1 until stateCount) {
-            if (previousBestLogProbability[stateIndex] > bestFinalLogProbability) {
-                bestFinalLogProbability = previousBestLogProbability[stateIndex]
-                bestFinalStateIndex = stateIndex
-            }
-        }
-
-        // --- Backtrace to reconstruct the most likely state index sequence ---
-        val bestStateIndicesByPosition = IntArray(positionCount)
-        bestStateIndicesByPosition[positionCount - 1] = bestFinalStateIndex
-
-        for (position in positionCount - 1 downTo 1) {
-            val currentStateIndex = bestStateIndicesByPosition[position]
-            bestStateIndicesByPosition[position - 1] =
-                backPointer[position * stateCount + currentStateIndex]
-        }
-        return bestStateIndicesByPosition to bestFinalLogProbability
-
     }
 
 }

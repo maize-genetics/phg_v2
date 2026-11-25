@@ -74,10 +74,18 @@ All three must:
   `REF` differs between files is treated as absent from the panel.
 
 The panels should be **haploid, or diploid and mostly homozygous**, with
-one sample per founder. This is the normal case for inbred founders. A
-merged pangenome VCF, produced by running
+one sample per founder. This is the normal case for inbred founders. For
+heterozygous founders with a **phased** panel, give each haplotype its
+own sample, with its own name: the method then treats each haplotype as
+a haploid founder. A merged pangenome VCF, produced by running
 [`merge-gvcfs`](convenience_commands.md) on the assembly gVCF files of a
 PHG, is one source of a high-density panel.
+
+A founder with **no call** at a site of the path panel is scored as if
+it were a founder chosen at random from those called there: it carries
+each allele at the frequency the called founders carry it. A missing
+call is therefore neither evidence for the founder nor against it, so a
+founder with many missing calls is not drawn into the path.
 
 The sample VCF is treated as **unphased**: genotypes are compared as
 unordered pairs, so `0/1` and `1/0` are the same call. Missing
@@ -132,6 +140,8 @@ written, unless you add `--bed-dir`.
 | `--prob-switch-distance` | The distance, in base pairs, that `--prob-switch` is quoted over. | `1000000` | |
 | `--extend-to-contig-ends` | Extend each contig's path out to both ends of the contig. See [Contig ends](#contig-ends). | off | |
 | `--contigs-to-use` | Comma-separated contigs to impute, or a file with one contig per line. All contigs shared by the sample VCF and the path panel if omitted. | | |
+| `--keep-sample-calls` | Write each sample's own genotype call over the imputed one wherever it has a full call at a high-density site. See [Keeping the sample's own calls](#keeping-the-samples-own-calls). | off | |
+| `--threads` | Number of samples to find paths for at the same time. See [Memory and threads](#memory-and-threads). | `1` | |
 
 #### Choosing a path type
 
@@ -196,6 +206,39 @@ site is written as a half call, such as `1/.`.
     fields. Fields such as `AF`, `DP` and `NS` describe the panel, not
     the imputed samples.
 
+#### Keeping the sample's own calls
+
+The path reproduces most of a sample's own calls, but not all of them.
+A call the path cannot explain, such as a genotyping error, a new
+mutation or a founder allele the panel has wrong, is outvoted by the
+sites around it. With `--keep-sample-calls`, wherever the sample has a
+**full call** at a site of the high-density panel, the output gets the
+sample's own call instead of the imputed one. A call is used only when
+the site's position and `REF` match and the panel record carries every
+allele the sample calls. A half call such as `0/.` is not used, because
+the missing allele could be either one.
+
+Every genotype is then marked in a `SRC` FORMAT field: `O` for the
+sample's own call (observed) and `I` for an imputed genotype.
+
+A summary is written next to the output, named after it:
+`imputed.vcf` gives `imputed_sample_calls.tsv`, with one row per sample:
+
+| Column | Meaning |
+|---|---|
+| `sample_calls` | Sites where the sample's own call was written. |
+| `agreed` | Of those, sites where the imputed genotype was the same. |
+| `overwritten` | Of those, sites where the imputed genotype was a different full call. |
+| `filled` | Of those, sites with no imputed genotype or only a half call. |
+| `unmatched_alleles` | Full calls not used, because the panel record lacks one of their alleles. |
+| `half_calls` | Half calls not used. |
+| `discordance` | `overwritten / (agreed + overwritten)`: how often the path disagrees with the sample's calls. |
+
+The discordance is an optimistic estimate of the imputation error, since
+the same sites also informed the path. A sample whose discordance is much
+higher than the rest is worth checking; see
+[Founders missing from the panel](#how-well-does-it-work).
+
 ### Log diagnostics
 
 The log reports how the sample VCF and the path panel matched up:
@@ -244,8 +287,9 @@ phg impute-path-from-vcf \
 It takes the same path-finding parameters as `impute-vcf-from-vcf`
 (`--path-type`, `--prob-correct`, `--prob-switch`,
 `--prob-switch-distance`, `--extend-to-contig-ends`,
-`--contigs-to-use`), and writes the BED files to the required
-`--out-path-dir`.
+`--contigs-to-use`, `--threads`), and writes the BED files to the required
+`--out-path-dir`. `--keep-sample-calls` is available only in the chained
+command.
 
 `bed-to-vcf` then composes the paths into a VCF:
 
@@ -267,44 +311,54 @@ output. `bed-to-vcf` also accepts the BED files written by
 [`impute-path-from-ps4g`](imputation_ropebwt.md), so it can compose a
 VCF from read-based founder paths too.
 
-### Memory
+### Memory and threads
 
 Neither panel is held in memory: both are read one record at a time. The
 path finder works one contig at a time, so the memory needed is set by the
-**largest contig** and by three numbers:
+**largest contig**, and by:
 
-* **Shared sites**: the sites on that contig that the sample VCF has in
+* **Shared sites**, `S`: the sites on that contig that the sample VCF has in
   common with the path panel. The sample VCF's density decides this, not
   the size of either panel.
-* **Founders**, squared for a diploid path. For each site the path finder
-  keeps 4 bytes per path state, and a diploid path has founders² states
-  (625 for 25 founders) against a haploid path's founders. This is usually
-  the largest term.
-* **Samples**, a smaller linear term: the founders' and samples' alleles
-  at the shared sites of the current contig.
+* **Path states**: founders² for a diploid path (6,724 for 82 founders), or
+  founders for a haploid one.
+* **Founders and samples**: their alleles at the shared sites of the
+  current contig, about `4 × (founders + samples)` bytes per site.
 
-The Java heap needed is roughly
+Finding a path keeps a traceback of 4 bytes per state per shared site,
+for each sample being worked on. This is usually the largest term, and it
+is **capped**. Each path may use up to a quarter of the Java heap, divided
+among the `--threads`. A longer path keeps checkpoints instead and rebuilds
+its traceback one block at a time. That gives exactly the same path, in
+about twice the time. So any contig can be imputed: the heap decides only
+whether it runs at full speed.
+
+Roughly, the heap needed is
 
 ```
-0.1 GB + S × (4 × states + 4 × (founders + samples)) bytes
+0.1 GB + S × 4 × (founders + samples) bytes                    at the least
+     + threads × 16 × S × states bytes                           for full speed
 ```
 
-where `S` is the number of shared sites on the largest contig and `states`
-is founders² for `--path-type diploid` or founders for `haploid`. Allow
-about 50% more than this when setting `-Xmx`
+Allow about 50% more than this when setting `-Xmx`
 ([Setting memory](installation.md#setting-memory)).
 
-Some examples for a diploid path with 25 founders and 1,000 samples, where
+Some examples for a diploid path with 1,000 samples and one thread, where
 the largest chromosome holds about 14% of the sites:
 
-| Sample data | Shared sites, largest chromosome | Heap |
-|---|---|---|
-| 50K SNP array | about 7,000 | about 0.15 GB |
-| 600K SNP array | about 85,000 | about 0.7 GB |
-| 10 million variants (e.g. low-pass sequencing) | about 1.4 million | about 9 GB |
-| the same, with 100 founders | about 1.4 million | about 60 GB |
+| Sample data | Founders | Shared sites, largest chromosome | Heap, at the least | Heap, full speed |
+|---|---|---|---|---|
+| 50K SNP array | 25 | about 7,000 | about 0.15 GB | about 0.2 GB |
+| 600K SNP array | 25 | about 85,000 | about 0.5 GB | about 1.3 GB |
+| 10 million variants (e.g. low-pass sequencing) | 25 | about 1.4 million | about 6 GB | about 20 GB |
+| the same | 100 | about 1.4 million | about 6.5 GB | about 230 GB |
+| 2.4 million variants | 82 haplotypes | about 340,000 | about 1.6 GB | about 38 GB |
 
-!!! tip "Reducing memory"
+`--threads` runs that many samples at once. Each needs its own
+traceback, so more threads share the same quarter of the heap, and the
+output does not depend on the thread count.
+
+!!! tip "Reducing memory and time"
     * Use `--path-type haploid` for fully inbred material. This shrinks the
       largest term by a factor of the number of founders, with no loss of
       accuracy for inbred samples.
@@ -315,8 +369,9 @@ the largest chromosome holds about 14% of the sites:
     * Splitting the samples into batches reduces only the smaller,
       per-sample term.
 
-Running time grows with the same numbers. In our tests, 1,000 samples with
-106,705 shared sites on a contig took about 8.5 minutes for a diploid path.
+Running time grows with shared sites × states for each sample. In our
+tests, 1,000 samples with 106,705 shared sites on a contig took about 8.5
+minutes for a diploid path with 25 founders.
 
 ## How well does it work?
 

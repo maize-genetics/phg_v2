@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
+import net.maizegenetics.phgv2.pathing.ropebwt.ContigSites.Companion.MAX_ALLELES_PER_SITE
 import net.maizegenetics.phgv2.pathing.ropebwt.ContigSites.Companion.MISSING
 import kotlin.math.ln
 
@@ -57,9 +58,26 @@ import kotlin.math.ln
  * A **missing sample genotype** leaves every state at 0.0, so the site neither favours nor penalises
  * any path -- it simply carries no information.
  *
- * A **missing founder allele** leaves every state involving that founder at 0.0. The pair cannot be
- * evaluated, and the alternative -- scoring it as a mismatch -- would read a gap in the panel as
- * evidence against a founder, which it is not.
+ * A **missing founder allele** is scored as a founder about which nothing is known: the average over
+ * the founders that *are* called at the site. A gap in the panel is evidence neither for nor against
+ * a founder, and the two obvious constants each read it as one or the other. A mismatch would count it
+ * against the founder. A perfect match -- ln 1, which is what this model once used -- counts it *for*
+ * the founder: a founder missing at many sites then tied with the true founder at every one of them
+ * and beat every called founder that mismatched, so the path was drawn toward founders with the most
+ * missing data, and composition then copied their no-calls into the output.
+ *
+ * Averaging over the called founders is the same as giving the missing founder each allele at the
+ * frequency `f` the called founders carry it, a heterozygous founder contributing half of each:
+ *
+ * | state | `P(G \| state)` before the `pc` mixing |
+ * |---|---|
+ * | (M, B), M missing | `(1/\|B\|) * sum over beta in B of f(the allele completing G with beta)` |
+ * | (M, M), the same founder | the mean over called founders C of `P(G \| (C, C))` |
+ * | (M, N), two missing founders | `f(g)^2` for `G = {g, g}`, `2 f(g1) f(g2)` for `G = {g1, g2}` |
+ *
+ * At a site where every called founder carries the same allele this is 1 or 0, exactly as for a called
+ * founder. Where no founder at all is called, every state stays at 0.0, since there is nothing to
+ * average and the site cannot tell any two states apart.
  *
  * A sample allele **no founder carries** needs no handling: every state mismatches, every state gets
  * `ln(1 - pc)`, and the site again discriminates between nothing. The same is true of a site that is
@@ -70,9 +88,11 @@ import kotlin.math.ln
  *
  * `O(nFounders^2)` per site with at most four allele comparisons per state, matching the state space
  * the Viterbi has to scan anyway. Where every founder is homozygous -- the common case -- only one
- * comparison of the four is reached. A faster form is available if a dense panel ever makes this the
- * bottleneck: precompute per site which founders carry each of the sample's two alleles, reducing the
- * inner work to two array reads, at the cost of a second code path to keep in step with this one.
+ * comparison of the four is reached. Each founder's alleles are read once per site, and a site with a
+ * missing founder costs `O(nFounders)` more for the averages. A faster form is available if a dense
+ * panel ever makes this the bottleneck: precompute per site which founders carry each of the sample's
+ * two alleles, reducing the inner work to two array reads, at the cost of a second code path to keep
+ * in step with this one.
  *
  * @param sites the panel and sample genotypes for one contig, allele-index encoded
  * @param sampleIndex which sample of [ContigSites.sampleNames] this instance scores
@@ -96,9 +116,16 @@ class VcfGenotypeEmissionProbability(
         }
     }
 
-    /** Reused across positions so the per-site call allocates only its result. */
-    private val founderGametes = IntArray(2)
-    private val otherGametes = IntArray(2)
+    /** Each founder's distinct alleles at the site in hand, and how many: 0 when uncalled. */
+    private val gameteCount = IntArray(nFounders)
+    private val gamete1 = IntArray(nFounders)
+    private val gamete2 = IntArray(nFounders)
+
+    /** Allele frequency among the called founders at the site in hand, indexed by allele. */
+    private val frequency = DoubleArray(MAX_ALLELES_PER_SITE)
+
+    /** For a missing founder M: the log emission of (M, founder), and of (M, M). */
+    private val lnWithMissing = DoubleArray(nFounders)
 
     /**
      * Natural log emission probabilities at [positionIndex], indexed by ordered pairs of founders as
@@ -112,43 +139,108 @@ class VcfGenotypeEmissionProbability(
         val observed2 = sites.sampleAllele2(positionIndex, sampleIndex)
         // A missing genotype says nothing about any state, so every state stays at ln(1) = 0.
         if (observed1 == MISSING || observed2 == MISSING) return probabilities
+        val o1 = observed1.toInt()
+        val o2 = observed2.toInt()
+
+        var missingFounders = 0
+        for (founder in 0 until nFounders) {
+            gameteCount[founder] = gametesOf(positionIndex, founder)
+            if (gameteCount[founder] == 0) missingFounders++
+        }
+        // No founder is called, so there is nothing to average and every state is alike.
+        if (missingFounders == nFounders) return probabilities
+        var lnBothMissing = 0.0
+        var lnSameMissing = 0.0
+        if (missingFounders > 0) {
+            val (both, same) = prepareMissing(o1, o2)
+            lnBothMissing = ln(probCorrect * both + (1.0 - probCorrect))
+            lnSameMissing = ln(probCorrect * same + (1.0 - probCorrect))
+        }
 
         var pointer = 0
         for (first in 0 until nFounders) {
-            val firstCount = gametesOf(positionIndex, first, founderGametes)
+            val firstCount = gameteCount[first]
             for (second in 0 until nFounders) {
-                if (firstCount == 0) {
-                    // This founder has no call here, so the pair cannot be evaluated. Leaving it at
-                    // 0.0 keeps a gap in the panel from counting as evidence against the founder.
-                    pointer++
-                    continue
-                }
-                val secondCount = gametesOf(positionIndex, second, otherGametes)
-                if (secondCount == 0) {
-                    pointer++
-                    continue
-                }
-                var matches = 0
-                for (a in 0 until firstCount) {
-                    val alpha = founderGametes[a]
-                    for (b in 0 until secondCount) {
-                        val beta = otherGametes[b]
-                        // Unordered comparison: the sample VCF is unphased, so {alpha, beta} and
-                        // {beta, alpha} are the same observation.
-                        if ((alpha == observed1.toInt() && beta == observed2.toInt()) ||
-                            (alpha == observed2.toInt() && beta == observed1.toInt())
-                        ) matches++
+                val secondCount = gameteCount[second]
+                if (firstCount == 0 || secondCount == 0) {
+                    probabilities[pointer++] = when {
+                        first == second -> lnSameMissing
+                        firstCount == 0 && secondCount == 0 -> lnBothMissing
+                        firstCount == 0 -> lnWithMissing[second]
+                        else -> lnWithMissing[first]
                     }
+                    continue
                 }
-                probabilities[pointer++] = lnEmission[firstCount * secondCount][matches]
+                probabilities[pointer++] = lnEmission[firstCount * secondCount][matches(first, second, o1, o2)]
             }
         }
         return probabilities
     }
 
     /**
-     * Writes [founder]'s distinct alleles at [site] into [into] and returns how many there are: 0
-     * when the founder has no call, 1 when it is haploid or homozygous, 2 when heterozygous.
+     * How many of the `|A| x |B|` gamete combinations of founders [first] and [second] give the observed
+     * genotype {[o1], [o2]}. Unordered, since the sample VCF is unphased: {alpha, beta} and
+     * {beta, alpha} are the same observation.
+     */
+    private fun matches(first: Int, second: Int, o1: Int, o2: Int): Int {
+        var matches = 0
+        for (a in 0 until gameteCount[first]) {
+            val alpha = if (a == 0) gamete1[first] else gamete2[first]
+            for (b in 0 until gameteCount[second]) {
+                val beta = if (b == 0) gamete1[second] else gamete2[second]
+                if ((alpha == o1 && beta == o2) || (alpha == o2 && beta == o1)) matches++
+            }
+        }
+        return matches
+    }
+
+    /**
+     * Fills [frequency] from the called founders and [lnWithMissing] from it, for the site in hand,
+     * and returns the probabilities before the `pc` mixing for two different missing founders and for
+     * one missing founder paired with itself. See the class notes for the three forms.
+     */
+    private fun prepareMissing(o1: Int, o2: Int): Pair<Double, Double> {
+        var called = 0
+        var sameSum = 0.0
+        for (founder in 0 until nFounders) {
+            val count = gameteCount[founder]
+            if (count == 0) continue
+            called++
+            frequency[gamete1[founder]] += 1.0 / count
+            if (count == 2) frequency[gamete2[founder]] += 0.5
+            sameSum += matches(founder, founder, o1, o2).toDouble() / (count * count)
+        }
+        val f1 = frequency[o1] / called
+        val f2 = frequency[o2] / called
+
+        for (founder in 0 until nFounders) {
+            val count = gameteCount[founder]
+            if (count == 0) continue
+            // the missing founder supplies whichever allele completes the genotype with beta
+            var sum = 0.0
+            for (b in 0 until count) {
+                val beta = if (b == 0) gamete1[founder] else gamete2[founder]
+                if (beta == o1) sum += f2
+                if (beta == o2 && o1 != o2) sum += f1
+            }
+            lnWithMissing[founder] = ln(probCorrect * sum / count + (1.0 - probCorrect))
+        }
+
+        // reset only what was touched, so the next site starts from zero
+        for (founder in 0 until nFounders) {
+            val count = gameteCount[founder]
+            if (count == 0) continue
+            frequency[gamete1[founder]] = 0.0
+            if (count == 2) frequency[gamete2[founder]] = 0.0
+        }
+        val both = if (o1 == o2) f1 * f1 else 2.0 * f1 * f2
+        return both to sameSum / called
+    }
+
+    /**
+     * Writes [founder]'s distinct alleles at [site] into [gamete1] and [gamete2] and returns how many
+     * there are: 0 when the founder has no call, 1 when it is haploid or homozygous, 2 when
+     * heterozygous.
      *
      * Collapsing a homozygous call to one allele is what makes the Mendelian count come out right.
      * Were both halves of `a/a` kept, state (A, B) would enumerate four combinations rather than two
@@ -156,13 +248,13 @@ class VcfGenotypeEmissionProbability(
      * 4/4 rather than 1/1 -- the same probability, yet reached through a `total` of 4, which would
      * then differ from the heterozygous case in a way the lookup table could not distinguish.
      */
-    private fun gametesOf(site: Int, founder: Int, into: IntArray): Int {
+    private fun gametesOf(site: Int, founder: Int): Int {
         val allele1 = sites.founderAllele1(site, founder)
         if (allele1 == MISSING) return 0
         val allele2 = sites.founderAllele2(site, founder)
-        into[0] = allele1.toInt()
+        gamete1[founder] = allele1.toInt()
         if (allele2 == MISSING || allele2 == allele1) return 1
-        into[1] = allele2.toInt()
+        gamete2[founder] = allele2.toInt()
         return 2
     }
 }

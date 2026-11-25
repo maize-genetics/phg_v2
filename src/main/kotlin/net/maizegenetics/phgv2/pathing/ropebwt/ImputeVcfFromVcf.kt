@@ -9,6 +9,7 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.double
+import com.github.ajalt.clikt.parameters.types.int
 import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.cli.logCommand
 import org.apache.logging.log4j.LogManager
@@ -44,6 +45,13 @@ import java.io.File
  * both of its alleles under Mendelian sampling, while composition, which has to name one allele and
  * cannot tell which was inherited, emits a no-call. A site where one founder of a pair is heterozygous
  * therefore comes out half called, as `1/.`. See [BedToVcf].
+ *
+ * ## Keeping the sample's own calls
+ *
+ * `--keep-sample-calls` writes each sample's own full genotype call over the imputed one wherever the
+ * high-density panel has the site, and marks every genotype's source in `FORMAT/SRC` (`O` observed,
+ * `I` imputed). A per-sample summary of how often the two agreed is written next to the output. See
+ * [SampleCallOverlay].
  *
  * ## What the output covers
  *
@@ -116,6 +124,19 @@ class ImputeVcfFromVcf : CliktCommand(help = "Impute a higher-density VCF for th
             "line. All contigs shared by the sample VCF and --panel-vcf if omitted.")
         .default("")
 
+    val keepSampleCalls by option(help = "Write each sample's own genotype call over the imputed one " +
+            "wherever the sample VCF has a full call at a site of --high-density-panel-vcf with the same " +
+            "REF and alleles the panel record carries. Half calls such as 0/. are not used. Every " +
+            "genotype is then marked FORMAT/SRC=O (the sample's call) or I (imputed), and a per-sample " +
+            "summary of agreements and overwrites is written to <output name>_sample_calls.tsv. " +
+            "Default = false")
+        .flag()
+
+    val threads by option(help = "Number of samples to find paths for at the same time. Default = 1")
+        .int()
+        .default(1)
+        .validate { require(it > 0) { "threads must be positive" } }
+
     override fun run() {
         logCommand(this)
         requireFoundersPresentInDensePanel()
@@ -127,7 +148,8 @@ class ImputeVcfFromVcf : CliktCommand(help = "Impute a higher-density VCF for th
             probSwitch = probSwitch,
             probSwitchDistance = probSwitchDistance,
             contigsToUse = pathFinder.buildContigSet(contigsToUse),
-            extendToContigEnds = extendToContigEnds
+            extendToContigEnds = extendToContigEnds,
+            threads = threads
         )
 
         val result = imputeFounderPaths(File(toImputeVcf), File(panelVcf), parameters, myLogger)
@@ -145,8 +167,28 @@ class ImputeVcfFromVcf : CliktCommand(help = "Impute a higher-density VCF for th
         }
 
         val composer = BedToVcf()
-        composer.writeVcf(File(highDensityPanelVcf), composer.pathsFromIntervals(result.paths),
-            File(outputFile))
+        val counts = composer.writeVcf(File(highDensityPanelVcf), composer.pathsFromIntervals(result.paths),
+            File(outputFile), if (keepSampleCalls) File(toImputeVcf) else null)
+        if (keepSampleCalls) {
+            val summary = sampleCallSummaryFile(File(outputFile))
+            writeSampleCallSummary(counts, summary)
+            val total = counts.values.fold(SampleCallCounts()) { sum, c ->
+                sum.apply {
+                    sampleCalls += c.sampleCalls; agreed += c.agreed; overwritten += c.overwritten
+                    filled += c.filled; unmatchedAlleles += c.unmatchedAlleles; halfCalls += c.halfCalls
+                }
+            }
+            myLogger.info("Kept ${total.sampleCalls} sample calls: ${total.agreed} agreed with the " +
+                    "imputed genotype, ${total.overwritten} overwrote a different one, ${total.filled} " +
+                    "filled a missing or partial one; ${total.unmatchedAlleles} calls with alleles the " +
+                    "panel lacks and ${total.halfCalls} half calls not used. Per sample: $summary")
+        }
+    }
+
+    /** `<output name>_sample_calls.tsv` beside [output], its `.vcf` or `.vcf.gz` suffix removed. */
+    private fun sampleCallSummaryFile(output: File): File {
+        val base = output.name.removeSuffix(".gz").removeSuffix(".bgz").removeSuffix(".vcf")
+        return File(output.absoluteFile.parentFile, "${base}_sample_calls.tsv")
     }
 
     /**

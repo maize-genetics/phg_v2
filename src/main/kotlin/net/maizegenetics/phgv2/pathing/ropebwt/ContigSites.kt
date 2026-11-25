@@ -20,16 +20,23 @@ package net.maizegenetics.phgv2.pathing.ropebwt
  * halves when nothing was called, in the second half only for a half call such as `0/.`.
  *
  *     founderAlleles[(site * nFounders + founder) * 2 + half]
- *     sampleAlleles [(site * nSamples  + sample ) * 2 + half]
+ *     sampleAlleles[sample][site * 2 + half]
+ *
+ * The founders are interleaved by site, because the emission reads every founder at one site
+ * together. The samples are held one array each, because a path is found for one sample at a time,
+ * reading it down the whole contig. That also keeps the sample count out of any one array's size: a
+ * single interleaved array passed 2^31 entries -- the largest the JVM allows -- at about a billion
+ * site-samples, for instance 319,000 sites x 3,400 samples.
  *
  * ## Size
  *
  * `2 * nSites * (nFounders + nSamples)` bytes for a contig. A low-density panel -- the intended
  * input, a few tens of thousands of sites -- is a few megabytes. A dense panel used for path
  * inference as well as for composition is far larger: 16 M sites x 25 founders x 2 is 800 MB for the
- * founders alone, plus as much again per hundred samples. If that becomes the normal case, the two
- * halves can collapse to one byte per founder wherever the panel is homozygous, with a side table for
- * the heterozygous minority, which halves the founder term.
+ * founders alone, plus as much again per hundred samples. The founder array is limited to 2^31
+ * entries, about 13 M sites at 82 founders. If that becomes a real case, the two halves can collapse
+ * to one byte per founder wherever the panel is homozygous, with a side table for the heterozygous
+ * minority, which halves the founder term.
  *
  * @param contig the contig these sites lie on, needed to express a path back in reference coordinates
  * @param founderNames panel sample names, in the order the founder axis is indexed
@@ -43,20 +50,39 @@ class ContigSites(
     val sampleNames: List<String>,
     val positions: IntArray,
     val founderAlleles: ByteArray,
-    val sampleAlleles: ByteArray
+    val sampleAlleles: Array<ByteArray>
 ) {
     val nFounders = founderNames.size
     val nSamples = sampleNames.size
     val nSites = positions.size
 
+    /**
+     * Takes the samples interleaved by site, `[(site * nSamples + sample) * 2 + half]`, as the founders
+     * are. Convenient for small hand-built inputs.
+     */
+    constructor(
+        contig: String,
+        founderNames: List<String>,
+        sampleNames: List<String>,
+        positions: IntArray,
+        founderAlleles: ByteArray,
+        sampleAlleles: ByteArray
+    ) : this(contig, founderNames, sampleNames, positions, founderAlleles,
+        deinterleave(sampleAlleles, positions.size, sampleNames.size))
+
     init {
-        require(founderAlleles.size == nSites * nFounders * 2) {
+        require(founderAlleles.size.toLong() == nSites.toLong() * nFounders * 2) {
             "founderAlleles must hold 2 halves for each of $nSites sites x $nFounders founders, " +
                     "but holds ${founderAlleles.size}"
         }
-        require(sampleAlleles.size == nSites * nSamples * 2) {
-            "sampleAlleles must hold 2 halves for each of $nSites sites x $nSamples samples, " +
-                    "but holds ${sampleAlleles.size}"
+        require(sampleAlleles.size == nSamples) {
+            "sampleAlleles must hold one array for each of $nSamples samples, but holds ${sampleAlleles.size}"
+        }
+        sampleAlleles.forEachIndexed { sample, alleles ->
+            require(alleles.size == nSites * 2) {
+                "sampleAlleles for ${sampleNames[sample]} must hold 2 halves for each of $nSites sites, " +
+                        "but holds ${alleles.size}"
+            }
         }
     }
 
@@ -70,15 +96,27 @@ class ContigSites(
     fun founderAllele2(site: Int, founder: Int) = founderAlleles[(site * nFounders + founder) * 2 + 1]
 
     /** First allele index of [sample] at [site], or [MISSING]. */
-    fun sampleAllele1(site: Int, sample: Int) = sampleAlleles[(site * nSamples + sample) * 2]
+    fun sampleAllele1(site: Int, sample: Int) = sampleAlleles[sample][site * 2]
 
     /**
      * Second allele index of [sample] at [site]; equal to the first when the call is homozygous, and
      * [MISSING] for a half call.
      */
-    fun sampleAllele2(site: Int, sample: Int) = sampleAlleles[(site * nSamples + sample) * 2 + 1]
+    fun sampleAllele2(site: Int, sample: Int) = sampleAlleles[sample][site * 2 + 1]
 
     companion object {
+        private fun deinterleave(interleaved: ByteArray, nSites: Int, nSamples: Int): Array<ByteArray> {
+            require(interleaved.size == nSites * nSamples * 2) {
+                "sampleAlleles must hold 2 halves for each of $nSites sites x $nSamples samples, " +
+                        "but holds ${interleaved.size}"
+            }
+            return Array(nSamples) { sample ->
+                ByteArray(nSites * 2) { index ->
+                    interleaved[((index / 2) * nSamples + sample) * 2 + index % 2]
+                }
+            }
+        }
+
         /** No call, for either a founder or a sample. */
         const val MISSING: Byte = -1
 

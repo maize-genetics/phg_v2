@@ -459,4 +459,75 @@ class ImputePathFromVcfTest {
         assertEquals(emptyList<PathInterval<Pair<String, String>>>(),
             applyContigBounds(emptyList(), 101, 4000, true))
     }
+
+    // ------------------------------------------------------- missing founders and threads
+
+    /**
+     * Writes a one-contig VCF of SNPs A/C at 10 kb spacing, one column per entry of [genotypes]: each
+     * value is that sample's GT string at every site, or a function of the site index.
+     */
+    private fun writeVcf(file: File, sites: Int, genotypes: Map<String, (Int) -> String>): File {
+        file.bufferedWriter().use { out ->
+            out.write("##fileformat=VCFv4.2\n##contig=<ID=chr1,length=1000000>\n")
+            out.write("##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n")
+            out.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" +
+                    genotypes.keys.joinToString("\t") + "\n")
+            for (site in 0 until sites) {
+                out.write("chr1\t${(site + 1) * 10_000}\t.\tA\tC\t.\t.\t.\tGT\t" +
+                        genotypes.values.joinToString("\t") { it(site) } + "\n")
+            }
+        }
+        return file
+    }
+
+    @Test
+    fun aFounderMissingEverywhereIsNotChosenOverTheTrueFounder(@TempDir dir: File) {
+        // `aGappy` has no call at any site, and its name sorts first, so it takes founder index 0 (the
+        // founder axis is in htsjdk's sorted sample order). Scored as a perfect match, it tied the true
+        // founder at every site and won every tie by its lower index, so both samples came out as
+        // aGappy. Scored as the average of the called founders, it explains neither sample.
+        val panel = writeVcf(File(dir, "panel.vcf"), 20, linkedMapOf(
+            "aGappy" to { _ -> "." }, "founderA" to { _ -> "0" }, "founderB" to { _ -> "1" }))
+        val samples = writeVcf(File(dir, "samples.vcf"), 20, linkedMapOf(
+            "pureA" to { _ -> "0/0" }, "hetAB" to { _ -> "0/1" }))
+        val out = File(dir, "out")
+        val result = ImputePathFromVcf().test("--to-impute-vcf $samples --panel-vcf $panel " +
+                "--out-path-dir ${out.absolutePath}")
+        assertEquals(0, result.statusCode, "command failed:\n${result.stderr}")
+        assertTrue(readBed(File(out, "pureA_imputed_path.bed")).all { it.third == "founderA/founderA" },
+            "pureA should follow founderA: ${File(out, "pureA_imputed_path.bed").readText()}")
+        assertTrue(readBed(File(out, "hetAB_imputed_path.bed")).all {
+            it.third == "founderA/founderB" || it.third == "founderB/founderA" },
+            "hetAB should be founderA x founderB: ${File(out, "hetAB_imputed_path.bed").readText()}")
+    }
+
+    @Test
+    fun aFounderMissingAtSomeSitesIsStillFollowedWhereItIsRight(@TempDir dir: File) {
+        // founderA is the true founder but has no call at every third site. It must still be chosen:
+        // its gaps cost it a little, but founderB is wrong at every site.
+        val panel = writeVcf(File(dir, "panel.vcf"), 30, linkedMapOf(
+            "founderB" to { _ -> "1" }, "founderA" to { site -> if (site % 3 == 0) "." else "0" }))
+        val samples = writeVcf(File(dir, "samples.vcf"), 30, linkedMapOf("pureA" to { _ -> "0/0" }))
+        val out = File(dir, "out")
+        val result = ImputePathFromVcf().test("--to-impute-vcf $samples --panel-vcf $panel " +
+                "--out-path-dir ${out.absolutePath} --path-type haploid")
+        assertEquals(0, result.statusCode, "command failed:\n${result.stderr}")
+        assertTrue(readBed(File(out, "pureA_imputed_path.bed")).all { it.third == "founderA" })
+    }
+
+    @Test
+    fun theThreadCountDoesNotChangeThePaths(@TempDir dir: File) {
+        val one = File(dir, "one").also { command("--threads 1", outDir = it) }
+        val four = File(dir, "four").also { command("--threads 4", outDir = it) }
+        val names = one.list()!!.sorted()
+        assertEquals(names, four.list()!!.sorted())
+        for (name in names) assertEquals(File(one, name).readText(), File(four, name).readText(), name)
+    }
+
+    @Test
+    fun aNonPositiveThreadCountIsRejected(@TempDir dir: File) {
+        val result = ImputePathFromVcf().test("--to-impute-vcf $sampleVcf --panel-vcf $panelVcf " +
+                "--out-path-dir ${dir.absolutePath} --threads 0")
+        assertNotEquals(0, result.statusCode)
+    }
 }

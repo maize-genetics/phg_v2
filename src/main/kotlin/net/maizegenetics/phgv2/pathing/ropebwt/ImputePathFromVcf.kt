@@ -9,12 +9,16 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.double
+import com.github.ajalt.clikt.parameters.types.int
 import htsjdk.variant.vcf.VCFFileReader
 import net.maizegenetics.phgv2.cli.logCommand
 import net.maizegenetics.phgv2.utils.Position
 import net.maizegenetics.phgv2.utils.getBufferedWriter
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
 
 /**
  * Infers, for every sample in a VCF, which reference-panel founders it descends from along each contig.
@@ -121,6 +125,11 @@ class ImputePathFromVcf : CliktCommand(help = "Impute founder paths for the samp
             "line. All contigs shared by the two VCFs if omitted.")
         .default("")
 
+    val threads by option(help = "Number of samples to find paths for at the same time. Default = 1")
+        .int()
+        .default(1)
+        .validate { require(it > 0) { "threads must be positive" } }
+
     override fun run() {
         logCommand(this)
         File(outPathDir).mkdirs()
@@ -136,7 +145,8 @@ class ImputePathFromVcf : CliktCommand(help = "Impute founder paths for the samp
         probSwitch = probSwitch,
         probSwitchDistance = probSwitchDistance,
         contigsToUse = buildContigSet(contigsToUse),
-        extendToContigEnds = extendToContigEnds
+        extendToContigEnds = extendToContigEnds,
+        threads = threads
     )
 
     /** Comma-separated list, or a file with one contig per line, or empty for all. */
@@ -168,7 +178,8 @@ data class VcfPathParameters(
     val probSwitch: Double = 1e-4,
     val probSwitchDistance: Double = 1_000_000.0,
     val contigsToUse: Set<String> = emptySet(),
-    val extendToContigEnds: Boolean = false
+    val extendToContigEnds: Boolean = false,
+    val threads: Int = 1
 ) {
     /**
      * The inbreeding coefficient the path type implies: a haploid path is a diploid path at 1, where only
@@ -190,6 +201,10 @@ data class VcfPathResult(
  * Returns the intervals rather than writing them, so the chained command can compose them straight
  * into a VCF with no BED ever reaching disk. Each sample is its own Viterbi run over the same
  * [ContigSites]: the panel's founder alleles are shared, each sample's genotypes are not.
+ *
+ * Up to [VcfPathParameters.threads] samples run at once. Each holds its own traceback, so the
+ * traceback budget -- a quarter of the heap -- is divided among them; see [traceBestPath]. The paths
+ * are collected in sample order, so the result does not depend on the thread count.
  */
 fun imputeFounderPaths(
     toImputeVcf: File,
@@ -197,7 +212,8 @@ fun imputeFounderPaths(
     parameters: VcfPathParameters,
     logger: org.apache.logging.log4j.Logger = LogManager.getLogger("ImputeFounderPaths")
 ): VcfPathResult {
-    val hmm = ViterbiHMM(parameters.coefficient, 1.0 - parameters.probSwitch, parameters.probCorrect)
+    val hmm = ViterbiHMM(parameters.coefficient, 1.0 - parameters.probSwitch, parameters.probCorrect,
+        maxStoredBackPointers = defaultBackPointerBudget(parameters.threads))
     val intervals = mutableMapOf<String, MutableList<PathInterval<Pair<String, String>>>>()
 
     // Contig lengths, where the panel declares them, needed only by --extend-to-contig-ends. They are
@@ -208,38 +224,49 @@ fun imputeFounderPaths(
             .associate { it.genericFields["ID"]!! to it.genericFields["length"]!!.toInt() }
     }
 
-    val counts = pairVcfSites(toImputeVcf, panelVcf, parameters.contigsToUse) { sites ->
-        val distances = stepDistances(sites.positions)
-        // A haploid recursion switches among founders; the diploid fast path switches one haplotype at
-        // a time, so its alternatives are counted in founders too. The divisor is the same.
-        val (lnNoSwitch, lnSwitch) = transitionLogsByDistance(
-            distances, parameters.probSwitch, parameters.probSwitchDistance, sites.nFounders)
+    val pool = Executors.newFixedThreadPool(parameters.threads)
+    val counts = try {
+        pairVcfSites(toImputeVcf, panelVcf, parameters.contigsToUse) { sites ->
+            val distances = stepDistances(sites.positions)
+            // A haploid recursion switches among founders; the diploid fast path switches one haplotype
+            // at a time, so its alternatives are counted in founders too. The divisor is the same.
+            val (lnNoSwitch, lnSwitch) = transitionLogsByDistance(
+                distances, parameters.probSwitch, parameters.probSwitchDistance, sites.nFounders)
 
-        for (sampleIndex in sites.sampleNames.indices) {
-            val emission = VcfGenotypeEmissionProbability(sites, sampleIndex, parameters.probCorrect)
-            val path = hmm.findDiploidStatePath(
-                sites.nFounders, sites.nSites,
-                emission::getDiploidEmissionProbabilityArray,
-                null, lnNoSwitch, lnSwitch
-            )
-            val calls = path.first.mapIndexed { index, state ->
-                Pair(
-                    Position(sites.contig, sites.positions[index]),
-                    Pair(
-                        sites.founderNames[state / sites.nFounders],
-                        sites.founderNames[state % sites.nFounders]
+            val contigPaths = sites.sampleNames.indices.map { sampleIndex ->
+                pool.submit(Callable {
+                    val emission = VcfGenotypeEmissionProbability(sites, sampleIndex, parameters.probCorrect)
+                    val path = hmm.findDiploidStatePath(
+                        sites.nFounders, sites.nSites,
+                        emission::getDiploidEmissionProbabilityArray,
+                        null, lnNoSwitch, lnSwitch
                     )
-                )
+                    val calls = path.first.mapIndexed { index, state ->
+                        Pair(
+                            Position(sites.contig, sites.positions[index]),
+                            Pair(
+                                sites.founderNames[state / sites.nFounders],
+                                sites.founderNames[state % sites.nFounders]
+                            )
+                        )
+                    }
+                    // binSize of 1 because the positions are base pairs, not bin indices: the midpoint
+                    // cut rule then places each boundary halfway between two real sites.
+                    applyContigBounds(
+                        pathToIntervals(calls, 1), sites.positions.first(),
+                        contigLengths[sites.contig], parameters.extendToContigEnds)
+                })
             }
-            // binSize of 1 because the positions are base pairs, not bin indices: the midpoint cut
-            // rule then places each boundary halfway between two real sites.
-            intervals.getOrPut(sites.sampleNames[sampleIndex]) { mutableListOf() }
-                .addAll(applyContigBounds(
-                    pathToIntervals(calls, 1), sites.positions.first(),
-                    contigLengths[sites.contig], parameters.extendToContigEnds))
+            contigPaths.forEachIndexed { sampleIndex, future ->
+                // a failure inside a worker is reported as itself, not wrapped
+                val sampleIntervals = try { future.get() } catch (e: ExecutionException) { throw e.cause ?: e }
+                intervals.getOrPut(sites.sampleNames[sampleIndex]) { mutableListOf() }.addAll(sampleIntervals)
+            }
+            logger.info("${sites.contig}: ${sites.nSites} sites, ${sites.nSamples} samples, " +
+                    "${sites.nFounders} founders")
         }
-        logger.info("${sites.contig}: ${sites.nSites} sites, ${sites.nSamples} samples, " +
-                "${sites.nFounders} founders")
+    } finally {
+        pool.shutdownNow()
     }
     return VcfPathResult(intervals, counts)
 }

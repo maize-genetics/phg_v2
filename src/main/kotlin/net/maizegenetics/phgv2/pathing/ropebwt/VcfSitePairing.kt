@@ -135,7 +135,7 @@ fun pairVcfSites(
  * panel once to learn the order its contigs first appear in, which for a coordinate-sorted file is the
  * same thing. That costs a pass over the file, so it is logged rather than done silently.
  */
-private fun panelContigOrder(panelReader: VCFFileReader, panelVcf: File): Map<String, Int> {
+internal fun panelContigOrder(panelReader: VCFFileReader, panelVcf: File): Map<String, Int> {
     val fromHeader = panelReader.fileHeader.contigLines
         .withIndex().associate { (index, line) -> line.id to index }
     if (fromHeader.isNotEmpty()) return fromHeader
@@ -221,7 +221,8 @@ private class SiteAccumulator(
     private var positions = IntArray(1024)
     private var siteCount = 0
     private var founderAlleles = ByteArray(1024 * founderNames.size * 2)
-    private var sampleAlleles = ByteArray(1024 * sampleNames.size * 2)
+    // one array per sample; see the layout notes on ContigSites
+    private var sampleAlleles = Array(sampleNames.size) { ByteArray(1024 * 2) }
 
     // The allele numbering for the site being added: one index per distinct allele string, from the
     // union of the panel and sample records, so the same allele gets the same index in both. Cleared
@@ -239,8 +240,13 @@ private class SiteAccumulator(
         alleleIndex.clear()
         indexOf(panelRecord, panelRecord.reference.baseString)
 
-        encode(panelRecord, founderNames, founderAlleles, (siteCount * founderNames.size) * 2)
-        encode(sampleRecord, sampleNames, sampleAlleles, (siteCount * sampleNames.size) * 2)
+        val founderOffset = (siteCount * founderNames.size) * 2
+        founderNames.forEachIndexed { index, name ->
+            encode(panelRecord, name, founderAlleles, founderOffset + index * 2)
+        }
+        sampleNames.forEachIndexed { index, name ->
+            encode(sampleRecord, name, sampleAlleles[index], siteCount * 2)
+        }
         positions[siteCount] = panelRecord.start
         siteCount++
     }
@@ -258,7 +264,7 @@ private class SiteAccumulator(
     }
 
     /**
-     * Writes each named sample's genotype as two allele halves:
+     * Writes [name]'s genotype into [into] at [slot] as two allele halves:
      *
      *  - a **haploid** call (`1`) is stored in both halves, so it contributes a single gamete
      *  - a diploid call (`0/1`) is stored as written
@@ -272,34 +278,40 @@ private class SiteAccumulator(
      * it was called for. The called allele has to be first for that: the emission reads a founder
      * whose first half is missing as uncalled.
      */
-    private fun encode(record: VariantContext, names: List<String>, into: ByteArray, offset: Int) {
-        names.forEachIndexed { index, name ->
-            val slot = offset + index * 2
-            val alleles = record.getGenotype(name)?.alleles ?: emptyList()
-            val called = alleles.filter { !it.isNoCall }
-            when {
-                called.isEmpty() -> { into[slot] = MISSING; into[slot + 1] = MISSING }
-                alleles.size == 1 -> {
-                    val allele = indexOf(record, called[0].baseString)
-                    into[slot] = allele; into[slot + 1] = allele
-                }
-                called.size == 1 -> {
-                    into[slot] = indexOf(record, called[0].baseString)
-                    into[slot + 1] = MISSING
-                }
-                else -> {
-                    into[slot] = indexOf(record, called[0].baseString)
-                    into[slot + 1] = indexOf(record, called[1].baseString)
-                }
+    private fun encode(record: VariantContext, name: String, into: ByteArray, slot: Int) {
+        val alleles = record.getGenotype(name)?.alleles ?: emptyList()
+        val called = alleles.filter { !it.isNoCall }
+        when {
+            called.isEmpty() -> { into[slot] = MISSING; into[slot + 1] = MISSING }
+            alleles.size == 1 -> {
+                val allele = indexOf(record, called[0].baseString)
+                into[slot] = allele; into[slot + 1] = allele
+            }
+            called.size == 1 -> {
+                into[slot] = indexOf(record, called[0].baseString)
+                into[slot + 1] = MISSING
+            }
+            else -> {
+                into[slot] = indexOf(record, called[0].baseString)
+                into[slot + 1] = indexOf(record, called[1].baseString)
             }
         }
     }
 
     private fun grow() {
         if (siteCount < positions.size) return
-        positions = positions.copyOf(positions.size * 2)
-        founderAlleles = founderAlleles.copyOf(founderAlleles.size * 2)
-        sampleAlleles = sampleAlleles.copyOf(sampleAlleles.size * 2)
+        // The founder array holds every founder at every site, so it is the one that reaches the JVM's
+        // array limit first. Grow up to that limit, then fail with the reason rather than a negative size.
+        val maxSites = (Int.MAX_VALUE - 8) / (founderNames.size * 2)
+        require(siteCount < maxSites) {
+            "$contig: more than $siteCount sites paired with ${founderNames.size} founders, which " +
+                    "exceeds the largest array the JVM allows. --panel-vcf need only cover the sample's " +
+                    "sites; a thinner path panel avoids this."
+        }
+        val capacity = minOf(positions.size.toLong() * 2, maxSites.toLong()).toInt()
+        positions = positions.copyOf(capacity)
+        founderAlleles = founderAlleles.copyOf(capacity * founderNames.size * 2)
+        for (sample in sampleAlleles.indices) sampleAlleles[sample] = sampleAlleles[sample].copyOf(capacity * 2)
     }
 
     fun flush() {
@@ -310,7 +322,7 @@ private class SiteAccumulator(
                     name, founderNames, sampleNames,
                     positions.copyOf(siteCount),
                     founderAlleles.copyOf(siteCount * founderNames.size * 2),
-                    sampleAlleles.copyOf(siteCount * sampleNames.size * 2)
+                    Array(sampleNames.size) { sampleAlleles[it].copyOf(siteCount * 2) }
                 )
             )
         }

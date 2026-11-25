@@ -330,4 +330,120 @@ class ImputeVcfFromVcfTest {
         assertEquals(0, genotypesOf(out, "pureA").count { it == "./." },
             "every dense site is still called")
     }
+
+    // ------------------------------------------------------------------ --keep-sample-calls
+
+    /**
+     * Writes a one-contig VCF. Each record is (position, ALT, genotypes in sample order); REF is A.
+     */
+    private fun writeVcf(file: File, samples: List<String>, records: List<Triple<Int, String, List<String>>>): File {
+        file.bufferedWriter().use { out ->
+            out.write("##fileformat=VCFv4.2\n##contig=<ID=chr1,length=400000>\n")
+            out.write("##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n")
+            out.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t${samples.joinToString("\t")}\n")
+            for ((position, alt, genotypes) in records) {
+                out.write("chr1\t$position\t.\tA\t$alt\t.\t.\t.\tGT\t${genotypes.joinToString("\t")}\n")
+            }
+        }
+        return file
+    }
+
+    /**
+     * One panel of two haploid founders at 30 sites, 10 kb apart: founderA REF, founderB ALT. The
+     * sample pureA is genotyped at the first 20, all 0/0 except four:
+     *  - 100 kb is 1/1, which its path (founderA throughout) cannot explain;
+     *  - 150 kb is the half call 0/.;
+     *  - 180 kb calls ALT G, an allele the panel record (ALT C) does not carry;
+     *  - 50 kb is ./., no call at all.
+     * The last ten sites were never genotyped.
+     */
+    private fun keepCallsFixture(dir: File): Pair<File, File> {
+        val panel = writeVcf(File(dir, "panel.vcf"), listOf("founderA", "founderB"),
+            (1..30).map { Triple(it * 10_000, "C", listOf("0", "1")) })
+        val sample = writeVcf(File(dir, "sample.vcf"), listOf("pureA"), (1..20).map { site ->
+            val position = site * 10_000
+            when (position) {
+                100_000 -> Triple(position, "C", listOf("1/1"))
+                150_000 -> Triple(position, "C", listOf("0/."))
+                180_000 -> Triple(position, "G", listOf("1/1"))
+                50_000 -> Triple(position, "C", listOf("./."))
+                else -> Triple(position, "C", listOf("0/0"))
+            }
+        })
+        return panel to sample
+    }
+
+    private fun runKeepCalls(dir: File, panel: File, sample: File, vararg extra: String): File {
+        val out = File(dir, "imputed.vcf")
+        val result = ImputeVcfFromVcf().test(
+            "--to-impute-vcf $sample --panel-vcf $panel --high-density-panel-vcf $panel " +
+                    "--output-file ${out.absolutePath} --extend-to-contig-ends " + extra.joinToString(" "))
+        assertEquals(0, result.statusCode, "command failed:\n${result.stderr}")
+        return out
+    }
+
+    /** position -> (genotype, SRC) for one sample */
+    private fun callsWithSource(vcf: File, sample: String): Map<Int, Pair<String, String?>> =
+        VCFFileReader(vcf, false).use { reader ->
+            reader.associate { record ->
+                val genotype = record.getGenotype(sample)
+                record.start to (genotype.genotypeString to genotype.getExtendedAttribute("SRC")?.toString())
+            }
+        }
+
+    @Test
+    fun keepSampleCallsWritesTheSamplesOwnCallsAndMarksTheirSource(@TempDir dir: File) {
+        val (panel, sample) = keepCallsFixture(dir)
+        val calls = callsWithSource(runKeepCalls(dir, panel, sample, "--keep-sample-calls"), "pureA")
+
+        assertEquals("C/C" to "O", calls[100_000], "the sample's own call replaces the path's A/A")
+        assertEquals("A/A" to "O", calls[10_000], "an agreeing call is still the sample's own")
+        assertEquals("A/A" to "I", calls[150_000], "a half call is not used")
+        assertEquals("A/A" to "I", calls[180_000], "nor a call of an allele the panel lacks")
+        assertEquals("A/A" to "I", calls[50_000], "nor a no-call")
+        assertEquals("A/A" to "I", calls[250_000], "a site never genotyped is imputed")
+        assertEquals(30, calls.size)
+    }
+
+    @Test
+    fun keepSampleCallsWritesAPerSampleSummary(@TempDir dir: File) {
+        val (panel, sample) = keepCallsFixture(dir)
+        runKeepCalls(dir, panel, sample, "--keep-sample-calls")
+        val lines = File(dir, "imputed_sample_calls.tsv").readLines()
+        assertEquals("sample\tsample_calls\tagreed\toverwritten\tfilled\tunmatched_alleles\thalf_calls\tdiscordance",
+            lines[0])
+        // 20 genotyped sites, less the half call, the unmatched allele and the no-call: 17 calls kept,
+        // 16 agreeing with the path and one (100 kb) overwriting it.
+        assertEquals("pureA\t17\t16\t1\t0\t1\t1\t${"%.6f".format(1.0 / 17)}", lines[1])
+    }
+
+    @Test
+    fun withoutKeepSampleCallsTheOutputIsImputedOnlyAndUnmarked(@TempDir dir: File) {
+        val (panel, sample) = keepCallsFixture(dir)
+        val out = runKeepCalls(dir, panel, sample)
+        val calls = callsWithSource(out, "pureA")
+        assertEquals("A/A" to null, calls[100_000], "the path's call, with no SRC field")
+        assertFalse(VCFFileReader(out, false).use { it.fileHeader.hasFormatLine("SRC") })
+        assertFalse(File(dir, "imputed_sample_calls.tsv").exists())
+    }
+
+    @Test
+    fun keepSampleCallsFillsASiteThePathDoesNotCover(@TempDir dir: File) {
+        // Without --extend-to-contig-ends the path starts at the first shared site, 10 kb. A sample
+        // call the dense panel has before that is still written, from the sample's own call.
+        val panel = writeVcf(File(dir, "panel.vcf"), listOf("founderA", "founderB"),
+            (1..10).map { Triple(it * 10_000, "C", listOf("0", "1")) })
+        val dense = writeVcf(File(dir, "dense.vcf"), listOf("founderA", "founderB"),
+            listOf(Triple(5_000, "C", listOf("0", "1"))) + (1..10).map { Triple(it * 10_000, "C", listOf("0", "1")) })
+        val sample = writeVcf(File(dir, "sample.vcf"), listOf("pureA"),
+            listOf(Triple(5_000, "C", listOf("0/1"))) + (1..10).map { Triple(it * 10_000, "C", listOf("0/0")) })
+        val out = File(dir, "imputed.vcf")
+        val result = ImputeVcfFromVcf().test(
+            "--to-impute-vcf $sample --panel-vcf $panel --high-density-panel-vcf $dense " +
+                    "--output-file ${out.absolutePath} --keep-sample-calls")
+        assertEquals(0, result.statusCode, "command failed:\n${result.stderr}")
+        assertEquals("A/C" to "O", callsWithSource(out, "pureA")[5_000])
+        assertTrue(File(dir, "imputed_sample_calls.tsv").readLines()[1].startsWith("pureA\t11\t10\t0\t1\t"),
+            "one call filled where there was no imputed genotype")
+    }
 }

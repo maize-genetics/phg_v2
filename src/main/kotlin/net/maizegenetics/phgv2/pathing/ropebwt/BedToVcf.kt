@@ -73,6 +73,12 @@ typealias FounderPath = Map<String, RangeMap<Int, Pair<String, String>>>
  * as missing. Paths from `impute-path-from-ps4g` are gapless within a contig, so in practice this
  * arises for contigs the path does not mention at all.
  *
+ * ## Keeping the sample's own calls
+ *
+ * Given the sample VCF as well, [writeVcf] writes each sample's own full call over the composed
+ * genotype wherever it has one, and marks every genotype's source in `FORMAT/SRC`. See
+ * [SampleCallOverlay].
+ *
  * ## INFO fields
  *
  * Records are built from the panel's own [VariantContext], so the panel's INFO fields carry through
@@ -204,9 +210,20 @@ class BedToVcf : CliktCommand(help = "Compose imputed founder paths (BED) into a
      *
      * An [outputFile] whose name ends in `gz` is written block-compressed (BGZF, as bgzip writes it),
      * so it can be indexed with tabix; any other name is written as plain text. No index is written.
+     *
+     * With [sampleVcf], each sample's own full calls are written over the composed genotypes, and
+     * every genotype carries `FORMAT/SRC`; see [SampleCallOverlay]. The samples written are then those
+     * in [paths] and those in [sampleVcf], since a sample's own calls stand without a path.
+     *
+     * @return what keeping the sample's calls did, per sample; empty without [sampleVcf]
      */
-    fun writeVcf(panelVcf: File, paths: Map<String, FounderPath>, outputFile: File) {
-        val samples = paths.keys.sorted()
+    fun writeVcf(panelVcf: File, paths: Map<String, FounderPath>, outputFile: File,
+                 sampleVcf: File? = null): Map<String, SampleCallCounts> {
+        val overlay = sampleVcf?.let { vcf ->
+            SampleCallOverlay(vcf, VCFFileReader(panelVcf, false).use { panelContigOrder(it, panelVcf) })
+        }
+        val sampleNames = sampleVcf?.let { vcf -> VCFFileReader(vcf, false).use { it.fileHeader.sampleNamesInOrder } }
+        val samples = (paths.keys + (sampleNames ?: emptyList())).sorted()
         var sites = 0L
         var genotypesWritten = 0L
         val outputType = if (outputFile.name.endsWith("gz")) VariantContextWriterBuilder.OutputType.BLOCK_COMPRESSED_VCF
@@ -217,18 +234,44 @@ class BedToVcf : CliktCommand(help = "Compose imputed founder paths (BED) into a
             .setOutputFileType(outputType)
             .setOption(Options.ALLOW_MISSING_FIELDS_IN_HEADER)
             .build().use { writer ->
-                writer.writeHeader(createGenericHeader(samples, emptySet()))
+                writer.writeHeader(createGenericHeader(samples,
+                    if (overlay == null) emptySet() else setOf(SampleCallOverlay.sourceHeaderLine)))
                 VCFFileReader(panelVcf, false).use { reader ->
                     for (variant in reader) {
-                        val genotypes = composeGenotypes(variant, paths, samples)
+                        val genotypes = if (overlay == null) composeGenotypes(variant, paths, samples)
+                                        else composeWithSampleCalls(variant, paths, samples, overlay)
                         sites++
                         genotypesWritten += genotypes.size
                         writer.add(VariantContextBuilder(variant).genotypes(genotypes).make())
                     }
                 }
             }
+        overlay?.close()
         myLogger.info("Wrote $outputFile: $sites sites, ${samples.size} samples, " +
                 "$genotypesWritten genotypes called")
+        return overlay?.counts ?: emptyMap()
+    }
+
+    /**
+     * [composeGenotypes], with each sample's own full call from the sample VCF written over the
+     * composed genotype where there is one, and `FORMAT/SRC` on every genotype.
+     */
+    private fun composeWithSampleCalls(
+        variant: VariantContext,
+        paths: Map<String, FounderPath>,
+        samples: List<String>,
+        overlay: SampleCallOverlay
+    ): List<Genotype> {
+        val founderAlleles = founderToAllele(variant)
+        val observed = overlay.recordAt(variant)
+        val genotypes = ArrayList<Genotype>(samples.size)
+        for (sample in samples) {
+            val composed = paths[sample]?.get(variant.contig)?.get(variant.start)?.let { founders ->
+                listOf(founderAlleles[founders.first] ?: Allele.NO_CALL, founderAlleles[founders.second] ?: Allele.NO_CALL)
+            }
+            overlay.overlay(variant, observed, sample, composed)?.let { genotypes.add(it) }
+        }
+        return genotypes
     }
 
     /**
