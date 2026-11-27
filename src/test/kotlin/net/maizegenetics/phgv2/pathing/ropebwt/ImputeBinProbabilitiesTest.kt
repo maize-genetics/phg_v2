@@ -284,6 +284,87 @@ class ImputeBinProbabilitiesTest {
         }
     }
 
+    /**
+     * Writes a two-founder recombinant line: bins 1-10 carry reads for lineA:0 alone and bins 11-20
+     * for lineB:0 alone, a single homozygous breakpoint. Returns the key file.
+     */
+    private fun createBreakpointKeyFile(name: String): String {
+        val gametes = mapOf(
+            SampleGamete("lineA", 0) to 0,
+            SampleGamete("lineB", 0) to 1
+        )
+        val ps4gData = (1..10).map { bin -> PS4GData(listOf(0), Position("chr1", bin), 3) } +
+                (11..20).map { bin -> PS4GData(listOf(1), Position("chr1", bin), 3) }
+        val ps4gFile = "$tempTestDir/$name.ps4g"
+        createPs4gFile(ps4gFile, gametes, ps4gData)
+        val keyFile = "$tempTestDir/${name}Key.txt"
+        createKeyFile(keyFile, name, ps4gFile)
+        return keyFile
+    }
+
+    /** Total posterior on heterozygous states over every bin, from a run with --min-prob-ratio 0. */
+    private fun heterozygousMass(rows: List<List<String>>): Double = rows.filter { row ->
+        val (first, second) = row[2].removeSurrounding("(", ")").split(",")
+        first != second
+    }.sumOf { it[3].toDouble() }
+
+    @Test
+    fun testSelfingGenerations() {
+        // A homozygous breakpoint in a selfed line. The selfing model calls each side homozygous, and
+        // puts far less weight on heterozygous states than the independent-haplotype model, where
+        // (A, A) -> (B, B) costs two switches and is often drawn through a heterozygous state.
+        val keyFile = createBreakpointKeyFile("selfing")
+        val common = "--path-keyfile $keyFile --impute-type diploid --n-parents 2 --prob-correct 0.9 " +
+                "--bin-size 100000 --prob-switch 0.2 --min-prob-ratio 0"
+
+        val selfedDir = "$tempTestDir/selfingOut/"
+        val selfed = ImputeBinProbabilities().test("$common --output-dir $selfedDir --selfing-generations 5")
+        assertEquals(0, selfed.statusCode, "Command failed:\n${selfed.stderr}")
+        val selfedRows = readProbabilityRows(File("$selfedDir/selfing_imputed_probabilities.txt"))
+
+        val independentDir = "$tempTestDir/independentOut/"
+        val independent = ImputeBinProbabilities().test("$common --output-dir $independentDir")
+        assertEquals(0, independent.statusCode, "Command failed:\n${independent.stderr}")
+        val independentRows = readProbabilityRows(File("$independentDir/selfing_imputed_probabilities.txt"))
+
+        // every bin's posteriors are a distribution over the four ordered pairs
+        selfedRows.groupBy { it[1] }.forEach { (position, group) ->
+            assertEquals(4, group.size, "position $position")
+            assertEquals(1.0, group.sumOf { it[3].toDouble() }, 1e-9, "position $position")
+        }
+
+        val top = topStateByPosition(selfedRows)
+        for (bin in 1..10) assertEquals("(lineA:0,lineA:0)", top[(bin * 100000).toString()], "bin $bin")
+        for (bin in 11..20) assertEquals("(lineB:0,lineB:0)", top[(bin * 100000).toString()], "bin $bin")
+
+        val selfedHet = heterozygousMass(selfedRows)
+        val independentHet = heterozygousMass(independentRows)
+        assertTrue(selfedHet < independentHet / 2,
+            "selfing heterozygous mass $selfedHet should be well below the independent model's $independentHet")
+    }
+
+    @Test
+    fun testSelfingGenerationsIsRefusedWhereItCannotApply() {
+        val keyFile = createBreakpointKeyFile("selfingRefused")
+        val base = "--path-keyfile $keyFile --output-dir $tempTestDir/selfingRefusedOut/ --selfing-generations 5"
+
+        val haploid = ImputeBinProbabilities().test("$base --impute-type haploid --n-parents 2")
+        assertEquals(1, haploid.statusCode)
+        assertTrue(haploid.stderr.contains("diploid only"), haploid.stderr)
+
+        val allParents = ImputeBinProbabilities().test("$base --impute-type diploid")
+        assertEquals(1, allParents.statusCode)
+        assertTrue(allParents.stderr.contains("--n-parents = 0"), allParents.stderr)
+
+        val tooMany = ImputeBinProbabilities().test("$base --impute-type diploid --n-parents 9")
+        assertEquals(1, tooMany.statusCode)
+        assertTrue(tooMany.stderr.contains("at most ${SelfingTransitions.MAX_PARENTS} parents"), tooMany.stderr)
+
+        val zero = ImputeBinProbabilities().test("$base --impute-type diploid --n-parents 2 --selfing-generations 0")
+        assertEquals(1, zero.statusCode)
+        assertTrue(zero.stderr.contains("at least 1"), zero.stderr)
+    }
+
     @Test
     fun testMinProbRatioSuppressesAllRows() {
         // A min-prob-ratio greater than 1 means no state can exceed maxProb * ratio, so no data

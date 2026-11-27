@@ -1,5 +1,6 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
+import kotlin.math.exp
 import kotlin.math.expm1
 import kotlin.math.ln
 import kotlin.math.ln1p
@@ -148,6 +149,53 @@ class SelfingTransitions(val generations: Int, val nParents: Int) {
     fun initialLogProbabilities(): DoubleArray = DoubleArray(nStates) { state ->
         if (state / nParents == state % nParents) ln((1.0 - heterozygosity) / nParents)
         else ln(heterozygosity / (nParents * (nParents - 1)))
+    }
+
+    /**
+     * [initialLogProbabilities] in probability space, for the forward-backward recursion. With a single
+     * founder the one state has probability 1.
+     */
+    fun initialProbabilities(): DoubleArray =
+        if (nParents == 1) doubleArrayOf(1.0)
+        else DoubleArray(nStates) { state ->
+            if (state / nParents == state % nParents) (1.0 - heterozygosity) / nParents
+            else heterozygosity / (nParents * (nParents - 1))
+        }
+
+    /** How many K-founder targets share each cell's biparental transition, as a divisor. */
+    private val share = DoubleArray(nStates * nStates) { exp(lnShare[it]) }
+
+    /**
+     * Multiplies [vector] by the K-founder transition built from the biparental probabilities
+     * [biparental], as from [biparentalTransitions], and writes the result to [out], without
+     * materializing the `K^2 x K^2` matrix. When [forward] is true, `out[to] = sum over from of
+     * vector[from] T(from, to)`; when false, `out[from] = sum over to of T(from, to) vector[to]`.
+     * This is the probability-space counterpart of [fillLogMatrix], for [SelfingTransitionStep].
+     */
+    fun multiply(biparental: DoubleArray, vector: DoubleArray, out: DoubleArray, forward: Boolean) {
+        if (nParents == 1) {
+            out[0] = vector[0]
+            return
+        }
+        out.fill(0.0)
+        for (from in 0 until nStates) {
+            val rowStart = from * nStates
+            if (forward) {
+                val weight = vector[from]
+                if (weight == 0.0) continue
+                for (to in 0 until nStates) {
+                    val index = biparentalIndex[rowStart + to]
+                    if (index >= 0) out[to] += weight * biparental[index] / share[rowStart + to]
+                }
+            } else {
+                var total = 0.0
+                for (to in 0 until nStates) {
+                    val index = biparentalIndex[rowStart + to]
+                    if (index >= 0) total += biparental[index] / share[rowStart + to] * vector[to]
+                }
+                out[from] = total
+            }
+        }
     }
 
     /**

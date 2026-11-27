@@ -65,3 +65,43 @@ class SwitchTransitionStep(
         }
     }
 }
+
+/**
+ * Forward-backward transition steps for the selfed-line model of [SelfingTransitions], the
+ * probability-space counterpart of [SelfingTransitions.logMatricesByDistance] that the Viterbi path
+ * uses with `--selfing-generations`.
+ *
+ * The recombination fraction for each step comes from [distances], as from [stepDistances], with
+ * element `i` governing the step into position `i`, at [probSwitch] per [referenceDistance]. The
+ * biparental transitions are cached by distance, since binned positions repeat the same few step
+ * lengths, and each step is applied as a dense `K^2 x K^2` product without building the matrix, so a
+ * step costs O(nParents^4); [SelfingTransitions] limits the founder set accordingly.
+ *
+ * Unlike [SwitchTransitionStep] the matrix is not symmetric, so the forward and backward steps differ.
+ */
+class SelfingTransitionStep(
+    private val selfing: SelfingTransitions,
+    distances: IntArray,
+    probSwitch: Double,
+    referenceDistance: Double
+) : TransitionStep {
+
+    private val byPosition: Array<DoubleArray>
+
+    init {
+        require(probSwitch > 0.0 && probSwitch < 1.0) { "prob-switch must be between 0 and 1 exclusive" }
+        require(referenceDistance > 0.0) { "reference distance must be positive" }
+        val cache = HashMap<Int, DoubleArray>()
+        // As in SelfingTransitions.logMatricesByDistance, a zero-length step is floored at one unit.
+        byPosition = Array(distances.size) { position ->
+            val distance = distances[position].coerceAtLeast(1)
+            cache.getOrPut(distance) {
+                selfing.biparentalTransitions(
+                    SelfingTransitions.recombinationFraction(distance.toDouble(), probSwitch, referenceDistance))
+            }
+        }
+    }
+
+    override fun apply(position: Int, vector: DoubleArray, out: DoubleArray, forward: Boolean) =
+        selfing.multiply(byPosition[position], vector, out, forward)
+}

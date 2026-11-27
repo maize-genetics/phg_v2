@@ -1,6 +1,7 @@
 package net.maizegenetics.phgv2.pathing.ropebwt
 
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
 import com.github.ajalt.clikt.parameters.groups.required
 import com.github.ajalt.clikt.parameters.groups.single
@@ -39,6 +40,9 @@ import kotlin.io.path.createDirectories
  *  - transitions from [SwitchTransitionStep], charged for the base pairs between consecutive bins
  *    with reads at [probSwitch] per [probSwitchDistance]; a diploid path's two haplotypes switch
  *    independently,
+ *  - or, for a diploid path with [selfingGenerations], the transitions and initial distribution of a
+ *    line selfed from a biparental F1 ([SelfingTransitions], applied by [SelfingTransitionStep]),
+ *    at the same distance-scaled rate,
  *  - emission probabilities from [GameteSetEmissionProbability] driven by [probCorrect], with the
  *    presence/absence correction when [presenceFile] is supplied (diploid only).
  *
@@ -89,6 +93,16 @@ class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype
         .double()
         .default(1_000_000.0)
         .validate { require(it > 0.0) { "prob-switch-distance must be positive" } }
+
+    val selfingGenerations by option(help = "For diploid imputation, the number of generations of " +
+            "selfing after a biparental F1 (S5 = F6 is 5). Replaces the model in which the two haplotypes " +
+            "switch independently with the exact transitions of a selfed line, as in impute-path-from-ps4g, " +
+            "so the posteriors give the probability of each homozygous and heterozygous state of a " +
+            "recombinant inbred line. --prob-switch still sets the overall smoothing. Takes at most " +
+            "${SelfingTransitions.MAX_PARENTS} parents, so use it with --n-parents (normally 2). " +
+            "Default: not set, the independent-haplotype model.")
+        .int()
+        .validate { require(it >= 1) { "selfing-generations must be at least 1" } }
 
     val nParents by option(help = "Restrict the number of parents used for imputation to this number. " +
             "Default = 0 will use all parents.")
@@ -145,6 +159,15 @@ class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype
         //create the outParentsDir, if it does not already exist
         if (outputDir.isNotBlank()) File(outputDir).mkdirs()
 
+        if (selfingGenerations != null) {
+            if (imputeType == "haploid") throw UsageError("--selfing-generations applies to --impute-type diploid only.")
+            if (nParents == 0) throw UsageError("--selfing-generations takes at most " +
+                    "${SelfingTransitions.MAX_PARENTS} parents but --n-parents = 0, which uses all parents. " +
+                    "Set --n-parents to a value > 0 (normally 2).")
+            if (nParents > SelfingTransitions.MAX_PARENTS) throw UsageError("--selfing-generations takes at most " +
+                    "${SelfingTransitions.MAX_PARENTS} parents; set --n-parents (normally 2).")
+        }
+
         //Get or create the output directory
         val pathToOutputDir = Paths.get(outputDir)
         pathToOutputDir.createDirectories()
@@ -171,8 +194,9 @@ class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype
      *     option is supplied.
      *  2. Determines the parent (state) set — restricted to the [nParents] most likely parents via
      *     [MostLikelyPs4gParents] when `nParents > 0`, otherwise every gamete present in the file.
-     *  3. Builds the uniform initial state probabilities and, per contig, the distance-scaled
-     *     transitions ([SwitchTransitionStep]) and the emission probabilities
+     *  3. Builds the initial state probabilities -- uniform, or the selfed line's genotype
+     *     frequencies with [selfingGenerations] -- and, per contig, the distance-scaled transitions
+     *     ([SwitchTransitionStep], or [SelfingTransitionStep]) and the emission probabilities
      *     ([GameteSetEmissionProbability]: the homozygous diagonal for a haploid path, every ordered
      *     pair for a diploid one, with the presence/absence correction when a presence table is loaded).
      *  4. Runs [PositionalForwardBackward] over each contig's positions and writes the result to
@@ -216,8 +240,12 @@ class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype
             myLogger.info("Parent set: $parentSet")
 
             val numberOfStates = if (isHaploid) numberOfParents else numberOfParents * numberOfParents
-            // Uniform, as in ViterbiHMM: no state is favored before the reads are seen.
-            val initialStateProbs = DoubleArray(numberOfStates) { 1.0 / numberOfStates }
+            // run() has already refused --selfing-generations for haploid imputation.
+            val selfing = selfingGenerations?.let { SelfingTransitions(it, numberOfParents) }
+            // Uniform, as in ViterbiHMM: no state is favored before the reads are seen. A selfed line
+            // starts from its genotype frequencies, as impute-path-from-ps4g does.
+            val initialStateProbs = selfing?.initialProbabilities()
+                ?: DoubleArray(numberOfStates) { 1.0 / numberOfStates }
             val outputFilepath = Paths.get(outputDir).resolve("${fileData.sampleName}_imputed_probabilities.txt")
             val header = "contig\tposition\tstate\tprobability\n"
 
@@ -242,9 +270,14 @@ class ImputeBinProbabilities: CliktCommand(help = "Calculate posterior haplotype
                         {ndx: Int -> emissionProbability.getDiploidEmissionProbabilityArray(ndx)}
                     }
 
-                    val (lnNoSwitch, lnSwitch) = transitionLogsByDistance(binDistances(readMapForContig.keys),
-                        probSwitch, probSwitchDistance, numberOfParents)
-                    val transition = SwitchTransitionStep(numberOfParents, !isHaploid, lnNoSwitch, lnSwitch)
+                    val distances = binDistances(readMapForContig.keys)
+                    val transition = if (selfing != null) {
+                        SelfingTransitionStep(selfing, distances, probSwitch, probSwitchDistance)
+                    } else {
+                        val (lnNoSwitch, lnSwitch) = transitionLogsByDistance(distances,
+                            probSwitch, probSwitchDistance, numberOfParents)
+                        SwitchTransitionStep(numberOfParents, !isHaploid, lnNoSwitch, lnSwitch)
+                    }
 
                     val imputedResult = PositionalForwardBackward(numberOfStates, numberOfPositions,
                         initialStateProbs, transition, lnEmissionArray).run()
