@@ -59,6 +59,9 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
      *   [sameGameteProbability]. Supplied together with [lnSwitchByPosition], at an inbreeding
      *   coefficient of 0 or 1 only.
      * @param lnSwitchByPosition the matching log probability of switching to one particular other parent.
+     * @param transitionLogsByPosition optional full log transition matrix for the step into each bin,
+     *   as from [SelfingTransitions.logMatricesByDistance]; see [findDiploidStatePath].
+     * @param initialLogProbabilities optional initial state log probabilities to go with it.
      * @return a list of (position, parent1 name, parent2 name) triples, one per bin, ordered by bin position.
      */
     fun findDiploidPath(contig: String,
@@ -66,7 +69,9 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
                         readMap: Map<Int, MutableList<Ps4gGameteSet>>,
                         likelyParentSet: Set<Int>,
                         lnNoSwitchByPosition: DoubleArray? = null,
-                        lnSwitchByPosition: DoubleArray? = null): List<Triple<Position, String, String>> {
+                        lnSwitchByPosition: DoubleArray? = null,
+                        transitionLogsByPosition: ((positionIndex: Int) -> DoubleArray)? = null,
+                        initialLogProbabilities: DoubleArray? = null): List<Triple<Position, String, String>> {
 
         val nParents = likelyParentSet.size
         val emissionCalculator = GameteSetEmissionProbability(readMap, likelyParentSet, probCorrect,
@@ -77,7 +82,9 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
             emissionCalculator::getDiploidEmissionProbabilityArray,
             emissionCalculator::getHomozygousEmissionProbabilityArray,
             lnNoSwitchByPosition,
-            lnSwitchByPosition
+            lnSwitchByPosition,
+            transitionLogsByPosition,
+            initialLogProbabilities
         )
 
         //translate the result
@@ -118,6 +125,11 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
      *
      * Any coefficient strictly between the two couples the two founders and needs the general scan.
      *
+     * A full per-position transition, [transitionLogsByPosition], overrides all of this: the general
+     * scan runs with that matrix at every step and the inbreeding coefficient is not used. This is
+     * how the selfing model of [SelfingTransitions] runs, where the two founders are coupled and the
+     * transition changes with each step's length.
+     *
      * @param emissionLogProbabilityFunction natural log emission for every ordered pair at a
      *   position, indexed `first * nParents + second`
      * @param homozygousEmissionLogProbabilityFunction the same for the homozygous states alone,
@@ -129,6 +141,10 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
      *   value from [sameGameteProbability]. Supported at `F = 0` and `F = 1` only.
      * @param lnSwitchByPosition the matching per-position log probability of switching to one
      *   particular other founder.
+     * @param transitionLogsByPosition log transition matrix for the step into each position,
+     *   flattened `previousState * nStates + currentState`; may return the same buffer refilled on
+     *   each call. Not combined with [lnNoSwitchByPosition].
+     * @param initialLogProbabilities initial state log probabilities, replacing the uniform ones.
      */
     fun findDiploidStatePath(
         nParents: Int,
@@ -136,9 +152,14 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         emissionLogProbabilityFunction: (positionIndex: Int) -> DoubleArray,
         homozygousEmissionLogProbabilityFunction: ((positionIndex: Int) -> DoubleArray)? = null,
         lnNoSwitchByPosition: DoubleArray? = null,
-        lnSwitchByPosition: DoubleArray? = null
+        lnSwitchByPosition: DoubleArray? = null,
+        transitionLogsByPosition: ((positionIndex: Int) -> DoubleArray)? = null,
+        initialLogProbabilities: DoubleArray? = null
     ): Pair<IntArray, Double> {
         val nStates = nParents * nParents
+        require(initialLogProbabilities == null || initialLogProbabilities.size == nStates) {
+            "initialLogProbabilities must hold one value per state"
+        }
 
         // Uniform over every state. The inbreeding coefficient shapes the transitions, and letting it
         // shape the first position as well did more harm than good: weighting a homozygous state by
@@ -153,7 +174,15 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         //
         // This is the uninformative choice, and it costs nothing: the initial distribution touches one
         // position per contig, and a constant across states cancels in every comparison after it.
-        val initProbs = DoubleArray(nStates) { -ln(nStates.toDouble()) }
+        val initProbs = initialLogProbabilities ?: DoubleArray(nStates) { -ln(nStates.toDouble()) }
+
+        if (transitionLogsByPosition != null) {
+            require(lnNoSwitchByPosition == null && lnSwitchByPosition == null) {
+                "Supply either a full per-position transition or per-haplotype switch probabilities, not both"
+            }
+            return viterbiOptimized(nStates, nPositions, initProbs, DoubleArray(nStates * nStates),
+                emissionLogProbabilityFunction, transitionLogsByPosition)
+        }
 
         return when (inbreedingCoefficient) {
             0.0 -> viterbiOptimizedForDiploid(nParents, nPositions, initProbs,
@@ -381,6 +410,8 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
      *   probabilities, indexed as [previousState * stateCount + currentState].
      * @param emissionLogProbabilityFunction function returning the per-state emission log
      *   probabilities for a given position index.
+     * @param transitionLogProbabilitiesByPosition optional transition matrix for the step into each
+     *   position, laid out as [transitionLogProbabilities], which it replaces when supplied.
      * @return a pair of (best state index per position, log probability of that best path).
      */
     fun viterbiOptimized(
@@ -388,7 +419,8 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         positionCount: Int,
         initialLogProbabilities: DoubleArray,
         transitionLogProbabilities: DoubleArray,
-        emissionLogProbabilityFunction: (positionIndex: Int) -> DoubleArray
+        emissionLogProbabilityFunction: (positionIndex: Int) -> DoubleArray,
+        transitionLogProbabilitiesByPosition: ((positionIndex: Int) -> DoubleArray)? = null
     ): Pair<IntArray, Double> {
         require(stateCount > 0) { "State count must be positive" }
         require(positionCount > 0) { "State count must be positive" }
@@ -415,6 +447,8 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
         for (position in 1 until positionCount) {
             val backPointerRowOffset = position * stateCount
             emissionLogProbabilities = emissionLogProbabilityFunction(position)
+            val stepTransitions =
+                transitionLogProbabilitiesByPosition?.invoke(position) ?: transitionLogProbabilities
             for (currentStateIndex in 0 until stateCount) {
                 val emissionLogProbability =  emissionLogProbabilities[currentStateIndex]
 
@@ -422,13 +456,13 @@ class ViterbiHMM(val inbreedingCoefficient: Double, val sameGameteProbability: D
                 val transitionRowOffsetBase = currentStateIndex // used with previousStateIndex * stateCount below
 
                 var bestPreviousLogProbability = previousBestLogProbability[currentStateIndex] +
-                        transitionLogProbabilities[currentStateIndex * stateCount + transitionRowOffsetBase]
+                        stepTransitions[currentStateIndex * stateCount + transitionRowOffsetBase]
                 var bestPreviousStateIndex = currentStateIndex
 
                 for (previousStateIndex in 0 until stateCount) {
                     if (previousStateIndex == currentStateIndex) continue  //skip currentStateIndex
                     val transitionLogProbability =
-                        transitionLogProbabilities[previousStateIndex * stateCount + transitionRowOffsetBase]
+                        stepTransitions[previousStateIndex * stateCount + transitionRowOffsetBase]
 
                     val candidateLogProbability =
                         previousBestLogProbability[previousStateIndex] + transitionLogProbability
