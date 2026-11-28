@@ -81,7 +81,7 @@ imputation using the PHG:
   ```shell
   phg impute-bin-probabilities \
       --read-file /path/to/ps4g_file.ps4g \
-      --out-path-dir /my/output_dir
+      --output-dir /my/output_dir
   ```
   
 ## Detailed walkthrough
@@ -358,9 +358,8 @@ phg impute-bin-probabilities \
     --read-file /data/my_ps4g_file.ps4g \
     --output-dir /results/ps4g \
     --impute-type diploid \
-    --inbreed-coef 0.5 \
     --n-parents 10 \
-    --bin-size 5000
+    --bin-size 256
 ```
 
 **Parameters**
@@ -369,15 +368,22 @@ phg impute-bin-probabilities \
 |--------------------|-------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
 | `--path-keyfile`   | Name of tab-delimited key file. Columns for samplename and filename are required.                                             | `""`          | :material-check: |
 | `--read-file`      | The name of a ps4g file created by align-reads.                                                                               | `""`          | :material-check: |
-| `--out-path-dir`   | The directory where the imputed haplotypes will be written for each sample. File names will be <sampleName>_imputed_path.bed. | `""`          | :material-check: |
+| `--output-dir`     | The directory where the probabilities will be written for each sample. File names will be <sampleName>_imputed_probabilities.txt. | `""`          | :material-check: |
 | `--impute-type`    | The type of genotype probabilities to calculate. Must be lower case 'haploid' or 'diploid' (without quotes).                  | `haploid`     |                  |
 | `--prob-correct`   | The probability that a read maps to correct haplotype.                                                                        | `0.98`        |                  |
-| `--prob-same`      | The probability that a path stays on the same gamete when transitioning between two adjacent positions.                       | `0.9999`      |                  |
-| `--inbreed-coef`   | The inbreeding coefficient (between 0.0 and 1.0). Used only for diploid paths.                                                | `0.0`         |                  |
-| `--n-parents`      | Restrict the number of parents used for diploid imputation to this number. Default (0) uses all parents.                      | `0.0`         |                  |
+| `--prob-switch`    | The probability of a path switch (a recombination) across `--prob-switch-distance` base pairs, scaled to each step's actual distance. | `1e-16`       |                  |
+| `--prob-switch-distance` | The distance `--prob-switch` is quoted over, in base pairs.                                                             | `1000000`     |                  |
+| `--selfing-generations` | For diploid imputation, the number of generations of selfing after a biparental F1 (S5 = F6 is 5). Uses the exact transitions of a selfed line in place of the independent-haplotype model, as in `impute-path-from-ps4g`. Takes at most 8 parents, so use it with `--n-parents` (normally 2). | not set |                  |
+| `--n-parents`      | Restrict the number of parents used for imputation to this number. Default (0) uses all parents.                              | `0`           |                  |
+| `--presence-file`  | Anchor presence table built from a ropebwt3 lift file by `build-presence-table`. Diploid only.                                | `""`          |                  |
+| `--pav-threshold`  | A founder whose anchor presence in a window is at or below this fraction is treated as absent. Used with `--presence-file`.   | `0.02`        |                  |
+| `--pav-damping`    | Determines the strength of the pav correction. 1.0 is fully corrected while 0.0 is no correction. Used with `--presence-file`. | `1.0`         |                  |
+| `--min-prob-ratio` | At each position, only states with probability greater than this fraction of the largest are reported.                        | `0.05`        |                  |
 | `--bin-size`       | The bin size used to create the ps4g file.                                                                                    | `256`         |                  |
 | `--contigs-to-use` | A list of contigs to be imputed. If no list is supplied, all contigs in the ps4g file will be imputed.                        | `""`          |                  |
 
 !!! note
+The model is the one `impute-path-from-ps4g` uses: the same gameteset emission, the same distance-scaled `--prob-switch`, the same presence/absence correction when `--presence-file` is given, and a uniform initial state distribution. A diploid state's two haplotypes switch independently unless `--selfing-generations` is given, in which case the selfed-line transitions and initial genotype frequencies are used, as `impute-path-from-ps4g` uses them with the same option. So the state with the highest posterior at a bin normally matches the `impute-path-from-ps4g` path there, and the posteriors show how certain each call is. For a recombinant inbred line, `--n-parents 2 --selfing-generations 5` gives, at each bin, the probability that the line is homozygous for either parent or heterozygous, which shows how confident each heterozygous segment and each breakpoint is.
+The output has one row per reported state per bin with reads: contig, bin start (bin index times `--bin-size`), state, and posterior probability. A diploid state is an ordered pair, written `(parent1,parent2)`.
 `--bin-size` must match the ps4g file, so that the output positions are correct.
 `--contigs-to-use` takes either a comma-separated list of contig names or the name of a file containing the contig names, one per line.

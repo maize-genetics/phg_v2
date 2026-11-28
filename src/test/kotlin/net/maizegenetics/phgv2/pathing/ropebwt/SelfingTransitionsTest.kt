@@ -206,4 +206,79 @@ class SelfingTransitionsTest {
                 model.logMatricesByDistance(intArrayOf(0, 5, 5), 1e-3, 1e6))
         }
     }
+
+    /** The dense K-founder probability matrix, from the log matrix the Viterbi path uses. */
+    private fun denseMatrix(model: SelfingTransitions, r: Double) = model.logMatrix(r).map { exp(it) }.toDoubleArray()
+
+    @Test
+    fun theProbabilitySpaceStepMatchesTheLogMatrix() {
+        for (k in 1..3) for (n in listOf(1, 5)) for (r in listOf(1e-12, 1e-3, 0.2)) {
+            val model = SelfingTransitions(n, k)
+            val states = k * k
+            val matrix = denseMatrix(model, r)
+            val biparental = model.biparentalTransitions(r)
+            val vector = DoubleArray(states) { 0.1 + it * 0.37 }
+            val forward = DoubleArray(states)
+            val backward = DoubleArray(states)
+            model.multiply(biparental, vector, forward, forward = true)
+            model.multiply(biparental, vector, backward, forward = false)
+            for (j in 0 until states) {
+                val expectedForward = (0 until states).sumOf { i -> vector[i] * matrix[i * states + j] }
+                val expectedBackward = (0 until states).sumOf { i -> matrix[j * states + i] * vector[i] }
+                val tag = "K=$k N=$n r=$r state $j"
+                assertEquals(expectedForward, forward[j], 1e-12 * expectedForward + 1e-300, tag)
+                assertEquals(expectedBackward, backward[j], 1e-12 * expectedBackward + 1e-300, tag)
+            }
+        }
+    }
+
+    @Test
+    fun theProbabilityInitialDistributionIsStationaryAndMatchesTheLogs() {
+        for (k in 1..4) for (n in listOf(1, 3, 6)) {
+            val model = SelfingTransitions(n, k)
+            val initial = model.initialProbabilities()
+            assertEquals(1.0, initial.sum(), 1e-12, "K=$k N=$n")
+            if (k > 1) {
+                val logs = model.initialLogProbabilities()
+                for (s in initial.indices) assertEquals(exp(logs[s]), initial[s], 1e-15)
+            }
+            val next = DoubleArray(initial.size)
+            model.multiply(model.biparentalTransitions(0.05), initial, next, forward = true)
+            for (s in initial.indices) assertEquals(initial[s], next[s], 1e-12, "K=$k N=$n state $s")
+        }
+    }
+
+    @Test
+    fun forwardBackwardWithTheSelfingStepMatchesEnumeratingEveryPath() {
+        // Brute force over all 4^5 state paths of a two-founder line, against the forward-backward
+        // posteriors through SelfingTransitionStep: checks both the forward and the backward step.
+        val model = SelfingTransitions(3, 2)
+        val distances = intArrayOf(0, 200_000, 50_000, 400_000, 100_000)
+        val positions = distances.size
+        val probSwitch = 0.3
+        val referenceDistance = 1_000_000.0
+        val lnEmissions = Array(positions) { p -> DoubleArray(4) { s -> -((p * 7 + s * 3) % 5).toDouble() } }
+        val initial = model.initialProbabilities()
+        val step = SelfingTransitionStep(model, distances, probSwitch, referenceDistance)
+        val result = PositionalForwardBackward(4, positions, initial, step, { lnEmissions[it] }).run()
+
+        val matrices = Array(positions) { p ->
+            if (p == 0) DoubleArray(0)
+            else denseMatrix(model, SelfingTransitions.recombinationFraction(distances[p].toDouble(), probSwitch, referenceDistance))
+        }
+        val marginal = Array(positions) { DoubleArray(4) }
+        var total = 0.0
+        val path = IntArray(positions)
+        for (code in 0 until (1 shl (2 * positions))) {
+            for (p in 0 until positions) path[p] = (code shr (2 * p)) and 3
+            var weight = initial[path[0]] * exp(lnEmissions[0][path[0]])
+            for (p in 1 until positions) weight *= matrices[p][path[p - 1] * 4 + path[p]] * exp(lnEmissions[p][path[p]])
+            total += weight
+            for (p in 0 until positions) marginal[p][path[p]] += weight
+        }
+        assertEquals(kotlin.math.ln(total), result.logLikelihood, 1e-9)
+        for (p in 0 until positions) for (s in 0 until 4) {
+            assertEquals(marginal[p][s] / total, result.posteriorStateProbabilities[p][s], 1e-10, "position $p state $s")
+        }
+    }
 }
